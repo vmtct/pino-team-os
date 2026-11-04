@@ -142,7 +142,7 @@ for (const surface of ["BO", "HO"] as const) {
     const out = html(h(TddTable, { ...f, rows, status: "ready", onQueryChange: noop, onOpen: noop }));
     assert.equal((out.match(/id="typed-table"/g) ?? []).length, 1);
     for (const id of ["filter-toggle", "visible-columns", "group-shortcut", "search", "page-size"]) assert.ok(out.includes(`id="${id}"`));
-    assert.match(out, /class="first-quick-cell"/); assert.match(out, /data-column="name"[^>]*draggable="false"/);
+    assert.doesNotMatch(out, /class="first-quick-cell"/); assert.match(out, /data-open="record-a"/); assert.match(out, /data-column="name"[^>]*draggable="false"/);
     assert.match(out, /data-sort="name" disabled=""/); assert.match(out, /value="8"/); assert.match(out, /value="15"/); assert.match(out, /value="30"/);
     const filtered = html(h(TddTable, { ...f, query: { ...f.query, search: "bao tran", filters: { logic: "AND", rules: [{ field: "count", op: "gt", value: 10 }] } }, rows, status: "ready", onQueryChange: noop, onOpen: noop }));
     assert.match(filtered, /data-record="record-a"/); assert.doesNotMatch(filtered, /data-record="record-b"/);
@@ -400,8 +400,8 @@ test("PAP-1105: typed freeze survives legacy Table and keeps protected identity"
   assert.equal(converted.frozenThrough, "count");
   assert.equal(fromLegacyTableState(f.schema, converted, f.context).frozenThrough, "count");
   const out = html(h(TddTable, { ...f, query, rows: [f.record], status: "ready", onQueryChange: noop, onOpen: noop }));
-  assert.match(out, /Tùy chọn cố định cột Số lượng/);
-  assert.doesNotMatch(out, /Tùy chọn cố định cột Tên/);
+  assert.match(out, /Tùy chọn cột Số lượng/);
+  assert.doesNotMatch(out, /data-freeze-trigger=/); assert.match(out, /Tùy chọn cột Tên/);
   assert.throws(() => validateQuery(f.schema, { ...query, frozenThrough: "unknown" }, f.context), /freeze boundary/);
   assert.throws(() => validateQuery(f.schema, { ...query, frozenThrough: "name" }, f.context), /freeze boundary/);
   assert.throws(() => validateQuery(f.schema, { ...query, visible: ["name", "id"], frozenThrough: "count" }, f.context), /freeze boundary/);

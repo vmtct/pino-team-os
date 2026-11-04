@@ -9,7 +9,7 @@ for (const path of ["Escape", "Full Detail Back", "Reload then Back"] as const) 
     page.on("pageerror", error => console.log("fixture page error:", error.message));
     await page.route("**/*", route => route.fulfill({ contentType: "text/html", body: `<div id="root"></div><script>${bundle}</script>` }));
     await page.goto("https://bo.staging.pinohouse.art/bo?module=parents&pilot=tdd");
-    const opener = page.getByRole("button", { name: "Quick View Parent fixture" });
+    const opener = page.getByRole("row", { name: "Mở Quick View Parent fixture" });
     await opener.focus();
     await opener.press("Enter");
     const drawer = page.locator('[data-tdd-shell="drawer"]');
@@ -32,7 +32,7 @@ for (const path of ["Escape", "Full Detail Back", "Reload then Back"] as const) 
 test("PAP-1184 Table-only sort keeps focus on its own control", async ({ page }) => {
   await page.route("**/*", route => route.fulfill({ contentType: "text/html", body: `<div id="root"></div><script>${bundle}</script>` }));
   await page.goto("https://bo.staging.pinohouse.art/bo?module=parents&pilot=tdd");
-  const opener = page.getByRole("button", { name: "Quick View Parent fixture" });
+  const opener = page.getByRole("row", { name: "Mở Quick View Parent fixture" });
   await opener.focus();
   await opener.press("Enter");
   await expect(page.locator('[data-tdd-shell="drawer"]')).toBeVisible();

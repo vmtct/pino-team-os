@@ -77,6 +77,7 @@ export function BoDataTable({ module, rows, loadState, value, update, page, setP
       className={(selected === record.id ? "selected " : "") + "tdd-data-row"}
       onClick={event => {
         if (event.target instanceof Element && event.target.closest("button,a,input,select,textarea,[role=button]")) return;
+        event.currentTarget.focus({ preventScroll: true });
         onOpen(record);
       }}
       onKeyDown={event => {

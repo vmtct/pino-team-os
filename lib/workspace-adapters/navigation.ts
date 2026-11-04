@@ -40,6 +40,6 @@ export function browserTddNavigation<F extends readonly FieldSchema[]>(surface: 
     subscribe(listener) { window.addEventListener("popstate", listener); window.addEventListener(key, listener); return () => { window.removeEventListener("popstate", listener); window.removeEventListener(key, listener); }; },
     capture(id) { recordId = id; focused = document.activeElement instanceof HTMLElement ? document.activeElement : null; const table = document.getElementById("table-scroll"); scroll = { x: window.scrollX, y: window.scrollY, left: table?.scrollLeft ?? 0, top: table?.scrollTop ?? 0 }; },
     restore() { requestAnimationFrame(() => { window.scrollTo(scroll.x, scroll.y); const table = document.getElementById("table-scroll"); if (table) { table.scrollLeft = scroll.left; table.scrollTop = scroll.top; }
-      const target = focused?.isConnected ? focused : [...document.querySelectorAll<HTMLElement>("button[data-open]")].find(node => node.dataset.open === recordId); target?.focus({ preventScroll: true }); }); },
+      const target = focused?.isConnected ? focused : [...document.querySelectorAll<HTMLElement>("[data-open]")].find(node => node.dataset.open === recordId); target?.focus({ preventScroll: true }); }); },
   };
 }

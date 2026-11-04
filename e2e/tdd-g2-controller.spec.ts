@@ -3,7 +3,7 @@ import { buildSync } from "esbuild";
 
 const bundle = buildSync({ outfile: "fixture.js", entryPoints: ["e2e/fixtures/tdd-g2-controller.tsx"], bundle: true, write: false, format: "iife", platform: "browser", jsx: "automatic", banner: { js: "var process = { env: { NODE_ENV: 'production' } };" }, define: { "process.env.NODE_ENV": '"production"' }, logLevel: "silent" }).outputFiles[0].text;
 test.use({ launchOptions: process.platform === "win32" ? { executablePath: "C:/Program Files/Google/Chrome/Application/chrome.exe" } : {} });
-const opener = (page: Page, number = "01") => page.getByRole("button", { name: `Quick View Fixture ${number}`, exact: true });
+const opener = (page: Page, number = "01") => page.getByRole("row", { name: `Mở Quick View Fixture ${number}`, exact: true });
 async function fixture(page: Page, surface: "BO" | "HO", scenario = "ready") {
   page.on("pageerror", error => { throw error; });
   await page.route("**/*", route => route.fulfill({ contentType: "text/html", body: `<!doctype html><html lang="vi"><body><div id="root"></div><script>${bundle}</script></body></html>` }));
@@ -49,7 +49,7 @@ for (const surface of ["BO", "HO"] as const) {
   });
   for (const scenario of ["denied", "cross-surface"] as const) test(`${surface} ${scenario} never renders record data`, async ({ page }) => {
     await fixture(page, surface, scenario); await expect(page.getByRole("status").first()).toContainText("Không có quyền");
-    await expect(page.getByRole("button", { name: /Quick View Fixture/ })).toHaveCount(0);
+    await expect(page.locator("tbody tr[data-open]")).toHaveCount(0);
     await expect(page.locator("body")).not.toContainText("PRIVATE_MUST_NOT_RENDER");
     await expect(page.locator("body")).not.toContainText("Fixture 01");
   });
@@ -74,9 +74,9 @@ for (const surface of ["BO", "HO"] as const) {
     await fixture(page, surface); await expect(opener(page)).toBeVisible();
     await page.locator("#search").fill("Fixture 03"); await expect(page.getByRole("button", { name: /^Quick View Fixture/ })).toHaveCount(1); await expect(opener(page, "03")).toBeVisible();
     await page.locator("#search").fill(""); await page.locator('button[data-sort="count"]').click(); await page.locator('button[data-sort="count"]').click();
-    await expect(page.getByRole("button", { name: /^Quick View Fixture/ }).first()).toHaveAttribute("aria-label", "Quick View Fixture 32");
+    await expect(page.getByRole("button", { name: /^Quick View Fixture/ }).first()).toHaveAttribute("aria-label", "Mở Quick View Fixture 32");
     await page.getByRole("button", { name: "Trang sau", exact: true }).click();
-    await expect(page.getByRole("button", { name: /^Quick View Fixture/ }).first()).toHaveAttribute("aria-label", "Quick View Fixture 24");
+    await expect(page.getByRole("button", { name: /^Quick View Fixture/ }).first()).toHaveAttribute("aria-label", "Mở Quick View Fixture 24");
   });
   test(`${surface} module ARIA contract detects a detached or mislabelled panel`, async ({ page }) => {
     await fixture(page, surface); await detail(page); expect(await tabIssues(page)).toEqual([]);
