@@ -13,7 +13,14 @@ const surfaceFile = /^app\/(bo|ho)\//;
 const routeFile = /^app\/(bo|ho)\/(?:.*\/)?page\.(?:tsx?|jsx?)$/;
 const sourceFile = /\.(?:tsx?|jsx?|css)$/;
 const canonical = /^(?:app\/components\/(?:workspace-renderer|workspace-adapters)\/|lib\/workspace-schema\/)/;
-const sharedExtensions = new Set(['app/components/workspace-renderer/tdd-freeze.css']);
+// Founder-approved shared DS/TDD source extensions, each with owning Jira.
+ // PAP-1105 Freeze, PAP-1471 Detail label resize, PAP-1474 Table geometry parity.
+ // All still require host scoping, deterministic CSS builders and the G0/G1 fences.
+const sharedExtensions = new Set([
+  'app/components/workspace-renderer/tdd-freeze.css',
+  'app/components/workspace-renderer/tdd-detail-layout.css',
+  'app/components/workspace-renderer/tdd-table-geometry.css'
+]);
 const shellClass = /(?:^|\s)(?:detail-(?:cover|hero|nav|body|page|tabs)|drawer-(?:footer|header|body|overlay)|v24-prop-grid|table-wrap|data-table)(?:\s|$)/;
 const read = (root, file) => fs.readFileSync(path.join(root, file), 'utf8');
 const git = (root, args) => execFileSync('git', ['-C', root, ...args], { encoding: 'utf8', stdio:['ignore','pipe','pipe'] }).trim();

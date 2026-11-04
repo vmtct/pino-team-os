@@ -124,7 +124,9 @@ for (const surface of ["BO", "HO"] as const) {
     await expect(page.locator("#table-scroll")).toHaveAttribute("data-tdd-freeze-limit","name");
     await expect.poll(() => requested(page)).toBe("note");
     await page.setViewportSize({width:1440,height:900});
-    await expect(page.locator("#table-scroll")).toHaveAttribute("data-tdd-freeze-limit","status");
+    // PAP-1474 fixed typed column widths make all three requested columns fit on desktop.
+    // On narrow screens the effective prefix clips; widening restores the complete requested state.
+    await expect(page.locator("#table-scroll")).toHaveAttribute("data-tdd-freeze-limit","note");
     await expect.poll(() => requested(page)).toBe("note");
   });
   for (const width of [1440, 1024, 768, 390, 320]) test(surface + " Freeze measured sticky geometry " + width, async ({ page }) => {
