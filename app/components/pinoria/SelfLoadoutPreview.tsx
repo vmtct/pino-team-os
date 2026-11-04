@@ -1,5 +1,5 @@
 "use client";
-/** PAP-1356 / PAP-1097 / PNR-WARD: shareable Core Self character composition.
+/** PAP-1356 / PAP-1456 / Epic PAP-1097 / PNR-WARD: shareable Core Self character composition.
  * PINO DS owns A/B responsive columns and chrome. Canvas owns ONLY dynamic pixels;
  * no module stylesheet, inline CSS, synthetic Item, arbitrary R2 key or z editing.
  */
@@ -36,7 +36,7 @@ function imageFrom(src:string,signal:AbortSignal):Promise<HTMLImageElement>{
 
 export function SelfLoadoutEditorLayout({preview,children}:{preview:ReactNode;children:ReactNode}){
   return <div className="pds-properties" data-pds-variant="detail">
-    <div className="pds-property-grid">{preview}<div className="grid-card">{children}</div></div>
+    <div className="pds-property-grid">{preview}<div className="pds-property-section">{children}</div></div>
   </div>;
 }
 
@@ -91,12 +91,12 @@ export function SelfLoadoutPreview({loadout,mediaSrc}:{
     void draw();
     return ()=>ctl.abort();
   },[loadout,mediaSrc]);
-  return <figure className="grid-card" aria-label="Composition Preview">
-    <h3>Composition Preview</h3>
+  return <figure className="pds-property-section" aria-label="Composition Preview">
+    <h3 className="pds-property-heading">Composition Preview</h3>
     <canvas ref={canvas} width={WIDTH} height={HEIGHT} aria-label="Pinoria Self: 9:16 theo các lớp đã lưu">
       Không hỗ trợ Canvas để hiển thị Self.
     </canvas>
-    <figcaption>
+    <figcaption className="pds-property-text">
       Preview từ trạng thái đã lưu trên Core, không tự cấp Item và không áp dụng Set S6.
       {missing.length>0&&<p role="alert">Chưa tải được: {missing.join(", ")} (Core media PAP-1428 / quyền Center).</p>}
     </figcaption>
