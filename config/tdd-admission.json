@@ -503,6 +503,10 @@
         {
           "file": "lib/workspace-adapters/session.ts",
           "owner": "PAP-1166"
+        },
+        {
+          "file": "lib/ho-shift-template-create-recovery.ts",
+          "owner": "PAP-1463"
         }
       ],
       "schema": {
@@ -517,7 +521,8 @@
         "lib/pap1198-ho-shift-templates-read.test.ts",
         "lib/pap1198-ho-shift-templates-mutation.test.ts",
         "lib/ho-routes.test.ts",
-        "lib/pap1198-ho-shift-template-tdd.test.ts"
+        "lib/pap1198-ho-shift-template-tdd.test.ts",
+        "lib/pap1463-ho-create-recovery.test.ts"
       ]
     },
     {
