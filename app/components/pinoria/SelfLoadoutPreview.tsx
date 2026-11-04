@@ -34,6 +34,23 @@ function imageFrom(src:string,signal:AbortSignal):Promise<HTMLImageElement>{
   });
 }
 
+/** Bounded, format-independent check of decoded foreground pixels (PNG/WebP/etc.).
+ * Keep this canvas separate: the public CHAR_BASE can taint the display canvas.
+ * This is a suitability sample, not a full-image transparency certification.
+ */
+function opaqueForeground(img:HTMLImageElement):boolean {
+  // Offscreen sampling keeps image validation outside the approved TDD DOM shell.
+  const sample=new OffscreenCanvas(8,8);
+  const ctx=sample.getContext("2d",{willReadFrequently:true});
+  if(!ctx)throw new Error("ALPHA_SAMPLE_UNAVAILABLE");
+  ctx.drawImage(img,0,0,8,8);
+  const pixels=ctx.getImageData(0,0,8,8).data;
+  for(let alpha=3;alpha<pixels.length;alpha+=4){
+    if(pixels[alpha]!==255)return false;
+  }
+  return true;
+}
+
 export function SelfLoadoutEditorLayout({preview,children}:{preview:ReactNode;children:ReactNode}){
   return <div className="pds-properties" data-pds-variant="detail">
     <div className="pds-property-grid">{preview}<div className="pds-property-section">{children}</div></div>
@@ -46,6 +63,7 @@ export function SelfLoadoutPreview({loadout,mediaSrc}:{
 }){
   const canvas=useRef<HTMLCanvasElement|null>(null);
   const [missing,setMissing]=useState<string[]>([]);
+  const [mediaWarnings,setMediaWarnings]=useState<{opaque:string[];unchecked:string[]}>({opaque:[],unchecked:[]});
   useEffect(()=>{
     const target=canvas.current;
     if(!target||!loadout)return;
@@ -55,9 +73,12 @@ export function SelfLoadoutPreview({loadout,mediaSrc}:{
     const draw=async()=>{
       ctx.clearRect(0,0,WIDTH,HEIGHT);
       const unavailable:string[]=[];
+      const opaque:string[]=[],unchecked:string[]=[];
+      let afterBase=false;
       for(const layer of loadout.renderStack){
         if(ctl.signal.aborted)return;
         const base=layer==="CHAR_BASE";
+        if(base)afterBase=true;
         if(!base&&!isSlot(layer))continue;
         const item=base?null:loadout.slots[layer as Slot];
         if(!base&&!item)continue;
@@ -70,6 +91,13 @@ export function SelfLoadoutPreview({loadout,mediaSrc}:{
           }
           const img=await imageFrom(url,ctl.signal);
           if(ctl.signal.aborted)return;
+          if(!base&&afterBase&&layer!=="AURA_GROUND"&&layer!=="AURA_BACK"){
+            try{
+              if(opaqueForeground(img)){opaque.push(layer);continue;}
+            }catch{
+              unchecked.push(layer);continue;
+            }
+          }
           ctx.save();
           if(base){
             ctx.globalAlpha=.35; // S1 confirmed CHAR_BASE treatment.
@@ -86,7 +114,7 @@ export function SelfLoadoutPreview({loadout,mediaSrc}:{
           unavailable.push(layer);
         }
       }
-      if(!ctl.signal.aborted)setMissing(unavailable);
+      if(!ctl.signal.aborted){setMissing(unavailable);setMediaWarnings({opaque,unchecked});}
     };
     void draw();
     return ()=>ctl.abort();
@@ -99,6 +127,8 @@ export function SelfLoadoutPreview({loadout,mediaSrc}:{
     <figcaption className="pds-property-text">
       Preview từ trạng thái đã lưu trên Core, không tự cấp Item và không áp dụng Set S6.
       {missing.length>0&&<p role="alert">Chưa tải được: {missing.join(", ")} (Core media PAP-1428 / quyền Center).</p>}
+      {mediaWarnings.opaque.length>0&&<p role="alert">Item media không phù hợp để ghép lớp (opaque: mẫu alpha không có vùng trong suốt): {mediaWarnings.opaque.join(", ")}. Đã bỏ qua hình trong preview để không che Self; trang bị đã lưu không thay đổi.</p>}
+      {mediaWarnings.unchecked.length>0&&<p role="alert">Không kiểm tra được độ trong suốt của Item media: {mediaWarnings.unchecked.join(", ")}. Đã bỏ qua hình trong preview; trang bị đã lưu không thay đổi.</p>}
     </figcaption>
   </figure>;
 }
