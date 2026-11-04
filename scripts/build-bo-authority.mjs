@@ -28,6 +28,7 @@ for (const [file, digest] of Object.entries(manifest.files)) assert.equal(create
 // The historical BO authority is hash-pinned. Append separately-reviewed shared TDD CSS.
 const css = scopeAuthority(readFileSync(base + 'styles.css', 'utf8')) + '\n' +
   scopeAuthority(readFileSync('app/components/workspace-renderer/tdd-freeze.css', 'utf8')) + '\n' +
+  scopeAuthority(readFileSync('app/components/workspace-renderer/tdd-detail-layout.css', 'utf8')) + '\n' +
   scopeAuthority(readFileSync('app/components/workspace-renderer/tdd-table-geometry.css', 'utf8'));
 if (process.argv.includes('--check')) assert.equal(readFileSync(base + 'bo-scoped.css', 'utf8'), css);
 else writeFileSync(base + 'bo-scoped.css', css);

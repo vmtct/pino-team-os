@@ -16,7 +16,7 @@ test("PAP-1064 Oct27 canonical BO authority + Payroll extension and one styleshe
 });
 test("BO scope preserves every rule declaration and at-rule in original order", () => {
   const addon = readFileSync("app/components/workspace-renderer/tdd-freeze.css", "utf8");
-  const original = postcss.parse(raw + "\n" + addon + "\n" + readFileSync("app/components/workspace-renderer/tdd-table-geometry.css", "utf8")), isolated = postcss.parse(scoped);
+  const original = postcss.parse(raw + "\n" + addon + "\n" + readFileSync("app/components/workspace-renderer/tdd-detail-layout.css", "utf8") + "\n" + readFileSync("app/components/workspace-renderer/tdd-table-geometry.css", "utf8")), isolated = postcss.parse(scoped);
   const declarations = (root: postcss.Root) => { const result: string[] = []; root.walkDecls(d => { result.push(JSON.stringify([d.prop, d.value, d.important, d.parent?.type === "atrule" ? d.parent.name : "rule"])); }); return result; };
   assert.deepEqual(declarations(isolated), declarations(original));
   const rules: string[] = []; original.walkRules(rule => { rules.push(rule.selector); });
