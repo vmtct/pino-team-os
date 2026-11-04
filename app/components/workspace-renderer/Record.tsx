@@ -68,6 +68,8 @@ function DetailRecord<F extends readonly FieldSchema[]>({ schema, context, recor
   const approvedExtension = active?.owner === "business" && active.slot.kind === "approved-extension";
   const hasApprovedExtension = schema.detail.businessTabs.some(slot => slot.kind === "approved-extension");
   if (renderApprovedExtension && !hasApprovedExtension) throw Error("TDD approved extension registration required");
+  // Read-only legacy slot components take heterogeneous metadata; mutation remains typed to F.
+  const readOnlySchema = schema as unknown as ModuleSchema;
   // Overview remains platform-owned even when a business extension is mounted.
   const overview = projection && active?.id === "overview" ? <>{renderOverviewProperties ? renderOverviewProperties({ fields: projection.fields, record: projection.record, sections: schema.detail.overview.sections.map(section => ({ ...section, fields: section.fields.filter(key => projection.fields.some(field => field.key === key)) })).filter(section => section.fields.length > 0) }) : <PropertySections variant="detail" fields={projection.fields} record={projection.record} sections={schema.detail.overview.sections} sectionActions={id => renderActionSlot?.("overview.section", id)}
     canEdit={field => Boolean(writes?.version.trim()) && allowsField(schema, context, field.key, "inlineEdit")}
@@ -80,13 +82,13 @@ function DetailRecord<F extends readonly FieldSchema[]>({ schema, context, recor
             {renderApprovedExtension(projection.record, context, active?.id ?? "overview")}
           </div>
           {overview}
-          {active?.id === "history" ? <TddHistory schema={schema} context={context} subject={subject} /> : null}
+          {active?.id === "history" ? <TddHistory schema={readOnlySchema} context={context} subject={subject} /> : null}
         </>
       : !projection ? <RecordState status={allows(schema, context, "read") ? status === "ready" ? "denied" : status : "denied"} onRetry={onRetry} />
       : active?.id === "overview" ? overview
-      : active?.id === "history" ? <TddHistory schema={schema} context={context} subject={subject} />
+      : active?.id === "history" ? <TddHistory schema={readOnlySchema} context={context} subject={subject} />
       : active?.owner === "business" && allowsField(schema, context, schema.table.identity.field, "display") ? active.slot.kind === "form"
-        ? <>{renderActionSlot?.("businessTab.toolbar", active.id)}<BusinessFormPanel key={active.id} schema={schema} context={context} record={projection.record} slot={active.slot} binding={businessForms} /></>
-        : <>{renderActionSlot?.("businessTab.toolbar", active.id)}<BusinessPanel key={active.id} schema={schema} context={context} record={projection.record} slot={active.slot} loaders={loaders} /></> : null}
+        ? <>{renderActionSlot?.("businessTab.toolbar", active.id)}<BusinessFormPanel key={active.id} schema={readOnlySchema} context={context} record={projection.record} slot={active.slot} binding={businessForms} /></>
+        : <>{renderActionSlot?.("businessTab.toolbar", active.id)}<BusinessPanel key={active.id} schema={readOnlySchema} context={context} record={projection.record} slot={active.slot} loaders={loaders} /></> : null}
   </DetailFrame>{edit && writes && projection ? <PropertyEditor schema={schema} context={context} record={record} writes={writes} selection={edit} onClose={() => setEdit(null)} /> : null}</>;
 }

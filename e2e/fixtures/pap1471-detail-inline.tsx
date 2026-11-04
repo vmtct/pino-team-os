@@ -1,6 +1,6 @@
 import { createRoot } from "react-dom/client";
 import { useState } from "react";
-import { TddRegistry, type AuthorizationContext, type FieldSchema } from "../../lib/workspace-schema";
+import { TddRegistry, type AuthorizationContext, type FieldSchema, type ModuleRow } from "../../lib/workspace-schema";
 import { TddRenderer } from "../../app/components/workspace-renderer/Renderer";
 
 declare global { interface Window { __pap1471Writes?: number; } }
@@ -42,7 +42,7 @@ function App(){
    window.__pap1471Writes=(window.__pap1471Writes??0)+1;
    return {status:"saved" as const,row:{...record,...patch},version:String(Number(v)+1)};
   }},
-  onSaved:(row:typeof record,nextVersion:string)=>{setRecord(row);setVersion(nextVersion);}
+  onSaved:(row:ModuleRow<typeof fields>,nextVersion:string)=>{setRecord({id:row.id,name:String(row.name??"")});setVersion(nextVersion);}
  };
  return <TddRenderer view={{kind:"detail",props:{
    registry,schema,context,record,status:"ready",subject:{type:"fixture",id:record.id},onBack:()=>{},

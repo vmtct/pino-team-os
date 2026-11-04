@@ -90,9 +90,9 @@ function actionMarkup(surface: Surface, stage: ActionStage): string {
     { id: "cancel", label: "Hủy", slot: "drawer.footer", formMode: "create", variant: "secondary", capability: "create", handler: "cancel" },
     { id: "save", label: "Tạo", slot: "drawer.footer", formMode: "create", variant: "primary", capability: "create", handler: "save" },
   ] as const satisfies readonly TddActionDescriptor[];
-  const editableFields = fixtureData.schema.fields.map(field => field.key === "name" ? {
+  const editableFields: ModuleSchema["fields"] = fixtureData.schema.fields.map(field => field.key === "name" ? {
     ...field, readOnly: false, capabilities: { ...field.capabilities, inlineEdit: true },
-  } : field);
+  } as ModuleSchema["fields"][number] : field);
   const schema = registry.register({ ...fixtureData.schema, fields: editableFields,
     capabilities: { ...fixtureData.schema.capabilities, create: "fixture.create", edit: "fixture.edit" }, actions });
   const context = fixtureData.context;
