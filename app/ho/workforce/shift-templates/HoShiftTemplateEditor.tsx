@@ -1,12 +1,11 @@
 "use client";
-import {useEffect,useRef,useState} from "react";
-import {TosButton,TosCard} from "@pino/design-system/react";
-import {AppSheet} from "@/app/components/tos-ds";
+import {useEffect,useId,useRef,useState} from "react";
+import {TosButton,TosCard,DrawerFrame} from "@pino/design-system/react";
 import {parseHoShiftTemplates,type HoShiftTemplateRow} from "@/lib/ho-shift-templates-read-facade";
 
 type Mode="create"|"edit"|"status";
 type Form={code:string;displayLabel:string;startLocalTime:string;endLocalTime:string};
-type Props={mode:Mode;centerId:string;templateId?:string;authorized:boolean;onSaved:()=>void;createOpen?:boolean;onCreateClose?:()=>void};
+type Props={mode:Mode;centerId:string;centers?:readonly {id:string;name:string}[];templateId?:string;authorized:boolean;onSaved:()=>void;createOpen?:boolean;onCreateClose?:()=>void};
 type View={kind:"loading"}|{kind:"error";message:string}|{kind:"ready";template:HoShiftTemplateRow};
 const empty:Form={code:"",displayLabel:"",startLocalTime:"",endLocalTime:""};
 const from=(row:HoShiftTemplateRow):Form=>({
@@ -19,7 +18,12 @@ const parsedRows=(value:unknown,centerId:string)=>{
   if(!rows)throw Error("Core trả dữ liệu Mẫu ca không hợp lệ.");
   return rows;
 };
-export function HoShiftTemplateEditor({mode,centerId,templateId,authorized,onSaved,createOpen,onCreateClose}:Props){
+export function HoShiftTemplateEditor({mode,centerId,templateId,authorized,onSaved,createOpen,onCreateClose,centers=[]}:Props){
+  const formId=useId();
+
+  const [createScope,setCreateScope]=useState(centerId==="ALL"?"GLOBAL":centerId);
+  const selectedScope=mode==="create"?createScope:centerId;
+  const scope={scopeType:selectedScope==="GLOBAL"?"GLOBAL" as const:"CENTER" as const,centerId:selectedScope==="GLOBAL"?null:selectedScope};
   const [localOpen,setLocalOpen]=useState(false);
   const open=createOpen??localOpen;
   const setOpen=(value:boolean)=>{if(createOpen!==undefined){if(!value)onCreateClose?.();}else setLocalOpen(value);};
@@ -56,20 +60,20 @@ export function HoShiftTemplateEditor({mode,centerId,templateId,authorized,onSav
   const input=(field:keyof Form,value:string)=>setForm(prev=>({...prev,[field]:value}));
   const valid=Boolean(form.code.trim()&&form.displayLabel.trim()&&form.code.length<=64&&form.displayLabel.length<=160&&
     form.code===form.code.trim()&&form.displayLabel===form.displayLabel.trim()&&
-    hhmm.test(form.startLocalTime)&&hhmm.test(form.endLocalTime)&&form.endLocalTime>form.startLocalTime&&uuid.test(centerId));
+    hhmm.test(form.startLocalTime)&&hhmm.test(form.endLocalTime)&&form.endLocalTime>form.startLocalTime&&(selectedScope==="GLOBAL"||uuid.test(selectedScope)));
   const dirty=mode==="create" || view.kind!=="ready" ? valid :
     Object.entries(from(view.template)).some(([k,v])=>form[k as keyof Form]!==v);
   async function submit(){
-    if(!authorized||busy||uncertain||inFlight.current||!uuid.test(centerId)||mode!=="create"&&view.kind!=="ready")return;
+    if(!authorized||busy||uncertain||inFlight.current||!(selectedScope==="GLOBAL"||uuid.test(selectedScope))||mode!=="create"&&view.kind!=="ready")return;
     if(mode!=="status"&&(!valid||!dirty))return;
     if(mode==="status"&&view.kind==="ready"&&targetStatus===view.template.status)return;
     inFlight.current=true;setBusy(true);setError("");setNotice("");
     const current=view.kind==="ready"?view.template:null;
     const payload=mode==="status"
-      ? {centerId,status:targetStatus,expectedUpdatedAt:current!.updatedAt}
+      ? {...scope,status:targetStatus,expectedUpdatedAt:current!.updatedAt}
       : mode==="edit"
-        ? {centerId,...form,expectedUpdatedAt:current!.updatedAt}
-        : {centerId,...form};
+        ? {...scope,...form,expectedUpdatedAt:current!.updatedAt}
+        : {...scope,...form,status:targetStatus};
     const url="/api/ho/workforce/shift-templates"+
       (mode==="create"?"":"/"+encodeURIComponent(templateId??"")+"/"+(mode==="edit"?"update":"status"));
     try{
@@ -82,13 +86,13 @@ export function HoShiftTemplateEditor({mode,centerId,templateId,authorized,onSav
       if([401,403,404].includes(response.status))throw Error("Không được phép thay đổi Mẫu ca tại Center này.");
       if(response.status!==(mode==="create"?201:200))throw Error("Core chưa xác nhận lưu Mẫu ca.");
       const result:unknown=await response.json();
-      const row=parsedRows({data:[(result as {data?:unknown}|null)?.data]},centerId)[0];
+      const row=parsedRows({data:[(result as {data?:unknown}|null)?.data]},selectedScope)[0];
       if(!row||(current&&row.id!==current.id)||
         Object.entries(payload).some(([k,v])=>k!=="expectedUpdatedAt"&&(row as unknown as Record<string,unknown>)[k]!==v))
         throw Error("Receipt của Mẫu ca chưa khớp Core.");
       setNotice("Đã lưu và kiểm chứng Mẫu ca trong Core.");
       if(mode==="create"){setOpen(false);setForm(empty);}
-      else{setView({kind:"ready",template:row});setForm(from(row));setTargetStatus(row.status);}
+      else{setView({kind:"ready",template:{...current,...row}});setForm(from(row));setTargetStatus(row.status);}
       onSaved();
     }catch(err){
       setUncertain(true);
@@ -96,14 +100,15 @@ export function HoShiftTemplateEditor({mode,centerId,templateId,authorized,onSav
         " Tải lại dữ liệu trước khi gửi lại để tránh lặp mutation.");
     }finally{setBusy(false);inFlight.current=false;}
   }
-  const fields=<div className="ho-shift-template-fields">
+  const fields=<div>
+    <div className="property-row"><label htmlFor="ho-template-scope">Phạm vi / Center</label><select id="ho-template-scope" value={selectedScope} disabled={mode!=="create"||busy||uncertain} onChange={event=>setCreateScope(event.target.value)}><option value="GLOBAL">GLOBAL — mọi Center</option>{centers.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
     {([["displayLabel","Tên mẫu ca","text"],["code","Mã mẫu ca","text"],
       ["startLocalTime","Bắt đầu","time"],["endLocalTime","Kết thúc","time"]] as const).map(([key,label,type])=>
       <div className="property-row" key={key}>
         <label htmlFor={"ho-template-"+mode+"-"+key}>{label}</label>
         <input id={"ho-template-"+mode+"-"+key} type={type} required
           maxLength={key==="displayLabel"?160:key==="code"?64:undefined}
-          value={form[key]} disabled={!authorized||busy||uncertain}
+          value={form[key]} disabled={!authorized||busy||uncertain||((key==="startLocalTime"||key==="endLocalTime")&&view.kind==="ready"&&((view.template.assignmentCount??0)>0||(view.template.availabilityCount??0)>0))}
           onChange={event=>input(key,event.target.value)}/>
       </div>)}
   </div>;
@@ -114,33 +119,33 @@ export function HoShiftTemplateEditor({mode,centerId,templateId,authorized,onSav
   if(mode==="create")return <section aria-label="Tạo mẫu ca" data-ho-shift-template-create>
     {createOpen===undefined?<TosButton type="button" variant="primary" disabled={busy} onClick={()=>{setOpen(true);setError("");setUncertain(false);}}>Tạo mẫu ca</TosButton>:null}
     {notice?<p role="status">{notice}</p>:null}
-    {open?<AppSheet title="Tạo mẫu ca" onClose={()=>{if(!busy)setOpen(false);}}>
-      <TosCard><form onSubmit={event=>{event.preventDefault();void submit();}}>
-        <h3>Tạo mẫu ca</h3>
-        <p>Áp dụng cho Center đang chọn. Ca qua đêm chưa được hỗ trợ.</p>
+    {open?<DrawerFrame surface="ho" title="Tạo mẫu ca" onClose={()=>{if(!busy)setOpen(false);}} footer={<>
+      <TosButton type="button" variant="secondary" disabled={busy} onClick={()=>setOpen(false)}>Hủy</TosButton>
+      <TosButton type="submit" form={formId} variant="primary" disabled={!valid||busy||uncertain}>{busy?"Đang lưu…":"Tạo"}</TosButton>
+    </>}>
+      <form id={formId} onSubmit={event=>{event.preventDefault();void submit();}}>
+
         {fields}
+        <div className="property-row"><label htmlFor="ho-create-template-status">Trạng thái</label><select id="ho-create-template-status" value={targetStatus} disabled={busy||uncertain} onChange={event=>setTargetStatus(event.target.value as "ACTIVE"|"INACTIVE")}><option value="ACTIVE">Đang sử dụng</option><option value="INACTIVE">Ngưng sử dụng</option></select></div>
         {error?<p role="alert">{error}</p>:null}
-        <div className="staff-actions">
-          <TosButton type="button" variant="secondary" disabled={busy} onClick={()=>setOpen(false)}>Hủy</TosButton>
-          <TosButton type="submit" variant="primary" disabled={!valid||busy||uncertain}>{busy?"Đang lưu…":"Tạo mẫu ca"}</TosButton>
-        </div>
-      </form></TosCard>
-    </AppSheet>:null}
+      </form>
+    </DrawerFrame>:null}
   </section>;
   return <section aria-label={mode==="edit"?"Chỉnh sửa mẫu ca":"Trạng thái mẫu ca"} data-ho-shift-template-editor>
     {view.kind==="loading"?<p role="status">Đang đọc Mẫu ca từ Core…</p>:null}
     {view.kind==="error"?<p role="alert">{view.message}</p>:null}
     {view.kind==="ready"?<TosCard>
-      {mode==="edit"?<form onSubmit={event=>{event.preventDefault();void submit();}}>
-        {fields}
-        {error?<p role="alert">{error}</p>:null}
-        {notice?<p role="status">{notice}</p>:null}
-        <div className="staff-actions">
-          {reloadButton}
-          <TosButton type="submit" variant="primary" disabled={!valid||!dirty||busy||uncertain}>
-            {busy?"Đang lưu…":"Lưu thay đổi"}</TosButton>
-        </div>
-      </form>:<div>
+       {mode==="edit"?<form id={formId} aria-label="Chỉnh sửa mẫu ca" onSubmit={event=>{event.preventDefault();void submit();}}>
+         {fields}
+         {error?<p role="alert">{error}</p>:null}
+         {notice?<p role="status">{notice}</p>:null}
+         <div className="staff-actions">
+           {reloadButton}
+           <TosButton type="submit" variant="primary" disabled={!valid||!dirty||busy||uncertain}>
+             {busy?"Đang lưu…":"Lưu thay đổi"}
+           </TosButton>
+         </div>
+       </form>:<div>
         <div className="property-row">
           <label htmlFor="ho-template-status">Trạng thái</label>
           <select id="ho-template-status" value={targetStatus} disabled={busy||uncertain}

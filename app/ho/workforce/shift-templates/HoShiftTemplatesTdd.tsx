@@ -15,7 +15,7 @@ type F=typeof shiftTemplateFields;
 type Ready={adapter:AuthenticatedSurfaceAdapter<F>;navigation:AdapterNavigation<F>};
 export function HoShiftTemplatesTdd(){
   const [centers,setCenters]=useState<HoCenterRow[]|null>(null);
-  const [centerId,setCenterId]=useState("");
+  const [centerId,setCenterId]=useState("ALL");
   const [centerError,setCenterError]=useState("");
   const [ready,setReady]=useState<Ready|null>(null);
   const [error,setError]=useState("");
@@ -44,13 +44,14 @@ export function HoShiftTemplatesTdd(){
     }).catch(()=>{if(!ctrl.signal.aborted)setError("Không khởi tạo được TDD Mẫu ca.");});
     return ()=>{ctrl.abort();adapter?.dispose();};
   },[centerId,retry]);
-  const valid=Boolean(centers?.some(c=>c.id===centerId));
+  const valid=Boolean(["ALL","GLOBAL"].includes(centerId)||centers?.some(c=>c.id===centerId));
   const content=<section aria-label="Quản lý Mẫu ca" data-testid="ho-shift-templates-tdd">
     <div className="property-row">
       <label htmlFor="ho-template-center">Center</label>
-      <select id="ho-template-center" value={centerId} required disabled={!centers?.length}
+      <select id="ho-template-center" value={centerId} required disabled={!centers}
         onChange={event=>{setReady(null);setError("");setCreateOpen(false);setCenterId(event.target.value);setRefresh(0);}}>
-        <option value="">Chọn Center</option>
+        <option value="ALL">Tất cả phạm vi</option>
+        <option value="GLOBAL">GLOBAL — mọi Center</option>
         {centers?.map(center=><option key={center.id} value={center.id}>{center.name}</option>)}
       </select>
     </div>
@@ -60,7 +61,7 @@ export function HoShiftTemplatesTdd(){
     {error?<p role="alert">{error} <button type="button" onClick={()=>{setReady(null);setError("");setRetry(v=>v+1);}}>Thử lại</button></p>:null}
     {!valid&&centers?.length?<p role="status">Chọn Center để xem Mẫu ca.</p>:null}
     {valid&&ready?<div data-testid="ho-shift-templates-workspace">
-      <HoShiftTemplateEditor mode="create" centerId={centerId} createOpen={createOpen}
+      <HoShiftTemplateEditor key={"create:"+centerId} mode="create" centerId={centerId} centers={centers??[]} createOpen={createOpen}
         onCreateClose={()=>setCreateOpen(false)}
         authorized={ready.adapter.context.authorize("workforce.shift_template.ho_manage")}
         onSaved={()=>setRefresh(v=>v+1)}/>
@@ -68,8 +69,16 @@ export function HoShiftTemplatesTdd(){
         actionBindings={{openCreate:{kind:"navigation",run:()=>setCreateOpen(true)}}}
         initialQuery={shiftTemplateQuery}
         detailApprovedExtension={(row,context,activeTab,_principalId,onSaved)=>
-          activeTab==="edit"||activeTab==="status"
-            ? <HoShiftTemplateEditor key={row.id+":"+activeTab} mode={activeTab} centerId={centerId}
+          activeTab==="usage" ? <section className="v24-prop-section" aria-label="Sử dụng mẫu ca">
+             <div className="v24-section-heading"><h4>Sử dụng mẫu ca</h4></div>
+             <dl>
+               <div className="property-row"><dt>Lượt phân công</dt><dd>{row.assignmentCount??"Chưa có dữ liệu"}</dd></div>
+               <div className="property-row"><dt>Lượt đăng ký</dt><dd>{row.availabilityCount??"Chưa có dữ liệu"}</dd></div>
+               <div className="property-row"><dt>Phạm vi</dt><dd>{row.scopeType==="GLOBAL"?"GLOBAL · Mọi Center":centers?.find(c=>c.id===row.centerId)?.name??"Center"}</dd></div>
+               <div className="property-row"><dt>Tình trạng</dt><dd>{row.status==="ACTIVE"?"Đang sử dụng":"Tạm ngưng"}</dd></div>
+             </dl>
+           </section> : activeTab==="edit"||activeTab==="status"
+            ? <HoShiftTemplateEditor key={row.id+":"+activeTab} mode={activeTab} centerId={row.scopeType==="GLOBAL"?"GLOBAL":String(row.centerId)} centers={centers??[]}
                 templateId={row.id} authorized={context.authorize("workforce.shift_template.ho_manage")}
                 onSaved={onSaved}/>
             :null}

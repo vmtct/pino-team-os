@@ -10,14 +10,17 @@ export const shiftTemplateFields = [
   {key:"startLocalTime",label:"Bắt đầu",type:"text",icon:"◷",width:120,permission:"workforce.shift_template.ho_manage",readOnly:true,capabilities:read},
   {key:"endLocalTime",label:"Kết thúc",type:"text",icon:"◷",width:120,permission:"workforce.shift_template.ho_manage",readOnly:true,capabilities:read},
   {key:"status",label:"Trạng thái",type:"text",icon:"◉",width:140,permission:"workforce.shift_template.ho_manage",readOnly:true,capabilities:read},
+  {key:"scopeType",label:"Phạm vi",type:"text",icon:"Aa",width:140,permission:"workforce.shift_template.ho_manage",readOnly:true,capabilities:read},
+  {key:"assignmentCount",label:"Lượt phân công",type:"number",icon:"#",width:140,permission:"workforce.shift_template.ho_manage",readOnly:true,capabilities:read},
+  {key:"availabilityCount",label:"Lượt đăng ký",type:"number",icon:"#",width:140,permission:"workforce.shift_template.ho_manage",readOnly:true,capabilities:read},
   {key:"centerId",label:"Center",type:"text",icon:"⌖",width:240,permission:"workforce.shift_template.ho_manage",readOnly:true,capabilities:read},
   {key:"updatedAt",label:"Cập nhật",type:"text",icon:"◷",width:220,permission:"workforce.shift_template.ho_manage",readOnly:true,capabilities:read},
   {key:"createdAt",label:"Đã tạo",type:"text",icon:"◷",width:220,permission:"workforce.shift_template.ho_manage",readOnly:true,capabilities:read},
 ] as const satisfies readonly FieldSchema[];
 type F = typeof shiftTemplateFields;
 type Row = ModuleRow<F>;
-const sections=[{id:"shift-template-information",label:"Thông tin",fields:["displayLabel","code","startLocalTime","endLocalTime","status","centerId","updatedAt","createdAt"]}] as const;
-const tab = (id:"edit"|"status",label:string) => ({
+const sections=[{id:"shift-template-information",label:"Thông tin",fields:["displayLabel","code","startLocalTime","endLocalTime","status","scopeType","centerId","assignmentCount","availabilityCount","updatedAt","createdAt"]}] as const;
+const tab = (id:"edit"|"status"|"usage",label:string) => ({
   id,label,kind:"approved-extension" as const,
   source:{adapter:"ho-shift-template-"+id,permission:"workforce.shift_template.ho_manage"},
   extensionId:"ho.workforce.shift-template-"+id,
@@ -30,8 +33,8 @@ const tab = (id:"edit"|"status",label:string) => ({
 });
 export const shiftTemplateQuery:TableQuery<F>={
   search:"",filters:{logic:"AND",rules:[]},sort:{field:"displayLabel",direction:"asc"},group:null,
-  order:["displayLabel","code","startLocalTime","endLocalTime","status","centerId","updatedAt","createdAt"],
-  visible:["displayLabel","code","startLocalTime","endLocalTime","status"],
+  order:["displayLabel","code","startLocalTime","endLocalTime","status","scopeType","centerId","assignmentCount","availabilityCount","updatedAt","createdAt"],
+  visible:["displayLabel","code","scopeType","centerId","startLocalTime","endLocalTime","status"],
   page:1,pageSize:15,
 };
 export const shiftTemplateDefinition={
@@ -42,10 +45,10 @@ export const shiftTemplateDefinition={
   table:{
     identity:{field:"displayLabel",pinned:"left",hideable:false,reorderable:false},
     columns:[{field:"displayLabel",visible:true},{field:"code",visible:true},{field:"startLocalTime",visible:true},
-      {field:"endLocalTime",visible:true},{field:"status",visible:true},{field:"centerId",visible:false},
+      {field:"endLocalTime",visible:true},{field:"status",visible:true},{field:"scopeType",visible:true},{field:"centerId",visible:true},{field:"assignmentCount",visible:false},{field:"availabilityCount",visible:false},
       {field:"updatedAt",visible:false},{field:"createdAt",visible:false}],
     search:{fields:["displayLabel","code"],normalization:"vi-diacritic-insensitive"},
-    filters:{fields:["displayLabel","status","startLocalTime","endLocalTime"],mode:"flat",logic:"AND"},
+    filters:{fields:["displayLabel","scopeType","centerId","status","startLocalTime","endLocalTime"],mode:"flat",logic:"AND"},
     sort:{fields:["displayLabel","startLocalTime","code","status"],mode:"single",nulls:"last",tieBreak:"record-id"},
     group:{fields:["status"],mode:"single"},
     views:{builtIn:[],saved:{kind:"local-ui"},actions:["add","apply","rename","delete","reorder"]},
@@ -56,14 +59,14 @@ export const shiftTemplateDefinition={
   drawer:{density:"one-column",sections,actions:[]},
   detail:{
     overview:{sections},
-    businessTabs:[tab("edit","Chỉnh sửa"),tab("status","Trạng thái")],
+    businessTabs:[tab("usage","Sử dụng"),tab("edit","Chỉnh sửa"),tab("status","Trạng thái")],
     history:{kind:"unavailable",reason:"Lịch sử Mẫu ca yêu cầu audit Core được phân quyền; không dùng dữ liệu giả."},
   },
 } as const satisfies SurfaceDefinition<F>;
 
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export async function readShiftTemplates(centerId:string,fetcher:typeof fetch,signal:AbortSignal):Promise<readonly Row[]> {
-  if(!uuid.test(centerId))throw Error("Cần chọn Center hợp lệ.");
+  if(!uuid.test(centerId) && !["ALL","GLOBAL"].includes(centerId))throw Error("Cần chọn Center hợp lệ.");
   const url="/api/ho/workforce/shift-templates?centerId="+encodeURIComponent(centerId);
   const response=await fetcher(url,{method:"GET",signal,cache:"no-store",credentials:"same-origin"});
   signal.throwIfAborted();
@@ -74,7 +77,7 @@ export async function readShiftTemplates(centerId:string,fetcher:typeof fetch,si
   if(!parsed)throw Error("Core trả dữ liệu Mẫu ca không hợp lệ.");
   return parsed.map(r=>({
     id:r.id,displayLabel:r.displayLabel,code:r.code,startLocalTime:r.startLocalTime,
-    endLocalTime:r.endLocalTime,status:r.status,centerId:r.centerId,updatedAt:r.updatedAt,createdAt:r.createdAt,
+    endLocalTime:r.endLocalTime,status:r.status,scopeType:r.scopeType,centerId:r.centerId??"GLOBAL",assignmentCount:r.assignmentCount??null,availabilityCount:r.availabilityCount??null,updatedAt:r.updatedAt,createdAt:r.createdAt,
   }));
 }
 export function createShiftTemplateProvider(centerId:string):SurfaceProvider<F> {
@@ -85,6 +88,16 @@ export function createShiftTemplateProvider(centerId:string):SurfaceProvider<F> 
       const rows=await readShiftTemplates(centerId,fetcher,signal);
       return {records:rows.map(row=>({row})),total:rows.length};
     },
+    history:{subjectType:"shift_template",bind:(fetcher,scope)=>({kind:"provider",source:{adapter:"ho-shift-template-audit",permission:"workforce.shift_template.ho_manage"},async load(subject,_context,cursor,signal){
+      if(scope.surface!=="HO" || subject.type!=="shift_template")return {status:"denied"};
+      if(cursor)return {status:"unavailable",reason:"Core chưa hỗ trợ phân trang audit."};
+      const response=await fetcher("/api/ho/workforce/shift-templates?centerId="+encodeURIComponent(centerId),{signal,cache:"no-store"});
+      if(!response.ok)throw Error("Không tải được lịch sử Mẫu ca.");
+      const rows=parseHoShiftTemplates(await response.json(),centerId);
+      const record=rows?.find(r=>r.id===subject.id);
+      if(!record?.history)return {status:"unavailable",reason:"Core chưa cung cấp lịch sử."};
+      return {status:"authorized",nextCursor:null,events:record.history.map(h=>({id:h.id,at:h.occurredAt,actor:h.actorId??"Core",action:h.action,outcome:"succeeded",source:"Core Workforce (100 sự kiện gần nhất)",subject,redacted:true,changes:h.changes}))};
+    }})},
     async detail(id,scope,fetcher,signal) {
       if(scope.surface!=="HO")throw Error("HO only");
       const rows=await readShiftTemplates(centerId,fetcher,signal);
@@ -95,7 +108,7 @@ export function createShiftTemplateProvider(centerId:string):SurfaceProvider<F> 
 }
 export const verifyShiftTemplateExtensionApproval:ApprovalVerifier=(approval,scope)=>
   scope.surface==="HO" && scope.key==="shiftTemplates" &&
-  ["ho.workforce.shift-template-edit","ho.workforce.shift-template-status"].includes(scope.extensionId??"") &&
+  ["ho.workforce.shift-template-edit","ho.workforce.shift-template-status","ho.workforce.shift-template-usage"].includes(scope.extensionId??"") &&
   approval.jira==="PAP-1198" && approval.owner==="HO Runtime" && approval.designAuthority==="Founder" &&
   approval.files.includes("app/ho/workforce/shift-templates/HoShiftTemplateEditor.tsx");
 export const shiftTemplateRegistry=new TddRegistry(verifyShiftTemplateExtensionApproval);
