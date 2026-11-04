@@ -71,12 +71,12 @@ export function HoShiftTemplatesTdd(){
         detailApprovedExtension={(row,context,activeTab,_principalId,onSaved)=>
           activeTab==="usage" ? <section className="v24-prop-section" aria-label="Sử dụng mẫu ca">
              <div className="v24-section-heading"><h4>Sử dụng mẫu ca</h4></div>
-             <div className="v24-prop-grid">
-               <div className="v24-prop-item"><span className="v24-prop-key">Lượt phân công</span><span className="v24-prop-value readonly">{row.assignmentCount??"Chưa có dữ liệu"}</span></div>
-               <div className="v24-prop-item"><span className="v24-prop-key">Lượt đăng ký</span><span className="v24-prop-value readonly">{row.availabilityCount??"Chưa có dữ liệu"}</span></div>
-               <div className="v24-prop-item"><span className="v24-prop-key">Phạm vi</span><span className="v24-prop-value readonly">{row.scopeType==="GLOBAL"?"GLOBAL · Mọi Center":centers?.find(c=>c.id===row.centerId)?.name??"Center"}</span></div>
-               <div className="v24-prop-item"><span className="v24-prop-key">Tình trạng</span><span className="v24-prop-value readonly">{row.status==="ACTIVE"?"Đang sử dụng":"Tạm ngưng"}</span></div>
-             </div>
+             <dl>
+               <div className="property-row"><dt>Lượt phân công</dt><dd>{row.assignmentCount??"Chưa có dữ liệu"}</dd></div>
+               <div className="property-row"><dt>Lượt đăng ký</dt><dd>{row.availabilityCount??"Chưa có dữ liệu"}</dd></div>
+               <div className="property-row"><dt>Phạm vi</dt><dd>{row.scopeType==="GLOBAL"?"GLOBAL · Mọi Center":centers?.find(c=>c.id===row.centerId)?.name??"Center"}</dd></div>
+               <div className="property-row"><dt>Tình trạng</dt><dd>{row.status==="ACTIVE"?"Đang sử dụng":"Tạm ngưng"}</dd></div>
+             </dl>
            </section> : activeTab==="edit"||activeTab==="status"
             ? <HoShiftTemplateEditor key={row.id+":"+activeTab} mode={activeTab} centerId={row.scopeType==="GLOBAL"?"GLOBAL":String(row.centerId)} centers={centers??[]}
                 templateId={row.id} authorized={context.authorize("workforce.shift_template.ho_manage")}
