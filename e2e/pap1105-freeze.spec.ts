@@ -51,6 +51,39 @@ for (const surface of ["BO", "HO"] as const) {
     await page.keyboard.press("Shift+F10");
     await expect(page.getByRole("menu", { name:/Tùy chọn cột/ })).toBeVisible();
   });
+  test(surface + " PAP-1437 disabled sort still focuses first enabled column menu action", async ({ page }) => {
+    await fixture(page, surface);
+    await trigger(page, "Trạng thái").focus();
+    await page.keyboard.press("Shift+F10");
+    const menu = page.getByRole("menu", { name: /Tùy chọn cột/ });
+    await expect(menu).toBeVisible();
+    const firstEnabled = menu.locator('[role="menuitem"]:not(:disabled):not([aria-disabled="true"])').first();
+    await expect(firstEnabled).toBeFocused();
+    await page.keyboard.press("ArrowDown");
+    const enabled = menu.locator('[role="menuitem"]:not(:disabled):not([aria-disabled="true"])');
+    await expect(enabled.nth(1)).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(trigger(page, "Trạng thái")).toBeFocused();
+  });
+  test(surface + " PAP-1474 typed identity remains sticky while legacy second column scrolls", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 900 });
+    await fixture(page, surface);
+    const viewport = page.locator("#table-scroll");
+    const id = page.locator('thead th[data-tdd-identity-column]');
+    const second = page.locator('thead th[data-tdd-legacy-sticky-release]');
+    await expect(id).toHaveCSS("position", "sticky");
+    await expect(second).toHaveCSS("position", "static");
+    const beforeId = (await id.boundingBox())!.x, beforeSecond = (await second.boundingBox())!.x;
+    await viewport.evaluate(el => { el.scrollLeft = 120; el.dispatchEvent(new Event("scroll")); });
+    await expect.poll(() => viewport.evaluate(el => el.scrollLeft)).toBeGreaterThan(50);
+    const afterId = (await id.boundingBox())!.x, afterSecond = (await second.boundingBox())!.x;
+    expect(Math.abs(afterId - beforeId)).toBeLessThan(2);
+    expect(afterSecond).toBeLessThan(beforeSecond - 50);
+    const cell = page.locator('tbody tr:first-child button[data-edit="status"]');
+    const displayedValue = (await cell.innerText()).trim();
+    expect(displayedValue.length).toBeGreaterThan(0);
+    expect(await cell.getAttribute("aria-label")).toContain(displayedValue);
+  });
   test(surface + " Freeze Escape restores trigger focus", async ({ page }) => {
     await fixture(page, surface);
     await trigger(page).focus(); await page.keyboard.press("Shift+F10");

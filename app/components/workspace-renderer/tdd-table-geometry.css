@@ -18,6 +18,17 @@
   min-width: var(--tdd-identity-width) !important;
   max-width: var(--tdd-identity-width) !important;
 }
+/* PAP-1474: release inherited BO v25 second-column sticky only for the
+   current second typed column, even when order changes. Freeze-stamped cells
+   retain the opt-in frozen-prefix behavior; identity stays pinned at zero. */
+[data-tdd-shell="table"] #typed-table :is(th,td)[data-tdd-legacy-sticky-release]:not([data-tdd-freeze-cell]) {
+  position: static !important;
+  left: auto !important;
+}
+[data-tdd-shell="table"] #typed-table :is(th,td)[data-tdd-identity-column] {
+  position: sticky !important;
+  left: 0 !important;
+}
 [data-tdd-shell="table"] .toolbar {
   display: flex !important;
   align-items: center !important;
