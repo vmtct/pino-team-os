@@ -46,3 +46,47 @@
 @media (max-width: 760px) {
   [data-tdd-shell="table"] { --tdd-identity-width: 158px; }
 }
+
+/* PAP-1476: shared BO/HO Font Awesome icon-only Table settings.
+   Labels remain in aria-label/title; only palette may vary by surface theme. */
+.toolbar .toolbar-button.tdd-setting-icon {
+  position: relative;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 36px;
+  width: 36px;
+  min-width: 36px;
+  max-width: 36px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
+  line-height: 1;
+  white-space: nowrap;
+}
+.toolbar .toolbar-button.tdd-setting-icon > svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+}
+.toolbar .toolbar-button.tdd-setting-icon > .filter-count {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 2px;
+  border-radius: 9px;
+  font-size: 10px;
+  line-height: 1;
+  pointer-events: none;
+}
+.toolbar .toolbar-button.tdd-setting-icon:focus-visible {
+  outline: 2px solid var(--ds-primary, #6151c4);
+  outline-offset: 2px;
+}
