@@ -1,4 +1,4 @@
-import type { Approval, FieldSchema, ModuleRow, TableQuery } from "@/lib/workspace-schema";
+import { TddRegistry, type Approval, type FieldSchema, type ModuleRow, type TableQuery } from "@/lib/workspace-schema";
 import type { SurfaceDefinition, SurfaceProvider } from "@/lib/workspace-adapters/contracts";
 import { loadBill, loadBills } from "@/lib/ho-bills-client";
 import type { HoBill } from "@/lib/ho-bills-contract";
@@ -61,3 +61,10 @@ export const billProvider: SurfaceProvider<F> = {pagination:"local-ui",
         ...(h.reason ? {changes:[{field:"Lý do",before:null,after:h.reason}]} : {})}))};
     }})},
 };
+
+const billRegistry=new TddRegistry(verifyBillExtension);
+export const billSchema=billRegistry.register({...billDefinition,data:{
+ id:"ho-founder-bills-global",
+ list:async()=>{throw Error("Authenticated Founder HO Bill adapter required");},
+ detail:async()=>{throw Error("Authenticated Founder HO Bill detail adapter required");},
+}});

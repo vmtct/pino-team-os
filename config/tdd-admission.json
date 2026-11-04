@@ -790,6 +790,35 @@
         "lib/ho-routes.test.ts"
       ]
     }
+,
+    {
+      "profile": "TDD_DEFAULT",
+      "surface": "HO",
+      "key": "bills",
+      "route": "/ho/billing/bills",
+      "file": "app/ho/billing/bills/page.tsx",
+      "files": [
+        "app/ho/billing/bills/page.tsx",
+        "app/ho/billing/bills/HoBillsTdd.tsx",
+        "app/ho/billing/bills/BillDomain.tsx",
+        "app/ho/billing/bills/schema.ts",
+        "lib/ho-bills-client.ts",
+        "lib/ho-bills-contract.ts",
+        "lib/ho-bills-facade.ts"
+      ],
+      "schema": {
+        "export": "billSchema",
+        "file": "app/ho/billing/bills/schema.ts"
+      },
+      "binding": {
+        "file": "app/ho/billing/bills/HoBillsTdd.tsx",
+        "kind": "SURFACE_WORKSPACE_ADAPTER"
+      },
+      "tests": [
+        "lib/pap1422-ho-bills.test.ts",
+        "lib/ho-bills-contract.test.ts"
+      ]
+    }
   ],
   "approvals": []
 }
