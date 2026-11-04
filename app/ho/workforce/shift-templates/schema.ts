@@ -39,7 +39,7 @@ export const shiftTemplateQuery:TableQuery<F>={
 };
 export const shiftTemplateDefinition={
   version:1,classification:"TDD_DEFAULT",surface:"HO",key:"shiftTemplates",label:"Mẫu ca",group:"Workforce",
-  fields:shiftTemplateFields,capabilities:{read:"workforce.shift_template.ho_manage",create:"workforce.shift_template.ho_manage"},
+  fields:shiftTemplateFields,capabilities:{read:"workforce.shift_template.ho_manage",create:"workforce.shift_template.ho_manage",history:"workforce.shift_template.ho_manage"},
   actions:[{id:"create-shift-template",label:"Tạo mẫu ca",slot:"table.header",variant:"primary",
     capability:"create",handler:"openCreate"}],
   table:{
