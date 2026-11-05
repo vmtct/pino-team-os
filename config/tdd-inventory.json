@@ -990,6 +990,31 @@
       "uiOnlySourceReachability": "layout redirects to /bo in UI-only mode; not a separately reachable module there"
     },
     {
+      "file": "app/bo/tvs/page.tsx",
+      "route": "/bo/tvs",
+      "surface": "BO",
+      "profile": "EXISTING_GRANDFATHERED",
+      "classification": "GRANDFATHERED",
+      "classificationBasis": "source only; deployed eligibility and TDD compliance pending",
+      "composition": "existing bespoke composition",
+      "imports": [
+        "next/link",
+        "./TvManagementView"
+      ],
+      "hostAdmission": "layout/host policy requires per-route verification",
+      "servingSha": null,
+      "authenticatedStaging": "PENDING",
+      "domGeometry": "PENDING",
+      "tddEligibility": "PENDING",
+      "owner": "PAP-1086",
+      "risk": "compatibility/auth/data/geometry unverified",
+      "tests": [
+        "existing baseline auth/security CI"
+      ],
+      "migrationAdmission": null,
+      "uiOnlySourceReachability": "layout redirects to /bo in UI-only mode; not a separately reachable module there"
+    },
+    {
       "file": "app/bo/workforce-assignments/page.tsx",
       "route": "/bo/workforce-assignments",
       "surface": "BO",

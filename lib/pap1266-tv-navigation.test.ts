@@ -8,7 +8,7 @@ import { isBoStagingRouteAdmitted } from "../app/bo/architecture/bo-staging-rout
 const staging="bo.staging.pinohouse.art";
 
 test("PAP-1460 / PAP-650: BO TVs route and URL contract retired, source preserved",()=>{
-  assert.equal(BO_TARGET_ROUTES.some(x=>x.key==="tvs"),false);
+  assert.equal(BO_TARGET_ROUTES.map(x=>String(x.key)).includes("tvs"),false);
   assert.equal(BO_LEGACY_QUERY_MODULES.includes("tvs" as never),false);
   for(const path of ["/bo/tvs","/bo/tvs/","/bo/tvs/tv_123"]){
     assert.equal(parseBoTargetUrl(path),null);
