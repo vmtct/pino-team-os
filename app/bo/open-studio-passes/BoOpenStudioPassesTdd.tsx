@@ -52,7 +52,6 @@ function ScopedPasses({centerId,centerSource}:{centerId:string;centerSource:Dire
  const [refresh,setRefresh]=useState(0);
  useEffect(()=>{
   const controller=new AbortController();let adapter:AuthenticatedSurfaceAdapter<F>|null=null;
-  setReady(null);setError("");
   void createBoTddAdapter({registry:new TddRegistry(),definition:passDefinition,provider:passProvider,
    centerId,centerSource},controller.signal).then(bound=>{
     adapter=bound;
@@ -63,7 +62,7 @@ function ScopedPasses({centerId,centerSource}:{centerId:string;centerSource:Dire
   });
   return ()=>{controller.abort();adapter?.dispose();};
  },[centerId,centerSource,retry]);
- if(error)return <p role="alert">{error} <button type="button" onClick={()=>setRetry(n=>n+1)}>Thử lại</button></p>;
+ if(error)return <p role="alert">{error} <button type="button" onClick={()=>{setReady(null);setError("");setRetry(n=>n+1)}}>Thử lại</button></p>;
  if(ready?.centerId!==centerId)return <p role="status">Đang xác thực quyền Center và tải Pass…</p>;
  return <>
   <CenterPassActions key={centerId} centerId={centerId} onChanged={()=>setRefresh(n=>n+1)}/>
