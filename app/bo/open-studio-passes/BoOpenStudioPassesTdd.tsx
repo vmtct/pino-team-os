@@ -53,7 +53,7 @@ function ScopedPasses({centerId,centerSource}:{centerId:string;centerSource:Dire
  useEffect(()=>{
   const controller=new AbortController();let adapter:AuthenticatedSurfaceAdapter<F>|null=null;
   void createBoTddAdapter({registry:new TddRegistry(),definition:passDefinition,provider:passProvider,
-   centerId,centerSource},controller.signal).then(bound=>{
+   centerId:centerId,centerSource},controller.signal).then(bound=>{
     adapter=bound;
     if(controller.signal.aborted){bound.dispose();return;}
     setReady({centerId,adapter:bound,navigation:browserTddNavigation("BO","open-studio-passes",passQuery)});
@@ -65,7 +65,7 @@ function ScopedPasses({centerId,centerSource}:{centerId:string;centerSource:Dire
  if(error)return <p role="alert">{error} <button type="button" onClick={()=>{setReady(null);setError("");setRetry(n=>n+1)}}>Thử lại</button></p>;
  if(ready?.centerId!==centerId)return <p role="status">Đang xác thực quyền Center và tải Pass…</p>;
  return <>
-  <CenterPassActions key={centerId} centerId={centerId} onChanged={()=>setRefresh(n=>n+1)}/>
+  <CenterPassActions centerId={centerId} key={centerId} onChanged={()=>setRefresh(n=>n+1)}/>
   <SurfaceWorkspace key={centerId+":"+refresh} adapter={ready.adapter} navigation={ready.navigation} initialQuery={passQuery}/>
   <p role="note">Danh sách tối đa 100 Pass của Center đã chọn từ Core. Không bao gồm kho chung chưa cấp.</p>
  </>;
