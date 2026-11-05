@@ -3,6 +3,7 @@ import { createContext, useContext, useMemo, useState } from "react";
 import type { BoShellContext } from "@/lib/bo-shell-gate";
 import { BoRegistrationWorkspace, type BoWorkspaceSource } from "./BoRegistrationWorkspace";
 import { BoStaffsViews, staffsViewRows, type StaffsView } from "./BoStaffsViews";
+import { readStaffCenterApplications } from "@/lib/bo-staff-center-registration-adapter";
 import { unifiedBoWorkspaceSource } from "../../architecture/bo-unified-workspace-source";
 import { BoOperationalView } from "../../BoOperationalView";
 import { BoSubscriptionsView } from "../../subscriptions/BoSubscriptionsView";
@@ -60,21 +61,41 @@ function BoStaffsEntry({ currentUser, options }: {
   options: Record<string, string>;
 }) {
   const [view, setView] = useState<StaffsView>("all");
+  const center = useBoCenterSelection();
+  const selected = center?.selected ?? "";
+  const scopedOptions = useMemo(() => ({ ...options, centerId: selected }), [options, selected]);
   const source = useMemo<BoWorkspaceSource>(() => ({
     ...unifiedBoWorkspaceSource,
+    modules: view === "register" ? {
+      ...unifiedBoWorkspaceSource.modules,
+      staffs: {
+        ...unifiedBoWorkspaceSource.modules.staffs!,
+        fields: [
+          { key: "name", label: "Người đăng ký", type: "text", icon: "Aa", w: 235 },
+          { key: "submittedAt", label: "Ngày đăng ký", type: "datetime", icon: "▦", w: 175 },
+          { key: "status", label: "Trạng thái", type: "select", icon: "▣", w: 145 },
+          { key: "id", label: "Mã đăng ký", type: "id", icon: "#", w: 145 },
+        ],
+      },
+    } : unifiedBoWorkspaceSource.modules,
     isModuleReadOnly: (key) => key === "staffs" || unifiedBoWorkspaceSource.isModuleReadOnly?.(key) === true,
-    async load(key, fetcher, scopedOptions) {
-      if (key === "staffs" && view === "register") return []; // Fail closed: no global intake queue.
-      const rows = await unifiedBoWorkspaceSource.load(key, fetcher, scopedOptions);
+    scopeLabel: (key, requestedOptions) => key === "staffs" && view === "register"
+      ? "Cơ sở đã chọn" : unifiedBoWorkspaceSource.scopeLabel(key, requestedOptions),
+    async load(key, fetcher, requestedOptions) {
+      if (key === "staffs" && view === "register") {
+        // No unscoped/global fallback after 401/403, missing Center, or Core failure.
+        return readStaffCenterApplications(fetcher, selected);
+      }
+      const rows = await unifiedBoWorkspaceSource.load(key, fetcher, requestedOptions);
       return key === "staffs" ? staffsViewRows(rows, view) : rows;
     },
-  }), [view]);
-  return <BoRegistrationWorkspace key={"staffs:" + view} currentUser={currentUser}
-    source={source} moduleKey="staffs" options={options}
-    headerContent={<><BoStaffsViews selected={view} onSelect={setView} />
-      {view === "register" ? <p role="alert" className="settings-hint">
-        Danh sách đăng ký hiện chưa khả dụng.
-      </p> : null}</>} />;
+  }), [view, selected]);
+  const blocked = view === "register" && (!center || center.loading || Boolean(center.error) || !selected);
+  const message = center?.error || (center?.loading ? "Đang xác thực danh sách cơ sở…" : "Chọn cơ sở để xem đơn đăng ký.");
+  return <BoRegistrationWorkspace key={"staffs:" + view + ":" + selected} currentUser={currentUser}
+    source={source} moduleKey="staffs" options={scopedOptions}
+    content={blocked ? <CenterReadPending message={message} denied={Boolean(center?.error)} /> : undefined}
+    headerContent={<BoStaffsViews selected={view} onSelect={setView} />} />;
 }
 
 export function BoRuntimeEntry({ moduleKey, options, parentTddPilot = false }: { moduleKey: string; options: Record<string, string>; parentTddPilot?: boolean }) {
