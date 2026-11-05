@@ -3,8 +3,52 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { PropertySections, TosCard, TosButton, type PropertyField } from "@pino/design-system/react";
 import type { BoAccessPermission, BoAccessRoleDetail } from "@/lib/bo-access-model";
 import { boApi } from "@/lib/bo-api";
-import { groupSelectionState,bulkGroupPermissionKeys } from "./group-selection";
-import {matchesPlatform,permissionPlatformCounts,type PlatformFilter} from "./permission-platform-filter";
+
+// PAP-1507 / PLT-ACCESS: module-owned, presentation-only helpers.
+export function groupSelectionState(selectedKeys:readonly string[],visibleKeys:readonly string[]):"none"|"mixed"|"all" {
+  if(!visibleKeys.length)return "none";
+  const selected=new Set(selectedKeys);
+  const count=visibleKeys.filter(key=>selected.has(key)).length;
+  return count===0?"none":count===visibleKeys.length?"all":"mixed";
+}
+export function bulkGroupPermissionKeys(selectedKeys:readonly string[],visibleKeys:readonly string[]):string[] {
+  const keys=new Set(selectedKeys);
+  const visible=new Set(visibleKeys);
+  const all=groupSelectionState(selectedKeys,visibleKeys)==="all";
+  for(const key of visible){if(all)keys.delete(key);else keys.add(key);}
+  return [...keys].sort();
+}
+
+export type Platform = "HO" | "BO" | "TOS";
+export type PlatformFilter = Platform | "all";
+export interface PermissionPlatformMetadata {
+  surfaceApplicability?: "BO" | "TOS" | "BOTH" | string | null;
+  applicablePlatforms?: readonly Platform[] | null;
+}
+const valid = (x: unknown): x is Platform => x==="HO"||x==="BO"||x==="TOS";
+export function permissionPlatforms(p: PermissionPlatformMetadata): readonly Platform[] {
+  if ("applicablePlatforms" in p) {
+    if(!Array.isArray(p.applicablePlatforms))return [];
+    return [...new Set((p.applicablePlatforms as readonly unknown[]).filter(valid))];
+  }
+  switch(p.surfaceApplicability) {
+    case "BO": return ["BO"];
+    case "TOS": return ["TOS"];
+    case "BOTH": return ["BO","TOS"];
+    default: return [];
+  }
+}
+export function matchesPlatform(p: PermissionPlatformMetadata, platform: PlatformFilter): boolean {
+  return platform==="all"||permissionPlatforms(p).includes(platform);
+}
+export function permissionPlatformCounts<T extends PermissionPlatformMetadata>(permissions:readonly T[]): Record<PlatformFilter,number> {
+  return {
+    all:permissions.length,
+    HO:permissions.filter(p=>matchesPlatform(p,"HO")).length,
+    BO:permissions.filter(p=>matchesPlatform(p,"BO")).length,
+    TOS:permissions.filter(p=>matchesPlatform(p,"TOS")).length,
+  };
+}
 
 type Ready = { role: BoAccessRoleDetail; permissions: BoAccessPermission[] };
 type Draft = { displayName: string; description: string; keys: string[] };

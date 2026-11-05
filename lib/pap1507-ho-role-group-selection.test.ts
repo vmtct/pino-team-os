@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {groupSelectionState,bulkGroupPermissionKeys} from "../app/ho/system/roles/group-selection";
+import {groupSelectionState,bulkGroupPermissionKeys} from "../app/ho/system/roles/HoRoleEditor";
 
 test("PAP-1507: group checkbox is none/mixed/all and selects then clears visible ACL",()=>{
   const visible=["access.role.view","access.role.edit","access.role.manage"];

@@ -1,7 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {matchesPlatform,permissionPlatforms,permissionPlatformCounts} from "../app/ho/system/roles/permission-platform-filter";
-import {bulkGroupPermissionKeys} from "../app/ho/system/roles/group-selection";
+import {matchesPlatform,permissionPlatforms,permissionPlatformCounts,bulkGroupPermissionKeys} from "../app/ho/system/roles/HoRoleEditor";
 
 test("PAP-1507: Team OS legacy applicability exposes only BO/TOS, never guesses HO",()=>{
   assert.deepEqual(permissionPlatforms({surfaceApplicability:"BO"}),["BO"]);
