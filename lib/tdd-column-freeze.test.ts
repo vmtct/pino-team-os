@@ -23,3 +23,11 @@ test("PAP-1105 invalid measurements never publish nonfinite sticky offsets", () 
   }
   assert.deepEqual(frozenPrefix(["name","count","status"],"status",{name:180,count:NaN,status:130},37,1024),[{key:"name",left:37}]);
 });
+
+test("PAP-1437: without Quick View arrow the identity column sticks at x=0", () => {
+  const columns = ["name", "status", "date"];
+  assert.deepEqual(frozenPrefix(columns, "status", {name:180,status:130,date:120}, 0, 1024), [
+    {key:"name",left:0}, {key:"status",left:180},
+  ]);
+  assert.deepEqual(frozenPrefix(columns, null, {name:180,status:130,date:120}, 0, 320), [{key:"name",left:0}]);
+});

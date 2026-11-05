@@ -15,8 +15,10 @@ test("PAP-1170 PINO package exact artifact",()=>{
  const manifest=JSON.parse(readFileSync(require.resolve("@pino/design-system/manifest.json"),"utf8"));
  assert.equal(manifest.version,config.version);
  assert.equal(config.version,"0.3.0");
- assert.equal(config.sourceCommit,"40e40eca9383971f27682c233fd63e90a650bddf");
- assert.equal(config.tarballSha256,"01086f1432695feb67a7bab06f727adb39c0925ba18ad2535762e7370acab903");
+ assert.equal(config.sourceCommit,"906e4a38070169223df7fc21ed841f5d57111362");
+ assert.equal(config.sourceMainSha,"ce28e29f3c657251679b9577889730bcdd9e9542");
+ assert.equal(config.sourcePullRequest,"https://github.com/vmtct/pino-design-system/pull/4");
+ assert.equal(config.tarballSha256,"2b7cd14fed8804685379facc0f92f82008d4bc2f825974c34ee20af4deeca6d5");
  assert.equal(manifest.sourceOwner,"PINO");
 });
 test("PAP-1170 shared TDD and TOS React SSR",()=>{

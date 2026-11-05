@@ -57,6 +57,8 @@ css.push("/* Shared TDD opt-in Freeze Column; single HO host-scope output */\n" 
   scopeHoCss(readFileSync('app/components/workspace-renderer/tdd-freeze.css', 'utf8')));
 css.push("/* PAP-1471 shared Detail geometry */\n" +
   scopeHoCss(readFileSync('app/components/workspace-renderer/tdd-detail-layout.css', 'utf8')));
+css.push("/* PAP-1474 shared Table geometry */\n" +
+  scopeHoCss(readFileSync('app/components/workspace-renderer/tdd-table-geometry.css', 'utf8')));
 const bundled = "/* HO staging unified CSS. GENERATED; edit the historical sources/theme only. */\n" +
   css.join("\n\n") + "\n";
 const dest = directory + "ho-scoped.css";

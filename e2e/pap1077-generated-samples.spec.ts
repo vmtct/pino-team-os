@@ -48,13 +48,13 @@ async function fixture(page: Page, surface: "bo" | "ho", scenario = "ready") {
 for (const surface of ["bo", "ho"] as const) {
   test(`PAP1077 generated ${surface} route authorities stay exact and Staging-only`, async ({ page }) => {
     await fixture(page, surface);
-    await expect(page.getByRole("button", { name: "Quick View SYNTHETIC DEMO 001", exact: true })).toBeVisible();
+    await expect(page.getByRole("row", { name: "Mở Quick View SYNTHETIC DEMO 001", exact: true })).toBeVisible();
     expect(await page.evaluate(() => window.__pap1077HostMatrix)).toEqual({ own: "next", head: "next", post: "not_found", child: "not_found", other: "not_found", production: "not_found" });
   });
   for (const width of [1440, 1024, 768, 390, 320]) test(`PAP1077 generated ${surface} schema journey and business variant ${width}`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     const network = await fixture(page, surface);
-    const opener = page.getByRole("button", { name: "Quick View SYNTHETIC DEMO 001", exact: true });
+    const opener = page.getByRole("row", { name: "Mở Quick View SYNTHETIC DEMO 001", exact: true });
     await expect(opener).toBeVisible(); await opener.press("Enter");
     await expect(page.locator('[data-tdd-shell="drawer"]')).toBeVisible(); await expect(page.getByRole("button", { name: /Full Detail/ })).toBeEnabled();
     const controls = await page.locator('[data-tdd-properties="drawer"] .property-control').evaluateAll(nodes => nodes.map(node => node.getBoundingClientRect().width));
@@ -74,7 +74,7 @@ for (const surface of ["bo", "ho"] as const) {
     const network = await fixture(page, surface, scenario);
     if (scenario === "record-scope") await expect(page.getByRole("status")).toHaveText("Không có quyền xem bản ghi.");
     else await expect(page.getByRole("alert")).toHaveText("Synthetic adapter denied: " + (scenario === "wrong-surface" ? "404" : "403"));
-    await expect(page.getByRole("button", { name: /^Quick View SYNTHETIC/ })).toHaveCount(0);
+    await expect(page.locator("tbody tr[data-open]")).toHaveCount(0);
     await expect(page.locator('[data-tdd-shell="detail"]')).toHaveCount(0);
     expect(network).toEqual([]);
   });

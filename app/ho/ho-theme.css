@@ -6,8 +6,8 @@
 [data-surface="ho"] :is(button,a,input,select,textarea):focus-visible { outline-color:var(--ds-primary); }
 [data-surface="ho"] :is(.view-tab.active,.view-tab.selected,.detail-tab.selected) { color:var(--ds-primary); border-color:var(--ds-primary); }
 [data-surface="ho"] :is(.typed-cell:hover,.typed-cell:focus-visible,.property-control:hover,.row-open:hover) { background:var(--ds-primary-subtle); color:var(--ds-primary); }
-[data-surface="ho"] #typed-table tr:hover td.first-quick-cell, [data-surface="ho"] #typed-table tr:hover td:nth-child(2), [data-surface="ho"] #typed-table tr.selected td { background:var(--ds-primary-subtle)!important; }
-[data-surface="ho"] #typed-table .first-quick-cell .row-open:focus-visible { background:var(--ds-primary-subtle); color:var(--ds-primary); }
+[data-surface="ho"] #typed-table tr[data-open]:hover td:first-child, [data-surface="ho"] #typed-table tr.selected td { background:var(--ds-primary-subtle)!important; }
+[data-surface="ho"] #typed-table tr[data-open]:focus-visible { outline:2px solid var(--ds-primary); outline-offset:-2px; }
 [data-surface="ho"] :is(.view-add:hover,.view-context button:hover,.view-tab.saved-tab.drag-target) { background:var(--ds-primary-subtle); color:var(--ds-primary); border-color:var(--ds-primary-border); }
 [data-surface="ho"] .sidebar-footer button { background:transparent; border:1px solid var(--ds-primary-border); color:var(--ds-on-primary); border-radius:6px; padding:5px; margin-left:auto; }
 

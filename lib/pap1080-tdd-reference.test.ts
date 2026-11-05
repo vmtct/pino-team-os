@@ -30,5 +30,5 @@ test("PAP1080 exact route inherits host/auth guards; no production, BO or TOS ad
  for(const host of ["ho.pinohouse.art","bo.staging.pinohouse.art","tos.staging.pinohouse.art","tos.pinohouse.art"])assert.equal(decideHostBoundary(host,path).action,"not_found");
  assert.equal(safeHoReturnTo(path),path);assert.equal(safeHoReturnTo(path+"/extra"),null);
  const layout=readFileSync("app/ho/layout.tsx","utf8");assert.match(layout,/await authorizeHoShell/);
- const client=readFileSync("app/ho/system/tdd-reference/ReferenceAtlas.tsx","utf8");assert.match(client,/ephemeral:true/);assert.doesNotMatch(client,/localStorage|sessionStorage|fetch\(/);
+ const client=readFileSync("app/ho/system/tdd-reference/ReferenceAtlas.tsx","utf8");assert.match(client,/ephemeral:true/);assert.match(client,/TddPreferencePolicy.Provider value="ephemeral"/);assert.doesNotMatch(client,/localStorage|sessionStorage|fetch\(/);
 });

@@ -1,3 +1,4 @@
+import "@pino/design-system/components.css";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { headers } from "next/headers";
 import { forbidden, redirect } from "next/navigation";
