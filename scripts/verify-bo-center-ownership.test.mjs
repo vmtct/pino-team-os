@@ -73,3 +73,18 @@ test("PAP-1460 Diary negative: missing shell consumer/stale adapter fence is rej
 test("PAP-1459 actual repository obeys single BO Center owner",()=>{
   assert.deepEqual(boCenterOwnershipViolations(),[]);
 });
+test("PAP-1460 Open Studio negative: local selector or missing scope fence is rejected",t=>{
+  const {root,write}=fixture(t);
+  const file="app/bo/open-studio-passes/BoOpenStudioPassesTdd.tsx";
+  write(file,'createBoTddAdapter({centerId:"forged"}); return <select id="bo-open-studio-center"/>');
+  assert.ok(boCenterOwnershipViolations(root).some(e=>e.includes("migrated Pass entrypoint")));
+  write(file,'const center=useBoCenterSelection();const selected=center.selected;createBoTddAdapter({centerId:selected});return <SurfaceWorkspace/>;');
+  assert.ok(boCenterOwnershipViolations(root).some(e=>e.includes("migrated Pass entrypoint")));
+});
+
+test("PAP-1460 Open Studio positive: shell scoped remount without local selector",t=>{
+  const {root,write}=fixture(t);
+  write("app/bo/open-studio-passes/BoOpenStudioPassesTdd.tsx",
+    'const center=useBoCenterSelection();const selected=center.selected;const current=ready?.centerId!==centerId?null:ready;createBoTddAdapter({centerId:selected});return <SurfaceWorkspace key={selected+":"+centerSource}/>;');
+  assert.deepEqual(boCenterOwnershipViolations(root),[]);
+});
