@@ -49,7 +49,8 @@ export function validateBoStudentSpecialtyList(payload:unknown):BoStudentSpecial
        !grantBlockReasons.every((reason:unknown)=>typeof reason==="string"))
       throw new TypeError("STUDENT_SPECIALTY_CONTRACT_INVALID");
     const missingIds=[...new Set(progress.missingMissionIds as string[])];
-    if(missingIds.length!==progress.totalDistinctMissionCount-progress.completedDistinctMissionCount||
+    if(missingIds.length!==(progress.missingMissionIds as string[]).length ||
+       missingIds.length!==progress.totalDistinctMissionCount-progress.completedDistinctMissionCount||
        (progress.completionStatus==="COMPLETED")!==(progress.totalDistinctMissionCount>0&&missingIds.length===0))
       throw new TypeError("STUDENT_SPECIALTY_PROGRESS_CONFLICT");
     let recordGrant:BoStudentSpecialtyView["grant"]=null;
