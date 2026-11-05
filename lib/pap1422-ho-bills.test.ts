@@ -164,3 +164,12 @@ test("PAP-1422 real shared schema, prototype column widths, tabs and source-owne
   assert.doesNotMatch(page+domain,/localStorage|sessionStorage|\.css["'].*bills|window\.prompt/);
   assert.match(domain,/writing\.current=true/);assert.match(domain,/setLocked\(true\)/);
 });
+
+test("PAP-1422 cross-surface changed security dependency has exact owner reference",()=>{
+  const manifest=JSON.parse(readFileSync("config/tdd-admission.json","utf8"));
+  const bo=manifest.modules.find((m:{surface:string;key:string})=>m.surface==="BO"&&m.key==="bills");
+  assert.ok(bo);
+  for(const file of ["lib/ho-routes.ts","lib/workspace-adapters/session.ts"]){
+    assert.deepEqual(bo.externalReferences.filter((r:{file:string})=>r.file===file),[{file,owner:"PAP-1221"}]);
+  }
+});
