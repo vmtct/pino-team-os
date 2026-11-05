@@ -1,3 +1,4 @@
+import {billMethodAllowed} from "./bo-bills-paths";
 import {tosV4StagingHost} from "./tos-v4-staging-host";
 import { HO_PAGE_PATHS, HO_HOME_PATH } from "./ho-routes";
 import { GLOBAL_TERMS_API, isGlobalTermsRequest } from "./ho-global-terms-contract";
@@ -51,6 +52,10 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   // PAP-1248: hard host and verb fence BEFORE HO/production generic fallthrough.
   if (pathname === "/api/bo/open-studio/walkin/parent-contact-lookup" || pathname === "/api/bo/open-studio/walkin/parent-center-proofs")
     return hostname === BO_STAGING_HOSTNAME && method === "POST" ? {action:"next"} : {action:"not_found"};
+  // PAP-1421: Bills staging slice; exact paths/verbs, no HO/TOS/Production fallthrough.
+  if (pathname === "/bo/bills") return hostname === BO_STAGING_HOSTNAME && method === "GET" ? {action:"next"} : {action:"not_found"};
+  if (pathname === "/api/bo/billing/bill-drafts" || pathname.startsWith("/api/bo/billing/bill-drafts/"))
+    return hostname === BO_STAGING_HOSTNAME && billMethodAllowed(pathname.slice("/api/bo/".length),method) ? {action:"next"} : {action:"not_found"};
   // PAP-1210: exact Center Mission Assignment read and Staging-only writes.
   // Core owns effective Manager permission, Center/Student linkage, CAS and audit.
   const assignmentRead = /^\/api\/bo\/learning\/mission-assignments(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?\/?$/i.test(pathname);
@@ -296,6 +301,7 @@ function isApprovedBoPath(pathname: string): boolean {
     "/bo/learners",
     "/bo/student-visits",
     "/bo/subscriptions",
+    "/bo/bills",
     "/bo/sales/leads",
     "/bo/open-studio",
     "/api/bo/open-studio/walkin/inventory",

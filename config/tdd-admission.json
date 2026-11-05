@@ -789,6 +789,37 @@
         "lib/pap1320-ho-global-terms.test.ts",
         "lib/ho-routes.test.ts"
       ]
+    },
+    {
+      "profile": "TDD_DEFAULT",
+      "surface": "BO",
+      "key": "bills",
+      "route": "/bo/bills",
+      "file": "app/bo/bills/page.tsx",
+      "files": [
+        "app/bo/bills/page.tsx",
+        "app/bo/bills/BoBillsTdd.tsx",
+        "app/bo/bills/BillDraftEditor.tsx",
+        "app/bo/bills/schema.ts",
+        "lib/bo-bills-api.ts",
+        "lib/bo-bills-handler.ts",
+        "lib/bo-bills-paths.ts"
+      ],
+      "schema": {
+        "export": "billSchema",
+        "file": "app/bo/bills/schema.ts"
+      },
+      "binding": {
+        "kind": "SURFACE_WORKSPACE_ADAPTER",
+        "file": "app/bo/bills/BoBillsTdd.tsx"
+      },
+      "tests": [
+        "lib/bo-bills-paths.test.ts"
+      ],
+      "externalReferences": [
+        {"file":"app/bo/architecture/bo-unified-workspace-source.ts","owner":"PAP-1421"},
+        {"file":"lib/host-boundary.ts","owner":"PAP-1220"}
+      ]
     }
   ],
   "approvals": []

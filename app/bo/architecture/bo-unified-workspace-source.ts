@@ -15,6 +15,8 @@ const school = {
 };
 // PAP-1210: metadata registers the actual sidebar slot. Data is owned by the typed provider.
 school.modules.missions = { label: "Nhiệm vụ", group: "SCHOOL", fields: assignmentFields.map(f => ({ key: f.key, label: f.label, type: f.type, icon: f.icon, w: f.width, readonly: true })) };
+school.modules.bills = {label:"Bills",group:"TÀI CHÍNH",fields:[]};
+
 type WorkforceKey = "workforce-shift-plans" | "workforce-availability" | "workforce-assignments" | "payroll-periods";
 type ScopedWorkforceAdapter = { list(fetcher?: typeof fetch, centerId?: string): Promise<readonly Record<string, unknown>[]> };
 const adapters: Record<WorkforceKey, ScopedWorkforceAdapter> = {
