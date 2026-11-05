@@ -42,7 +42,7 @@ export async function readStaffCenterApplications(
     if (typeof entry.id !== "string" || !UUID.test(entry.id) || entry.centerId !== centerId
       || typeof entry.displayLabel !== "string" || !entry.displayLabel.trim()
       || typeof entry.submittedAt !== "string" || !Number.isFinite(Date.parse(entry.submittedAt))
-      || !Number.isSafeInteger(entry.version) || entry.version < 1 || seen.has(entry.id)) {
+      || typeof entry.version !== "number" || !Number.isSafeInteger(entry.version) || entry.version < 1 || seen.has(entry.id)) {
       throw new Error("Bản ghi đăng ký không hợp lệ.");
     }
     seen.add(entry.id);
