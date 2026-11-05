@@ -230,7 +230,9 @@
   background: var(--role-paper);
   box-shadow: 0 1px 4px #24121f14;
 }
-.ho-role-filters button:focus-visible, .ho-role-group summary:focus-visible {
+.ho-role-filters button:focus-visible,
+.ho-role-group-select:focus-visible,
+.ho-role-group-expand:focus-visible {
   outline: 2px solid var(--role-accent);
   outline-offset: 2px;
 }
@@ -252,32 +254,33 @@
   background: var(--role-paper);
   overflow: clip;
 }
-.ho-role-group summary {
+/* PAP-1507: independent group bulk selector and disclosure control. */
+.ho-role-group-head {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 41px;
-  padding: 10px 13px;
+  min-height: 44px;
+  padding: 6px 10px 6px 13px;
   background: var(--role-tint);
   color: var(--role-ink);
+}
+.ho-role-group-title { flex: 1 1 0; min-width: 0; font-size: 12px; font-weight: 700; }
+.ho-role-group-count { color: var(--role-muted); font-size: 11px; white-space: nowrap; }
+.ho-role-group-select {
+  flex: 0 0 16px;
+  width: 16px; height: 16px; margin: 0;
+  accent-color: var(--role-accent);
   cursor: pointer;
-  font-size: 12px;
-  font-weight: 700;
-  list-style: none;
 }
-.ho-role-group summary::-webkit-details-marker { display: none; }
-.ho-role-group summary::before {
-  content: "";
-  flex: 0 0 auto;
-  width: 7px;
-  height: 7px;
-  border: solid var(--role-accent);
-  border-width: 0 2px 2px 0;
-  transform: rotate(-45deg);
-  transition: transform .15s ease;
+.ho-role-group-select:disabled { cursor: not-allowed; }
+.ho-role-group-expand {
+  display: grid; place-items: center; flex: 0 0 32px;
+  width: 32px; height: 32px; border-radius: 7px;
+  border: 1px solid transparent; background: transparent;
+  color: var(--role-accent); cursor: pointer;
 }
-.ho-role-group[open] summary::before { transform: rotate(45deg); }
-.ho-role-group summary:hover { background: var(--role-accent-soft); }
+.ho-role-group-expand:hover { background: var(--role-accent-soft); border-color: var(--role-line); }
+.ho-role-group-expand span { font-size: 17px; line-height: 1; }
 .ho-role-group fieldset {
   min-width: 0;
   padding: 0;

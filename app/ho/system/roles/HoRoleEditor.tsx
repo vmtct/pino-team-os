@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { PropertySections, TosCard, TosButton, type PropertyField } from "@pino/design-system/react";
 import type { BoAccessPermission, BoAccessRoleDetail } from "@/lib/bo-access-model";
 import { boApi } from "@/lib/bo-api";
+import { groupSelectionState,bulkGroupPermissionKeys } from "./group-selection";
 
 type Ready = { role: BoAccessRoleDetail; permissions: BoAccessPermission[] };
 type Draft = { displayName: string; description: string; keys: string[] };
@@ -43,6 +44,7 @@ export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, o
   const [notice,setNotice]=useState("");
   const [search,setSearch]=useState("");
   const [filter,setFilter]=useState<"all"|"selected"|"unselected">("all");
+  const [expandedGroups,setExpandedGroups]=useState<Record<string,boolean>>({});
   const lock=useRef(false);
   useEffect(()=>{
     const controller=new AbortController();
@@ -75,6 +77,11 @@ export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, o
     }
     return [...map.entries()].sort((a,b)=>a[0].localeCompare(b[0],"vi"));
   },[data,draft?.keys,search,filter]);
+  function toggleGroup(visibleKeys:string[]){
+    if(!editable||busy||!draft)return;
+    setDraft(v=>v?{...v,keys:bulkGroupPermissionKeys(v.keys,visibleKeys)}:v);
+    setConfirming(false);setError("");setNotice("");
+  }
   function toggle(key:string){
     if(!editable||busy||!draft||!data?.permissions.some(p=>p.key===key))return;
     setDraft(v=>v?{...v,keys:v.keys.includes(key)?v.keys.filter(k=>k!==key):sorted([...v.keys,key])}:v);
@@ -167,9 +174,26 @@ export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, o
           </div>
         </div>
         <div className="ho-role-groups">
-        {groups.length?groups.map(([domain,permissions])=><details className="ho-role-group" key={domain} open={Boolean(search)||undefined}>
-          <summary>{domain} · {permissions.filter(p=>draft.keys.includes(p.key)).length}/{permissions.length} quyền</summary>
-          <fieldset disabled={!editable||busy}>
+        {groups.length?groups.map(([domain,permissions])=>{
+          const groupKeys=permissions.map(permission=>permission.key);
+          const selection=groupSelectionState(draft.keys,groupKeys);
+          const open=expandedGroups[domain]??Boolean(search);
+          return <div className="ho-role-group" key={domain}>
+          <div className="ho-role-group-head">
+            <input className="ho-role-group-select" type="checkbox"
+              aria-label={"Chọn tất cả quyền nhóm "+domain}
+              checked={selection==="all"} aria-checked={selection==="mixed"?"mixed":selection==="all"}
+              ref={node=>{if(node)node.indeterminate=selection==="mixed";}}
+              disabled={!editable||busy} onChange={()=>toggleGroup(groupKeys)} />
+            <strong className="ho-role-group-title">{domain}</strong>
+            <span className="ho-role-group-count">{permissions.filter(p=>draft.keys.includes(p.key)).length}/{permissions.length} quyền</span>
+            <button type="button" className="ho-role-group-expand" aria-expanded={open}
+              aria-label={(open?"Thu gọn nhóm ":"Mở rộng nhóm ")+domain}
+              onClick={()=>setExpandedGroups(prev=>({...prev,[domain]:!open}))}>
+              <span aria-hidden="true">{open?"⌄":"›"}</span>
+            </button>
+          </div>
+          {open?<fieldset disabled={!editable||busy}>
             <legend className="ho-role-legend">{domain}</legend>
             {permissions.map(permission=><label className="ho-role-permission-row" key={permission.key}>
               <input type="checkbox" checked={draft.keys.includes(permission.key)}
@@ -177,8 +201,9 @@ export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, o
               <span className="ho-role-permission-info"><strong>{permission.displayLabel}</strong>
                 <small> {permission.key} · {permission.accessKind} · {permission.allowedScopes.join("/")}</small></span>
             </label>)}
-          </fieldset>
-        </details>):<p className="ho-role-empty" role="status">Không có quyền khớp tìm kiếm.</p>}
+          </fieldset>:null}
+        </div>;
+        }):<p className="ho-role-empty" role="status">Không có quyền khớp tìm kiếm.</p>}
         </div>
       </section>
     </TosCard>
