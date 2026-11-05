@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {billMethodAllowed,isBoBillsPath} from "./bo-bills-paths";
+import {billSchema,billQuery} from "../app/bo/bills/schema";
+import {toLegacyTableState} from "./workspace-schema/compatibility";
 
 const draft="123e4567-e89b-42d3-a456-426614174000";
 const line="123e4567-e89b-42d3-a456-426614174001";
@@ -32,4 +34,15 @@ test("PAP-1421: malformed paths and unsupported financial writes remain denied",
     "billing/bill-drafts/center/"+draft+"/issue",
     "billing/bill-drafts/"+draft+"/issue/"+line,
   ])for(const method of ["GET","POST","PATCH","PUT","DELETE"])assert.equal(billMethodAllowed(path,method),false,path+" "+method);
+});
+
+test("PAP-1504: Bill Table query is legal for a billing.view Manager without widening permissions",()=>{
+  const declared=billSchema.table.columns.map(column=>column.field);
+  assert.deepEqual(new Set(billQuery.order),new Set(declared));
+  assert.equal(billQuery.order.length,declared.length);
+  assert.ok(billQuery.visible.every(field=>declared.includes(field)));
+  const scope={surface:"BO" as const,centerId:draft,authorize:(permission:string)=>["team.bo.access","billing.view"].includes(permission)};
+  const bridged=toLegacyTableState(billSchema,billQuery,scope);
+  assert.deepEqual(bridged.order,billQuery.order);
+  assert.deepEqual(billSchema.detail.businessTabs.map(tab=>tab.id),["subscriptions","payments"]);
 });
