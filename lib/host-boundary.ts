@@ -23,6 +23,9 @@ export type HostBoundaryDecision =
 
 export function decideHostBoundary(host: string, pathname: string, method = "GET"): HostBoundaryDecision {
   const hostname = normalizeHostname(host);
+  // PAP-1460 / Epic PAP-1316: Founder removed BO TV management from every
+  // BO host, role, query and deep link. Deny before generic BO/preview fallthrough.
+  if (/^\/bo\/tvs(?:\/|$)/i.test(pathname)) return { action: "not_found" };
   // PAP-1418 / PNR-TV: exact Founder HO read paths only; never BO/other hosts.
   if(pathname.startsWith("/api/ho/pinoria/tv-health") || pathname.startsWith("/api/ho/pinoria/tv-config"))
     return {action:hostname===HO_STAGING_HOSTNAME&&isHoTvReadRequest(pathname,method)?"next":"not_found"};
@@ -315,8 +318,6 @@ function isApprovedBoPath(pathname: string): boolean {
     "/api/bo/open-studio/walkin/batches",
     "/api/bo/open-studio/walkin/assign",
     "/api/bo/open-studio/walkin/revoke",
-    "/bo/tvs",
-    // PAP-1266 is the only live TV TDD page; legacy mesh/TV operator remain unadmitted.
     "/bo/delivery-activation",
     "/bo/calendar",
     "/bo/running-classes",

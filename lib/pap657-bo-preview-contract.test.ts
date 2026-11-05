@@ -7,8 +7,9 @@ const editor=readFileSync(new URL('DialogueEditor.tsx',root),'utf8');
 const management=readFileSync(new URL('../tvs/page.tsx',root),'utf8');
 const managementTdd=readFileSync(new URL('../tvs/TvsTdd.tsx',root),'utf8');
 const tvSchema=readFileSync(new URL('../tvs/schema.ts',root),'utf8');
-test('PAP-1266 BO TV management uses canonical TDD; legacy dialogue simulator remains unadmitted until PAP-911',()=>{
- assert.match(management,/TvsTdd/);
+test('PAP-1460 retired BO TV page remains fail-closed while legacy dialogue simulator stays unadmitted',()=>{
+ assert.match(management,/notFound\(\)/);
+ assert.doesNotMatch(management,/import\s+\{\s*TvsTdd/);
  assert.match(managementTdd,/SurfaceWorkspace/);
  assert.match(tvSchema,/label:"Không gian"/);
  // PAP-657 simulator source is retained, but do not display an unusable navigation target:

@@ -3,11 +3,11 @@ import {test} from "node:test";
 import {decideHostBoundary} from "./host-boundary";
 import {isBoStagingRouteAdmitted} from "../app/bo/architecture/bo-staging-route-policy";
 const staging="bo.staging.pinohouse.art";
-test("PAP-1263 /bo/tvs TDD admitted but unapproved standalone mesh and TV operator remain denied by staging policy",()=>{
- assert.equal(isBoStagingRouteAdmitted("/bo/tvs"),true);
+test("PAP-1460 / PAP-650: retired BO TVs and unapproved standalone mesh paths denied",()=>{
+ assert.equal(isBoStagingRouteAdmitted("/bo/tvs"),false);
  for(const path of ["/bo/pinoria-tv-mesh","/bo/pinoria-tv-operator","/bo/tvs/subpath"])
   assert.equal(isBoStagingRouteAdmitted(path),false);
- assert.deepEqual(decideHostBoundary(staging,"/bo/tvs","GET"),{action:"next"});
+ assert.deepEqual(decideHostBoundary(staging,"/bo/tvs","GET"),{action:"not_found"});
  assert.deepEqual(decideHostBoundary(staging,"/bo/pinoria-tv-mesh","GET"),{action:"not_found"});
 });
 test("PAP-1263 exact Staging-only spatial BFF verbs stay closed across other hosts and methods",()=>{

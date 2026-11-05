@@ -32,7 +32,6 @@ export const boNavigation: BoNavGroup[] = [
       { href: "/bo/sales/leads", label: "Leads" },
       { href: "/bo/open-studio", label: "Open Studio" },
       { href: "/bo/open-studio-passes", label: "Pass Trạm Nghệ Thuật" },
-      { href: "/bo/tvs", label: "TVs" },
     ],
   },
   {

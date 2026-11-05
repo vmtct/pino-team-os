@@ -11,9 +11,10 @@ const ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const SHELL = "app/bo/components/registration/BoRuntimeBoundary.tsx";
 const CENTER_OWNER = "app/bo/components/registration/BoCenterSelection.tsx";
 const SELF = "app/bo/pinoria-avatars/SelfDirectoryTdd.tsx";
-/** PAP-1460 / PAP-1329: bounded grandfathered UI debt, not acceptance.
- * One exact existing workspace selector per file may remain until its own
- * Core-scoped domain rollout. Additional or renamed selectors fail CI. */
+/** PAP-1460 / PAP-650: TV TDD component is ARCHIVED SOURCE ONLY.
+ * Historical Center chooser remains in nonroutable source for audit;
+ * its page must return notFound, BO host must deny /bo/tvs.
+ * Additional or renamed workspace selectors in active modules fail CI. */
 const LEGACY_PICKERS = new Map([
   ["app/bo/tvs/TvsTdd.tsx", "bo-tv-center"],
 ]);
@@ -98,6 +99,17 @@ export function boCenterOwnershipViolations(root = ROOT) {
       errors.push(missions + ": BO Mission TDD must use shell Center and fence stale records");
   }
 
+  // Retired TV source is allowed ONLY when it cannot be reached as a BO page.
+  const retiredTvPage = "app/bo/tvs/page.tsx";
+  if (paths.some(file => norm(file) === retiredTvPage)) {
+    const page = readFileSync(join(root, retiredTvPage), "utf8");
+    if (!/notFound\s*\(\s*\)/.test(page) || /import\s*\{\s*TvsTdd\s*\}/.test(page))
+      errors.push(retiredTvPage + ": archived TV source must not remount BO management");
+    const policy = readFileSync(join(root, "app/bo/architecture/bo-staging-route-policy.ts"),"utf8");
+    if (/["']\/bo\/tvs["']/.test(policy))
+      errors.push(retiredTvPage + ": archived TV route must not be admitted in BO Staging policy");
+  }
+
   const selfFile = join(root, SELF);
   if (paths.some(file => norm(file) === SELF)) {
     const self = readFileSync(selfFile, "utf8");
@@ -124,6 +136,6 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     process.exitCode = 1;
   } else {
     console.log("BO_CENTER_OWNER_PASS: one shell owner; no new module-local Center selector");
-    console.warn("BO_CENTER_LEGACY_DEBT: one exact selector tracked in PAP-1460/PAP-1329 (not STAGING_ACCEPTED)");
+    console.warn("BO_TV_ARCHIVED_SOURCE_ONLY: one historical selector retained outside live BO routes (PAP-1460/PAP-650)");
   }
 }
