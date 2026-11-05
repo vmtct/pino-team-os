@@ -1,4 +1,5 @@
 "use client";
+import { BoActionButton, BoActionGroup } from "@pino/design-system/react";
 import { allows, type FieldSchema, type TddRegistry } from "@/lib/workspace-schema";
 import type { ReactNode } from "react";
 import { TddDrawer, TddDetail, registeredSchema, RecordState } from "./Record";
@@ -50,17 +51,15 @@ export function TddActionHost({ schema, context, slot, bindings, targetId, formM
   const pending = useRef(false);
   const actions = authorizedHostActions(schema, context, slot, bindings, targetId, formMode);
   if (!actions.length) return null;
-  return <div className="tdd-action-host" data-tdd-action-slot={slot} role="group"
-    style={{ display: "inline-flex", alignItems: "center", flexWrap: "wrap", gap: "10px" }}
+  return <BoActionGroup className="tdd-action-host" data-tdd-action-slot={slot}
     aria-label="Thao tác" aria-busy={busy !== null}>
     {actions.map(action => {
       const binding = bindings[action.handler];
       if (!binding) return null;
       const disabled = Boolean(busy || binding.disabled);
-      return <button key={action.id} type="button"
-        className={action.variant === "primary" ? "primary-btn" : "secondary-btn"}
+      return <BoActionButton key={action.id} type="button"
+        variant={action.variant === "primary" || action.variant === "danger" ? action.variant : "secondary"}
         aria-label={action.icon ? action.label : undefined} title={action.icon ? action.label : undefined}
-        style={action.icon === "refresh" ? { display: "inline-flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, minWidth: 34, padding: 0 } : undefined}
         disabled={disabled} onClick={() => {
           if (disabled || pending.current || !allows(schema, context, action.capability)) return;
           pending.current = true;
@@ -73,9 +72,9 @@ export function TddActionHost({ schema, context, slot, bindings, targetId, formM
             })
             .catch(() => setError("Chưa xác minh được kết quả. Đọc lại dữ liệu trước khi thử lại."))
             .finally(() => { pending.current = false; setBusy(null); });
-        }}>{action.icon === "refresh" ? <svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 7v5h-5"/><path d="M4 17v-5h5"/><path d="M5.7 9A7 7 0 0 1 18 7l2 5"/><path d="M18.3 15A7 7 0 0 1 6 17l-2-5"/></svg> : action.label}</button>;
+        }}>{action.icon === "refresh" ? <svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 7v5h-5"/><path d="M4 17v-5h5"/><path d="M5.7 9A7 7 0 0 1 18 7l2 5"/><path d="M18.3 15A7 7 0 0 1 6 17l-2-5"/></svg> : action.label}</BoActionButton>;
     })}
     {error ? <p role="alert">{error}</p> : null}
     {notice ? <p role="status">{notice}</p> : null}
-  </div>;
+  </BoActionGroup>;
 }

@@ -70,8 +70,9 @@ for (const surface of ["BO", "HO"] as const) for (const width of widths) {
           const style = getComputedStyle(element);
           return {
             label: element.textContent?.trim() ?? "",
-            primary: element.classList.contains("primary-btn"),
-            secondary: element.classList.contains("secondary-btn"),
+            primary: element.classList.contains("pds-bo-action-button-primary"),
+            secondary: element.classList.contains("pds-bo-action-button-secondary"),
+            danger: element.classList.contains("pds-bo-action-button-danger"),
             background: style.backgroundColor,
             radius: Number.parseFloat(style.borderRadius),
             padding: Number.parseFloat(style.paddingLeft),
@@ -84,7 +85,8 @@ for (const surface of ["BO", "HO"] as const) for (const width of widths) {
         }));
       expect(visuals.length).toBeGreaterThan(0);
       for (const visual of visuals) {
-        expect(visual.primary !== visual.secondary, surface + " " + stage + " incorrect DS variant").toBe(true);
+        expect([visual.primary, visual.secondary, visual.danger].filter(Boolean).length,
+          surface + " " + stage + " incorrect DS variant").toBe(1);
         expect(visual.background, surface + " " + stage + " transparent background").not.toBe("rgba(0, 0, 0, 0)");
         expect(visual.radius, surface + " " + stage + " missing border radius").toBeGreaterThanOrEqual(6);
         if (visual.iconOnly) {
