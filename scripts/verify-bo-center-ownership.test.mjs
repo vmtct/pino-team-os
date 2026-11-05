@@ -44,10 +44,10 @@ test("PAP-1459 negative: a renamed local TDD workspace picker is rejected",t=>{
 
 test("PAP-1460 bounded legacy: exact existing picker accepted as tracked debt, new picker denied",t=>{
   const {root,write}=fixture(t);
-  const legacy="app/bo/missions/BoMissionsTdd.tsx";
-  write(legacy,'createBoTddAdapter({}); return <select id="bo-mission-center">legacy</select>');
+  const legacy="app/bo/tvs/TvsTdd.tsx";
+  write(legacy,'createBoTddAdapter({}); return <select id="bo-tv-center">legacy</select>');
   assert.deepEqual(boCenterOwnershipViolations(root),[]);
-  write(legacy,'createBoTddAdapter({}); return <><select id="bo-mission-center"/><select id="other-center"/></>');
+  write(legacy,'createBoTddAdapter({}); return <><select id="bo-tv-center"/><select id="other-center"/></>');
   assert.ok(boCenterOwnershipViolations(root).some(x=>x.includes("PAP-1460 picker baseline changed")));
 });
 
@@ -72,4 +72,35 @@ test("PAP-1460 Diary negative: missing shell consumer/stale adapter fence is rej
 });
 test("PAP-1459 actual repository obeys single BO Center owner",()=>{
   assert.deepEqual(boCenterOwnershipViolations(),[]);
+});
+test("PAP-1460 Open Studio negative: local selector or missing scope fence is rejected",t=>{
+  const {root,write}=fixture(t);
+  const file="app/bo/open-studio-passes/BoOpenStudioPassesTdd.tsx";
+  write(file,'createBoTddAdapter({centerId:"forged"}); return <select id="bo-open-studio-center"/>');
+  assert.ok(boCenterOwnershipViolations(root).some(e=>e.includes("migrated Pass entrypoint")));
+  write(file,'const center=useBoCenterSelection();const selected=center.selected;createBoTddAdapter({centerId:selected});return <SurfaceWorkspace/>;');
+  assert.ok(boCenterOwnershipViolations(root).some(e=>e.includes("migrated Pass entrypoint")));
+});
+
+test("PAP-1460 Open Studio positive: shell scoped remount without local selector",t=>{
+  const {root,write}=fixture(t);
+  write("app/bo/open-studio-passes/BoOpenStudioPassesTdd.tsx",
+    'const center=useBoCenterSelection();const selected=center.selected;const current=ready?.centerId!==centerId?null:ready;createBoTddAdapter({centerId:selected});return <SurfaceWorkspace key={selected+":"+centerSource}/>;');
+  assert.deepEqual(boCenterOwnershipViolations(root),[]);
+});
+
+test("PAP-1460 Mission negative: old Center chooser or missing scoped adapter is rejected",t=>{
+  const {root,write}=fixture(t);
+  const file="app/bo/missions/BoMissionsTdd.tsx";
+  write(file,'createBoTddAdapter({centerId:"forged"});return <select id="bo-mission-center"/>');
+  assert.ok(boCenterOwnershipViolations(root).some(e=>e.includes("BO Mission TDD must use shell Center")));
+  write(file,'const center=useBoCenterSelection();const selected=center.selected;createBoTddAdapter({centerId:selected});return <SurfaceWorkspace/>;');
+  assert.ok(boCenterOwnershipViolations(root).some(e=>e.includes("BO Mission TDD must use shell Center")));
+});
+
+test("PAP-1460 Mission positive: shell Center and keyed TDD remount",t=>{
+  const {root,write}=fixture(t);
+  write("app/bo/missions/BoMissionsTdd.tsx",
+    'const center=useBoCenterSelection();const selected=center.selected;const ok=ready?.centerId===centerId;const leaseBlocked=Boolean(lease);setWriteLease({centerId,state:"pending"});createBoTddAdapter({centerId:centerId});return <><ScopedMissionAssignment key={selected+":"+center.source}/><SurfaceWorkspace key={centerId}/></>;');
+  assert.deepEqual(boCenterOwnershipViolations(root),[]);
 });

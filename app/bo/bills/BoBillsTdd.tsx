@@ -35,7 +35,7 @@ function BillsAtCenter({centerId,centerSource}:{centerId:string;centerSource:"ce
   {error?<p role="alert">{error} <button type="button" className="secondary-btn" onClick={refresh}>Thử lại</button></p>:ready?<><SurfaceWorkspace adapter={ready.adapter} navigation={ready.navigation} initialQuery={billQuery}
    actionBindings={{"bill.create":{kind:"navigation",run:()=>setEditor({})}}}
    detailOverview={row=>row.status==="Bản nháp"&&ready.adapter.context.authorize("billing.manage")?<button className="primary-btn" type="button" onClick={()=>setEditor({id:row.id})}>Sửa Draft / Phát hành</button>:null}/>
-   <p role="note">Danh s?ch t?i ?a 100 Draft v? Bill đã phát hành t? Draft, m?i c?p nh?t g?n ??y. Bills c? ngo?i Draft ch?a c? API danh s?ch.</p></>:<p role="status">Đang xác minh quyền và tải Bills…</p>}
+   </>:<p role="status">Đang xác minh quyền và tải Bills…</p>}
   {editor?<BillDraftEditor centerId={centerId} id={editor.id} onClose={()=>{setEditor(null);refresh();}} onSaved={()=>{}}/>:null}
  </section>;
 }
