@@ -28,6 +28,13 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
     return pathname === stagingAffiliationFixture && hostname === BO_STAGING_HOSTNAME && method === "POST"
       ? { action: "next" } : { action: "not_found" };
   }
+  // PAP-1479 / SCH-STUDENT-MGMT: exact BO Staging-only Student name edit ingress.
+  // Team BO facade enforces one Center query and two-field name/CAS body;
+  // Core independently rechecks Manager CENTER grant, current affiliation and audit.
+  const studentNameEdit = /^\\/api\\/bo\\/students\\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pathname);
+  if (studentNameEdit) {
+    return hostname === BO_STAGING_HOSTNAME && method === "PATCH" ? { action: "next" } : { action: "not_found" };
+  }
   // PAP-1356: global fail-closed fence so unknown hosts cannot fall through.
   const loadoutId = "[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
   const loadoutRoute = new RegExp("^/api/bo/pinoria/selfs/" + loadoutId + "/loadout(?:/media/(AURA_GROUND|AURA_BACK|BACK|OUTFIT|HAIR|FACE|HEADWEAR|PATH_MARK))?$").exec(pathname);
