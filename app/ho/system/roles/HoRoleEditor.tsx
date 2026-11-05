@@ -34,11 +34,14 @@ export function permissionPlatforms(p: PermissionPlatformMetadata): readonly Pla
   return [...new Set((p.applicablePlatforms as readonly unknown[]).filter(valid))];
 }
 export function matchesPlatform(p: PermissionPlatformMetadata, platform: PlatformFilter): boolean {
+  // PAP-1507: explicit [] is Founder-approved "No UI", even under All.
+  // null/missing remains All-only to avoid dropping future unclassified keys.
+  if (Array.isArray(p.applicablePlatforms) && p.applicablePlatforms.length===0) return false;
   return platform==="all"||permissionPlatforms(p).includes(platform);
 }
 export function permissionPlatformCounts<T extends PermissionPlatformMetadata>(permissions:readonly T[]): Record<PlatformFilter,number> {
   return {
-    all:permissions.length,
+    all:permissions.filter(p=>matchesPlatform(p,"all")).length,
     HO:permissions.filter(p=>matchesPlatform(p,"HO")).length,
     BO:permissions.filter(p=>matchesPlatform(p,"BO")).length,
     TOS:permissions.filter(p=>matchesPlatform(p,"TOS")).length,

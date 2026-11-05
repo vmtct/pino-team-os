@@ -15,6 +15,7 @@ test("PAP-1507: explicit Core platform metadata may be shared or unclassified",(
   assert.deepEqual(permissionPlatforms(p),["HO","BO","TOS"]);
   assert.equal(matchesPlatform(p,"HO"),true);
   assert.equal(matchesPlatform({surfaceApplicability:"BO",applicablePlatforms:[]}, "BO"),false);
+  assert.equal(matchesPlatform({applicablePlatforms:[]},"all"),false);
   assert.equal(matchesPlatform({applicablePlatforms:null},"all"),true);
 });
 test("PAP-1507: counts only catalog-backed UI platforms, never inferred defaults",()=>{
@@ -25,11 +26,15 @@ test("PAP-1507: counts only catalog-backed UI platforms, never inferred defaults
     {key:"tos",surfaceApplicability:"TOS",applicablePlatforms:["TOS"] as const},
     {key:"ho",surfaceApplicability:"BO",applicablePlatforms:["HO"] as const},
     {key:"unknown",surfaceApplicability:"BO",applicablePlatforms:null},
+    {key:"staging-qa-no-ui",surfaceApplicability:"BO",applicablePlatforms:[] as const},
   ];
+  // Unknown is still visible under All; explicit no-UI is not.
   assert.deepEqual(permissionPlatformCounts(catalog),{all:6,HO:1,BO:2,TOS:2});
   assert.equal(matchesPlatform(catalog[0],"BO"),false);
   assert.equal(matchesPlatform(catalog[5],"all"),true);
-  const selected=["bo-only","tos","unknown"];
+  assert.equal(matchesPlatform(catalog[6],"all"),false);
+  // Hidden grants must survive bulk selection, never be silently revoked.
+  const selected=["bo-only","tos","unknown","staging-qa-no-ui"];
   const changed=bulkGroupPermissionKeys(selected,catalog.filter(p=>matchesPlatform(p,"BO")).map(p=>p.key));
-  assert.deepEqual(changed,["bo-only","shared","tos","unknown"].sort());
+  assert.deepEqual(changed,["bo-only","shared","tos","unknown","staging-qa-no-ui"].sort());
 });
