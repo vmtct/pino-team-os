@@ -39,11 +39,17 @@ test("PAP-1356 Core gateway dispatch before generic Self Item catch-all",()=>{
   assert.equal((route.match(/if \(isBoSelfLoadoutPath\(joined\)\)/g)??[]).length,5);
   assert.ok(route.indexOf("if (isBoSelfLoadoutPath(joined))")<route.indexOf("if (isBoSelfItemPath(joined))"));
 });
-test("PAP-1356 typed TDD uses approved shared renderer and DS without module stylesheet",()=>{
+test("PAP-1356 typed TDD uses shared DS with owner-fenced business layout styles",()=>{
   const entry=admission.modules.find((m:{key:string})=>m.key==="pinoria-avatars");
   assert.ok(entry.files.includes("app/bo/pinoria-avatars/SelfLoadoutDetail.tsx"));
   assert.ok(entry.externalReferences.some((x:{file:string;owner:string})=>x.file==="app/components/pinoria/SelfLoadoutPreview.tsx"&&x.owner==="PAP-1356"));
-  assert.ok(!entry.files.some((p:string)=>p.endsWith(".css")));
+  // PAP-1500: exactly scoped domain layout CSS, NOT a new shell stylesheet.
+  assert.deepEqual(entry.files.filter((p:string)=>p.endsWith(".css")),["app/bo/pinoria-avatars/SelfWardrobeDetail.module.css"]);
+  assert.ok(entry.externalReferences.some((x:{file:string;owner:string})=>x.file==="app/components/pinoria/SelfLoadoutPreview.module.css"&&x.owner==="PAP-1489"));
+  assert.deepEqual(entry.businessStyles.map((b:{file:string;owner:string;consumer:string;classes:string[]})=>b),[
+    {file:"app/bo/pinoria-avatars/SelfWardrobeDetail.module.css",owner:"PAP-1490",consumer:"app/bo/pinoria-avatars/SelfWardrobeDetail.tsx",classes:["items"]},
+    {file:"app/components/pinoria/SelfLoadoutPreview.module.css",owner:"PAP-1489",consumer:"app/components/pinoria/SelfLoadoutPreview.tsx",classes:["canvas"]},
+  ]);
   assert.ok(entry.tests.includes("lib/pap1356-self-loadout-ui.test.ts"));
   assert.match(ui,/SelfLoadoutEditorLayout/);
   assert.match(view,/activeTab === "loadout"/);
