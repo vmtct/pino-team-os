@@ -4,6 +4,7 @@ import { PropertySections, TosCard, TosButton, type PropertyField } from "@pino/
 import type { BoAccessPermission, BoAccessRoleDetail } from "@/lib/bo-access-model";
 import { boApi } from "@/lib/bo-api";
 import { groupSelectionState,bulkGroupPermissionKeys } from "./group-selection";
+import {matchesPlatform,permissionPlatformCounts,type PlatformFilter} from "./permission-platform-filter";
 
 type Ready = { role: BoAccessRoleDetail; permissions: BoAccessPermission[] };
 type Draft = { displayName: string; description: string; keys: string[] };
@@ -44,6 +45,7 @@ export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, o
   const [notice,setNotice]=useState("");
   const [search,setSearch]=useState("");
   const [filter,setFilter]=useState<"all"|"selected"|"unselected">("all");
+  const [platformFilter,setPlatformFilter]=useState<PlatformFilter>("all");
   const [expandedGroups,setExpandedGroups]=useState<Record<string,boolean>>({});
   const lock=useRef(false);
   useEffect(()=>{
@@ -66,17 +68,28 @@ export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, o
   const permissionDirty=Boolean(additions.length||removals.length);
   const dirty=Boolean(draft&&original&&(draft.displayName.trim()!==original.displayName ||
     (draft.description.trim()||null)!==(original.description?.trim()||null)||permissionDirty));
+  const platformCounts=useMemo(()=>permissionPlatformCounts(data?.permissions??[]),[data?.permissions]);
   const groups=useMemo(()=>{
     const q=search.trim().toLocaleLowerCase("vi");
     const map=new Map<string,BoAccessPermission[]>();
     for(const p of data?.permissions??[]){
+      if(!matchesPlatform(p,platformFilter))continue;
       if(q && !(p.key+" "+p.displayLabel+" "+p.domain).toLocaleLowerCase("vi").includes(q))continue;
       const checked=draft?.keys.includes(p.key)??false;
       if((filter==="selected"&&!checked)||(filter==="unselected"&&checked))continue;
       const list=map.get(p.domain)??[];list.push(p);map.set(p.domain,list);
     }
     return [...map.entries()].sort((a,b)=>a[0].localeCompare(b[0],"vi"));
-  },[data,draft?.keys,search,filter]);
+  },[data,draft?.keys,search,filter,platformFilter]);
+  function choosePlatform(next:PlatformFilter){
+    setPlatformFilter(next);
+    if(next==="all"){setExpandedGroups({});return;}
+    const expanded:Record<string,boolean>={};
+    for(const permission of data?.permissions??[]){
+      if(matchesPlatform(permission,next))expanded[permission.domain]=true;
+    }
+    setExpandedGroups(expanded);
+  }
   function toggleGroup(visibleKeys:string[]){
     if(!editable||busy||!draft)return;
     setDraft(v=>v?{...v,keys:bulkGroupPermissionKeys(v.keys,visibleKeys)}:v);
@@ -161,6 +174,15 @@ export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, o
           <div><h3>Quyền truy cập</h3><p>Nhóm theo domain · chọn từng quyền</p></div>
           <div className="ho-role-metrics" aria-live="polite"><strong>{draft.keys.length} / {data.permissions.length} quyền</strong>
             <span className="ho-role-add">+{additions.length} thêm</span><span className="ho-role-remove">−{removals.length} bỏ</span></div>
+        </div>
+        <div className="ho-role-platforms" role="group" aria-label="Lọc quyền theo nền tảng">
+          <span className="ho-role-platforms-label">Nền tảng</span>
+          <div className="ho-role-platform-chips">
+            {(["all","HO","BO","TOS"] as const).map(value=><button type="button" key={value}
+              aria-pressed={platformFilter===value} onClick={()=>choosePlatform(value)}>
+              <span>{value==="all"?"Tất cả":value}</span><strong>{platformCounts[value]}</strong>
+            </button>)}
+          </div>
         </div>
         <div className="ho-role-controls">
           <label className="ho-role-search" htmlFor="role-permission-search">Tìm kiếm quyền

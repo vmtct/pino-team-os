@@ -169,6 +169,34 @@
 .ho-role-metrics strong { font-size: 12px; color: var(--role-ink); }
 .ho-role-metrics .ho-role-add { color: var(--ds-success, #167346); background: var(--ds-success-subtle, #eff9f2); }
 .ho-role-metrics .ho-role-remove { color: var(--ds-danger, #a83a52); background: var(--ds-danger-subtle, #fff1f4); }
+/* PAP-1507: platform chips match approved i5 HO Role business-tab composition. */
+.ho-role-platforms {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 12px;
+  padding: 11px 18px; border-bottom: 1px solid var(--role-line);
+  background: var(--role-paper);
+}
+.ho-role-platforms-label {
+  color: var(--role-muted); font-size: 11px; font-weight: 650; white-space: nowrap;
+}
+.ho-role-platform-chips {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px; min-width: 0;
+}
+.ho-role-platform-chips button {
+  display: inline-flex; align-items: center; gap: 8px;
+  min-height: 33px; padding: 6px 12px; border: 1px solid var(--role-line);
+  border-radius: 999px; background: var(--role-paper); color: var(--role-muted);
+  font: 650 12px/1.3 var(--bo-font-family,Arial,sans-serif); cursor: pointer;
+}
+.ho-role-platform-chips button strong {
+  min-width: 16px; padding: 2px 5px; border-radius: 9px;
+  background: var(--role-tint); text-align: center; font-size: 10px;
+}
+.ho-role-platform-chips button[aria-pressed="true"] {
+  color: var(--role-accent); border-color: var(--role-accent);
+  background: var(--role-accent-soft);
+}
+.ho-role-platform-chips button[aria-pressed="true"] strong { background: var(--role-paper); }
+.ho-role-platform-chips button:focus-visible {outline:2px solid var(--role-accent);outline-offset:2px}
 .ho-role-controls {
   display: flex;
   justify-content: space-between;
