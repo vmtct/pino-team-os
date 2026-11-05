@@ -7,6 +7,7 @@ export const HO_PAGE_PATHS = {
   globalTerms: "/ho/operating-cycle/global-terms",
   shiftTemplates: "/ho/workforce/shift-templates",
   staffs: "/ho/staff",
+  staffLinks: "/ho/workforce/staff-links",
   syllabi: "/ho/learning/syllabi",
   missions: "/ho/learning/missions",
   classroomDiaries: "/ho/learning/diaries",
