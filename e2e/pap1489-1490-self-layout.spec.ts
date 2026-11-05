@@ -33,6 +33,7 @@ for(const width of [320,390,768,1024,1440])test(`PAP-1489/PAP-1490 actual Self d
   await expect(page.getByRole("form")).toBeVisible();
   const canvas=page.locator("canvas");
   const bounds=await canvas.evaluate(e=>{
+    if(!(e instanceof HTMLCanvasElement)) throw new Error("Expected a canvas element");
     const r=e.getBoundingClientRect(),figure=e.closest("figure")!.getBoundingClientRect(),panel=e.closest(".detail-panel")!.getBoundingClientRect();
     return {x:r.x,right:r.right,width:r.width,height:r.height,figureRight:figure.right,panelRight:panel.right,clientRight:document.documentElement.clientWidth,backing:[e.width,e.height]};
   });
