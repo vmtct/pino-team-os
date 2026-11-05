@@ -2,9 +2,7 @@
 import "@pino/design-system/bo-tokens.css";
 import "@pino/design-system/components.css";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { boApi } from "@/lib/bo-api";
-import type { BoCenter } from "@/lib/bo-model";
-import { assignmentUuid, readMissionAssignment, readMissionLinkedDiaries, type MissionAssignment, type LinkedMissionDiary } from "@/lib/bo-mission-assignments";
+import { readMissionAssignment, readMissionLinkedDiaries, type MissionAssignment, type LinkedMissionDiary } from "@/lib/bo-mission-assignments";
 import { submitBoMissionAssignment, type AssignmentWrite } from "@/lib/bo-mission-assignment-command";
 import { createBoTddAdapter, type AuthenticatedSurfaceAdapter } from "@/lib/workspace-adapters";
 import { browserTddNavigation, type AdapterNavigation } from "@/lib/workspace-adapters/navigation";
@@ -17,11 +15,13 @@ import { useBoStagingUser } from "@/app/bo/components/registration/BoRuntimeBoun
 import { unifiedBoWorkspaceSource } from "@/app/bo/architecture/bo-unified-workspace-source";
 import { assignmentDefinition, assignmentFields, assignmentProvider, assignmentQuery } from "./schema";
 import { AssignmentFields, assignmentFormError, emptyAssignmentDraft, type AssignmentDraft } from "./AssignmentFields";
-import { missionCenterFromUrl, missionCenterUrl } from "./navigation";
+import { useBoCenterSelection } from "@/app/bo/components/registration/BoCenterSelection";
+import type { DirectoryCenterSource } from "@/app/bo/pinoria-avatars/centers";
 
 type F = typeof assignmentFields;
 type Ready = { centerId: string; adapter: AuthenticatedSurfaceAdapter<F>; navigation: AdapterNavigation<F> };
 type FormMode = "create" | "edit" | "cancel";
+type MissionWriteLease = { centerId:string; state:"pending" | "unverified" };
 export const assignmentUnavailable = {
   results: "Kết quả chưa khả dụng: nguồn kết quả học viên chưa được kết nối. Trạng thái giao nhiệm vụ không phải kết quả hoàn tất.",
   diary: "Nhật Ký chưa khả dụng: cần nguồn liên kết trực tiếp với nhiệm vụ được giao. Không suy diễn từ Student hoặc Mission.",
@@ -41,12 +41,37 @@ const businessLoaders: SlotLoaders = {
  * Source-backed Student/Mission selectors; receipt/readback, no optimistic fake status.
  * Core independently owns every Center grant and mutation.
  */
+/** PAP-1460 / Epic PAP-1316: BO shell owns the workspace Center.
+ * Keyed children discard stale TDD/Drawer/navigation state on Center switch.
+ * Original Core assignment command IDs and CAS remain Center-bound.
+ */
 export function BoMissionsTdd() {
   const user = useBoStagingUser();
-  const [centers, setCenters] = useState<readonly BoCenter[]>([]);
-  const [centerId, setCenterId] = useState("");
-  const [centerError, setCenterError] = useState("");
-  const [centerRetry, setCenterRetry] = useState(0);
+  const center = useBoCenterSelection();
+  // Kept in the BO module root across keyed Center switches: no second
+  // business command while an earlier Center mutation has unknown outcome.
+  const [writeLease,setWriteLease] = useState<MissionWriteLease | null>(null);
+  const selected = (!center || center.loading || center.error) ? "" : center.selected;
+  const content = <section data-testid="bo-missions-tdd" aria-label="Nhiệm vụ tại Center">
+    {!center ? <p role="alert">Không tìm thấy Center context của BO.</p> :
+      center.loading ? <p role="status">Đang xác thực cơ sở được cấp quyền…</p> :
+      center.error ? <p role="alert">{center.error}</p> :
+      !selected ? <p role="status">Chọn trung tâm tại góc trên trái để xem Nhiệm vụ.</p> :
+      <>
+        {writeLease && writeLease.centerId !== selected ?
+          <p role="alert">Lệnh tại cơ sở trước đang chờ kết quả hoặc chưa xác minh. Đối chiếu Core trước khi thao tác.</p> : null}
+        <ScopedMissionAssignment key={selected+":"+center.source} centerId={selected} centerSource={center.source}
+          writeLease={writeLease} setWriteLease={setWriteLease}/>
+      </>}
+  </section>;
+  return <BoRegistrationWorkspace source={unifiedBoWorkspaceSource} moduleKey="missions" currentUser={user ?? { displayName: null }} content={content} />;
+}
+
+function ScopedMissionAssignment({centerId,centerSource,writeLease,setWriteLease}:{
+  centerId:string;centerSource:DirectoryCenterSource;writeLease:MissionWriteLease|null;
+  setWriteLease:(lease:MissionWriteLease|null)=>void;
+}) {
+  const leaseBlocked=writeLease !== null;
   const [ready, setReady] = useState<Ready | null>(null);
   const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
@@ -63,32 +88,11 @@ export function BoMissionsTdd() {
   const effectiveCenter = useRef(centerId);
   useEffect(() => { effectiveCenter.current = centerId; }, [centerId]);
   useEffect(() => {
-    let active = true;
-    void boApi.centers().then(rows => {
-      if (!active) return;
-      const allowed = rows.filter(c => assignmentUuid.test(c.id) && c.status === "active");
-      setCenters(allowed);
-      const selectedCenter = missionCenterFromUrl(allowed, new URL(window.location.href));
-      effectiveCenter.current = selectedCenter;
-      setCenterId(selectedCenter);
-      setCenterError(allowed.length ? "" : "Không có Center đang hoạt động được cấp quyền.");
-    }).catch(() => { if (active) setCenterError("Không tải được danh sách Center."); });
-    return () => { active = false; };
-  }, [centerRetry]);
-  useEffect(() => {
-    const sync = () => {
-      const next = missionCenterFromUrl(centers, new URL(window.location.href));
-      if (next !== centerId) { effectiveCenter.current = next; setCenterId(next); setReady(null); setError(""); setMode(null); setTarget(null); }
-    };
-    window.addEventListener("popstate", sync);
-    return () => window.removeEventListener("popstate", sync);
-  }, [centers, centerId]);
-  useEffect(() => {
     if (!centerId) return;
     const controller = new AbortController();
     let adapter: AuthenticatedSurfaceAdapter<F> | null = null;
     void createBoTddAdapter({ registry: new TddRegistry(), definition: assignmentDefinition,
-      provider: assignmentProvider, centerId: centerId, centerSource: "centers" }, controller.signal)
+      provider: assignmentProvider, centerId: centerId, centerSource }, controller.signal)
       .then(bound => {
         adapter = bound;
         if (controller.signal.aborted) { bound.dispose(); return; }
@@ -97,27 +101,19 @@ export function BoMissionsTdd() {
         if (!controller.signal.aborted) setError(e instanceof Error ? e.message : "Không đủ quyền đọc Nhiệm vụ.");
       });
     return () => { controller.abort(); adapter?.dispose(); };
-  }, [centerId, retry]);
-  function selectCenter(id: string) {
-    if (writing.current || pending) return;
-    effectiveCenter.current = id;
-    setReady(null); setError(""); setCenterId(id); setMode(null); setTarget(null);
-    setDraft(emptyAssignmentDraft); setLoadError(""); setConfirmed("");
-    // A selected assignment belongs to its original Center; never reuse its identity.
-    window.history.pushState(null, "", missionCenterUrl(new URL(window.location.href), id));
-  }
+  }, [centerId, centerSource, retry]);
   const close = () => {
     if (writing.current || pending) return;
     setMode(null); setTarget(null); setFormError("");
   };
   const openCreate = () => {
-    if (!ready || ready.centerId !== centerId || writing.current || pending || uncertain || mode) return;
+    if (!ready || ready.centerId !== centerId || writing.current || pending || uncertain || leaseBlocked || mode) return;
     if (!ready.adapter.context.authorize("student.mission_assignment.manage")) return;
     commandKey.current = "mission-assignment-create-" + crypto.randomUUID();
     setDraft(emptyAssignmentDraft); setTarget(null); setFormError(""); setLoadError(""); setConfirmed(""); setMode("create");
   };
   const openChange = async (kind: "edit" | "cancel") => {
-    if (!ready || ready.centerId !== centerId || writing.current || pending || uncertain || mode) return;
+    if (!ready || ready.centerId !== centerId || writing.current || pending || uncertain || leaseBlocked || mode) return;
     if (!ready.adapter.context.authorize("student.mission_assignment.manage")) return;
     const selected = ready.navigation.read();
     if (selected.kind !== "detail" || !selected.recordId) return;
@@ -141,7 +137,7 @@ export function BoMissionsTdd() {
   };
   const submit = async () => {
     if (!mode || !ready || ready.centerId !== centerId || effectiveCenter.current !== centerId ||
-        !commandKey.current || writing.current || uncertain || pending) return { state: "unverified" as const };
+        !commandKey.current || writing.current || uncertain || pending || leaseBlocked) return { state: "unverified" as const };
     if (!ready.adapter.context.authorize("student.mission_assignment.manage")) return { state: "denied" as const };
     const invalid = assignmentFormError(mode, draft);
     if (invalid) { setFormError(invalid); return { state: "invalid" as const }; }
@@ -157,8 +153,10 @@ export function BoMissionsTdd() {
     else command = { kind: "cancel", centerId, id: target!.id, expectedVersion: target!.version,
       reason: draft.cancelReason.trim(), idempotencyKey: commandKey.current };
     writing.current = true;setPending(true);setFormError("");
+    setWriteLease({centerId,state:"pending"});
     try {
       const result = await submitBoMissionAssignment(command);
+      setWriteLease(result.state === "unverified" ? {centerId,state:"unverified"} : null);
       if (result.state === "verified") {
         if (effectiveCenter.current !== centerId) return result;
         setConfirmed("Đã đối chiếu giao Nhiệm vụ trên Core (" + result.record.missionCodeSnapshot + ").");
@@ -168,36 +166,34 @@ export function BoMissionsTdd() {
         if (result.state === "unverified") setUncertain(true);
       }
       return result;
+    } catch {
+      // A lost response may hide a successful Core write. Never replay automatically.
+      setUncertain(true);setWriteLease({centerId,state:"unverified"});
+      setFormError("Kết quả ghi chưa xác minh. Đối chiếu Core trước khi thử lại.");
+      return {state:"unverified" as const};
     } finally { writing.current = false;setPending(false); }
   };
   const actions: TddActionBindings = {
-    openCreate: { kind: "navigation", disabled: pending || uncertain || mode !== null, run: openCreate },
-    openEdit: { kind: "navigation", disabled: pending || uncertain || mode !== null, run: () => openChange("edit") },
-    openCancel: { kind: "navigation", disabled: pending || uncertain || mode !== null, run: () => openChange("cancel") },
+    openCreate: { kind: "navigation", disabled: pending || uncertain || leaseBlocked || mode !== null, run: openCreate },
+    openEdit: { kind: "navigation", disabled: pending || uncertain || leaseBlocked || mode !== null, run: () => openChange("edit") },
+    openCancel: { kind: "navigation", disabled: pending || uncertain || leaseBlocked || mode !== null, run: () => openChange("cancel") },
     cancelCreate: { kind: "navigation", disabled: pending, run: close },
-    saveCreate: { kind: "mutation", disabled: pending || uncertain || mode !== "create" ||
+    saveCreate: { kind: "mutation", disabled: pending || uncertain || leaseBlocked || mode !== "create" ||
       Boolean(assignmentFormError("create", draft)), run: submit },
     cancelEdit: { kind: "navigation", disabled: pending, run: close },
-    saveEdit: { kind: "mutation", visible: mode === "edit", disabled: pending || uncertain ||
+    saveEdit: { kind: "mutation", visible: mode === "edit", disabled: pending || uncertain || leaseBlocked ||
       Boolean(assignmentFormError("edit", draft)), run: submit },
-    confirmCancel: { kind: "mutation", visible: mode === "cancel", disabled: pending || uncertain ||
+    confirmCancel: { kind: "mutation", visible: mode === "cancel", disabled: pending || uncertain || leaseBlocked ||
       Boolean(assignmentFormError("cancel", draft)), run: submit },
   };
-  const content = <section data-testid="bo-missions-tdd" aria-label="Nhiệm vụ tại Center">
-    <div className="property-row"><label htmlFor="bo-mission-center">Center</label>
-      <select id="bo-mission-center" value={centerId} disabled={pending} onChange={e => selectCenter(e.target.value)}>
-        <option value="">Chọn Center</option>{centers.map(c => <option key={c.id} value={c.id}>{c.displayName}</option>)}
-      </select>
-    </div>
+  return <>
     <p role="note">{assignmentUnavailable.create}</p>
     {confirmed ? <p role="status">{confirmed}</p> : null}
     {loadError ? <p role="alert">{loadError}</p> : null}
     {uncertain ? <p role="alert">Kết quả ghi chưa xác minh. Đối chiếu Core trước khi gửi lại hoặc mở lệnh mới.</p> : null}
-    {!centerId ? <p role="status">{centerError || "Chọn Center để đọc Nhiệm vụ."}
-      {centerError ? <button type="button" onClick={() => { setCenterError("");setCenterRetry(n => n + 1); }}>Thử lại</button> : null}</p> :
-      error ? <p role="alert">{error} <button type="button" onClick={() => { setError("");setRetry(n => n + 1); }}>Thử lại</button></p> :
+    {error ? <p role="alert">{error} <button type="button" onClick={() => { setError("");setRetry(n => n + 1); }}>Thử lại</button></p> :
       ready?.centerId === centerId ? <>
-        <SurfaceWorkspace adapter={ready.adapter} navigation={ready.navigation} initialQuery={assignmentQuery}
+        <SurfaceWorkspace key={centerId} adapter={ready.adapter} navigation={ready.navigation} initialQuery={assignmentQuery}
           businessLoaders={businessLoaders} actionBindings={actions} />
         {mode ? <TddRenderer view={{ kind: "form", props: {
           registry: ready.adapter.registry, schema: ready.adapter.schema, context: ready.adapter.context,
@@ -213,8 +209,7 @@ export function BoMissionsTdd() {
           </>,
         } }} /> : null}
       </> : <p role="status">Đang xác thực Center và quyền đọc Nhiệm vụ…</p>}
-  </section>;
-  return <BoRegistrationWorkspace source={unifiedBoWorkspaceSource} moduleKey="missions" currentUser={user ?? { displayName: null }} content={content} />;
+  </>;
 }
 
 
