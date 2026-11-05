@@ -1,0 +1,858 @@
+{
+  "result": "LOCAL_VISUAL_CAPTURE_AND_CONTRACT_PASS",
+  "baseline": "Hồ sơ đăng ký only; immutable CSS/source, shared renderer; screenshots reviewed separately",
+  "sourceHashes": {
+    "full-detail-v24.css": "99c1a813eaa42cbe09dbf06b3f70d92892351e389fa288e1f930841a2efe87da",
+    "full-detail-v25.css": "7d0c9c8011418be8397fc7786695813d427ac7eee5eccca2d73062a41534eaf1",
+    "playground-v22.css": "2bb0d9a8c911a5b7ea9e0d732159c89e136ed548cab7e5856cb57352d0aad65c",
+    "playground-v23.css": "9a06ee1031ffa9a3b0ac5d94ee3a7e987391f22a5fbcc07c15c185e92db70afb",
+    "playground.css": "597d8516eb149098d82cfefbcaafc3c858fc8e729669cf8eee573dcb67e48b09",
+    "playground.html": "4eda7ece3978843971018800ad1472f3533496af3b19b8e37b34eabb75a29331",
+    "playground.js": "894b01efcf62dd052db38c1bd9c9acac49e27c791b3beb67aa66367442a2e689",
+    "styles.css": "c690f8593c628306695dfa727f806449505527f181017ba9dbe39dd819c139c8"
+  },
+  "checks": [
+    {
+      "schoolKey": "students",
+      "width": 390,
+      "table": true,
+      "quickView": true,
+      "threeTabs": true,
+      "fields": 6,
+      "documentOverflow": false
+    },
+    {
+      "schoolKey": "classes",
+      "width": 390,
+      "table": true,
+      "quickView": true,
+      "threeTabs": true,
+      "fields": 9,
+      "documentOverflow": false
+    },
+    {
+      "schoolKey": "subscriptions",
+      "width": 390,
+      "table": true,
+      "quickView": true,
+      "threeTabs": true,
+      "fields": 9,
+      "documentOverflow": false
+    },
+    {
+      "schoolKey": "enrollments",
+      "width": 390,
+      "table": true,
+      "quickView": true,
+      "threeTabs": true,
+      "fields": 10,
+      "documentOverflow": false
+    },
+    {
+      "schoolKey": "visits",
+      "width": 390,
+      "table": true,
+      "quickView": true,
+      "threeTabs": true,
+      "fields": 7,
+      "documentOverflow": false
+    },
+    {
+      "schoolKey": "staffs",
+      "width": 390,
+      "table": true,
+      "quickView": true,
+      "threeTabs": true,
+      "fields": 5,
+      "documentOverflow": false
+    },
+    {
+      "schoolKey": "termWeeks",
+      "width": 390,
+      "table": true,
+      "quickView": true,
+      "threeTabs": true,
+      "fields": 8,
+      "documentOverflow": false
+    },
+    {
+      "schoolKey": "timekeeping",
+      "width": 390,
+      "table": true,
+      "quickView": true,
+      "threeTabs": true,
+      "fields": 10,
+      "documentOverflow": false
+    },
+    {
+      "schoolKey": "salaryPeriods",
+      "width": 390,
+      "table": true,
+      "quickView": true,
+      "threeTabs": true,
+      "fields": 8,
+      "documentOverflow": false
+    },
+    {
+      "schoolKey": "worlds",
+      "width": 390,
+      "table": true,
+      "quickView": true,
+      "threeTabs": true,
+      "fields": 8,
+      "documentOverflow": false
+    },
+    {
+      "schoolKey": "catalog",
+      "width": 390,
+      "table": true,
+      "quickView": true,
+      "threeTabs": true,
+      "fields": 9,
+      "documentOverflow": false
+    },
+    {
+      "schoolKey": "sets",
+      "width": 390,
+      "table": true,
+      "quickView": true,
+      "threeTabs": true,
+      "fields": 6,
+      "documentOverflow": false
+    },
+    {
+      "schoolKey": "users",
+      "width": 390,
+      "table": true,
+      "quickView": true,
+      "threeTabs": true,
+      "fields": 5,
+      "documentOverflow": false
+    },
+    {
+      "schoolKey": "roles",
+      "width": 390,
+      "table": true,
+      "quickView": true,
+      "threeTabs": true,
+      "fields": 7,
+      "documentOverflow": false
+    },
+    {
+      "schoolKey": "audits",
+      "width": 390,
+      "table": true,
+      "quickView": true,
+      "threeTabs": true,
+      "fields": 9,
+      "documentOverflow": false
+    },
+    {
+      "schoolKey": "students",
+      "width": 768,
+      "table": true,
+      "quickView": true,
+      "threeTabs": true,
+      "fields": 6,
+      "documentOverflow": false
+    },
+    {
+      "schoolKey": "classes",
+      "width": 768,
+      "table": true,
+      "quickView": true,
+      "threeTabs": true,
+      "fields": 9,
+      "documentOverflow": false
+    },
+    {
+      "schoolKey": "subscriptions",
+      "width": 768,
+      "table": true,
+      "quickView": true,
+      "threeTabs": true,
+      "fields": 9,
+      "documentOverflow": false
+    },
+    {
+      "schoolKey": "enrollments",
+      "width": 768,
+      "table": true,
+      "quickView": true,
+      "threeTabs": true,
+      "fields": 10,
+      "documentOverflow": false
+    },
+    {
+      "schoolKey": "visits",
+      "width": 768,
+      "table": true,
+      "quickView": true,
+      "threeTabs": true,
+      "fields": 7,
+      "documentOverflow": false
+    },
+    {
+      "schoolKey": "staffs",
+      "width": 768,
+      "table": true,
+      "quickView": true,
+      "threeTabs": true,
+      "fields": 5,
+      "documentOverflow": false
+    },
+    {
+      "schoolKey": "termWeeks",
+      "width": 768,
+      "table": true,
+      "quickView": true,
+      "threeTabs": true,
+      "fields": 8,
+      "documentOverflow": false
+    },
+    {
+      "schoolKey": "timekeeping",
+      "width": 768,
+      "table": true,
+      "quickView": true,
+      "threeTabs": true,
+      "fields": 10,
+      "documentOverflow": false
+    },
+    {
+      "schoolKey": "salaryPeriods",
+      "width": 768,
+      "table": true,
+      "quickView": true,
+      "threeTabs": true,
+      "fields": 8,
+      "documentOverflow": false
+    },
+    {
+      "schoolKey": "worlds",
+      "width": 768,
+      "table": true,
+      "quickView": true,
+      "threeTabs": true,
+      "fields": 8,
+      "documentOverflow": false
+    },
+    {
+      "schoolKey": "catalog",
+      "width": 768,
+      "table": true,
+      "quickView": true,
+      "threeTabs": true,
+      "fields": 9,
+      "documentOverflow": false
+    },
+    {
+      "schoolKey": "sets",
+      "width": 768,
+      "table": true,
+      "quickView": true,
+      "threeTabs": true,
+      "fields": 6,
+      "documentOverflow": false
+    },
+    {
+      "schoolKey": "users",
+      "width": 768,
+      "table": true,
+      "quickView": true,
+      "threeTabs": true,
+      "fields": 5,
+      "documentOverflow": false
+    },
+    {
+      "schoolKey": "roles",
+      "width": 768,
+      "table": true,
+      "quickView": true,
+      "threeTabs": true,
+      "fields": 7,
+      "documentOverflow": false
+    },
+    {
+      "schoolKey": "audits",
+      "width": 768,
+      "table": true,
+      "quickView": true,
+      "threeTabs": true,
+      "fields": 9,
+      "documentOverflow": false
+    },
+    {
+      "schoolKey": "students",
+      "width": 1440,
+      "table": true,
+      "quickView": true,
+      "threeTabs": true,
+      "fields": 6,
+      "documentOverflow": false
+    },
+    {
+      "schoolKey": "classes",
+      "width": 1440,
+      "table": true,
+      "quickView": true,
+      "threeTabs": true,
+      "fields": 9,
+      "documentOverflow": false
+    },
+    {
+      "schoolKey": "subscriptions",
+      "width": 1440,
+      "table": true,
+      "quickView": true,
+      "threeTabs": true,
+      "fields": 9,
+      "documentOverflow": false
+    },
+    {
+      "schoolKey": "enrollments",
+      "width": 1440,
+      "table": true,
+      "quickView": true,
+      "threeTabs": true,
+      "fields": 10,
+      "documentOverflow": false
+    },
+    {
+      "schoolKey": "visits",
+      "width": 1440,
+      "table": true,
+      "quickView": true,
+      "threeTabs": true,
+      "fields": 7,
+      "documentOverflow": false
+    },
+    {
+      "schoolKey": "staffs",
+      "width": 1440,
+      "table": true,
+      "quickView": true,
+      "threeTabs": true,
+      "fields": 5,
+      "documentOverflow": false
+    },
+    {
+      "schoolKey": "termWeeks",
+      "width": 1440,
+      "table": true,
+      "quickView": true,
+      "threeTabs": true,
+      "fields": 8,
+      "documentOverflow": false
+    },
+    {
+      "schoolKey": "timekeeping",
+      "width": 1440,
+      "table": true,
+      "quickView": true,
+      "threeTabs": true,
+      "fields": 10,
+      "documentOverflow": false
+    },
+    {
+      "schoolKey": "salaryPeriods",
+      "width": 1440,
+      "table": true,
+      "quickView": true,
+      "threeTabs": true,
+      "fields": 8,
+      "documentOverflow": false
+    },
+    {
+      "schoolKey": "worlds",
+      "width": 1440,
+      "table": true,
+      "quickView": true,
+      "threeTabs": true,
+      "fields": 8,
+      "documentOverflow": false
+    },
+    {
+      "schoolKey": "catalog",
+      "width": 1440,
+      "table": true,
+      "quickView": true,
+      "threeTabs": true,
+      "fields": 9,
+      "documentOverflow": false
+    },
+    {
+      "schoolKey": "sets",
+      "width": 1440,
+      "table": true,
+      "quickView": true,
+      "threeTabs": true,
+      "fields": 6,
+      "documentOverflow": false
+    },
+    {
+      "schoolKey": "users",
+      "width": 1440,
+      "table": true,
+      "quickView": true,
+      "threeTabs": true,
+      "fields": 5,
+      "documentOverflow": false
+    },
+    {
+      "schoolKey": "roles",
+      "width": 1440,
+      "table": true,
+      "quickView": true,
+      "threeTabs": true,
+      "fields": 7,
+      "documentOverflow": false
+    },
+    {
+      "schoolKey": "audits",
+      "width": 1440,
+      "table": true,
+      "quickView": true,
+      "threeTabs": true,
+      "fields": 9,
+      "documentOverflow": false
+    }
+  ],
+  "apiRequests": [
+    {
+      "method": "GET",
+      "path": "/api/bo/learners",
+      "query": "?limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/learners",
+      "query": "?limit=100&beforeStudentId=00000000-0000-4000-8000-000000000100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/delivery/bootstrap-state",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/subscriptions",
+      "query": "?limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/school/enrollments",
+      "query": "?limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/centers",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/student-visits",
+      "query": "?centerId=00000000-0000-4000-8000-000000000901&limit=100&offset=0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/workforce/staff-records",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/delivery/bootstrap-state",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/workforce/timekeeping/centers",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/workforce/timekeeping",
+      "query": "?centerId=00000000-0000-4000-8000-000000000901&startDate=2026-09-25&endDate=2026-10-25&limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/centers",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/workforce/payroll/periods",
+      "query": "?centerId=00000000-0000-4000-8000-000000000901&limit=100&offset=0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/pinoria/worlds",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/pinoria/ward/catalog",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/pinoria/ward/sets",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/access/users",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/access/roles",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/access/audit",
+      "query": "?limit=100&offset=0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/learners",
+      "query": "?limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/learners",
+      "query": "?limit=100&beforeStudentId=00000000-0000-4000-8000-000000000100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/delivery/bootstrap-state",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/subscriptions",
+      "query": "?limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/school/enrollments",
+      "query": "?limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/centers",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/student-visits",
+      "query": "?centerId=00000000-0000-4000-8000-000000000901&limit=100&offset=0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/workforce/staff-records",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/delivery/bootstrap-state",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/workforce/timekeeping/centers",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/workforce/timekeeping",
+      "query": "?centerId=00000000-0000-4000-8000-000000000901&startDate=2026-09-25&endDate=2026-10-25&limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/centers",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/workforce/payroll/periods",
+      "query": "?centerId=00000000-0000-4000-8000-000000000901&limit=100&offset=0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/pinoria/worlds",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/pinoria/ward/catalog",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/pinoria/ward/sets",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/access/users",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/access/roles",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/access/audit",
+      "query": "?limit=100&offset=0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/learners",
+      "query": "?limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/learners",
+      "query": "?limit=100&beforeStudentId=00000000-0000-4000-8000-000000000100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/delivery/bootstrap-state",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/subscriptions",
+      "query": "?limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/school/enrollments",
+      "query": "?limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/centers",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/student-visits",
+      "query": "?centerId=00000000-0000-4000-8000-000000000901&limit=100&offset=0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/workforce/staff-records",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/delivery/bootstrap-state",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/workforce/timekeeping/centers",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/workforce/timekeeping",
+      "query": "?centerId=00000000-0000-4000-8000-000000000901&startDate=2026-09-25&endDate=2026-10-25&limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/centers",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/workforce/payroll/periods",
+      "query": "?centerId=00000000-0000-4000-8000-000000000901&limit=100&offset=0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/pinoria/worlds",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/pinoria/ward/catalog",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/pinoria/ward/sets",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/access/users",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/access/roles",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/access/audit",
+      "query": "?limit=100&offset=0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/learners",
+      "query": "?limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/delivery/bootstrap-state",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/subscriptions",
+      "query": "?limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/school/enrollments",
+      "query": "?limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/centers",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/workforce/staff-records",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/delivery/bootstrap-state",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/workforce/timekeeping/centers",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/centers",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/pinoria/worlds",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/pinoria/ward/catalog",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/pinoria/ward/sets",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/access/users",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/access/roles",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/access/audit",
+      "query": "?limit=100&offset=0"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/learners",
+      "query": "?limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/delivery/bootstrap-state",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/subscriptions",
+      "query": "?limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/school/enrollments",
+      "query": "?limit=100"
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/centers",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/workforce/staff-records",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/delivery/bootstrap-state",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/workforce/timekeeping/centers",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/centers",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/pinoria/worlds",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/pinoria/ward/catalog",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/pinoria/ward/sets",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/access/users",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/access/roles",
+      "query": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/bo/access/audit",
+      "query": "?limit=100&offset=0"
+    }
+  ]
+}

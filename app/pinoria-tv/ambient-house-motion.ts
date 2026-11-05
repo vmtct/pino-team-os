@@ -308,6 +308,42 @@ function connectorPathCanReserve(target: DirectedConnector, agents: readonly Amb
   return pathIsClear(target.path, agents, agentId);
 }
 
+/** On context changes, prioritize a safe one-hop connector toward a known approved area.
+ * There is no teleport, reservation bypass or synthetic routing if no direct edge exists.
+ */
+function choosePreferredConnector(
+  agent: AmbientAgent,
+  connectors: readonly DirectedConnector[],
+  agents: readonly AmbientAgent[],
+  preferred: readonly string[] | undefined,
+) {
+  if (!preferred?.length || preferred.includes(agent.laneId)) return undefined;
+  const targetLanes = new Set(preferred);
+  // Breadth-first from destination lanes computes a deterministic shortest path.
+  // A blocked first hop is not taken; ordinary safe roaming remains the fallback.
+  const distance = new Map<string, number>();
+  const queue = [...targetLanes].sort();
+  for (const laneId of queue) distance.set(laneId, 0);
+  for (let i = 0; i < queue.length; i++) {
+    const lane = queue[i]!;
+    const previousLanes = connectors
+      .filter((connector) => connector.toLaneId === lane)
+      .map((connector) => connector.fromLaneId).sort();
+    for (const prev of previousLanes) {
+      if (distance.has(prev)) continue;
+      distance.set(prev, distance.get(lane)! + 1);
+      queue.push(prev);
+    }
+  }
+  const currentDistance = distance.get(agent.laneId);
+  if (currentDistance === undefined) return undefined;
+  return connectors
+    .filter((connector) => connector.fromLaneId === agent.laneId
+      && (distance.get(connector.toLaneId) ?? Infinity) < currentDistance
+      && connectorPathCanReserve(connector, agents, agent.id))
+    .sort((a, b) => (distance.get(a.toLaneId)! - distance.get(b.toLaneId)!)
+      || a.id.localeCompare(b.id))[0];
+}
 function chooseClearConnector(agent: AmbientAgent, connectors: readonly DirectedConnector[], agents: readonly AmbientAgent[]) {
   const options = connectors.filter((connector) => connector.fromLaneId === agent.laneId && connectorPathCanReserve(connector, agents, agent.id));
   if (!options.length) return undefined;
@@ -383,6 +419,8 @@ export function reconcileAmbientAgents(
   previous: readonly AmbientAgent[],
   ids: readonly string[],
   graph: AmbientMotionGraph,
+  preferredLaneIds: ReadonlyMap<string, readonly string[]> = new Map(),
+  emergencePins: ReadonlyMap<string, readonly {laneId: string; x: number}[]> = new Map(),
 ): AmbientAgent[] {
   const desired = new Set(ids);
   const retained = previous.filter((agent) => desired.has(agent.id));
@@ -391,7 +429,16 @@ export function reconcileAmbientAgents(
   const next = [...retained];
   const candidates = placementCandidates(graph);
   for (const id of missing) {
-    const slot = candidates.find((candidate) => slotCanReserve(candidate, next, graph));
+    const preferred = new Set(preferredLaneIds.get(id) ?? []);
+    const pinnedSlot = (emergencePins.get(id) ?? []).map((pin) => {
+      const lane = graph.horizontalLanes.find((candidate) => candidate.id === pin.laneId);
+      return lane && Number.isFinite(pin.x) && pin.x >= lane.x1 + 36 && pin.x <= lane.x2 - 36
+        ? {lane, x:pin.x, y:lane.y} : null;
+    }).find((candidate) => candidate && slotCanReserve(candidate, next, graph));
+    const preferredSlot = preferred.size
+      ? candidates.find((candidate) => preferred.has(candidate.lane.id) && slotCanReserve(candidate, next, graph))
+      : undefined;
+    const slot = pinnedSlot ?? preferredSlot ?? candidates.find((candidate) => slotCanReserve(candidate, next, graph));
     if (!slot) throw new Error("AMBIENT_HOUSE_CAPACITY_EXCEEDED");
     next.push(createAmbientAgentAtSlot(id, slot));
   }
@@ -401,7 +448,7 @@ export function stepAmbientAgents(
   previous: readonly AmbientAgent[],
   graph: AmbientMotionGraph,
   elapsedMs: number,
-  options: { departingIds?: ReadonlySet<string>; frozenIds?: ReadonlySet<string>; speedMultipliers?: ReadonlyMap<string, number> } = {},
+  options: { departingIds?: ReadonlySet<string>; frozenIds?: ReadonlySet<string>; speedMultipliers?: ReadonlyMap<string, number>; preferredLaneIds?: ReadonlyMap<string, readonly string[]> } = {},
 ): AmbientAgent[] {
   const laneList = usableLanes(graph);
   const lanes = new Map(laneList.map((lane) => [lane.id, lane]));
@@ -480,10 +527,22 @@ export function stepAmbientAgents(
       return { ...agent, ...activity, x, direction, targetConnectorId: undefined };
     }
 
-    let target = agent.targetConnectorId
-      ? connectors.find((connector) => connector.id === agent.targetConnectorId && connector.fromLaneId === agent.laneId)
+    const preferredTarget = connectorCooldownMs <= 0
+      ? choosePreferredConnector({ ...agent, activityEpoch }, connectors, previous, options.preferredLaneIds?.get(agent.id))
       : undefined;
-    if (!target && connectorCooldownMs <= 0) target = chooseClearConnector({ ...agent, activityEpoch }, connectors, previous) ?? chooseConnector({ ...agent, activityEpoch }, connectors);
+    // A changed canonical area overrides a stale queued connector, never an
+    // already active traversal (those must finish for reservation safety).
+    let target = preferredTarget ?? (agent.targetConnectorId
+      ? connectors.find((connector) => connector.id === agent.targetConnectorId && connector.fromLaneId === agent.laneId && (!options.preferredLaneIds?.get(agent.id)?.includes(agent.laneId) || options.preferredLaneIds.get(agent.id)!.includes(connector.toLaneId)))
+      : undefined);
+    if (!target && connectorCooldownMs <= 0) {
+      const configuredArea = options.preferredLaneIds?.get(agent.id);
+      const allowed = configuredArea?.includes(agent.laneId)
+        ? connectors.filter((connector) => configuredArea.includes(connector.fromLaneId) && configuredArea.includes(connector.toLaneId))
+        : connectors;
+      target = chooseClearConnector({ ...agent, activityEpoch }, allowed, previous)
+        ?? chooseConnector({ ...agent, activityEpoch }, allowed);
+    }
 
     if (target) {
       const delta = target.from.x - agent.x;
@@ -527,7 +586,7 @@ export function stepAmbientAgents(
     if (proposed <= bounds.x1) { proposed = bounds.x1; direction = 1; }
     if (proposed >= bounds.x2) { proposed = bounds.x2; direction = -1; }
     const x = furthestClearX(agent.x, proposed, lane.y, previous, agent.id);
-    return { ...agent, ...activity, x, direction };
+    return { ...agent, ...activity, x, direction, targetConnectorId: undefined };
   });
 
   // Every proposal is checked against the previous collision-free frame. Two peers

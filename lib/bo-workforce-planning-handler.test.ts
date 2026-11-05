@@ -17,7 +17,7 @@ test("BO weekly planner forwards bounded query through local password session", 
   assert.equal(response.status, 200); assert.equal(response.headers.get("x-request-id"), "core-weekly");
   assert.deepEqual(forwarded, { method: "GET", path: "weekly", body: { centerId: "center-1", termWeekId: "week-1" } }); assert.equal(token, session);
 });
-test("planning bootstrap and ShiftTemplate admin stay inside bounded Workforce facade", async () => {
+test("PAP-1199 BO ShiftTemplate catalog is read-only and writes never forward to Core", async () => {
   const forwarded: WorkforcePlanningRequest[] = [];
   const b = binding(async request => { forwarded.push(request); return { status: request.method === "POST" ? 201 : 200, body: { data: [] }, requestId: "core-shifts" }; });
   const bootstrap = new Request("https://bo.pinohouse.art/api/bo/workforce/planning/bootstrap?forged=1", { headers: headers() });
@@ -28,13 +28,11 @@ test("planning bootstrap and ShiftTemplate admin stay inside bounded Workforce f
   const status = new Request(`https://bo.pinohouse.art/api/bo/workforce/planning/shift-templates/${id}/status`, { method: "POST", headers: headers({ "content-type": "application/json", "idempotency-key": "status-template" }), body: JSON.stringify({ centerId: "center-1", status: "INACTIVE" }) });
   assert.equal((await handleBoWorkforcePlanningRequest(bootstrap, env(b), "workforce/planning/bootstrap")).status, 200);
   assert.equal((await handleBoWorkforcePlanningRequest(list, env(b), "workforce/planning/shift-templates")).status, 200);
-  assert.equal((await handleBoWorkforcePlanningRequest(create, env(b), "workforce/planning/shift-templates")).status, 201);
-  assert.equal((await handleBoWorkforcePlanningRequest(status, env(b), `workforce/planning/shift-templates/${id}/status`)).status, 201);
+  assert.equal((await handleBoWorkforcePlanningRequest(create, env(b), "workforce/planning/shift-templates")).status, 403);
+  assert.equal((await handleBoWorkforcePlanningRequest(status, env(b), `workforce/planning/shift-templates/${id}/status`)).status, 403);
   assert.deepEqual(forwarded, [
     { method: "GET", path: "bootstrap", body: {} },
     { method: "GET", path: "shift-templates", body: { centerId: "center-1" } },
-    { method: "POST", path: "shift-templates", body: createBody, idempotencyKey: "create-template" },
-    { method: "POST", path: `shift-templates/${id}/status`, body: { centerId: "center-1", status: "INACTIVE" }, idempotencyKey: "status-template" },
   ]);
 });
 
@@ -61,6 +59,17 @@ test("assignment and cancellation forward exact idempotency keys", async () => {
   assert.equal((await handleBoWorkforcePlanningRequest(create, env(b), "workforce/planning/assignment")).status, 200);
   assert.equal((await handleBoWorkforcePlanningRequest(cancel, env(b), "workforce/planning/assignment/cancel")).status, 200);
   assert.deepEqual(forwarded, [{ method: "POST", path: "assignment", body: assignmentBody, idempotencyKey: "create-key" }, { method: "POST", path: "assignment/cancel", body: { assignmentId: "assignment", reason: "Correction" }, idempotencyKey: "cancel-key" }]);
+});
+
+test("PAP-1111 note-only edit forwards idempotency, expected concurrency token and Core ACL result", async () => {
+  const forwarded: WorkforcePlanningRequest[] = [];
+  const b = binding(async (request) => { forwarded.push(request); return {status:409,body:{error:{code:"CONFLICT",message:"Assignment changed"}},requestId:"note-conflict"}; });
+  const path = "workforce/planning/assignment/note";
+  const input = {assignmentId:"01999999-9999-7999-8999-999999999999",expectedUpdatedAt:"2026-10-29T04:00:00.000Z",note:"Cập nhật ca"};
+  const request = new Request("https://bo.pinohouse.art/api/bo/"+path,{method:"POST",headers:headers({"content-type":"application/json","idempotency-key":"note-edit-1"}),body:JSON.stringify(input)});
+  const response=await handleBoWorkforcePlanningRequest(request,env(b),path);
+  assert.equal(response.status,409); assert.equal(response.headers.get("x-request-id"),"note-conflict");
+  assert.deepEqual(forwarded,[{method:"POST",path:"assignment/note",body:input,idempotencyKey:"note-edit-1"}]);
 });
 
 test("missing mutation replay key and missing password session fail before Core", async () => {
@@ -137,6 +146,10 @@ test("WSRA operational assignment forwards exact role plan and replay key", asyn
     centerId: "center",
     workDate: "2026-10-06",
     shiftTemplateId: "shift",
+    note: "QA ca tối",
+    coverageMode: "CUSTOM_RANGE",
+    customStartLocal: "18:00",
+    customEndLocal: "20:30",
     termWeekId: "week",
     roles: [
       { roleType: "FRONT_DESK" },
@@ -152,4 +165,66 @@ test("WSRA operational assignment forwards exact role plan and replay key", asyn
   assert.equal(response.status, 201);
   assert.equal(response.headers.get("x-request-id"), "wsra-core");
   assert.deepEqual(forwarded, [{ method: "POST", path: "operational-assignment", body, idempotencyKey: "wsra-plan-key" }]);
+});
+
+test("WSRA operational assignment preserves Core validation/version rejection details", async () => {
+  const errorBody = { error: { code: "WORKFORCE_ASSIGNMENT_VERSION_CONFLICT", message: "Assignment changed; reload before retry." } };
+  const b = binding(async () => ({ status: 409, body: errorBody, requestId: "wsra-conflict" }));
+  const request = new Request("https://bo.pinohouse.art/api/bo/workforce/planning/operational-assignment", {
+    method: "POST",
+    headers: headers({ "content-type": "application/json", "idempotency-key": "wsra-conflict-key" }),
+    body: JSON.stringify({ staffMemberId: "staff", centerId: "center", workDate: "2026-10-06", shiftTemplateId: "shift", coverageMode: "CUSTOM_RANGE", customStartLocal: "20:30", customEndLocal: "18:00", termWeekId: "week", roles: [{ roleType: "TEACHER", sessionId: "session" }] }),
+  });
+  const response = await handleBoWorkforcePlanningRequest(request, env(b), "workforce/planning/operational-assignment");
+  assert.equal(response.status, 409);
+  assert.equal(response.headers.get("x-request-id"), "wsra-conflict");
+  assert.deepEqual(await response.json(), errorBody);
+});
+
+test("PAP-901 global weeks read forwards only a Center-scoped GET, never forged authority", async () => {
+  let forwarded: WorkforcePlanningRequest | undefined;
+  const b = binding(async request => {
+    forwarded = request;
+    return { status: 200, body: { data: { terms: [], termWeeks: [] } }, requestId: "global-weeks" };
+  });
+  const request = new Request("https://bo.pinohouse.art/api/bo/workforce/planning/global-weeks?centerId=center-a&userId=forged&scope=GLOBAL", { headers: headers() });
+  const response = await handleBoWorkforcePlanningRequest(request, env(b), "workforce/planning/global-weeks");
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("x-request-id"), "global-weeks");
+  assert.deepEqual(forwarded, { method: "GET", path: "global-weeks", body: { centerId: "center-a" } });
+});
+
+test("PAP-901 global weeks read propagates Center permission denial and blocks anonymous callers", async () => {
+  let calls = 0;
+  const b = binding(async () => {
+    calls++;
+    return { status: 403, body: { error: { code: "ACCESS_PERMISSION_DENIED" } }, requestId: "global-denied" };
+  });
+  const path = "workforce/planning/global-weeks";
+  const url = "https://bo.pinohouse.art/api/bo/workforce/planning/global-weeks?centerId=center-b";
+  const anonymous = await handleBoWorkforcePlanningRequest(new Request(url), env(b), path);
+  assert.equal(anonymous.status, 401);
+  assert.equal(calls, 0);
+  const scoped = await handleBoWorkforcePlanningRequest(new Request(url, { headers: headers() }), env(b), path);
+  assert.equal(scoped.status, 403);
+  assert.equal(scoped.headers.get("x-request-id"), "global-denied");
+  assert.equal(calls, 1);
+});
+
+test("PAP-1064 forwards a guarded Center Shift Plan create and preserves 409", async () => {
+  const requests: WorkforcePlanningRequest[] = [];
+  const core = binding(async req => {
+    requests.push(req);
+    return { status: requests.length === 1 ? 201 : 409, body: { data: { shiftPlanExists: true } }, requestId: "plan-write" };
+  });
+  const path = "workforce/planning/shift-plan", url = "https://bo.pinohouse.art/api/bo/" + path;
+  const input = {centerId:"center",termWeekId:"week",open:true,expectedVersion:0,reason:"PAP-1064 acceptance"};
+  const make = (key?:string) => new Request(url, {method:"POST",headers:headers({"content-type":"application/json",...(key?{"idempotency-key":key}:{})}),body:JSON.stringify(input)});
+  assert.equal((await handleBoWorkforcePlanningRequest(make(),env(core),path)).status,400);
+  assert.equal(requests.length,0);
+  const success = await handleBoWorkforcePlanningRequest(make("plan-1"),env(core),path);
+  assert.equal(success.status,201);
+  assert.equal(success.headers.get("x-request-id"),"plan-write");
+  assert.deepEqual(requests[0],{method:"POST",path:"shift-plan",body:input,idempotencyKey:"plan-1"});
+  assert.equal((await handleBoWorkforcePlanningRequest(make("plan-2"),env(core),path)).status,409);
 });

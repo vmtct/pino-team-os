@@ -15,25 +15,15 @@ Before changing material business behavior, protected data flow, or a Core-owned
 7. for any staff UI work, read `docs/tos-adaptive-workspace-doctrine-v1.md` before choosing TOS/BO placement, navigation, mobile/desktop composition, or shell usage.
 
 If the required Core governance/spec material is unavailable, stop before inventing material business behavior and report the missing dependency.
-## Mandatory continuation entry gate
+## Continuation facts and retired PLT-CARE
 
-Conversation history is non-authoritative delivery memory. For terse continuation instructions such as `continue`, `tiếp tục`, `triển`, `ok triển`, `finish`, or equivalent, do not resume from remembered chat state.
+The current Jira scope and [PAP-184](https://vmtct97.atlassian.net/browse/PAP-184) SOP root, [PAP-1051](https://vmtct97.atlassian.net/browse/PAP-1051) engineering workflow and [PAP-980](https://vmtct97.atlassian.net/browse/PAP-980) Codex builder authority govern implementation. Historical PAP-512/PAP-596 directives are not universal work, review, handoff or merge gates. Conversation history is non-authoritative delivery memory. Inspect exact worktree, branch, head, current main, merge-base, dirty state, changed paths, exact-head CI and real conflicting writers before material side effects.
 
-Run `npm run pino:resume -- --core <current-pino-core-worktree>` (or set `PINO_CORE_PATH`) before material edits; `delivery:enter` remains a compatibility alias. The Core gate must resolve `featureCode` + `featureId`, inspect this Team worktree against current `main`, and classify Drift Protocol state before resuming the first unproven gate.
+The optional pino:resume and delivery:enter scripts are read-only compatibility fact inspectors, never mandatory continuation gates. Legacy allowedMode, implementationAuthority, needsReconcile, Project-Code, PLT-CARE materialEditGuard and stale checkpoint/lease fields cannot grant or block Jira-authorized DEV/review.
 
-Obey the result: `NONE` continues; `SAFE` continues without a forced sync; `CONTRACT` is reconciled by the coding agent in the same work session and the gate is rerun; `DESTRUCTIVE` or genuinely ambiguous state requires human review. Do not ask the Founder to reconcile merely because `main` advanced. If Core governance is unavailable or feature resolution is ambiguous, fail closed.
+Do not claim, heartbeat, reclaim, transfer, release or require historical PLT-CARE leases. Historical records are for forensic inspection only. Protect actual shared side effects with narrowly scoped single-writer/idempotency safety; retain Git freshness, auth, security and release gates. Merge, Staging, D1 and Production require their own applicable Jira authority.
 
-For implementation/builder work, the terminal state is `DEV_HANDOFF_READY`: implementation complete, local verification complete, immutable candidate pushed, and exact-head CI requested/proven. Stop there. Authoritative PRE-MAIN audit, final current-main reconcile, `MERGE_READY`, and merge execution are owned downstream by Core `PLT-MERGE`.
-
-### Cross-Project slice care
-
-Material Team work must identify the coordinating ChatGPT Project with one canonical Project Code: `PRJ-TPP`, `PRJ-PSP`, `PRJ-PNR`, `PRJ-WFM`, or `PRJ-PLT`. Pass it through `--project` or `PINO_PROJECT_CODE`.
-
-Before material edits, Core PLT-CARE must report the current owner transparently. Unclaimed work requires a claim. Fresh foreign care blocks duplicate material edits and must surface owner, branch, PR, and freshness. Stale care requires explicit reclaim. Fresh foreign transfer requires explicit Founder approval plus a reason.
-
-Care ownership is coordination metadata only; it never authorizes staging or production.
-
-## Feature readiness is implementation authority
+## Feature maturity is product evidence, not execution authority
 
 - `READY_FOR_IMPLEMENTATION` — implementation may proceed against the registered approved spec/handoff.
 - `READY_WITH_PREREQUISITES` — prototype/review may continue, but blocked runtime integration waits for named prerequisites.
@@ -153,7 +143,7 @@ For a material cross-repository feature:
 6. compose the approved surface shell instead of inventing parallel navigation;
 7. add/update app-boundary tests;
 8. surface any spec/code/layout mismatch instead of silently choosing one side;
-9. hand off at `DEV_HANDOFF_READY`; Core `PLT-MERGE` owns current-main reconcile, exact candidate CI, authoritative independent PRE-MAIN review, freshness, and `MERGE_READY`.
+9. complete the authorized Jira-scoped implementation, tests and PR; keep exact-head CI, protected-main merge admission and Staging CD executable checks. Do not require legacy `DEV_HANDOFF_READY`, `MERGE_READY`, `PLT-MERGE`, or independent PRE-MAIN review solely from historical text.
 
 Before approving a material staff UI PR, independently verify:
 
@@ -165,8 +155,10 @@ Before approving a material staff UI PR, independently verify:
 - pedagogy/domain boundaries preserved;
 - surface entry and feature visibility derive from canonical Access Control, not UI-local assumptions.
 
-## Codex hard limit
+## Codex and GPT execution roles — PAP-980 / PAP-184 (2026-10-28)
 
-Codex is permitted only as the fresh independent PRE-MAIN reviewer launched by the canonical Core audit runner. GPT owns implementation, bug/audit-finding fixes, reconcile/restack/rebase, conflict resolution, evidence repair, merge orchestration, and release preparation. Do not invoke Codex for any of those non-audit activities.
+Codex **and** GPT may implement, remediate, refactor, test, reconcile, and prepare pull requests across authorized frontend, backend/Core and integration work within the exact Jira scope and granted repository/tool access. Codex is **not reviewer-only** in the normal development profile. Use a clean, scoped worktree or branch and check current source ownership, conflicts, API/ACL and safety before material changes.
 
-Production deployment remains an explicit release action. A green build or merged PR does not itself authorize production.
+An explicitly assigned independent-review persona (including the separate `.codex-indie-auditor` identity) is review-only **for that review assignment** and may not audit its own code. PAP-507/legacy INDIE/review runs are frozen and must not be required, dispatched, or treated as merge gates without a **new explicit Founder review request**. Keep normal CI, branch protection, security checks, guarded Staging and manual-only Production rules in force.
+
+For live authority and exceptions, consult PAP-184, PAP-1051, PAP-1053, PAP-1054 and PAP-980. Repository `AGENTS.md` is an agent entrypoint, not an independent override of newer canonical Jira SOP or executable GitHub protections.

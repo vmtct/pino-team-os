@@ -1,14 +1,17 @@
 import type { BoNavGroup } from "@/app/components/tos-shell";
 
 export const boNavigation: BoNavGroup[] = [
+  {label:"TÀI CHÍNH",items:[{href:"/bo/bills",label:"Bills"}]},
   {
     label: "Workspace",
-    items: [{ href: "/bo", label: "Hôm nay" }],
+    items: [{ href: "/bo", label: "Hôm nay" }, { href: "/bo/workforce-shift-plans", label: "Center Shift Plans" }, { href: "/bo/workforce-availability", label: "Staff Availability" }, { href: "/bo/workforce-assignments", label: "Shift Assignments" }],
   },
   {
     label: "School",
     items: [
       { href: "/bo/learners", label: "Students" },
+      { href: "/bo/student-visits", label: "Student Visits" },
+      { href: "/bo/classroom-diaries", label: "Nhật ký lớp học" },
       { href: "/bo/subscriptions", label: "Subscriptions" },
       {
         href: "/bo/running-classes",
@@ -28,6 +31,7 @@ export const boNavigation: BoNavGroup[] = [
     items: [
       { href: "/bo/sales/leads", label: "Leads" },
       { href: "/bo/open-studio", label: "Open Studio" },
+      { href: "/bo/open-studio-passes", label: "Pass Trạm Nghệ Thuật" },
       { href: "/bo/tvs", label: "TVs" },
     ],
   },
@@ -35,6 +39,7 @@ export const boNavigation: BoNavGroup[] = [
     label: "Learning",
     items: [
       { href: "/bo/syllabus", label: "Programs & Syllabus" },
+      { href: "/bo/missions", label: "Nhiệm vụ" },
       { href: "/bo/practice", label: "Practice" },
     ],
   }  ,{
@@ -44,14 +49,18 @@ export const boNavigation: BoNavGroup[] = [
       { href: "/bo/workforce", label: "Schedule & Time" },
       { href: "/bo/workforce/check-in-exceptions", label: "Check-in Exceptions" },
       { href: "/bo/workforce/timekeeping", label: "Timekeeping" },
+      { href: "/bo/workforce/compensation", label: "Lịch sử lương" },
       { href: "/bo/workforce/duty-exceptions", label: "Duty Exceptions" },
+      { href: "/bo/workforce/payroll", label: "Kỳ lương" },
+      { href: "/bo/payroll-periods", label: "Kỳ lương (Read-only)" },
+      { href: "/bo/workforce/payroll/extra-time", label: "Duyệt thêm giờ" },
       { href: "/bo/training", label: "Training" },
     ],
   },
   {
     label: "Pinoria",
     items: [
-      { href: "/bo/pinoria-world", label: "World" },
+      { href: "/bo/pinoria-avatars", label: "Self Directory" },
       {
         href: "/bo/pinoria-wish",
         label: "Economy",
@@ -66,15 +75,15 @@ export const boNavigation: BoNavGroup[] = [
         children: [{ href: "/bo/pinoria-companions", label: "Companions" }],
       },
       {
-        href: "/bo/pinoria-ward",
+        href: "/bo/pinoria-ward/learners",
         label: "Wardrobe",
         children: [
-          { href: "/bo/pinoria-ward", label: "Catalog" },
-          { href: "/bo/pinoria-ward/sets", label: "Sets" },
           { href: "/bo/pinoria-ward/learners", label: "Loadouts" },
         ],
       },
       { href: "/bo/pinoria-effects", label: "Effects" },
+      { href: "/bo/pinoria-tv-policy", label: "TV Projection Policy" },
+      { href: "/bo/pinoria-tv-operator", label: "TV Operations" },
     ],
   },
   {
@@ -83,15 +92,7 @@ export const boNavigation: BoNavGroup[] = [
   },
   {
     label: "System",
-    items: [      {
-        href: "/bo/system/users",
-        label: "Access",
-        children: [
-          { href: "/bo/system/users", label: "Users" },
-          { href: "/bo/system/roles", label: "Roles" },
-        ],
-      },
-      { href: "/bo/system/policies", label: "Policies" },
+    items: [      { href: "/bo/system/policies", label: "Policies" },
       { href: "/bo/system/ai-data", label: "AI Data Inbox" },
       { href: "/bo/system/pancake", label: "Pancake" },
       { href: "/bo/system/audit", label: "Audit" },

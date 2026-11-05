@@ -11,6 +11,21 @@ export type PresenceSource = {
 };
 export type PresenceLoadout = { version: number; slots: Record<string, string> } | null;
 export type PresenceWardRender = PinoriaWardRender | null;
+export type PresenceExperience = {
+  schemaVersion: 1;
+  studentProfileId: string;
+  path: { id: string; code: string; displayName: string } | null;
+  runningClass: { id: string; operationalName: string } | null;
+  learningSpace: { id: string; code: string; displayName: string } | null;
+  companion: {
+    id: string;
+    species: { id: string; key: string; displayName: string; assetKey: string; presentationProfileKey: string };
+    materializationLevel: number;
+    state: "GROWING" | "READY_FOR_RITUAL";
+    stageFeedCount: number;
+  } | null;
+  resources: { plsBalance: number; fruitBalance: number };
+} | null;
 export type PresenceActor = {
   pinoriaSelfId: string;
   actorType: PresenceActorType;
@@ -19,6 +34,7 @@ export type PresenceActor = {
   character: PinoriaCharacterConfig | null;
   loadout: PresenceLoadout;
   wardRender: PresenceWardRender;
+  experience: PresenceExperience;
   sources: PresenceSource[];
   wardSession?: WardSession;
 };
@@ -70,6 +86,7 @@ export function actorFromArrival(event: PresenceEvent): PresenceActor {
     character: event.payload.character,
     loadout: event.payload.loadout,
     wardRender: null,
+    experience: null,
     sources: [{ actorType: event.actorType, sourceType: event.sourceType, sourceId: event.sourceId, openedAt: event.occurredAt }],
   };
 }
@@ -126,6 +143,7 @@ function parseActor(value: unknown): PresenceActor {
     character: character(row.character),
     loadout: loadout(row.loadout),
     wardRender: wardRender(row.wardRender),
+    experience: presenceExperience(row.experience),
     sources,
     ...(row.wardSession === undefined ? {} : { wardSession: wardSession(row.wardSession) }),
   };
@@ -173,7 +191,61 @@ function parseEvent(value: unknown): PresenceStreamEvent {
     },
   };
 }
-function character(value: unknown): PinoriaCharacterConfig | null {
+function presenceExperience(value: unknown): PresenceExperience {
+  if (value === null || value === undefined) return null;
+  const row = object(value, "PINORIA_PRESENCE_EXPERIENCE_INVALID");
+  if (row.schemaVersion !== 1) throw new Error("PINORIA_PRESENCE_EXPERIENCE_VERSION_INVALID");
+  const resources = object(row.resources, "PINORIA_PRESENCE_RESOURCES_INVALID");
+  return {
+    schemaVersion: 1,
+    studentProfileId: text(row.studentProfileId, "PINORIA_PRESENCE_STUDENT_INVALID"),
+    path: optionalContext(row.path, (item) => ({
+      id: text(item.id, "PINORIA_PRESENCE_PATH_INVALID"),
+      code: text(item.code, "PINORIA_PRESENCE_PATH_INVALID"),
+      displayName: text(item.displayName, "PINORIA_PRESENCE_PATH_INVALID"),
+    })),
+    runningClass: optionalContext(row.runningClass, (item) => ({
+      id: text(item.id, "PINORIA_PRESENCE_RUNNING_CLASS_INVALID"),
+      operationalName: text(item.operationalName, "PINORIA_PRESENCE_RUNNING_CLASS_INVALID"),
+    })),
+    learningSpace: optionalContext(row.learningSpace, (item) => ({
+      id: text(item.id, "PINORIA_PRESENCE_LEARNING_SPACE_INVALID"),
+      code: text(item.code, "PINORIA_PRESENCE_LEARNING_SPACE_INVALID"),
+      displayName: text(item.displayName, "PINORIA_PRESENCE_LEARNING_SPACE_INVALID"),
+    })),
+    companion: optionalContext(row.companion, (item) => {
+      const species = object(item.species, "PINORIA_PRESENCE_COMPANION_INVALID");
+      const state = item.state;
+      if (state !== "GROWING" && state !== "READY_FOR_RITUAL") throw new Error("PINORIA_PRESENCE_COMPANION_INVALID");
+      return {
+        id: text(item.id, "PINORIA_PRESENCE_COMPANION_INVALID"),
+        species: {
+          id: text(species.id, "PINORIA_PRESENCE_COMPANION_INVALID"),
+          key: text(species.key, "PINORIA_PRESENCE_COMPANION_INVALID"),
+          displayName: text(species.displayName, "PINORIA_PRESENCE_COMPANION_INVALID"),
+          assetKey: text(species.assetKey, "PINORIA_PRESENCE_COMPANION_INVALID"),
+          presentationProfileKey: text(species.presentationProfileKey, "PINORIA_PRESENCE_COMPANION_INVALID"),
+        },
+        materializationLevel: positiveInteger(item.materializationLevel, "PINORIA_PRESENCE_COMPANION_INVALID"),
+        state,
+        stageFeedCount: integer(item.stageFeedCount, "PINORIA_PRESENCE_COMPANION_INVALID"),
+      };
+    }),
+    resources: {
+      plsBalance: nonNegativeInteger(resources.plsBalance, "PINORIA_PRESENCE_RESOURCES_INVALID"),
+      fruitBalance: nonNegativeInteger(resources.fruitBalance, "PINORIA_PRESENCE_RESOURCES_INVALID"),
+    },
+  };
+}
+function optionalContext<T>(value: unknown, parse: (row: Record<string, unknown>) => T): T | null {
+  if (value === null) return null;
+  return parse(object(value, "PINORIA_PRESENCE_EXPERIENCE_INVALID"));
+}
+function nonNegativeInteger(value: unknown, message: string) {
+  const parsed = integer(value, message);
+  if (parsed < 0) throw new Error(message);
+  return parsed;
+}function character(value: unknown): PinoriaCharacterConfig | null {
   if (value === null) return null;
   const row = object(value, "PINORIA_PRESENCE_CHARACTER_INVALID");
   const result: PinoriaCharacterConfig = {};

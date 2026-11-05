@@ -1,3 +1,6 @@
+import { createElement } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faCalendarDays, faCircleCheck, faClock, faWallet } from "@fortawesome/free-solid-svg-icons";
 import type { TosFooterItem } from "./TosShell";
 
 // Team Surface Doctrine v1: Home is the app launcher. Contextual app footers
@@ -10,12 +13,14 @@ export const TOS_HOME_FOOTER: TosFooterItem[] = [
   { id: "pinoria", label: "Pinoria", href: "/pinoria", icon: "◈" },
 ];
 
+const shiftIcon = (icon: typeof faCircleCheck) => createElement(FontAwesomeIcon, { icon });
+
+// Approved PAP-699 Ca Làm navigation: exactly four tabs.
 export const TOS_SHIFT_FOOTER: TosFooterItem[] = [
-  { id: "today", label: "Hôm nay", href: "/dashboard", icon: "◉" },
-  { id: "schedule", label: "Lịch", href: "/schedule", icon: "▦" },
-  { id: "register", label: "Đăng ký", href: "/availability", icon: "+" },
-  { id: "check", label: "Check", href: "/check-in", icon: "✓" },
-  { id: "history", label: "Chấm công", href: "/timesheet", icon: "◷" },
+  { id: "today", label: "Hôm nay", href: "/dashboard", icon: shiftIcon(faCircleCheck) },
+  { id: "schedule", label: "Lịch ca", href: "/schedule", icon: shiftIcon(faCalendarDays) },
+  { id: "history", label: "Giờ công", href: "/timesheet", icon: shiftIcon(faClock) },
+  { id: "income", label: "Thu nhập", href: "/earnings", icon: shiftIcon(faWallet) },
 ];
 
 // Only expose implemented Classroom sub-navigation. Future F phases may append

@@ -124,3 +124,58 @@ test("missed checkout resolution requires idempotency and forwards exact Core co
 });
 
 test("calendar closure publication requires replay identity while archive forwards canonical optimistic versioning",async()=>{const forwarded:BoAccessRequest[]=[];const binding:BoAccessCoreBinding={async executeWithStaffPassword(coreRequest){forwarded.push(coreRequest);return{status:201,body:{data:{ok:true}},requestId:"closure"};}};const route="delivery/calendar-exclusions",body={centerId:"01912345-6789-7abc-8def-0123456789ab",scopeType:"HOUSE",startsOnLocalDate:"2030-09-04",endsBeforeLocalDate:"2030-09-05",reason:"PUBLIC_HOLIDAY"};assert.equal((await handleBoWriteRequest(request(route,true,body),env(binding),route)).status,400);assert.equal((await handleBoWriteRequest(request(route,true,body,"closure-key"),env(binding),route)).status,201);const id="0198d050-56c1-7ac5-b9ab-b0e45d912345",archive=`delivery/calendar-exclusions/${id}`,archiveBody={action:"archive",expectedVersion:1,archiveReason:"Corrected"};assert.equal((await handleBoWriteRequest(request(archive,true,archiveBody),env(binding),archive)).status,201);assert.deepEqual(forwarded,[{method:"POST",path:route,body,idempotencyKey:"closure-key"},{method:"POST",path:archive,body:archiveBody}]);});
+
+
+test("PAP-863: Missions create/update and TV policy writes require key, method and password", async () => {
+  const forwarded:BoAccessRequest[]=[];
+  const binding:BoAccessCoreBinding={async executeWithStaffPassword(core){
+    forwarded.push(core);return{status:200,body:{data:{ok:true}},requestId:"hotfix"};
+  }};
+  const id="0198d050-56c1-7ac5-b9ab-b0e45d912345";
+  const cases: Array<{path:string; method:string; body:Record<string,unknown>}> = [
+    {path:"learning/missions",method:"POST",body:{code:"M-TEST"}},
+    {path:"learning/missions/"+id,method:"PUT",body:{code:"M-TEST",expectedVersion:1}},
+    {path:"pinoria/tv-config/policy/drafts",method:"POST",body:{scope:{kind:"CENTER",centerId:id},expectedRevision:0}},
+  ];
+  for(const testCase of cases) {
+    assert.equal((await handleBoWriteRequest(request(testCase.path,true,testCase.body,"pap863-key",testCase.method),env(binding),testCase.path)).status,200);
+  }
+  assert.deepEqual(forwarded,cases.map(c=>({method:c.method,path:c.path,body:c.body,idempotencyKey:"pap863-key"})));
+  assert.equal((await handleBoWriteRequest(request("learning/missions",true,{code:"M-TEST"}),env(binding),"learning/missions")).status,400);
+  assert.equal((await handleBoWriteRequest(request("learning/missions/"+id,true,{}, "pap863-key","POST"),env(binding),"learning/missions/"+id)).status,405);
+  assert.equal((await handleBoWriteRequest(request("pinoria/tv-config/policy/publish",true,{}),env(binding),"pinoria/tv-config/policy/publish")).status,400);
+  assert.equal((await handleBoWriteRequest(request("learning/missions",false,{},"pap863-key"),env(binding),"learning/missions")).status,401);
+  assert.equal(forwarded.length,3);
+});
+
+
+test("PAP-1181 / PAP-435: BO forwards only the idempotent Core-owned Staging affiliation fixture path", async () => {
+  const route = "staging-fixtures/center-affiliations";
+  const id = "01a18140-103f-756c-90e1-65282e154afe";
+  const body = { studentId: id, centerId: id, expectedStudentVersion: 1 };
+  const forwarded: Array<{request: BoAccessRequest; token: string}> = [];
+  const binding: BoAccessCoreBinding = {
+    async executeWithStaffPassword(coreRequest, passwordToken) {
+      forwarded.push({ request: coreRequest, token: passwordToken });
+      return { status: 201, body: {data: {studentId: id, centerId: id, reused: false}}, requestId: "pap1181" };
+    },
+  };
+  const ok = await handleBoWriteRequest(request(route, true, body, "pap1181-idempotency"), env(binding), route);
+  assert.equal(ok.status, 201);
+  assert.deepEqual(forwarded, [{request: {method: "POST", path: route, body, idempotencyKey: "pap1181-idempotency"}, token}]);
+  assert.equal((await handleBoWriteRequest(request(route, true, body), env(binding), route)).status, 400);
+  assert.equal((await handleBoWriteRequest(request(route, false, body, "k"), env(binding), route)).status, 401);
+  assert.equal((await handleBoWriteRequest(request(route, true, body, "k", "GET"), env(binding), route)).status, 405);
+  assert.equal((await handleBoWriteRequest(request(route + "/arbitrary", true, body, "k"), env(binding), route + "/arbitrary")).status, 404);
+  assert.equal(forwarded.length, 1, "invalid inputs never reach Core");
+  const denyBinding: BoAccessCoreBinding = {
+    async executeWithStaffPassword() {
+      return {status: 403, body: {error: {code: "ACCESS_PERMISSION_DENIED"}}, requestId: "pap1181-denied"};
+    },
+  };
+  const denied = await handleBoWriteRequest(request(route, true, body, "pap1181-denied"), env(denyBinding), route);
+  assert.equal(denied.status, 403);
+  assert.equal(denied.headers.get("x-request-id"), "pap1181-denied");
+  // Core remains the sole authority for APP_ENV=staging, both per-Center grants,
+  // synthetic Student/Parent predicates, CAS, receipt and atomic audit.
+});

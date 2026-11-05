@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { boApi, BoApiError } from "@/lib/bo-api";
 import type { BoCenter, BoLearnerDirectoryItem, BoLearnerLifecycle, BoOpenStudioListingCatalog, BoOpenStudioOperations, BoOpenStudioPass } from "@/lib/bo-model";
 import { OpenStudioPolicyControl } from "./OpenStudioPolicyControl";
+import { WalkinPassPanel } from "./WalkinPassPanel";
 import styles from "../bo.module.css";
 
 type Load<T> = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; data: T };
@@ -64,6 +65,7 @@ export function OpenStudioView() {
     <label className={styles.field}>Center<select value={centerId} onChange={(event) => { setCenterId(event.target.value); void refresh(event.target.value); void refreshCatalog(event.target.value); }}><option value="">Tất cả Center</option>{centers.map((center) => <option key={center.id} value={center.id}>{center.displayName}</option>)}</select></label>
     {centerError ? <State text={`Center directory unavailable: ${centerError}`} error /> : null}
     {notice ? <div className={styles.successCard}><span>Command completed</span><strong>{notice}</strong></div> : null}
+    <WalkinPassPanel centerId={centerId} />
     {operations.state === "loading" ? <State text="Đang tải Open Studio control plane…" /> : null}
     {operations.state === "error" ? <State text={operations.message} error /> : null}
     {data ? <>

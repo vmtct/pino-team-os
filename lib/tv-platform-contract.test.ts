@@ -9,7 +9,7 @@ test("TV launcher exposes deterministic automation metadata and bounded launch p
  const source=read("app/tv/TvLauncher.tsx");
  for(const marker of ["data-tv-id","data-tv-key","data-tv-runtime","data-tv-scope","data-tv-orientation",'data-tv-action="open-here"']) assert.ok(source.includes(marker),marker);
  assert.ok(source.includes("/api/tv/${tv.id}/launch"));
- assert.ok(source.includes("router.push(`/tv/${tv.id}`)"));
+ assert.ok(source.includes("window.location.assign(`/tv/${encodeURIComponent(tv.id)}`)")); // Same-browser navigation keeps the HttpOnly TV session cookie without a router provider.
 });
 
 test("runtime host enforces declared orientation and delegates PINORIA_HOUSE to existing runtime",()=>{
@@ -75,4 +75,18 @@ test("production release binding inventory keeps TV runtime binding inside the Y
  const source=read(".github/workflows/team-runtime-production-release.yml");
  assert.ok(source.includes("          PINO_TV_RUNTIME_CORE|pino-core|DisplayRuntimeControlPlane"));
  assert.ok(!source.includes("\nPINO_TV_RUNTIME_CORE|pino-core|DisplayRuntimeControlPlane\n"));
+});
+
+test("PAP-651 spatial config read is bound to authenticated TV display session",()=>{
+ const route=read("app/api/tv/runtime/[displayId]/pinoria-house/spatial-config/route.ts");
+ const reception=read("app/pinoria-tv/reception-tv.tsx");
+ const tvCore=read("lib/tv-runtime-core.ts");
+ assert.ok(route.includes("tvRuntimeCookie(request)"));
+ assert.ok(route.includes("spatialConfig(token,displayId)"));
+ assert.ok(!route.includes("searchParams"));
+ assert.ok(!route.includes("centerId"));
+ assert.ok(reception.includes("${apiBase}/spatial-config"));
+ assert.ok(!reception.includes("spatial-config?centerId"));
+ assert.ok(tvCore.includes("spatialConfig(token:string,displayId:string)"));
+ assert.ok(!fs.existsSync(new URL("../app/api/pinoria-tv/spatial-config/route.ts",import.meta.url)));
 });

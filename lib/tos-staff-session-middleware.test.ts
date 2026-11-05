@@ -7,6 +7,17 @@ function request(cookie?: string, url = "https://tos.pinohouse.art/dashboard") {
   return new NextRequest(url, { headers: cookie ? { cookie } : {} });
 }
 
+test("PAP-989 TOS staging host requires password session and denies BO paths", () => {
+  const host = "https://tos.staging.pinohouse.art";
+  const anonymous = middleware(request(undefined, host + "/dashboard"));
+  assert.equal(anonymous.status, 307);
+  assert.equal(anonymous.headers.get("location"), host + "/staff-login");
+  const authenticated = middleware(request("pino_staff_password_session=fixture", host + "/dashboard"));
+  assert.notEqual(authenticated.status, 307);
+  assert.equal(middleware(request(undefined, host + "/bo")).status, 404);
+  assert.equal(middleware(request(undefined, host + "/api/bo/context")).status, 404);
+});
+
 test("TOS middleware accepts password staff session on protected routes", () => {
   const response = middleware(request("pino_staff_password_session=password-session"));
   assert.notEqual(response.status, 307);
@@ -35,9 +46,13 @@ test("BO middleware accepts password Staff session on BO pages", () => {
 });
 
 test("BO middleware redirects BO pages to local Staff login without password session", () => {
-  const response = middleware(request(undefined, "https://bo.pinohouse.art/bo/system/users"));
+  const response = middleware(request(undefined, "https://bo.pinohouse.art/bo/learners"));
   assert.equal(response.status, 307);
   assert.equal(response.headers.get("location"), "https://bo.pinohouse.art/staff-login");
+});
+
+test("BO retired Users route is unavailable before login", () => {
+  assert.equal(middleware(request(undefined, "https://bo.pinohouse.art/bo/system/users")).status, 404);
 });
 
 test("BO local Staff login remains public to the application", () => {

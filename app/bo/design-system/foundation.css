@@ -1,0 +1,54 @@
+/*
+ * PAP-874/PAP-889: scoped BO Design Foundation V2.3.
+ * Founder-approved UI authority: docs/bo-v23-ui-authority.json.
+ * No global :root/html/body rules. Keep legacy BO surfaces unchanged until
+ * their own PAP-878 adoption receipt and domain/visual parity checks.
+ */
+[data-bo-design-system="v23"] {
+  /* Existing BO chrome palette as backwards-compatible token bridge. */
+  --bo-v23-color-canvas: #f6f5f2;
+  --bo-v23-color-surface: #ffffff;
+  --bo-v23-color-strong: #18181f;
+  --bo-v23-color-text: #26242b;
+  --bo-v23-color-muted: #807d88;
+  --bo-v23-color-border: #e2e1e5;
+  --bo-v23-color-border-subtle: #ecebf0;
+  --bo-v23-color-sidebar: #1c1c23;
+  --bo-v23-color-accent: #6f5bd6;
+  --bo-v23-color-accent-table: #6655c7;
+  --bo-v23-color-focus: #8e7ddd;
+  --bo-v23-color-selected: #f5f2ff;
+  --bo-v23-color-hover: #faf9fd;
+  --bo-v23-color-success: #157456;
+  --bo-v23-color-warning: #9a650f;
+  --bo-v23-color-danger: #a63c3c;
+  --bo-v23-color-info: #466990;
+
+  /* Founder V2.3 target density: not globally applied to legacy screens. */
+  --bo-v23-font-family: Arial, Helvetica, sans-serif;
+  --bo-v23-font-display: 30px;
+  --bo-v23-font-heading: 21px;
+  --bo-v23-font-body: 12px;
+  --bo-v23-font-label: 12px;
+  --bo-v23-font-caption: 11px;
+  --bo-v23-line-body: 1.5;
+  --bo-v23-space-1: 4px;
+  --bo-v23-space-2: 8px;
+  --bo-v23-space-3: 12px;
+  --bo-v23-space-4: 16px;
+  --bo-v23-space-5: 20px;
+  --bo-v23-space-6: 24px;
+  --bo-v23-space-8: 32px;
+  --bo-v23-radius-xs: 5px;
+  --bo-v23-radius-control: 8px;
+  --bo-v23-radius-surface: 13px;
+  --bo-v23-radius-popover: 9px;
+  --bo-v23-control-min-height: 40px;
+  --bo-v23-toolbar-min-height: 49px;
+  --bo-v23-table-heading-height: 35px;
+  --bo-v23-table-row-height: 42px;
+  --bo-v23-opener-column-width: 37px;
+  --bo-v23-view-tab-height: 43px;
+  --bo-v23-settings-panel-width: 405px;
+  --bo-v23-quick-view-width: 520px;
+}

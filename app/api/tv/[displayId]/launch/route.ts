@@ -1,8 +1,9 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { staffPasswordSession } from "@/lib/local-staff-session";
-import { teamCredential, TeamAuthError, type TeamAccessEnv } from "@/lib/team-auth";
+import { teamCredential, type TeamAccessEnv } from "@/lib/team-auth";
 import { callTosLearningCoreWithCredential, callTosLearningCoreWithStaffPassword, type TosLearningCoreBinding } from "@/lib/tos-learning-core";
 import { TV_RUNTIME_COOKIE } from "@/lib/tv-runtime-core";
+import { tvLaunchAuthErrorResponse } from "@/lib/pap1323-tv-launch-auth-response";
 
 export const runtime="nodejs"; export const dynamic="force-dynamic";
 type Env=TeamAccessEnv&{PINO_TOS_LEARNING_CORE:TosLearningCoreBinding};
@@ -26,7 +27,8 @@ export async function POST(request:Request,context:Context){
     response.headers.append("set-cookie",`${TV_RUNTIME_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=43200`);
     return response;
   }catch(error){
-    if(error instanceof TeamAuthError)return Response.json({error:{code:"IDENTITY_AUTHENTICATION_FAILED",message:error.message}},{status:error.status});
+    const authError = tvLaunchAuthErrorResponse(error);
+    if (authError) return authError;
     console.error("TV launch facade failure",error instanceof Error?error.message:"unknown");
     return Response.json({error:{code:"PLATFORM_INTERNAL_ERROR",message:"Unable to launch TV"}},{status:500});
   }

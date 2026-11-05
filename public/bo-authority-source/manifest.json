@@ -1,0 +1,19 @@
+{
+  "authority": "BO-V2.5-UI-20261026-PAP-1022",
+  "soleStylingModule": "Hồ sơ đăng ký (playground.html)",
+  "activeStylesheets": [
+    "styles.css"
+  ],
+  "files": {
+    "styles.css": "be13bc6002c4f177434f8e795a2fee0554361d317103b1f48dd9f86be56eacfb",
+    "playground.css": "f2768b2da2c912816ef7847c344c3dea05df0afdbdb9dad0cb4284d2713774a0",
+    "playground-v22.css": "f2768b2da2c912816ef7847c344c3dea05df0afdbdb9dad0cb4284d2713774a0",
+    "playground-v23.css": "f2768b2da2c912816ef7847c344c3dea05df0afdbdb9dad0cb4284d2713774a0",
+    "full-detail-v24.css": "f2768b2da2c912816ef7847c344c3dea05df0afdbdb9dad0cb4284d2713774a0",
+    "full-detail-v25.css": "f2768b2da2c912816ef7847c344c3dea05df0afdbdb9dad0cb4284d2713774a0",
+    "playground.html": "104af8fd84df2a2b686ef3e95e8a038be92bcc1c0d3759959066ead895a4bd57",
+    "playground.js": "08f41d0ff5c4a6a294df92fd1938c14eb1d8dc07446af55a648f5067b9be30c0",
+    "README.md": "aa969d8d593895791ee093b35c5a64e8149d8c23374de93f9e7556f093b70131",
+    "CSS_AUTHORITY.json": "9e946d52f6912deadb784f9b86a52b941afe1f164ed677812acf3ad4d381b3bf"
+  }
+}

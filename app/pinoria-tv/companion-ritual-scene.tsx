@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { LayeredCharacter, pinoriaAssetUrl } from "./layered-character";
 import type { CompanionRitualProjection } from "./presentation-types";
 import styles from "./companion-ritual.module.css";
@@ -5,7 +6,9 @@ import styles from "./companion-ritual.module.css";
 export const COMPANION_RITUAL_SCENE_MS = 12_000;
 
 export function CompanionRitualScene({ ritual }: { ritual: CompanionRitualProjection }) {
+  const [failedCompanion, setFailedCompanion] = useState(false);
   const companion = pinoriaAssetUrl(ritual.companion.assetKey);
+  useEffect(() => setFailedCompanion(false), [companion]);
   const sigil = pinoriaAssetUrl(ritual.companion.sigilAssetKey);
   const fromLabel = `Cấp ${ritual.companion.fromLevel}`;
   const toLabel = `Cấp ${ritual.companion.toLevel}`;
@@ -28,7 +31,7 @@ export function CompanionRitualScene({ ritual }: { ritual: CompanionRitualProjec
     <div className={styles.ritualZone}>
       {sigil ? <img className={styles.sigil} src={sigil} alt="" draggable={false} /> : null}
       <div className={styles.companionWrap}>
-        {companion ? <img className={styles.companion} src={companion} alt="" draggable={false} /> : <div className={styles.fallback}>✦</div>}
+        {companion && !failedCompanion ? <img key={companion} onError={() => setFailedCompanion(true)} className={styles.companion} src={companion} alt="" draggable={false} /> : <div className={styles.fallback}>✦</div>}
       </div>
       <div className={styles.levelTrack}>
         <span>{fromLabel}</span><b>→</b><strong>{toLabel}</strong>

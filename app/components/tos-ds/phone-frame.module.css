@@ -1,0 +1,196 @@
+@layer tos.layout{
+.phoneFrame{width:100%;max-width:var(--tos-mobile-max);min-height:100svh;margin-inline:auto;display:flex;flex-direction:column;position:relative;background:var(--tos-color-surface);color:var(--tos-color-ink);font-family:var(--tos-font-family)}
+.nativeBody{position:relative;flex:1;min-height:0;overflow:hidden;width:100%}
+.nativeBody :global([data-tos-slot~="phone"]){height:100%;min-height:0;max-width:var(--tos-mobile-max);width:100%;margin-inline:auto;overflow:hidden}
+.nativeBody :global([data-tos-slot~="header"]){display:none}
+.nativeBody :global([data-tos-slot~="shell"]){width:100%;height:100%;min-height:0;overflow:hidden}
+.nativeBody :global([data-tos-slot~="page"]){width:100%;max-width:var(--tos-mobile-max);height:100%;min-height:0;overflow:hidden;display:flex;flex-direction:column}
+.nativeBody :global([data-tos-slot~="content"]){min-height:0;flex:1;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.nativeBody :global([data-tos-slot~="nav"]){flex:0 0 76px;min-height:76px;max-height:76px;position:relative;bottom:auto;z-index:12;padding-bottom:max(var(--tos-space-2),env(safe-area-inset-bottom))}
+.nativeBody :global([data-tos-slot~="nav"]) button{min-height:var(--tos-hit-min)}
+.nativeBody :global([data-tos-slot~="bottomNav"]){flex:0 0 76px;min-height:76px;padding-bottom:max(var(--tos-space-2),env(safe-area-inset-bottom))}
+.nativeBody :global([data-tos-slot~="bottomNav"]) button{min-height:var(--tos-hit-min)}
+.nativeBody :global([data-tos-slot~="sheet"]){max-width:var(--tos-mobile-max)}
+.nativeBody :global([data-tos-slot~="toast"]){bottom:max(86px,env(safe-area-inset-bottom) + 78px);max-width:min(390px,calc(100vw - 28px))}
+.nativeBody :global([data-tos-slot~="phone"]) button{min-height:var(--tos-hit-min)}
+.nativeBody :global([data-tos-slot~="content"]){padding-bottom:var(--tos-space-24)}.nativeBody :global([data-tos-slot~="page"]){padding-bottom:0}
+.phoneFrame[data-tos-mobile-frame="classroom"] .nativeBody [data-tos-slot~="phone"] > [data-tos-slot~="content"]{
+  display:flex;
+  flex-direction:column;
+  grid-template-columns:none;
+  align-content:normal;
+  gap:var(--tos-space-3);
+  padding:var(--tos-space-4) var(--tos-space-4) var(--tos-space-6);
+  min-width:0;
+}
+.phoneFrame[data-tos-mobile-frame="classroom"] .nativeBody [data-tos-slot~="classCard"]{
+  width:100%;
+  min-width:0;
+  flex:none;
+}
+.phoneFrame[data-tos-mobile-frame="classroom"]:has([data-tos-slot~="sessionBar"]) > [data-tos-app-header="classroom"]{
+  display:none;
+}
+@media(max-width:365px){
+  .phoneFrame[data-tos-mobile-frame="classroom"] .nativeBody [data-tos-slot~="phone"] > [data-tos-slot~="content"]{padding:var(--tos-space-3) var(--tos-space-3) var(--tos-space-6)}
+}
+.phoneFrame[data-tos-mobile-frame="classroom"]{
+ font-family:var(--tos-font-family);
+ color:var(--tos-color-ink);
+}
+.phoneFrame[data-tos-mobile-frame="classroom"] [data-tos-slot~="phone"]{
+ font-size:var(--tos-text-body);
+ line-height:var(--tos-text-body-line);
+}
+.phoneFrame[data-tos-mobile-frame="classroom"] [data-tos-slot~="content"] [data-tos-slot~="sectionHead"] h2{
+ font-size:var(--tos-text-heading-lg);
+ line-height:1.25;
+}
+.phoneFrame[data-tos-mobile-frame="classroom"] [data-tos-slot~="content"] [data-tos-slot~="sectionHead"] p,
+.phoneFrame[data-tos-mobile-frame="classroom"] [data-tos-slot~="diaryCard"]>p{
+ font-size:var(--tos-text-secondary);
+ line-height:1.55;
+}
+.phoneFrame[data-tos-mobile-frame="classroom"] [data-tos-slot~="diaryCard"]{
+ border-radius:var(--tos-radius-card);
+ padding:var(--tos-inset-card);
+}
+.phoneFrame[data-tos-mobile-frame="classroom"] [data-tos-slot~="diaryCard"] [data-tos-slot~="rowTop"] strong{
+ font-size:var(--tos-text-body);
+}
+.phoneFrame[data-tos-mobile-frame="classroom"] [data-tos-slot~="diaryCard"] h3{
+ font-size:var(--tos-text-heading-sm);
+ line-height:1.4;
+}
+.phoneFrame[data-tos-mobile-frame="classroom"] [data-tos-slot~="filterPills"] button{
+ font-size:var(--tos-text-secondary);
+ padding:var(--tos-button-padding-y) var(--tos-space-2);
+ min-height:var(--tos-hit-min);
+}
+.phoneFrame[data-tos-mobile-frame="classroom"] [data-tos-slot~="sheet"]:has([data-diary-notes]){
+ width:min(100%,var(--tos-mobile-max));
+ max-height:92dvh;
+ padding:var(--tos-space-3) var(--tos-inset-sheet) calc(var(--tos-space-6) + env(safe-area-inset-bottom));
+ overflow-y:auto;
+ overscroll-behavior:contain;
+ scroll-padding-bottom:var(--tos-space-6);
+ font-size:var(--tos-text-body);
+ line-height:var(--tos-text-body-line);
+}
+.phoneFrame[data-tos-mobile-frame="classroom"] [data-tos-slot~="sheet"]:has([data-diary-notes])>header h2{
+ font-size:var(--tos-text-heading-md);
+ line-height:1.3;
+}
+.phoneFrame[data-tos-mobile-frame="classroom"] [data-tos-slot~="sheet"]:has([data-diary-notes]) h3{
+ font-size:var(--tos-text-heading-sm);
+ line-height:1.4;
+ margin:var(--tos-space-5) 0 var(--tos-space-3);
+}
+.phoneFrame[data-tos-mobile-frame="classroom"] [data-tos-slot~="sheet"]:has([data-diary-notes]) [data-tos-slot~="studentHead"]{
+ padding:var(--tos-inset-card);
+ border-radius:var(--tos-radius-card);
+}
+.phoneFrame[data-tos-mobile-frame="classroom"] [data-tos-slot~="sheet"]:has([data-diary-notes]) [data-tos-slot~="studentHead"] strong{
+ font-size:var(--tos-text-body);
+ line-height:1.4;
+}
+.phoneFrame[data-tos-mobile-frame="classroom"] [data-tos-slot~="sheet"]:has([data-diary-notes]) [data-tos-slot~="studentHead"] p,
+.phoneFrame[data-tos-mobile-frame="classroom"] [data-tos-slot~="sheet"]:has([data-diary-notes]) [data-tos-slot~="interestFieldset"] p{
+ font-size:var(--tos-text-secondary);
+ line-height:1.5;
+}
+.phoneFrame[data-tos-mobile-frame="classroom"] [data-tos-slot~="sheet"]:has([data-diary-notes]) [data-tos-slot~="missionOutcome"]{
+ padding:var(--tos-inset-card);
+ border-radius:var(--tos-radius-card);
+}
+.phoneFrame[data-tos-mobile-frame="classroom"] [data-tos-slot~="sheet"]:has([data-diary-notes]) [data-tos-slot~="missionOutcomeHead"] strong{
+ font-size:var(--tos-text-body);
+ line-height:1.45;
+}
+.phoneFrame[data-tos-mobile-frame="classroom"] [data-tos-slot~="sheet"]:has([data-diary-notes]) [data-tos-slot~="missionOutcomeHead"] span{
+ font-size:var(--tos-text-caption);
+}
+.phoneFrame[data-tos-mobile-frame="classroom"] [data-tos-slot~="sheet"]:has([data-diary-notes]) [data-tos-slot~="resultChoice"] button{
+ font-size:var(--tos-text-button);
+ min-height:var(--tos-control-height);
+ padding:var(--tos-space-3) var(--tos-space-2);
+ line-height:1.3;
+}
+.phoneFrame[data-tos-mobile-frame="classroom"] [data-tos-slot~="sheet"]:has([data-diary-notes]) [data-tos-slot~="interestFieldset"] legend,
+.phoneFrame[data-tos-mobile-frame="classroom"] [data-tos-slot~="sheet"]:has([data-diary-notes]) label[data-tos-slot~="field"]{
+ font-size:var(--tos-text-label);
+ line-height:1.5;
+}
+.phoneFrame[data-tos-mobile-frame="classroom"] [data-tos-slot~="sheet"]:has([data-diary-notes]) textarea{
+ font-family:var(--tos-font-family);
+ font-size:var(--tos-text-body);
+ line-height:1.55;
+ padding:var(--tos-space-3);
+ min-height:120px;
+}
+.phoneFrame[data-tos-mobile-frame="classroom"] [data-tos-slot~="sheet"]:has([data-diary-notes]) [data-diary-evidence]{
+ font-size:var(--tos-text-label);
+ min-height:var(--tos-control-height);
+ padding:var(--tos-space-4);
+ line-height:1.5;
+}
+.phoneFrame[data-tos-mobile-frame="classroom"] [data-tos-slot~="sheet"]:has([data-diary-notes]) [data-tos-slot~="diarySubmitFooter"]{
+ position:static;
+ bottom:auto;
+ z-index:auto;
+ background:transparent;
+ box-shadow:none;
+ border-top:1px solid var(--tos-color-border);
+ margin:var(--tos-space-5) 0 0;
+ padding:var(--tos-space-4) 0 var(--tos-space-2);
+}
+.phoneFrame[data-tos-mobile-frame="classroom"] [data-tos-slot~="sheet"]:has([data-diary-notes]) [data-tos-slot~="diarySaveActions"]{
+ display:grid;
+ grid-template-columns:repeat(2,minmax(0,1fr));
+ gap:var(--tos-space-2);
+}
+.phoneFrame[data-tos-mobile-frame="classroom"] [data-tos-slot~="sheet"]:has([data-diary-notes]) [data-tos-slot~="diarySaveActions"] button{
+ font-size:var(--tos-text-button);
+ font-weight:var(--tos-weight-strong);
+ min-height:var(--tos-control-height);
+ padding:var(--tos-space-3) var(--tos-space-2);
+ line-height:1.4;
+}
+.phoneFrame[data-tos-mobile-frame="classroom"] [data-tos-slot~="sheet"]:has([data-diary-notes]) [data-tos-slot~="draftSaveHint"]{
+ font-size:var(--tos-text-caption);
+ line-height:1.5;
+ display:block;
+ margin-top:var(--tos-space-2);
+}
+.phoneFrame[data-tos-mobile-frame="classroom"] [data-tos-slot~="sheet"]:has([data-diary-notes]) [data-tos-slot~="validationErrors"]{
+ font-size:var(--tos-text-secondary);
+ line-height:1.5;
+}
+@media(max-width:360px){
+ .phoneFrame[data-tos-mobile-frame="classroom"] [data-tos-slot~="sheet"]:has([data-diary-notes]) [data-tos-slot~="diarySaveActions"]{
+  grid-template-columns:minmax(0,1fr);
+ }
+}
+.nativeBody :global([data-tos-slot~="page"]){font-size:var(--tos-text-body);line-height:var(--tos-text-body-line)}
+.nativeBody :global([data-tos-slot~="content"]) :is(p,small){font-size:var(--tos-text-secondary);line-height:1.5}
+.nativeBody :global([data-tos-slot~="content"]) :is(button){font-size:var(--tos-text-button);min-height:var(--tos-hit-min)}
+.nativeBody :global([data-tos-slot~="content"]) :is(h2){font-size:var(--tos-text-heading-lg)}
+.nativeBody :global([data-tos-slot~="content"]) :is(h3){font-size:var(--tos-text-heading-sm)}
+.phoneFrame[data-tos-mobile-frame="classroom"]:has([data-diary-notes]) [data-tos-slot~="toast"]{
+ top:var(--tos-space-3);
+ bottom:auto;
+ width:min(394px,calc(100vw - 28px));
+ max-width:calc(100vw - 28px);
+}
+
+.phoneFrame[data-tos-mobile-frame="classroom"] [data-tos-slot~="toast"]{pointer-events:none}
+
+.phoneFrame[data-tos-frame-mode="viewport"]{height:100dvh;overflow:hidden}
+
+.phoneFrame[data-tos-frame-navigation]{padding-bottom:calc(var(--tos-nav-height) + var(--tos-space-4))}
+
+.phoneFrame[data-tos-phone-frame="training"]{--tone:var(--tos-color-accent);--tint:var(--tos-color-accent-bg);--line:var(--tos-color-border);--txt:var(--tos-color-ink);--muted:var(--tos-color-soft)}
+
+.phoneFrame[data-tos-phone-frame="reception"]{background:var(--tos-color-canvas)}
+
+.phoneFrame[data-tos-phone-frame="classroom"]{--tone:var(--tos-color-classroom-action);--tint:var(--tos-color-warning-bg)}}

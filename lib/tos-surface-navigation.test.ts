@@ -34,14 +34,15 @@ test("contextual app footers replace Home navigation", () => {
     assert.equal(footer.length <= 5, true);
     assert.equal(footer.some((item) => item.id === "home" || item.href === "/"), false);
   }
-  assert.deepEqual(TOS_SHIFT_FOOTER.map((item) => item.id), ["today", "schedule", "register", "check", "history"]);
-  assert.deepEqual(TOS_SHIFT_FOOTER.map((item) => item.href), ["/dashboard", "/schedule", "/availability", "/check-in", "/timesheet"]);
+  assert.deepEqual(TOS_SHIFT_FOOTER.map((item) => item.id), ["today", "schedule", "history", "income"]);
+  assert.deepEqual(TOS_SHIFT_FOOTER.map((item) => item.href), ["/dashboard", "/schedule", "/timesheet", "/earnings"]);
   assert.deepEqual(TOS_PINORIA_FOOTER.map((item) => item.id), ["presence", "onboarding", "attendance"]);
 });
 
 test("new TOS app routes stay inside the staff-session perimeter", () => {
   assert.equal(requiresTosStaffSession("tos.pinohouse.art", "/tasks"), true);
   assert.equal(requiresTosStaffSession("tos.pinohouse.art", "/availability"), true);
+  assert.equal(requiresTosStaffSession("tos.pinohouse.art", "/earnings"), true);
   assert.equal(requiresTosStaffSession("bo.pinohouse.art", "/tasks"), false);
 });
 
@@ -60,4 +61,17 @@ test("TOS consumers use centralized domain navigation instead of global route fo
   assert.match(source, /TOS_CLASSROOM_FOOTER/);
   assert.match(source, /TOS_PINORIA_FOOTER/);
   assert.match(source, /TOS_OPEN_STUDIO_FOOTER/);
+});
+
+
+test("PAP-707 keeps Thu nhập structurally present without fabricating payroll truth", async () => {
+  const earnings = await readFile("app/earnings/page.tsx", "utf8");
+  assert.match(earnings, /activeFooterId="income"/);
+  assert.match(earnings, /THU NHẬP[\s\S]*Thu nhập của tôi/);
+  assert.match(earnings, /ownIncome\(centerId/);
+  assert.match(earnings, /current\.status==="DRAFT"&&!current\.estimateAvailable/);
+  assert.match(earnings, /Không suy đoán từ giờ chấm công/);
+  assert.match(earnings, /money\(current\.amountMinor\)/);
+  assert.doesNotMatch(earnings, /1\.625\.000|50\.000|2\.100\.000|Tạm tính · Chưa chốt/);
+  assert.doesNotMatch(earnings, /localStorage|sessionStorage/);
 });

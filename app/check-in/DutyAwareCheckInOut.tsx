@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { TosShell } from "@/app/components/tos-shell";
 import { TOS_SHIFT_FOOTER } from "@/app/components/tos-shell/navigation";
 import { briefingCheckInReady, isCurrentBriefingAcknowledged } from "@/lib/wfm-duty-briefing-ui";
@@ -25,6 +24,17 @@ function dayInZone(timeZone: string) {
   const parts = new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
   const get = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
   return `${get("year")}-${get("month")}-${get("day")}`;
+}
+function addDaysIso(value: string, days: number) {
+  const date = new Date(`${value}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+function dateLabelInZone(timeZone: string) {
+  return new Intl.DateTimeFormat("vi-VN", { timeZone, weekday: "long", day: "numeric", month: "long" }).format(new Date()).toUpperCase();
+}
+function compactDate(value: string) {
+  return new Intl.DateTimeFormat("vi-VN", { day: "2-digit", month: "2-digit", timeZone: "UTC" }).format(new Date(`${value}T00:00:00Z`));
 }
 function apiMessage(error: unknown) {
   if (error instanceof WorkforceApiError) {
@@ -51,7 +61,6 @@ function CloseoutDuty({ duty }: { duty: StaffDutyObligation }) {
 }
 
 export default function DutyAwareCheckInOut() {
-  const router = useRouter();
   const [context, setContext] = useState<WorkforceContext | null>(null);
   const [profile, setProfile] = useState<StaffProfile | null>(null);
   const [current, setCurrent] = useState<TimekeepingSession | null>(null);
@@ -82,7 +91,7 @@ export default function DutyAwareCheckInOut() {
       if (!center) throw new Error("Chưa có Center khả dụng cho StaffMember này.");
       const workDate = nextCurrent?.workDate ?? dayInZone(center.timeZone);
       const [schedule, nextBoard, nextCheckInState] = await Promise.all([
-        workforceApi.schedule({ centerId: center.id, startDate: workDate, endDate: workDate }),
+        workforceApi.schedule({ centerId: center.id, startDate: workDate, endDate: addDaysIso(workDate, 60) }),
         workforceApi.dutyBoard({ centerId: center.id, workDate, action: nextCurrent ? "CHECK_OUT" : "CHECK_IN" }),
         nextCurrent ? Promise.resolve<{ data: UnscheduledCheckInSelfState | null }>({ data: null }) : workforceApi.checkInExceptionStatus(center.id),
       ]);
@@ -107,6 +116,11 @@ export default function DutyAwareCheckInOut() {
     : checkInState?.kind === "ELIGIBLE_ASSIGNMENT"
       ? checkInState.assignment
       : null;
+  const workDate = board?.workDate ?? current?.workDate ?? (center ? dayInZone(center.timeZone) : "");
+  const nextAssignment = workDate
+    ? assignments.filter((item) => item.workDate > workDate).sort((a, b) => a.workDate.localeCompare(b.workDate))[0] ?? null
+    : null;
+  const dateLabel = center ? dateLabelInZone(center.timeZone) : "HÔM NAY";
   const briefing = !current ? board?.briefing ?? null : null;
   const acknowledgement = !current ? board?.acknowledgement ?? null : null;
   const acknowledged = isCurrentBriefingAcknowledged(briefing, acknowledgement);
@@ -147,7 +161,7 @@ export default function DutyAwareCheckInOut() {
       clockAttempt.current = { action: "in", fingerprint, key: idempotencyKey };
       await workforceApi.checkIn(center.id, state.data.assignment.id, idempotencyKey);
       clockAttempt.current = null;
-      router.push("/tasks");
+      await load();
     } catch (cause) { setError(apiMessage(cause)); }
     finally { setBusy(""); }
   }
@@ -204,9 +218,13 @@ export default function DutyAwareCheckInOut() {
     subtitle={center?.displayName ?? profile?.displayLabel ?? "PINO Team"}
     theme="shift"
     footerItems={TOS_SHIFT_FOOTER}
-    activeFooterId="check"
+    activeFooterId="today"
+    compactAppHeader
+    backHref="/"
+    appIconSrc="https://pub-892fa79b018d4d2f9b0808189dd2ce46.r2.dev/AppIcon/shift.png"
   >
     <main className={styles.page}>
+      <section className={styles.intro}><span>{dateLabel}</span><h2>Chào {profile?.displayLabel ?? "bạn"}, sẵn sàng cho ca hôm nay?</h2><p>Thông tin và thao tác chấm công của bạn.</p></section>
       {error ? <div className={styles.error}>{error}</div> : null}
       {loading ? <div className={styles.loading}>Đang đọc ca và duty context từ Core…</div> : null}
 
@@ -216,7 +234,10 @@ export default function DutyAwareCheckInOut() {
           <h1>{assignment?.shift?.displayLabel ?? "Ca làm"}</h1>
           <p>{assignment?.shift ? `${assignment.shift.startLocalTime}–${assignment.shift.endLocalTime}` : "Không có ShiftAssignment active trong ngày."}</p>
           <small>{board?.workDate ?? "—"} · {center?.displayName ?? "—"}</small>
+          <p className={styles.roleUnavailable}>Vai trò ca · Chưa sẵn sàng</p>
+          <button className={styles.primaryAction} disabled={!checkInReady || Boolean(busy)} onClick={() => void checkIn()}>{busy === "check-in" ? "Đang check-in…" : "Check-in"}</button>
         </section>
+        <div className={styles.stats}><article><span>Giờ công tháng này</span><strong className={styles.unavailable}>Chưa sẵn sàng</strong><small>Chờ effective timekeeping từ PAP-706.</small></article><article><span>Ca tiếp theo</span><strong>{nextAssignment ? compactDate(nextAssignment.workDate) : "Chưa có"}</strong><small>{nextAssignment?.shift ? `${nextAssignment.shift.startLocalTime}–${nextAssignment.shift.endLocalTime}` : "Không có assignment sắp tới."}</small></article></div>
         <section className={styles.briefingCard}>
           <div className={styles.sectionHeader}>
             <div><span>BRIEFING HÔM NAY</span><h2>{briefing ? "Đọc trước khi vào ca" : board ? "Không có briefing" : "Chưa tải được briefing"}</h2></div>
@@ -235,7 +256,6 @@ export default function DutyAwareCheckInOut() {
 
         <section className={styles.actionCard}>
           <div><span>CHECK IN</span><strong>{checkInReady ? "Sẵn sàng vào ca" : "Cần assignment canonical"}</strong></div>
-          <button className={styles.checkInButton} disabled={!checkInReady || Boolean(busy)} onClick={() => void checkIn()}>{busy === "check-in" ? "Đang check-in…" : "Check-in"}</button>
           {briefing && !acknowledged ? <p>Briefing đang ở chế độ advisory: có thể check-in trước và xác nhận briefing sau. WFM-TIME vẫn giữ nguyên authority.</p> : null}
           {briefingReady && !assignment ? <>
             {checkInState?.kind === "REQUESTED" ? <p>Yêu cầu check-in ngoài lịch đang chờ Manager duyệt. Check-in vẫn khóa cho tới khi Core tạo assignment canonical.</p>
@@ -258,7 +278,10 @@ export default function DutyAwareCheckInOut() {
           <h1>{assignment?.shift?.displayLabel ?? "Open TimekeepingSession"}</h1>
           <p>Check-in {new Date(current.checkInAt).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}</p>
           <small>{current.workDate} · {center?.displayName ?? "—"}</small>
+          <p className={styles.roleUnavailable}>Vai trò ca · Chưa sẵn sàng</p>
+          <button className={styles.primaryAction} disabled={!closeout.ready || Boolean(busy)} onClick={() => void checkOut()}>{busy === "check-out" ? "Đang checkout…" : "Check-out"}</button>
         </section>
+        <div className={styles.stats}><article><span>Giờ công tháng này</span><strong className={styles.unavailable}>Chưa sẵn sàng</strong><small>Chờ effective timekeeping từ PAP-706.</small></article><article><span>Ca tiếp theo</span><strong>{nextAssignment ? compactDate(nextAssignment.workDate) : "Chưa có"}</strong><small>{nextAssignment?.shift ? `${nextAssignment.shift.startLocalTime}–${nextAssignment.shift.endLocalTime}` : "Không có assignment sắp tới."}</small></article></div>
 
         <section className={styles.closeoutCard}>
           <div className={styles.sectionHeader}>
@@ -290,11 +313,11 @@ export default function DutyAwareCheckInOut() {
 
         <section className={styles.actionCard}>
           <div><span>CHECK OUT</span><strong>{closeout.approvedException && closeout.ready && closeout.outstanding.length ? "Ngoại lệ được duyệt · sẵn sàng checkout" : closeout.ready ? "Sẵn sàng checkout" : closeout.ambiguous ? "Đang chờ duty truth" : `${closeout.outstanding.length} duty cần xử lý`}</strong></div>
-          <button className={styles.checkoutButton} disabled={!closeout.ready || Boolean(busy)} onClick={() => void checkOut()}>{busy === "check-out" ? "Đang checkout…" : "Checkout"}</button>
           {closeout.outstanding.length ? <Link className={styles.dutyBoardLink} href="/tasks">Mở toàn bộ Duty Board <span>→</span></Link> : null}
           {!closeout.ready ? <p>Đây là TOS guidance gate. Core WFM-DUTY vẫn ADVISORY và WFM-TIME chưa bật production denial.</p> : closeout.approvedException && closeout.outstanding.length ? <p>Manager-approved exception chỉ mở TOS checkout guidance; source duties vẫn unresolved và WFM-TIME giữ mutation authority.</p> : null}
         </section>
       </> : null}
+      {!loading ? <section className={styles.noteCard}><h3>Lưu ý trong ca</h3><p>Kiểm tra thông tin ca trước khi bắt đầu. Nếu dữ liệu nghiệp vụ chưa có contract authoritative, TOS sẽ hiển thị chưa sẵn sàng thay vì suy đoán.</p></section> : null}
     </main>
   </TosShell>;
 }

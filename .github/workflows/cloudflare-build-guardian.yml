@@ -183,13 +183,9 @@ jobs:
         shell: bash
         run: cat cloudflare-status.md >> "$GITHUB_STEP_SUMMARY" || true
 
-      - name: Trigger production smoke only for exact serving runtime
-        if: steps.delta.outputs.runtime_affecting == 'true' && steps.cf.outputs.build_outcome == 'success' && steps.cf.outputs.serving == 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "Exact runtime ${COMMIT_SHA} is active at 100%; triggering production smoke."
-          gh workflow run e2e-production-smoke.yml --repo "$GITHUB_REPOSITORY" --ref main
+      # PAP-820: Do not automatically dispatch browser/Production E2E.
+      # Founder manually validates after a separately authorized deployment.
+      # Serving identity verification and build-failure guards remain mandatory.
 
       - name: Fail on Cloudflare build failure
         if: steps.cf.outputs.build_outcome == 'fail' || steps.cf.outputs.build_outcome == 'not_found' || steps.cf.outputs.build_outcome == 'timeout' || steps.cf.outputs.build_outcome == 'cancelled' || steps.cf.outputs.build_outcome == 'terminated'

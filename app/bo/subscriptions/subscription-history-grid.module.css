@@ -1,0 +1,13 @@
+.wrap { background:#1d1d22; border:1px solid #383640; border-radius:14px; padding:18px; margin:20px 0; color:#f7f6fb; }
+.header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:14px; }
+.header strong {font-size:16px} .header p,.header small {color:#aaa7b5;font-size:12px;margin:5px 0 0}
+.filters {display:grid;grid-template-columns:minmax(180px,2fr) repeat(2,minmax(130px,1fr)) auto;gap:8px;margin-bottom:12px}
+.filters input,.filters select,.filters button,.pager button {background:#25252a;color:#f7f6fb;border:1px solid #4a4652;border-radius:8px;padding:9px 10px;min-width:0}
+.filters button,.pager button {cursor:pointer}.filters button:disabled,.pager button:disabled {cursor:not-allowed;opacity:.45}
+.tableScroll {overflow-x:auto}.table {border-collapse:collapse;min-width:770px;width:100%;font-size:12px}
+.table th {font-weight:600;text-align:left;color:#aaa7b5;white-space:nowrap}
+.table td,.table th {padding:10px 8px;border-bottom:1px solid #37343e;vertical-align:top}
+.table a {color:#bcaaff;text-decoration:none}.table td small {display:block;color:#a29ea9;margin-top:4px}
+.pager {display:flex;justify-content:flex-end;align-items:center;gap:10px;padding-top:12px;font-size:12px}
+.error {color:#ffc2bf;font-size:12px}
+@media(max-width:780px){.filters{grid-template-columns:1fr 1fr}.filters input{grid-column:span 2}}

@@ -1,18 +1,32 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { LayeredCharacter, type PinoriaCharacterConfig } from "./layered-character";
+import {parseDialogueConfig,type DialogueConfig} from "../../lib/pap657-dialogue-config";
+import { LayeredCharacter, pinoriaAssetUrl, type PinoriaCharacterConfig } from "./layered-character";
 import { WardSessionTv } from "./ward-session-tv";
-import { AmbientHouseRuntime } from "./ambient-house-runtime";
+import { AmbientHouseRuntime, HOUSE_ASSETS } from "./ambient-house-runtime";
+import type { AmbientHouseArea } from "./ambient-house-area";
+import savedSpatialGraph from "./ambient-house-motion-graph.saved.json";
+import type { AmbientMotionGraph } from "./ambient-house-motion";
+import {parsePublishedHouseSpatialConfig,reconcileHouseSpatialRefresh,type HouseSpatialRefresh} from "../../lib/pinoria-house-spatial-runtime";
+import {assetStatusFromEvidence,recordAssetFailure,type AssetEvidence} from "../../lib/pap659-asset-observation";
+import {fetchBuildManifestProvenance} from "../../lib/pap659-build-provenance-client";
+import {observedRuntimeFacts} from "../../lib/pap659-runtime-facts";
+import {makeRuntimeObservation,sendRuntimeObservation} from "../../lib/pap659-runtime-observation-client";
+import {readAppliedSpatialRevision} from "../../lib/pinoria-house-spatial-runtime";
+
 import { advanceHouseSnapshotCursor, housePresenceSceneIsCurrent, houseRefreshSnapshotIsCurrent, selectUnseenHouseEvents } from "./house-event-sequence";
 import { actorFromArrival, actorHasSource, parsePresenceEventPage, parsePresenceSnapshot, type PresenceActor, type PresenceActorType, type PresenceEvent, type PresenceSourceType } from "./presence-contract";
-import { claimPresentation, completePresentation } from "./presentation-client";
+import { claimPresentation, completePresentation, presentationStatus, shouldReleaseTvScene, isCurrentTvPresentationClaim, completionAlreadyReleased } from "./presentation-client";
 import { WishRevealScene, wishRevealSceneMs } from "./wish-reveal-scene";
 import type { PinoriaPresentation } from "./presentation-types";
+import { pollPendingReplay, loadReplayProjection, acknowledgeRenderedReplay, type PendingTvReplay } from "./replay-runtime-client";
+import { acceptsTvReplayInstruction } from "./replay-command-guard";
 import { EggHatchScene, EGG_HATCH_SCENE_MS } from "./egg-hatch-scene";
 import { CompanionRitualScene, COMPANION_RITUAL_SCENE_MS } from "./companion-ritual-scene";
 import { OnboardingCeremonyScene, OnboardingPreviewScene, ONBOARDING_CEREMONY_SCENE_MS } from "./onboarding-ceremony-scene";
 import type { OnboardingPreview } from "./onboarding-ceremony-types";
+import { eligibleTvEvent, readSafeTvPolicy, displayNameForSharedTv, defaultSharedTvPolicy, redactTvPresentationName } from "@/lib/pinoria-tv-policy-runtime";
 import styles from "./reception-tv.module.css";
 
 
@@ -20,6 +34,7 @@ type Scene = {
   id: string;
   kind: "arrival" | "departure";
   name: string;
+  occurredAt: string;
   config: PinoriaCharacterConfig;
   actorType: PresenceActorType;
   pinoriaSelfId: string;
@@ -34,23 +49,110 @@ const ARRIVAL_HANDOFF_MS = 1800;
 const DEPARTURE_TRANSITION_MS = 1200;
 const DEPARTURE_PERFORMANCE_MS = 5200;
 
-export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fixedCenterId?: string; apiBase?: string } = {}) {
+export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approvedHouseAreas, runtimeIdentity }: { fixedCenterId?: string; apiBase?: string; approvedHouseAreas?: readonly AmbientHouseArea[]; runtimeIdentity?: {displayId:string;sessionId:string;deviceId:string|null} } = {}) {
   const [centerId, setCenterId] = useState("");
+  const [spatial,setSpatial]=useState<HouseSpatialRefresh>({active:null,pending:null});
+  // Only a successful authenticated null response proves that this session is using fallback.
+  const [fallbackProof,setFallbackProof]=useState<string|null>(null);
+  const [assetEvidence,setAssetEvidence]=useState<AssetEvidence>({failedAssetIds:[]});
+  // Asset failures belong to a single authenticated TV session, not the next device session.
+  useEffect(()=>{setAssetEvidence({failedAssetIds:[]});},[runtimeIdentity?.sessionId]);
+  const observedAssetStatus=assetStatusFromEvidence(assetEvidence);
+  const [manifestDigest,setManifestDigest]=useState<string|null>(null);
+  useEffect(()=>{
+    let cancelled=false;
+    setManifestDigest(null);
+    if(!runtimeIdentity?.sessionId)return;
+    void fetchBuildManifestProvenance().then(value=>{if(!cancelled)setManifestDigest(value);});
+    return()=>{cancelled=true;};
+  },[runtimeIdentity?.sessionId]);
+  const liveActorCountRef=useRef(0);
   const [draft, setDraft] = useState("");
   const [connected, setConnected] = useState(false);
   const [inside, setInside] = useState<PresenceActor[]>([]);
   const [scenes, setScenes] = useState<Scene[]>([]);
   const [presentation, setPresentation] = useState<PinoriaPresentation | null>(null);
+  const activePresentationIdRef = useRef<string | null>(null);
+  activePresentationIdRef.current = presentation?.id ?? null;
+  const runtimeDisplayId=runtimeIdentity?.displayId ?? "";
+  const runtimeSessionId=runtimeIdentity?.sessionId ?? "";
+  const runtimeDeviceId=runtimeIdentity?.deviceId ?? null;
+  const appliedRevision=readAppliedSpatialRevision(spatial);
+  const fallbackConfirmed=fallbackProof===centerId+":"+runtimeSessionId&&!spatial.active&&!spatial.pending;
+  useEffect(()=>{
+    if(!runtimeSessionId||!runtimeDisplayId||!runtimeDeviceId)return;
+    const observation=makeRuntimeObservation({sessionId:runtimeSessionId,displayId:runtimeDisplayId,deviceId:runtimeDeviceId},observedRuntimeFacts({buildDigest:manifestDigest,appliedConfigRevision:appliedRevision,fallbackConfirmed,assetEvidence}));
+    if(!observation)return;
+    // A session-bound report only; Core retains rendererAcknowledged:false until actual render proof.
+    // Core considers observations stale after 30s; keep a 15s heartbeat while mounted.
+    // The same strictly validated report is renewed without fabricating render ACK.
+    let inFlight=false;
+    const report=async()=>{if(inFlight)return;inFlight=true;try{await sendRuntimeObservation(`${apiBase}/observation`,observation);}finally{inFlight=false;}};
+    void report();
+    const timer=window.setInterval(()=>void report(),15000);
+    return()=>window.clearInterval(timer);
+  },[runtimeSessionId,runtimeDisplayId,runtimeDeviceId,manifestDigest,appliedRevision,fallbackConfirmed,assetEvidence,apiBase]);
+  const [replayFrame, setReplayFrame] = useState<{command:PendingTvReplay;generation:number}|null>(null);
+  const replayBusy = useRef(false);
+  const replayLastRevision = useRef(0);
+  const replayLoadedCommand = useRef("");
+  const [replaySceneKey, setReplaySceneKey] = useState("");
+  const [replayedPresentationId, setReplayedPresentationId] = useState("");
+  const replayScope = useRef("");
   const [onboardingPreview, setOnboardingPreview] = useState<OnboardingPreview | null>(null);
+  const [policy,setPolicy] = useState(defaultSharedTvPolicy);
+  const [publishedDialogue,setPublishedDialogue] = useState<DialogueConfig|null>(null);
+  useEffect(()=>{
+    if(!centerId){setPublishedDialogue(null);return;}
+    let mounted=true;
+    setPublishedDialogue(null); // Never carry another Center dialogue configuration.
+    const pull=async()=>{
+      try{
+        const response=await fetch(apiBase+"/dialogue-config",{cache:"no-store"});
+        if(response.status===401||response.status===403){if(mounted)setPublishedDialogue(null);return;}
+        if(!response.ok)return; // Transient outage: retain same-session LKG.
+        const body=await response.json() as {data?:{configuration?:unknown}|null};
+        const parsed=parseDialogueConfig(body.data?.configuration);
+        if(mounted)setPublishedDialogue(parsed); // Null/invalid active config disables dialogue.
+      }catch{
+        // Keep last-known-good for transient network errors within this session/Center.
+      }
+    };
+    void pull();
+    const timer=window.setInterval(()=>void pull(),30000);
+    return()=>{mounted=false;window.clearInterval(timer);};
+  },[apiBase,centerId,runtimeSessionId]);
+  useEffect(() => {
+    if(!centerId)return;
+    setPolicy(defaultSharedTvPolicy()); // Never carry a permissive Center policy across TV scopes.
+    let mounted=true;
+    const pull=async()=>{
+      try{
+        const response=await fetch(apiBase+"/policy",{cache:"no-store"});
+        if(!response.ok)return;
+        const body=await response.json() as {data?:unknown};
+        const parsed=readSafeTvPolicy(body.data,centerId);
+        if(mounted&&parsed)setPolicy(parsed);
+      }catch{
+        // Keep last-known-good; the initial default hides optional private fields.
+      }
+    };
+    void pull();
+    const timer=window.setInterval(()=>void pull(),30000);
+    return()=>{mounted=false;window.clearInterval(timer)};
+  },[apiBase,centerId]);
   const cursor = useRef(0);
   const presentedSequence = useRef(0);
   const wasConnected = useRef(false);
   const presentationBusy = useRef(false);
+  const presentationGeneration = useRef(0);
+  const presentationCenter = useRef("");
   const housePollInFlight = useRef(false);
   const houseSnapshotRefreshedAt = useRef(0);
   const houseGeneration = useRef(0);
   const stageRef = useRef<HTMLElement | null>(null);
   const [arrivalHandoffTarget, setArrivalHandoffTarget] = useState<{ left: string; top: string; width: string; height: string } | null>(null);
+  const [departureOrigin, setDepartureOrigin] = useState<{ left: string; top: string; width: string; height: string } | null>(null);
 
   useEffect(() => {
     const query = fixedCenterId?.trim() || new URLSearchParams(location.search).get("centerId")?.trim() || "";
@@ -61,6 +163,38 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fi
     setDraft(value);
     if (query && !fixedCenterId) localStorage.setItem(CENTER_STORAGE, query);
   }, [fixedCenterId]);
+  liveActorCountRef.current=inside.length+scenes.length+(presentation?1:0);
+  // Device-authenticated read of Core published TV config. An outage or invalid
+  // payload never replaces last-known-good. New geometry waits until House is empty.
+  useEffect(()=>{
+    if(!centerId){setSpatial({active:null,pending:null});setFallbackProof(null);return;}
+    let cancelled=false;
+    setSpatial({active:null,pending:null});setFallbackProof(null);
+    async function pollSpatial(){
+      try{
+        const response=await fetch(`${apiBase}/spatial-config`,{cache:"no-store"});
+        if(!response.ok)throw new Error("TV spatial config unavailable");
+        const body=await response.json() as {data?:unknown};
+        if(cancelled)return;
+        const candidate=parsePublishedHouseSpatialConfig(body.data);
+        if(candidate){setFallbackProof(null);setSpatial(previous=>reconcileHouseSpatialRefresh(previous,candidate,liveActorCountRef.current));}
+        else if(body.data===null)setFallbackProof(centerId+":"+runtimeSessionId); // Authenticated explicit absence, not fetch failure.
+      }catch{/* Fails closed: keep saved/default or last-known-good revision. */}
+    }
+    void pollSpatial();
+    const timer=window.setInterval(()=>void pollSpatial(),12000);
+    return()=>{cancelled=true;window.clearInterval(timer);};
+  },[centerId,apiBase,runtimeSessionId]);
+  useEffect(()=>{
+    if(inside.length===0&&scenes.length===0&&!presentation)setSpatial(previous=>reconcileHouseSpatialRefresh(previous,null,0));
+  },[inside.length,scenes.length,presentation]);
+  const spatialGraph=useMemo<AmbientMotionGraph | undefined>(()=>{
+    const current=spatial.active?.configuration;
+    if(!current)return undefined;
+    return {...(savedSpatialGraph as AmbientMotionGraph),canvas:current.canvas,
+      horizontalLanes:current.graph.horizontalLanes,rawConnectors:current.graph.rawConnectors};
+  },[spatial.active]);
+  const configuredAreas=spatial.active?.configuration.areas ?? approvedHouseAreas;
   const pollHouse = useCallback(async () => {
     if (!centerId || housePollInFlight.current) return;
     housePollInFlight.current = true;
@@ -134,14 +268,19 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fi
     } finally {
       if (generation === houseGeneration.current) housePollInFlight.current = false;
     }
-  }, [apiBase, centerId]);
+  }, [apiBase, centerId, policy]);
   function enqueuePresenceEvents(events: PresenceEvent[]) {
     setScenes((queue) => [
       ...queue,
-      ...events.map((event) => ({
+      ...events.filter((event,index)=>events.findIndex(candidate=>candidate.sequence===event.sequence && candidate.pinoriaSelfId===event.pinoriaSelfId
+        && candidate.sourceType===event.sourceType && candidate.sourceId===event.sourceId)===index
+        && eligibleTvEvent(policy,event.type,event.occurredAt,new Date())
+        && !queue.some(existing=>existing.id===`${event.sequence}` && existing.pinoriaSelfId===event.pinoriaSelfId
+          && existing.sourceType===event.sourceType && existing.sourceId===event.sourceId)).map((event) => ({
         id: `${event.sequence}`,
         kind: event.type === "ARRIVAL" ? "arrival" as const : "departure" as const,
-        name: event.payload.displayName,
+        name: displayNameForSharedTv(policy,event.payload.displayName),
+        occurredAt: event.occurredAt,
         config: event.payload.character ?? {},
         actorType: event.actorType,
         pinoriaSelfId: event.pinoriaSelfId,
@@ -180,12 +319,12 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fi
       const json = await response.json() as { data?: OnboardingPreview | null };
       if (!response.ok) throw new Error("preview unavailable");
       const next = json.data ?? null;
-      setOnboardingPreview(next);
-      if (next) setScenes([]);
+      setOnboardingPreview(eligibleTvEvent(policy,"ONBOARDING_CEREMONY",new Date().toISOString(),new Date()) && next ? {...next,displayName:displayNameForSharedTv(policy,next.displayName)} : null);
+      if (next && eligibleTvEvent(policy,"ONBOARDING_CEREMONY",new Date().toISOString(),new Date())) setScenes([]);
     } catch {
       setOnboardingPreview(null);
     }
-  }, [apiBase, centerId]);
+  }, [apiBase, centerId, policy]);
 
   useEffect(() => {
     if (!centerId) return;
@@ -194,18 +333,121 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fi
     return () => window.clearInterval(timer);
   }, [centerId, pollOnboardingPreview]);
 
+  // Observe Core release while a scene is displayed. Never claim a new event for status.
+  useEffect(() => {
+    if (!centerId || !presentation) return;
+    let disposed = false;
+    let inFlight = false;
+    const currentId = presentation.id;
+    const check = async () => {
+      if (inFlight || disposed) return;
+      inFlight = true;
+      try {
+        const activeId = await presentationStatus(centerId, apiBase);
+        if (!disposed && shouldReleaseTvScene(currentId, activeId)) {
+          setPresentation((value) => value?.id === currentId ? null : value);
+        }
+      } catch {
+        // Unknown status: keep the current scene, never interpret an outage as release.
+      } finally {
+        inFlight = false;
+      }
+    };
+    const timer = window.setInterval(() => void check(), 1500);
+    return () => { disposed = true; window.clearInterval(timer); };
+  }, [apiBase, centerId, presentation]);
+  // The TV runtime cookie is HttpOnly. Never fall back to the shared center-only relay.
+  useEffect(() => {
+    const scope=runtimeDisplayId&&runtimeSessionId?`${centerId}:${runtimeDisplayId}:${runtimeSessionId}`:"";
+    replayScope.current=scope;
+    replayLastRevision.current=0;
+    replayLoadedCommand.current="";
+    replayBusy.current=false;
+    setReplaySceneKey("");
+    setReplayedPresentationId("");
+    setReplayFrame(null);
+    if(!scope||!centerId)return;
+    let disposed=false;
+    const check=async()=>{
+      if(disposed||replayBusy.current)return;
+      replayBusy.current=true;
+      try{
+        const command=await pollPendingReplay(apiBase);
+        if(disposed||replayScope.current!==scope||!command||replayLoadedCommand.current===command.id)return;
+        if(!activePresentationIdRef.current||!acceptsTvReplayInstruction({
+          centerId,displayId:runtimeDisplayId,sessionId:runtimeSessionId,
+          revision:replayLastRevision.current,activePresentationId:activePresentationIdRef.current,
+        },{...command,activePresentationId:command.presentationId}))return;
+        const loaded=await loadReplayProjection(apiBase,command);
+        if(disposed||replayScope.current!==scope||activePresentationIdRef.current!==loaded.presentation.id)return;
+        // Same presentation, new React key: forces effects/animation to begin at frame zero.
+        replayLoadedCommand.current=command.id;
+        setReplaySceneKey(command.id);
+        setReplayedPresentationId(command.presentationId);
+        setPresentation({...loaded.presentation});
+        setReplayFrame({command,generation:Date.now()});
+      }catch{
+        // Unavailable/replaced runtime must never replay or acknowledge a command.
+      }finally{replayBusy.current=false;}
+    };
+    const timer=window.setInterval(()=>void check(),1200);
+    void check();
+    return()=>{disposed=true;window.clearInterval(timer);};
+  },[apiBase,centerId,runtimeDisplayId,runtimeSessionId]);
+
+  // Passive effect runs only AFTER the keyed scene has committed to React.
+  // Two paint frames further prevent acknowledging a command only staged in state.
+  useEffect(()=>{
+    if(!replayFrame||!runtimeDisplayId||!runtimeSessionId||presentation?.id!==replayFrame.command.presentationId)return;
+    const scope=`${centerId}:${runtimeDisplayId}:${runtimeSessionId}`;
+    const {command,generation}=replayFrame;
+    if(replayScope.current!==scope||generation<=0)return;
+    let disposed=false,first=0,second=0,retry=0;
+    const ack=async()=>{
+      if(disposed||replayScope.current!==scope)return;
+      try{
+        await acknowledgeRenderedReplay(apiBase,command);
+        if(disposed||replayScope.current!==scope)return;
+        replayLastRevision.current=Math.max(replayLastRevision.current,command.revision);
+        setReplayFrame(current=>current?.command.id===command.id?null:current);
+      }catch{
+        if(!disposed)retry=window.setTimeout(()=>void ack(),1500);
+      }
+    };
+    first=requestAnimationFrame(()=>{second=requestAnimationFrame(()=>void ack());});
+    return()=>{disposed=true;cancelAnimationFrame(first);cancelAnimationFrame(second);window.clearTimeout(retry);};
+  },[apiBase,centerId,presentation?.id,replayFrame,runtimeDisplayId,runtimeSessionId]);
   const pollPresentation = useCallback(async () => {
     if (!centerId || presentationBusy.current || presentation || onboardingPreview || scenes.length > 0) return;
     presentationBusy.current = true;
+    const requestedGeneration = presentationGeneration.current;
     try {
       const claimed = await claimPresentation(centerId, apiBase);
-      if (claimed) setPresentation(claimed);
+      if (claimed && isCurrentTvPresentationClaim(centerId, requestedGeneration, presentationCenter.current, presentationGeneration.current)) {
+        if (eligibleTvEvent(policy, claimed.kind, claimed.claimedAt, new Date()) && (policy.visibleContext.companion || (claimed.kind !== "EGG_HATCH" && claimed.kind !== "COMPANION_RITUAL"))) {
+          setPresentation(redactTvPresentationName(policy, claimed));
+        } else {
+          await completePresentation(centerId, claimed.id, apiBase); // Presentation receipt only; never domain reward.
+        }
+      }
     } catch {
       // House presence remains usable if the Wish relay is temporarily unavailable.
     } finally {
-      presentationBusy.current = false;
+      if (requestedGeneration === presentationGeneration.current) presentationBusy.current = false;
     }
-  }, [apiBase, centerId, onboardingPreview, scenes.length, presentation]);
+  }, [apiBase, centerId, onboardingPreview, scenes.length, presentation, policy]);
+
+  // Only a Center transition invalidates a pending claim. Callback changes caused by
+  // house scenes/re-renders must not release the in-flight lock and double-claim Core.
+  useEffect(() => {
+    presentationGeneration.current += 1;
+    presentationCenter.current = centerId;
+    presentationBusy.current = false;
+    return () => {
+      presentationGeneration.current += 1;
+      presentationBusy.current = false;
+    };
+  }, [centerId]);
 
   useEffect(() => {
     if (!centerId) return;
@@ -217,7 +459,16 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fi
   const scene = scenes[0] ?? null;
   const sceneActor = scene ? inside.find((actor) => actor.pinoriaSelfId === scene.pinoriaSelfId) ?? null : null;
   const sceneHasMatchingSource = Boolean(scene && sceneActor && actorHasSource(sceneActor, scene.sourceType, scene.sourceId));
-  const sceneIsCurrent = !scene || housePresenceSceneIsCurrent(scene.kind, Boolean(sceneActor), sceneHasMatchingSource);
+  const arrivalCompanion = policy.visibleContext.companion && scene?.kind === "arrival" && sceneHasMatchingSource ? sceneActor?.experience?.companion ?? null : null;
+  // Departure context only comes from the matching canonical presence source and policy.
+  const departurePath = policy.visibleContext.path && scene?.kind === "departure" && sceneHasMatchingSource ? sceneActor?.experience?.path ?? null : null;
+  const departureCompanion = policy.visibleContext.companion && scene?.kind === "departure" && sceneHasMatchingSource ? sceneActor?.experience?.companion ?? null : null;
+  const arrivalCompanionAsset = arrivalCompanion ? pinoriaAssetUrl(arrivalCompanion.species.assetKey) : null;
+  const arrivalCompanionIdentity = arrivalCompanionAsset && scene ? `${scene.id}:${scene.pinoriaSelfId}:${scene.sourceType}:${scene.sourceId}:${arrivalCompanion?.id}:${arrivalCompanionAsset}` : null;
+  const [failedArrivalCompanionIdentity, setFailedArrivalCompanionIdentity] = useState<string | null>(null);
+  const visibleArrivalCompanionAsset = arrivalCompanionIdentity !== failedArrivalCompanionIdentity ? arrivalCompanionAsset : null;
+  // If the learner has re-entered via another presence source, discard the stale farewell.
+  const sceneIsCurrent = !scene || (scene.kind === "departure" && sceneActor && !sceneHasMatchingSource ? false : housePresenceSceneIsCurrent(scene.kind, Boolean(sceneActor), sceneHasMatchingSource));
 
   useEffect(() => {
     if (!scene || presentation) return;
@@ -251,6 +502,22 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fi
   }, [presentation, scene, sceneIsCurrent]);
 
   useLayoutEffect(() => {
+    if (!scene || scene.kind !== "departure") { setDepartureOrigin(null); return; }
+    if (scene.phase !== "transition") return;
+    if (!sceneHasMatchingSource) { setDepartureOrigin(null); return; }
+    const stage = stageRef.current;
+    const target = Array.from(stage?.querySelectorAll<HTMLElement>("[data-ambient-runtime-character]") ?? [])
+      .find((element) => element.dataset.ambientRuntimeSelf === scene.pinoriaSelfId);
+    if (!stage || !target) { setDepartureOrigin(null); return; }
+    const bounds = stage.getBoundingClientRect(), actor = target.getBoundingClientRect();
+    if (!bounds.width || !bounds.height || !actor.width || !actor.height) { setDepartureOrigin(null); return; }
+    setDepartureOrigin({
+      left: `${((actor.left + actor.width / 2 - bounds.left) / bounds.width) * 100}%`,
+      top: `${((actor.top + actor.height / 2 - bounds.top) / bounds.height) * 100}%`,
+      width: `${actor.width}px`, height: `${actor.height}px`,
+    });
+  }, [scene, sceneHasMatchingSource]);
+  useLayoutEffect(() => {
     if (!scene || scene.kind !== "arrival" || scene.phase !== "handoff") {
       setArrivalHandoffTarget(null);
       return;
@@ -279,11 +546,27 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fi
     let cancelled = false;
     let timer = 0;
 
-    const finish = async () => {      try {
+    const finish = async () => {
+      if (cancelled) return;
+      try {
         await completePresentation(centerId, presentationId, apiBase);
-        if (cancelled) return;
-        setPresentation((current) => current?.id === presentationId ? null : current);
+        if (!cancelled) {
+          setPresentation((current) => current?.id === presentationId ? null : current);
+        }
       } catch {
+        if (cancelled) return;
+        // An operator can close the singleton while the TV completion is in flight.
+        // Before retrying a stale complete, inspect Core state without re-claiming.
+        try {
+          const released = await completionAlreadyReleased(centerId, presentationId, apiBase);
+          if (cancelled) return;
+          if (released) {
+            setPresentation((current) => current?.id === presentationId ? null : current);
+            return;
+          }
+        } catch {
+          // Core status unavailable: preserve the scene and retry safely.
+        }
         if (!cancelled) timer = window.setTimeout(() => void finish(), 1500);
       }
     };
@@ -307,6 +590,8 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fi
     if (!value) return;
     localStorage.setItem(CENTER_STORAGE, value);
     houseGeneration.current += 1;
+    presentationGeneration.current += 1;
+    presentationCenter.current = value;
     housePollInFlight.current = false;
     cursor.current = 0;
     presentedSequence.current = 0;
@@ -316,24 +601,11 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fi
     setScenes([]);
     setPresentation(null);
     setOnboardingPreview(null);
+    setPolicy(defaultSharedTvPolicy());
     setCenterId(value);
   }
 
-  function resetCenter() {
-    localStorage.removeItem(CENTER_STORAGE);
-    houseGeneration.current += 1;
-    housePollInFlight.current = false;
-    cursor.current = 0;
-    presentedSequence.current = 0;
-    wasConnected.current = false;
-    houseSnapshotRefreshedAt.current = 0;
-    setInside([]);
-    setScenes([]);
-    setPresentation(null);
-    setOnboardingPreview(null);
-    setCenterId("");
-  }
-  const ambientActors = useMemo(() => inside.map((actor) => ({ id: actor.pinoriaSelfId, actorType: actor.actorType, name: actor.displayName, config: actor.character, wardRender: actor.wardRender })), [inside]);
+  const ambientActors = useMemo(() => inside.map((actor) => ({ id: actor.pinoriaSelfId, actorType: actor.actorType, name: displayNameForSharedTv(policy,actor.displayName), config: actor.character, wardRender: actor.wardRender, experience: actor.experience })), [inside,policy]);
   const wardLearner = useMemo(() => { const newest = [...inside].reverse(); return newest.find((actor) => actor.wardSession?.status === "OPEN") ?? newest.find((actor) => actor.wardSession) ?? null; }, [inside]);
   if (!centerId) {
     return <main className={styles.setup}>
@@ -347,32 +619,31 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fi
     </main>;
   }
 
-  const visualScene = !onboardingPreview && (scene?.phase === "performance" || (scene?.kind === "arrival" && scene.phase === "handoff")) ? scene : null;
+  const visualScene = !onboardingPreview && scene && eligibleTvEvent(policy,scene.kind==="arrival"?"ARRIVAL":"DEPARTURE",scene.occurredAt,new Date()) && (scene.phase === "performance" || (scene.kind === "arrival" && scene.phase === "handoff")) ? scene : null;
   const arrivalActorIds = scenes.filter((queued) => queued.kind === "arrival").map((queued) => queued.pinoriaSelfId);
   const departingId = scene?.kind === "departure" && scene.phase === "transition"
     && inside.some((actor) => actor.pinoriaSelfId === scene.pinoriaSelfId && actorHasSource(actor, scene.sourceType, scene.sourceId))
     ? scene.pinoriaSelfId
     : null;
   const isArrivalHandoff = visualScene?.kind === "arrival" && visualScene.phase === "handoff";
+  const departureStyle = visualScene?.kind === "departure" && departureOrigin ? ({
+    "--departure-from-left": departureOrigin.left, "--departure-from-top": departureOrigin.top,
+    "--departure-from-width": departureOrigin.width, "--departure-from-height": departureOrigin.height,
+  } as CSSProperties) : undefined;
   const handoffStyle = isArrivalHandoff && arrivalHandoffTarget ? ({
     "--arrival-target-left": arrivalHandoffTarget.left,
     "--arrival-target-top": arrivalHandoffTarget.top,
     "--arrival-target-width": arrivalHandoffTarget.width,
     "--arrival-target-height": arrivalHandoffTarget.height,
   } as CSSProperties) : undefined;
-  const active = Boolean(visualScene || presentation || onboardingPreview);
+  const visiblePresentation = presentation && eligibleTvEvent(policy,presentation.kind,presentation.claimedAt,new Date()) ? presentation : null;
+  const active = Boolean(visualScene || visiblePresentation || onboardingPreview);
   const arrivalActive = visualScene?.kind === "arrival";
-  return <main ref={stageRef} className={`${styles.stage} ${active ? styles.active : ""} ${arrivalActive ? styles.arrivalActive : ""}`}>
+  return <main ref={stageRef} onErrorCapture={(event) => { if (event.target instanceof HTMLImageElement || event.target instanceof HTMLVideoElement) setAssetEvidence(previous => recordAssetFailure(previous, "renderer-media")); }} data-tv-asset-evidence={observedAssetStatus} data-tv-build-manifest-provenance={manifestDigest ? "VALID" : "UNKNOWN"} data-tv-connection-state={connected ? "online" : "offline"} className={`${styles.stage} ${active ? styles.active : ""} ${arrivalActive ? styles.arrivalActive : ""}`}>
     <div className={styles.sky} />
     <div className={styles.orbOne} />
     <div className={styles.orbTwo} />
-    <header className={styles.status}>
-      <div><b>PINORIA</b><span>HOUSE</span></div>
-      <div className={styles.live}>
-        <i className={connected ? styles.online : styles.offline} />
-        {connected ? `${inside.length} Piner đang ở House` : "Đang reconcile…"}
-      </div>
-    </header>    <AmbientHouseRuntime actors={ambientActors} departingId={departingId} suppressedIds={arrivalActorIds} frozenIds={arrivalActorIds} />
+    <AmbientHouseRuntime actors={ambientActors} areas={configuredAreas} motionGraph={spatialGraph} emergencePins={spatial.active?.configuration.emergencePins} departingId={departingId} suppressedIds={arrivalActorIds} frozenIds={arrivalActorIds} publishedDialogue={publishedDialogue} showText={false} />
 
     {visualScene ? <section
       key={visualScene.id}
@@ -382,43 +653,23 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv" }: { fi
       data-arrival-source-type={visualScene.kind === "arrival" ? visualScene.sourceType : undefined}
       data-arrival-source-id={visualScene.kind === "arrival" ? visualScene.sourceId : undefined}
       data-presence-actor-type={visualScene.actorType}
+      data-departure-path={visualScene.kind === "departure" ? departurePath?.code : undefined}
+      data-departure-companion={visualScene.kind === "departure" && departureCompanion ? "canonical" : undefined}
       className={`${styles.scene} ${visualScene.kind === "arrival" ? styles.arrivalScene : styles.departure} ${isArrivalHandoff ? styles.arrivalHandoff : ""}`}
-      style={handoffStyle}
+      style={visualScene.kind === "departure" ? departureStyle : handoffStyle}
     >
-      {visualScene.kind === "arrival" ? <div className={styles.arrivalBackdrop} /> : null}
-      <div className={styles.aura}><img src="https://assets.pinohouse.art/draft/AuraLv3.png" alt="" /></div>
+      {visualScene.kind === "arrival" ? <div className={styles.arrivalBackdrop} aria-hidden="true"><div className={styles.arrivalHouseLayers}><span style={{ backgroundImage: `url("${HOUSE_ASSETS.back}")` }} /><span style={{ backgroundImage: `url("${HOUSE_ASSETS.mid}")` }} /><span style={{ backgroundImage: `url("${HOUSE_ASSETS.front}")` }} /></div></div> : null}
+      <div className={styles.aura}><img src="https://assets.pinohouse.art/draft/AuraLv3.png" onError={() => setAssetEvidence(previous=>recordAssetFailure(previous,"scene-aura"))} alt="" /></div>
       {visualScene.kind === "arrival" ? <><div className={styles.heroLight} /><div className={styles.footShadow} /><div className={styles.contactShadow} /><div className={styles.radiance} /></> : null}
-      <LayeredCharacter className={styles.character} config={visualScene.config} />
-      <div className={styles.moriShadow} />
-      <img className={styles.mori} src="https://assets.pinohouse.art/draft/Mori.png" alt="" />
-      <div className={styles.copy}>
-        <span>{visualScene.kind === "arrival" ? `CHÀO ĐẾN · ${visualScene.name.toUpperCase()}` : "HẸN GẶP LẠI"}</span>
-        <h1>{visualScene.kind === "arrival" ? `Chào ${visualScene.name} ✦` : visualScene.name}</h1>
-        <p>{visualScene.kind === "arrival" ? "Hôm nay Mori đi cùng mình!" : "Hẹn gặp lại trong chuyến phiêu lưu tiếp theo ✦"}</p>
-      </div>
+      <LayeredCharacter className={styles.character} config={visualScene.kind === "arrival" && sceneHasMatchingSource && sceneActor?.character ? sceneActor.character : visualScene.config} wardRender={visualScene.kind === "arrival" && sceneHasMatchingSource ? sceneActor?.wardRender ?? undefined : undefined} />
+      {visibleArrivalCompanionAsset ? <><div className={styles.moriShadow} /><img className={styles.mori} src={visibleArrivalCompanionAsset} onError={() => { setFailedArrivalCompanionIdentity(arrivalCompanionIdentity);setAssetEvidence(previous=>recordAssetFailure(previous,"arrival-companion")); }} alt="" /></> : null}
     </section> : null}
-    {!scene && !presentation && !onboardingPreview ? <section className={styles.idle}>
-      <div className={styles.sigil}>P</div>
-      <span>PINORIA HOUSE IS ALIVE</span>
-      <h1>Chào mừng đến PINO House</h1>
-      <p>{inside.length ? `${inside.length} Piner đang khám phá cùng nhau.` : "Pinoria đang chờ Piner đầu tiên."}</p>
-    </section> : null}
-
-    {presentation?.kind === "WISH_REVEAL" ? <WishRevealScene reveal={presentation.projection} /> : null}
-    {presentation?.kind === "EGG_HATCH" ? <EggHatchScene hatch={presentation.projection} /> : null}
-    {presentation?.kind === "COMPANION_RITUAL" ? <CompanionRitualScene ritual={presentation.projection} /> : null}
-    {presentation?.kind === "ONBOARDING_CEREMONY" ? <OnboardingCeremonyScene ceremony={presentation.projection} /> : null}
+    {visiblePresentation?.kind === "WISH_REVEAL" ? <WishRevealScene key={replaySceneKey && replayedPresentationId === visiblePresentation.id ? replaySceneKey : visiblePresentation.id} reveal={visiblePresentation.projection} /> : null}
+    {visiblePresentation?.kind === "EGG_HATCH" ? <EggHatchScene key={replaySceneKey && replayedPresentationId === visiblePresentation.id ? replaySceneKey : visiblePresentation.id} hatch={visiblePresentation.projection} /> : null}
+    {visiblePresentation?.kind === "COMPANION_RITUAL" ? <CompanionRitualScene key={replaySceneKey && replayedPresentationId === visiblePresentation.id ? replaySceneKey : visiblePresentation.id} ritual={visiblePresentation.projection} /> : null}
+    {visiblePresentation?.kind === "ONBOARDING_CEREMONY" ? <OnboardingCeremonyScene key={replaySceneKey && replayedPresentationId === visiblePresentation.id ? replaySceneKey : visiblePresentation.id} ceremony={visiblePresentation.projection} /> : null}
     {!presentation && onboardingPreview ? <OnboardingPreviewScene preview={onboardingPreview} /> : null}
-    {!scene && !presentation && !onboardingPreview && wardLearner?.wardSession ? <WardSessionTv learnerName={wardLearner.displayName} session={wardLearner.wardSession} /> : null}
+    {!scene && !presentation && !onboardingPreview && wardLearner?.wardSession && eligibleTvEvent(policy,"QUICK_CHOICE",new Date().toISOString(),new Date()) ? <WardSessionTv learnerName={displayNameForSharedTv(policy,wardLearner.displayName)} session={wardLearner.wardSession} /> : null}
 
-    <footer>
-      <span>{new Date().toLocaleDateString("vi-VN", {
-        timeZone: "Asia/Ho_Chi_Minh",
-        weekday: "long",
-        day: "2-digit",
-        month: "2-digit",
-      })}</span>
-      <button onClick={resetCenter}>Center</button>
-    </footer>
   </main>;
 }

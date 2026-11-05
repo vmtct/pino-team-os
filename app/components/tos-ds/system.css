@@ -1,0 +1,15 @@
+/* Shared element contract. App modules own content geometry only. */
+@layer tos.controls {
+ :where([data-tos-system]) {font-family:var(--tos-font-family);color:var(--tos-color-ink);font-size:var(--tos-text-body);line-height:var(--tos-text-body-line);-webkit-text-size-adjust:100%;text-size-adjust:100%}
+ :where([data-tos-system]) :where(button,a[href]){min-height:var(--tos-hit-min);min-width:var(--tos-hit-min);font-family:var(--tos-font-family);font-size:var(--tos-text-button);line-height:1.4;touch-action:manipulation;cursor:pointer}
+ :where([data-tos-system]) :where(button):disabled{cursor:not-allowed}
+ :where([data-tos-system]) :where(button,a,input,select,textarea):focus-visible{outline:var(--tos-focus-ring);outline-offset:var(--tos-focus-offset)}
+ :where([data-tos-system]) :where(input:not([type=radio]):not([type=checkbox]):not([type=file]),select,textarea){min-height:var(--tos-control-height);font:var(--tos-text-body)/1.5 var(--tos-font-family);padding:var(--tos-input-padding-y) var(--tos-input-padding-x);border:1px solid var(--tos-color-border);border-radius:var(--tos-radius-control);background:var(--tos-color-surface);color:var(--tos-color-ink);max-width:100%}
+ :where([data-tos-system]) :where(input[type=radio],input[type=checkbox]){width:20px;height:20px;min-height:20px;min-width:20px;accent-color:var(--tos-color-info)}
+ :where([data-tos-system]) :where(label){font-size:var(--tos-text-label)}
+ :where([data-tos-system]) :where(p,small){overflow-wrap:break-word}
+ :where([data-tos-system]) :where(img,video){max-width:100%}
+ :where([data-tos-system]) :where([role=status]){pointer-events:none}
+ :where([data-tos-system]):has([aria-modal=true]) [data-tos-shared=toast]{top:var(--tos-space-3);bottom:auto}
+ @media(prefers-reduced-motion:reduce){:where([data-tos-system]) *{scroll-behavior:auto;transition:none;animation:none}}
+}

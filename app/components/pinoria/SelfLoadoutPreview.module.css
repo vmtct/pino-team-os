@@ -1,0 +1,7 @@
+/* PAP-1489 / PNR-WARD: scale presentation only; keep the canvas backing pixels. */
+.canvas {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  aspect-ratio: 9 / 16;
+}

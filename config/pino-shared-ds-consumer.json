@@ -1,0 +1,14 @@
+{
+  "package": "@pino/design-system",
+  "version": "0.3.0",
+  "sourceRepo": "https://github.com/vmtct/pino-design-system",
+  "vendoredTarball": "vendor/pino-design-system/pino-design-system-0.3.0.tgz",
+  "tarballSha256": "2b7cd14fed8804685379facc0f92f82008d4bc2f825974c34ee20af4deeca6d5",
+  "owner": "PAP-1170",
+  "status": "BO_HO_COMPONENT_PILOTS",
+  "notes": "PAP-1170 original BO/HO pilot retained; PAP-1247 under Epic PAP-1067 repins the merged PAP-1469 semantic BO action primitives from exact DS main SHA. HO Staff API/ACL and BO Self Directory projection remain application-owned.",
+  "sourcePullRequest": "https://github.com/vmtct/pino-design-system/pull/4",
+  "sourceCommit": "906e4a38070169223df7fc21ed841f5d57111362",
+  "sourceMainSha": "ce28e29f3c657251679b9577889730bcdd9e9542",
+  "release": "https://github.com/vmtct/pino-design-system/commit/ce28e29f3c657251679b9577889730bcdd9e9542"
+}

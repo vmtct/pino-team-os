@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 const read=(path:string)=>readFile(path,"utf8");
 
-test("School Students uses descending keyset canonical reads and no review snapshot",async()=>{const [view,api]=await Promise.all([read("app/bo/learners/BoLearnersView.tsx"),read("lib/bo-api.ts")]);assert.match(view,/collectPagedDirectory/);assert.match(view,/boApi\.learners\("", limit, beforeStudentId\)/);assert.match(view,/boApi\.learnerLifecycle/);assert.doesNotMatch(view,/student-snapshot|Production D1 snapshot|school-students-review/);assert.match(api,/beforeStudentId=/);assert.doesNotMatch(api,/offset=/);});
+test("School Students uses Center-scoped descending keyset canonical reads and no review snapshot",async()=>{const [view,api]=await Promise.all([read("app/bo/learners/BoLearnersView.tsx"),read("lib/bo-student-center-api.ts")]);assert.match(view,/collectPagedDirectory/);assert.match(view,/studentCenterApi\.learners\("", limit, beforeStudentId, activeCenter\)/);assert.match(view,/studentCenterApi\.learnerLifecycle/);assert.match(view,/key=\{activeCenter\}/);assert.doesNotMatch(view,/student-snapshot|Production D1 snapshot|school-students-review/);assert.match(api,/beforeStudentId/);assert.match(api,/centerId:scopeCenter\(centerId\)/);assert.doesNotMatch(api,/offset=/);});
 
 test("School Students F5 permits bounded identity intake while owner commercial operations stay delegated",async()=>{const [view,api,writeHandler]=await Promise.all([read("app/bo/learners/BoLearnersView.tsx"),read("lib/bo-api.ts"),read("lib/bo-write-handler.ts")]);assert.match(view,/boApi\.createStudentIntake/);assert.match(view,/Chọn phụ huynh hiện có/);assert.match(view,/Tạo phụ huynh mới/);assert.match(view,/boApi\.parents/);assert.match(view,/existingParentUserId/);assert.match(view,/selectedParentReady = parentOptions\.state === "ready"/);assert.match(view,/setParentQuery\(event\.target\.value\); setSelectedParentId\(null\); setParentOptions\(\{ state: "loading" \}\)/);assert.doesNotMatch(view,/existingParentUserId: null/);assert.match(api,/createStudentIntake/);assert.match(api,/parents:.*identity\/parents/);assert.match(api,/student-intakes/);assert.match(api,/idempotencyKey: string/);assert.doesNotMatch(api,/student-intakes[^\n]*crypto\.randomUUID/);assert.match(view,/const \[attempt, setAttempt\]/);assert.match(view,/currentAttempt = attempt/);assert.match(view,/createStudentIntake\(currentAttempt\.body, currentAttempt\.idempotencyKey\)/);assert.match(view,/Thử lại cùng yêu cầu/);assert.match(view,/canResetAttempt/);assert.match(view,/cause instanceof BoApiError && cause\.structuredResponse && cause\.status >= 400 && cause\.status < 500/);assert.match(view,/uncertainAttempt = attemptLocked && Boolean\(error\) && !canResetAttempt/);assert.match(view,/closeIfSafe/);assert.match(view,/disabled=\{busy \|\| uncertainAttempt\}/);assert.match(view,/attemptLocked && error && canResetAttempt/);assert.match(view,/Sửa dữ liệu/);assert.match(api,/new BoApiError\(response\.status[^;]*false\)/);assert.match(api,/canonicalMessage/);assert.match(api,/canonicalId/);assert.match(api,/Student intake returned an invalid response/);assert.match(writeHandler,/STUDENT_INTAKE_PATH/);for(const command of ["createSubscription","renewSubscription","cancelSubscription","placeEnrollment","endEnrollment","transferEnrollment","resetParentPin","replayContext"])assert.doesNotMatch(view,new RegExp("boApi\\\\."+command+"|"+command));assert.match(view,/\/bo\/subscriptions\?studentId=/);assert.match(view,/href="\/bo\/running-classes"/);});
 
@@ -40,7 +40,8 @@ test("PAP-387 Students directory uses shared Data Grid with URL-persisted browse
   assert.match(view, /searchParams\.get\("student"\)/);
   assert.match(view, /params\.set\("student", id\)/);
   assert.match(view, /router\.push\(href, \{ scroll: false \}\)/);
-  assert.match(view, /f_learning|setFilter\("learning"/);
+  assert.match(view, /typedFilterSettings=\{pilotSettings\}/);
+  assert.match(view, /onTypedFilterSettingsChange=\{sharedGrid\.onTypedFilterSettingsChange\}/); assert.match(view, /useBoPilotSharedGridView/); assert.match(view, /rowsAlreadyFiltered/);
   assert.match(view, /BoDataGridSidePeek/);
   assert.match(view, /selectedRowKey=\{selectedId\}/);
   assert.match(view, /onRowOpen=\{\(student\) => selectStudent\(student\.id, "push"\)\}/);
@@ -49,5 +50,5 @@ test("PAP-387 Students directory uses shared Data Grid with URL-persisted browse
   assert.match(view, /BoDataGridState kind="error" message=\{catalog\.message\}/);
   assert.doesNotMatch(view, /<StudentButton|className=\{styles\.studentList\}/);
   assert.match(view, /collectPagedDirectory/);
-  assert.match(view, /boApi\.learnerLifecycle/);
+  assert.match(view, /studentCenterApi\.learnerLifecycle/);
 });
