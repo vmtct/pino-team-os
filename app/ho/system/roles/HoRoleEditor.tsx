@@ -22,21 +22,16 @@ export function bulkGroupPermissionKeys(selectedKeys:readonly string[],visibleKe
 export type Platform = "HO" | "BO" | "TOS";
 export type PlatformFilter = Platform | "all";
 export interface PermissionPlatformMetadata {
-  surfaceApplicability?: "BO" | "TOS" | "BOTH" | string | null;
+  /** Authorization surface retained for legacy callers; never a UI filter fallback. */
+  surfaceApplicability?: string | null;
   applicablePlatforms?: readonly Platform[] | null;
 }
 const valid = (x: unknown): x is Platform => x==="HO"||x==="BO"||x==="TOS";
 export function permissionPlatforms(p: PermissionPlatformMetadata): readonly Platform[] {
-  if ("applicablePlatforms" in p) {
-    if(!Array.isArray(p.applicablePlatforms))return [];
-    return [...new Set((p.applicablePlatforms as readonly unknown[]).filter(valid))];
-  }
-  switch(p.surfaceApplicability) {
-    case "BO": return ["BO"];
-    case "TOS": return ["TOS"];
-    case "BOTH": return ["BO","TOS"];
-    default: return [];
-  }
+  // PAP-1507: only the verified Core UI projection may classify platforms.
+  // The legacy BO/TOS surface field is authorization metadata, not UI ownership.
+  if(!Array.isArray(p.applicablePlatforms))return [];
+  return [...new Set((p.applicablePlatforms as readonly unknown[]).filter(valid))];
 }
 export function matchesPlatform(p: PermissionPlatformMetadata, platform: PlatformFilter): boolean {
   return platform==="all"||permissionPlatforms(p).includes(platform);
