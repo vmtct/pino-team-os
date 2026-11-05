@@ -14,7 +14,19 @@ async function fixture(page:Page){
  await page.goto("https://ho.staging.pinohouse.art/ho/system/tdd-reference");
  await expect(quickRow(page)).toBeVisible();
 }
-async function detail(page:Page,captureDir?:string){await quickRow(page).click();const widths=await page.locator('[data-tdd-properties="drawer"] .property-control').evaluateAll(nodes=>nodes.map(n=>n.getBoundingClientRect().width));expect(widths.length).toBeGreaterThan(3);expect(Math.min(...widths)).toBeGreaterThanOrEqual(105);if(captureDir)await page.screenshot({path:captureDir+"/drawer.png"});await page.getByRole("button",{name:/Full Detail/}).click();await expect(page.getByRole("tab",{name:"Tổng quan"})).toBeVisible();}
+async function detail(page:Page,captureDir?:string){
+ await quickRow(page).click();
+ // PAP-1520: the click resolves before React commits the Drawer contents.
+ // Wait for the real visible controls; never relax the >=4 fields or width gate.
+ const controls=page.locator('[data-tdd-properties="drawer"] .property-control');
+ await expect.poll(()=>controls.count(),{message:"Quick View drawer renders at least four controls"}).toBeGreaterThan(3);
+ const widths=await controls.evaluateAll(nodes=>nodes.map(n=>n.getBoundingClientRect().width));
+ expect(widths.length).toBeGreaterThan(3);
+ expect(Math.min(...widths)).toBeGreaterThanOrEqual(105);
+ if(captureDir)await page.screenshot({path:captureDir+"/drawer.png"});
+ await page.getByRole("button",{name:/Full Detail/}).click();
+ await expect(page.getByRole("tab",{name:"Tổng quan"})).toBeVisible();
+}
 for(const width of [1440,1024,768,390,320])test(`PAP1080 Atlas ${width}: shared journey, all fields and no side effects`,async({page})=>{
  await page.setViewportSize({width,height:900});await fixture(page);const captureDir="artifacts/pap1080-atlas/"+width;mkdirSync(captureDir,{recursive:true});await page.screenshot({path:captureDir+"/table.png"});await detail(page,captureDir);await page.screenshot({path:captureDir+"/detail.png"});
  for(const label of ["Tiền VND","Boolean","Ngày giờ Việt Nam","Nhiều liên kết","Công thức chỉ đọc","Dữ liệu đã che (giả lập)"])await expect(page.getByRole("tabpanel")).toContainText(label);
