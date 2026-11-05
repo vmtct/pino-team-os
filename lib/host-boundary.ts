@@ -31,7 +31,7 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   // PAP-1479 / SCH-STUDENT-MGMT: exact BO Staging-only Student name edit ingress.
   // Team BO facade enforces one Center query and two-field name/CAS body;
   // Core independently rechecks Manager CENTER grant, current affiliation and audit.
-  const studentNameEdit = /^\/api\/bo\/students\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pathname);
+  const studentNameEdit = /^\/api\/bo\/students\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(pathname);
   if (studentNameEdit) {
     return hostname === BO_STAGING_HOSTNAME && method === "PATCH" ? { action: "next" } : { action: "not_found" };
   }
