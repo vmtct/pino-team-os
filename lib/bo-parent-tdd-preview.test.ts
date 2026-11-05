@@ -28,6 +28,8 @@ test("PAP-1075: server-gated preview does not replace canonical Parents or alter
   assert.match(page, /boParentTddPilotAllowed\(env, incoming\.get\("host"\)/);
   assert.match(page, /parentTddPilot=\{parentTddPilot\}/);
   assert.match(runtime, /moduleKey === "parents" && parentTddPilot \? <ParentTdd \/>/);
-  assert.match(runtime, /moduleKey === "subscriptions" \? <BoSubscriptionsView embedded \/>/);
+  assert.match(runtime, /if \(moduleKey === "subscriptions"\) return <BoRegistrationWorkspace/);
+  assert.match(runtime, /data-testid="bo-subscription-center-contract-pending"/);
+  assert.doesNotMatch(runtime, /<BoSubscriptionsView embedded \/>/);
   assert.doesNotMatch(page, /\.\.\.query/);
 });
