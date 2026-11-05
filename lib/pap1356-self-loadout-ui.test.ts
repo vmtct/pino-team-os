@@ -52,7 +52,9 @@ test("PAP-1356 typed TDD uses approved shared renderer and DS without module sty
   assert.match(preview,/className="pds-properties"/);
   assert.match(preview,/className="pds-property-grid"/);
   assert.doesNotMatch(ui,/\.module\.css|style=\{\{|className=\{/);
-  assert.doesNotMatch(preview,/\.module\.css|style=\{\{|className=\{/);
+  // PAP-1489 adds a feature canvas size constraint without changing DS layout.
+  assert.match(preview,/import styles from "\.\/SelfLoadoutPreview\.module\.css"/);
+  assert.doesNotMatch(preview,/style=\{\{/);
 });
 test("PAP-1356 eight slots, S6 separate, Core CAS and canonical 9:16 compositing",()=>{
   for(const value of ["AURA_GROUND","AURA_BACK","BACK","OUTFIT","HAIR","FACE","HEADWEAR","PATH_MARK","expectedVersion","itemIdsBySlot","idempotency-key"])

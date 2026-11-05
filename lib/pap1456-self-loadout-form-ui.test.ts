@@ -184,6 +184,7 @@ async function composite(sprites:Record<string,Sprite>,renderStack:string[],fore
         useState:(initial:unknown)=>{const index=stateIndex++;return [initial,(value:unknown)=>{state[index]=value;if(index===1)finish();}];},
       };
       if(name==="react/jsx-runtime")return {jsx:()=>null,jsxs:()=>null};
+      if(name==="./SelfLoadoutPreview.module.css")return {default:{canvas:"canvas"}};
       throw Error(name);
     },
   });
@@ -227,5 +228,5 @@ test("PAP-1456 unavailable network, unreadable alpha and opaque media have disti
   assert.match(preview,/<p role="alert">Item media không phù hợp[^<]*opaque/);
   assert.match(preview,/mediaWarnings\.opaque\.join\(", "\)/);
   assert.match(preview,/<p role="alert">Không kiểm tra được độ trong suốt/);
-  assert.doesNotMatch(preview,/style=\{|\.module\.css|crossOrigin|\.assetKey/);
+  assert.doesNotMatch(preview,/style=\{|crossOrigin|\.assetKey/);
 });

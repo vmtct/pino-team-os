@@ -4,7 +4,8 @@ import { DrawerFrame } from "@pino/design-system/react";
 import type { ModuleRow } from "@/lib/workspace-schema";
 import { selfFields, type SelfFields } from "./schema";
 import { SelfDirectoryProperties } from "./SharedProperties";
-/** PAP-1300: only canonical BO/DS classes, no feature-owned stylesheet. */
+import styles from "./SelfWardrobeDetail.module.css";
+/** PAP-1300 / PAP-1490: DS cards with the approved feature-owned responsive grid. */
 
 type Row = ModuleRow<SelfFields>;
 type ItemType = "WEARABLE" | "ACCESSORY";
@@ -116,7 +117,7 @@ export function SelfWardrobeDetail({ row, centerId, activeTab, canView, canManag
     {loading && <p role="status">Đang tải Item từ Core…</p>}
     {error && <p role="alert" className="error">{error} <button type="button" onClick={() => setRevision(v => v + 1)}>Tải lại</button></p>}
     {notice && <p role="status">{notice}</p>}
-    {!loading && !error && <div className="grid-card">
+    {!loading && !error && <div className={styles.items}>
       {shown.length ? shown.map(item => {
         const isOwned = collection === "owned" || ("owned" in item && item.owned);
         const grantAllowed = !isOwned && canManage;
