@@ -19,7 +19,13 @@ const sha256=x=>createHash("sha256").update(x).digest("hex");
 const errors=[];
 const results=[];
 const ratioLimit=0.01;
-const approvedSuccessorRuns=[41071808375,41253524859];
+const approvedSuccessorRuns=[41071808375,41253524859,41852649875];
+// PAP-1073 approval #21890 explicitly supersedes only these four earlier Table
+// successor paths (the historical manifests and pinned bytes stay immutable).
+const founderApprovedSupersededPaths = new Set([
+  "bo/1024/table.png", "bo/768/table.png",
+  "ho/390/table.png", "ho/320/table.png",
+]);
 const successors=new Map();
 for(const run of approvedSuccessorRuns) {
   const successorRoot=join(root,"successor-"+run);
@@ -28,7 +34,8 @@ for(const run of approvedSuccessorRuns) {
       JSON.parse(readFileSync(join(successorRoot,"manifest.json"),"utf8")),
       path=>readFileSync(join(successorRoot,...path.split("/"))));
     for(const [path,data] of images) {
-      if(successors.has(path)) throw new Error("Duplicate approved G3 successor image");
+      if(successors.has(path) && !(run===41852649875 && founderApprovedSupersededPaths.has(path)))
+        throw new Error("Duplicate approved G3 successor image without explicit Founder supersession");
       successors.set(path,data);
     }
   } catch(error) {

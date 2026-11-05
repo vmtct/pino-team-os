@@ -20,9 +20,18 @@ export async function handleBoContextRequest(
       const context = await authorizeHoShell(request.headers, env as HoEnv);
       return json({ data: context }, 200);
     }
+    // PAP-1426: a strict selected-Center capability projection; the URL is never a grant.
+    const query = new URL(request.url).searchParams;
+    const keys = [...query.keys()];
+    const centers = query.getAll("centerId");
+    if (keys.length && (keys.length !== 1 || keys[0] !== "centerId" || centers.length !== 1 ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(centers[0]!))) {
+      return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Exactly one valid Center is required" } }, 400);
+    }
+    const centerId = centers[0];
     const result = await callBoAccessCoreWithCredential(
       env.PINO_BO_CORE,
-      { method: "GET", path: "context" },
+      { method: "GET", path: "context", ...(centerId ? { resource: { centerId } } : {}) },
       await teamCredential(request, env, "BO"),
     );
     return json(result.body, result.status, { "x-request-id": result.requestId });

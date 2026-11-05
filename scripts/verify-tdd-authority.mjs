@@ -13,7 +13,14 @@ const surfaceFile = /^app\/(bo|ho)\//;
 const routeFile = /^app\/(bo|ho)\/(?:.*\/)?page\.(?:tsx?|jsx?)$/;
 const sourceFile = /\.(?:tsx?|jsx?|css)$/;
 const canonical = /^(?:app\/components\/(?:workspace-renderer|workspace-adapters)\/|lib\/workspace-schema\/)/;
-const sharedExtensions = new Set(['app/components/workspace-renderer/tdd-freeze.css']);
+// Founder-approved shared DS/TDD source extensions, each with owning Jira.
+ // PAP-1105 Freeze, PAP-1471 Detail label resize, PAP-1474 Table geometry parity.
+ // All still require host scoping, deterministic CSS builders and the G0/G1 fences.
+const sharedExtensions = new Set([
+  'app/components/workspace-renderer/tdd-freeze.css',
+  'app/components/workspace-renderer/tdd-detail-layout.css',
+  'app/components/workspace-renderer/tdd-table-geometry.css'
+]);
 const shellClass = /(?:^|\s)(?:detail-(?:cover|hero|nav|body|page|tabs)|drawer-(?:footer|header|body|overlay)|v24-prop-grid|table-wrap|data-table)(?:\s|$)/;
 const read = (root, file) => fs.readFileSync(path.join(root, file), 'utf8');
 const git = (root, args) => execFileSync('git', ['-C', root, ...args], { encoding: 'utf8', stdio:['ignore','pipe','pipe'] }).trim();
@@ -57,8 +64,16 @@ export function directLocalImports(root, file) {
   return [...dependencies];
 }
 
-function moduleViolations(file, source) {
+function moduleViolations(file, source, businessStyles=[]) {
   const errors=[]; const ast=parse(file,source);
+  // PAP-1500: only statically-imported, owner-fenced CSS Module layout tokens.
+  const boundStyles=new Map();
+  for(const st of ast.statements) if(ts.isImportDeclaration(st)&&st.importClause?.name&&ts.isStringLiteral(st.moduleSpecifier)){
+    const spec=st.moduleSpecifier.text;
+    const target=spec.startsWith('@/')?spec.slice(2):spec.startsWith('.')?path.posix.normalize(path.posix.join(path.posix.dirname(file),spec)):null;
+    const declared=businessStyles.find(b=>b.consumer===file&&b.file===target);
+    if(declared) boundStyles.set(st.importClause.name.text,new Set(declared.classes));
+  }
   const add=(rule,node)=>errors.push({rule,syntax:node.getText(ast)});
   function walk(n) {
     if(ts.isJsxOpeningElement(n)||ts.isJsxSelfClosingElement(n)) {
@@ -73,8 +88,10 @@ function moduleViolations(file, source) {
         if(name==='className') {
           let v=p.initializer;
           if(v&&ts.isJsxExpression(v)) v=v.expression;
-          if(!v || !(ts.isStringLiteral(v)||ts.isNoSubstitutionTemplateLiteral(v))) add('opaque className',p);
-          else if(shellClass.test(v.text)) add('reserved shell class',p);
+          const literal=v&&(ts.isStringLiteral(v)||ts.isNoSubstitutionTemplateLiteral(v));
+          const declared=v&&ts.isPropertyAccessExpression(v)&&ts.isIdentifier(v.expression)&&boundStyles.get(v.expression.text)?.has(v.name.text);
+          if(!literal&&!declared) add('opaque className',p);
+          else if(literal&&shellClass.test(v.text)) add('reserved shell class',p);
         }
         if(name==='role' && p.initializer && ts.isStringLiteral(p.initializer) && ['dialog','tablist','tabpanel','grid'].includes(p.initializer.text)) add('module-owned shell role',p);
       }
@@ -88,14 +105,14 @@ function moduleViolations(file, source) {
     ts.forEachChild(n,walk);
   } walk(ast); return errors;
 }
-export function inspectModuleSource(file, source) {
-  return [...new Set(moduleViolations(file,source).map(item=>file+': '+item.rule))];
+export function inspectModuleSource(file, source, businessStyles=[]) {
+  return [...new Set(moduleViolations(file,source,businessStyles).map(item=>file+': '+item.rule))];
 }
 /** PAP-1228: owner-bound external hosts may retain only unchanged opaque JSX.
  * Compare exact AST syntax and multiplicity to the immutable PR-base source.
  * All shell/HTML/CSS violations remain fully checked, even if present before. */
-export function inspectModuleDelta(file, before, after) {
-  if(typeof before!=='string') return inspectModuleSource(file,after);
+export function inspectModuleDelta(file, before, after, businessStyles=[]) {
+  if(typeof before!=='string') return inspectModuleSource(file,after,businessStyles);
   const inherited=new Set(['opaque JSX spread (use typed shared component props)','opaque className']);
   const fingerprint=item=>JSON.stringify([item.rule,item.syntax]);
   const remaining=new Map();
@@ -103,7 +120,7 @@ export function inspectModuleDelta(file, before, after) {
     const key=fingerprint(item);remaining.set(key,(remaining.get(key)??0)+1);
   }
   const errors=[];
-  for(const item of moduleViolations(file,after)) {
+  for(const item of moduleViolations(file,after,businessStyles)) {
     const key=fingerprint(item),count=remaining.get(key)??0;
     if(inherited.has(item.rule)&&count>0) remaining.set(key,count-1);
     else errors.push(file+': '+item.rule);
@@ -129,6 +146,29 @@ export function inspectCss(file, css, surface) {
       if(!scoped|| (surface==='BO' ? /data-surface=["']ho/.test(s) : /data-bo-ui-authority/.test(s))) errors.push(file+': cross-surface or unscoped CSS');
     }
   }); } catch {errors.push(file+': invalid CSS');}
+  return [...new Set(errors)];
+}
+/** PAP-1500: owner-declared layout-only CSS Modules may style business tabs,
+ * never shared TDD shell, globals, arbitrary selectors or executable CSS. */
+export function inspectBusinessCss(file,css,classes=[]) {
+  const errors=[];
+  const approved=new Set(classes);
+  const layoutOnly=new Set(['display','grid-template-columns','gap','max-width','width','height','aspect-ratio','min-width']);
+  try {
+    const root=postcss.parse(css);
+    root.walkAtRules(a=>{
+      if(a.name!=='media'||!/^\(max-width:\s*\d+px\)$/.test(a.params)) errors.push(file+': forbidden business CSS at-rule');
+    });
+    root.walkRules(r=>{
+      for(const sel of r.selectors){
+        const match=/^\.([A-Za-z][A-Za-z0-9_-]*)$/.exec(sel);
+        if(!match||!approved.has(match[1])||shellClass.test(match[1])) errors.push(file+': unapproved business CSS selector');
+      }
+      r.walkDecls(d=>{
+        if(!layoutOnly.has(d.prop)||d.important||/(?:url\s*\(|expression\s*\(|data:|@import)/i.test(d.value)) errors.push(file+': forbidden business CSS declaration');
+      });
+    });
+  } catch {errors.push(file+': invalid business CSS');}
   return [...new Set(errors)];
 }
 function exactFile(f) { return typeof f==='string' && /^[A-Za-z0-9_./-]+$/.test(f) && !f.startsWith('/') && !f.split('/').some(s=>s==='..'||s==='.') && !f.includes('//'); }
@@ -239,13 +279,22 @@ export async function verify(root=ROOT,{changed=[],baseline,manifest,now=Date.no
     const directExternals=new Set(e.files.flatMap(f=>directLocalImports(root,f)).filter(f=>!e.files.includes(f)&&!canonical.test(f)));
     const securityBoundary=/^lib\/(?:ho-auth|team-auth|founder-core|ho-staff-rate-facade|ho-access-guard|ho-routes|ho-system|host-boundary|bo-shell-gate|workspace-adapters\/session)\.(?:ts|tsx)$/;
     const externalRefs=e.externalReferences??[];
-    for(const reference of externalRefs) if(!reference||!exactFile(reference.file)||!/^PAP-\d+$/.test(reference.owner??'')||reference.file.startsWith(ownerRoot)||canonical.test(reference.file)||e.files.includes(reference.file)||!dependencies.includes(reference.file)||reference.file.endsWith('.css')) errors.push(e.file+': invalid external owner reference');
+    // PAP-1500: explicit owner/consumer/class contract, never an implicit CSS escape hatch.
+    const businessStyles=e.businessStyles??[];
+    if(!Array.isArray(businessStyles)) errors.push(e.file+': invalid business CSS declaration');
+    const declaredStyles=Array.isArray(businessStyles)?businessStyles:[];
+    if(new Set(declaredStyles.map(b=>b?.file)).size!==declaredStyles.length) errors.push(e.file+': duplicate business CSS ownership');
+    for(const b of declaredStyles){
+      if(!b||!exactFile(b.file)||!b.file.endsWith('.module.css')||!exactFile(b.consumer)||!/^PAP-\d+$/.test(b.owner??'')||!Array.isArray(b.classes)||!b.classes.length||new Set(b.classes).size!==b.classes.length||!b.classes.every(c=>/^[A-Za-z][A-Za-z0-9_-]*$/.test(c)&&!shellClass.test(c))||!dependencies.includes(b.file)||!dependencies.includes(b.consumer)||!directLocalImports(root,b.consumer).includes(b.file)||!(e.files.includes(b.file)||externalRefs.some(r=>r.file===b.file&&r.owner===b.owner))||!(e.files.includes(b.consumer)||externalRefs.some(r=>r.file===b.consumer))) errors.push(e.file+': invalid business CSS owner fence');
+      else errors.push(...inspectBusinessCss(b.file,read(root,b.file),b.classes));
+    }
+    for(const reference of externalRefs) if(!reference||!exactFile(reference.file)||!/^PAP-\d+$/.test(reference.owner??'')||reference.file.startsWith(ownerRoot)||canonical.test(reference.file)||e.files.includes(reference.file)||!dependencies.includes(reference.file)||(reference.file.endsWith('.css')&&!declaredStyles.some(b=>b.file===reference.file&&b.owner===reference.owner))) errors.push(e.file+': invalid external owner reference');
     for(const f of dependencies.filter(f=>!canonical.test(f))) {
       const external=!(f===e.file||f.startsWith(ownerRoot));
       if(!external&&!e.files.includes(f)) errors.push(e.file+': dependency outside admission fence '+f);
       if(external&&changed.includes(f)&&!(baseline.sourceFiles??[]).includes(f)&&(directExternals.has(f)||securityBoundary.test(f))) {
         if(!externalRefs.some(r=>r.file===f)) errors.push(e.file+': dependency outside admission fence '+f);
-        else if(sourceFile.test(f)) errors.push(...(securityBoundary.test(f) ? inspectModuleSource(f,read(root,f)) : inspectModuleDelta(f,await readBaseSource(f),read(root,f))));
+        else if(sourceFile.test(f)) errors.push(...(securityBoundary.test(f) ? inspectModuleSource(f,read(root,f),declaredStyles) : inspectModuleDelta(f,await readBaseSource(f),read(root,f),declaredStyles)));
       }
     }
     if(e.profile==='FOUNDER_APPROVED_SPECIAL') {
@@ -295,8 +344,8 @@ export async function verify(root=ROOT,{changed=[],baseline,manifest,now=Date.no
     }
     if(!dependencies.includes('app/components/workspace-renderer/Renderer.tsx')&&!dependencies.includes('app/components/workspace-adapters/SurfaceWorkspace.tsx')) errors.push(e.file+': shared renderer required');
     for(const f of e.files.filter(f=>sourceFile.test(f)&&!canonical.test(f)&&!f.includes('.test.'))) {
-      if(f.endsWith('.css')) errors.push(f+': module CSS is not DS authority');
-      else errors.push(...inspectModuleSource(f,read(root,f)));
+      if(f.endsWith('.css')) {if(!declaredStyles.some(b=>b.file===f)) errors.push(f+': module CSS is not DS authority');}
+      else errors.push(...inspectModuleSource(f,read(root,f),declaredStyles));
     }
     for(const f of e.tests??[]) tests.add(f);
     if(!e.tests?.length) errors.push(e.file+': regression test required');
@@ -304,7 +353,7 @@ export async function verify(root=ROOT,{changed=[],baseline,manifest,now=Date.no
   }
   for(const f of routes(root)) if(!known.has(f)&&!seen.has(f)) errors.push(f+': new BO/HO route requires explicit TDD admission');
   for(const f of changed) {
-    if(surfaceFile.test(f)&&f.endsWith('.css')&&!(baseline.sourceFiles??[]).includes(f)&&!['app/ho/ho-theme.css'].includes(f)&&!entries.some(e=>e.files.includes(f)&&e.profile==='FOUNDER_APPROVED_SPECIAL')) errors.push(f+': unauthorized surface stylesheet');
+    if(surfaceFile.test(f)&&f.endsWith('.css')&&!(baseline.sourceFiles??[]).includes(f)&&!['app/ho/ho-theme.css'].includes(f)&&!entries.some(e=>(e.files.includes(f)&&e.profile==='FOUNDER_APPROVED_SPECIAL')||(e.profile==='TDD_DEFAULT'&&e.businessStyles?.some(b=>b.file===f)))) errors.push(f+': unauthorized surface stylesheet');
     if(/^public\/(bo|ho)-authority-source\/(bo|ho)-scoped\.css$/.test(f)&&fs.existsSync(path.join(root,f))) errors.push(...inspectCss(f,read(root,f),f.includes('/bo-')?'BO':'HO'));
   }
   for(const f of changed.filter(f=>canonical.test(f))) {

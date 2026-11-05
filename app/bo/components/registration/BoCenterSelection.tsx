@@ -35,13 +35,13 @@ export function BoCenterSelectionProvider({ children }: { children: React.ReactN
     void loadAuthorizedDirectoryCenters(fetch, ctl.signal).then(result => {
       if (ctl.signal.aborted) return;
       const locationUrl = new URL(location.href);
-      const candidate = restoreBoAuthorizedCenter(result.centers.map(c => c.id), locationUrl.search, safeSessionCenter());
+      const candidate = restoreBoAuthorizedCenter(result.centers.map(c => c.id), locationUrl.search, safeRecentCenter());
       const current = candidate.selected;
       setCenters(result.centers);
       setSource(result.source);
       setSelected(current);
       setLoading(false);
-      if (current) { try { sessionStorage.setItem(BO_ACTIVE_CENTER_SESSION_KEY, current); } catch { /* unavailable */ } }
+      if (current) { try { saveRecentCenter(current); } catch { /* unavailable */ } }
       setError(candidate.invalidExplicit ? "Cơ sở trong liên kết không được cấp quyền." :
         !result.centers.length ? "Không có cơ sở được cấp quyền." : "");
     }).catch((cause: unknown) => {
@@ -56,9 +56,9 @@ export function BoCenterSelectionProvider({ children }: { children: React.ReactN
     const restore = () => {
       // Back/Forward must not erase a loading, 401/403, or empty-authority error.
       if (loading || !centers.length) return;
-      const candidate = restoreBoAuthorizedCenter(centers.map(c => c.id), new URL(location.href).search, safeSessionCenter());
+      const candidate = restoreBoAuthorizedCenter(centers.map(c => c.id), new URL(location.href).search, safeRecentCenter());
       const center = candidate.selected;
-      if (center) { try { sessionStorage.setItem(BO_ACTIVE_CENTER_SESSION_KEY, center); } catch { /* unavailable */ } }
+      if (center) { try { saveRecentCenter(center); } catch { /* unavailable */ } }
       setSelected(center);
       setError(candidate.invalidExplicit ?
         "Cơ sở trong liên kết không được cấp quyền." : "");
@@ -77,8 +77,11 @@ export function BoCenterSelectionProvider({ children }: { children: React.ReactN
     url.hash = "";
     const state = { ...history.state };
     delete state["pino:tdd:BO:parents"];
+    // PAP-1458/PAP-1316: clear every BO TDD navigation snapshot from the old Center.
+    // This is browser history UI state only; Core authorization remains authoritative.
+    for (const key of Object.keys(state)) if (key.startsWith("pino:tdd:BO:")) delete state[key];
     history.replaceState(state, "", parentCenterUrl(url, centerId));
-    try { sessionStorage.setItem(BO_ACTIVE_CENTER_SESSION_KEY, centerId); } catch { /* session storage unavailable */ }
+    try { saveRecentCenter(centerId); } catch { /* session storage unavailable */ }
     setSelected(centerId);
     setError("");
   };
@@ -86,7 +89,11 @@ export function BoCenterSelectionProvider({ children }: { children: React.ReactN
     {children}
   </Context.Provider>;
 }
-function safeSessionCenter(): string | null {
-  try { return sessionStorage.getItem(BO_ACTIVE_CENTER_SESSION_KEY); } catch { return null; }
+function safeRecentCenter(): string | null {
+  try { return localStorage.getItem(BO_ACTIVE_CENTER_SESSION_KEY) || sessionStorage.getItem(BO_ACTIVE_CENTER_SESSION_KEY); } catch { return null; }
+}
+function saveRecentCenter(centerId: string): void {
+  try { localStorage.setItem(BO_ACTIVE_CENTER_SESSION_KEY, centerId); } catch { /* unavailable */ }
+  try { sessionStorage.setItem(BO_ACTIVE_CENTER_SESSION_KEY, centerId); } catch { /* unavailable */ }
 }
 export const useBoCenterSelection = () => useContext(Context);

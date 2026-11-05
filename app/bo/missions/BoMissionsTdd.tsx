@@ -25,7 +25,7 @@ type FormMode = "create" | "edit" | "cancel";
 export const assignmentUnavailable = {
   results: "Kết quả chưa khả dụng: nguồn kết quả học viên chưa được kết nối. Trạng thái giao nhiệm vụ không phải kết quả hoàn tất.",
   diary: "Nhật Ký chưa khả dụng: cần nguồn liên kết trực tiếp với nhiệm vụ được giao. Không suy diễn từ Student hoặc Mission.",
-  create: "Giao nhiệm vụ dùng học viên thuộc Center được Core cấp quyền và Mission ACTIVE; không nhập ID tự do.",
+  create: "Chọn học viên và nhiệm vụ đang hoạt động để giao nhiệm vụ.",
 } as const;
 const businessLoaders: SlotLoaders = {
   results: async () => <p role="status">{assignmentUnavailable.results}</p>,

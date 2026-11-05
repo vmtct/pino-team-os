@@ -24,9 +24,13 @@ test("PAP-982 Core cursor pages stay bound to selected CENTER and preserve Perso
   const first=await provider.list({...selfQuery,pageSize:8},{surface:"BO",centerId:center},fetcher,signal());
   assert.equal(first.records.length,8);assert.equal(first.total,9);
   assert.equal(first.records[0].row.pinoriaSelfId,null);assert.equal(first.records[0].row.avatarStatus,"SELF_MISSING");
+  assert.equal(first.records[0].row.avatarLabel,"Chưa có Self");
+  assert.equal(first.records[0].row.subjectLabel,"Đang hoạt động");
+  assert.equal(first.records[0].row.loadoutSummary,null);
   const second=await provider.list({...selfQuery,page:2,pageSize:8},{surface:"BO",centerId:center},fetcher,signal());
   assert.equal(second.records.length,1);assert.equal(second.total,9);
   assert.equal(second.records[0].row.personId,null);assert.equal(second.records[0].row.avatarStatus,"IDENTITY_UNLINKED");
+  assert.equal(second.records[0].row.avatarLabel,"Chưa liên kết");
   assert.ok(seen.every(u=>u.pathname==="/api/bo/pinoria/avatars" && u.searchParams.get("centerId")===center));
   assert.equal(seen.at(-1)?.searchParams.get("cursor"),"cursor_token");
   assert.equal((await provider.detail("STAFF_"+staff,{surface:"BO",centerId:center},fetcher,signal()))?.row.pinoriaSelfId,null);
@@ -37,4 +41,14 @@ test("PAP-982 refuses a fabricated canonical identity or unsupported backend fil
   const bad:typeof fetch=async()=>Response.json({data:{items:[{...dual,personId:null}],nextCursor:null}});
   await assert.rejects(provider.list(selfQuery,{surface:"BO",centerId:center},bad,signal()));
   await assert.rejects(provider.list({...selfQuery,filters:{logic:"OR",rules:[]}},{surface:"BO",centerId:center},bad,signal()));
+});
+
+test("PAP-1456 Self Table localizes labels and shows true Core Loadout count without changing filters",async()=>{
+  const ready={...dual,avatarStatus:"READY",pinoriaSelfId:"01900000-0000-7000-8000-000000000005",selfStatus:"ACTIVE",loadoutVersion:4,equippedCount:4};
+  const fetcher:typeof fetch=async()=>Response.json({data:{items:[ready],nextCursor:null}});
+  const result=await selfDirectoryProvider().list(selfQuery,{surface:"BO",centerId:center},fetcher,signal());
+  assert.equal(result.records[0].row.avatarLabel,"Sẵn sàng");
+  assert.equal(result.records[0].row.loadoutSummary,"4/8");
+  assert.deepEqual(selfQuery.visible,["name","roles","avatarLabel","loadoutSummary","subjectLabel"]);
+  assert.equal(selfQuery.filters.logic,"AND");
 });

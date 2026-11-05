@@ -315,3 +315,41 @@ test('PAP-1105: only exact shared Freeze owner is admitted (no arbitrary shared 
   assert.deepEqual((await x.check(['app/components/workspace-renderer/tdd-freeze.css'])).errors,[]);
   assert.match((await x.check(['app/components/workspace-renderer/tdd-freeze-copy.css'])).errors.join(),/owner reconciliation/);
 });
+
+function setupBusinessStyle(t) {
+ const x=setup(t),file='app/bo/new/business.tsx',css='app/bo/new/business.module.css';
+ x.put(x.file,fs.readFileSync(path.join(x.root,x.file),'utf8')+"\nimport './business';");
+ x.put(file,"import styles from './business.module.css';export const Business=()=> <div className={styles.items}/>;");
+ x.put(css,'.items {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}@media (max-width: 840px){.items{grid-template-columns:minmax(0,1fr)}}');
+ x.entry.files.push(file,css);
+ x.entry.businessStyles=[{file:css,owner:'PAP-1500',consumer:file,classes:['items']}];
+ return {...x,file,css};
+}
+test('PAP-1500 explicit business CSS only within owner+consumer+layout declaration passes',async t=>{
+ const x=setupBusinessStyle(t);
+ assert.deepEqual((await x.check([x.file,x.file.replace('page.tsx','business.tsx'),x.css])).errors,[]);
+});
+for(const [label,source] of [
+ ['global selector','.items, body{display:grid}'],
+ ['shell selector','.detail-hero{display:grid}'],
+ ['cross surface selector','[data-surface="ho"] .items{display:grid}'],
+ ['important declaration','.items{max-width:100%!important}'],
+ ['color styling','.items{color:red}'],
+ ['remote CSS import',"@import url('https://example.invalid/a.css');.items{display:grid}"],
+ ['position override','.items{position:fixed}']
+])test('PAP-1500 business CSS denies '+label,async t=>{
+ const x=setupBusinessStyle(t);x.put(x.css,source);assert.ok((await x.check([x.file,x.css])).errors.length,label);
+});
+test('PAP-1500 computed CSS module classNames remain denied',async t=>{
+ const x=setupBusinessStyle(t);
+ x.put(x.file,"import styles from './business.module.css';export const Business=()=> <div className={styles[dynamic]}/>;");
+ assert.match((await x.check([x.file])).errors.join(),/opaque className/);
+});
+test('PAP-1500 undeclared CSS module remains denied',async t=>{
+ const x=setupBusinessStyle(t);delete x.entry.businessStyles;
+ assert.match((await x.check([x.file,x.css])).errors.join(),/module CSS/);
+});
+test('PAP-1500 business CSS consumer must import declared exact file',async t=>{
+ const x=setupBusinessStyle(t);x.put(x.file,'export const Business=()=> <div className="items"/>;');
+ assert.match((await x.check([x.file,x.css])).errors.join(),/invalid business CSS owner fence/);
+});

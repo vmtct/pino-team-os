@@ -3,6 +3,7 @@ import type { SurfaceDefinition, SurfaceProvider } from "@/lib/workspace-adapter
 import { loadHoA1, mapHoMissions } from "@/lib/ho-a1";
 import type { BoRecord } from "@/lib/bo-registration";
 import { BoApiError } from "@/lib/bo-api-error";
+import { readMissionHistory } from "@/lib/mission-history";
 
 const read = { display: true, search: true, filter: true, sort: true, group: true, inlineEdit: false } as const;
 const permission = "catalog.learning.view";
@@ -27,7 +28,7 @@ export const missionQuery: TableQuery<F> = {
 };
 export const missionDefinition = {
   version: 1, classification: "TDD_DEFAULT", surface: "HO", key: "missions", label: "Mission", group: "Learning",
-  fields: missionFields, capabilities: { read: permission, create: "learning.mission.manage", edit: "learning.mission.manage" },
+  fields: missionFields, capabilities: { read: permission, create: "learning.mission.manage", edit: "learning.mission.manage", history: "learning.mission.manage" },
   actions: [
     { id: "mission-open-create", label: "Tạo mới", slot: "table.header", variant: "primary", capability: "create", handler: "openCreate" },
     { id: "mission-open-edit", label: "Chỉnh sửa", slot: "detail.header", variant: "secondary", capability: "edit", handler: "openEdit" },
@@ -129,6 +130,16 @@ export const missionProvider: SurfaceProvider<F> = {
     if (row.id.toLowerCase() !== id.toLowerCase()) throw new BoApiError(502, "Mission ID không khớp.", null);
     return { row };
   },
+  history: { subjectType: "learning_mission", bind: (fetcher, scope) => ({
+    kind: "provider", source: { adapter: "core-ho-mission-history", permission: "learning.mission.manage" },
+    load: (subject, context, cursor, signal) => {
+      if (scope.surface !== "HO" || context.surface !== "HO" || subject.type !== "learning_mission")
+        return Promise.resolve({ status: "denied" as const });
+      return readMissionHistory(fetcher,
+        "/api/ho/learning/missions/" + encodeURIComponent(subject.id) + "/history",
+        subject, cursor, signal);
+    },
+  }) },
 };
 const missionRegistry = new TddRegistry();
 export const missionSchema = missionRegistry.register({ ...missionDefinition, data: {

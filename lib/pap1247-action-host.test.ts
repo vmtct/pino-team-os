@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { TddRenderer } from "../app/components/workspace-renderer/Renderer";
+import { TddActionHost, TddRenderer } from "../app/components/workspace-renderer/Renderer";
 import { TddRegistry } from "./workspace-schema";
 import { defineTddModule, authorizedHostActions, type ModuleSchema,
   type FieldSchema, type AuthorizationContext, type TddActionBindings } from "./workspace-schema";
@@ -41,6 +41,53 @@ function schema(actions: unknown) {
   return { ...fixture(), actions } as ModuleSchema<typeof fields>;
 }
 const permitted: AuthorizationContext = { surface: "HO", authorize: () => true };
+test("PAP-1247: shared host renders DS variants, native disabled semantics and accessible refresh", () => {
+  const actions = [primary, secondary,
+    { ...secondary, id: "danger", label: "Remove", handler: "remove", variant: "danger" },
+    { ...secondary, id: "refresh", label: "Refresh", handler: "refresh", variant: "tertiary",
+      slot: "overview.section", targetId: "a", icon: "refresh" },
+  ] as const;
+  // Test-only harness widening: data.list makes the typed fixture invariant, but
+  // this host only reads admitted action metadata and never calls the data adapter.
+  const admitted = defineTddModule(schema(actions)) as unknown as ModuleSchema;
+  const bindings = {
+    createMission: { run: () => undefined }, export: { run: () => undefined },
+    remove: { run: () => undefined, disabled: true }, refresh: { run: () => undefined },
+  };
+  const html = (context = permitted) => (["table.header", "overview.section"] as const).map(slot =>
+    renderToStaticMarkup(createElement(TddActionHost, {
+      schema: admitted, context, slot, bindings, targetId: slot === "overview.section" ? "a" : undefined,
+    }))).join("");
+  const markup = html();
+  assert.match(markup, /class="pds-bo-action-group tdd-action-host"/);
+  assert.match(markup, /data-tdd-action-slot="table.header"/);
+  assert.match(markup, /role="group"/);
+  assert.match(markup, /aria-busy="false"/);
+  assert.match(markup, /<button[^>]*type="button"[^>]*class="pds-bo-action-button pds-bo-action-button-primary"[^>]*>/);
+  assert.match(markup, /<button[^>]*disabled=""[^>]*class="pds-bo-action-button pds-bo-action-button-danger"[^>]*>Remove<\/button>/);
+  assert.match(markup, /<button[^>]*aria-label="Refresh"[^>]*title="Refresh"[^>]*class="pds-bo-action-button pds-bo-action-button-secondary"[^>]*><svg aria-hidden="true"/);
+  assert.equal((markup.match(/pds-bo-action-button-secondary"/g) ?? []).length, 2);
+  assert.doesNotMatch(markup, /style=|tabindex=|primary-btn|secondary-btn|pds-tos-/);
+  assert.doesNotMatch(html({ surface: "HO", authorize: key => key !== "fixture.create" }), /pds-bo-action-button-primary/);
+  assert.equal(html({ surface: "HO", authorize: () => false }), "");
+});
+
+test("PAP-1247: DS owns host geometry, focus/disabled styling and BO/HO CSS loading", () => {
+  const css = readFileSync("node_modules/@pino/design-system/dist/0.3.0/components.css", "utf8");
+  const rule = (selector: string) => css.slice(css.indexOf(selector + "{"), css.indexOf("}", css.indexOf(selector + "{")) + 1);
+  assert.match(rule(".pds-bo-action-group"), /flex-wrap:wrap/);
+  assert.match(rule(".pds-bo-action-group"), /gap:8px/);
+  assert.match(rule(".pds-bo-action-button:focus-visible"), /outline:2px solid/);
+  assert.match(rule(".pds-bo-action-button:disabled"), /cursor:not-allowed/);
+  assert.match(rule(".pds-bo-action-button-danger"), /--bo-color-danger/);
+  for (const surface of ["bo", "ho"]) {
+    assert.match(readFileSync(`app/${surface}/layout.tsx`, "utf8"), /import "@pino\/design-system\/components.css"/);
+  }
+  const renderer = readFileSync("app/components/workspace-renderer/Renderer.tsx", "utf8");
+  assert.match(renderer, /import \{ BoActionButton, BoActionGroup \} from "@pino\/design-system\/react"/);
+  assert.doesNotMatch(renderer, /TosButton|TosCard|tos-tokens|style=|primary-btn|secondary-btn|<button/);
+});
+
 test("PAP-1247: old modules declare no actions, produce no extra action chrome", () => {
   const old = defineTddModule(fixture());
   assert.equal(old.actions, undefined);

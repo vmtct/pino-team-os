@@ -135,6 +135,34 @@ export function createV18bApiTransport(canWrite:boolean,transport:typeof fetch=(
    "/learning/path-diaries/"+requireValue(diaryId,"DIARY")+"/evidence?centerId="+requireValue(centerId,"CENTER")),
   missionLinks:(diaryId:string,centerId:string)=>get<V18bDiaryMissionLink[]>(
    "/learning/path-diaries/"+requireValue(diaryId,"DIARY")+"/mission-links?centerId="+requireValue(centerId,"CENTER")),
+  /** PAP-1400 / PAP-1359: read the original Register receipt, never re-Register.
+   * The source endpoint uses POST only to verify the exact prior request fingerprint.
+   * This read-only lookup remains callable while all V18b mutation gates are OFF.
+   * It requires the ORIGINAL Register body and ORIGINAL idempotency key; 404 is
+   * not permission to retry a Register or invent a new idempotency key.
+   */
+  registerReceipt:async(input:{centerId:string;runningClassId:string;studentId:string;pathKey:string;teachingContextKey:string},
+   originalIdempotencyKey:string):Promise<V18bPathDiary>=>{
+   observationOnly(input);
+   const allowed=["centerId","runningClassId","studentId","pathKey","teachingContextKey"];
+   if(Object.keys(input).length!==allowed.length||Object.keys(input).some(key=>!allowed.includes(key)))
+    throw new V18bCoreError(400,"REGISTER_RECEIPT_REQUEST_INVALID","Cần đúng body Register gốc để đối soát.");
+   for(const name of allowed)requireValue(input[name as keyof typeof input],name);
+   const key=decodeURIComponent(requireValue(originalIdempotencyKey,"IDEMPOTENCY_KEY"));
+   const diary=await responseData<V18bPathDiary>(await transport(base+"/learning/path-diaries/register-receipt",{
+    method:"POST",cache:"no-store",
+    headers:{"content-type":"application/json","idempotency-key":key},
+    body:JSON.stringify(input),
+   }));
+   if(!diary||typeof diary.id!=="string"||!diary.id||
+      diary.centerId!==input.centerId||diary.studentId!==input.studentId||
+      diary.runningClassId!==input.runningClassId||diary.pathKey!==input.pathKey||
+      diary.teachingContextKey!==input.teachingContextKey||
+      !["REGISTERED","CLOSED"].includes(diary.status)||!Number.isSafeInteger(diary.version)||diary.version<1)
+    throw new V18bCoreError(502,"REGISTER_RECEIPT_SCOPE_MISMATCH",
+     "Core không xác nhận đúng Diary gốc hoặc phạm vi Register.");
+   return diary;
+  },
   register:(input:{centerId:string;runningClassId:string;studentId:string;pathKey:string;teachingContextKey:string},
    idempotencyKey:string)=>{
    observationOnly(input);
