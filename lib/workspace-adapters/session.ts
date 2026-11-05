@@ -1,4 +1,5 @@
 import { BoApiError } from "../bo-api-error";
+import { isHoBillsRequest } from "../ho-bills-contract";
 import { isGlobalTermsRequest } from "../ho-global-terms-contract";
 import { decideHostBoundary, HO_STAGING_HOSTNAME, isBoHostname } from "../host-boundary";
 import type { AuthorizationContext } from "../workspace-schema";
@@ -26,6 +27,7 @@ export function surfaceSession(surface: "BO" | "HO", origin: string | undefined,
     const url = new URL(input instanceof Request ? input.url : String(input), base);
     const method = (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
     const admittedHoGlobalTerms = surface === "HO" && !url.search && isGlobalTermsRequest(url.pathname, method);
+    const admittedHoBills = surface === "HO" && method === "GET" && !url.search && isHoBillsRequest(url.pathname, method);
     const admittedHoPassInventory = surface === "HO" && method === "GET" && url.pathname === "/api/ho/open-studio/walkin/inventory";
     // PAP-1295: precise HO GLOBAL TermWeek read. The HO BFF still reauthorizes Founder/ACL.
     const admittedHoGlobalTermWeeksRead = surface === "HO" && method === "GET" &&
@@ -46,7 +48,7 @@ export function surfaceSession(surface: "BO" | "HO", origin: string | undefined,
       (!url.searchParams.has("limit") || (/^[1-9][0-9]*$/.test(url.searchParams.get("limit")!) &&
         Number(url.searchParams.get("limit")) <= 50)) &&
       (!url.searchParams.has("cursor") || /^[A-Za-z0-9_-]{20,2048}$/.test(url.searchParams.get("cursor")!));
-    if (url.origin !== base.origin || !(url.pathname.startsWith("/api/bo/") || admittedHoGlobalTerms || admittedHoPassInventory || admittedHoGlobalTermWeeksRead || admittedHoShiftTemplateRead || admittedHoDiary || admittedHoMissionDetail || admittedHoMissionHistory) || url.username || url.password || url.hash ||
+    if (url.origin !== base.origin || !(url.pathname.startsWith("/api/bo/") || admittedHoBills || admittedHoGlobalTerms || admittedHoPassInventory || admittedHoGlobalTermWeeksRead || admittedHoShiftTemplateRead || admittedHoDiary || admittedHoMissionDetail || admittedHoMissionHistory) || url.username || url.password || url.hash ||
         /%2f|%5c|\.\./i.test(url.pathname) || decideHostBoundary(base.host, url.pathname, method).action !== "next" ||
         (surface === "HO" && method !== "GET" && !admittedHoGlobalTerms)) throw adapterError(404);
     const headers = new Headers(init?.headers);

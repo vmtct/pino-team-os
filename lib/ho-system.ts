@@ -5,9 +5,10 @@ import { hoCentersModule, mapHoCenters } from "./ho-centers";
 import {hoA1Modules,type HoA1Module} from "./ho-a1";
 import { HO_PAGE_PATHS } from "./ho-routes";
 
-export type HoModule = "globalTerms" | "centers" | "walkinPasses" | "termWeeks" | "shiftTemplates" | "staffs" | "users" | "roles" | "audits" | "tddReference" | "classroomDiaries" | HoA1Module;
+export type HoModule = "bills" | "globalTerms" | "centers" | "walkinPasses" | "termWeeks" | "shiftTemplates" | "staffs" | "users" | "roles" | "audits" | "tddReference" | "classroomDiaries" | HoA1Module;
 export const hoRoutes: Record<HoModule, string> = HO_PAGE_PATHS;
 export const hoModules: Record<HoModule,BoModule> = {
+ bills: {label:"Bills",group:"Tài chính",fields:[]},
  globalTerms: {label:"Global Terms",group:"Operating Cycle",fields:[
   {key:"name",label:"Tên học kỳ",type:"text",icon:"Aa",w:260,readonly:true},
   {key:"code",label:"Mã",type:"text",icon:"#",w:160,readonly:true},

@@ -1,5 +1,6 @@
 import {billMethodAllowed} from "./bo-bills-paths";
 import {tosV4StagingHost} from "./tos-v4-staging-host";
+import {HO_BILLS_API,isHoBillsRequest} from "./ho-bills-contract";
 import { HO_PAGE_PATHS, HO_HOME_PATH } from "./ho-routes";
 import { GLOBAL_TERMS_API, isGlobalTermsRequest } from "./ho-global-terms-contract";
 export const HO_STAGING_HOSTNAME = "ho.staging.pinohouse.art";
@@ -21,6 +22,8 @@ export type HostBoundaryDecision =
 
 export function decideHostBoundary(host: string, pathname: string, method = "GET"): HostBoundaryDecision {
   const hostname = normalizeHostname(host);
+  if (pathname === HO_BILLS_API || pathname.startsWith(HO_BILLS_API + "/"))
+    return {action:hostname === HO_STAGING_HOSTNAME && isHoBillsRequest(pathname,method) ? "next" : "not_found"};
   // PAP-1181 / PAP-435: Staging-only synthetic Center affiliation ingress.
   // Team BO BFF checks password + idempotency; canonical Core enforces actor,
   // Center scope, QA Intake predicates, CAS and atomic audit. Never a wildcard.
