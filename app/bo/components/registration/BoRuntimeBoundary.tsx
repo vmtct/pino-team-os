@@ -73,7 +73,7 @@ function BoStaffsEntry({ currentUser, options }: {
     source={source} moduleKey="staffs" options={options}
     headerContent={<><BoStaffsViews selected={view} onSelect={setView} />
       {view === "register" ? <p role="alert" className="settings-hint">
-        Đăng ký Staff chờ Core API giới hạn theo Center (PAP-1406). Không đọc hàng đợi Global.
+        Danh sách đăng ký hiện chưa khả dụng.
       </p> : null}</>} />;
 }
 
