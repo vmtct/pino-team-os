@@ -94,7 +94,8 @@ export const linkProvider: SurfaceProvider<F> = {
     return { row: rowFor(center.id, center.name, center.centerKey, link) };
   },
 };
-export const linkSchema = new TddRegistry().register({
+const registry = new TddRegistry();
+export const linkSchema = registry.register({
   ...linkDefinition,
   data: {
     id: "founder-center-staff-links",
