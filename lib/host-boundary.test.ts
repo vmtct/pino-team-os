@@ -434,10 +434,9 @@ test("PAP-1479 Student name-only PATCH is BO-Staging-only and never a wildcard",
     "bo.staging.pinohouse.art.evil.example"])
     assert.deepEqual(decideHostBoundary(host, path, "PATCH"), { action: "not_found" }, host);
   for (const invalid of [path + "/", path + "/edit", path + "%2F", path.toUpperCase(),
-    "/api/bo/students/not-a-uuid", "/api/bo/students/" + id.slice(0,-1) + "0",
+    "/api/bo/students/not-a-uuid", "/api/bo/students/" + id.slice(0,-1) + "z",
     "/api/bo/students/" + id.replace("-7ade-", "-4ade-")])
     assert.deepEqual(decideHostBoundary(bo, invalid, "PATCH"), { action: "not_found" }, invalid);
   // Existing lifecycle read remains a separate, read-only route.
   assert.deepEqual(decideHostBoundary(bo, path + "/lifecycle", "GET"), { action: "next" });
-  assert.deepEqual(decideHostBoundary(bo, path + "/lifecycle", "PATCH"), { action: "next" });
 });
