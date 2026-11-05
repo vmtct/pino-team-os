@@ -15,7 +15,6 @@ const SELF = "app/bo/pinoria-avatars/SelfDirectoryTdd.tsx";
  * One exact existing workspace selector per file may remain until its own
  * Core-scoped domain rollout. Additional or renamed selectors fail CI. */
 const LEGACY_PICKERS = new Map([
-  ["app/bo/missions/BoMissionsTdd.tsx", "bo-mission-center"],
   ["app/bo/tvs/TvsTdd.tsx", "bo-tv-center"],
 ]);
 
@@ -84,6 +83,21 @@ export function boCenterOwnershipViolations(root = ROOT) {
       errors.push(openStudioPasses + ": migrated Pass entrypoint must use BO shell Center and remount scoped TDD");
   }
 
+  // PAP-1460: BO Mission Assignment must consume the BO master Center.
+  const missions = "app/bo/missions/BoMissionsTdd.tsx";
+  if (paths.some(file => norm(file) === missions)) {
+    const source = readFileSync(join(root, missions), "utf8");
+    if (!/useBoCenterSelection\s*\(/.test(source) ||
+        !/key=\{selected\+/.test(source) ||
+        !/ready\?\.centerId\s*===\s*centerId/.test(source) ||
+        !/key=\{centerId\}/.test(source) ||
+        !/setWriteLease\s*\(\{centerId,state:"pending"\}\)/.test(source) ||
+        !/leaseBlocked/.test(source) ||
+        /\bboApi\.centers\s*\(/.test(source) ||
+        /<select\b[^>]*id=["']bo-mission-center/.test(source))
+      errors.push(missions + ": BO Mission TDD must use shell Center and fence stale records");
+  }
+
   const selfFile = join(root, SELF);
   if (paths.some(file => norm(file) === SELF)) {
     const self = readFileSync(selfFile, "utf8");
@@ -110,6 +124,6 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     process.exitCode = 1;
   } else {
     console.log("BO_CENTER_OWNER_PASS: one shell owner; no new module-local Center selector");
-    console.warn("BO_CENTER_LEGACY_DEBT: two exact selectors tracked in PAP-1460/PAP-1329 (not STAGING_ACCEPTED)");
+    console.warn("BO_CENTER_LEGACY_DEBT: one exact selector tracked in PAP-1460/PAP-1329 (not STAGING_ACCEPTED)");
   }
 }
