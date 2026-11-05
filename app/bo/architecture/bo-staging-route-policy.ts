@@ -9,7 +9,6 @@ export const boStagingAdmittedRoutes = new Set([
   "/bo/pinoria-avatars",
   "/bo/open-studio-passes",
   "/bo/classroom-diaries",
-  "/bo/tvs",
 ]);
 
 // New canonical modules must be admitted or deliberately deferred in this policy.

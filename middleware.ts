@@ -38,6 +38,10 @@ export function middleware(request: NextRequest) {
       ["/staff-login", "/staff-password/change"].includes(request.nextUrl.pathname)) {
     forwarded.set("x-pino-ho-auth-page", "1");
   }
+  // PAP-1460 / PNR-TV: retired BO TV route must answer 404 before any
+  // BO skeleton or old-host redirects; no login/HO redirect or domain fetch.
+  if (/^\/bo\/tvs(?:\/|$)/i.test(request.nextUrl.pathname))
+    return new NextResponse("Not Found", { status: 404, headers: { "cache-control": "no-store" } });
   const schoolRoute = boSkeletonRoute(host, request.nextUrl.pathname);
   if (schoolRoute === "redirect") {
     const target = request.nextUrl.clone();

@@ -42,7 +42,7 @@ test("PAP-1459 negative: a renamed local TDD workspace picker is rejected",t=>{
   assert.ok(boCenterOwnershipViolations(root).some(x=>x.includes("embeds a workspace Center picker")));
 });
 
-test("PAP-1460 bounded legacy: exact existing picker accepted as tracked debt, new picker denied",t=>{
+test("PAP-1460 archived TV source: exact historical picker retained, any new picker denied",t=>{
   const {root,write}=fixture(t);
   const legacy="app/bo/tvs/TvsTdd.tsx";
   write(legacy,'createBoTddAdapter({}); return <select id="bo-tv-center">legacy</select>');

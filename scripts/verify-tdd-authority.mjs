@@ -362,6 +362,37 @@ export async function verify(root=ROOT,{changed=[],baseline,manifest,now=Date.no
   for(const f of tests) if(!exactFile(f)||! /\.test\.(?:tsx?|mjs)$/.test(f)||!fs.existsSync(path.join(root,f))) errors.push('missing/invalid profile test '+f);
   return {errors:[...new Set(errors)],reports,tests:[...tests].sort(),inventoryPending:baseline.routes.length};
 }
+/** PAP-1460 / PNR-TV — a truly RETIRED route cannot be an active TDD
+ * admission, yet its immutable grandfather inventory remains intact.
+ * This is an exact Founder-approved /bo/tvs retirement contract. It does
+ * not permit any other TDD_DEFAULT module to silently lose admission.
+ * Any broken 404/nav/source fence fails closed on the next PR CI.
+ */
+export function isFounderRetiredBoTvRoute(root, entry) {
+  if (entry.file !== "app/bo/tvs/page.tsx" || entry.route !== "/bo/tvs" ||
+      entry.key !== "tvs" || entry.surface !== "BO" || entry.profile !== "TDD_DEFAULT") return false;
+  const required = [
+    "app/bo/tvs/page.tsx", "app/bo/tvs/TvsTdd.tsx", "app/bo/tvs/schema.ts",
+    "middleware.ts", "lib/host-boundary.ts", "app/bo/navigation.ts",
+    "app/bo/pinoria-tv-operator/page.tsx", "lib/bo-url-contract.ts",
+    "app/bo/architecture/bo-staging-route-policy.ts",
+  ];
+  if (required.some(file => !fs.existsSync(path.join(root,file)))) return false;
+  const source = file => read(root,file);
+  const page = source("app/bo/tvs/page.tsx");
+  const middleware = source("middleware.ts");
+  const boundary = source("lib/host-boundary.ts");
+  return /PAP-1460/.test(page) &&
+    /\bnotFound\s*\(\s*\)/.test(page) && !/TvsTdd/.test(page.replace(/\/\*[\s\S]*?\*\//g,"")) &&
+    /if\s*\(\/\^\\\/bo\\\/tvs\(\?:\\\/\|\$\)\/i\.test\(request\.nextUrl\.pathname\)\)/.test(middleware) &&
+    /if\s*\(\/\^\\\/bo\\\/tvs\(\?:\\\/\|\$\)\/i\.test\(pathname\)\)\s*return\s*\{\s*action:\s*"not_found"\s*\}/.test(boundary) &&
+    !/["']\/bo\/tvs["']/.test(source("app/bo/architecture/bo-staging-route-policy.ts")) &&
+    !/href:\s*["']\/bo\/tvs["']/.test(source("app/bo/navigation.ts")) &&
+    !/href=["']\/bo\/tvs["']/.test(source("app/bo/pinoria-tv-operator/page.tsx")) &&
+    !/\bpath:\s*["']\/bo\/tvs["']/.test(source("lib/bo-url-contract.ts")) &&
+    /\bSurfaceWorkspace\b/.test(source("app/bo/tvs/TvsTdd.tsx"));
+}
+
 export async function main() {
   const baseIndex=process.argv.indexOf('--base');
   const base=baseIndex<0?(process.env.TDD_BASE||'origin/main'):process.argv[baseIndex+1];
@@ -376,7 +407,7 @@ export async function main() {
   let previous=[];
   if(git(ROOT,['ls-tree','--name-only',base,MANIFEST])) previous=JSON.parse(git(ROOT,['show',base+':'+MANIFEST])).modules;
   const current=JSON.parse(read(ROOT,MANIFEST));
-  for(const e of previous.filter(e=>e.profile!=='EXISTING_GRANDFATHERED')) if(!current.modules.some(n=>n.file===e.file&&n.profile===e.profile)) throw Error('admitted route cannot return to grandfathered inventory: '+e.file);
+  for(const e of previous.filter(e=>e.profile!=='EXISTING_GRANDFATHERED')) if(!current.modules.some(n=>n.file===e.file&&n.profile===e.profile) && !isFounderRetiredBoTvRoute(ROOT,e)) throw Error('admitted route cannot return to grandfathered inventory: '+e.file);
   const readBaseSource=file=>{try{return git(ROOT,['show',base+':'+file]);}catch{return null;}};
   const result=await verify(ROOT,{changed,baseline,approvals,readBaseSource});
   for(const f of changed.filter(f=>f.endsWith('.css')&&!/^(?:public\/(?:bo|ho)-authority-source\/|app\/ho\/ho-theme\.css)/.test(f))) {

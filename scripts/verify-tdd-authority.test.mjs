@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {verify,inspectModuleSource,inspectModuleDelta,inspectCss,validateSpecial} from './verify-tdd-authority.mjs';
+import {verify,inspectModuleSource,inspectModuleDelta,inspectCss,validateSpecial,isFounderRetiredBoTvRoute} from './verify-tdd-authority.mjs';
 const now=Date.parse('2026-10-28T06:00:00Z');
 function schema(surface='BO') {
  const fields=[{key:'name',label:'Name',type:'text',icon:'Aa',width:175,permission:'fixture.read',readOnly:true,capabilities:{display:true,search:true,filter:true,sort:true,group:true,inlineEdit:false}}];
@@ -352,4 +352,38 @@ test('PAP-1500 undeclared CSS module remains denied',async t=>{
 test('PAP-1500 business CSS consumer must import declared exact file',async t=>{
  const x=setupBusinessStyle(t);x.put(x.file,'export const Business=()=> <div className="items"/>;');
  assert.match((await x.check([x.file,x.css])).errors.join(),/invalid business CSS owner fence/);
+});
+
+
+test("PAP-1460 Founder-approved BO TV retirement is an exact, 404-fenced exception, not a TDD bypass",t=>{
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),"pap1460-tv-retired-"));
+  t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+  const original=path.resolve(new URL("..",import.meta.url).pathname.replace(/^\/([A-Z]:)/, "$1"));
+  const files=[
+    "app/bo/tvs/page.tsx", "app/bo/tvs/TvsTdd.tsx", "app/bo/tvs/schema.ts",
+    "middleware.ts", "lib/host-boundary.ts", "app/bo/navigation.ts",
+    "app/bo/pinoria-tv-operator/page.tsx", "lib/bo-url-contract.ts",
+    "app/bo/architecture/bo-staging-route-policy.ts",
+  ];
+  for(const f of files){
+    fs.mkdirSync(path.dirname(path.join(root,f)),{recursive:true});
+    fs.copyFileSync(path.join(original,f),path.join(root,f));
+  }
+  const entry={file:"app/bo/tvs/page.tsx",key:"tvs",surface:"BO",route:"/bo/tvs",profile:"TDD_DEFAULT"};
+  assert.equal(isFounderRetiredBoTvRoute(root,entry),true);
+  assert.equal(isFounderRetiredBoTvRoute(root,{...entry,route:"/bo/other"}),false);
+  assert.equal(isFounderRetiredBoTvRoute(root,{...entry,file:"app/bo/missions/page.tsx"}),false);
+  const mutate=(file,change)=>{
+    const p=path.join(root,file),original=fs.readFileSync(p,"utf8");
+    const changed=change(original);
+    assert.notEqual(changed,original,"negative fixture must actually mutate "+file);
+    fs.writeFileSync(p,changed);
+    assert.equal(isFounderRetiredBoTvRoute(root,entry),false,file);
+    fs.writeFileSync(p,original);
+  };
+  mutate("app/bo/tvs/page.tsx",s=>s.replace("notFound();","return <TvsTdd/>;"));
+  mutate("middleware.ts",s=>s.replace("if (/^\\/bo\\/tvs(?:\\/|$)/i.test(request.nextUrl.pathname))","if (false)"));
+  mutate("lib/host-boundary.ts",s=>s.replace('return { action: "not_found" };','return { action: "next" };'));
+  mutate("app/bo/navigation.ts",s=>s.replace('label: "Operations"','label: "Operations", href: "/bo/tvs"'));
+  mutate("app/bo/architecture/bo-staging-route-policy.ts",s=>s.replace('  "/bo/missions",','  "/bo/tvs",\\n  "/bo/missions",'));
 });
