@@ -15,7 +15,6 @@ const SELF = "app/bo/pinoria-avatars/SelfDirectoryTdd.tsx";
  * One exact existing workspace selector per file may remain until its own
  * Core-scoped domain rollout. Additional or renamed selectors fail CI. */
 const LEGACY_PICKERS = new Map([
-  ["app/bo/classroom-diaries/BoClassroomDiariesTdd.tsx", "diary-center"],
   ["app/bo/missions/BoMissionsTdd.tsx", "bo-mission-center"],
   ["app/bo/open-studio-passes/BoOpenStudioPassesTdd.tsx", "bo-open-studio-center"],
   ["app/bo/tvs/TvsTdd.tsx", "bo-tv-center"],
@@ -65,6 +64,14 @@ export function boCenterOwnershipViolations(root = ROOT) {
     }
   }
   if (mounts !== 1) errors.push("Expected exactly one BO Center provider mount, found " + mounts);
+  // PAP-1460: migrated Diary is a shell Center consumer, not a local selector.
+  const diary = "app/bo/classroom-diaries/BoClassroomDiariesTdd.tsx";
+  if (paths.some(file => norm(file) === diary)) {
+    const source = readFileSync(join(root, diary), "utf8");
+    if (!/useBoCenterSelection\s*\(/.test(source) || !/key=\{selected\+/.test(source) ||
+        !/ready\?\.centerId\s*!==\s*selected/.test(source) || /\bboApi\.centers\s*\(/.test(source))
+      errors.push(diary + ": migrated Diary must consume shell Center, remount scoped TDD and fence stale adapter");
+  }
   const selfFile = join(root, SELF);
   if (paths.some(file => norm(file) === SELF)) {
     const self = readFileSync(selfFile, "utf8");
@@ -91,6 +98,6 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     process.exitCode = 1;
   } else {
     console.log("BO_CENTER_OWNER_PASS: one shell owner; no new module-local Center selector");
-    console.warn("BO_CENTER_LEGACY_DEBT: four exact selectors tracked in PAP-1460/PAP-1329 (not STAGING_ACCEPTED)");
+    console.warn("BO_CENTER_LEGACY_DEBT: three exact selectors tracked in PAP-1460/PAP-1329 (not STAGING_ACCEPTED)");
   }
 }

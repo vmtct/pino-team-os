@@ -3,9 +3,9 @@ import "@pino/design-system/bo-tokens.css";
 import "@pino/design-system/components.css";
 import {useEffect,useMemo,useState} from "react";
 import readApi from "@/public/bo-authority-source/school-adapters.js";
-import {boApi} from "@/lib/bo-api";
-import type {BoCenter} from "@/lib/bo-model";
 import {BoRegistrationWorkspace,type BoWorkspaceSource} from "@/app/bo/components/registration/BoRegistrationWorkspace";
+import {useBoCenterSelection} from "@/app/bo/components/registration/BoCenterSelection";
+import type {DirectoryCenterSource} from "@/app/bo/pinoria-avatars/centers";
 import {createBoTddAdapter,type AuthenticatedSurfaceAdapter} from "@/lib/workspace-adapters";
 import {SurfaceWorkspace} from "@/app/components/workspace-adapters/SurfaceWorkspace";
 import {browserTddNavigation,type AdapterNavigation} from "@/lib/workspace-adapters/navigation";
@@ -13,7 +13,7 @@ import {TddRegistry} from "@/lib/workspace-schema";
 import {diaryDefinition,diaryFields,diaryProvider,diaryQueryForDay,localDayToday,validDiaryDay} from "./schema";
 
 type F=typeof diaryFields;
-type Ready={adapter:AuthenticatedSurfaceAdapter<F>;navigation:AdapterNavigation<F>};
+type Ready={centerId:string;adapter:AuthenticatedSurfaceAdapter<F>;navigation:AdapterNavigation<F>};
 const source:BoWorkspaceSource={
  ...readApi,
  modules:{...readApi.modules,"classroom-diaries":{
@@ -28,54 +28,52 @@ const source:BoWorkspaceSource={
   ],
  }},
 };
-const active=(c:BoCenter)=>/^[0-9a-f-]{36}$/i.test(c.id)&&c.status==="active";
+
+/** PAP-1460 / Epic PAP-1316. One BO shell Active Center, diary date remains business-owned. */
 export function BoClassroomDiariesTdd(){
- const [centers,setCenters]=useState<readonly BoCenter[]>([]);
- const [centerId,setCenterId]=useState("");
+ const center=useBoCenterSelection();
+ const selected=(!center||center.loading||center.error)?"":center.selected;
+ const sourceKind=center?.source??"centers";
  const [date,setDate]=useState(localDayToday);
- const [centerError,setCenterError]=useState("");
- const [error,setError]=useState("");
- const [retry,setRetry]=useState(0);
- const [ready,setReady]=useState<Ready|null>(null);
- const query=useMemo(()=>validDiaryDay(date)?diaryQueryForDay(date):null,[date]);
- useEffect(()=>{
-  let live=true;
-  void boApi.centers().then(rows=>{
-   if(!live)return;
-   const allowed=rows.filter(active);
-   setCenters(allowed);
-   setCenterId(allowed.length===1?allowed[0]!.id:"");
-   if(!allowed.length)setCenterError("Không có Center đang hoạt động được cấp quyền.");
-  }).catch(()=>{if(live)setCenterError("Không thể tải Center từ Core.")});
-  return ()=>{live=false};
- },[]);
- useEffect(()=>{
-  if(!query||!centerId)return
-  const controller=new AbortController();let adapter:AuthenticatedSurfaceAdapter<F>|null=null;
-  void createBoTddAdapter({registry:new TddRegistry(),definition:diaryDefinition,provider:diaryProvider,centerId:centerId,centerSource:"centers"},controller.signal)
-   .then(bound=>{
-    adapter=bound;if(controller.signal.aborted){bound.dispose();return}
-    setReady({adapter:bound,navigation:browserTddNavigation("BO","classroom-diaries",query)});
-   }).catch(e=>{if(!controller.signal.aborted)setError(e instanceof Error?e.message:"Không đủ quyền đọc Diary tại Center.")});
-  return ()=>{controller.abort();adapter?.dispose()};
- },[query,centerId,retry]);
- const scopeValid=Boolean(centerId&&query);
+ const validDate=validDiaryDay(date);
  const content=<section data-testid="bo-classroom-diaries-tdd" aria-label="Nhật ký lớp học tại Center">
   <div className="property-row">
-   <label htmlFor="diary-center">Center</label>
-   <select id="diary-center" value={centerId} onChange={e=>{setReady(null);setCenterId(e.target.value);setError("")}}>
-    <option value="">Chọn Center</option>
-    {centers.map(c=><option key={c.id} value={c.id}>{c.displayName}</option>)}
-   </select>
    <label htmlFor="diary-day">Ngày học</label>
-   <input id="diary-day" type="date" value={date} onChange={e=>{setReady(null);setError("");setDate(e.target.value)}}/>
+   <input id="diary-day" type="date" value={date} onChange={e=>setDate(e.target.value)}/>
   </div>
-  {!scopeValid?<p role="status">{centerError||"Chọn Center và ngày học hợp lệ để đọc Nhật ký."}</p>:
-   error?<p role="alert">{error} <button type="button" onClick={()=>{setError("");setRetry(n=>n+1)}}>Thử lại</button></p>:
-   ready?<><SurfaceWorkspace key={centerId+":"+date} adapter={ready.adapter} navigation={ready.navigation} initialQuery={query!}/>
-   <p role="note">Dữ liệu chỉ đọc từ Core tại Center và ngày đã chọn. Người Submit và Học viên hiện dùng ID xác thực; chưa có projection tên hiển thị.
-    Liên kết Nhiệm vụ và xác nhận hoàn tất chỉ hiển thị khi API nguồn được triển khai; không suy diễn từ Diary.</p></>:
-   <p role="status">Đang xác minh quyền Center và tải Nhật ký…</p>}
+  {!center?<p role="alert">Không tìm thấy Center context của BO.</p>:
+   center.loading?<p role="status">Đang xác thực cơ sở được cấp quyền…</p>:
+   center.error?<p role="alert">{center.error}</p>:
+   !selected?<p role="status">Chọn trung tâm tại góc trên trái để xem Nhật ký.</p>:
+   !validDate?<p role="alert">Chọn ngày học hợp lệ để đọc Nhật ký.</p>:
+   <ScopedDiary key={selected+":"+sourceKind+":"+date} selected={selected} centerSource={sourceKind} date={date}/>}
  </section>;
  return <BoRegistrationWorkspace source={source} moduleKey="classroom-diaries" currentUser={{displayName:null}} content={content}/>;
+}
+
+/** Remounting on Center/date change aborts old read/detail and disposes stale TDD. */
+function ScopedDiary({selected,centerSource,date}:{selected:string;centerSource:DirectoryCenterSource;date:string}){
+ const [ready,setReady]=useState<Ready|null>(null);
+ const [error,setError]=useState("");
+ const [retry,setRetry]=useState(0);
+ const query=useMemo(()=>diaryQueryForDay(date),[date]);
+ useEffect(()=>{
+  const controller=new AbortController();let adapter:AuthenticatedSurfaceAdapter<F>|null=null;
+  void createBoTddAdapter({registry:new TddRegistry(),definition:diaryDefinition,provider:diaryProvider,
+   centerId:selected,centerSource},controller.signal).then(bound=>{
+   adapter=bound;
+   if(controller.signal.aborted){bound.dispose();return;}
+   setReady({centerId:selected,adapter:bound,navigation:browserTddNavigation("BO","classroom-diaries",query)});
+  }).catch(e=>{
+   if(!controller.signal.aborted)setError(e instanceof Error?e.message:"Không đủ quyền đọc Diary tại Center.");
+  });
+  return ()=>{controller.abort();adapter?.dispose();};
+ },[selected,centerSource,query,retry]);
+ if(error)return <p role="alert">{error} <button type="button" onClick={()=>{setReady(null);setError("");setRetry(n=>n+1)}}>Thử lại</button></p>;
+ if(ready?.centerId!==selected)return <p role="status">Đang xác minh quyền Center và tải Nhật ký…</p>;
+ return <>
+  <SurfaceWorkspace key={selected+":"+date} adapter={ready.adapter} navigation={ready.navigation} initialQuery={query}/>
+  <p role="note">Dữ liệu chỉ đọc từ Core tại Center và ngày đã chọn. Người Submit và Học viên hiện dùng ID xác thực; chưa có projection tên hiển thị.
+   Liên kết Nhiệm vụ và xác nhận hoàn tất chỉ hiển thị khi API nguồn được triển khai; không suy diễn từ Diary.</p>
+ </>;
 }

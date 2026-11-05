@@ -1,6 +1,7 @@
 import type { BoNavGroup } from "@/app/components/tos-shell";
 
 export const boNavigation: BoNavGroup[] = [
+  {label:"TÀI CHÍNH",items:[{href:"/bo/bills",label:"Bills"}]},
   {
     label: "Workspace",
     items: [{ href: "/bo", label: "Hôm nay" }, { href: "/bo/workforce-shift-plans", label: "Center Shift Plans" }, { href: "/bo/workforce-availability", label: "Staff Availability" }, { href: "/bo/workforce-assignments", label: "Shift Assignments" }],

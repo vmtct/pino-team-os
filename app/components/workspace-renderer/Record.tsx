@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { BoField, BoRecord } from "@/lib/bo-registration";
 import { allows, allowsField, authorizedTabs, validateModule, type AuthorizationContext, type FieldSchema, type HistorySubject, type ModuleRow, type ModuleSchema, type TddRegistry, type TddActionBindings } from "@/lib/workspace-schema";
 import { DetailFrame } from "./DetailFrame";
@@ -10,6 +10,9 @@ import { BusinessFormPanel, BusinessPanel, type BusinessFormBinding, type SlotLo
 import { recordProjection, renderScope } from "./projection";
 import { PropertyEditor, type TddWrites } from "./Editor";
 import { latestRequest } from "./resource";
+
+/** PAP-1478: default live BO/HO browser preference, opt-out for in-memory exemplars. */
+export const TddPreferencePolicy = createContext<"persistent" | "ephemeral">("persistent");
 
 export type TddRecordProps<F extends readonly FieldSchema[]> = {
   readonly registry: TddRegistry; readonly schema: ModuleSchema<F>; readonly context: AuthorizationContext;
@@ -48,14 +51,38 @@ function DrawerRecord<F extends readonly FieldSchema[]>({ registry, schema: inpu
     {actionState === "error" ? <p role="alert">Không thể thực hiện thao tác. Thử lại sau.</p> : actionState === "pending" ? <p role="status">Đang thực hiện…</p> : null}
   </DrawerFrame>{edit && writes && projection ? <PropertyEditor schema={input} context={context} record={record} writes={writes} selection={edit} onClose={() => setEdit(null)} /> : null}</>;
 }
-export function TddDetail<F extends readonly FieldSchema[]>(props: TddRecordProps<F> & { readonly onBack: () => void; readonly subject: HistorySubject; readonly headerActions?: ReactNode; readonly renderActionSlot?: (slot: "overview.section" | "businessTab.toolbar", targetId: string) => ReactNode; readonly mobileMenu?: ReactNode; readonly loaders?: SlotLoaders; readonly businessForms?: BusinessFormBinding; readonly overviewAfter?: ReactNode; readonly renderOverviewProperties?: (properties: OverviewProperties) => ReactNode; readonly renderApprovedExtension?: (record: BoRecord, context: AuthorizationContext, activeTab: string) => ReactNode; readonly activeTab?: string; readonly onTabChange?: (id: string) => void; readonly returnFocus?: () => HTMLElement | null }) {
+export function TddDetail<F extends readonly FieldSchema[]>(props: TddRecordProps<F> & { readonly writes?: TddWrites<F>; readonly onBack: () => void; readonly subject: HistorySubject; readonly headerActions?: ReactNode; readonly renderActionSlot?: (slot: "overview.section" | "businessTab.toolbar", targetId: string) => ReactNode; readonly mobileMenu?: ReactNode; readonly loaders?: SlotLoaders; readonly businessForms?: BusinessFormBinding; readonly overviewAfter?: ReactNode; readonly renderOverviewProperties?: (properties: OverviewProperties) => ReactNode; readonly renderApprovedExtension?: (record: BoRecord, context: AuthorizationContext, activeTab: string) => ReactNode; readonly activeTab?: string; readonly onTabChange?: (id: string) => void; readonly returnFocus?: () => HTMLElement | null }) {
   const schema = registeredSchema(props.registry, props.schema);
   if (!allows(schema, props.context, "read")) return <RecordState status="denied" />;
-  return <DetailRecord key={renderScope(schema, props.context, props.record.id)} {...props} schema={schema} />;
+  return <DetailRecord key={renderScope(schema, props.context, props.record.id)} {...props} schema={props.schema} />;
 }
-function DetailRecord({ schema, context, record, status = "ready", onRetry, onBack, subject, headerActions, renderActionSlot, mobileMenu, loaders, businessForms, overviewAfter, renderOverviewProperties, renderApprovedExtension, activeTab, onTabChange, returnFocus }: Omit<TddRecordProps<readonly FieldSchema[]>, "registry"> & { readonly onBack: () => void; readonly subject: HistorySubject; readonly headerActions?: ReactNode; readonly renderActionSlot?: (slot: "overview.section" | "businessTab.toolbar", targetId: string) => ReactNode; readonly mobileMenu?: ReactNode; readonly loaders?: SlotLoaders; readonly businessForms?: BusinessFormBinding; readonly overviewAfter?: ReactNode; readonly renderOverviewProperties?: (properties: OverviewProperties) => ReactNode; readonly renderApprovedExtension?: (record: BoRecord, context: AuthorizationContext, activeTab: string) => ReactNode; readonly activeTab?: string; readonly onTabChange?: (id: string) => void; readonly returnFocus?: () => HTMLElement | null }) {
+function DetailRecord<F extends readonly FieldSchema[]>({ schema, context, record, status = "ready", onRetry, onBack, subject, writes, headerActions, renderActionSlot, mobileMenu, loaders, businessForms, overviewAfter, renderOverviewProperties, renderApprovedExtension, activeTab, onTabChange, returnFocus }: Omit<TddRecordProps<F>, "registry"> & { readonly writes?: TddWrites<F>; readonly onBack: () => void; readonly subject: HistorySubject; readonly headerActions?: ReactNode; readonly renderActionSlot?: (slot: "overview.section" | "businessTab.toolbar", targetId: string) => ReactNode; readonly mobileMenu?: ReactNode; readonly loaders?: SlotLoaders; readonly businessForms?: BusinessFormBinding; readonly overviewAfter?: ReactNode; readonly renderOverviewProperties?: (properties: OverviewProperties) => ReactNode; readonly renderApprovedExtension?: (record: BoRecord, context: AuthorizationContext, activeTab: string) => ReactNode; readonly activeTab?: string; readonly onTabChange?: (id: string) => void; readonly returnFocus?: () => HTMLElement | null }) {
+  const [edit, setEdit] = useState<{ field: BoField; anchor: HTMLElement } | null>(null);
+  const persistPreferences = useContext(TddPreferencePolicy) === "persistent";
+  // Browser-profile preference; per surface/Center/module (no Core/ACL writes).
+  const preferenceKey = "pino:tdd:label-width:v1:" + context.surface + ":" + (context.surface === "BO" ? context.centerId : "global") + ":" + schema.key;
+  const [labelWidth, setLabelWidth] = useState(160);
+  useEffect(() => {
+    if (!persistPreferences) {
+      setLabelWidth(160);
+      return;
+    }
+    try {
+      const stored = Number(window.localStorage.getItem(preferenceKey));
+      setLabelWidth(Number.isFinite(stored) && stored >= 90 && stored <= 240 ? stored : 160);
+    } catch { setLabelWidth(160); }
+  }, [preferenceKey, persistPreferences]);
+  const changeLabelWidth = (width: number, reset = false) => {
+    const next = Math.max(90, Math.min(240, Math.round(width)));
+    setLabelWidth(next);
+    if (!persistPreferences) return;
+    try {
+      if (reset) window.localStorage.removeItem(preferenceKey);
+      else window.localStorage.setItem(preferenceKey, String(next));
+    } catch { /* local storage failure does not prevent Detail */ }
+  };
   const [selected, setSelected] = useState("overview");
-  const projection = status === "ready" ? recordProjection(schema, context, record) : null;
+  const projection = status === "ready" ? recordProjection(schema as unknown as ModuleSchema, context, record) : null;
   const tabs = authorizedTabs(schema, context, projection?.record);
   const invalidSelected = Boolean(projection && activeTab && !tabs.some(tab => tab.id === activeTab));
   useEffect(() => { if (invalidSelected) onTabChange?.("overview"); }, [invalidSelected, activeTab, onTabChange]);
@@ -67,9 +94,14 @@ function DetailRecord({ schema, context, record, status = "ready", onRetry, onBa
   const approvedExtension = active?.owner === "business" && active.slot.kind === "approved-extension";
   const hasApprovedExtension = schema.detail.businessTabs.some(slot => slot.kind === "approved-extension");
   if (renderApprovedExtension && !hasApprovedExtension) throw Error("TDD approved extension registration required");
+  // Read-only legacy slot components take heterogeneous metadata; mutation remains typed to F.
+  const readOnlySchema = schema as unknown as ModuleSchema;
   // Overview remains platform-owned even when a business extension is mounted.
-  const overview = projection && active?.id === "overview" ? <>{renderOverviewProperties ? renderOverviewProperties({ fields: projection.fields, record: projection.record, sections: schema.detail.overview.sections.map(section => ({ ...section, fields: section.fields.filter(key => projection.fields.some(field => field.key === key)) })).filter(section => section.fields.length > 0) }) : <PropertySections variant="detail" fields={projection.fields} record={projection.record} sections={schema.detail.overview.sections} sectionActions={id => renderActionSlot?.("overview.section", id)} />}{overviewAfter}</> : null;
-  return <DetailFrame title={projection?.title ?? "Chi tiết"} subtitle={projection?.record.id} mobileMenu={mobileMenu} onBack={onBack} returnFocus={returnFocus} actions={projection ? headerActions : null}
+  const overview = projection && active?.id === "overview" ? <>{renderOverviewProperties ? renderOverviewProperties({ fields: projection.fields, record: projection.record, sections: schema.detail.overview.sections.map(section => ({ ...section, fields: section.fields.filter(key => projection.fields.some(field => field.key === key)) })).filter(section => section.fields.length > 0) }) : <PropertySections variant="detail" fields={projection.fields} record={projection.record} sections={schema.detail.overview.sections} sectionActions={id => renderActionSlot?.("overview.section", id)}
+    canEdit={field => Boolean(writes?.version.trim()) && allowsField(schema, context, field.key, "inlineEdit")}
+    onEdit={writes ? (field, anchor) => setEdit({ field, anchor }) : undefined}
+    labelWidth={labelWidth} onLabelWidthChange={changeLabelWidth} />}{overviewAfter}</> : null;
+  return <><DetailFrame title={projection?.title ?? "Chi tiết"} subtitle={projection?.record.id} mobileMenu={mobileMenu} onBack={onBack} returnFocus={returnFocus} actions={projection ? headerActions : null}
     tabs={tabs.map(t => ({ id: t.id, label: t.label }))} selected={active?.id} onSelect={id => { setSelected(id); onTabChange?.(id); }}>
     {projection && renderApprovedExtension && hasApprovedExtension
       ? <>
@@ -77,13 +109,13 @@ function DetailRecord({ schema, context, record, status = "ready", onRetry, onBa
             {renderApprovedExtension(projection.record, context, active?.id ?? "overview")}
           </div>
           {overview}
-          {active?.id === "history" ? <TddHistory schema={schema} context={context} subject={subject} /> : null}
+          {active?.id === "history" ? <TddHistory schema={readOnlySchema} context={context} subject={subject} /> : null}
         </>
       : !projection ? <RecordState status={allows(schema, context, "read") ? status === "ready" ? "denied" : status : "denied"} onRetry={onRetry} />
       : active?.id === "overview" ? overview
-      : active?.id === "history" ? <TddHistory schema={schema} context={context} subject={subject} />
+      : active?.id === "history" ? <TddHistory schema={readOnlySchema} context={context} subject={subject} />
       : active?.owner === "business" && allowsField(schema, context, schema.table.identity.field, "display") ? active.slot.kind === "form"
-        ? <>{renderActionSlot?.("businessTab.toolbar", active.id)}<BusinessFormPanel key={active.id} schema={schema} context={context} record={projection.record} slot={active.slot} binding={businessForms} /></>
-        : <>{renderActionSlot?.("businessTab.toolbar", active.id)}<BusinessPanel key={active.id} schema={schema} context={context} record={projection.record} slot={active.slot} loaders={loaders} /></> : null}
-  </DetailFrame>;
+        ? <>{renderActionSlot?.("businessTab.toolbar", active.id)}<BusinessFormPanel key={active.id} schema={readOnlySchema} context={context} record={projection.record} slot={active.slot} binding={businessForms} /></>
+        : <>{renderActionSlot?.("businessTab.toolbar", active.id)}<BusinessPanel key={active.id} schema={readOnlySchema} context={context} record={projection.record} slot={active.slot} loaders={loaders} /></> : null}
+  </DetailFrame>{edit && writes && projection ? <PropertyEditor schema={schema} context={context} record={record} writes={writes} selection={edit} onClose={() => setEdit(null)} /> : null}</>;
 }

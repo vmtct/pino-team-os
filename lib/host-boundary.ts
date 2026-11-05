@@ -1,3 +1,4 @@
+import {billMethodAllowed} from "./bo-bills-paths";
 import {tosV4StagingHost} from "./tos-v4-staging-host";
 import {HO_BILLS_API,isHoBillsRequest} from "./ho-bills-contract";
 import { HO_PAGE_PATHS, HO_HOME_PATH } from "./ho-routes";
@@ -23,6 +24,21 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   const hostname = normalizeHostname(host);
   if (pathname === HO_BILLS_API || pathname.startsWith(HO_BILLS_API + "/"))
     return {action:hostname === HO_STAGING_HOSTNAME && isHoBillsRequest(pathname,method) ? "next" : "not_found"};
+  // PAP-1181 / PAP-435: Staging-only synthetic Center affiliation ingress.
+  // Team BO BFF checks password + idempotency; canonical Core enforces actor,
+  // Center scope, QA Intake predicates, CAS and atomic audit. Never a wildcard.
+  const stagingAffiliationFixture = "/api/bo/staging-fixtures/center-affiliations";
+  if (pathname === stagingAffiliationFixture || pathname.startsWith(stagingAffiliationFixture + "/")) {
+    return pathname === stagingAffiliationFixture && hostname === BO_STAGING_HOSTNAME && method === "POST"
+      ? { action: "next" } : { action: "not_found" };
+  }
+  // PAP-1479 / SCH-STUDENT-MGMT: exact BO Staging-only Student name edit ingress.
+  // Team BO facade enforces one Center query and two-field name/CAS body;
+  // Core independently rechecks Manager CENTER grant, current affiliation and audit.
+  const studentNameEdit = /^\/api\/bo\/students\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(pathname);
+  if (studentNameEdit) {
+    return hostname === BO_STAGING_HOSTNAME && method === "PATCH" ? { action: "next" } : { action: "not_found" };
+  }
   // PAP-1356: global fail-closed fence so unknown hosts cannot fall through.
   const loadoutId = "[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
   const loadoutRoute = new RegExp("^/api/bo/pinoria/selfs/" + loadoutId + "/loadout(?:/media/(AURA_GROUND|AURA_BACK|BACK|OUTFIT|HAIR|FACE|HEADWEAR|PATH_MARK))?$").exec(pathname);
@@ -39,6 +55,10 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   // PAP-1248: hard host and verb fence BEFORE HO/production generic fallthrough.
   if (pathname === "/api/bo/open-studio/walkin/parent-contact-lookup" || pathname === "/api/bo/open-studio/walkin/parent-center-proofs")
     return hostname === BO_STAGING_HOSTNAME && method === "POST" ? {action:"next"} : {action:"not_found"};
+  // PAP-1421: Bills staging slice; exact paths/verbs, no HO/TOS/Production fallthrough.
+  if (pathname === "/bo/bills") return hostname === BO_STAGING_HOSTNAME && method === "GET" ? {action:"next"} : {action:"not_found"};
+  if (pathname === "/api/bo/billing/bill-drafts" || pathname.startsWith("/api/bo/billing/bill-drafts/"))
+    return hostname === BO_STAGING_HOSTNAME && billMethodAllowed(pathname.slice("/api/bo/".length),method) ? {action:"next"} : {action:"not_found"};
   // PAP-1210: exact Center Mission Assignment read and Staging-only writes.
   // Core owns effective Manager permission, Center/Student linkage, CAS and audit.
   const assignmentRead = /^\/api\/bo\/learning\/mission-assignments(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?\/?$/i.test(pathname);
@@ -284,6 +304,7 @@ function isApprovedBoPath(pathname: string): boolean {
     "/bo/learners",
     "/bo/student-visits",
     "/bo/subscriptions",
+    "/bo/bills",
     "/bo/sales/leads",
     "/bo/open-studio",
     "/api/bo/open-studio/walkin/inventory",

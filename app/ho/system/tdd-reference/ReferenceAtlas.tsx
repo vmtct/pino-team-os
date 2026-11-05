@@ -4,6 +4,7 @@ import "@pino/design-system/components.css";
 import { useEffect,useState } from "react";
 import { BoRegistrationWorkspace,type BoWorkspaceSource } from "@/app/bo/components/registration/BoRegistrationWorkspace";
 import { SurfaceWorkspace } from "@/app/components/workspace-adapters/SurfaceWorkspace";
+import { TddPreferencePolicy } from "@/app/components/workspace-renderer/Record";
 import { createHoTddAdapter,type AuthenticatedSurfaceAdapter } from "@/lib/workspace-adapters";
 import { browserTddNavigation,type AdapterNavigation } from "@/lib/workspace-adapters/navigation";
 import { TddRegistry } from "@/lib/workspace-schema";
@@ -21,5 +22,5 @@ export function ReferenceAtlas(){
  const reset=(next:AtlasScenario)=>{ready?.navigation.change({kind:"table",tab:"overview",query:atlasQuery},true);setReady(null);setError(false);setScenario(next);setRevision(x=>x+1);};
  const content=<><section aria-label="TDD demo controls" className="v24-prop-section"><h2>TDD Reference — SYNTHETIC DEMO</h2><p role="note">Mọi bản ghi, quyền, audit và trạng thái Lưu/Đang lưu/Thành công bên dưới đều là MÔ PHỎNG trong RAM. Không kết nối Core, không lưu backend hoặc browser storage; reload/reset xóa thay đổi.</p><label>Kịch bản mô phỏng <select className="edit-input" value={scenario} onChange={e=>reset(e.target.value as AtlasScenario)}>{atlasScenarios.map(value=><option key={value} value={value}>{value}</option>)}</select></label><button className="secondary-btn" type="button" onClick={()=>reset("populated")}>Reset demo</button><details><summary>Coverage và giới hạn</summary><p>{new Set(atlasCoverage.map(x=>x.kind)).size}/16 registered field kinds · tất cả chỉ dữ liệu giả lập.</p><ul>{atlasGaps.map(gap=><li key={gap}>{gap}</li>)}</ul></details></section>
  {error?<p role="alert">Không khởi tạo được demo. <button type="button" onClick={()=>reset(scenario)}>Thử lại demo</button></p>:ready?<SurfaceWorkspace adapter={ready.adapter} navigation={ready.navigation} initialQuery={atlasQuery} businessForms={[demoForm]} businessLoaders={demoLoaders}/>:<p role="status">Đang khởi tạo demo…</p>}</>;
- return <BoRegistrationWorkspace source={source} moduleKey="tddReference" currentUser={{displayName:"SYNTHETIC DEMO"}} content={content}/>;
+ return <BoRegistrationWorkspace source={source} moduleKey="tddReference" currentUser={{displayName:"SYNTHETIC DEMO"}} content={<TddPreferencePolicy.Provider value="ephemeral">{content}</TddPreferencePolicy.Provider>}/>;
 }

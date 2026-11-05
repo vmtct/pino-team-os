@@ -32,6 +32,9 @@ function fixture() {
     .replace(/\s*\{ href: "\/bo\/payroll-periods", label: "Kỳ lương \(Read-only\)" \},/,"")
     .replace(/\s*\{ href: "\/bo\/pinoria-avatars", label: "Self Directory" \},/,"")
     .replace(/\s*\{ href: "\/bo\/open-studio-passes", label: "Pass Trạm Nghệ Thuật" \},/,"")
+    // PAP-1421 Bills nav is valid in the real registry/TDD contract checked
+    // above, but synthetic frozen-baseline-only fixtures remove new modules.
+    .replace(/\s*\{label:"TÀI CHÍNH",items:\[\{href:"\/bo\/bills",label:"Bills"\}\]\},/,"")
     // Strip newly admitted Diary nav from the frozen-baseline-only synthetic fixture;
     // real main + its TDD admission are still verified by the first test.
     .replace(/\s*\{ href: "\/bo\/classroom-diaries", label: "Nhật ký lớp học" \},/,""));

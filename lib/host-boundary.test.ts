@@ -406,3 +406,37 @@ test("PAP-1332 exact BO Staging Mission linked Diary GET enters existing BFF onl
     "/api/bo/learning/mission-assignments//diaries"])
     assert.deepEqual(decideHostBoundary(bo, invalid, "GET"), {action:"not_found"}, invalid);
 });
+
+test("PAP-1181: exact Staging BO affiliation host/verb fence excludes every production and adjacent route", () => {
+  const path = "/api/bo/staging-fixtures/center-affiliations";
+  const staging = "bo.staging.pinohouse.art";
+  assert.deepEqual(decideHostBoundary(staging, path, "POST"), { action: "next" });
+  for (const verb of ["GET", "HEAD", "PUT", "PATCH", "DELETE", "OPTIONS"])
+    assert.deepEqual(decideHostBoundary(staging, path, verb), { action: "not_found" }, verb);
+  for (const host of ["bo.pinohouse.art", "ho.staging.pinohouse.art", "tos.staging.pinohouse.art",
+    "pino-team-os-staging.minhtri-van42.workers.dev", "bo.staging.pinohouse.art.evil.example"])
+    assert.deepEqual(decideHostBoundary(host, path, "POST"), { action: "not_found" }, host);
+  for (const wrong of [path + "/", path + "/extra", path + "%2fextra", path.toUpperCase(),
+    "/api/bo/staging-fixtures/center-affiliations-other",
+    "/api/bo/staging-fixtures/center-affiliations//"])
+    assert.deepEqual(decideHostBoundary(staging, wrong, "POST"), { action: "not_found" }, wrong);
+});
+
+test("PAP-1479 Student name-only PATCH is BO-Staging-only and never a wildcard", () => {
+  const id = "01a1a61c-ab78-7ade-8a26-37c0aaef0332";
+  const path = "/api/bo/students/" + id;
+  const bo = "bo.staging.pinohouse.art";
+  assert.deepEqual(decideHostBoundary(bo, path, "PATCH"), { action: "next" });
+  for (const method of ["GET", "HEAD", "POST", "PUT", "DELETE", "OPTIONS"])
+    assert.deepEqual(decideHostBoundary(bo, path, method), { action: "not_found" }, method);
+  for (const host of ["bo.pinohouse.art", "ho.staging.pinohouse.art",
+    "tos.staging.pinohouse.art", "pino-team-os-staging.minhtri-van42.workers.dev",
+    "bo.staging.pinohouse.art.evil.example"])
+    assert.deepEqual(decideHostBoundary(host, path, "PATCH"), { action: "not_found" }, host);
+  for (const invalid of [path + "/", path + "/edit", path + "%2F", path.toUpperCase(),
+    "/api/bo/students/not-a-uuid", "/api/bo/students/" + id.slice(0,-1) + "z",
+    "/api/bo/students/" + id.replace("-7ade-", "-4ade-")])
+    assert.deepEqual(decideHostBoundary(bo, invalid, "PATCH"), { action: "not_found" }, invalid);
+  // Existing lifecycle read remains a separate, read-only route.
+  assert.deepEqual(decideHostBoundary(bo, path + "/lifecycle", "GET"), { action: "next" });
+});

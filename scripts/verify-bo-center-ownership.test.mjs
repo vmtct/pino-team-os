@@ -57,6 +57,19 @@ test("PAP-1459 negative: stale adapter or local state undermines switch safety",
   assert.ok(boCenterOwnershipViolations(root).some(x=>x.includes("fence stale adapter")));
 });
 
+test("PAP-1460 Diary negative: reintroduced local Center chooser is rejected",t=>{
+  const {root,write}=fixture(t);
+  write("app/bo/classroom-diaries/BoClassroomDiariesTdd.tsx",
+    'const center=useBoCenterSelection();const selected=center.selected;createBoTddAdapter({centerId:selected});return <select id="diary-center"/>;');
+  assert.ok(boCenterOwnershipViolations(root).some(x=>x.includes("embeds a workspace Center picker")));
+});
+
+test("PAP-1460 Diary negative: missing shell consumer/stale adapter fence is rejected",t=>{
+  const {root,write}=fixture(t);
+  write("app/bo/classroom-diaries/BoClassroomDiariesTdd.tsx",
+    'createBoTddAdapter({centerId:"forged"});return <SurfaceWorkspace/>;');
+  assert.ok(boCenterOwnershipViolations(root).some(x=>x.includes("migrated Diary must consume shell Center")));
+});
 test("PAP-1459 actual repository obeys single BO Center owner",()=>{
   assert.deepEqual(boCenterOwnershipViolations(),[]);
 });

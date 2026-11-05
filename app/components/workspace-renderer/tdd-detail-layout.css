@@ -1,0 +1,19 @@
+/* PAP-1471 / PAP-1067 shared BO+HO Detail geometry, no palette overrides. */
+[data-tdd-detail-resize] .v24-prop-item {
+  grid-template-columns: minmax(90px, min(var(--tdd-detail-label-width, 160px), calc(100% - 100px))) minmax(0, 1fr);
+}
+[data-tdd-detail-resize] .v24-prop-key { position: relative; }
+[data-tdd-detail-resize] .tdd-label-resize-handle {
+  position: absolute; top: 0; right: -13px; height: 100%; min-height: 32px;
+  width: 16px; border-right: 2px solid transparent; cursor: col-resize;
+  touch-action: none; z-index: 1; border-radius: 3px;
+}
+[data-tdd-detail-resize] .tdd-label-resize-handle:hover,
+[data-tdd-detail-resize] .tdd-label-resize-handle:focus-visible {
+  border-right-color: var(--ds-primary, #6151c4);
+  outline: 2px solid var(--ds-primary, #6151c4); outline-offset: 1px;
+}
+@media (max-width: 720px) {
+  [data-tdd-detail-resize] .v24-prop-item { grid-template-columns: minmax(90px, 37%) minmax(0, 1fr); }
+  [data-tdd-detail-resize] .tdd-label-resize-handle { display: none; }
+}

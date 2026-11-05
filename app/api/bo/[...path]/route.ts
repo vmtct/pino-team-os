@@ -1,3 +1,4 @@
+import {handleBoBillsRequest,isBoBillsPath} from "@/lib/bo-bills-handler";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { handleBoPublicViewRequest, type BoPublicViewEnv } from "@/lib/bo-public-view-handler";
 import { handleBoOperationalReadRequest, type BoReadEnv } from "@/lib/bo-read-handler";
@@ -27,6 +28,7 @@ export async function GET(request: Request, context: RouteContext): Promise<Resp
   const { env } = await getCloudflareContext({ async: true }) as unknown as { env: BoEnv };
   const { path } = await context.params;
   const joined = path.join("/");
+  if (isBoBillsPath(joined)) return handleBoBillsRequest(request, env, joined);
   if (isBoSelfLoadoutPath(joined)) return handleBoSelfLoadoutRequest(request, env, joined);
   if (isBoSelfItemPath(joined)) return handleBoSelfItemRequest(request, env, joined);
   if (joined.startsWith("views/")) return handleBoPublicViewRequest(request, env, joined);
@@ -44,6 +46,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
   const { env } = await getCloudflareContext({ async: true }) as unknown as { env: BoEnv };
   const { path } = await context.params;
   const joined = path.join("/");
+  if (isBoBillsPath(joined)) return handleBoBillsRequest(request, env, joined);
   if (isBoSelfLoadoutPath(joined)) return handleBoSelfLoadoutRequest(request, env, joined);
   if (isBoSelfItemPath(joined)) return handleBoSelfItemRequest(request, env, joined);
   if (joined.startsWith("views/")) return handleBoPublicViewRequest(request, env, joined);
@@ -65,6 +68,7 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
   const { env } = await getCloudflareContext({ async: true }) as unknown as { env: BoEnv };
   const { path } = await context.params;
   const joined = path.join("/");
+  if (isBoBillsPath(joined)) return handleBoBillsRequest(request, env, joined);
   if (isBoSelfLoadoutPath(joined)) return handleBoSelfLoadoutRequest(request, env, joined);
   if (isBoSelfItemPath(joined)) return handleBoSelfItemRequest(request, env, joined);
   if (joined.startsWith("views/")) return handleBoPublicViewRequest(request, env, joined);
@@ -76,6 +80,7 @@ export async function PUT(request: Request, context: RouteContext): Promise<Resp
   const { env } = await getCloudflareContext({ async: true }) as unknown as { env: BoEnv };
   const { path } = await context.params;
   const joined = path.join("/");
+  if (isBoBillsPath(joined)) return handleBoBillsRequest(request, env, joined);
   if (isBoSelfLoadoutPath(joined)) return handleBoSelfLoadoutRequest(request, env, joined);
   if (isBoSelfItemPath(joined)) return handleBoSelfItemRequest(request, env, joined);
   if (joined.startsWith("views/")) return handleBoPublicViewRequest(request, env, joined);
@@ -87,6 +92,7 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
   const { env } = await getCloudflareContext({ async: true }) as unknown as { env: BoEnv };
   const { path } = await context.params;
   const joined = path.join("/");
+  if (isBoBillsPath(joined)) return handleBoBillsRequest(request, env, joined);
   if (isBoSelfLoadoutPath(joined)) return handleBoSelfLoadoutRequest(request, env, joined);
   if (isBoSelfItemPath(joined)) return handleBoSelfItemRequest(request, env, joined);
   if (joined.startsWith("views/")) return handleBoPublicViewRequest(request, env, joined);

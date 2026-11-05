@@ -55,18 +55,18 @@ function MountedSurfaceWorkspace<F extends readonly FieldSchema[]>({ adapter, na
   const list = useAdapterResource(listLoad);
   useEffect(() => {
     // history.state clones the query, which may refresh and replace Table rows.
-    // Restore the opener only after those rows have committed to the DOM.
+    // Restore the focused row only after those rows have committed to the DOM.
     if (pendingTableRestore.current && location.kind === "table" && list.state?.value) {
       const recordId = pendingTableRestore.current;
       pendingTableRestore.current = null;
       navigation.restore();
-      // A reloaded Detail has no original DOM opener in its navigation instance.
+      // A reloaded Detail has no original DOM row in its navigation instance.
       // Preserve normal focus/scroll restoration, then recover only an idle body
       // focus using the row actually rendered by this authorized Table.
       requestAnimationFrame(() => {
         if (document.activeElement === document.body) {
-          [...(tableRoot.current?.querySelectorAll<HTMLButtonElement>('button[data-open]') ?? [])]
-            .find(button => button.dataset.open === recordId)?.focus({ preventScroll: true });
+          [...(tableRoot.current?.querySelectorAll<HTMLElement>('[data-open]') ?? [])]
+            .find(row => row.dataset.open === recordId)?.focus({ preventScroll: true });
         }
       });
     }
@@ -92,6 +92,6 @@ function MountedSurfaceWorkspace<F extends readonly FieldSchema[]>({ adapter, na
     {views.state?.error ? <p role="status">Quick Views chưa khả dụng. <button type="button" onClick={views.retry}>Thử lại</button></p> : null}
     {views.state?.value?.unavailable.map(view => <p role="status" key={view.id}>{view.name} — Quick View không tương thích; nhờ người quản lý sửa cấu hình gốc.</p>)}
     {location.kind === "drawer" ? <TddRenderer view={{ kind: "drawer", props: { ...common, record, status: recordStatus, actionBindings, writes, onRetry: detail.retry, onClose: () => move("table"), onDetail: () => move("detail", location.recordId) } }} /> : null}
-    {location.kind === "detail" ? <TddRenderer view={{ kind: "detail", props: { ...common, record, status: recordStatus, actionBindings, onRetry: detail.retry, activeTab: location.tab, onTabChange: tab => move("detail", location.recordId, tab, true), subject: adapter.subject(record.id), renderOverviewProperties: detailProperties ? properties => detailProperties(properties, adapter.context, adapter.userId) : undefined, overviewAfter: recordStatus === "ready" && selected ? detailOverview?.(selected.row, adapter.context, adapter.userId) : undefined, renderApprovedExtension: detailApprovedExtension ? (row, context, tab) => detailApprovedExtension(row as ModuleRow<F>, context, tab, adapter.userId, () => { /* Keep the approved editor and verified Save notice mounted. Detail reloads on next open. */ list.retry(); }) : undefined, businessForms: businessForms ? { providers: businessForms, principalId: adapter.userId, subject: adapter.subject(record.id) } : undefined, loaders: businessLoaders, onBack: () => move("table"), mobileMenu: menu("detail-menu-btn") } }} /> : null}
+    {location.kind === "detail" ? <TddRenderer view={{ kind: "detail", props: { ...common, record, status: recordStatus, actionBindings, writes, onRetry: detail.retry, activeTab: location.tab, onTabChange: tab => move("detail", location.recordId, tab, true), subject: adapter.subject(record.id), renderOverviewProperties: detailProperties ? properties => detailProperties(properties, adapter.context, adapter.userId) : undefined, overviewAfter: recordStatus === "ready" && selected ? detailOverview?.(selected.row, adapter.context, adapter.userId) : undefined, renderApprovedExtension: detailApprovedExtension ? (row, context, tab) => detailApprovedExtension(row as ModuleRow<F>, context, tab, adapter.userId, () => { /* Keep the approved editor and verified Save notice mounted. Detail reloads on next open. */ list.retry(); }) : undefined, businessForms: businessForms ? { providers: businessForms, principalId: adapter.userId, subject: adapter.subject(record.id) } : undefined, loaders: businessLoaders, onBack: () => move("table"), mobileMenu: menu("detail-menu-btn") } }} /> : null}
   </>;
 }
