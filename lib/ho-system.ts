@@ -5,7 +5,7 @@ import { hoCentersModule, mapHoCenters } from "./ho-centers";
 import {hoA1Modules,type HoA1Module} from "./ho-a1";
 import { HO_PAGE_PATHS } from "./ho-routes";
 
-export type HoModule = "bills" | "globalTerms" | "centers" | "walkinPasses" | "termWeeks" | "shiftTemplates" | "staffs" | "users" | "roles" | "audits" | "tddReference" | "classroomDiaries" | HoA1Module;
+export type HoModule = "bills" | "globalTerms" | "centers" | "walkinPasses" | "termWeeks" | "shiftTemplates" | "staffs" | "staffLinks" | "users" | "roles" | "audits" | "tddReference" | "classroomDiaries" | HoA1Module;
 export const hoRoutes: Record<HoModule, string> = HO_PAGE_PATHS;
 export const hoModules: Record<HoModule,BoModule> = {
  bills: {label:"Bills",group:"Tài chính",fields:[]},
@@ -48,6 +48,12 @@ export const hoModules: Record<HoModule,BoModule> = {
   {key:"path",label:"Path",type:"text",icon:"▣",w:115,readonly:true},
   {key:"parent",label:"Parent ID",type:"text",icon:"@",w:260,readonly:true},
   {key:"center",label:"Center ID",type:"text",icon:"⌖",w:260,readonly:true},
+ ]},
+ staffLinks:{label:"Link đăng ký Staff",group:"Nhân sự",fields:[
+  {key:"name",label:"Cơ sở",type:"text",icon:"Aa",w:240,readonly:true},
+  {key:"centerKey",label:"Mã cơ sở",type:"text",icon:"#",w:170,readonly:true},
+  {key:"status",label:"Nhận hồ sơ",type:"text",icon:"◉",w:160,readonly:true},
+  {key:"updatedAt",label:"Cập nhật",type:"text",icon:"◷",w:180,readonly:true},
  ]},
  staffs:{label:"Staff",group:"Nhân sự",fields:[
   {key:"name",label:"Nhân sự",type:"text",icon:"Aa",w:220,readonly:true},
