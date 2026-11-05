@@ -20,6 +20,14 @@ export type HostBoundaryDecision =
 
 export function decideHostBoundary(host: string, pathname: string, method = "GET"): HostBoundaryDecision {
   const hostname = normalizeHostname(host);
+  // PAP-1181 / PAP-435: Staging-only synthetic Center affiliation ingress.
+  // Team BO BFF checks password + idempotency; canonical Core enforces actor,
+  // Center scope, QA Intake predicates, CAS and atomic audit. Never a wildcard.
+  const stagingAffiliationFixture = "/api/bo/staging-fixtures/center-affiliations";
+  if (pathname === stagingAffiliationFixture || pathname.startsWith(stagingAffiliationFixture + "/")) {
+    return pathname === stagingAffiliationFixture && hostname === BO_STAGING_HOSTNAME && method === "POST"
+      ? { action: "next" } : { action: "not_found" };
+  }
   // PAP-1356: global fail-closed fence so unknown hosts cannot fall through.
   const loadoutId = "[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
   const loadoutRoute = new RegExp("^/api/bo/pinoria/selfs/" + loadoutId + "/loadout(?:/media/(AURA_GROUND|AURA_BACK|BACK|OUTFIT|HAIR|FACE|HEADWEAR|PATH_MARK))?$").exec(pathname);

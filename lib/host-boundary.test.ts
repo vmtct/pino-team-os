@@ -406,3 +406,18 @@ test("PAP-1332 exact BO Staging Mission linked Diary GET enters existing BFF onl
     "/api/bo/learning/mission-assignments//diaries"])
     assert.deepEqual(decideHostBoundary(bo, invalid, "GET"), {action:"not_found"}, invalid);
 });
+
+test("PAP-1181: exact Staging BO affiliation host/verb fence excludes every production and adjacent route", () => {
+  const path = "/api/bo/staging-fixtures/center-affiliations";
+  const staging = "bo.staging.pinohouse.art";
+  assert.deepEqual(decideHostBoundary(staging, path, "POST"), { action: "next" });
+  for (const verb of ["GET", "HEAD", "PUT", "PATCH", "DELETE", "OPTIONS"])
+    assert.deepEqual(decideHostBoundary(staging, path, verb), { action: "not_found" }, verb);
+  for (const host of ["bo.pinohouse.art", "ho.staging.pinohouse.art", "tos.staging.pinohouse.art",
+    "pino-team-os-staging.minhtri-van42.workers.dev", "bo.staging.pinohouse.art.evil.example"])
+    assert.deepEqual(decideHostBoundary(host, path, "POST"), { action: "not_found" }, host);
+  for (const wrong of [path + "/", path + "/extra", path + "%2fextra", path.toUpperCase(),
+    "/api/bo/staging-fixtures/center-affiliations-other",
+    "/api/bo/staging-fixtures/center-affiliations//"])
+    assert.deepEqual(decideHostBoundary(staging, wrong, "POST"), { action: "not_found" }, wrong);
+});
