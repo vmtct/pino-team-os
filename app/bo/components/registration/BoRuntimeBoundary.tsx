@@ -6,7 +6,6 @@ import { BoStaffsViews, staffsViewRows, type StaffsView } from "./BoStaffsViews"
 import { readStaffCenterApplications } from "@/lib/bo-staff-center-registration-adapter";
 import { unifiedBoWorkspaceSource } from "../../architecture/bo-unified-workspace-source";
 import { BoOperationalView } from "../../BoOperationalView";
-import { BoSubscriptionsView } from "../../subscriptions/BoSubscriptionsView";
 import dynamic from "next/dynamic";
 import { BoAuthenticatedAccount } from "@/app/bo/shell/BoAuthenticatedAccount";
 import { BoCenterSelectionProvider, useBoCenterSelection } from "./BoCenterSelection";
@@ -103,12 +102,20 @@ export function BoRuntimeEntry({ moduleKey, options, parentTddPilot = false }: {
   if (moduleKey === "missions") return <MissionsTdd />;
   if (!currentUser) return <BoOperationalView view="overview" />;
   if (moduleKey === "staffs") return <BoStaffsEntry currentUser={currentUser} options={options} />;
+  // PAP-1334 / Epic PAP-1316: legacy Subscription writer is NOT Center-admitted.
+  // PAP-1100 v1.9 replaces this with independent Center-owned Sales, not Renewal.
+  // Keep shell navigation, but mount no embedded legacy reader/writer and provide
+  // real content so BoWorkspace does not fetch an unscoped generic directory.
+  if (moduleKey === "subscriptions") return <BoRegistrationWorkspace currentUser={currentUser}
+    source={unifiedBoWorkspaceSource} moduleKey="subscriptions" options={options}
+    content={<section role="status" aria-label="Quản lý gói học" data-testid="bo-subscription-center-contract-pending">
+      Quản lý gói học tạm thời chưa khả dụng.
+    </section>} />;
   const isParentPilot = moduleKey === "parents" && parentTddPilot;
   // Stage 1 of the shared BO context: Parent TDD plus legacy Visits and Timekeeping
   // whose Core adapters already enforce explicit centerId and verify response identity.
   if (boCenterModuleScope(moduleKey) === "CENTER") return <CenterReadWorkspace moduleKey={moduleKey} options={options} currentUser={currentUser} />;
   const workspace = <BoRegistrationWorkspace currentUser={currentUser} source={unifiedBoWorkspaceSource} moduleKey={moduleKey} options={options}
-    content={moduleKey === "subscriptions" ? <BoSubscriptionsView embedded /> :
-      moduleKey === "parents" && parentTddPilot ? <ParentTdd /> : undefined} />;
+    content={moduleKey === "parents" && parentTddPilot ? <ParentTdd /> : undefined} />;
   return workspace;
 }
