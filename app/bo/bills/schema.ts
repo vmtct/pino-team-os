@@ -20,7 +20,7 @@ type F=typeof billFields;
 const sections=[{id:"bill",label:"Thông tin Bill",fields:["code","status","parent","center","total","due","note"]}] as const;
 export const billQuery:TableQuery<F>={
  search:"",filters:{logic:"AND",rules:[]},sort:{field:"code",direction:"asc"},group:null,
- order:["code","status","parent","center","total","due","note","lines","payments"],visible:["code","status","parent","total","due"],page:1,pageSize:15,
+ order:["code","status","total","due","parent","center"],visible:["code","status","parent","total","due"],page:1,pageSize:15,
 };
 export const billDefinition={
  version:1,classification:"TDD_DEFAULT",surface:"BO",key:"bills",label:"Bills",group:"TÀI CHÍNH",
