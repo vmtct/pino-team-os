@@ -49,5 +49,7 @@ test("PAP-1300 admitted TDD_DEFAULT and using only existing BO DS classes", () =
   assert.match(ui, /className="secondary-btn"/);
   assert.match(ui, /<DrawerFrame title=/);
   assert.doesNotMatch(ui, /<dialog|role="dialog"|style=\{\{/);
-  assert.doesNotMatch(ui, /SelfWardrobeDetail\.module\.css|styles\./);
+  // PAP-1490 permits only the feature grid; DS continues to own the cards/controls.
+  assert.match(ui, /import styles from "\.\/SelfWardrobeDetail\.module\.css"/);
+  assert.match(ui, /<div className=\{styles.items\}>/);
 });

@@ -1,9 +1,10 @@
 "use client";
 /** PAP-1356 / PAP-1456 / Epic PAP-1097 / PNR-WARD: shareable Core Self character composition.
  * PINO DS owns A/B responsive columns and chrome. Canvas owns ONLY dynamic pixels;
- * no module stylesheet, inline CSS, synthetic Item, arbitrary R2 key or z editing.
+ * Feature CSS constrains display size only; no synthetic Item, arbitrary R2 key or z editing.
  */
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import styles from "./SelfLoadoutPreview.module.css";
 
 const SLOTS=["AURA_GROUND","AURA_BACK","BACK","OUTFIT","HAIR","FACE","HEADWEAR","PATH_MARK"] as const;
 type Slot=typeof SLOTS[number];
@@ -121,7 +122,7 @@ export function SelfLoadoutPreview({loadout,mediaSrc}:{
   },[loadout,mediaSrc]);
   return <figure className="pds-property-section" aria-label="Composition Preview">
     <h3 className="pds-property-heading">Composition Preview</h3>
-    <canvas ref={canvas} width={WIDTH} height={HEIGHT} aria-label="Pinoria Self: 9:16 theo các lớp đã lưu">
+    <canvas className={styles.canvas} ref={canvas} width={WIDTH} height={HEIGHT} aria-label="Pinoria Self: 9:16 theo các lớp đã lưu">
       Không hỗ trợ Canvas để hiển thị Self.
     </canvas>
     <figcaption className="pds-property-text">

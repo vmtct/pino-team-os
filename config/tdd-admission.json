@@ -60,12 +60,17 @@
         "app/bo/pinoria-avatars/centers.ts",
         "app/bo/pinoria-avatars/SharedProperties.tsx",
         "app/bo/pinoria-avatars/SelfWardrobeDetail.tsx",
+        "app/bo/pinoria-avatars/SelfWardrobeDetail.module.css",
         "app/bo/pinoria-avatars/SelfLoadoutDetail.tsx"
       ],
       "externalReferences": [
         {
           "file": "app/components/pinoria/SelfLoadoutPreview.tsx",
           "owner": "PAP-1356"
+        },
+        {
+          "file": "app/components/pinoria/SelfLoadoutPreview.module.css",
+          "owner": "PAP-1489"
         },
         {
           "file": "lib/host-boundary.ts",
@@ -91,6 +96,10 @@
           "file": "app/bo/components/registration/BoCenterSelection.tsx",
           "owner": "PAP-1316"
         }
+      ],
+      "businessStyles": [
+        {"file":"app/bo/pinoria-avatars/SelfWardrobeDetail.module.css","owner":"PAP-1490","consumer":"app/bo/pinoria-avatars/SelfWardrobeDetail.tsx","classes":["items"]},
+        {"file":"app/components/pinoria/SelfLoadoutPreview.module.css","owner":"PAP-1489","consumer":"app/components/pinoria/SelfLoadoutPreview.tsx","classes":["canvas"]}
       ],
       "schema": {
         "file": "app/bo/pinoria-avatars/schema.ts",
