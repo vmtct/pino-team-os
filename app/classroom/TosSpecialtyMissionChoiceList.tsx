@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import {
   describeTosMissionLocks,
   filterTosScopedMissions,
@@ -20,6 +20,7 @@ export function TosSpecialtyMissionChoiceList({
   onSelect: (missionId: string) => void;
   disabled?: boolean;
 }) {
+  const selectorId = useId().replace(/:/g,"");
   const [filter, setFilter] = useState<TosMissionAvailabilityFilter>("all");
   const [query, setQuery] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -36,12 +37,12 @@ export function TosSpecialtyMissionChoiceList({
     </header>
     {state.error ? <p role="alert" className={styles.error}>{state.error}</p> : <>
       <div className={styles.toolbar}>
-        <label htmlFor="tos-specialty-mission-query">Tìm nhiệm vụ
-          <input id="tos-specialty-mission-query" type="search" value={query}
+        <label htmlFor={selectorId+"-query"}>Tìm nhiệm vụ
+          <input id={selectorId+"-query"} type="search" value={query}
             onChange={event => setQuery(event.target.value)} placeholder="Tên hoặc mã nhiệm vụ" />
         </label>
-        <label htmlFor="tos-specialty-mission-filter">Hiển thị
-          <select id="tos-specialty-mission-filter" value={filter}
+        <label htmlFor={selectorId+"-filter"}>Hiển thị
+          <select id={selectorId+"-filter"} value={filter}
             onChange={event => setFilter(event.target.value as TosMissionAvailabilityFilter)}>
             <option value="all">Tất cả</option>
             <option value="available">Có thể chọn</option>
