@@ -401,3 +401,15 @@ test("PAP-929 missing retirement ledger fails closed even when no routes are mig
     assert.ok(check(root).some(x=>x.includes("Missing/malformed BO legacy migration ledger")));
   }finally{fs.rmSync(root,{recursive:true,force:true});}
 });
+
+test("PAP-1460 retired BO TV nav carries exact migration receipt and cannot reappear",()=>{
+  const result=verifyBoModuleContract(repo);
+  assert.deepEqual(result.issues,[]);
+  const ledger=JSON.parse(fs.readFileSync(path.join(repo,migrationFile),"utf8"));
+  assert.deepEqual(ledger.retiredNavigation.find(r=>r.path==="/bo/tvs"),{path:"/bo/tvs",issue:"PAP-1460"});
+  const root=fixture();
+  try {
+    edit(root,navFile,s=>s.replace('label: "Operations"','label: "Operations", href: "/bo/tvs"'));
+    assert.ok(check(root).some(s=>s.includes("Retired legacy BO navigation reintroduced: /bo/tvs")));
+  } finally {fs.rmSync(root,{recursive:true,force:true});}
+});
