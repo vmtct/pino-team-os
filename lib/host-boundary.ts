@@ -28,6 +28,21 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
     return {action:hostname===HO_STAGING_HOSTNAME&&isHoTvReadRequest(pathname,method)?"next":"not_found"};
   if (pathname === HO_BILLS_API || pathname.startsWith(HO_BILLS_API + "/"))
     return {action:hostname === HO_STAGING_HOSTNAME && isHoBillsRequest(pathname,method) ? "next" : "not_found"};
+  // PAP-1407 / PAP-220 — exact Center-only Staff Registration ingress.
+  // E2E found middleware 404 before the BFF/Core; never widen the generic BO/HO host fence.
+  const staffQueueBase = "/api/bo/workforce/staff-center-registration-requests";
+  if (pathname === staffQueueBase || pathname.startsWith(staffQueueBase + "/")) {
+    const record = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    const suffix = pathname.slice(staffQueueBase.length);
+    return { action: hostname === BO_STAGING_HOSTNAME && method === "GET"
+      && (suffix === "" || suffix.startsWith("/") && record.test(suffix.slice(1))) ? "next" : "not_found" };
+  }
+  const staffLinksBase = "/api/ho/staff-center-links";
+  if (pathname === staffLinksBase || pathname.startsWith(staffLinksBase + "/")) {
+    const match = /^\/api\/ho\/staff-center-links\/([0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})(\/status)?$/i.exec(pathname);
+    return { action: hostname === HO_STAGING_HOSTNAME && Boolean(match)
+      && (match?.[2] ? method === "POST" : method === "GET") ? "next" : "not_found" };
+  }
   // PAP-1181 / PAP-435: Staging-only synthetic Center affiliation ingress.
   // Team BO BFF checks password + idempotency; canonical Core enforces actor,
   // Center scope, QA Intake predicates, CAS and atomic audit. Never a wildcard.
