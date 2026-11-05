@@ -4,7 +4,6 @@ import {
   searchLinkableSpecialtyMissions,
   type SpecialtyMissionOption,
 } from "@/lib/specialty-mission-picker";
-import styles from "./SpecialtyMissionPicker.module.css";
 
 export interface SpecialtyMissionPickerProps {
   missions: readonly SpecialtyMissionOption[];
@@ -52,12 +51,12 @@ export function SpecialtyMissionPicker({
     setOpen(false);
     setActive(0);
   };
-  return <div className={styles.field} ref={field} onBlur={event => {
+  return <div className="v25-form-field" ref={field} onBlur={event => {
     if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOpen(false);
   }}>
     <label htmlFor={inputId}>Nhiệm vụ</label>
     <input id={inputId} type="search" role="combobox" autoComplete="off"
-      className={styles.input} disabled={disabled}
+      className="edit-input edit-search" disabled={disabled}
       aria-haspopup="listbox" aria-autocomplete="list"
       aria-controls={visible ? listId : undefined}
       aria-expanded={visible}
@@ -84,17 +83,17 @@ export function SpecialtyMissionPicker({
         }
       }} />
     {visible ? <div id={listId} role="listbox" aria-label="Kết quả tìm nhiệm vụ"
-      className={styles.results}>
+      className="option-list">
       {results.length ? results.map((mission, index) =>
         <button key={mission.id} id={listId + "-option-" + index}
           role="option" aria-selected={index === active}
-          type="button" className={index === active ? styles.active : styles.option}
+          type="button" className="option-item"
           onMouseDown={event => event.preventDefault()}
           onClick={() => choose(mission)}>
-          <span className={styles.code}>{mission.code}</span>
-          <span className={styles.name}>{mission.name}</span>
+          <span>{mission.code}</span>
+          <span>{mission.name}</span>
         </button>,
-      ) : <p role="status" className={styles.empty}>Không tìm thấy nhiệm vụ phù hợp.</p>}
+      ) : <p role="status">Không tìm thấy nhiệm vụ phù hợp.</p>}
     </div> : null}
   </div>;
 }
