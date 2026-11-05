@@ -13,8 +13,6 @@ export interface BoAccessPermission {
   description: string;
   accessKind: "read" | "mutation";
   surfaceApplicability: "TOS" | "BO" | "BOTH";
-  /** Core PAP-1506: null = unclassified, never infer from authorization surface. */
-  applicablePlatforms?: Array<"HO" | "BO" | "TOS"> | null;
   allowedScopes: Array<"GLOBAL" | "CENTER" | "PATH" | "RUNNING_CLASS">;
   contextualPolicy: "SELF_STAFF_ONLY" | null;
 }
