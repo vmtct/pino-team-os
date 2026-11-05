@@ -1,7 +1,9 @@
 "use client";
-import { createContext, useContext, useMemo } from "react";
+import { createContext, useContext, useMemo, useState } from "react";
 import type { BoShellContext } from "@/lib/bo-shell-gate";
-import { BoRegistrationWorkspace } from "./BoRegistrationWorkspace";
+import { BoRegistrationWorkspace, type BoWorkspaceSource } from "./BoRegistrationWorkspace";
+import { BoStaffsViews, staffsViewRows, type StaffsView } from "./BoStaffsViews";
+import { readStaffCenterApplications } from "@/lib/bo-staff-center-registration-adapter";
 import { unifiedBoWorkspaceSource } from "../../architecture/bo-unified-workspace-source";
 import { BoOperationalView } from "../../BoOperationalView";
 import { BoSubscriptionsView } from "../../subscriptions/BoSubscriptionsView";
@@ -50,10 +52,57 @@ function CenterReadWorkspace({ moduleKey, options, currentUser }: {
     content={blocked ? <CenterReadPending message={message} denied={Boolean(center?.error)} /> : undefined} />;
 }
 
+/** PAP-1407: local Staffs business views atop the existing, unmodified shared TDD host.
+ * The registration tab is intentionally NOT wired to the unscoped legacy queue.
+ * PAP-1406 is responsible for the explicit Center-bound Core contract.
+ */
+function BoStaffsEntry({ currentUser, options }: {
+  currentUser: Pick<BoShellContext, "displayName" | "email">;
+  options: Record<string, string>;
+}) {
+  const [view, setView] = useState<StaffsView>("all");
+  const center = useBoCenterSelection();
+  const selected = center?.selected ?? "";
+  const scopedOptions = useMemo(() => ({ ...options, centerId: selected }), [options, selected]);
+  const source = useMemo<BoWorkspaceSource>(() => ({
+    ...unifiedBoWorkspaceSource,
+    modules: view === "register" ? {
+      ...unifiedBoWorkspaceSource.modules,
+      staffs: {
+        ...unifiedBoWorkspaceSource.modules.staffs!,
+        fields: [
+          { key: "name", label: "Người đăng ký", type: "text", icon: "Aa", w: 235 },
+          { key: "submittedAt", label: "Ngày đăng ký", type: "datetime", icon: "▦", w: 175 },
+          { key: "status", label: "Trạng thái", type: "select", icon: "▣", w: 145 },
+          { key: "id", label: "Mã đăng ký", type: "id", icon: "#", w: 145 },
+        ],
+      },
+    } : unifiedBoWorkspaceSource.modules,
+    isModuleReadOnly: (key) => key === "staffs" || unifiedBoWorkspaceSource.isModuleReadOnly?.(key) === true,
+    scopeLabel: (key, requestedOptions) => key === "staffs" && view === "register"
+      ? "Cơ sở đã chọn" : unifiedBoWorkspaceSource.scopeLabel(key, requestedOptions),
+    async load(key, fetcher, requestedOptions) {
+      if (key === "staffs" && view === "register") {
+        // No unscoped/global fallback after 401/403, missing Center, or Core failure.
+        return readStaffCenterApplications(fetcher, selected);
+      }
+      const rows = await unifiedBoWorkspaceSource.load(key, fetcher, requestedOptions);
+      return key === "staffs" ? staffsViewRows(rows, view) : rows;
+    },
+  }), [view, selected]);
+  const blocked = view === "register" && (!center || center.loading || Boolean(center.error) || !selected);
+  const message = center?.error || (center?.loading ? "Đang xác thực danh sách cơ sở…" : "Chọn cơ sở để xem đơn đăng ký.");
+  return <BoRegistrationWorkspace key={"staffs:" + view + ":" + selected} currentUser={currentUser}
+    source={source} moduleKey="staffs" options={scopedOptions}
+    content={blocked ? <CenterReadPending message={message} denied={Boolean(center?.error)} /> : undefined}
+    headerContent={<BoStaffsViews selected={view} onSelect={setView} />} />;
+}
+
 export function BoRuntimeEntry({ moduleKey, options, parentTddPilot = false }: { moduleKey: string; options: Record<string, string>; parentTddPilot?: boolean }) {
   const currentUser = useContext(RuntimeContext);
   if (moduleKey === "missions") return <MissionsTdd />;
   if (!currentUser) return <BoOperationalView view="overview" />;
+  if (moduleKey === "staffs") return <BoStaffsEntry currentUser={currentUser} options={options} />;
   const isParentPilot = moduleKey === "parents" && parentTddPilot;
   // Stage 1 of the shared BO context: Parent TDD plus legacy Visits and Timekeeping
   // whose Core adapters already enforce explicit centerId and verify response identity.

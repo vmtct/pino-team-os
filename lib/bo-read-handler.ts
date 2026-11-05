@@ -38,6 +38,8 @@ const BILLING_BILL_READ = /^billing\/bills\/[0-9a-f-]{36}$/;
 const SPECIALTY_STUDENT_READ = /^specialty\/students\/[0-9a-f-]{36}$/;
 const STUDENT_VISIT_DETAIL_READ = /^student-visits\/[0-9a-f-]{36}$/;
 const SPECIALTY_POLICY_READ = /^policies\/specialty\/(purchase\.v1|session_settlement\.v1|completion\.v1|reward\.v1)\/(effective|stream)$/;
+/** PAP-1407 / PAP-220: exact BO Center Staff application list and pending Drawer detail. */
+const STAFF_CENTER_APPLICATION_READ = /^workforce\/staff-center-registration-requests(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$/i;
 
 export async function handleBoOperationalReadRequest(
   request: Request,
@@ -139,6 +141,7 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "access/audit"
     || path === "access/users"
     || path === "workforce/staff-records"
+    || STAFF_CENTER_APPLICATION_READ.test(path)
     || (isStaffCompensationPath(path) && path.split("/").length===5)
     || path === "workforce/timekeeping"
     || path === "workforce/timekeeping/centers"
@@ -300,6 +303,14 @@ function readCorePath(path: string, url: URL): string {
 }
 
 function readQueryResource(path: string, url: URL): BoAccessRequest["resource"] | undefined {
+  if (STAFF_CENTER_APPLICATION_READ.test(path)) {
+    // PAP-1407: mandatory single Center, no identity/query overrides.
+    const keys = [...url.searchParams.keys()];
+    const centers = url.searchParams.getAll("centerId");
+    if (keys.length !== 1 || keys[0] !== "centerId" || centers.length !== 1 || !S3_UUID.test(centers[0]!))
+      throw new RangeError("Staff application Center is required");
+    return { centerId: centers[0]! };
+  }
   if (path === "tv/operator-health") {
     const keys=[...url.searchParams.keys()];
     const ids=url.searchParams.getAll("centerId");
