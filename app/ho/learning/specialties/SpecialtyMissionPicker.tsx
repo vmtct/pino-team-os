@@ -29,10 +29,20 @@ export function SpecialtyMissionPicker({
   const results = useMemo(() =>
     searchLinkableSpecialtyMissions(missions, pathProgramId, linkedMissionIds, text),
     [missions, pathProgramId, linkedMissionIds, text]);
+  const previousSelection = useRef<SpecialtyMissionOption | null>(null);
   useEffect(() => {
-    setText(value ? value.code + " · " + value.name : "");
-    setOpen(false);
-    setActive(0);
+    const previous = previousSelection.current;
+    previousSelection.current = value;
+    if (value) {
+      setText(value.code + " · " + value.name);
+      setOpen(false);
+      setActive(0);
+    } else if (previous) {
+      // Explicit clear after a successful link resets the picker. If the user
+      // typed a new query over the selected value, preserve that new query.
+      const label = previous.code + " · " + previous.name;
+      setText(current => current === label ? "" : current);
+    }
   }, [value]);
   const matches = text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().length >= 2;
   const visible = open && !value && matches && !disabled;
