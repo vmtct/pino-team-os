@@ -16,7 +16,6 @@ const SELF = "app/bo/pinoria-avatars/SelfDirectoryTdd.tsx";
  * Core-scoped domain rollout. Additional or renamed selectors fail CI. */
 const LEGACY_PICKERS = new Map([
   ["app/bo/missions/BoMissionsTdd.tsx", "bo-mission-center"],
-  ["app/bo/open-studio-passes/BoOpenStudioPassesTdd.tsx", "bo-open-studio-center"],
   ["app/bo/tvs/TvsTdd.tsx", "bo-tv-center"],
 ]);
 
@@ -72,6 +71,19 @@ export function boCenterOwnershipViolations(root = ROOT) {
         !/ready\?\.centerId\s*!==\s*selected/.test(source) || /\bboApi\.centers\s*\(/.test(source))
       errors.push(diary + ": migrated Diary must consume shell Center, remount scoped TDD and fence stale adapter");
   }
+  // PAP-1460: the Open Studio Pass entrypoint has migrated from the legacy
+  // local picker. Keep this preventive check alongside the generic scan.
+  const openStudioPasses = "app/bo/open-studio-passes/BoOpenStudioPassesTdd.tsx";
+  if (paths.some(file => norm(file) === openStudioPasses)) {
+    const source = readFileSync(join(root, openStudioPasses), "utf8");
+    if (!/useBoCenterSelection\s*\(/.test(source) ||
+        !/key=\{selected\+/.test(source) ||
+        !/ready\?\.centerId\s*!==\s*centerId/.test(source) ||
+        /\bboApi\.centers\s*\(/.test(source) ||
+        /<select\b[^>]*id=["']bo-open-studio-center/.test(source))
+      errors.push(openStudioPasses + ": migrated Pass entrypoint must use BO shell Center and remount scoped TDD");
+  }
+
   const selfFile = join(root, SELF);
   if (paths.some(file => norm(file) === SELF)) {
     const self = readFileSync(selfFile, "utf8");
@@ -98,6 +110,6 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     process.exitCode = 1;
   } else {
     console.log("BO_CENTER_OWNER_PASS: one shell owner; no new module-local Center selector");
-    console.warn("BO_CENTER_LEGACY_DEBT: three exact selectors tracked in PAP-1460/PAP-1329 (not STAGING_ACCEPTED)");
+    console.warn("BO_CENTER_LEGACY_DEBT: two exact selectors tracked in PAP-1460/PAP-1329 (not STAGING_ACCEPTED)");
   }
 }
