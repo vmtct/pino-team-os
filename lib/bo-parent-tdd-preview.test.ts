@@ -31,7 +31,9 @@ test("PAP-1543 / PAP-1316: canonical BO Parents never renders the unscoped direc
   // the former pilot. A query flag must not decide whether identity is scoped.
   assert.match(page, /<BoRuntimeEntry moduleKey=/);
   assert.doesNotMatch(page, /parentTddPilot|boParentTddPilotAllowed/);
-  assert.match(runtime, /if \(moduleKey === "parents"\) return <ParentTdd \/>;/);
+  assert.match(runtime, /if \(moduleKey === "parents"\) return <BoRegistrationWorkspace currentUser=\{currentUser\}/);
+  assert.match(runtime, /source=\{unifiedBoWorkspaceSource\} moduleKey="parents" options=\{options\}/);
+  assert.match(runtime, /content=\{<ParentTdd \/>\} \/>;/);
   assert.doesNotMatch(runtime, /parentTddPilot|isParentPilot/);
   assert.doesNotMatch(runtime, /content=\{moduleKey === "parents"/);
 
