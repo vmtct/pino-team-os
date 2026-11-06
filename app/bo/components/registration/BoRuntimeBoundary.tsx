@@ -103,7 +103,9 @@ export function BoRuntimeEntry({ moduleKey, options }: { moduleKey: string; opti
   if (!currentUser) return <BoOperationalView view="overview" />;
   // PAP-1543 / Epic PAP-1316: default Parents must never reach the legacy
   // unscoped directory. The Parent TDD adapter requires a Core-attested Center.
-  if (moduleKey === "parents") return <ParentTdd />;
+  if (moduleKey === "parents") return <BoRegistrationWorkspace currentUser={currentUser}
+    source={unifiedBoWorkspaceSource} moduleKey="parents" options={options}
+    content={<ParentTdd />} />;
   if (moduleKey === "staffs") return <BoStaffsEntry currentUser={currentUser} options={options} />;
   // PAP-1334 / Epic PAP-1316: legacy Subscription writer is NOT Center-admitted.
   // PAP-1100 v1.9 replaces this with independent Center-owned Sales, not Renewal.
