@@ -16,6 +16,7 @@ import {readDiaryTicket,stageDiaryTicket,clearVerifiedDiaryTicket,type DiaryTick
 import {isConfirmedSkipDiaryEntry} from "@/lib/tos-diary-skip-opening";
 import {isDiaryStagingWriterHost} from "@/lib/tos-diary-stage-admission";
 import {requiresSpecialtySelectionGuard} from "@/lib/tos-specialty-mission-availability";
+import {TosSpecialtyMissionChoiceList} from "@/app/classroom/TosSpecialtyMissionChoiceList";
 import type {ClassroomV4ViewModel,ScheduledClass} from "@/lib/tos-classroom-v4-view-model";
 import styles from "./diary-capture.module.css";
 
@@ -209,11 +210,16 @@ export default function DiaryCapturePanel({model,classroom,confirmedSkipClassId}
      {students.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
     </select>
    </label>}
-  {permitted&&<fieldset className={styles.missions} disabled={current.phase!=="ready"||locked}>
+  {permitted&&current.phase==="ready"&&specialtyGuarded&&<section aria-label="Danh sách nhiệm vụ và lý do khóa" data-specialty-selection="read-only">
+   <TosSpecialtyMissionChoiceList items={eligibility?.items}
+    studentName={students.find(s=>s.id===studentId)?.name??"Học viên"}
+    onSelect={()=>{}} disabled/>
+   {eligibility?.hasMore&&<p role="status" className={styles.hint}>Danh sách nhiệm vụ chưa đầy đủ. Chưa thể giao nhiệm vụ.</p>}
+  </section>}
+  {permitted&&!specialtyGuarded&&<fieldset className={styles.missions} disabled={current.phase!=="ready"||locked}>
    <legend>Nhiệm vụ <span aria-hidden="true">*</span></legend>
    {current.phase==="idle"||current.phase==="loading"?<p role="status">Đang xác nhận Mission từ Core…</p>:
     current.phase==="error"?<p role="alert">{current.message}</p>:
-    specialtyGuarded?<p role="status" data-specialty-selection="guarded">Chưa xác nhận được quyền chọn Nhiệm vụ. Vui lòng thử lại sau.</p>:
     eligibility?.items.length===0?<p role="status">Không có Mission đủ điều kiện; không thể tạo Nhật ký.</p>:
     <div className={styles.choices}>{eligibility?.items.map(m=><div key={m.missionId} className={styles.choice}>
      <label><input type="checkbox" checked={missionIds.includes(m.missionId)} onChange={e=>toggleMission(m.missionId,e.target.checked)}/>

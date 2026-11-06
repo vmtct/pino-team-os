@@ -17,7 +17,10 @@ const CENTER_WORKFORCE_ROUTES: Record<string, string> = {
   "workforce-assignments": "/bo/workforce-assignments",
   "payroll-periods": "/bo/payroll-periods",
 };
-const VERIFIED_GLOBAL_MODULES = new Set<string>(); // Admit only after a Core contract audit.
+// PAP-1545 / PAP-1316: Core dispatchBoAccessAdminControlPlane
+// GET access/audit authorizes access.audit.view against GLOBAL resource {}.
+// It deliberately does not bind a selected workspace Center.
+const VERIFIED_GLOBAL_MODULES = new Set<string>(["audits"]);
 
 export function boCenterModuleScope(moduleKey: string): BoCenterModuleScope {
   if (isBoCenterReadWave1(moduleKey) || Object.hasOwn(CENTER_WORKFORCE_ROUTES, moduleKey)) return "CENTER";

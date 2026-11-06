@@ -15,6 +15,16 @@ import { boCenterModuleScope, boScopedModuleHref, scopedBoReadFetcher } from "./
 const ParentTdd = dynamic(() => import("../../parents/ParentTdd").then(module => module.ParentTdd), { ssr: false });
 const MissionsTdd = dynamic(() => import("../../missions/BoMissionsTdd").then(module => module.BoMissionsTdd), { ssr: false });
 const RuntimeContext = createContext<Pick<BoShellContext, "displayName" | "email"> | null>(null);
+// PAP-1545 / PAP-1316: Access audit is a Core GLOBAL collection. Keep the
+// master workspace Center for navigation but never imply that it filters Audits.
+// Immutable audit events have no generic Create/Edit writer.
+const globalAuditWorkspaceSource: BoWorkspaceSource = {
+  ...unifiedBoWorkspaceSource,
+  isModuleReadOnly: key => key === "audits" || unifiedBoWorkspaceSource.isModuleReadOnly?.(key) === true,
+  scopeLabel: (key, options) => key === "audits"
+    ? "Toàn hệ thống — nhật ký truy cập không lọc theo cơ sở đã chọn."
+    : unifiedBoWorkspaceSource.scopeLabel(key, options),
+};
 export const useBoStagingUser = () => useContext(RuntimeContext);
 export function BoRuntimeBoundary({ currentUser, children }: { currentUser: Pick<BoShellContext, "displayName" | "email">; children: React.ReactNode }) {
   return <RuntimeContext.Provider value={currentUser}><BoCenterSelectionProvider>{children}</BoCenterSelectionProvider><BoAuthenticatedAccount displayName={currentUser.displayName} email={currentUser.email} /></RuntimeContext.Provider>;
@@ -112,6 +122,8 @@ export function BoRuntimeEntry({ moduleKey, options }: { moduleKey: string; opti
     source={unifiedBoWorkspaceSource} moduleKey="parents" options={options}
     content={<ParentTdd />} />;
   if (moduleKey === "staffs") return <BoStaffsEntry currentUser={currentUser} options={options} />;
+  if (moduleKey === "audits") return <BoRegistrationWorkspace currentUser={currentUser}
+    source={globalAuditWorkspaceSource} moduleKey="audits" options={options} />;
   // PAP-1334 / Epic PAP-1316: legacy Subscription writer is NOT Center-admitted.
   // PAP-1100 v1.9 replaces this with independent Center-owned Sales, not Renewal.
   // Keep shell navigation, but mount no embedded legacy reader/writer and provide

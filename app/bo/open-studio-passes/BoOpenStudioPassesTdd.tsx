@@ -11,7 +11,7 @@ import {SurfaceWorkspace} from "@/app/components/workspace-adapters/SurfaceWorks
 import {browserTddNavigation,type AdapterNavigation} from "@/lib/workspace-adapters/navigation";
 import {TddRegistry} from "@/lib/workspace-schema";
 import {CenterPassActions} from "./CenterPassActions";
-import {passDefinition,passFields,passProvider,passQuery} from "./schema";
+import {passDefinition,passFields,passProvider,passQuery,readCenterPasses} from "./schema";
 
 type F=typeof passFields;
 type Ready={centerId:string;adapter:AuthenticatedSurfaceAdapter<F>;navigation:AdapterNavigation<F>};
@@ -53,8 +53,14 @@ function ScopedPasses({centerId,centerSource}:{centerId:string;centerSource:Dire
  useEffect(()=>{
   const controller=new AbortController();let adapter:AuthenticatedSurfaceAdapter<F>|null=null;
   void createBoTddAdapter({registry:new TddRegistry(),definition:passDefinition,provider:passProvider,
-   centerId:centerId,centerSource},controller.signal).then(bound=>{
+   centerId:centerId,centerSource},controller.signal).then(async bound=>{
     adapter=bound;
+    if(controller.signal.aborted){bound.dispose();return;}
+    // PAP-1546 / PAP-1316: Core uses the SAME center-scoped
+    // open_studio.walkin_pass.manage ACL for inventory GET and Pass issue POST.
+    // Do not surface the issue action before the real Core inventory read is
+    // authorized and its Center projection has been validated.
+    await readCenterPasses(fetch,centerId,controller.signal);
     if(controller.signal.aborted){bound.dispose();return;}
     setReady({centerId,adapter:bound,navigation:browserTddNavigation("BO","open-studio-passes",passQuery)});
   }).catch(e=>{
