@@ -64,7 +64,14 @@ export const billDefinition={
 
 export type BillRow=ModuleRow<F>;
 export function projectBillTable(d:BillTableItem):BillRow {
- return {id:d.draftId,code:unavailableBillCode,parent:maskedBillIdentity,students:maskedBillIdentity,center:null,
+ // PII presentation is exclusively driven by Core VERIFIED/REDACTED per subject.
+ // No client-side role, billing.view, or guardian inference is permitted.
+ const parent=d.payerDisplay.state==="VERIFIED"?d.payerDisplay.label:maskedBillIdentity;
+ const verifiedStudents=d.students.filter(student=>student.display.state==="VERIFIED");
+ const students=verifiedStudents.length?
+   d.students.map(student=>student.display.state==="VERIFIED"?student.display.label:maskedBillIdentity).join(", "):
+   maskedBillIdentity;
+ return {id:d.draftId,code:unavailableBillCode,parent,students,center:null,
  subscriptionCount:d.subscriptionLineCount,total:d.netAmountMinor,collected:d.collectedAmountMinor,balance:d.balanceMinor,
  status:d.status==="DRAFT"?"Bản nháp":d.status,latestPaymentAt:d.latestConfirmedPaymentAt,createdAt:d.createdAt,
  due:null,note:null,lines:"Mở chi tiết để xem Subscriptions.",payments:d.status==="DRAFT"?"Bill chưa phát hành.":"Mở chi tiết để tải sổ thanh toán."};
