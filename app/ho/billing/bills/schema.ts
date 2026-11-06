@@ -38,7 +38,13 @@ export const billDefinition = {
 } as const satisfies SurfaceDefinition<F>;
 export const billMoney = (amount: number, currency: string) => new Intl.NumberFormat("vi-VN",{style:"currency",currency}).format(amount);
 export function billRow(b: HoBill): ModuleRow<F> {
-  return {id:b.bill.id,name:unavailableBillCode,payer:maskedBillIdentity,students:maskedBillIdentity,center:b.originCenter?.state==="VERIFIED"?b.originCenter.centerName:null,subscriptionCount:String(b.items.length),
+  const payer=b.billSubjects?.payerDisplay.state==="VERIFIED"?
+    b.billSubjects.payerDisplay.label:maskedBillIdentity;
+  const identities=b.billSubjects?.students??[];
+  const students=identities.some(row=>row.display.state==="VERIFIED")?
+    identities.map(row=>row.display.state==="VERIFIED"?row.display.label:maskedBillIdentity).join(", "):
+    maskedBillIdentity;
+  return {id:b.bill.id,name:unavailableBillCode,payer,students,center:b.originCenter?.state==="VERIFIED"?b.originCenter.centerName:null,subscriptionCount:String(b.items.length),
     totalView:billMoney(b.netAmountMinor,b.bill.currency),paidView:billMoney(b.collectedAmountMinor,b.bill.currency),
     balanceView:billMoney(b.balanceMinor,b.bill.currency),status:b.paymentState,latestPaymentAt:latestBillPayment(b.transactions),createdAt:b.bill.createdAt};
 }
