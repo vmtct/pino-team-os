@@ -58,7 +58,7 @@ export function CenterStaffRegistrationSection({ centerId }: { centerId: string 
     <div className="v24-section-heading"><h4>Đăng ký Staff</h4></div>
     {error ? <p role="alert">{error} <button type="button" onClick={() => setReload(v => v + 1)}>Tải lại</button></p> : null}
     {!link && !error ? <p role="status">Đang tải trạng thái nhận hồ sơ…</p> : null}
-    {link ? <div className="v24-prop-grid">
+    {link ? <div className="property-section">
       <div className="v24-prop-item">
         <div className="v24-prop-key">Nhận hồ sơ</div>
         <div className="v24-prop-value">
