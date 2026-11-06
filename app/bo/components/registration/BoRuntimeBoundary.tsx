@@ -2,7 +2,7 @@
 import { createContext, useContext, useMemo, useState } from "react";
 import type { BoShellContext } from "@/lib/bo-shell-gate";
 import { BoRegistrationWorkspace, type BoWorkspaceSource } from "./BoRegistrationWorkspace";
-import { BoStaffsViews, staffsViewRows, type StaffsView } from "./BoStaffsViews";
+import { BoStaffsViews, type StaffsView } from "./BoStaffsViews";
 import { readStaffCenterApplications } from "@/lib/bo-staff-center-registration-adapter";
 import { unifiedBoWorkspaceSource } from "../../architecture/bo-unified-workspace-source";
 import { BoOperationalView } from "../../BoOperationalView";
@@ -81,12 +81,17 @@ function BoStaffsEntry({ currentUser, options }: {
     scopeLabel: (key, requestedOptions) => key === "staffs" && view === "register"
       ? "Cơ sở đã chọn" : unifiedBoWorkspaceSource.scopeLabel(key, requestedOptions),
     async load(key, fetcher, requestedOptions) {
-      if (key === "staffs" && view === "register") {
-        // No unscoped/global fallback after 401/403, missing Center, or Core failure.
-        return readStaffCenterApplications(fetcher, selected);
+      if (key === "staffs") {
+        if (view === "register") {
+          // The existing registration queue has a verified Center-bound API.
+          return readStaffCenterApplications(fetcher, selected);
+        }
+        // PAP-1544 / PAP-1316: the legacy staff-records API is unscoped.
+        // Refuse all regular Staff directory tabs until Core exposes an
+        // independently authorized Center-bound read. Never client-filter PII.
+        throw Error("Danh sách nhân sự theo cơ sở tạm thời chưa khả dụng.");
       }
-      const rows = await unifiedBoWorkspaceSource.load(key, fetcher, requestedOptions);
-      return key === "staffs" ? staffsViewRows(rows, view) : rows;
+      return unifiedBoWorkspaceSource.load(key, fetcher, requestedOptions);
     },
   }), [view, selected]);
   const blocked = view === "register" && (!center || center.loading || Boolean(center.error) || !selected);
@@ -97,10 +102,15 @@ function BoStaffsEntry({ currentUser, options }: {
     headerContent={<BoStaffsViews selected={view} onSelect={setView} />} />;
 }
 
-export function BoRuntimeEntry({ moduleKey, options, parentTddPilot = false }: { moduleKey: string; options: Record<string, string>; parentTddPilot?: boolean }) {
+export function BoRuntimeEntry({ moduleKey, options }: { moduleKey: string; options: Record<string, string> }) {
   const currentUser = useContext(RuntimeContext);
   if (moduleKey === "missions") return <MissionsTdd />;
   if (!currentUser) return <BoOperationalView view="overview" />;
+  // PAP-1543 / Epic PAP-1316: default Parents must never reach the legacy
+  // unscoped directory. The Parent TDD adapter requires a Core-attested Center.
+  if (moduleKey === "parents") return <BoRegistrationWorkspace currentUser={currentUser}
+    source={unifiedBoWorkspaceSource} moduleKey="parents" options={options}
+    content={<ParentTdd />} />;
   if (moduleKey === "staffs") return <BoStaffsEntry currentUser={currentUser} options={options} />;
   // PAP-1334 / Epic PAP-1316: legacy Subscription writer is NOT Center-admitted.
   // PAP-1100 v1.9 replaces this with independent Center-owned Sales, not Renewal.
@@ -111,11 +121,8 @@ export function BoRuntimeEntry({ moduleKey, options, parentTddPilot = false }: {
     content={<section role="status" aria-label="Quản lý gói học" data-testid="bo-subscription-center-contract-pending">
       Quản lý gói học tạm thời chưa khả dụng.
     </section>} />;
-  const isParentPilot = moduleKey === "parents" && parentTddPilot;
   // Stage 1 of the shared BO context: Parent TDD plus legacy Visits and Timekeeping
   // whose Core adapters already enforce explicit centerId and verify response identity.
   if (boCenterModuleScope(moduleKey) === "CENTER") return <CenterReadWorkspace moduleKey={moduleKey} options={options} currentUser={currentUser} />;
-  const workspace = <BoRegistrationWorkspace currentUser={currentUser} source={unifiedBoWorkspaceSource} moduleKey={moduleKey} options={options}
-    content={moduleKey === "parents" && parentTddPilot ? <ParentTdd /> : undefined} />;
-  return workspace;
+  return <BoRegistrationWorkspace currentUser={currentUser} source={unifiedBoWorkspaceSource} moduleKey={moduleKey} options={options} />;
 }

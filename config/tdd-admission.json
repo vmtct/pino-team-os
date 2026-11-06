@@ -329,6 +329,7 @@
       "files": [
         "app/ho/centers/page.tsx",
         "app/ho/centers/HoCenters.tsx",
+        "app/ho/centers/CenterStaffRegistrationSection.tsx",
         "app/ho/centers/schema.ts"
       ],
       "externalReferences": [
@@ -828,40 +829,7 @@
         {"file":"lib/workspace-adapters/session.ts","owner":"PAP-1221"}
       ]
     },
-    {
-      "profile": "TDD_DEFAULT",
-      "surface": "HO",
-      "key": "staffLinks",
-      "route": "/ho/workforce/staff-links",
-      "file": "app/ho/workforce/staff-links/page.tsx",
-      "files": [
-        "app/ho/workforce/staff-links/page.tsx",
-        "app/ho/workforce/staff-links/HoStaffLinksTdd.tsx",
-        "app/ho/workforce/staff-links/schema.ts"
-      ],
-      "schema": {
-        "file": "app/ho/workforce/staff-links/schema.ts",
-        "export": "linkSchema"
-      },
-      "binding": {
-        "kind": "SURFACE_WORKSPACE_ADAPTER",
-        "file": "app/ho/workforce/staff-links/HoStaffLinksTdd.tsx"
-      },
-      "tests": [
-        "lib/ho-staff-center-links-facade.test.ts",
-        "lib/ho-staff-center-directory.test.ts",
-        "lib/pap1407-ho-staff-link-session-allowlist.test.ts",
-        "lib/ho-routes.test.ts"
-      ],
-      "externalReferences": [
-        { "file": "lib/ho-routes.ts", "owner": "PAP-1407" },
-        { "file": "lib/ho-system.ts", "owner": "PAP-1407" },
-        { "file": "lib/ho-staff-center-directory.ts", "owner": "PAP-1407" },
-        { "file": "lib/workspace-adapters/session.ts", "owner": "PAP-1407" },
-        { "file": "lib/host-boundary.ts", "owner": "PAP-1407" },
-        { "file": "app/ho/HoWorkspace.tsx", "owner": "PAP-1148" }
-      ]
-    },
+
     {
       "profile": "TDD_DEFAULT",
       "surface": "HO",
@@ -873,7 +841,16 @@
         "app/ho/learning/specialties/HoSpecialties.tsx",
         "app/ho/learning/specialties/schema.ts",
         "app/ho/learning/specialties/HoSpecialtyMissionsTab.tsx",
-        "app/ho/learning/specialties/SpecialtyMissionPicker.tsx"
+        "app/ho/learning/specialties/SpecialtyMissionPicker.tsx",
+        "app/ho/learning/specialties/HoSpecialtyCreate.module.css"
+      ],
+      "businessStyles": [
+        {
+          "file": "app/ho/learning/specialties/HoSpecialtyCreate.module.css",
+          "owner": "PAP-1495",
+          "consumer": "app/ho/learning/specialties/HoSpecialties.tsx",
+          "classes": ["createForm", "field"]
+        }
       ],
       "schema": {
         "file": "app/ho/learning/specialties/schema.ts",

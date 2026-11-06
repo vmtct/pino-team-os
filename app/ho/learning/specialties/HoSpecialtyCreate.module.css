@@ -1,0 +1,14 @@
+/* PAP-1495 / SPEC-UNLOCK: layout-only CSS Module.
+ * PINO DS owns control colors, borders, typography, focus and input sizing. */
+.createForm {
+  display: grid;
+  grid-template-columns: minmax(0,1fr);
+  gap: 17px;
+  min-width: 0;
+}
+.field {
+  display: grid;
+  grid-template-columns: minmax(0,1fr);
+  gap: 7px;
+  min-width: 0;
+}
