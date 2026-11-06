@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { TosMissionAssignmentApiError, type TosMissionAssignmentScope } from "./tos-mission-assignment-api";
-import { readTosEligibleMissions } from "./tos-mission-assignment-choices";
+import { assignmentDefinitionReadyChoices, readTosEligibleMissions } from "./tos-mission-assignment-choices";
 
 const scope:TosMissionAssignmentScope={
  centerId:"11111111-1111-4111-8111-111111111111",
@@ -88,4 +88,35 @@ test("bounded two-page reader emits all records without duplicating results",asy
  };
  const rows=await readTosEligibleMissions(scope,t as typeof fetch);
  assert.equal(rows.length,101);assert.equal(calls,2);
+});
+
+test("PAP-1529 respects 13-item shared Diary catalog but selects only source-ready definitions",async()=>{
+ const approved={...mission(),assignmentDefinitionEligible:true,assignmentDefinitionBlockReason:null};
+ const prerequisite={...mission("77777777-7777-4777-8777-777777777777"),
+  assignmentDefinitionEligible:false,assignmentDefinitionBlockReason:"PREREQUISITE_PROOF_UNAVAILABLE"};
+ const unresolvedPath={...mission("88888888-8888-4888-8888-888888888888"),
+  assignmentDefinitionEligible:false,assignmentDefinitionBlockReason:"MISSION_INELIGIBLE"};
+ const raw=await readTosEligibleMissions(scope,
+  (async()=>Response.json(page([approved,prerequisite,unresolvedPath]))) as typeof fetch);
+ assert.equal(raw.length,3); // original Diary choice list is never filtered
+ const ready=assignmentDefinitionReadyChoices(raw);
+ assert.deepEqual(ready,[raw[0]]);
+ assert.equal(raw[1]?.assignmentDefinitionBlockReason,"PREREQUISITE_PROOF_UNAVAILABLE");
+ assert.equal(raw[2]?.assignmentDefinitionBlockReason,"MISSION_INELIGIBLE");
+});
+
+test("PAP-1529 missing, contradictory or invented Core readiness fails closed for Assignment",()=>{
+ const valid={...mission(),assignmentDefinitionEligible:true,assignmentDefinitionBlockReason:null};
+ const invalid=[
+  mission(), // older Core: no create-admissibility proof
+  {...valid,assignmentDefinitionEligible:true,assignmentDefinitionBlockReason:"MISSION_INELIGIBLE"},
+  {...valid,assignmentDefinitionEligible:false,assignmentDefinitionBlockReason:null},
+  {...valid,assignmentDefinitionEligible:false,assignmentDefinitionBlockReason:"UNSUPPORTED"},
+  {...valid,assignmentDefinitionEligible:"true",assignmentDefinitionBlockReason:null},
+ ];
+ for(const item of invalid){
+  assert.throws(()=>assignmentDefinitionReadyChoices([valid,item]),
+   err("TOS_ASSIGNMENT_DEFINITION_READINESS_UNVERIFIED",502));
+ }
+ assert.deepEqual(assignmentDefinitionReadyChoices([]),[]);
 });
