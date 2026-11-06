@@ -98,8 +98,22 @@
         }
       ],
       "businessStyles": [
-        {"file":"app/bo/pinoria-avatars/SelfWardrobeDetail.module.css","owner":"PAP-1490","consumer":"app/bo/pinoria-avatars/SelfWardrobeDetail.tsx","classes":["items"]},
-        {"file":"app/components/pinoria/SelfLoadoutPreview.module.css","owner":"PAP-1489","consumer":"app/components/pinoria/SelfLoadoutPreview.tsx","classes":["canvas"]}
+        {
+          "file": "app/bo/pinoria-avatars/SelfWardrobeDetail.module.css",
+          "owner": "PAP-1490",
+          "consumer": "app/bo/pinoria-avatars/SelfWardrobeDetail.tsx",
+          "classes": [
+            "items"
+          ]
+        },
+        {
+          "file": "app/components/pinoria/SelfLoadoutPreview.module.css",
+          "owner": "PAP-1489",
+          "consumer": "app/components/pinoria/SelfLoadoutPreview.tsx",
+          "classes": [
+            "canvas"
+          ]
+        }
       ],
       "schema": {
         "file": "app/bo/pinoria-avatars/schema.ts",
@@ -785,14 +799,28 @@
         "lib/pap1526-bo-bill-table.test.ts"
       ],
       "externalReferences": [
-        {"file":"app/bo/architecture/bo-unified-workspace-source.ts","owner":"PAP-1421"},
-        {"file":"app/bo/components/registration/BoRuntimeBoundary.tsx","owner":"PAP-1407"},
-        {"file":"lib/host-boundary.ts","owner":"PAP-1220"},
-        {"file":"lib/ho-routes.ts","owner":"PAP-1221"},
-        {"file":"lib/workspace-adapters/session.ts","owner":"PAP-1221"}
+        {
+          "file": "app/bo/architecture/bo-unified-workspace-source.ts",
+          "owner": "PAP-1421"
+        },
+        {
+          "file": "app/bo/components/registration/BoRuntimeBoundary.tsx",
+          "owner": "PAP-1407"
+        },
+        {
+          "file": "lib/host-boundary.ts",
+          "owner": "PAP-1220"
+        },
+        {
+          "file": "lib/ho-routes.ts",
+          "owner": "PAP-1221"
+        },
+        {
+          "file": "lib/workspace-adapters/session.ts",
+          "owner": "PAP-1221"
+        }
       ]
-    }
-,
+    },
     {
       "profile": "TDD_DEFAULT",
       "surface": "HO",
@@ -822,10 +850,22 @@
         "lib/ho-bills-contract.test.ts"
       ],
       "externalReferences": [
-        {"file":"lib/ho-routes.ts","owner":"PAP-1221"},
-        {"file":"lib/ho-system.ts","owner":"PAP-1221"},
-        {"file":"lib/host-boundary.ts","owner":"PAP-1220"},
-        {"file":"lib/workspace-adapters/session.ts","owner":"PAP-1221"}
+        {
+          "file": "lib/ho-routes.ts",
+          "owner": "PAP-1221"
+        },
+        {
+          "file": "lib/ho-system.ts",
+          "owner": "PAP-1221"
+        },
+        {
+          "file": "lib/host-boundary.ts",
+          "owner": "PAP-1220"
+        },
+        {
+          "file": "lib/workspace-adapters/session.ts",
+          "owner": "PAP-1221"
+        }
       ]
     },
     {
@@ -860,6 +900,55 @@
         { "file": "lib/workspace-adapters/session.ts", "owner": "PAP-1407" },
         { "file": "lib/host-boundary.ts", "owner": "PAP-1407" },
         { "file": "app/ho/HoWorkspace.tsx", "owner": "PAP-1148" }
+      ]
+    },
+    {
+      "profile": "TDD_DEFAULT",
+      "surface": "HO",
+      "key": "tvs",
+      "route": "/ho/pinoria/tv",
+      "file": "app/ho/pinoria/tv/page.tsx",
+      "files": [
+        "app/ho/pinoria/tv/page.tsx",
+        "app/ho/pinoria/tv/HoTvTdd.tsx",
+        "app/ho/pinoria/tv/schema.ts",
+        "lib/ho-tv-directory-client.ts"
+      ],
+      "schema": {
+        "file": "app/ho/pinoria/tv/schema.ts",
+        "export": "tvSchema"
+      },
+      "binding": {
+        "kind": "SURFACE_WORKSPACE_ADAPTER",
+        "file": "app/ho/pinoria/tv/HoTvTdd.tsx"
+      },
+      "tests": [
+        "app/ho/pinoria/tv/schema.test.ts",
+        "lib/ho-tv-directory-client.test.ts",
+        "lib/ho-routes.test.ts",
+        "lib/pap1419-ho-tv-session.test.ts"
+      ],
+      "externalReferences": [
+        {
+          "file": "app/ho/HoWorkspace.tsx",
+          "owner": "PAP-990"
+        },
+        {
+          "file": "lib/ho-routes.ts",
+          "owner": "PAP-1419"
+        },
+        {
+          "file": "lib/ho-system.ts",
+          "owner": "PAP-1419"
+        },
+        {
+          "file": "lib/workspace-adapters/session.ts",
+          "owner": "PAP-1221"
+        },
+        {
+          "file": "lib/host-boundary.ts",
+          "owner": "PAP-1418"
+        }
       ]
     },
     {
@@ -900,6 +989,10 @@
         },
         {
           "file": "lib/ho-system.ts",
+          "owner": "PAP-1221"
+        },
+        {
+          "file": "lib/workspace-adapters/session.ts",
           "owner": "PAP-1221"
         },
         {

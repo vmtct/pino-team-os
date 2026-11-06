@@ -13,6 +13,7 @@ export const HO_PAGE_PATHS = {
   specialties: "/ho/learning/specialties",
   classroomDiaries: "/ho/learning/diaries",
   worlds: "/ho/pinoria/worlds",
+  tvs: "/ho/pinoria/tv",
   wardrobe: "/ho/pinoria/wardrobe",
   wardrobeSets: "/ho/pinoria/wardrobe-sets",
   effects: "/ho/pinoria/effects",
