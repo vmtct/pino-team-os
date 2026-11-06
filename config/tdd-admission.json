@@ -873,7 +873,16 @@
         "app/ho/learning/specialties/HoSpecialties.tsx",
         "app/ho/learning/specialties/schema.ts",
         "app/ho/learning/specialties/HoSpecialtyMissionsTab.tsx",
-        "app/ho/learning/specialties/SpecialtyMissionPicker.tsx"
+        "app/ho/learning/specialties/SpecialtyMissionPicker.tsx",
+        "app/ho/learning/specialties/HoSpecialtyCreate.module.css"
+      ],
+      "businessStyles": [
+        {
+          "file": "app/ho/learning/specialties/HoSpecialtyCreate.module.css",
+          "owner": "PAP-1495",
+          "consumer": "app/ho/learning/specialties/HoSpecialties.tsx",
+          "classes": ["createForm", "field"]
+        }
       ],
       "schema": {
         "file": "app/ho/learning/specialties/schema.ts",
