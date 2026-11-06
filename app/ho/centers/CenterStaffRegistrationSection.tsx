@@ -72,8 +72,9 @@ export function CenterStaffRegistrationSection({ centerId }: { centerId: string 
         <div className="v24-prop-key">Link đăng ký</div>
         <div className="v24-prop-value readonly">
           <span>Link riêng đã được cấp cho Center</span>
-          <TosButton type="button" variant="secondary" disabled aria-disabled="true">
-            Sao chép link
+          <TosButton type="button" variant="secondary" disabled aria-disabled="true"
+            aria-label="Sao chép link" title="Sao chép link">
+            ⧉
           </TosButton>
         </div>
       </div>
