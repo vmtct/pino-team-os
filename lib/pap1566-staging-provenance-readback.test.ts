@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 // @ts-expect-error Runtime .mjs command is intentionally untyped for CLI deployment.
 import { attestStagingProvenance } from "../scripts/pap1566-staging-provenance-readback.mjs";
 
@@ -58,4 +59,12 @@ test("PAP-1566: invalid URL/digest/attempts rejected before fetch", async () => 
     }), /PAP1566_INVALID_PROVENANCE_PREFLIGHT/);
     assert.equal(invoked, false);
   }
+});
+
+test("PAP-1566: guarded CD invokes strict verifier and retains CAS rollback path", () => {
+  const workflow = readFileSync(".github/workflows/candidate-staging-deploy.yml", "utf8");
+  assert.match(workflow, /node scripts\/pap1566-staging-provenance-readback\.mjs/);
+  assert.match(workflow, /node scripts\/pap1472-guarded-staging-cd\.mjs rollback/);
+  assert.match(workflow, /trap 'result=\$\?; if \[ "\$result" -ne 0 \]/);
+  assert.doesNotMatch(workflow, /pap659-build-provenance\.json" \| jq -e --arg digest/);
 });
