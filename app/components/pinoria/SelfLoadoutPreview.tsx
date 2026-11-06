@@ -10,6 +10,7 @@ const SLOTS=["AURA_GROUND","AURA_BACK","BACK","OUTFIT","HAIR","FACE","HEADWEAR",
 type Slot=typeof SLOTS[number];
 type Snapshot={itemId:string;displayName:string;positionX:number;positionY:number;scale:number;rotationDegrees:number|null};
 type PreviewData={version:number;slots:Record<Slot,Snapshot|null>;renderStack:readonly string[]};
+type SetPreviewData={setItemId:string;version:number;members:readonly (Snapshot & {slot:string})[]};
 const isSlot=(layer:string):layer is Slot=>(SLOTS as readonly string[]).includes(layer);
 const BASE_URL="https://assets.pinohouse.art/pinoria/char-base.png"; // S1 public asset: verified 200 image/png.
 const WIDTH=270, HEIGHT=480; // Portrait 9:16; geometry is rendering, not DS color/style policy.
@@ -59,8 +60,9 @@ export function SelfLoadoutEditorLayout({preview,children}:{preview:ReactNode;ch
 }
 
 /** Render the immutable Core layer order. BO and TV may supply different authorized slot URLs. */
-export function SelfLoadoutPreview({loadout,mediaSrc}:{
+export function SelfLoadoutPreview({loadout,mediaSrc,activeSet,setMemberSrc}:{
   loadout:PreviewData|null;mediaSrc:(slot:Slot)=>string;
+  activeSet?:SetPreviewData|null;setMemberSrc?:(index:number)=>string;
 }){
   const canvas=useRef<HTMLCanvasElement|null>(null);
   const [missing,setMissing]=useState<string[]>([]);
@@ -68,7 +70,7 @@ export function SelfLoadoutPreview({loadout,mediaSrc}:{
   useEffect(()=>{
     const target=canvas.current;
     if(!target)return;
-    if(!loadout){target.getContext("2d")?.clearRect(0,0,WIDTH,HEIGHT);return;}
+    if(!loadout&&!activeSet){target.getContext("2d")?.clearRect(0,0,WIDTH,HEIGHT);return;}
     const ctx=target.getContext("2d");
     if(!ctx)return;
     const ctl=new AbortController();
@@ -77,6 +79,50 @@ export function SelfLoadoutPreview({loadout,mediaSrc}:{
       const unavailable:string[]=[];
       const opaque:string[]=[],unchecked:string[]=[];
       let afterBase=false;
+      // Active Set is a separate saved 9:16 composition, never the eight base slots.
+      // Draw onto an opaque backing first, then commit the frame only when ALL
+      // members are authorized, decoded and fit for alpha composition.
+      if(activeSet){
+        try{
+          if(!setMemberSrc || !activeSet.members.length || activeSet.members.length>8)throw Error("SET_MEDIA_UNAVAILABLE");
+          const backing=new OffscreenCanvas(WIDTH,HEIGHT);
+          const painter=backing.getContext("2d");
+          if(!painter)throw Error("SET_CANVAS_UNAVAILABLE");
+          painter.fillStyle="white";painter.fillRect(0,0,WIDTH,HEIGHT);
+          const base=await imageFrom(BASE_URL,ctl.signal);
+          if(ctl.signal.aborted)return;
+          painter.save();painter.globalAlpha=.35;painter.drawImage(base,0,0,WIDTH,HEIGHT);painter.restore();
+          const seen=new Set<string>();
+          for(let index=0;index<activeSet.members.length;index++){
+            if(ctl.signal.aborted)return;
+            const member=activeSet.members[index]!;
+            if(!isSlot(member.slot) || seen.has(member.slot) || !safe(member))throw Error("SET_MEMBER_INVALID");
+            seen.add(member.slot);
+            const url=setMemberSrc(index);
+            if(new URL(url,window.location.href).origin!==window.location.origin)throw Error("SET_ORIGIN_INVALID");
+            const img=await imageFrom(url,ctl.signal);
+            if(ctl.signal.aborted)return;
+            // Set members are calibrated transparent sprites. A fully opaque
+            // member would hide other members and be an unapproved full-frame asset.
+            if(opaqueForeground(img))throw Error("SET_MEMBER_OPAQUE");
+            painter.save();
+            painter.translate(WIDTH/2+(member.positionX*WIDTH)/2,HEIGHT/2+(member.positionY*HEIGHT)/2);
+            painter.rotate(((member.rotationDegrees??0)*Math.PI)/180);
+            painter.scale(member.scale,member.scale);
+            painter.drawImage(img,-WIDTH/2,-HEIGHT/2,WIDTH,HEIGHT);
+            painter.restore();
+          }
+          if(!["HAIR","FACE","OUTFIT"].every(slot=>seen.has(slot)))throw Error("SET_INCOMPLETE");
+          ctx.drawImage(backing,0,0,WIDTH,HEIGHT);
+          if(!ctl.signal.aborted){setMissing([]);setMediaWarnings({opaque:[],unchecked:[]});}
+        }catch{
+          if(ctl.signal.aborted)return;
+          ctx.clearRect(0,0,WIDTH,HEIGHT);
+          setMissing(["SET"]);setMediaWarnings({opaque:[],unchecked:[]});
+        }
+        return;
+      }
+      if(!loadout)return;
       for(const layer of loadout.renderStack){
         if(ctl.signal.aborted)return;
         const base=layer==="CHAR_BASE";
@@ -120,7 +166,7 @@ export function SelfLoadoutPreview({loadout,mediaSrc}:{
     };
     void draw();
     return ()=>ctl.abort();
-  },[loadout,mediaSrc]);
+  },[loadout,mediaSrc,activeSet,setMemberSrc]);
   return <figure className="pds-property-section" aria-label="Composition Preview">
     <h3 className="pds-property-heading">Composition Preview</h3>
     <canvas className={styles.canvas} ref={canvas} width={WIDTH} height={HEIGHT} aria-label="Pinoria Self: 9:16 theo các lớp đã lưu">

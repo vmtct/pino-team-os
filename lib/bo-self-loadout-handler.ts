@@ -10,10 +10,11 @@ const PATH = new RegExp("^pinoria/selfs/(" + V7 + ")/loadout$");
 const MEDIA = new RegExp("^pinoria/selfs/(" + V7 + ")/loadout/media/(AURA_GROUND|AURA_BACK|BACK|OUTFIT|HAIR|FACE|HEADWEAR|PATH_MARK)$");
 const ID = new RegExp("^" + V7 + "$");
 const SET = new RegExp("^pinoria/selfs/(" + V7 + ")/set$");
+const SET_MEDIA = new RegExp("^pinoria/selfs/(" + V7 + ")/set/media/([0-7])$");
 const SET_COMMAND = new RegExp("^pinoria/selfs/(" + V7 + ")/set/(apply|clear|starter)$");
 export const SELF_LOADOUT_SLOTS = ["AURA_GROUND","AURA_BACK","BACK","OUTFIT","HAIR","FACE","HEADWEAR","PATH_MARK"] as const;
 
-export function isBoSelfLoadoutPath(path: string): boolean { return PATH.test(path) || MEDIA.test(path) || SET.test(path) || SET_COMMAND.test(path); }
+export function isBoSelfLoadoutPath(path: string): boolean { return PATH.test(path) || MEDIA.test(path) || SET.test(path) || SET_MEDIA.test(path) || SET_COMMAND.test(path); }
 class InvalidInput extends Error {}
 async function setBody(request: Request, apply: boolean) {
   if ((request.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase() !== "application/json") throw new InvalidInput("JSON content type required");
@@ -77,7 +78,7 @@ function json(body:unknown,status:number,requestId?:string) {
 export async function handleBoSelfLoadoutRequest(request:Request,env:BoSelfLoadoutEnv,path:string,keyResolver?:Parameters<typeof teamCredential>[3]):Promise<Response> {
   try {
     if(!isBoSelfLoadoutPath(path)) return json({error:{code:"PLATFORM_NOT_FOUND"}},404);
-    const isMedia=MEDIA.test(path);
+    const isMedia=MEDIA.test(path)||SET_MEDIA.test(path);
     if ((SET.test(path) && request.method !== "GET") || (SET_COMMAND.test(path) && request.method !== "POST")) return json({error:{code:"PLATFORM_METHOD_NOT_ALLOWED"}},405);
     if((isMedia && request.method!=="GET") || (request.method!=="GET" && request.method!=="POST")) return json({error:{code:"PLATFORM_METHOD_NOT_ALLOWED"}},405);
     const centerId=centerIdOf(request);

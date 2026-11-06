@@ -43,6 +43,29 @@ test('Starter UI uses one-time server eligibility and checks readback before suc
  assert.match(ui,/!selfSet\.starterSets\.some/);
  assert.match(ui,/setSelectedStarterId\(""\);setActiveSetError/);
 });
+test('Set media facade only forwards bounded authorized member index and rejects malformed binary',async()=>{
+ const f=fixture();
+ assert.equal((await f.send('/media/0','GET')).status,502);
+ assert.equal(f.seen[0].path,root+'/media/0');
+ assert.deepEqual(JSON.parse(JSON.stringify(f.seen[0].resource)),{centerId:center});
+ assert.equal((await f.send('/media/0','POST',clear)).status,405);
+ assert.equal((await f.send('/media/8','GET')).status,404);
+ assert.equal((await f.send('/media/-1','GET')).status,404);
+ assert.equal((await f.send('/media/0','GET',undefined,'centerId=forged')).status,400);
+ assert.equal(f.seen.length,1);
+});
+test('Set full-frame preview is scoped to Set media and never shows underlying base slots',()=>{
+ const ui=readFileSync('app/bo/pinoria-avatars/SelfLoadoutDetail.tsx','utf8');
+ const renderer=readFileSync('app/components/pinoria/SelfLoadoutPreview.tsx','utf8');
+ assert.match(ui,/set\/media\/"\+index/);
+ assert.match(ui,/activeSet=\{selfSet\?\.setItemId\?selfSet:null\}/);
+ assert.doesNotMatch(ui,/Chưa thể hiển thị hình ảnh Set này/);
+ assert.match(renderer,/new OffscreenCanvas\(WIDTH,HEIGHT\)/);
+ assert.match(renderer,/painter\.fillRect\(0,0,WIDTH,HEIGHT\)/);
+ assert.match(renderer,/const img=await imageFrom\(url,ctl\.signal\)/);
+ assert.match(renderer,/ctx\.drawImage\(backing,0,0,WIDTH,HEIGHT\)/);
+ assert.match(renderer,/setMissing\(\["SET"\]\)/);
+});
 test('Set GET is read-only; commands forward exact Center/CAS/key without identity data',async()=>{
  const f=fixture();assert.equal((await f.send()).status,200);
  assert.deepEqual(JSON.parse(JSON.stringify(f.seen[0])),{method:'GET',path:root,resource:{centerId:center}});
@@ -76,5 +99,5 @@ test('UI Set-first, Core eligible Apply and Clear with CAS readback and fail-clo
  assert.match(ui,/if\(next.setItemId!==requestedSetId\)/);
  assert.match(ui,/\!Array.isArray\(d.eligibleSets\)/);
  assert.doesNotMatch(ui,/starter\/grant/);
- const preview=readFileSync('app/components/pinoria/SelfLoadoutPreview.tsx','utf8');assert.match(preview,/if\(!loadout\).*clearRect/);
+ const preview=readFileSync('app/components/pinoria/SelfLoadoutPreview.tsx','utf8');assert.match(preview,/if\(!loadout&&!activeSet\).*clearRect/);
 });
