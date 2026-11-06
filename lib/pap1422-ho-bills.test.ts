@@ -194,3 +194,20 @@ test("PAP-1422 latest collection uses confirmed PAYMENT occurrence only, never r
  assert.throws(()=>latestBillPayment([{...entries[0],occurredAt:"invalid"}]));
  assert.equal(latestBillPayment([]),null);
 });
+
+
+test("PAP-1422 verified Core origin Center appears in HO 11-column Table; missing/forged stays safe",()=>{
+  const centerId="019a01a1-1111-7000-8000-222222222222";
+  const value=sample();
+  const verified=parseHoBill({...value,originCenter:{state:"VERIFIED",centerId,centerName:"PINO Cần Thơ"}});
+  assert.equal(verified.originCenter?.state,"VERIFIED");
+  assert.equal(billRow(verified).center,"PINO Cần Thơ");
+  assert.equal(billRow(parseHoBill(value)).center,null);
+  assert.equal(billRow(parseHoBill({...value,originCenter:{state:"UNAVAILABLE",centerId:null,centerName:null}})).center,null);
+  for(const originCenter of [
+    {state:"VERIFIED",centerId:"wrong",centerName:"PINO"},
+    {state:"VERIFIED",centerId,centerName:" "},
+    {state:"UNAVAILABLE",centerId,centerName:"PINO"},
+    {state:"AUTHORIZED",centerId,centerName:"PINO"},
+  ])assert.throws(()=>parseHoBill({...value,originCenter}),/Invalid HO Bill contract/);
+});
