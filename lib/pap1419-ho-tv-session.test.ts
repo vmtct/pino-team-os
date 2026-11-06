@@ -47,7 +47,7 @@ test("PAP-1419 refuses forged Authorization/Cookie even for exact allowed BFF GE
  let calls=0;
  const session=surfaceSession("HO",origin,async()=>{calls++;return Response.json({data:[]})});
  try{
-  for(const headers of [{authorization:"Bearer evil"},{cookie:"admin=true"},{"x-pino-surface":"HO"}]){
+  for(const headers of [new Headers({authorization:"Bearer evil"}),new Headers({cookie:"admin=true"}),new Headers({"x-pino-surface":"HO"})]){
    await assert.rejects(session.transport("/api/ho/pinoria/tv-health/devices",{method:"GET",headers}));
   }
   assert.equal(calls,0);
