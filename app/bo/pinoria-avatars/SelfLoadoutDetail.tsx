@@ -11,10 +11,10 @@ type Slot = typeof SLOTS[number];
 type ItemSnapshot = { itemId:string; slot:Slot; displayName:string; assetKey:string; assetMimeType:string; positionX:number; positionY:number; scale:number; rotationDegrees:number|null };
 type Loadout = { selfId:string; version:number; ready:boolean; slots:Record<Slot,ItemSnapshot|null>; renderStack:readonly string[]; updatedAt:string|null };
 type EligibleSet = { setItemId:string; displayName:string; membershipRevision:number; memberCount:number };
-type SelfSet = { selfId:string; selfVersion:number; version:number; setItemId:string|null; membershipRevision:number|null; members:{itemId:string;slot:string}[]; ready:boolean; eligibleSets:EligibleSet[]; starterAvailable:false };
+type SelfSet = { selfId:string; selfVersion:number; version:number; setItemId:string|null; membershipRevision:number|null; members:{itemId:string;slot:string}[]; ready:boolean; eligibleSets:EligibleSet[]; starterAvailable:boolean; starterSets:EligibleSet[] };
 function parseSet(raw:unknown,selfId:string):SelfSet {
   const d=(raw as {data?:SelfSet})?.data;
-  if(!d || d.selfId!==selfId || !Number.isSafeInteger(d.version) || d.version<0 || !Number.isSafeInteger(d.selfVersion) || d.selfVersion<1 || typeof d.ready!=="boolean" || d.starterAvailable!==false || (d.setItemId!==null && !UUID.test(d.setItemId)) || !Array.isArray(d.members) || d.members.some(m=>!m || !UUID.test(m.itemId) || !SLOTS.includes(m.slot as Slot)) || !Array.isArray(d.eligibleSets) || d.eligibleSets.some(s=>!s || !UUID.test(s.setItemId) || typeof s.displayName!=="string" || !s.displayName.trim() || !Number.isSafeInteger(s.membershipRevision) || s.membershipRevision<1 || !Number.isSafeInteger(s.memberCount) || s.memberCount<1 || s.memberCount>8) || new Set(d.eligibleSets.map(s=>s.setItemId)).size!==d.eligibleSets.length) throw Error("Invalid Set state.");
+  if(!d || d.selfId!==selfId || !Number.isSafeInteger(d.version) || d.version<0 || !Number.isSafeInteger(d.selfVersion) || d.selfVersion<1 || typeof d.ready!=="boolean" || typeof d.starterAvailable!=="boolean" || !Array.isArray(d.starterSets) || (d.starterAvailable !== (d.starterSets.length > 0)) || d.starterSets.some(s=>!s || !UUID.test(s.setItemId) || typeof s.displayName!=="string" || !s.displayName.trim() || !Number.isSafeInteger(s.membershipRevision) || s.membershipRevision<1 || !Number.isSafeInteger(s.memberCount) || s.memberCount<1 || s.memberCount>8) || new Set(d.starterSets.map(s=>s.setItemId)).size!==d.starterSets.length || (d.setItemId!==null && !UUID.test(d.setItemId)) || !Array.isArray(d.members) || d.members.some(m=>!m || !UUID.test(m.itemId) || !SLOTS.includes(m.slot as Slot)) || !Array.isArray(d.eligibleSets) || d.eligibleSets.some(s=>!s || !UUID.test(s.setItemId) || typeof s.displayName!=="string" || !s.displayName.trim() || !Number.isSafeInteger(s.membershipRevision) || s.membershipRevision<1 || !Number.isSafeInteger(s.memberCount) || s.memberCount<1 || s.memberCount>8) || new Set(d.eligibleSets.map(s=>s.setItemId)).size!==d.eligibleSets.length) throw Error("Invalid Set state.");
   return d;
 }
 type Owned = { itemId:string; key:string; displayName:string; slot:string|null; itemStatus:string; ownership:{status:string} };
@@ -35,6 +35,7 @@ export function SelfLoadoutDetail({row,centerId,activeTab,canView,canManage,canV
   // null means unavailable, never an authorized empty inventory.
   const [selfSet,setSelfSet]=useState<SelfSet|null>(null);
   const [selectedSetId,setSelectedSetId]=useState("");
+  const [selectedStarterId,setSelectedStarterId]=useState("");
   const [activeSetError,setActiveSetError]=useState("");
   const [activeSetReason,setActiveSetReason]=useState("");
   const [activeSetConflict,setActiveSetConflict]=useState(false);
@@ -51,7 +52,7 @@ export function SelfLoadoutDetail({row,centerId,activeTab,canView,canManage,canV
   useEffect(()=>{
     if(activeTab!=="loadout" || !selfId || !canView) return;
     const ctl=new AbortController();
-    queueMicrotask(()=>{if(!ctl.signal.aborted){setSelfSet(null);setSelectedSetId("");setActiveSetError("");setActiveSetReason("");setActiveSetConflict(false);setLoading(true);setError("");setItemError("");setOwned(null);setLoadout(null);setChosen(null);setReason("");setNotice("");setConflict(false);}});
+    queueMicrotask(()=>{if(!ctl.signal.aborted){setSelfSet(null);setSelectedSetId("");setSelectedStarterId("");setActiveSetError("");setActiveSetReason("");setActiveSetConflict(false);setLoading(true);setError("");setItemError("");setOwned(null);setLoadout(null);setChosen(null);setReason("");setNotice("");setConflict(false);}});
     const base="/api/bo/pinoria/selfs/"+selfId;
     const qs="?centerId="+encodeURIComponent(centerId);
     const load=(url:string)=>fetch(url,{credentials:"include",cache:"no-store",signal:ctl.signal}).then(async r=>{
@@ -100,6 +101,28 @@ export function SelfLoadoutDetail({row,centerId,activeTab,canView,canManage,canV
       const next=parseLoadout(await response.json(),selfId);
       setLoadout(next);setChosen(slotIds(next));setReason("");setNotice("Đã lưu Loadout phiên bản "+next.version+".");onSaved();
     }catch(e){setError(e instanceof TypeError?"Không xác nhận được kết quả lưu do lỗi kết nối. Bản nháp được giữ lại; hãy kiểm tra kết nối và thử lại hoặc tải lại trạng thái đã lưu.":e instanceof Error?e.message:"Không xác nhận được kết quả lưu. Bản nháp được giữ lại; hãy thử lại hoặc tải lại trạng thái đã lưu.");}
+    finally{setSaving(false);}
+  }
+  async function startSet(){
+    const choice=selfSet?.starterSets.find(s=>s.setItemId===selectedStarterId);
+    if(!selfId || !selfSet?.starterAvailable || !choice || !canManage || loading || saving || activeSetConflict || !activeSetReason.trim())return;
+    setSaving(true);setActiveSetError("");setNotice("");
+    try {
+      const response=await fetch("/api/bo/pinoria/selfs/"+selfId+"/set/starter?centerId="+encodeURIComponent(centerId),{
+        method:"POST",credentials:"include",cache:"no-store",
+        headers:{"content-type":"application/json","idempotency-key":crypto.randomUUID()},
+        body:JSON.stringify({setItemId:choice.setItemId,expectedVersion:selfSet.version,expectedSelfVersion:selfSet.selfVersion,reason:activeSetReason.trim()}),
+      });
+      if(!response.ok){
+        if(response.status===409)setActiveSetConflict(true);
+        throw Error(response.status===409?"Starter đã được nhận hoặc trạng thái đã thay đổi. Giữ lựa chọn và tải lại trước khi thử tiếp.":response.status===403?"Không có quyền nhận Starter tại cơ sở này.":"Không xác nhận được kết quả Starter. Hãy kiểm tra trạng thái đã lưu.");
+      }
+      const read=await fetch("/api/bo/pinoria/selfs/"+selfId+"/set?centerId="+encodeURIComponent(centerId),{credentials:"include",cache:"no-store"});
+      if(!read.ok)throw Error("Chưa xác minh được Starter đã lưu. Tải lại để kiểm tra.");
+      const next=parseSet(await read.json(),selfId);
+      if(next.setItemId!==choice.setItemId || next.starterAvailable || next.selfVersion<=selfSet.selfVersion)throw Error("Trạng thái Starter chưa khớp. Tải lại để kiểm tra.");
+      setSelfSet(next);setSelectedStarterId("");setActiveSetReason("");setNotice("Đã nhận Starter và áp dụng Set.");onSaved();
+    }catch(e){setActiveSetError(e instanceof Error?e.message:"Chưa xác nhận được Starter. Hãy tải lại.");}
     finally{setSaving(false);}
   }
   async function applySet(){
@@ -156,15 +179,27 @@ export function SelfLoadoutDetail({row,centerId,activeTab,canView,canManage,canV
         {selfSet?.eligibleSets.map(s=><option key={s.setItemId} value={s.setItemId}>{s.displayName}</option>)}
       </select>
     </div>
+    {selfSet?.starterAvailable && <div className="pds-property-row">
+      <label className="pds-property-label" htmlFor="self-loadout-starter">Bộ Starter lần đầu</label>
+      <select id="self-loadout-starter" className="pds-property-input" value={selectedStarterId}
+        disabled={!canManage||loading||saving||activeSetConflict}
+        onChange={e=>{setSelectedStarterId(e.target.value);setActiveSetError("");}}>
+        <option value="">Chọn bộ Starter</option>
+        {selfSet.starterSets.map(s=><option key={s.setItemId} value={s.setItemId}>{s.displayName}</option>)}
+      </select>
+    </div>}
     {selfSet?.setItemId && <p role="status">Đang sử dụng Set {selfSet.eligibleSets.find(s=>s.setItemId===selfSet.setItemId)?.displayName??"đã lưu"}.</p>}
     {selfSet && selfSet.eligibleSets.length===0 && <p className="pds-property-text">Chưa có Set đủ điều kiện để áp dụng.</p>}
     {selfSet && <p role="status">{selfSet.ready?"Sẵn sàng":"Chưa sẵn sàng"} - Phiên bản Set {selfSet.version}</p>}
     {selfSet?.setItemId && <p role="status">Chưa thể hiển thị hình ảnh Set này. Tám ô trang bị đã lưu vẫn được giữ nguyên.</p>}
-    {selfSet && (selfSet.eligibleSets.length>0 || selfSet.setItemId) && <>
+    {selfSet && (selfSet.eligibleSets.length>0 || selfSet.setItemId || selfSet.starterAvailable) && <>
       <div className="pds-property-row"><label className="pds-property-label" htmlFor="self-set-reason">Lý do thay đổi Set *</label>
         <textarea id="self-set-reason" className="pds-property-input" maxLength={1000} value={activeSetReason} disabled={!canManage||saving||loading||activeSetConflict} onChange={e=>setActiveSetReason(e.target.value)}/></div>
       <div className="pds-property-actions">
         <button type="button" disabled={!canManage||saving||loading||activeSetConflict||!activeSetReason.trim()||!selectedSetId||selectedSetId===selfSet.setItemId||!selfSet.eligibleSets.some(s=>s.setItemId===selectedSetId)} onClick={()=>{void applySet();}}>Áp dụng Set</button>
+        {selfSet.starterAvailable && <button type="button"
+          disabled={!canManage||saving||loading||activeSetConflict||!activeSetReason.trim()||!selectedStarterId||!selfSet.starterSets.some(s=>s.setItemId===selectedStarterId)}
+          onClick={()=>{void startSet();}}>Nhận Starter</button>}
         {selfSet.setItemId && <button type="button" disabled={!canManage||saving||loading||activeSetConflict||!activeSetReason.trim()} onClick={()=>{void clearSet();}}>Bỏ Set</button>}
       </div>
     </>}

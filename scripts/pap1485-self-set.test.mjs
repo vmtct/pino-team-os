@@ -16,6 +16,33 @@ function fixture(status=200){
  return {seen,send};
 }
 const clear={expectedVersion:0,expectedSelfVersion:1,reason:' clear '};
+test('Starter sends canonical Item, Center, CAS, reason and replay key without actor identity',async()=>{
+ const f=fixture();
+ const request={...clear,setItemId:self};
+ assert.equal((await f.send('/starter','POST',request)).status,200);
+ assert.deepEqual(JSON.parse(JSON.stringify(f.seen[0])),{
+   method:'POST',path:root+'/starter',resource:{centerId:center},
+   body:{expectedVersion:0,expectedSelfVersion:1,reason:'clear',setItemId:self},
+   idempotencyKey:'test-key-123',
+ });
+ assert.doesNotMatch(JSON.stringify(f.seen),/private-session|email|actor/);
+ assert.equal((await f.send('/starter','GET')).status,405);
+ assert.equal((await f.send('/starter','POST',clear)).status,400);
+ assert.equal((await f.send('/starter','POST',{...clear,setItemId:'invalid'})).status,400);
+ assert.equal((await f.send('/starter','POST',{...request,actor:'founder'})).status,400);
+ assert.equal(f.seen.length,1);
+});
+test('Starter UI uses one-time server eligibility and checks readback before success',()=>{
+ const ui=readFileSync('app/bo/pinoria-avatars/SelfLoadoutDetail.tsx','utf8');
+ assert.match(ui,/starterAvailable:boolean; starterSets:EligibleSet\[\]/);
+ assert.match(ui,/selfSet\?\.starterSets\.find\(s=>s\.setItemId===selectedStarterId\)/);
+ assert.match(ui,/set\/starter\?centerId=/);
+ assert.match(ui,/next\.setItemId!==choice\.setItemId \|\| next\.starterAvailable/);
+ assert.match(ui,/id="self-loadout-starter"/);
+ assert.match(ui,/>Nhận Starter<\/button>/);
+ assert.match(ui,/!selfSet\.starterSets\.some/);
+ assert.match(ui,/setSelectedStarterId\(""\);setActiveSetError/);
+});
 test('Set GET is read-only; commands forward exact Center/CAS/key without identity data',async()=>{
  const f=fixture();assert.equal((await f.send()).status,200);
  assert.deepEqual(JSON.parse(JSON.stringify(f.seen[0])),{method:'GET',path:root,resource:{centerId:center}});

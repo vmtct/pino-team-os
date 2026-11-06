@@ -10,7 +10,7 @@ const PATH = new RegExp("^pinoria/selfs/(" + V7 + ")/loadout$");
 const MEDIA = new RegExp("^pinoria/selfs/(" + V7 + ")/loadout/media/(AURA_GROUND|AURA_BACK|BACK|OUTFIT|HAIR|FACE|HEADWEAR|PATH_MARK)$");
 const ID = new RegExp("^" + V7 + "$");
 const SET = new RegExp("^pinoria/selfs/(" + V7 + ")/set$");
-const SET_COMMAND = new RegExp("^pinoria/selfs/(" + V7 + ")/set/(apply|clear)$");
+const SET_COMMAND = new RegExp("^pinoria/selfs/(" + V7 + ")/set/(apply|clear|starter)$");
 export const SELF_LOADOUT_SLOTS = ["AURA_GROUND","AURA_BACK","BACK","OUTFIT","HAIR","FACE","HEADWEAR","PATH_MARK"] as const;
 
 export function isBoSelfLoadoutPath(path: string): boolean { return PATH.test(path) || MEDIA.test(path) || SET.test(path) || SET_COMMAND.test(path); }
@@ -82,7 +82,7 @@ export async function handleBoSelfLoadoutRequest(request:Request,env:BoSelfLoado
     if((isMedia && request.method!=="GET") || (request.method!=="GET" && request.method!=="POST")) return json({error:{code:"PLATFORM_METHOD_NOT_ALLOWED"}},405);
     const centerId=centerIdOf(request);
     const key=request.method==="POST"?idempotencyKeyOf(request):undefined;
-    const body=request.method==="POST"?(SET_COMMAND.test(path)?await setBody(request,path.endsWith("/apply")):await saveBody(request)):undefined;
+    const body=request.method==="POST"?(SET_COMMAND.test(path)?await setBody(request,path.endsWith("/apply") || path.endsWith("/starter")):await saveBody(request)):undefined;
     const credential=await teamCredential(request,env,"BO",keyResolver);
     const coreRequest:BoAccessRequest={method:request.method,path,resource:{centerId},...(body?{body}:{}),...(key?{idempotencyKey:key}:{})};
     const result=await callBoAccessCoreWithCredential(env.PINO_BO_CORE,coreRequest,credential);
