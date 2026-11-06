@@ -902,6 +902,10 @@
         {
           "file": "app/ho/HoWorkspace.tsx",
           "owner": "PAP-1148"
+        },
+        {
+          "file": "lib/workspace-adapters/session.ts",
+          "owner": "PAP-1221"
         }
       ]
     },
