@@ -24,6 +24,8 @@ export type HoBill = {
   grossAmountMinor: number; itemDiscountMinor: number; netAmountMinor: number; collectedAmountMinor: number; balanceMinor: number;
   paymentState: "OPEN" | "PARTIALLY_PAID" | "PAID" | "VOID"; isOverdue: boolean;
   history?: BillAudit[];
+  /** Center is verified only from immutable Core Draft Issue provenance, never guessed. */
+  originCenter?: {state:"VERIFIED";centerId:string;centerName:string}|{state:"UNAVAILABLE";centerId:null;centerName:null};
 };
 const money = (v: unknown): v is number => Number.isSafeInteger(v) && Number(v) >= 0;
 const text = (v: unknown): v is string => typeof v === "string";
@@ -58,10 +60,22 @@ export function parseHoBill(value: unknown, detail = false): HoBill {
       reference:r.reference, note:r.note, status:r.status, createdAt:r.createdAt, updatedAt:r.updatedAt, version:r.version } as BillTransaction;
   });
   if (new Set(items.map(r => r.id)).size !== items.length || new Set(transactions.map(r => r.id)).size !== transactions.length) return invalid();
+  // Additive Core provenance, fail closed for absent/legacy read projections.
+  // An invalid verified Center is never displayed as an authoritative name.
+  const rawCenter=x.originCenter;
+  let originCenter:NonNullable<HoBill["originCenter"]>={state:"UNAVAILABLE",centerId:null,centerName:null};
+  if(rawCenter!==undefined&&rawCenter!==null){
+    const oc=object(rawCenter);
+    if(!oc)return invalid();
+    if(oc.state==="VERIFIED"){
+      if(!id(oc.centerId)||!text(oc.centerName)||!oc.centerName.trim()||oc.centerName.length>180)return invalid();
+      originCenter={state:"VERIFIED",centerId:oc.centerId,centerName:oc.centerName};
+    }else if(oc.state!=="UNAVAILABLE"||oc.centerId!==null||oc.centerName!==null)return invalid();
+  }
   const result: HoBill = { bill: {id:b.id, payerParentUserId:b.payerParentUserId, currency:b.currency, billDiscountMinor:b.billDiscountMinor,
     dueOn:b.dueOn, campaignReference:b.campaignReference, voidedAt:b.voidedAt, createdAt:b.createdAt, updatedAt:b.updatedAt, version:b.version} as HoBill["bill"],
     items, transactions, specialtyItems:[], walkinItems:[], grossAmountMinor:Number(x.grossAmountMinor), itemDiscountMinor:Number(x.itemDiscountMinor), netAmountMinor:Number(x.netAmountMinor),
-    collectedAmountMinor:Number(x.collectedAmountMinor), balanceMinor:Number(x.balanceMinor), paymentState:x.paymentState as HoBill["paymentState"], isOverdue:x.isOverdue };
+    collectedAmountMinor:Number(x.collectedAmountMinor), balanceMinor:Number(x.balanceMinor), paymentState:x.paymentState as HoBill["paymentState"], isOverdue:x.isOverdue,originCenter };
   if (detail) {
     if (!Array.isArray(x.history) || x.history.length > 100) return invalid();
     result.history = x.history.map(raw => {
