@@ -14,7 +14,7 @@ function subjectDisplay(value:unknown):BillSubjectDisplay {
  if(v.state==="REDACTED"&&v.label===null)return {state:"REDACTED",label:null};
  if(v.state==="VERIFIED"&&typeof v.label==="string"&&v.label.length<=160&&
     v.label.length>=1&&v.label===v.label.trim()&&
-    !/[\\u0000-\\u001F\\u007F]/.test(v.label))return {state:"VERIFIED",label:v.label};
+    !/[\u0000-\u001F\u007F]/.test(v.label))return {state:"VERIFIED",label:v.label};
  return invalid();
 }
 export const billTableRoot="/api/bo/billing/bill-table";
