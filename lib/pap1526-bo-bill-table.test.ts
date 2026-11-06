@@ -114,7 +114,7 @@ test("PAP-1526 fails closed on unproven, malformed or forged identity labels",()
   {state:"VERIFIED",label:" "},{state:"VERIFIED",label:" secret"},
   {state:"VERIFIED",label:"secret "},{state:"VERIFIED",label:"x".repeat(161)},
   {state:"VISIBLE",label:"secret"},{state:"REDACTED",label:"secret"},
-  {state:"VERIFIED",label:"line\\nsecret"},
+  {state:"VERIFIED",label:"line\nsecret"},
  ]){
   assert.throws(()=>parseBillTablePage(page([{...row(),payerDisplay:display}]),center));
   assert.throws(()=>parseBillTablePage(page([{...row(),students:[{studentProfileId:bill,display}]}]),center));
