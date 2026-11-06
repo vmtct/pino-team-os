@@ -14,6 +14,10 @@ export type TosEligibleMissionChoice = {
   name: string;
   level: number;
   assignmentId: string | null;
+  // PAP-1529: optional while older Core deployments remain readable; the
+  // Assignment selector below requires an explicit complete source verdict.
+  assignmentDefinitionEligible?: boolean;
+  assignmentDefinitionBlockReason?: "MISSION_INELIGIBLE" | "PREREQUISITE_PROOF_UNAVAILABLE" | null;
 };
 type EligiblePage = TosMissionAssignmentScope & {
   pathProgramId: string;
@@ -90,4 +94,28 @@ export async function readTosEligibleMissions(
     if (!page.hasMore) return items;
   }
   return fail(409, "TOS_ELIGIBLE_MISSION_PAGE_LIMIT", "Danh sách Mission vượt giới hạn tải.");
+}
+
+/**
+ * PAP-1529 / PAP-1188: a CREATE-definition candidate is not a write grant.
+ * Retain all Diary-eligible choices in the original reader; never treat missing
+ * metadata or a stale Core deployment as proof of Assignment admissibility.
+ * Core must still enforce Staff/Center/roster, version/CAS and duplicate guards.
+ */
+export function assignmentDefinitionReadyChoices(
+  choices: readonly TosEligibleMissionChoice[],
+): readonly TosEligibleMissionChoice[] {
+  const ready:TosEligibleMissionChoice[]=[];
+  for(const choice of choices){
+    const allowed=choice.assignmentDefinitionEligible;
+    const reason=choice.assignmentDefinitionBlockReason;
+    if(typeof allowed!=="boolean" ||
+      (allowed && reason!==null) ||
+      (!allowed && reason!=="MISSION_INELIGIBLE" && reason!=="PREREQUISITE_PROOF_UNAVAILABLE")){
+      return fail(502,"TOS_ASSIGNMENT_DEFINITION_READINESS_UNVERIFIED",
+        "Chưa xác nhận được điều kiện giao nhiệm vụ.");
+    }
+    if(allowed)ready.push(choice);
+  }
+  return ready;
 }
