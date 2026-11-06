@@ -47,6 +47,22 @@ export function parseHoStaffLinkView(value: unknown, centerId: string): LinkView
     version: raw.version, updatedAt: raw.updatedAt as string | null,
   };
 }
+/** PAP-1540 / PAP-220: Core status POST is a write receipt, not the GET link DTO.
+ * The writer provides replayed but no updatedAt. Do not report 502 after an
+ * accepted atomic write solely because the read-only projection differs.
+ * The HO UI independently GETs and checks the committed state/version. */
+export function parseHoStaffLinkResponse(
+  value: unknown, centerId: string, kind: "read" | "status",
+): LinkView | null {
+  if (kind === "read") return parseHoStaffLinkView(value, centerId);
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const raw = value as Record<string, unknown>;
+  const permitted = ["centerId", "token", "enabled", "version", "replayed", "updatedAt"];
+  if (Object.keys(raw).some(key => !permitted.includes(key)) ||
+      !["centerId", "token", "enabled", "version", "replayed"].every(key => Object.hasOwn(raw, key)) ||
+      typeof raw.replayed !== "boolean") return null;
+  return parseHoStaffLinkView({ ...raw, updatedAt: raw.updatedAt ?? null }, centerId);
+}
 const reply = (body: unknown, status: number) => Response.json(body, {
   status, headers: { "cache-control": "private, no-store", "x-content-type-options": "nosniff", "referrer-policy": "no-referrer" },
 });
@@ -83,7 +99,7 @@ export async function handleHoStaffCenterLinks(request: Request, env: HoStaffCen
     if (result.status !== 200) return deny(result.status >= 400 && result.status < 600 ? result.status : 502);
     const raw = result.body && typeof result.body === "object" && "data" in result.body
       ? (result.body as { data: unknown }).data : null;
-    const link = parseHoStaffLinkView(raw, route.centerId);
+    const link = parseHoStaffLinkResponse(raw, route.centerId, route.kind);
     if (!link) return deny(502);
     return reply({ data: link }, 200);
   } catch (error) {

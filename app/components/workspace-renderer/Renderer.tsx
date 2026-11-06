@@ -9,7 +9,7 @@ import { useRef, useState } from "react";
 import { authorizedHostActions, tddActionFeedback, type AuthorizationContext, type ModuleSchema, type TddActionDescriptor, type TddActionBindings } from "@/lib/workspace-schema";
 
 export type TddStage<F extends readonly FieldSchema[] = readonly FieldSchema[]> =
-  | { readonly kind: "table"; readonly props: TddTableProps<F>; readonly mobileMenu?: ReactNode }
+  | { readonly kind: "table"; readonly props: TddTableProps<F>; readonly mobileMenu?: ReactNode; readonly headerActions?: ReactNode }
   | { readonly kind: "drawer"; readonly props: Parameters<typeof TddDrawer<F>>[0]; readonly table?: TddTableProps<F> }
   | { readonly kind: "detail"; readonly props: Parameters<typeof TddDetail<F>>[0] }
   | { readonly kind: "form"; readonly props: { readonly registry: TddRegistry; readonly schema: ModuleSchema<F>; readonly context: AuthorizationContext; readonly mode: "create" | "edit"; readonly recordId?: string; readonly title: string; readonly content: ReactNode; readonly onClose: () => void; readonly actionBindings: TddActionBindings } };
@@ -18,7 +18,7 @@ export function TddRenderer<F extends readonly FieldSchema[]>({ view }: { readon
   const schema = registeredSchema(view.props.registry, view.props.schema);
   if (!allows(schema, view.props.context, "read")) return <RecordState status="denied" />;
   switch (view.kind) {
-    case "table": return <section id="list-screen"><div className="page-heading"><div className="page-heading-left">{view.mobileMenu}<h1>{view.props.schema.label}</h1></div>{view.props.actionBindings ? <TddActionHost schema={schema} context={view.props.context} slot="table.header" bindings={view.props.actionBindings} /> : null}</div><TddTable {...view.props} /></section>;
+    case "table": return <section id="list-screen"><div className="page-heading"><div className="page-heading-left">{view.mobileMenu}<h1>{view.props.schema.label}</h1></div>{view.headerActions ? <div className="heading-actions" data-tdd-action-region="table.header">{view.headerActions}</div> : null}{view.props.actionBindings ? <TddActionHost schema={schema} context={view.props.context} slot="table.header" bindings={view.props.actionBindings} /> : null}</div><TddTable {...view.props} /></section>;
     case "drawer": {
       if (view.table && (view.table.schema !== view.props.schema || view.table.context !== view.props.context)) throw Error("TDD Drawer background scope mismatch");
       return <>{view.table ? <TddTable {...view.table} /> : null}<TddDrawer {...view.props} headerActions={view.props.actionBindings && view.props.status !== "denied" ? <TddActionHost schema={schema} context={view.props.context} slot="drawer.header" bindings={view.props.actionBindings} /> : null} /></>;
