@@ -8,8 +8,7 @@ import type { TddStage } from "@/app/components/workspace-renderer/Renderer";
 import type { FieldSchema } from "@/lib/workspace-schema";
 import type { SurfaceWorkspaceProps } from "@/app/components/workspace-adapters/SurfaceWorkspace";
 const source: BoWorkspaceSource = {
- // PAP-1542 / PAP-220: Staff link controls belong to each Center Detail, not a second module.
- modules:Object.fromEntries(Object.entries(hoModules).filter(([key])=>key!=="staffLinks")), surface:"ho",readOnly:true,
+ modules:hoModules, surface:"ho",readOnly:true,
  routeForModule:key=>hoRoutes[key as HoModule] ?? hoRoutes.centers,
  scopeLabel:()=>"",
  async load(key,fetcher) {
