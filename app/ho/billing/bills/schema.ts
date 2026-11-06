@@ -15,7 +15,7 @@ const keys = billFields.map(f => f.key);
 const sections = [{id:"bill",label:"Thông tin Bill",fields:keys}];
 export const billQuery: TableQuery<F> = {search:"",filters:{logic:"AND",rules:[]},sort:{field:"createdAt",direction:"desc"},
   group:null,order:keys,visible:keys,page:1,pageSize:15};
-export const billApproval = {jira:"PAP-1422", owner:"Founder", designAuthority:"PAP-1362 v1.2 / approved i5 HO Bills PAP-1414",
+export const billApproval = {jira:"PAP-1422", owner:"Founder", designAuthority:"PAP-1362 v1.3 / approved i5 HO Bills PAP-1414",
   files:["app/ho/billing/bills/HoBillsTdd.tsx","app/ho/billing/bills/BillDomain.tsx"],
   tests:["lib/pap1422-ho-bills.test.ts"], reviewBy:"2026-11-30T00:00:00+07:00"} as const;
 export const verifyBillExtension = (approval: Approval, scope: {surface:"BO"|"HO";key:string;extensionId?:string}) =>
@@ -38,7 +38,7 @@ export const billDefinition = {
 } as const satisfies SurfaceDefinition<F>;
 export const billMoney = (amount: number, currency: string) => new Intl.NumberFormat("vi-VN",{style:"currency",currency}).format(amount);
 export function billRow(b: HoBill): ModuleRow<F> {
-  return {id:b.bill.id,name:unavailableBillCode,payer:maskedBillIdentity,students:maskedBillIdentity,center:null,subscriptionCount:String(b.items.length),
+  return {id:b.bill.id,name:unavailableBillCode,payer:maskedBillIdentity,students:maskedBillIdentity,center:b.originCenter?.state==="VERIFIED"?b.originCenter.centerName:null,subscriptionCount:String(b.items.length),
     totalView:billMoney(b.netAmountMinor,b.bill.currency),paidView:billMoney(b.collectedAmountMinor,b.bill.currency),
     balanceView:billMoney(b.balanceMinor,b.bill.currency),status:b.paymentState,latestPaymentAt:latestBillPayment(b.transactions),createdAt:b.bill.createdAt};
 }
