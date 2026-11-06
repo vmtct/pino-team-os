@@ -1,8 +1,11 @@
 /**
- * PAP-1488 / Epic PAP-1188 (MISSION): contract adapter only.
- * The approved TOS Mission cards still represent Diary links, not Core Assignments.
- * This module is deliberately NOT wired to the UI. Its singleton fails closed on writes
- * until a distinct Founder-approved Assignment interaction and PAP-1195 E2E cutover.
+ * PAP-1488 / Epic PAP-1188 (MISSION): canonical Core Assignment transport.
+ * Founder-approved TOS Classroom "Nhiệm Vụ" cards are Assignment, not Diary
+ * children (PAP-1509 / PAP-1188 decision 2026-11-05). The existing tab is
+ * the approved placement: do not create a second nested Assignment panel.
+ * Runtime UI wiring and PAP-1195 authenticated C1 acceptance remain pending.
+ * The default singleton fails closed for all writes until a separately
+ * authorized, server-scoped Teacher/Center path is verified.
  */
 export type TosAssignmentStatus = "ASSIGNED" | "CANCELLED";
 
@@ -229,5 +232,5 @@ export function createTosMissionAssignmentApiTransport(
   };
 }
 
-/** Not invoked from TOS views until the approved UI and real staging E2E gate. */
+/** Existing TOS tab is approved; runtime mount and legitimate E2E grant remain pending. */
 export const tosMissionAssignmentApi = createTosMissionAssignmentApiTransport(false);
