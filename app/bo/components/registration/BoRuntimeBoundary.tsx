@@ -97,10 +97,13 @@ function BoStaffsEntry({ currentUser, options }: {
     headerContent={<BoStaffsViews selected={view} onSelect={setView} />} />;
 }
 
-export function BoRuntimeEntry({ moduleKey, options, parentTddPilot = false }: { moduleKey: string; options: Record<string, string>; parentTddPilot?: boolean }) {
+export function BoRuntimeEntry({ moduleKey, options }: { moduleKey: string; options: Record<string, string> }) {
   const currentUser = useContext(RuntimeContext);
   if (moduleKey === "missions") return <MissionsTdd />;
   if (!currentUser) return <BoOperationalView view="overview" />;
+  // PAP-1543 / Epic PAP-1316: default Parents must never reach the legacy
+  // unscoped directory. The Parent TDD adapter requires a Core-attested Center.
+  if (moduleKey === "parents") return <ParentTdd />;
   if (moduleKey === "staffs") return <BoStaffsEntry currentUser={currentUser} options={options} />;
   // PAP-1334 / Epic PAP-1316: legacy Subscription writer is NOT Center-admitted.
   // PAP-1100 v1.9 replaces this with independent Center-owned Sales, not Renewal.
@@ -111,11 +114,8 @@ export function BoRuntimeEntry({ moduleKey, options, parentTddPilot = false }: {
     content={<section role="status" aria-label="Quản lý gói học" data-testid="bo-subscription-center-contract-pending">
       Quản lý gói học tạm thời chưa khả dụng.
     </section>} />;
-  const isParentPilot = moduleKey === "parents" && parentTddPilot;
   // Stage 1 of the shared BO context: Parent TDD plus legacy Visits and Timekeeping
   // whose Core adapters already enforce explicit centerId and verify response identity.
   if (boCenterModuleScope(moduleKey) === "CENTER") return <CenterReadWorkspace moduleKey={moduleKey} options={options} currentUser={currentUser} />;
-  const workspace = <BoRegistrationWorkspace currentUser={currentUser} source={unifiedBoWorkspaceSource} moduleKey={moduleKey} options={options}
-    content={moduleKey === "parents" && parentTddPilot ? <ParentTdd /> : undefined} />;
-  return workspace;
+  return <BoRegistrationWorkspace currentUser={currentUser} source={unifiedBoWorkspaceSource} moduleKey={moduleKey} options={options} />;
 }
