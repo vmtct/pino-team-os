@@ -11,7 +11,9 @@ test("PAP-1301/PAP-1327: one global BO shell switcher retains canonical Center-s
   const runtime = read("app/bo/components/registration/BoRuntimeBoundary.tsx");
   const shell = read("app/bo/components/registration/BoCenterSwitcher.tsx");
   const pilot = read("app/bo/parents/ParentTdd.tsx");
-  assert.match(runtime, /if \(moduleKey === "parents"\) return <ParentTdd \/>;/);
+  assert.match(runtime, /if \(moduleKey === "parents"\) return <BoRegistrationWorkspace currentUser=\{currentUser\}/);
+  assert.match(runtime, /source=\{unifiedBoWorkspaceSource\} moduleKey="parents" options=\{options\}/);
+  assert.match(runtime, /content=\{<ParentTdd \/>\} \/>;/);
   assert.match(runtime, /RuntimeContext.Provider value=\{currentUser\}><BoCenterSelectionProvider>\{children\}<\/BoCenterSelectionProvider>/);
   assert.equal((runtime.match(/<BoCenterSelectionProvider>/g) ?? []).length, 1);
   assert.match(shell, /useBoCenterSelection\(\)/);
@@ -66,7 +68,9 @@ test("PAP-1301/PAP-1327: canonical Parent TDD is always Center-scoped; unrelated
   const page = read("app/bo/page.tsx");
   const runtime = read("app/bo/components/registration/BoRuntimeBoundary.tsx");
   assert.doesNotMatch(page, /query\.pilot === "tdd"|parentTddPilot/);
-  assert.match(runtime, /if \(moduleKey === "parents"\) return <ParentTdd \/>;/);
+  assert.match(runtime, /if \(moduleKey === "parents"\) return <BoRegistrationWorkspace currentUser=\{currentUser\}/);
+  assert.match(runtime, /source=\{unifiedBoWorkspaceSource\} moduleKey="parents" options=\{options\}/);
+  assert.match(runtime, /content=\{<ParentTdd \/>\} \/>;/);
   assert.match(runtime, /boCenterModuleScope\(moduleKey\) === "CENTER"/);
   assert.match(runtime, /scopedBoReadFetcher\(key, fetcher, selected\)/);
   const policy = read("app/bo/components/registration/BoGlobalCenterPolicy.tsx");
