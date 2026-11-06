@@ -1,8 +1,7 @@
 // PAP-1407 / PAP-220 — Founder HO Link đăng ký Staff TDD, Center registry projection.
 import { TddRegistry, type FieldSchema, type ModuleRow, type TableQuery } from "@/lib/workspace-schema";
 import type { SurfaceDefinition, SurfaceProvider } from "@/lib/workspace-adapters/contracts";
-import { boApi } from "@/lib/bo-api";
-import { mapHoCenters } from "@/lib/ho-centers";
+import { readHoStaffLinkCenters } from "@/lib/ho-staff-center-directory";
 
 const permission = "bo.operations.view";
 const read = { display: true, search: true, filter: true, sort: true, group: true, inlineEdit: false } as const;
@@ -73,7 +72,7 @@ export const linkProvider: SurfaceProvider<F> = {
   pagination: "local-ui",
   async list(_query, scope, fetcher, signal) {
     if (scope.surface !== "HO") throw Error("HO only");
-    const centers = mapHoCenters(await boApi.centers(fetcher));
+    const centers = await readHoStaffLinkCenters(fetcher, signal);
     signal.throwIfAborted();
     // Read every Center independently. Any authorization failure blocks the table;
     // never present missing Center states as a synthetic inactive row.
@@ -85,7 +84,7 @@ export const linkProvider: SurfaceProvider<F> = {
   },
   async detail(id, scope, fetcher, signal) {
     if (scope.surface !== "HO" || !uuid.test(id)) throw Error("HO Center required");
-    const centers = mapHoCenters(await boApi.centers(fetcher));
+    const centers = await readHoStaffLinkCenters(fetcher, signal);
     signal.throwIfAborted();
     const center = centers.find(c => c.id === id);
     if (!center) return null;

@@ -767,7 +767,10 @@
         "app/bo/bills/schema.ts",
         "lib/bo-bills-api.ts",
         "lib/bo-bills-handler.ts",
-        "lib/bo-bills-paths.ts"
+        "lib/bo-bills-paths.ts",
+        "lib/bill-table-presentation.ts",
+        "lib/bo-bill-table-client.ts",
+        "lib/bo-bill-table-contract.ts"
       ],
       "schema": {
         "export": "billSchema",
@@ -778,7 +781,8 @@
         "file": "app/bo/bills/BoBillsTdd.tsx"
       },
       "tests": [
-        "lib/bo-bills-paths.test.ts"
+        "lib/bo-bills-paths.test.ts",
+        "lib/pap1526-bo-bill-table.test.ts"
       ],
       "externalReferences": [
         {"file":"app/bo/architecture/bo-unified-workspace-source.ts","owner":"PAP-1421"},
@@ -802,7 +806,8 @@
         "app/ho/billing/bills/schema.ts",
         "lib/ho-bills-client.ts",
         "lib/ho-bills-contract.ts",
-        "lib/ho-bills-facade.ts"
+        "lib/ho-bills-facade.ts",
+        "lib/bill-table-presentation.ts"
       ],
       "schema": {
         "export": "billSchema",
@@ -844,11 +849,13 @@
       },
       "tests": [
         "lib/ho-staff-center-links-facade.test.ts",
+        "lib/ho-staff-center-directory.test.ts",
         "lib/ho-routes.test.ts"
       ],
       "externalReferences": [
         { "file": "lib/ho-routes.ts", "owner": "PAP-1407" },
         { "file": "lib/ho-system.ts", "owner": "PAP-1407" },
+        { "file": "lib/ho-staff-center-directory.ts", "owner": "PAP-1407" },
         { "file": "lib/host-boundary.ts", "owner": "PAP-1407" },
         { "file": "app/ho/HoWorkspace.tsx", "owner": "PAP-1148" }
       ]
