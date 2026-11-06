@@ -169,7 +169,7 @@ export function SelfLoadoutDetail({row,centerId,activeTab,canView,canManage,canV
   if(!canView)return <p role="alert">Bạn chưa được cấp quyền xem Loadout.</p>;
   return <section aria-label="Pinoria Self Loadout">
     <SelfLoadoutEditorLayout preview={<SelfLoadoutPreview key={selfId+":"+(loadout?.version??"loading")+":"+(selfSet?.version??"pending")} loadout={selfSet && !selfSet.setItemId?loadout:null}
-      activeSet={selfSet?.setItemId?selfSet:null} setMemberSrc={setMemberSrc} mediaSrc={mediaSrc}/> }>
+      activeSet={selfSet?.setItemId?{...selfSet,setItemId:selfSet.setItemId}:null} setMemberSrc={setMemberSrc} mediaSrc={mediaSrc}/> }>
     <h3 className="pds-property-heading">Trang bị Self</h3>
     <p id="self-loadout-help" role="note" className="pds-property-text">Preview chỉ hiển thị trang bị đã lưu; lựa chọn bên dưới chưa được áp dụng cho đến khi lưu. Set được áp dụng riêng, không thay đổi tám ô trang bị đã lưu.</p>
     <div className="pds-property-row">

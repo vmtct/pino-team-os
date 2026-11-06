@@ -58,7 +58,7 @@ test('Set full-frame preview is scoped to Set media and never shows underlying b
  const ui=readFileSync('app/bo/pinoria-avatars/SelfLoadoutDetail.tsx','utf8');
  const renderer=readFileSync('app/components/pinoria/SelfLoadoutPreview.tsx','utf8');
  assert.match(ui,/set\/media\/"\+index/);
- assert.match(ui,/activeSet=\{selfSet\?\.setItemId\?selfSet:null\}/);
+ assert.match(ui,/activeSet=\{selfSet\?\.setItemId\?\{\.\.\.selfSet,setItemId:selfSet\.setItemId\}:null\}/);
  assert.doesNotMatch(ui,/Chưa thể hiển thị hình ảnh Set này/);
  assert.match(renderer,/new OffscreenCanvas\(WIDTH,HEIGHT\)/);
  assert.match(renderer,/painter\.fillRect\(0,0,WIDTH,HEIGHT\)/);
