@@ -10,6 +10,7 @@ import { TddRegistry } from "@/lib/workspace-schema";
 import { BoApiError } from "@/lib/bo-api-error";
 import { HoSpecialtyMissionsTab } from "./HoSpecialtyMissionsTab";
 import { DrawerFrame } from "@/app/components/workspace-renderer/DrawerFrame";
+import createStyles from "./HoSpecialtyCreate.module.css";
 import { specialtyDefinition, specialtyFields, specialtyProvider, specialtyQuery, verifySpecialtyExtension, specialtyVisualPaths, validateSpecialtyDraft, type SpecialtyDraft } from "./schema";
 
 type F = typeof specialtyFields;
@@ -61,30 +62,30 @@ export function SpecialtyCreateDrawer({ onClose }: { onClose: () => void }) {
     <button type="submit" form="ho-spec-create-form" className="primary-btn" disabled aria-disabled="true"
       title="Chưa thể tạo chuyên đề">Tạo chuyên đề</button>
   </>}>
-    <form id="ho-spec-create-form" className="ho-spec-form" data-ho-specialty-create
+    <form id="ho-spec-create-form" className={createStyles.createForm} data-ho-specialty-create
       aria-label="Thông tin chuyên đề mới" onSubmit={event => event.preventDefault()}>
-      <label className="ho-spec-field">
-        <span>Tên chuyên đề <span aria-hidden="true">*</span></span>
-        <input ref={inputRef} required minLength={3} maxLength={160} autoComplete="off"
+      <label className={createStyles.field}>
+        <span className="pds-property-label">Tên chuyên đề <span aria-hidden="true">*</span></span>
+        <input ref={inputRef} className="pds-property-input" required minLength={3} maxLength={160} autoComplete="off"
           value={draft.name} onChange={event => setDraft(value => ({ ...value, name: event.target.value }))}
           placeholder="Tên chuyên đề" />
       </label>
-      <label className="ho-spec-field">
-        <span>Path</span>
-        <select required aria-label="Path" value={draft.pathCode}
+      <label className={createStyles.field}>
+        <span className="pds-property-label">Path</span>
+        <select className="pds-property-input" required aria-label="Path" value={draft.pathCode}
           onChange={event => setDraft(value => ({ ...value, pathCode: event.target.value }))}>
           <option value="">Chọn Path</option>
           {specialtyVisualPaths.map(path => <option key={path.code} value={path.code}>{path.label}</option>)}
         </select>
       </label>
-      <label className="ho-spec-field">
-        <span>Mô tả</span>
-        <textarea rows={4} maxLength={4000} value={draft.description}
+      <label className={createStyles.field}>
+        <span className="pds-property-label">Mô tả</span>
+        <textarea className="pds-property-input" rows={4} maxLength={4000} value={draft.description}
           onChange={event => setDraft(value => ({ ...value, description: event.target.value }))}
           placeholder="Mô tả chuyên đề" />
       </label>
-      {invalid && (draft.name || draft.pathCode) ? <p className="ho-spec-create-status" role="status">{invalid}</p> : null}
-      <p className="ho-spec-create-status" role="status">Chưa thể tạo chuyên đề.</p>
+      {invalid && (draft.name || draft.pathCode) ? <p role="status">{invalid}</p> : null}
+      <p role="status">Chưa thể tạo chuyên đề.</p>
     </form>
   </DrawerFrame>;
 }
