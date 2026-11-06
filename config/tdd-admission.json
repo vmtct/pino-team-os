@@ -928,7 +928,8 @@
       "tests": [
         "app/ho/pinoria/tv/schema.test.ts",
         "lib/ho-tv-directory-client.test.ts",
-        "lib/ho-routes.test.ts"
+        "lib/ho-routes.test.ts",
+        "lib/pap1419-ho-tv-session.test.ts"
       ],
       "externalReferences": [
         {
