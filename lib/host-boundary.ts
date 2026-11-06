@@ -63,6 +63,10 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   }
   // PAP-1356: global fail-closed fence so unknown hosts cannot fall through.
   const loadoutId = "[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
+  const setRoot = new RegExp("^/api/bo/pinoria/selfs/" + loadoutId + "/set$").test(pathname);
+  const setCommand = new RegExp("^/api/bo/pinoria/selfs/" + loadoutId + "/set/(apply|clear)$").test(pathname);
+  if (setRoot || setCommand) return hostname === BO_STAGING_HOSTNAME && (setRoot ? method === "GET" : method === "POST") ? { action: "next" } : { action: "not_found" };
+  if (/^\/api\/bo\/pinoria\/selfs\/[^/]+\/set(?:\/|$)/.test(pathname)) return { action: "not_found" };
   const loadoutRoute = new RegExp("^/api/bo/pinoria/selfs/" + loadoutId + "/loadout(?:/media/(AURA_GROUND|AURA_BACK|BACK|OUTFIT|HAIR|FACE|HEADWEAR|PATH_MARK))?$").exec(pathname);
   if (loadoutRoute) return hostname === BO_STAGING_HOSTNAME && (loadoutRoute[1] ? method === "GET" : (method === "GET" || method === "POST"))
     ? { action: "next" } : { action: "not_found" };

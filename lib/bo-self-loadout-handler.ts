@@ -9,10 +9,26 @@ const V7 = "[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
 const PATH = new RegExp("^pinoria/selfs/(" + V7 + ")/loadout$");
 const MEDIA = new RegExp("^pinoria/selfs/(" + V7 + ")/loadout/media/(AURA_GROUND|AURA_BACK|BACK|OUTFIT|HAIR|FACE|HEADWEAR|PATH_MARK)$");
 const ID = new RegExp("^" + V7 + "$");
+const SET = new RegExp("^pinoria/selfs/(" + V7 + ")/set$");
+const SET_COMMAND = new RegExp("^pinoria/selfs/(" + V7 + ")/set/(apply|clear)$");
 export const SELF_LOADOUT_SLOTS = ["AURA_GROUND","AURA_BACK","BACK","OUTFIT","HAIR","FACE","HEADWEAR","PATH_MARK"] as const;
 
-export function isBoSelfLoadoutPath(path: string): boolean { return PATH.test(path) || MEDIA.test(path); }
+export function isBoSelfLoadoutPath(path: string): boolean { return PATH.test(path) || MEDIA.test(path) || SET.test(path) || SET_COMMAND.test(path); }
 class InvalidInput extends Error {}
+async function setBody(request: Request, apply: boolean) {
+  if ((request.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase() !== "application/json") throw new InvalidInput("JSON content type required");
+  let raw: unknown;
+  try { raw = await request.json(); } catch { throw new InvalidInput("Invalid JSON"); }
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new InvalidInput("Object body required");
+  const r = raw as Record<string, unknown>;
+  const keys = ["expectedVersion", "expectedSelfVersion", "reason", ...(apply ? ["setItemId"] : [])];
+  if (Object.keys(r).sort().join(",") !== keys.sort().join(",") ||
+      !Number.isSafeInteger(r.expectedVersion) || Number(r.expectedVersion) < 0 ||
+      !Number.isSafeInteger(r.expectedSelfVersion) || Number(r.expectedSelfVersion) < 1 ||
+      typeof r.reason !== "string" || !r.reason.trim() || r.reason.trim().length > 1000 ||
+      (apply && (typeof r.setItemId !== "string" || !ID.test(r.setItemId)))) throw new InvalidInput("Invalid Set command");
+  return { ...r, reason: r.reason.trim() };
+}
 function centerIdOf(request: Request): string {
   const qs=[...new URL(request.url).searchParams.entries()];
   if(qs.length!==1 || qs[0]?.[0]!=="centerId" || !ID.test(qs[0][1])) throw new InvalidInput("Exactly one canonical centerId required");
@@ -62,10 +78,11 @@ export async function handleBoSelfLoadoutRequest(request:Request,env:BoSelfLoado
   try {
     if(!isBoSelfLoadoutPath(path)) return json({error:{code:"PLATFORM_NOT_FOUND"}},404);
     const isMedia=MEDIA.test(path);
+    if ((SET.test(path) && request.method !== "GET") || (SET_COMMAND.test(path) && request.method !== "POST")) return json({error:{code:"PLATFORM_METHOD_NOT_ALLOWED"}},405);
     if((isMedia && request.method!=="GET") || (request.method!=="GET" && request.method!=="POST")) return json({error:{code:"PLATFORM_METHOD_NOT_ALLOWED"}},405);
     const centerId=centerIdOf(request);
     const key=request.method==="POST"?idempotencyKeyOf(request):undefined;
-    const body=request.method==="POST"?await saveBody(request):undefined;
+    const body=request.method==="POST"?(SET_COMMAND.test(path)?await setBody(request,path.endsWith("/apply")):await saveBody(request)):undefined;
     const credential=await teamCredential(request,env,"BO",keyResolver);
     const coreRequest:BoAccessRequest={method:request.method,path,resource:{centerId},...(body?{body}:{}),...(key?{idempotencyKey:key}:{})};
     const result=await callBoAccessCoreWithCredential(env.PINO_BO_CORE,coreRequest,credential);

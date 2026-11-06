@@ -67,7 +67,8 @@ export function SelfLoadoutPreview({loadout,mediaSrc}:{
   const [mediaWarnings,setMediaWarnings]=useState<{opaque:string[];unchecked:string[]}>({opaque:[],unchecked:[]});
   useEffect(()=>{
     const target=canvas.current;
-    if(!target||!loadout)return;
+    if(!target)return;
+    if(!loadout){target.getContext("2d")?.clearRect(0,0,WIDTH,HEIGHT);return;}
     const ctx=target.getContext("2d");
     if(!ctx)return;
     const ctl=new AbortController();
@@ -126,8 +127,8 @@ export function SelfLoadoutPreview({loadout,mediaSrc}:{
       Không hỗ trợ Canvas để hiển thị Self.
     </canvas>
     <figcaption className="pds-property-text">
-      Preview từ trạng thái đã lưu trên Core, không tự cấp Item và không áp dụng Set S6.
-      {missing.length>0&&<p role="alert">Chưa tải được: {missing.join(", ")} (Core media PAP-1428 / quyền Center).</p>}
+      Preview shows authorized saved media only.
+      {missing.length>0&&<p role="alert">Chưa tải được: {missing.join(", ")} (authorized media unavailable).</p>}
       {mediaWarnings.opaque.length>0&&<p role="alert">Item media không phù hợp để ghép lớp (opaque: mẫu alpha không có vùng trong suốt): {mediaWarnings.opaque.join(", ")}. Đã bỏ qua hình trong preview để không che Self; trang bị đã lưu không thay đổi.</p>}
       {mediaWarnings.unchecked.length>0&&<p role="alert">Không kiểm tra được độ trong suốt của Item media: {mediaWarnings.unchecked.join(", ")}. Đã bỏ qua hình trong preview; trang bị đã lưu không thay đổi.</p>}
     </figcaption>
