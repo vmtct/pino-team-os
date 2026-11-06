@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef, useState, type FormEvent } from "react";
-import { boApi, BoApiError, type BoParentStandaloneCreateInput, type BoParentStandaloneCreateResult } from "@/lib/bo-api";
+import { BoApiError } from "@/lib/bo-api-error";
+import { createStandaloneParent, type BoParentStandaloneCreateInput, type BoParentStandaloneCreateResult } from "@/lib/bo-parent-create-client";
 import { useBoDialog } from "../components/registration/useBoDialog";
 
 type Attempt = { body: BoParentStandaloneCreateInput; key: string; centerId: string };
@@ -54,7 +55,7 @@ export function ParentCreateDrawer({
     setLocked(true); setCanEdit(false); setError("");
     inFlight.current = true; setBusy(true);
     try {
-      const result = await boApi.createStandaloneParent(attempt.centerId, attempt.body, attempt.key);
+      const result = await createStandaloneParent(attempt.centerId, attempt.body, attempt.key);
       onCreated(result);
     } catch (cause) {
       setError(failureMessage(cause));
