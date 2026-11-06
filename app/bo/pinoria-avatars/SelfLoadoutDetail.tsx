@@ -55,7 +55,7 @@ export function SelfLoadoutDetail({row,centerId,activeTab,canView,canManage,canV
     const load=(url:string)=>fetch(url,{credentials:"include",cache:"no-store",signal:ctl.signal}).then(async r=>{
       if(!r.ok)throw Error(r.status===403?"Không có quyền ở cơ sở này.":"Core trả về "+r.status);return r.json() as Promise<unknown>;
     });
-    const readSet=load(base+"/set"+qs).then(raw=>{if(!ctl.signal.aborted)setSelfSet(parseSet(raw,selfId));}).catch(()=>{if(!ctl.signal.aborted)setSetError("Set unavailable. Reload saved state.");});
+    const readSet=load(base+"/set"+qs).then(raw=>{if(!ctl.signal.aborted)setSelfSet(parseSet(raw,selfId));}).catch(()=>{if(!ctl.signal.aborted)setSetError("Không tải được trạng thái Set. Hãy tải lại.");});
     const readLoadout=load(base+"/loadout"+qs).then(raw=>{
       if(ctl.signal.aborted)return;
       const next=parseLoadout(raw,selfId);
@@ -109,13 +109,13 @@ export function SelfLoadoutDetail({row,centerId,activeTab,canView,canManage,canV
         headers:{"content-type":"application/json","idempotency-key":crypto.randomUUID()},
         body:JSON.stringify({expectedVersion:selfSet.version,expectedSelfVersion:selfSet.selfVersion,reason:setReason.trim()}),
       });
-      if(!response.ok){if(response.status===409)setSetConflict(true);throw Error(response.status===409?"Set changed. State and reason retained; reload before retry.":"Result unavailable. State and reason retained.");}
+      if(!response.ok){if(response.status===409)setSetConflict(true);throw Error(response.status===409?"Set đã thay đổi. Giữ nguyên lý do và tải lại trước khi thử tiếp.":"Không xác nhận được kết quả. Lý do và trạng thái đang xem được giữ nguyên.");}
       // Command receipts are not GET projections; confirm persisted state by reading Core.
       const read=await fetch("/api/bo/pinoria/selfs/"+selfId+"/set?centerId="+encodeURIComponent(centerId),{credentials:"include",cache:"no-store"});
-      if(!read.ok)throw Error("Saved state could not be confirmed. Reload to check.");
+      if(!read.ok)throw Error("Chưa xác nhận được trạng thái đã lưu. Hãy tải lại để kiểm tra.");
       const next=parseSet(await read.json(),selfId);
-      setSelfSet(next);setSetReason("");setNotice(next.setItemId?"Set state updated.":"Set cleared.");onSaved();
-    }catch(e){setSetError(e instanceof Error?e.message:"Result unavailable. State and reason retained.");}
+      setSelfSet(next);setSetReason("");setNotice(next.setItemId?"Trạng thái Set đã cập nhật.":"Đã bỏ Set.");onSaved();
+    }catch(e){setSetError(e instanceof Error?e.message:"Không xác nhận được kết quả. Lý do và trạng thái đang xem được giữ nguyên.");}
     finally{setSaving(false);}
   }
   if(activeTab!=="loadout")return null;
@@ -125,21 +125,21 @@ export function SelfLoadoutDetail({row,centerId,activeTab,canView,canManage,canV
     <SelfLoadoutEditorLayout preview={<SelfLoadoutPreview key={selfId+":"+(loadout?.version??"loading")} loadout={selfSet && !selfSet.setItemId?loadout:null}
       mediaSrc={mediaSrc}/> }>
     <h3 className="pds-property-heading">Trang bị Self</h3>
-    <p id="self-loadout-help" role="note" className="pds-property-text">Preview chỉ hiển thị trang bị đã lưu; lựa chọn bên dưới chưa được áp dụng cho đến khi lưu. Set selection preserves all eight saved slots.</p>
+    <p id="self-loadout-help" role="note" className="pds-property-text">Preview chỉ hiển thị trang bị đã lưu; lựa chọn bên dưới chưa được áp dụng cho đến khi lưu. Set được áp dụng riêng, không thay đổi tám ô trang bị đã lưu.</p>
     <div className="pds-property-row">
       <label className="pds-property-label" htmlFor="self-loadout-set">Set</label>
-      <input id="self-loadout-set" className="pds-property-input" readOnly value={selfSet?(selfSet.setItemId?"Set active":"No active Set"):"Set state unavailable"}/>
+      <input id="self-loadout-set" className="pds-property-input" readOnly value={selfSet?(selfSet.setItemId?"Đang sử dụng Set":"Chưa sử dụng Set"):"Chưa tải được trạng thái Set"}/>
     </div>
-    <p className="pds-property-text">Eligible Set selection and Starter are currently unavailable.</p>
-    {selfSet && <p role="status">{selfSet.ready?"Ready":"Not ready"} - Set version {selfSet.version}</p>}
+    <p className="pds-property-text">Chưa hỗ trợ chọn Set mới.</p>
+    {selfSet && <p role="status">{selfSet.ready?"Sẵn sàng":"Chưa sẵn sàng"} - Phiên bản Set {selfSet.version}</p>}
     {selfSet?.setItemId && <>
-      <p role="status">Authorized Set media is unavailable. All eight saved slots are retained.</p>
-      <div className="pds-property-row"><label className="pds-property-label" htmlFor="self-set-reason">Reason to clear Set *</label>
+      <p role="status">Chưa thể hiển thị hình ảnh Set này. Tám ô trang bị đã lưu vẫn được giữ nguyên.</p>
+      <div className="pds-property-row"><label className="pds-property-label" htmlFor="self-set-reason">Lý do bỏ Set *</label>
         <textarea id="self-set-reason" className="pds-property-input" maxLength={1000} value={setReason} disabled={!canManage||saving||loading||setConflict} onChange={e=>setSetReason(e.target.value)}/></div>
-      <div className="pds-property-actions"><button type="button" disabled={!canManage||saving||loading||setConflict||!setReason.trim()} onClick={()=>{void clearSet();}}>Clear Set</button></div>
+      <div className="pds-property-actions"><button type="button" disabled={!canManage||saving||loading||setConflict||!setReason.trim()} onClick={()=>{void clearSet();}}>Bỏ Set</button></div>
     </>}
     {setError && <p role="alert">{setError}</p>}
-    {setError && <button type="button" disabled={loading||saving} onClick={()=>setRefresh(n=>n+1)}>Discard drafts and reload</button>}
+    {setError && <button type="button" disabled={loading||saving} onClick={()=>setRefresh(n=>n+1)}>Bỏ bản nháp và tải lại</button>}
     {loading && <p role="status">Đang tải Loadout từ Core…</p>}
     {error && <p role="alert" className="pds-property-text">{error}</p>}
     {itemError && <p role="alert" className="pds-property-text">{itemError}</p>}
@@ -148,7 +148,7 @@ export function SelfLoadoutDetail({row,centerId,activeTab,canView,canManage,canV
     {loadout && chosen && !loading && <form aria-label="Thiết lập trang bị Self" aria-describedby="self-loadout-help self-loadout-state" onSubmit={e=>{void submit(e);}}>
       <p id="self-loadout-state" role="status" className="pds-property-text">{dirty?"Có thay đổi trang bị chưa lưu.":"Trang bị khớp với phiên bản đã lưu."}</p>
       {!canManage && <p className="pds-property-text">Chỉ xem: bạn chưa được cấp quyền sửa Loadout.</p>}
-      <p>Phiên bản {loadout.version} · {selfSet?(selfSet.ready?"Ready":"Not ready"):"Readiness unavailable"} · {loadout.updatedAt??"Chưa lưu"}</p>
+      <p>Phiên bản {loadout.version} · {selfSet?(selfSet.ready?"Sẵn sàng":"Chưa sẵn sàng"):"Chưa xác nhận trạng thái"} · {loadout.updatedAt??"Chưa lưu"}</p>
       {options.map(({slot,items})=>{
         const current=loadout.slots[slot];
         const currentValue=chosen[slot]??"";
