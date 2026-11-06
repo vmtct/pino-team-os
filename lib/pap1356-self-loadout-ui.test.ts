@@ -66,7 +66,9 @@ test("PAP-1356 eight slots, S6 separate, Core CAS and canonical 9:16 compositing
   for(const value of ["AURA_GROUND","AURA_BACK","BACK","OUTFIT","HAIR","FACE","HEADWEAR","PATH_MARK","expectedVersion","itemIdsBySlot","idempotency-key"])
     assert.ok(ui.includes(value),value);
   assert.match(ui,/id="self-loadout-set"/);
-  assert.match(ui,/readOnly value=\{selfSet\?/);
+  assert.match(ui,/value=\{selectedSetId\}/);
+  assert.match(ui,/eligibleSets\.map/);
+  assert.match(ui,/async function applySet\(\)/);
   assert.match(ui,/selfSet && !selfSet.setItemId\?loadout:null/);
   assert.match(ui,/expectedSelfVersion:selfSet.selfVersion/);
   assert.doesNotMatch(ui,/S6 — chưa bật quản lý Set/);

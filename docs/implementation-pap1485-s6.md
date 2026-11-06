@@ -27,13 +27,13 @@ Visual approval inherited from PAP-1312 comment 19992 as explicitly supplied in 
 
 Gateway extends the existing BO credential handler and router predicate, with a BO Staging host fence. Core owns authorization, eligibility, ownership, audit and CAS. Exact Set write bodies require Set version >=0, Self version >=1, reason and idempotency key. GET never dispatches a command.
 
-UI reads persisted Set state separately, displays Core effective readiness, and clears with both versions followed by GET confirmation. Conflicts retain snapshot and reason until explicit discard/reload. No Apply selector or synthetic options. Active Set suppresses base preview; no Set media request is fabricated. Eight-slot SaveSlots body is unchanged.
+UI reads persisted Set state and Core-owned fully eligible published Set options directly from the same authorized GET. The Set-first selector offers only exact Core-projected owned choices, not fabricated catalog options; ApplySet and ClearSet use both Set/Self CAS, command idempotency and GET readback. Conflicts retain snapshot, selection and reason until explicit discard/reload. Active Set suppresses base preview; no Set media request is fabricated. Eight-slot SaveSlots body is unchanged.
 
 ## Missing Core contracts
 
 Existing implemented paths are GET pinoria/selfs/:id/set and POST pinoria/selfs/:id/set/apply and /clear. Next BE work must publish exact registered route names and typed contracts for:
 
-- eligible published Set discovery scoped to Self and Center, with eligibility/missing-owned-member information;
+- optional missing-owned-member explanation for Sets not eligible; Core GET now exposes only currently fully owned published `eligibleSets` choices, so no unowned Set can be selected;
 - authorized per-member media for the frozen active Set revision, with entitlement and Center checks, plus composition metadata sufficient for the approved opaque full-frame highest layer;
 - atomic first-Starter grant-and-activate command with permissions, CAS, idempotency and audit. Current starterAvailable is false.
 

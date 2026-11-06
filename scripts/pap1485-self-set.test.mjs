@@ -37,13 +37,17 @@ for(const status of [400,403,404,409])test(`Core ${status} passes through withou
  const response=await fixture(status).send('/clear','POST',clear);
  assert.equal(response.status,status);assert.equal(response.headers.get('cache-control'),'no-store');assert.deepEqual(await response.json(),{error:{code:'DENIED'}});
 });
-test('UI Set is first, no synthetic Apply, CAS clear readback and fail-closed media',()=>{
+test('UI Set-first, Core eligible Apply and Clear with CAS readback and fail-closed media',()=>{
  const ui=readFileSync('app/bo/pinoria-avatars/SelfLoadoutDetail.tsx','utf8');
  assert.ok(ui.indexOf('id="self-loadout-set"')<ui.indexOf('options.map'));
  assert.match(ui,/expectedSelfVersion:selfSet.selfVersion/);assert.match(ui,/setConflict\(true\)/i);
  assert.match(ui,/loadout=\{selfSet && !selfSet.setItemId\?loadout:null\}/);
  assert.match(ui,/expectedVersion:loadout.version,itemIdsBySlot:chosen,reason:reason.trim\(\)/);
  assert.doesNotMatch(ui,/>[^<]*(?:S6|demo|fixture)/);
- assert.doesNotMatch(ui,/set\/apply\?/);
+ assert.match(ui,/set\/apply\?/);
+ assert.match(ui,/eligibleSets\.find/);
+ assert.match(ui,/if\(next.setItemId!==requestedSetId\)/);
+ assert.match(ui,/\!Array.isArray\(d.eligibleSets\)/);
+ assert.doesNotMatch(ui,/starter\/grant/);
  const preview=readFileSync('app/components/pinoria/SelfLoadoutPreview.tsx','utf8');assert.match(preview,/if\(!loadout\).*clearRect/);
 });
