@@ -9,8 +9,8 @@ import { browserTddNavigation, type AdapterNavigation } from "@/lib/workspace-ad
 import { TddRegistry } from "@/lib/workspace-schema";
 import { BoApiError } from "@/lib/bo-api-error";
 import { HoSpecialtyMissionsTab } from "./HoSpecialtyMissionsTab";
-import { SpecialtyCreateDrawer } from "./SpecialtyCreateDrawer";
-import { specialtyDefinition, specialtyFields, specialtyProvider, specialtyQuery, verifySpecialtyExtension } from "./schema";
+import { DrawerFrame } from "@/app/components/workspace-renderer/DrawerFrame";
+import { specialtyDefinition, specialtyFields, specialtyProvider, specialtyQuery, verifySpecialtyExtension, specialtyVisualPaths, validateSpecialtyDraft, type SpecialtyDraft } from "./schema";
 
 type F = typeof specialtyFields;
 type Ready = {adapter:AuthenticatedSurfaceAdapter<F>;navigation:AdapterNavigation<F>};
@@ -45,4 +45,32 @@ export function HoSpecialties() {
       {createOpen ? <SpecialtyCreateDrawer onClose={()=>setCreateOpen(false)} /> : null}
     </>:<p role="status">Đang tải Chuyên đề…</p>;
   return <HoWorkspace module="specialties" content={content}/>;
+}\r\nexport function SpecialtyCreateDrawer({ onClose }: { onClose: () => void }) {
+  const [draft, setDraft] = useState<SpecialtyDraft>({ name: "", pathCode: "", description: "" });
+  const invalid = validateSpecialtyDraft(draft);
+  return <DrawerFrame title="Tạo Chuyên đề" path="Chuyên đề" onClose={onClose} footer={<>
+    <button type="button" className="secondary-btn" onClick={onClose}>Hủy</button>
+    <button type="button" className="primary-btn" disabled aria-disabled="true"
+      title="Chưa thể lưu Chuyên đề">Tạo Chuyên đề</button>
+  </>}>
+    <section className="v25-form-fields" aria-label="Thông tin Chuyên đề mới">
+      <label className="v25-form-field"><span>Tên Chuyên đề *</span>
+        <input autoFocus required maxLength={160} value={draft.name} onChange={event =>
+          setDraft(value => ({ ...value, name: event.target.value }))} placeholder="Tên Chuyên đề" />
+      </label>
+      <label className="v25-form-field"><span>Path *</span>
+        <select required aria-label="Path" value={draft.pathCode}
+          onChange={event => setDraft(value => ({ ...value, pathCode: event.target.value }))}>
+          <option value="">Chọn Path</option>
+          {specialtyVisualPaths.map(path => <option key={path.code} value={path.code}>{path.label}</option>)}
+        </select>
+      </label>
+      <label className="v25-form-field"><span>Mô tả</span>
+        <textarea rows={4} maxLength={4000} value={draft.description} onChange={event =>
+          setDraft(value => ({ ...value, description: event.target.value }))} />
+      </label>
+      {invalid && (draft.name || draft.pathCode) ? <p role="status">{invalid}</p> : null}
+      <p role="status">Chưa thể lưu Chuyên đề.</p>
+    </section>
+  </DrawerFrame>;
 }
