@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  parseHoStaffLinkPath, parseHoStaffLinkStatus, parseHoStaffLinkView,
+  parseHoStaffLinkPath, parseHoStaffLinkStatus, parseHoStaffLinkView, parseHoStaffLinkResponse,
 } from "./ho-staff-center-links-facade";
 
 const CENTER = "01912345-6789-7abc-8def-0123456789ab";
@@ -49,4 +49,41 @@ test("PAP-1407: Founder response projection accepts only exact Center and safe H
     { centerId: CENTER, token, enabled: true, version: -1, updatedAt: null },
     { centerId: CENTER, token, enabled: true, version: 1.5, updatedAt: null },
   ]) assert.equal(parseHoStaffLinkView(x, CENTER), null);
+});
+
+test("PAP-1540: Core write receipt is distinct from Founder link GET DTO", () => {
+  const coreReceipt = { centerId: CENTER, token, enabled: true, version: 1, replayed: false };
+  assert.equal(parseHoStaffLinkView(coreReceipt, CENTER), null,
+    "GET shape requires updatedAt; Core writer intentionally omits it");
+  assert.deepEqual(parseHoStaffLinkResponse(coreReceipt, CENTER, "status"), {
+    centerId: CENTER, token, enabled: true, version: 1, updatedAt: null,
+  });
+  assert.equal(parseHoStaffLinkResponse(coreReceipt, CENTER, "read"), null,
+    "GET must never silently accept a writer receipt");
+  assert.deepEqual(parseHoStaffLinkResponse({
+    ...coreReceipt, enabled: false, version: 2, replayed: true,
+  }, CENTER, "status"), {
+    centerId: CENTER, token, enabled: false, version: 2, updatedAt: null,
+  });
+  assert.deepEqual(parseHoStaffLinkResponse({
+    centerId: CENTER, token, enabled: false, version: 2, updatedAt: "2026-11-06T07:00:00.000Z",
+  }, CENTER, "read"), {
+    centerId: CENTER, token, enabled: false, version: 2, updatedAt: "2026-11-06T07:00:00.000Z",
+  });
+});
+test("PAP-1540: write receipt rejects forged Center, malformed token, Access or ambiguous fields", () => {
+  const receipt = { centerId: CENTER, token, enabled: true, version: 1, replayed: false };
+  for (const value of [
+    null, {}, [],
+    { ...receipt, centerId: "01912345-6789-7abc-8def-0123456789ac" },
+    { ...receipt, token: "invalid" },
+    { ...receipt, enabled: "true" },
+    { ...receipt, version: -1 },
+    { ...receipt, version: 1.5 },
+    { ...receipt, replayed: undefined },
+    { ...receipt, replayed: "false" },
+    { ...receipt, updatedAt: 42 },
+    { ...receipt, accessUserId: CENTER },
+    { ...receipt, password: "secret" },
+  ]) assert.equal(parseHoStaffLinkResponse(value, CENTER, "status"), null);
 });
