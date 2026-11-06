@@ -992,6 +992,10 @@
           "owner": "PAP-1221"
         },
         {
+          "file": "lib/workspace-adapters/session.ts",
+          "owner": "PAP-1221"
+        },
+        {
           "file": "lib/host-boundary.ts",
           "owner": "PAP-1220"
         }
