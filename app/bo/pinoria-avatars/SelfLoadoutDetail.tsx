@@ -33,9 +33,9 @@ export function SelfLoadoutDetail({row,centerId,activeTab,canView,canManage,canV
   const [loadout,setLoadout]=useState<Loadout|null>(null);
   // null means unavailable, never an authorized empty inventory.
   const [selfSet,setSelfSet]=useState<SelfSet|null>(null);
-  const [setError,setSetError]=useState("");
-  const [setReason,setSetReason]=useState("");
-  const [setConflict,setSetConflict]=useState(false);
+  const [activeSetError,setActiveSetError]=useState("");
+  const [activeSetReason,setActiveSetReason]=useState("");
+  const [activeSetConflict,setActiveSetConflict]=useState(false);
   const [owned,setOwned]=useState<Owned[]|null>(null);
   const [itemError,setItemError]=useState("");
   const [conflict,setConflict]=useState(false);
@@ -49,13 +49,13 @@ export function SelfLoadoutDetail({row,centerId,activeTab,canView,canManage,canV
   useEffect(()=>{
     if(activeTab!=="loadout" || !selfId || !canView) return;
     const ctl=new AbortController();
-    queueMicrotask(()=>{if(!ctl.signal.aborted){setSelfSet(null);setSetError("");setSetReason("");setSetConflict(false);setLoading(true);setError("");setItemError("");setOwned(null);setLoadout(null);setChosen(null);setReason("");setNotice("");setConflict(false);}});
+    queueMicrotask(()=>{if(!ctl.signal.aborted){setSelfSet(null);setActiveSetError("");setActiveSetReason("");setActiveSetConflict(false);setLoading(true);setError("");setItemError("");setOwned(null);setLoadout(null);setChosen(null);setReason("");setNotice("");setConflict(false);}});
     const base="/api/bo/pinoria/selfs/"+selfId;
     const qs="?centerId="+encodeURIComponent(centerId);
     const load=(url:string)=>fetch(url,{credentials:"include",cache:"no-store",signal:ctl.signal}).then(async r=>{
       if(!r.ok)throw Error(r.status===403?"Không có quyền ở cơ sở này.":"Core trả về "+r.status);return r.json() as Promise<unknown>;
     });
-    const readSet=load(base+"/set"+qs).then(raw=>{if(!ctl.signal.aborted)setSelfSet(parseSet(raw,selfId));}).catch(()=>{if(!ctl.signal.aborted)setSetError("Không tải được trạng thái Set. Hãy tải lại.");});
+    const readSet=load(base+"/set"+qs).then(raw=>{if(!ctl.signal.aborted)setSelfSet(parseSet(raw,selfId));}).catch(()=>{if(!ctl.signal.aborted)setActiveSetError("Không tải được trạng thái Set. Hãy tải lại.");});
     const readLoadout=load(base+"/loadout"+qs).then(raw=>{
       if(ctl.signal.aborted)return;
       const next=parseLoadout(raw,selfId);
@@ -101,21 +101,21 @@ export function SelfLoadoutDetail({row,centerId,activeTab,canView,canManage,canV
     finally{setSaving(false);}
   }
   async function clearSet(){
-    if(!selfId || !selfSet?.setItemId || !canManage || loading || saving || setConflict || !setReason.trim())return;
-    setSaving(true);setSetError("");setNotice("");
+    if(!selfId || !selfSet?.setItemId || !canManage || loading || saving || activeSetConflict || !activeSetReason.trim())return;
+    setSaving(true);setActiveSetError("");setNotice("");
     try {
       const response=await fetch("/api/bo/pinoria/selfs/"+selfId+"/set/clear?centerId="+encodeURIComponent(centerId),{
         method:"POST",credentials:"include",cache:"no-store",
         headers:{"content-type":"application/json","idempotency-key":crypto.randomUUID()},
-        body:JSON.stringify({expectedVersion:selfSet.version,expectedSelfVersion:selfSet.selfVersion,reason:setReason.trim()}),
+        body:JSON.stringify({expectedVersion:selfSet.version,expectedSelfVersion:selfSet.selfVersion,reason:activeSetReason.trim()}),
       });
-      if(!response.ok){if(response.status===409)setSetConflict(true);throw Error(response.status===409?"Set đã thay đổi. Giữ nguyên lý do và tải lại trước khi thử tiếp.":"Không xác nhận được kết quả. Lý do và trạng thái đang xem được giữ nguyên.");}
+      if(!response.ok){if(response.status===409)setActiveSetConflict(true);throw Error(response.status===409?"Set đã thay đổi. Giữ nguyên lý do và tải lại trước khi thử tiếp.":"Không xác nhận được kết quả. Lý do và trạng thái đang xem được giữ nguyên.");}
       // Command receipts are not GET projections; confirm persisted state by reading Core.
       const read=await fetch("/api/bo/pinoria/selfs/"+selfId+"/set?centerId="+encodeURIComponent(centerId),{credentials:"include",cache:"no-store"});
       if(!read.ok)throw Error("Chưa xác nhận được trạng thái đã lưu. Hãy tải lại để kiểm tra.");
       const next=parseSet(await read.json(),selfId);
-      setSelfSet(next);setSetReason("");setNotice(next.setItemId?"Trạng thái Set đã cập nhật.":"Đã bỏ Set.");onSaved();
-    }catch(e){setSetError(e instanceof Error?e.message:"Không xác nhận được kết quả. Lý do và trạng thái đang xem được giữ nguyên.");}
+      setSelfSet(next);setActiveSetReason("");setNotice(next.setItemId?"Trạng thái Set đã cập nhật.":"Đã bỏ Set.");onSaved();
+    }catch(e){setActiveSetError(e instanceof Error?e.message:"Không xác nhận được kết quả. Lý do và trạng thái đang xem được giữ nguyên.");}
     finally{setSaving(false);}
   }
   if(activeTab!=="loadout")return null;
@@ -135,11 +135,11 @@ export function SelfLoadoutDetail({row,centerId,activeTab,canView,canManage,canV
     {selfSet?.setItemId && <>
       <p role="status">Chưa thể hiển thị hình ảnh Set này. Tám ô trang bị đã lưu vẫn được giữ nguyên.</p>
       <div className="pds-property-row"><label className="pds-property-label" htmlFor="self-set-reason">Lý do bỏ Set *</label>
-        <textarea id="self-set-reason" className="pds-property-input" maxLength={1000} value={setReason} disabled={!canManage||saving||loading||setConflict} onChange={e=>setSetReason(e.target.value)}/></div>
-      <div className="pds-property-actions"><button type="button" disabled={!canManage||saving||loading||setConflict||!setReason.trim()} onClick={()=>{void clearSet();}}>Bỏ Set</button></div>
+        <textarea id="self-set-reason" className="pds-property-input" maxLength={1000} value={activeSetReason} disabled={!canManage||saving||loading||activeSetConflict} onChange={e=>setActiveSetReason(e.target.value)}/></div>
+      <div className="pds-property-actions"><button type="button" disabled={!canManage||saving||loading||activeSetConflict||!activeSetReason.trim()} onClick={()=>{void clearSet();}}>Bỏ Set</button></div>
     </>}
-    {setError && <p role="alert">{setError}</p>}
-    {setError && <button type="button" disabled={loading||saving} onClick={()=>setRefresh(n=>n+1)}>Bỏ bản nháp và tải lại</button>}
+    {activeSetError && <p role="alert">{activeSetError}</p>}
+    {activeSetError && <button type="button" disabled={loading||saving} onClick={()=>setRefresh(n=>n+1)}>Bỏ bản nháp và tải lại</button>}
     {loading && <p role="status">Đang tải Loadout từ Core…</p>}
     {error && <p role="alert" className="pds-property-text">{error}</p>}
     {itemError && <p role="alert" className="pds-property-text">{itemError}</p>}
