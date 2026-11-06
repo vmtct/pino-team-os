@@ -71,26 +71,20 @@ export function HoSpecialtyMissionsTab({
       <h3>Nhiệm vụ liên kết · {linked.size}</h3>
       {ordered.map(level=><section key={level.id} aria-label={"Nhiệm vụ "+level.name}>
         <h4>{level.name}</h4>
-        {level.missionIds.length ? <table>
-          <thead><tr><th scope="col">Mã nhiệm vụ</th><th scope="col">Tên nhiệm vụ</th>
-            <th scope="col">Trạng thái</th><th scope="col">Thao tác</th></tr></thead>
-          <tbody>{level.missionIds.map(missionId=>{
+        {level.missionIds.length ? <ul aria-label={"Danh sách nhiệm vụ "+level.name}>
+          {level.missionIds.map(missionId=>{
             const mission=catalog.get(missionId);
             const open=()=>{if(mission)onOpenMission(missionId);};
-            return <tr key={missionId} tabIndex={mission?0:-1}
-              onClick={event=>{if((event.target as HTMLElement).closest("button"))return;open();}}
-              onKeyDown={event=>{if(event.target!==event.currentTarget)return;
-                if(event.key==="Enter"||event.key===" "){event.preventDefault();open();}
-              }}>
-              <td><button type="button" disabled={!mission} onClick={open}>{mission?.code??missionId}</button></td>
-              <td><button type="button" disabled={!mission} onClick={open}>{mission?.name??"Nhiệm vụ không tồn tại"}</button></td>
-              <td>{mission?.status==="ACTIVE"&&mission.reconciliation==="READY"?"Đang áp dụng":"Không khả dụng"}</td>
-              <td><button type="button" disabled={busy||disabled}
+            return <li key={missionId}>
+              <strong>{mission?.code??missionId}</strong>
+              <button type="button" disabled={!mission} onClick={open}>{mission?.name??"Nhiệm vụ không tồn tại"}</button>
+              <span>{mission?.status==="ACTIVE"&&mission.reconciliation==="READY"?"Đang áp dụng":"Không khả dụng"}</span>
+              <button type="button" disabled={busy||disabled}
                 aria-label={"Gỡ liên kết "+(mission?.name??missionId)}
-                onClick={()=>void call(()=>onUnlink(level.id,missionId),"Đã xác minh gỡ liên kết.")}>Gỡ</button></td>
-            </tr>;
-          })}</tbody>
-        </table>:<p>Chưa liên kết nhiệm vụ.</p>}
+                onClick={()=>void call(()=>onUnlink(level.id,missionId),"Đã xác minh gỡ liên kết.")}>Gỡ</button>
+            </li>;
+          })}
+        </ul>:<p>Chưa liên kết nhiệm vụ.</p>}
       </section>)}
     </section>
     {error?<p role="alert">{error}</p>:null}

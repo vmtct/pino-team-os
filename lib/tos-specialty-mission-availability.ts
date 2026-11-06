@@ -1,4 +1,12 @@
 /** PAP-1497 / SPEC-UNLOCK S4 — TOS view-model only, never an access policy. */
+/** The current Diary writer consumes the legacy eligible-only contract. Until the
+ * source-owned S4 write guard is integrated, never feed an all/locked projection
+ * into that writer, even if its display DTO validates. Legacy reads stay intact. */
+export function requiresSpecialtySelectionGuard(items: unknown): boolean {
+  return !Array.isArray(items) || items.some(item => !item || typeof item !== "object" ||
+    "available" in item || "lockReasons" in item);
+}
+
 export type TosMissionAvailabilityFilter = "all" | "available" | "locked";
 export type TosMissionLockReasonCode =
   | "NO_EFFECTIVE_SPECIALTY_GRANT"
