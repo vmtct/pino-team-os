@@ -6,7 +6,7 @@ import { BoApiError } from "@/lib/bo-api-error";
 /** PAP-1491 / SPEC-UNLOCK, PAP-1495. Approved V2 geometry; no candidate API integration. */
 const permission = "catalog.learning.view";
 const read = { display:true, search:true, filter:true, sort:true, group:true, inlineEdit:false } as const;
-export const specialtyFields = [
+const specialtyBaseFields = [
   {key:"name",label:"Chuyên đề",type:"text",icon:"Aa",width:240},
   {key:"path",label:"Path",type:"text",icon:"▣",width:180},
   {key:"status",label:"Trạng thái",type:"text",icon:"◉",width:140},
@@ -15,7 +15,8 @@ export const specialtyFields = [
   {key:"prerequisiteView",label:"Tiên quyết",type:"text",icon:"↗",width:220},
   {key:"tagView",label:"Tag",type:"text",icon:"#",width:180},
   {key:"missionCount",label:"Nhiệm vụ",type:"number",icon:"#",width:110},
-].map(field => ({...field,permission,readOnly:true,capabilities:read})) satisfies readonly FieldSchema[];
+] as const;
+export const specialtyFields = specialtyBaseFields.map(field => ({...field,permission,readOnly:true,capabilities:read})) satisfies readonly FieldSchema[];
 type F = typeof specialtyFields;
 const keys = specialtyFields.map(field => field.key);
 const sections = [{id:"specialty",label:"Chuyên đề",fields:keys}];
