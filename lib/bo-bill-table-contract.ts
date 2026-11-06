@@ -6,7 +6,17 @@ const count=(v:unknown):v is number=>Number.isSafeInteger(v)&&Number(v)>=0;
 const time=(v:unknown):v is string=>typeof v==="string"&&/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(v)&&Number.isFinite(Date.parse(v))&&new Date(v).toISOString()===v;
 const obj=(v:unknown):Record<string,unknown>=>v&&typeof v==="object"&&!Array.isArray(v)?v as Record<string,unknown>:{};
 const invalid=():never=>{throw new BoApiError(502,"Dữ liệu bảng Bill không hợp lệ hoặc không đúng cơ sở.",null);};
-const redacted=(v:unknown)=>obj(v).state==="REDACTED"&&obj(v).label===null;
+// Only Core may assert VERIFIED after independent Center/identity/guardian authorization.
+ // REDACTED remains the default, and no unproven upstream label crosses the BFF.
+export type BillSubjectDisplay={state:"REDACTED";label:null}|{state:"VERIFIED";label:string};
+function subjectDisplay(value:unknown):BillSubjectDisplay {
+ const v=obj(value);
+ if(v.state==="REDACTED"&&v.label===null)return {state:"REDACTED",label:null};
+ if(v.state==="VERIFIED"&&typeof v.label==="string"&&v.label.length<=160&&
+    v.label.length>=1&&v.label===v.label.trim()&&
+    !/[\\u0000-\\u001F\\u007F]/.test(v.label))return {state:"VERIFIED",label:v.label};
+ return invalid();
+}
 export const billTableRoot="/api/bo/billing/bill-table";
 export function billTableCenter(path:string):string|null {
  const prefix=billTableRoot+"/center/",value=path.startsWith(prefix)?path.slice(prefix.length):"";
@@ -26,8 +36,8 @@ export function billTableQuery(params:URLSearchParams,center:string):{limit:numb
  return {limit,after};
 }
 export type BillTableItem={draftId:string;billId:string|null;centerId:string;billCode:null;billCodeState:"UNAVAILABLE";
- payerParentUserId:string;payerDisplay:{state:"REDACTED";label:null};distinctStudentCount:number;
- students:{studentProfileId:string;display:{state:"REDACTED";label:null}}[];studentsTruncated:boolean;subscriptionLineCount:number;
+ payerParentUserId:string;payerDisplay:BillSubjectDisplay;distinctStudentCount:number;
+ students:{studentProfileId:string;display:BillSubjectDisplay}[];studentsTruncated:boolean;subscriptionLineCount:number;
  currency:"VND";financialSource:"DRAFT_SNAPSHOT"|"ISSUED_LEDGER";financialState:"AVAILABLE"|"UNAVAILABLE";
  netAmountMinor:number|null;collectedAmountMinor:number|null;balanceMinor:number|null;
  status:"DRAFT"|"OPEN"|"PAID"|"PARTIALLY_PAID"|"VOID";latestConfirmedPaymentAt:string|null;createdAt:string;creationSource:"BILL_DRAFT";
@@ -41,7 +51,7 @@ export function parseBillTablePage(value:unknown,center:string,limit=100):BillTa
   (p.hasMore?(!billTableCursor(p.nextCursor)||p.items.length!==limit):p.nextCursor!==null))return invalid();
  const items=p.items.map(raw=>{
   const r=obj(raw),f=obj(r.freshness),draft=r.status==="DRAFT",available=r.financialState==="AVAILABLE";
-  if(!id(r.draftId)||r.centerId!==center||!id(r.payerParentUserId)||r.billCode!==null||r.billCodeState!=="UNAVAILABLE"||!redacted(r.payerDisplay)||
+  if(!id(r.draftId)||r.centerId!==center||!id(r.payerParentUserId)||r.billCode!==null||r.billCodeState!=="UNAVAILABLE"||
    typeof r.status!=="string"||!["DRAFT","OPEN","PAID","PARTIALLY_PAID","VOID"].includes(r.status)||
    (draft?r.billId!==null:!id(r.billId))||r.currency!=="VND"||r.creationSource!=="BILL_DRAFT"||!time(r.createdAt)||
    r.financialSource!==(draft?"DRAFT_SNAPSHOT":"ISSUED_LEDGER")||typeof r.financialState!=="string"||!["AVAILABLE","UNAVAILABLE"].includes(r.financialState)||
@@ -60,11 +70,12 @@ export function parseBillTablePage(value:unknown,center:string,limit=100):BillTa
     (r.status==="PARTIALLY_PAID"&&(r.collectedAmountMinor===0||r.balanceMinor===0))||
     (r.collectedAmountMinor>0&&r.latestConfirmedPaymentAt===null))return invalid();
   }else if(!draft||r.netAmountMinor!==null||r.collectedAmountMinor!==null||r.balanceMinor!==null)return invalid();
-  const students=r.students.map(rawStudent=>{const s=obj(rawStudent);if(!id(s.studentProfileId)||!redacted(s.display))return invalid();return {studentProfileId:s.studentProfileId,display:{state:"REDACTED" as const,label:null}};});
+  const payerDisplay=subjectDisplay(r.payerDisplay);
+  const students=r.students.map(rawStudent=>{const s=obj(rawStudent);if(!id(s.studentProfileId))return invalid();return {studentProfileId:s.studentProfileId,display:subjectDisplay(s.display)};});
   if(new Set(students.map(s=>s.studentProfileId)).size!==students.length)return invalid();
   // Explicit allowlist: upstream extras/identity enrichment never reach the browser.
   return {draftId:r.draftId,billId:r.billId,centerId:center,billCode:null,billCodeState:"UNAVAILABLE",payerParentUserId:r.payerParentUserId,
-   payerDisplay:{state:"REDACTED",label:null},distinctStudentCount:r.distinctStudentCount,students,studentsTruncated:r.studentsTruncated,
+   payerDisplay,distinctStudentCount:r.distinctStudentCount,students,studentsTruncated:r.studentsTruncated,
    subscriptionLineCount:r.subscriptionLineCount,currency:r.currency,financialSource:r.financialSource,financialState:r.financialState,
    netAmountMinor:r.netAmountMinor,collectedAmountMinor:r.collectedAmountMinor,balanceMinor:r.balanceMinor,status:r.status,
    latestConfirmedPaymentAt:r.latestConfirmedPaymentAt,createdAt:r.createdAt,creationSource:r.creationSource,
