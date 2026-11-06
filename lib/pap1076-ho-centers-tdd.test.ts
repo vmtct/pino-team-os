@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { centerDefinition, centerProvider, centerQuery, centerSchema } from "../app/ho/centers/schema";
 import { createHoTddAdapter } from "./workspace-adapters";
 import { TddRegistry, composeTabs } from "./workspace-schema";
@@ -51,4 +52,14 @@ test("PAP1076 retains 403, malformed-directory and cross-surface denials", async
   state.status=200; state.rows=[{...center,timeZone:"invalid/timezone"}];
   await assert.rejects(adapter.list(centerQuery,signal()),/Múi giờ/);adapter.dispose();
   await assert.rejects(centerProvider.list(centerQuery,{surface:"BO",centerId:id},fetcher,signal()),(e: unknown)=>e instanceof BoApiError&&e.status===403);
+});
+
+// PAP-1542 / PAP-220: prevent narrow viewport Copy control from wrapping into
+// three vertical lines. Keep its semantic action label available to assistive tech.
+test("PAP-1542 Center Staff Copy remains accessible and compact while disabled", () => {
+  const source = readFileSync(new URL("../app/ho/centers/CenterStaffRegistrationSection.tsx", import.meta.url), "utf8");
+  assert.match(source, /aria-label="Sao chép link" title="Sao chép link"/);
+  assert.match(source, />\s*⧉\s*<\/TosButton>/);
+  assert.doesNotMatch(source, />\s*Sao chép link\s*<\/TosButton>/);
+  assert.match(source, /disabled aria-disabled="true"/);
 });
