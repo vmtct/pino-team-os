@@ -75,7 +75,8 @@ export const specialtySchema = specialtyRegistry.register({ ...specialtyDefiniti
   id: "ho-v2-specialty-reader-unavailable",
   list: async () => { throw new Error("SPECIALTY_V2_READER_UNAVAILABLE"); },
   detail: async () => { throw new Error("SPECIALTY_V2_READER_UNAVAILABLE"); },
-}});\r\nexport const specialtyVisualPaths = Object.freeze([
+}});
+export const specialtyVisualPaths = Object.freeze([
   { code: "artchitect", label: "Artchitect" },
   { code: "pianohouse", label: "PianoHouse" },
   { code: "little-piner", label: "Little Piner" },

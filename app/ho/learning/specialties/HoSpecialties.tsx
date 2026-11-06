@@ -45,7 +45,8 @@ export function HoSpecialties() {
       {createOpen ? <SpecialtyCreateDrawer onClose={()=>setCreateOpen(false)} /> : null}
     </>:<p role="status">Đang tải Chuyên đề…</p>;
   return <HoWorkspace module="specialties" content={content}/>;
-}\r\nexport function SpecialtyCreateDrawer({ onClose }: { onClose: () => void }) {
+}
+export function SpecialtyCreateDrawer({ onClose }: { onClose: () => void }) {
   const [draft, setDraft] = useState<SpecialtyDraft>({ name: "", pathCode: "", description: "" });
   const invalid = validateSpecialtyDraft(draft);
   return <DrawerFrame title="Tạo Chuyên đề" path="Chuyên đề" onClose={onClose} footer={<>
