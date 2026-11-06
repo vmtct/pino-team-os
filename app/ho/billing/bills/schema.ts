@@ -2,13 +2,14 @@ import { TddRegistry, type Approval, type FieldSchema, type ModuleRow, type Tabl
 import type { SurfaceDefinition, SurfaceProvider } from "@/lib/workspace-adapters/contracts";
 import { loadBill, loadBills } from "@/lib/ho-bills-client";
 import type { HoBill } from "@/lib/ho-bills-contract";
+import {latestBillPayment,maskedBillIdentity,unavailableBillCode} from "@/lib/bill-table-presentation";
 // Shell presentation permission only. Every financial request requires live Founder authorization in Core.
 const permission = "team.bo.access";
 const read = {display:true, search:true, filter:true, sort:true, group:true, inlineEdit:false} as const;
 const field = <K extends string>(key: K, label: string, width: number) => ({key,label,width,type:"text",icon:"Aa",permission,readOnly:true,capabilities:read} as const);
-export const billFields = [field("name","Mã Bill",175),field("payer","Phụ huynh",190),field("center","Center",170),
-  field("subscriptionCount","Subscriptions",140),field("totalView","Tổng tiền",160),field("paidView","Đã thu",155),
-  field("balanceView","Còn lại",155),field("status","Trạng thái",130),field("createdAt","Ngày lập",135)] as const satisfies readonly FieldSchema[];
+export const billFields = [field("name","Bill",175),field("payer","Phụ huynh",190),field("students","Học viên",190),field("center","Center",170),
+  field("subscriptionCount","Subscriptions",140),field("totalView","Tổng",160),field("paidView","Đã thu",155),
+  field("balanceView","Còn lại",155),field("status","Trạng thái",130),field("latestPaymentAt","Ngày thu gần nhất",170),field("createdAt","Ngày tạo",135)] as const satisfies readonly FieldSchema[];
 type F = typeof billFields;
 const keys = billFields.map(f => f.key);
 const sections = [{id:"bill",label:"Thông tin Bill",fields:keys}];
@@ -37,9 +38,9 @@ export const billDefinition = {
 } as const satisfies SurfaceDefinition<F>;
 export const billMoney = (amount: number, currency: string) => new Intl.NumberFormat("vi-VN",{style:"currency",currency}).format(amount);
 export function billRow(b: HoBill): ModuleRow<F> {
-  return {id:b.bill.id,name:b.bill.id,payer:b.bill.payerParentUserId,center:null,subscriptionCount:String(b.items.length),
+  return {id:b.bill.id,name:unavailableBillCode,payer:maskedBillIdentity,students:maskedBillIdentity,center:null,subscriptionCount:String(b.items.length),
     totalView:billMoney(b.netAmountMinor,b.bill.currency),paidView:billMoney(b.collectedAmountMinor,b.bill.currency),
-    balanceView:billMoney(b.balanceMinor,b.bill.currency),status:b.paymentState,createdAt:b.bill.createdAt};
+    balanceView:billMoney(b.balanceMinor,b.bill.currency),status:b.paymentState,latestPaymentAt:latestBillPayment(b.transactions),createdAt:b.bill.createdAt};
 }
 export const billProvider: SurfaceProvider<F> = {pagination:"local-ui",
   async list(_query,scope,fetcher,signal) {
