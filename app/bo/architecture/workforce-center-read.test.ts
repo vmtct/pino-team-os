@@ -18,16 +18,23 @@ const fakeFetcher = (authorizedCenters: string[], calls: string[]): typeof fetch
     throw Error("Unexpected cross-Center read: " + path);
   }) as typeof fetch;
 
-test("PAP-1329: three Workforce tables use the BO-global CENTER scope; payroll not implicitly admitted", () => {
-  for (const key of ["workforce-shift-plans", "workforce-availability", "workforce-assignments"])
+test("PAP-1329 (PAP-1316): four verified Workforce routes use the BO master CENTER scope", () => {
+  for (const key of ["workforce-shift-plans", "workforce-availability", "workforce-assignments", "payroll-periods"])
     assert.equal(boCenterModuleScope(key), "CENTER");
-  assert.equal(boCenterModuleScope("payroll-periods"), "UNVERIFIED");
   assert.equal(boScopedModuleHref("/bo/workforce-assignments", "workforce-assignments", A, [A]),
     "/bo/workforce-assignments?centerId=" + A);
   assert.equal(boScopedModuleHref("/bo/workforce-assignments", "workforce-assignments", B, [A]),
     "/bo/workforce-assignments");
   assert.equal(boScopedModuleHref("https://untrusted.invalid/bo/workforce-assignments", "workforce-assignments", A, [A]),
     "https://untrusted.invalid/bo/workforce-assignments");
+  // Payroll uses the same authorized workspace Center, but a distinct Core
+  // financial scope and permission. Never propagate an unauthorized Center.
+  assert.equal(boScopedModuleHref("/bo/payroll-periods?record=stale", "payroll-periods", A, [A]),
+    "/bo/payroll-periods?centerId=" + A);
+  assert.equal(boScopedModuleHref("/bo/payroll-periods", "payroll-periods", B, [A]),
+    "/bo/payroll-periods");
+  assert.equal(boScopedModuleHref("https://untrusted.invalid/bo/payroll-periods", "payroll-periods", A, [A]),
+    "https://untrusted.invalid/bo/payroll-periods");
 });
 
 test("PAP-1329: shared Workforce snapshot only fetches the selected authorized Center", async () => {

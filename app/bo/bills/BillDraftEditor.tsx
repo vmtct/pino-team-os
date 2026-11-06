@@ -3,6 +3,7 @@ import {useEffect,useRef,useState} from "react";
 import {boApi} from "@/lib/bo-api";
 import {BoApiError} from "@/lib/bo-api-error";
 import {billsApi,billError,draftTotal,type BillDraft,type BillDraftLine,type DraftLineInput,type IssuePreview} from "@/lib/bo-bills-api";
+import {billSubscriptionChoiceLabel} from "./schema";
 import {readScopedParentDirectory} from "../parents/provider";
 import {studentCenterApi} from "@/lib/bo-student-center-api";
 import {DrawerFrame} from "@/app/components/workspace-renderer/DrawerFrame";
@@ -62,8 +63,8 @@ export function BillDraftEditor({centerId,id,onClose,onSaved}:{centerId:string;i
    {loading?<p role="status">Đang tải Bill…</p>:null}
    {error?<p className="edit-error" role="alert">{error}</p>:null}{notice?<p role="status">{notice}</p>:null}
    {uncertain?<p role="alert">Chưa xác minh kết quả. Giữ nguyên lệnh để thử lại an toàn.</p>:null}
-   <fieldset disabled={!editable}><legend>Phụ huynh thanh to?n</legend>
-    {draft?<p>{draft.payerParentUserId}</p>:<label className="property-row">Phụ huynh<select aria-label="Phụ huynh" value={payer} onChange={e=>setPayer(e.target.value)}><option value="">Ch?n phụ huynh</option>{parents.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label>}
+   <fieldset disabled={!editable}><legend>Phụ huynh thanh toán</legend>
+    {draft?<p>{draft.payerParentUserId}</p>:<label className="property-row">Phụ huynh<select aria-label="Phụ huynh" value={payer} onChange={e=>setPayer(e.target.value)}><option value="">Chọn phụ huynh</option>{parents.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label>}
     <label className="property-row">Giảm giá Bill (VND)<input type="number" min="0" step="1" value={discount} onChange={e=>{setDiscount(e.target.value);setPreview(null);}}/></label>
     <label className="property-row">Hạn thanh toán<input type="date" value={due} onChange={e=>{setDue(e.target.value);setPreview(null);}}/></label>
     <label className="property-row">Ghi chú<textarea maxLength={2000} value={note} onChange={e=>{setNote(e.target.value);setPreview(null);}}/></label>
@@ -72,9 +73,9 @@ export function BillDraftEditor({centerId,id,onClose,onSaved}:{centerId:string;i
    {draft?<><section className="property-section"><h3>Subscriptions · số lượng 1</h3>{draft.items.map(line=><DraftLine key={line.id+":"+draft.version} line={line} disabled={!editable} onSave={v=>void editLine(line,v)} onRemove={()=>void remove(line)}/>)}
     {draft.items.length===0?<p>Chưa có Subscription.</p>:null}
     {draft.status==="DRAFT"?<fieldset disabled={!editable}><legend>Thêm Subscription</legend><label className="property-row">Tìm học viên / Subscription<input value={query} onChange={e=>setQuery(e.target.value)}/></label><button type="button" className="secondary-btn" onClick={()=>void searchSubscriptions()}>Tìm Subscription</button>
-    <label className="property-row">Subscription<select value={candidate} onChange={e=>setCandidate(e.target.value)}><option value="">Chọn Subscription</option>{candidates.map(s=><option key={s.id} value={s.id}>{s.studentDisplayName} ₫ {s.pathDisplayName} ₫ {s.id}</option>)}</select></label><button type="button" className="secondary-btn" disabled={!candidate} onClick={()=>void add()}>Thêm vào Draft</button></fieldset>:null}
+    <label className="property-row">Subscription<select value={candidate} onChange={e=>setCandidate(e.target.value)}><option value="">Chọn Subscription</option>{candidates.map(s=><option key={s.id} value={s.id}>{billSubscriptionChoiceLabel(s)}</option>)}</select></label><button type="button" className="secondary-btn" disabled={!candidate} onClick={()=>void add()}>Thêm vào Draft</button></fieldset>:null}
    </section><p>Tổng Draft đã lưu: {draftTotal(draft).toLocaleString("vi-VN")} ₫</p></>:null}
-   {preview?<section aria-label="Xác nhận phát hành"><h3>Phát hành Bill?</h3><p>{preview.lineCount} Subscription ? {preview.netAmountMinor.toLocaleString("vi-VN")} ₫. Giá và điều kiện đã lưu sẽ được cố định.</p>{preview.blockers.length?<p role="alert">Chưa thể phát hành: {preview.blockers.join(", ")}</p>:<button className="primary-btn" type="button" disabled={busy||uncertain} onClick={()=>void issue()}>Xác nhận phát hành</button>}</section>:null}
+   {preview?<section aria-label="Xác nhận phát hành"><h3>Phát hành Bill?</h3><p>{preview.lineCount} Subscription · {preview.netAmountMinor.toLocaleString("vi-VN")} ₫. Giá và điều kiện đã lưu sẽ được cố định.</p>{preview.blockers.length?<p role="alert">Chưa thể phát hành: {preview.blockers.join(", ")}</p>:<button className="primary-btn" type="button" disabled={busy||uncertain} onClick={()=>void issue()}>Xác nhận phát hành</button>}</section>:null}
   </DrawerFrame>;
 }
 function DraftLine({line,disabled,onSave,onRemove}:{line:BillDraftLine;disabled:boolean;onSave:(v:DraftLineInput)=>void;onRemove:()=>void}){

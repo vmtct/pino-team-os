@@ -10,6 +10,7 @@ export const HO_PAGE_PATHS = {
   staffLinks: "/ho/workforce/staff-links",
   syllabi: "/ho/learning/syllabi",
   missions: "/ho/learning/missions",
+  specialties: "/ho/learning/specialties",
   classroomDiaries: "/ho/learning/diaries",
   worlds: "/ho/pinoria/worlds",
   wardrobe: "/ho/pinoria/wardrobe",
