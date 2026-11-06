@@ -15,7 +15,8 @@ test("PAP-1456 8-slot editor uses existing PINO DS labels, controls and actions"
   assert.match(editor, /className="pds-property-save"/);
   assert.doesNotMatch(editor, /className="property-control"|className="toolbar"|<form className="grid-card"/);
   assert.match(editor, /id="self-loadout-reason" required maxLength=/);
-  assert.match(editor, /loadout\.ready\?"Sẵn sàng"/);
+  assert.match(editor, /selfSet\.ready\?"Sẵn sàng"/);
+  assert.doesNotMatch(editor, /loadout\.ready\?"Sẵn sàng"/);
   assert.match(editor, /SLOTS\.map|options\.map/);
   assert.match(editor, /canViewItems/);
   assert.match(editor, /onSubmit=\{e=>\{void submit\(e\);\}\}/);
