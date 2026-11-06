@@ -34,16 +34,16 @@ test("PAP-1495: route remains HO-only and TDD has one ordered business tab",()=>
 
 test("PAP-1495: shared Table, Quick View and Detail keep geometry/properties without authoring",()=>{
   const base={registry,schema,context};
-  const table=html(h(TddTable,{...base,rows:[record],query:specialtyQuery,status:"ready",onQueryChange:noop,onOpen:noop}));
-  const drawer=html(h(TddDrawer,{...base,record,onClose:noop,onDetail:noop}));
-  const detail=html(h(TddDetail,{...base,record,onBack:noop,subject:{type:"specialties",id:record.id}}));
+  const table=html(h(TddTable<typeof specialtyDefinition.fields>,{...base,rows:[record],query:specialtyQuery,status:"ready",onQueryChange:noop,onOpen:noop}));
+  const drawer=html(h(TddDrawer<typeof specialtyDefinition.fields>,{...base,record,onClose:noop,onDetail:noop}));
+  const detail=html(h(TddDetail<typeof specialtyDefinition.fields>,{...base,record,onBack:noop,subject:{type:"specialties",id:record.id}}));
   assert.match(table,/Chuyên đề hình khối/);
   assert.match(drawer,/Full Detail/);
   assert.match(detail,/v24-prop-grid/);
   for(const output of [table,drawer,detail])assert.doesNotMatch(output,/Tạo mới|Lưu thay đổi|prototype|fixture|PAP-1495/);
-  const denied=html(h(TddDetail,{...base,context:{...context,authorize:()=>false},record,onBack:noop,subject:{type:"specialties",id:record.id}}));
+  const denied=html(h(TddDetail<typeof specialtyDefinition.fields>,{...base,context:{...context,authorize:()=>false},record,onBack:noop,subject:{type:"specialties",id:record.id}}));
   assert.doesNotMatch(denied,/Chuyên đề hình khối|Quan sát hình khối/);
-  const history=html(h(TddDetail,{...base,record,activeTab:"history",onBack:noop,subject:{type:"specialties",id:record.id}}));
+  const history=html(h(TddDetail<typeof specialtyDefinition.fields>,{...base,record,activeTab:"history",onBack:noop,subject:{type:"specialties",id:record.id}}));
   assert.match(history,/Chưa tải được lịch sử Chuyên đề/);
 });
 
