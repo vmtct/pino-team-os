@@ -7,7 +7,8 @@ import {loadBill,loadBills,voidBill} from "./ho-bills-client";
 import {decideHostBoundary,HO_STAGING_HOSTNAME as host} from "./host-boundary";
 import {surfaceSession} from "./workspace-adapters/session";
 import {TddRegistry,composeTabs} from "./workspace-schema";
-import {billDefinition,billFields,billProvider,billQuery,verifyBillExtension} from "../app/ho/billing/bills/schema";
+import {billDefinition,billFields,billProvider,billQuery,billRow,verifyBillExtension} from "../app/ho/billing/bills/schema";
+import {latestBillPayment} from "./bill-table-presentation";
 import {HO_PAGE_PATHS,safeHoReturnTo} from "./ho-routes";
 const id="01900000-0000-7000-8000-000000000001";
 const other="01900000-0000-7000-8000-000000000002";
@@ -147,7 +148,7 @@ test("PAP-1422 real shared schema, prototype column widths, tabs and source-owne
   const registry=new TddRegistry(verifyBillExtension);
   const schema=registry.register({...billDefinition,data:{id:"test-bills",list:async()=>({rows:[],total:0}),detail:async()=>null}});
   assert.deepEqual(composeTabs(schema).map(t=>t.id),["overview","subscriptions","payments","history"]);
-  assert.deepEqual(billFields.map(f=>f.width),[175,190,170,140,160,155,155,130,135]);
+  assert.deepEqual(billFields.map(f=>f.width),[175,190,190,170,140,160,155,155,130,170,135]);
   assert.equal(schema.table.inlineEdit.enabled,false);assert.equal(billProvider.mutation,undefined);
   const history=billProvider.history!.bind(async()=>Response.json({data:sample()}),{surface:"HO"});
   assert.equal(history.kind,"provider");
@@ -172,4 +173,24 @@ test("PAP-1422 cross-surface changed security dependency has exact owner referen
   for(const file of ["lib/ho-routes.ts","lib/workspace-adapters/session.ts"]){
     assert.deepEqual(bo.externalReferences.filter((r:{file:string})=>r.file===file),[{file,owner:"PAP-1221"}]);
   }
+});
+
+test("PAP-1422 eleven ordered columns expose only authorized summary facts",()=>{
+ assert.deepEqual(billFields.map(f=>f.label),["Bill","Phụ huynh","Học viên","Center","Subscriptions","Tổng","Đã thu","Còn lại","Trạng thái","Ngày thu gần nhất","Ngày tạo"]);
+ const parsed=parseHoBill(sample()),r=billRow(parsed);
+ assert.equal(r.name,"Chưa có mã");assert.equal(r.payer,"Đã ẩn");assert.equal(r.students,"Đã ẩn");assert.equal(r.center,null);
+ assert.equal(r.subscriptionCount,"1");assert.equal(r.status,"OPEN");assert.equal(r.createdAt,at);assert.equal(r.latestPaymentAt,null);
+ assert.equal(r.totalView,new Intl.NumberFormat("vi-VN",{style:"currency",currency:"VND"}).format(3900000));
+ for(const state of ["OPEN","PARTIALLY_PAID","PAID","VOID"] as const)assert.equal(billRow({...parsed,paymentState:state}).status,state);
+});
+
+test("PAP-1422 latest collection uses confirmed PAYMENT occurrence only, never refund or Void",()=>{
+ const entries=[{transactionKind:"PAYMENT",status:"CONFIRMED",occurredAt:"2026-11-04T10:00:00+07:00"},
+  {transactionKind:"PAYMENT",status:"CONFIRMED",occurredAt:"2026-11-04T04:00:00Z"},
+  {transactionKind:"REFUND",status:"CONFIRMED",occurredAt:"2026-11-06T04:00:00Z"},
+  {transactionKind:"PAYMENT",status:"VOID",occurredAt:"2026-11-07T04:00:00Z"}];
+ assert.equal(latestBillPayment(entries),"2026-11-04T04:00:00.000Z");
+ assert.equal(latestBillPayment(entries.slice(2)),null);
+ assert.throws(()=>latestBillPayment([{...entries[0],occurredAt:"invalid"}]));
+ assert.equal(latestBillPayment([]),null);
 });
