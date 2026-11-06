@@ -76,3 +76,15 @@ export const specialtySchema = specialtyRegistry.register({ ...specialtyDefiniti
   list: async () => { throw new Error("SPECIALTY_V2_READER_UNAVAILABLE"); },
   detail: async () => { throw new Error("SPECIALTY_V2_READER_UNAVAILABLE"); },
 }});
+export const specialtyVisualPaths = Object.freeze([
+  { code: "artchitect", label: "Artchitect" },
+  { code: "pianohouse", label: "PianoHouse" },
+  { code: "little-piner", label: "Little Piner" },
+]);
+export type SpecialtyDraft = { name: string; pathCode: string; description: string };
+export function validateSpecialtyDraft(draft: SpecialtyDraft): string | null {
+  if (!draft.name.trim() || draft.name.trim().length > 160) return "Tên Chuyên đề phải có từ 1 đến 160 ký tự.";
+  if (!specialtyVisualPaths.some(path => path.code === draft.pathCode)) return "Chọn Path hợp lệ.";
+  if (draft.description.length > 4000) return "Mô tả không được quá 4.000 ký tự.";
+  return null;
+}
