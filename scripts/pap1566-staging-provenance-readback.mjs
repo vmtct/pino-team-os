@@ -50,10 +50,11 @@ export async function attestStagingProvenance(
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  try {
-    await attestStagingProvenance(process.argv[2] ?? "", process.argv[3] ?? "");
-  } catch (error) {
-    console.error(error instanceof Error ? error.message : String(error));
-    process.exitCode = 1;
-  }
+  // No top-level await: this module is imported through tsx under CJS test
+  // transforms, and executed natively as .mjs by the Staging CD CLI.
+  void attestStagingProvenance(process.argv[2] ?? "", process.argv[3] ?? "")
+    .catch(error => {
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exitCode = 1;
+    });
 }
