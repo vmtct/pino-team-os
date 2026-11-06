@@ -28,8 +28,8 @@ function tabs(moduleKey: string, enableStudentSubscriptions = false): string[] {
   return labels;
 }
 
-test("Student Full Detail uses Thông tin and preserves Subscription/History", () => {
-  assert.deepEqual(tabs("students", true), ["Thông tin", "Subscription", "Lịch Sử"]);
+test("PAP-1496 / SPEC-UNLOCK: Student Full Detail preserves Subscription and adds Chuyên đề before History", () => {
+  assert.deepEqual(tabs("students", true), ["Thông tin", "Subscription", "Chuyên đề", "Lịch Sử"]);
 });
 
 test("Subscription Full Detail uses canonical Thông Tin and preserves Enrollment", () => {
