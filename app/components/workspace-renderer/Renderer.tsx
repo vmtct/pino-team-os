@@ -18,7 +18,7 @@ export function TddRenderer<F extends readonly FieldSchema[]>({ view }: { readon
   const schema = registeredSchema(view.props.registry, view.props.schema);
   if (!allows(schema, view.props.context, "read")) return <RecordState status="denied" />;
   switch (view.kind) {
-    case "table": return <section id="list-screen"><div className="page-heading"><div className="page-heading-left">{view.mobileMenu}<h1>{view.props.schema.label}</h1></div>{view.props.actionBindings ? <TddActionHost schema={schema} context={view.props.context} slot="table.header" bindings={view.props.actionBindings} /> : null}</div><TddTable {...view.props} /></section>;
+    case "table": return <section id="list-screen"><div className="page-heading"><div className="page-heading-left">{view.mobileMenu}<h1>{view.props.schema.label}</h1></div>{view.headerActions ? <div className="heading-actions" data-tdd-action-region="table.header">{view.headerActions}</div> : null}{view.props.actionBindings ? <TddActionHost schema={schema} context={view.props.context} slot="table.header" bindings={view.props.actionBindings} /> : null}</div><TddTable {...view.props} /></section>;
     case "drawer": {
       if (view.table && (view.table.schema !== view.props.schema || view.table.context !== view.props.context)) throw Error("TDD Drawer background scope mismatch");
       return <>{view.table ? <TddTable {...view.table} /> : null}<TddDrawer {...view.props} headerActions={view.props.actionBindings && view.props.status !== "denied" ? <TddActionHost schema={schema} context={view.props.context} slot="drawer.header" bindings={view.props.actionBindings} /> : null} /></>;

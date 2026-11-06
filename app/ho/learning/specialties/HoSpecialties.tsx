@@ -9,6 +9,7 @@ import { browserTddNavigation, type AdapterNavigation } from "@/lib/workspace-ad
 import { TddRegistry } from "@/lib/workspace-schema";
 import { BoApiError } from "@/lib/bo-api-error";
 import { HoSpecialtyMissionsTab } from "./HoSpecialtyMissionsTab";
+import { SpecialtyCreateDrawer } from "./SpecialtyCreateDrawer";
 import { specialtyDefinition, specialtyFields, specialtyProvider, specialtyQuery, verifySpecialtyExtension } from "./schema";
 
 type F = typeof specialtyFields;
@@ -20,6 +21,7 @@ export function HoSpecialties() {
   const [ready,setReady]=useState<Ready|null>(null);
   const [error,setError]=useState("");
   const [retry,setRetry]=useState(0);
+  const [createOpen,setCreateOpen]=useState(false);
   useEffect(()=>{
     const controller=new AbortController();
     let adapter:AuthenticatedSurfaceAdapter<F>|null=null;
@@ -33,11 +35,14 @@ export function HoSpecialties() {
     return ()=>{controller.abort();adapter?.dispose();};
   },[retry]);
   const content=error?<p role="alert">{error} <button type="button" onClick={()=>{setReady(null);setError("");setRetry(n=>n+1);}}>Thử lại</button></p>
-    :ready?<SurfaceWorkspace adapter={ready.adapter} navigation={ready.navigation} initialQuery={specialtyQuery}
+    :ready?<><SurfaceWorkspace adapter={ready.adapter} navigation={ready.navigation} initialQuery={specialtyQuery}
+      tableHeaderActions={<button className="primary-btn" type="button" onClick={()=>setCreateOpen(true)}>＋ Tạo Chuyên đề</button>}
       detailApprovedExtension={(_row,_context,tab)=>tab==="missions"?<>
         <p role="status">Chưa tải được nhiệm vụ liên kết.</p>
         <HoSpecialtyMissionsTab pathProgramId="" levels={[]} missionCatalog={[]} disabled
           onLink={rejectWrite} onUnlink={rejectWrite} onOpenMission={()=>{}} />
-      </>:null}/>:<p role="status">Đang tải Chuyên đề…</p>;
+      </>:null}/>
+      {createOpen ? <SpecialtyCreateDrawer onClose={()=>setCreateOpen(false)} /> : null}
+    </>:<p role="status">Đang tải Chuyên đề…</p>;
   return <HoWorkspace module="specialties" content={content}/>;
 }
