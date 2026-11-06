@@ -211,3 +211,41 @@ test("PAP-1422 verified Core origin Center appears in HO 11-column Table; missin
     {state:"AUTHORIZED",centerId,centerName:"PINO"},
   ])assert.throws(()=>parseHoBill({...value,originCenter}),/Invalid HO Bill contract/);
 });
+
+
+test("PAP-1422 / PAP-1539 HO shows names only with explicit Core VERIFIED evidence",()=>{
+ const verified={payerDisplay:{state:"VERIFIED",label:"Parent A"},
+   students:[{studentProfileId:other,display:{state:"VERIFIED",label:"Student B"}}]};
+ const result=parseHoBill({...sample(),billSubjects:verified});
+ assert.equal(result.billSubjects?.payerDisplay.state,"VERIFIED");
+ assert.equal(billRow(result).payer,"Parent A");
+ assert.equal(billRow(result).students,"Student B");
+ assert.equal(billRow(parseHoBill(sample())).payer,"Đã ẩn");
+ assert.equal(billRow(parseHoBill(sample())).students,"Đã ẩn");
+ const denied={payerDisplay:{state:"REDACTED",label:null},
+   students:[{studentProfileId:other,display:{state:"REDACTED",label:null}}]};
+ assert.equal(billRow(parseHoBill({...sample(),billSubjects:denied})).payer,"Đã ẩn");
+ assert.equal(billRow(parseHoBill({...sample(),billSubjects:denied})).students,"Đã ẩn");
+ const partial={payerDisplay:{state:"VERIFIED",label:"Parent A"},
+   students:[{studentProfileId:other,display:{state:"REDACTED",label:null}}]};
+ assert.equal(billRow(parseHoBill({...sample(),billSubjects:partial})).payer,"Parent A");
+ assert.equal(billRow(parseHoBill({...sample(),billSubjects:partial})).students,"Đã ẩn");
+});
+test("PAP-1422 / PAP-1539 forged, missing and cross-Student identity evidence fails closed",()=>{
+ const good={payerDisplay:{state:"VERIFIED",label:"Parent A"},
+   students:[{studentProfileId:other,display:{state:"VERIFIED",label:"Student B"}}]};
+ for(const billSubjects of [
+  {...good,payerDisplay:{state:"REDACTED",label:"secret"}},
+  {...good,payerDisplay:{state:"VERIFIED",label:""}},
+  {...good,payerDisplay:{state:"VERIFIED",label:"bad "}},
+  {...good,payerDisplay:{state:"VERIFIED",label:"name\nsecret"}},
+  {...good,payerDisplay:{state:"VERIFIED",label:"x".repeat(161)}},
+  {...good,payerDisplay:{state:"VISIBLE",label:"secret"}},
+  {...good,students:[{studentProfileId:id,display:{state:"VERIFIED",label:"Foreign Student"}}]},
+  {...good,students:[]},
+  {...good,students:[{studentProfileId:other,display:{state:"REDACTED",label:"secret"}}]},
+  {...good,students:[{studentProfileId:other,display:{state:"VERIFIED",label:"x".repeat(161)}}]},
+ ]){
+  assert.throws(()=>parseHoBill({...sample(),billSubjects}),/Invalid HO Bill contract/);
+ }
+});
