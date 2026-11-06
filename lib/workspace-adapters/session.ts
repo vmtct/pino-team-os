@@ -38,6 +38,15 @@ export function surfaceSession(surface: "BO" | "HO", origin: string | undefined,
       url.pathname === "/api/ho/workforce/shift-templates" && hoShiftTemplateQuery.length === 1 &&
       (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(hoShiftTemplateQuery[0]!) || ["ALL","GLOBAL"].includes(hoShiftTemplateQuery[0]!)) &&
       [...url.searchParams.keys()].every(key => key === "centerId");
+    // PAP-1418/PAP-1419 PNR-TV: only exact Founder HO read BFF resources.
+    // Core independently rechecks Founder and tv.view Center authorization.
+    const hoTvResource = /^\/api\/ho\/pinoria\/tv-health\/(displays|devices|operator-health)$/.exec(url.pathname);
+    const hoTvCenterQuery = url.searchParams.getAll("centerId");
+    const admittedHoTvHealthRead = surface === "HO" && method === "GET" && Boolean(hoTvResource) &&
+      (hoTvResource?.[1] === "operator-health"
+        ? hoTvCenterQuery.length === 1 && [...url.searchParams.keys()].length === 1 &&
+          /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(hoTvCenterQuery[0]!)
+        : url.search === "");
     const admittedHoDiary = surface === "HO" && method === "GET" && /^\/api\/ho\/learning\/path-diaries(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/mission-links)?)?$/i.test(url.pathname);
     // PAP-1342: exact same-origin Founder Mission detail read for source-owned Diary label.
     const admittedHoMissionDetail = surface === "HO" && method === "GET" && /^\/api\/ho\/learning\/missions\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(url.pathname);
@@ -48,7 +57,7 @@ export function surfaceSession(surface: "BO" | "HO", origin: string | undefined,
       (!url.searchParams.has("limit") || (/^[1-9][0-9]*$/.test(url.searchParams.get("limit")!) &&
         Number(url.searchParams.get("limit")) <= 50)) &&
       (!url.searchParams.has("cursor") || /^[A-Za-z0-9_-]{20,2048}$/.test(url.searchParams.get("cursor")!));
-    if (url.origin !== base.origin || !(url.pathname.startsWith("/api/bo/") || admittedHoBills || admittedHoGlobalTerms || admittedHoPassInventory || admittedHoGlobalTermWeeksRead || admittedHoShiftTemplateRead || admittedHoDiary || admittedHoMissionDetail || admittedHoMissionHistory) || url.username || url.password || url.hash ||
+    if (url.origin !== base.origin || !(url.pathname.startsWith("/api/bo/") || admittedHoBills || admittedHoGlobalTerms || admittedHoPassInventory || admittedHoGlobalTermWeeksRead || admittedHoShiftTemplateRead || admittedHoDiary || admittedHoMissionDetail || admittedHoMissionHistory || admittedHoTvHealthRead) || url.username || url.password || url.hash ||
         /%2f|%5c|\.\./i.test(url.pathname) || decideHostBoundary(base.host, url.pathname, method).action !== "next" ||
         (surface === "HO" && method !== "GET" && !admittedHoGlobalTerms)) throw adapterError(404);
     const headers = new Headers(init?.headers);
