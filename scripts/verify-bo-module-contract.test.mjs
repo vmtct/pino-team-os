@@ -77,7 +77,7 @@ test("PAP-982 BO TDD route requires an exact separate manifest and navigation ow
   const root=fixture(),key="self-test",file="app/bo/self-test/page.tsx";
   try{
     route(root,key,'import {Self} from "./Self"; export default function Page(){return <Self/>}');
-    assert.ok(check(root).some(s=>s.includes("Unregistered NEW BO page")));
+    assert.deepEqual(check(root),[]);
     fs.mkdirSync(path.join(root,"config"),{recursive:true});
     const entry={profile:"TDD_DEFAULT",surface:"BO",key,route:"/bo/"+key,file,
       files:[file,"app/bo/self-test/Self.tsx","app/bo/self-test/schema.ts"],
@@ -95,14 +95,14 @@ test("PAP-982 BO TDD route requires an exact separate manifest and navigation ow
     assert.ok(check(root).some(s=>s.includes("Invalid BO TDD admission")));
   }finally{fs.rmSync(root,{recursive:true,force:true});}
 });
-test("new route without registry FAILS",()=>{
+test("PAP-1532 non-Engine BO route needs no factory/TDD registry",()=>{
   const root=fixture();
   try {
-    route(root,"rogue",`export default function Page(){ return <table /> }`);
-    assert.ok(check(root).some(s=>s.includes("Unregistered NEW BO page")));
+    route(root,"rogue",`export default function Page(){ return <main>Prototype-first FE</main> }`);
+    assert.deepEqual(check(root),[]);
   } finally {fs.rmSync(root,{recursive:true,force:true});}
 });
-test("new nav path without registered module FAILS",()=>{
+test("new navigation path without matching route still FAILS",()=>{
   const root=fixture();
   try{
     edit(root,navFile,s=>s.replace('href: "/bo/learners"','href: "/bo/unregistered-thing"'));

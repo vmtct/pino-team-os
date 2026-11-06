@@ -1,4 +1,4 @@
-/** PAP-1071: changed-route G0/G1. No runtime permissions or migration admission inferred. */
+/** PAP-1071 / PAP-1532: existing Engine G0/G1 + DS ownership; new FE is not admission-gated. */
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -351,9 +351,19 @@ export async function verify(root=ROOT,{changed=[],baseline,manifest,now=Date.no
     if(!e.tests?.length) errors.push(e.file+': regression test required');
     reports.push(e.file+': TDD_DEFAULT G0/G1');
   }
-  for(const f of routes(root)) if(!known.has(f)&&!seen.has(f)) errors.push(f+': new BO/HO route requires explicit TDD admission');
+  // PAP-1532: new non-Engine FE need no TDD admission or exception.
+  // Preserve a source-only inventory trace, not a route admission check.
+  for(const f of routes(root)) if(!known.has(f)&&!seen.has(f)) reports.push(f+': NON_ENGINE_ROUTE; admission optional');
   for(const f of changed) {
-    if(surfaceFile.test(f)&&f.endsWith('.css')&&!(baseline.sourceFiles??[]).includes(f)&&!['app/ho/ho-theme.css'].includes(f)&&!entries.some(e=>(e.files.includes(f)&&e.profile==='FOUNDER_APPROVED_SPECIAL')||(e.profile==='TDD_DEFAULT'&&e.businessStyles?.some(b=>b.file===f)))) errors.push(f+': unauthorized surface stylesheet');
+    if(surfaceFile.test(f)&&f.endsWith('.css')&&!(baseline.sourceFiles??[]).includes(f)&&!['app/ho/ho-theme.css'].includes(f)&&!entries.some(e=>(e.files.includes(f)&&e.profile==='FOUNDER_APPROVED_SPECIAL')||(e.profile==='TDD_DEFAULT'&&e.businessStyles?.some(b=>b.file===f)))) {
+      if(f.endsWith('.module.css') && fs.existsSync(path.join(root,f))){
+        // Non-Engine layout-only CSS Module: no TDD owner manifest required.
+        // The DS/shell selectors and cross-surface restrictions still apply.
+        const css=read(root,f);
+        const classes=[...new Set([...css.matchAll(/\.([A-Za-z][A-Za-z0-9_-]*)/g)].map(m=>m[1]))];
+        errors.push(...inspectBusinessCss(f,css,classes));
+      } else errors.push(f+': unauthorized surface stylesheet');
+    }
     if(/^public\/(bo|ho)-authority-source\/(bo|ho)-scoped\.css$/.test(f)&&fs.existsSync(path.join(root,f))) errors.push(...inspectCss(f,read(root,f),f.includes('/bo-')?'BO':'HO'));
   }
   for(const f of changed.filter(f=>canonical.test(f))) {

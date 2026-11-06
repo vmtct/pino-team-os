@@ -1,5 +1,6 @@
 import {isHoTvReadRequest} from "./ho-tv-read-contract";
 import {billMethodAllowed} from "./bo-bills-paths";
+import {billTableCenter,billTableRoot} from "./bo-bill-table-contract";
 import {tosV4StagingHost} from "./tos-v4-staging-host";
 import {HO_BILLS_API,isHoBillsRequest} from "./ho-bills-contract";
 import { HO_PAGE_PATHS, HO_HOME_PATH } from "./ho-routes";
@@ -23,6 +24,9 @@ export type HostBoundaryDecision =
 
 export function decideHostBoundary(host: string, pathname: string, method = "GET"): HostBoundaryDecision {
   const hostname = normalizeHostname(host);
+  // PAP-1526: fence the entire namespace; admit only this exact Center GET.
+  if(pathname===billTableRoot||pathname.startsWith(billTableRoot+"/"))
+    return {action:hostname===BO_STAGING_HOSTNAME&&method==="GET"&&billTableCenter(pathname)!==null?"next":"not_found"};
   // PAP-1460 / Epic PAP-1316: Founder removed BO TV management from every
   // BO host, role, query and deep link. Deny before generic BO/preview fallthrough.
   if (/^\/bo\/tvs(?:\/|$)/i.test(pathname)) return { action: "not_found" };

@@ -1,5 +1,6 @@
 /**
- * PAP-926: immutable legacy baseline + deny-by-default new BO route admission.
+ * PAP-926 / PAP-1532: immutable legacy baseline and explicit Staging safety.
+ * New non-Engine pages are permitted; bo-staging-route-policy denies by default.
  * Run on EVERY PR after dependencies are installed, and protect the CI check.
  *
  * Source static analysis intentionally does not execute TS/JS route code.
@@ -201,12 +202,16 @@ export function verifyBoModuleContract(root=DEFAULT_ROOT) {
       if(/<\s*(table|BoDataGrid|BoDataGridSidePeek)(?=[\s/>])/.test(read(root,file)))issues.push(`Bespoke BO TDD route shell: ${file}`);
       continue;
     }
-    if(!def){issues.push(`Unregistered NEW BO page: ${file}`);continue;}
+    // PAP-1532: non-Engine FE may provide its own prototype-first page.
+    // This does not admit it to Staging: authenticated BoLayout and the
+    // exact bo-staging-route-policy retain runtime denial by default.
+    if(!def)continue;
     canonicalRoute(root,file,def.key,issues);
     auditCanonicalBoRoute(root,file,def.key,issues);
   }
   for(const href of newNav){
-    if(!byHref.has(href)&&!tddHrefs.has(href))issues.push(`Unregistered NEW BO navigation path: ${href}`);
+    const file='app/bo/'+href.slice('/bo/'.length)+'/page.tsx';
+    if(!byHref.has(href)&&!tddHrefs.has(href)&&!routes.includes(file))issues.push(`Unregistered NEW BO navigation path: ${href}`);
   }
   for(const entry of tdd.values())if(!routes.includes(entry.file))issues.push(`TDD admission lacks route: ${entry.file}`);
   for(const def of defs){

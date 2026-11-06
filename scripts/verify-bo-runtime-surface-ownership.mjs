@@ -42,7 +42,23 @@ export function verifyBoRuntimeSurfaceOwnership(root=ROOT,overrides={}) {
   const ui=read(file);
   if(!ui.includes('data-bo-runtime-surface="'+c.marker+'"'))issues.push("Specialized UI marker missing "+key);
   if(!ui.includes("SubscriptionHistoryGrid")||!ui.includes("SubscriptionCreateDrawer"))issues.push("Specialized table/form absent "+key);
-  if(!entry.includes('moduleKey === "'+key+'"')||!entry.includes("<BoSubscriptionsView embedded />"))issues.push("Specialized UI orphaned from /bo shell "+key);
+  // PAP-1334 / Epic PAP-1316: Subscription's historical specialized
+  // component remains owned and auditable, but its unscoped v1 legacy
+  // reader/writer is intentionally NOT admitted while PAP-1100 v1.9
+  // Center-bound Sale/Detail contracts are not ready. The exception is
+  // exact, source-controlled and revoked on any change of issue/module.
+  const suspended = key === "subscriptions" && c.deliveryState === "suspended" && c.suspensionIssue === "PAP-1334";
+  if(c.deliveryState !== undefined && !suspended)
+    issues.push("Unsupported specialized suspension "+key);
+  if(suspended) {
+    if(!entry.includes('if (moduleKey === "subscriptions") return <BoRegistrationWorkspace') ||
+       !entry.includes('data-testid="bo-subscription-center-contract-pending"') ||
+       !entry.includes('content={<section role="status"') ||
+       entry.includes("<BoSubscriptionsView embedded />") ||
+       entry.includes('import { BoSubscriptionsView }'))
+      issues.push("Suspended Subscription must fail-close legacy runtime "+key);
+  } else if(!entry.includes('moduleKey === "'+key+'"')||!entry.includes("<BoSubscriptionsView embedded />"))
+    issues.push("Specialized UI orphaned from /bo shell "+key);
   if(!middleware.includes('isBoStagingHost(host) && (request.nextUrl.pathname === "/bo/subscriptions"')||!middleware.includes('target.searchParams.set("module", "subscriptions")'))issues.push("Legacy URL does not canonicalize on staging "+key);
   if(!read("app/bo/subscriptions/SubscriptionCreateDrawer.tsx").includes('id="'+c.uiAnchor+'"'))issues.push("Create anchor absent "+key);
  }

@@ -5,9 +5,19 @@ import { hoCentersModule, mapHoCenters } from "./ho-centers";
 import {hoA1Modules,type HoA1Module} from "./ho-a1";
 import { HO_PAGE_PATHS } from "./ho-routes";
 
-export type HoModule = "bills" | "globalTerms" | "centers" | "walkinPasses" | "termWeeks" | "shiftTemplates" | "staffs" | "staffLinks" | "users" | "roles" | "audits" | "tddReference" | "classroomDiaries" | "tvs" | HoA1Module;
+export type HoModule = "specialties" | "bills" | "globalTerms" | "centers" | "walkinPasses" | "termWeeks" | "shiftTemplates" | "staffs" | "staffLinks" | "users" | "roles" | "audits" | "tddReference" | "classroomDiaries" | "tvs" | HoA1Module;
 export const hoRoutes: Record<HoModule, string> = HO_PAGE_PATHS;
 export const hoModules: Record<HoModule,BoModule> = {
+ specialties: {label:"Chuyên đề",group:"Learning",fields:[
+  {key:"name",label:"Chuyên đề",type:"text",icon:"Aa",w:240,readonly:true},
+  {key:"path",label:"Path",type:"text",icon:"▣",w:180,readonly:true},
+  {key:"status",label:"Trạng thái",type:"text",icon:"◉",w:140,readonly:true},
+  {key:"description",label:"Mô tả",type:"textarea",icon:"≡",w:280,readonly:true},
+  {key:"levelCount",label:"Cấp",type:"number",icon:"#",w:100,readonly:true},
+  {key:"prerequisiteView",label:"Tiên quyết",type:"text",icon:"↗",w:220,readonly:true},
+  {key:"tagView",label:"Tag",type:"text",icon:"#",w:180,readonly:true},
+  {key:"missionCount",label:"Nhiệm vụ",type:"number",icon:"#",w:110,readonly:true},
+ ]},
  bills: {label:"Bills",group:"Tài chính",fields:[]},
  tvs: {label:"TV",group:"Pinoria",fields:[
   {key:"name",label:"TV",type:"text",icon:"Aa",w:250,readonly:true},

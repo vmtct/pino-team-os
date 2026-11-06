@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import {readFileSync} from "node:fs";
 import {billMethodAllowed,isBoBillsPath} from "./bo-bills-paths";
-import {billSchema,billQuery} from "../app/bo/bills/schema";
+import {billSchema,billQuery,billSubscriptionChoiceLabel} from "../app/bo/bills/schema";
 import {toLegacyTableState} from "./workspace-schema/compatibility";
 
 const draft="123e4567-e89b-42d3-a456-426614174000";
@@ -45,4 +46,18 @@ test("PAP-1504: Bill Table query is legal for a billing.view Manager without wid
   const bridged=toLegacyTableState(billSchema,billQuery,scope);
   assert.deepEqual(bridged.order,billQuery.order);
   assert.deepEqual(billSchema.detail.businessTabs.map(tab=>tab.id),["subscriptions","payments"]);
+});
+
+// PAP-1421 / PAP-1362: approved picker identifies Student, program and one price only.
+test("PAP-1421 Subscription picker label has a monetary suffix but no opaque ID",()=>{
+ const choice={studentDisplayName:"Bạn An",pathDisplayName:"Hành Trình",listPriceMinor:3900000};
+ const label=billSubscriptionChoiceLabel(choice);
+ assert.equal(label,"Bạn An · Hành Trình · 3.900.000 ₫");
+ assert.equal((label.match(/₫/g)||[]).length,1);
+ assert.doesNotMatch(label,/01900000-0000-7000-8000-000000000001/);
+ assert.equal(billSubscriptionChoiceLabel({...choice,listPriceMinor:null}),"Bạn An · Hành Trình");
+ assert.equal(billSubscriptionChoiceLabel({...choice,listPriceMinor:0}),"Bạn An · Hành Trình · 0 ₫");
+ const editor=readFileSync("app/bo/bills/BillDraftEditor.tsx","utf8");
+ assert.ok(editor.includes("{billSubscriptionChoiceLabel(s)}"));
+ assert.ok(!editor.includes("{s.studentDisplayName} ₫") && !editor.includes("{s.pathDisplayName} ₫"));
 });

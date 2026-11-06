@@ -6,8 +6,9 @@ import { hoRoutes } from "./ho-system";
 import { decideHostBoundary } from "./host-boundary";
 const ho="ho.staging.pinohouse.art";
 test("HO route manifest keeps the approved distinct pages",()=>{
- assert.equal(Object.keys(HO_PAGE_PATHS).length,20);
- assert.equal(new Set(Object.values(HO_PAGE_PATHS)).size,20);
+ assert.equal(Object.keys(HO_PAGE_PATHS).length,21);
+ assert.equal(new Set(Object.values(HO_PAGE_PATHS)).size,21);
+ assert.equal(HO_PAGE_PATHS.specialties,"/ho/learning/specialties");
  assert.equal(HO_PAGE_PATHS.globalTerms,"/ho/operating-cycle/global-terms");
  assert.equal(HO_PAGE_PATHS.tvs,"/ho/pinoria/tv");
  assert.deepEqual(hoRoutes, HO_PAGE_PATHS);
