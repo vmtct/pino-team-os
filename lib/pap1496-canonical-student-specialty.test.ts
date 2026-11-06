@@ -9,9 +9,9 @@ const detailSource = readFileSync(new URL("../app/bo/components/registration/BoF
 const runtimeSource = readFileSync(new URL("../app/bo/components/registration/BoRuntimeBoundary.tsx",import.meta.url),"utf8");
 const hostSource = readFileSync(new URL("../app/bo/architecture/bo-staging-route-policy.ts",import.meta.url),"utf8");
 
-const module = {label:"Students",group:"SCHOOL",fields:[{key:"name",label:"Học viên",icon:"Aa",type:"text"}]};
+const studentModule = {label:"Students",group:"SCHOOL",fields:[{key:"name",label:"Học viên",icon:"Aa",type:"text"}]};
 const record = {id:"student-record",name:"Học viên A"};
-const options = {module:module as never,moduleKey:"students",record:record as never,
+const options = {module:studentModule as never,moduleKey:"students",record:record as never,
   onBack:()=>{},mobileMenu:null};
 
 test("PAP-1496: canonical BO Student Full Detail owns Specialty business tab before History",()=>{
