@@ -2,7 +2,7 @@ import ClassroomView from "./ClassroomView";
 import {getCloudflareContext} from "@opennextjs/cloudflare";
 import {headers} from "next/headers";
 import {notFound,redirect,forbidden} from "next/navigation";
-import {classroomVNextSeam,type ClassroomSeamEnv} from "@/lib/classroom-vnext-seam";
+import {classroomSeamEnv,classroomVNextSeam,type ClassroomSeamEnv} from "@/lib/classroom-vnext-seam";
 import {TosV4GateError} from "@/lib/tos-v4-staging-gate";
 import {TeamAuthError} from "@/lib/team-auth";
 import ClassroomReadOnlySeam from "./ClassroomReadOnlySeam";
@@ -14,8 +14,12 @@ type Props = { searchParams: Promise<{ sessionId?: string }> };
 export default async function Page({ searchParams }: Props) {
   let scope;
   try {
-    const {env}=await getCloudflareContext({async:true}) as unknown as {env:ClassroomSeamEnv};
-    scope=await classroomVNextSeam(new Headers(await headers()),env);
+    const requestHeaders=new Headers(await headers());
+    const env=await classroomSeamEnv(async()=>{
+      const context=await getCloudflareContext({async:true}) as unknown as {env:ClassroomSeamEnv};
+      return context.env;
+    },requestHeaders);
+    scope=env?await classroomVNextSeam(requestHeaders,env):null;
   } catch(error) {
     if(error instanceof TosV4GateError&&error.status===404)notFound();
     if((error instanceof TeamAuthError||error instanceof TosV4GateError)&&error.status===401)redirect("/staff-login");

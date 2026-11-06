@@ -2,18 +2,35 @@
 import {authorizeTosV4Staging,TosV4GateError,type TosV4GateEnv} from "./tos-v4-staging-gate";
 import {teamCredentialFromHeaders} from "./team-auth";
 import {callTosLearningCoreWithCredential,type TosLearningCoreBinding} from "./tos-learning-core";
+import {tosV4StagingHost} from "./tos-v4-staging-host";
 
 export type ClassroomSeamEnv=TosV4GateEnv&{
  PAP945_CLASSROOM_READ_ONLY?:string;
  PINO_TOS_LEARNING_CORE:TosLearningCoreBinding;
 };
+export async function classroomSeamEnv(
+ load:()=>Promise<ClassroomSeamEnv>,headers:Headers,
+ runtime:{NODE_ENV?:string;APP_ENV?:string;PAP945_CLASSROOM_READ_ONLY?:string}=process.env,
+){
+ try{return await load()}
+ catch(error){
+  // Only an explicitly local/dev, disabled seam may survive absent CF context.
+  // Never catch authorization or domain failures here.
+  if(runtime.NODE_ENV==="development"&&runtime.APP_ENV!=="staging"&&
+   runtime.PAP945_CLASSROOM_READ_ONLY!=="true"&&!tosV4StagingHost(headers.get("host")||""))return null;
+  throw error;
+ }
+}
 export async function classroomVNextSeam(headers:Headers,env:ClassroomSeamEnv,now=new Date()){
  // Disabled means the exact legacy route; no identity or domain reads.
  if(env.PAP945_CLASSROOM_READ_ONLY!=="true")return null;
  const context=await authorizeTosV4Staging(headers,env);
  // Select only a Core-projected Center. URL/query state is never an input.
- const center=context.centers[0] as {id?:unknown;timeZone?:unknown}|undefined;
- if(typeof center?.id!=="string"||!center.id||typeof center.timeZone!=="string"||!center.timeZone)
+ if(!Array.isArray(context.centers))throw new TosV4GateError(403,"CLASSROOM_CENTER_UNAVAILABLE");
+ const center:unknown=context.centers[0];
+ if(typeof center!=="object"||center===null||Array.isArray(center)||
+  !("id" in center)||typeof center.id!=="string"||!center.id||
+  !("timeZone" in center)||typeof center.timeZone!=="string"||!center.timeZone)
   throw new TosV4GateError(403,"CLASSROOM_CENTER_UNAVAILABLE");
  let localDate:string;
  try{localDate=new Intl.DateTimeFormat("en-CA",{timeZone:center.timeZone,year:"numeric",month:"2-digit",day:"2-digit"}).format(now)}
