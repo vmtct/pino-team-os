@@ -4,7 +4,17 @@ import {createBillsApi,type BillDraft} from "@/lib/bo-bills-api";
 import {loadBoBillTable} from "@/lib/bo-bill-table-client";
 import type {BillTableItem} from "@/lib/bo-bill-table-contract";
 import {latestBillPayment,maskedBillIdentity,unavailableBillCode} from "@/lib/bill-table-presentation";
-import type {BoBillSummary} from "@/lib/bo-model";
+import type {BoBillSummary,BoSubscriptionDirectoryItem} from "@/lib/bo-model";
+
+type Choice = Pick<BoSubscriptionDirectoryItem,"studentDisplayName"|"pathDisplayName"|"listPriceMinor">;
+
+/** Show Student, program and actual list price; never output opaque IDs as presentation copy. */
+export function billSubscriptionChoiceLabel(choice:Choice):string {
+ const names=[choice.studentDisplayName.trim(),choice.pathDisplayName.trim()].filter(Boolean).join(" · ");
+ const price=choice.listPriceMinor;
+ if(typeof price!=="number"||!Number.isSafeInteger(price)||price<0)return names;
+ return names+" · "+price.toLocaleString("vi-VN")+" ₫";
+}
 
 const read = { display:true, search:true, filter:true, sort:true, group:true, inlineEdit:false } as const;
 const P="billing.view";

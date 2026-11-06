@@ -9,11 +9,12 @@ import styles from "../components/BoFullDetail.module.css";
  * Props must come from an authorized Center-scoped Core Student reader.
  */
 export function StudentSpecialtyTab({
-  items, currentCenterLocalDate, onGrant,
+  items, currentCenterLocalDate, onGrant, readOnly = false,
 }: {
   items: unknown;
   currentCenterLocalDate: string;
-  onGrant: (specialtyId:string,startDate:string)=>Promise<void>;
+  onGrant?: (specialtyId:string,startDate:string)=>Promise<void>;
+  readOnly?: boolean;
 }) {
   const [startDates,setStartDates]=useState<Record<string,string>>({});
   const [busy,setBusy]=useState("");
@@ -25,7 +26,7 @@ export function StudentSpecialtyTab({
   },[items]);
   const validToday=/^\d{4}-\d{2}-\d{2}$/.test(currentCenterLocalDate);
   async function grant(id:string,canGrant:boolean,alreadyGranted:boolean){
-    if(!canGrant||alreadyGranted||busy||!validToday)return;
+    if(readOnly||!onGrant||!canGrant||alreadyGranted||busy||!validToday)return;
     const startDate=startDates[id]??currentCenterLocalDate;
     if(!/^\d{4}-\d{2}-\d{2}$/.test(startDate)||startDate<currentCenterLocalDate){
       setError("Ngày bắt đầu không được trước ngày hiện tại.");return;
@@ -57,10 +58,10 @@ export function StudentSpecialtyTab({
           {row.grantBlockReasons.length>0?<ul>{row.grantBlockReasons.map((reason,index)=><li key={index}>{reason}</li>)}</ul>:null}
           <label>Ngày bắt đầu
             <input type="date" min={validToday?currentCenterLocalDate:undefined}
-              value={validToday?date:""} disabled={!row.canGrant||Boolean(busy)||!validToday}
+              value={validToday?date:""} disabled={readOnly||!onGrant||!row.canGrant||Boolean(busy)||!validToday}
               onChange={event=>setStartDates(x=>({...x,[row.specialtyId]:event.target.value}))}/>
           </label>
-          <button type="button" disabled={!row.canGrant||Boolean(busy)||!validToday}
+          <button type="button" disabled={readOnly||!onGrant||!row.canGrant||Boolean(busy)||!validToday}
             onClick={()=>void grant(row.specialtyId,row.canGrant,Boolean(row.grant))}>
             {busy===row.specialtyId?"Đang ghi nhận…":"Mở khóa Chuyên Đề"}
           </button>

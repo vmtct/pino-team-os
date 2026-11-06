@@ -22,10 +22,28 @@ test("future source module must declare ownership before CI",()=>{
  const r=verifyBoRuntimeSurfaceOwnership(undefined,{"public/bo-authority-source/school-adapters.js":s.replace("  subscriptions:{","  futurePilot:{label:'New',fields:[]},\n  subscriptions:{")});
  assert.equal(r.ok,false);assert.match(r.issues.join(","),/futurePilot/);
 });
-test("orphaned specialized UI and missing DOM marker fail closed",()=>{
+test("PAP-1334 suspended Subscription runtime and missing DOM marker fail closed",()=>{
  const e=get(entry),u=get(ui);
- assert.equal(verifyBoRuntimeSurfaceOwnership(undefined,{[entry]:e.replace("<BoSubscriptionsView embedded />","undefined")}).ok,false);
+ assert.notEqual(e.replace('data-testid="bo-subscription-center-contract-pending"',"marker-removed"),e);
+ assert.equal(verifyBoRuntimeSurfaceOwnership(undefined,{[entry]:e.replace('data-testid="bo-subscription-center-contract-pending"',"marker-removed")}).ok,false);
  assert.equal(verifyBoRuntimeSurfaceOwnership(undefined,{[ui]:u.replace('data-bo-runtime-surface="subscriptions-core"','data-bo-runtime-surface="generic"')}).ok,false);
+});
+
+test("PAP-1334 suspended Subscription cannot silently remount legacy reader or widen exception",()=>{
+ const e=get(entry),m=JSON.parse(get(manifest));
+ assert.equal(verifyBoRuntimeSurfaceOwnership().ok,true);
+ const again=e.replace('content={<section role="status"','content={<BoSubscriptionsView embedded /><section role="status"');
+ assert.notEqual(again,e);
+ assert.ok(verifyBoRuntimeSurfaceOwnership(undefined,{[entry]:again}).issues.some(x=>x.includes("must fail-close")));
+ for(const replacement of ["PAP-9999",null]){
+   const corrupted=structuredClone(m);
+   corrupted.specialized.subscriptions.suspensionIssue=replacement;
+   assert.ok(verifyBoRuntimeSurfaceOwnership(undefined,{[manifest]:JSON.stringify(corrupted)}).issues.some(x=>x.includes("Unsupported specialized suspension")));
+ }
+ const notSuspended=structuredClone(m);
+ delete notSuspended.specialized.subscriptions.deliveryState;
+ delete notSuspended.specialized.subscriptions.suspensionIssue;
+ assert.ok(verifyBoRuntimeSurfaceOwnership(undefined,{[manifest]:JSON.stringify(notSuspended)}).issues.some(x=>x.includes("orphaned")));
 });
 test("staging legacy alias cannot point to another module or bypass canonical shell",()=>{
  const src=get(middleware);
