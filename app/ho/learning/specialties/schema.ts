@@ -16,7 +16,7 @@ const specialtyBaseFields = [
   {key:"tagView",label:"Tag",type:"text",icon:"#",width:180},
   {key:"missionCount",label:"Nhiệm vụ",type:"number",icon:"#",width:110},
 ] as const;
-export const specialtyFields = specialtyBaseFields.map(field => ({...field,permission,readOnly:true,capabilities:read})) satisfies readonly FieldSchema[];
+export const specialtyFields = Object.freeze(specialtyBaseFields.map(field => ({...field,permission,readOnly:true,capabilities:read}))) satisfies readonly FieldSchema[];
 type F = typeof specialtyFields;
 const keys = specialtyFields.map(field => field.key);
 const sections = [{id:"specialty",label:"Chuyên đề",fields:keys}];
