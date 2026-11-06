@@ -4,6 +4,50 @@ import { PropertySections, TosCard, TosButton, type PropertyField } from "@pino/
 import type { BoAccessPermission, BoAccessRoleDetail } from "@/lib/bo-access-model";
 import { boApi } from "@/lib/bo-api";
 
+// PAP-1507 / PLT-ACCESS: module-owned, presentation-only helpers.
+export function groupSelectionState(selectedKeys:readonly string[],visibleKeys:readonly string[]):"none"|"mixed"|"all" {
+  if(!visibleKeys.length)return "none";
+  const selected=new Set(selectedKeys);
+  const count=visibleKeys.filter(key=>selected.has(key)).length;
+  return count===0?"none":count===visibleKeys.length?"all":"mixed";
+}
+export function bulkGroupPermissionKeys(selectedKeys:readonly string[],visibleKeys:readonly string[]):string[] {
+  const keys=new Set(selectedKeys);
+  const visible=new Set(visibleKeys);
+  const all=groupSelectionState(selectedKeys,visibleKeys)==="all";
+  for(const key of visible){if(all)keys.delete(key);else keys.add(key);}
+  return [...keys].sort();
+}
+
+export type Platform = "HO" | "BO" | "TOS";
+export type PlatformFilter = Platform | "all";
+export interface PermissionPlatformMetadata {
+  /** Authorization surface retained for legacy callers; never a UI filter fallback. */
+  surfaceApplicability?: string | null;
+  applicablePlatforms?: readonly Platform[] | null;
+}
+const valid = (x: unknown): x is Platform => x==="HO"||x==="BO"||x==="TOS";
+export function permissionPlatforms(p: PermissionPlatformMetadata): readonly Platform[] {
+  // PAP-1507: only the verified Core UI projection may classify platforms.
+  // The legacy BO/TOS surface field is authorization metadata, not UI ownership.
+  if(!Array.isArray(p.applicablePlatforms))return [];
+  return [...new Set((p.applicablePlatforms as readonly unknown[]).filter(valid))];
+}
+export function matchesPlatform(p: PermissionPlatformMetadata, platform: PlatformFilter): boolean {
+  // PAP-1507: explicit [] is Founder-approved "No UI", even under All.
+  // null/missing remains All-only to avoid dropping future unclassified keys.
+  if (Array.isArray(p.applicablePlatforms) && p.applicablePlatforms.length===0) return false;
+  return platform==="all"||permissionPlatforms(p).includes(platform);
+}
+export function permissionPlatformCounts<T extends PermissionPlatformMetadata>(permissions:readonly T[]): Record<PlatformFilter,number> {
+  return {
+    all:permissions.filter(p=>matchesPlatform(p,"all")).length,
+    HO:permissions.filter(p=>matchesPlatform(p,"HO")).length,
+    BO:permissions.filter(p=>matchesPlatform(p,"BO")).length,
+    TOS:permissions.filter(p=>matchesPlatform(p,"TOS")).length,
+  };
+}
+
 type Ready = { role: BoAccessRoleDetail; permissions: BoAccessPermission[] };
 type Draft = { displayName: string; description: string; keys: string[] };
 const sorted = (keys: readonly string[]) => [...new Set(keys)].sort();
@@ -43,6 +87,8 @@ export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, o
   const [notice,setNotice]=useState("");
   const [search,setSearch]=useState("");
   const [filter,setFilter]=useState<"all"|"selected"|"unselected">("all");
+  const [platformFilter,setPlatformFilter]=useState<PlatformFilter>("all");
+  const [expandedGroups,setExpandedGroups]=useState<Record<string,boolean>>({});
   const lock=useRef(false);
   useEffect(()=>{
     const controller=new AbortController();
@@ -64,17 +110,33 @@ export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, o
   const permissionDirty=Boolean(additions.length||removals.length);
   const dirty=Boolean(draft&&original&&(draft.displayName.trim()!==original.displayName ||
     (draft.description.trim()||null)!==(original.description?.trim()||null)||permissionDirty));
+  const platformCounts=useMemo(()=>permissionPlatformCounts(data?.permissions??[]),[data?.permissions]);
   const groups=useMemo(()=>{
     const q=search.trim().toLocaleLowerCase("vi");
     const map=new Map<string,BoAccessPermission[]>();
     for(const p of data?.permissions??[]){
+      if(!matchesPlatform(p,platformFilter))continue;
       if(q && !(p.key+" "+p.displayLabel+" "+p.domain).toLocaleLowerCase("vi").includes(q))continue;
       const checked=draft?.keys.includes(p.key)??false;
       if((filter==="selected"&&!checked)||(filter==="unselected"&&checked))continue;
       const list=map.get(p.domain)??[];list.push(p);map.set(p.domain,list);
     }
     return [...map.entries()].sort((a,b)=>a[0].localeCompare(b[0],"vi"));
-  },[data,draft?.keys,search,filter]);
+  },[data,draft?.keys,search,filter,platformFilter]);
+  function choosePlatform(next:PlatformFilter){
+    setPlatformFilter(next);
+    if(next==="all"){setExpandedGroups({});return;}
+    const expanded:Record<string,boolean>={};
+    for(const permission of data?.permissions??[]){
+      if(matchesPlatform(permission,next))expanded[permission.domain]=true;
+    }
+    setExpandedGroups(expanded);
+  }
+  function toggleGroup(visibleKeys:string[]){
+    if(!editable||busy||!draft)return;
+    setDraft(v=>v?{...v,keys:bulkGroupPermissionKeys(v.keys,visibleKeys)}:v);
+    setConfirming(false);setError("");setNotice("");
+  }
   function toggle(key:string){
     if(!editable||busy||!draft||!data?.permissions.some(p=>p.key===key))return;
     setDraft(v=>v?{...v,keys:v.keys.includes(key)?v.keys.filter(k=>k!==key):sorted([...v.keys,key])}:v);
@@ -155,6 +217,15 @@ export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, o
           <div className="ho-role-metrics" aria-live="polite"><strong>{draft.keys.length} / {data.permissions.length} quyền</strong>
             <span className="ho-role-add">+{additions.length} thêm</span><span className="ho-role-remove">−{removals.length} bỏ</span></div>
         </div>
+        <div className="ho-role-platforms" role="group" aria-label="Lọc quyền theo nền tảng">
+          <span className="ho-role-platforms-label">Nền tảng</span>
+          <div className="ho-role-platform-chips">
+            {(["all","HO","BO","TOS"] as const).map(value=><button type="button" key={value}
+              aria-pressed={platformFilter===value} onClick={()=>choosePlatform(value)}>
+              <span>{value==="all"?"Tất cả":value}</span><strong>{platformCounts[value]}</strong>
+            </button>)}
+          </div>
+        </div>
         <div className="ho-role-controls">
           <label className="ho-role-search" htmlFor="role-permission-search">Tìm kiếm quyền
             <input id="role-permission-search" type="search" value={search} onChange={e=>setSearch(e.target.value)}
@@ -167,9 +238,26 @@ export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, o
           </div>
         </div>
         <div className="ho-role-groups">
-        {groups.length?groups.map(([domain,permissions])=><details className="ho-role-group" key={domain} open={Boolean(search)||undefined}>
-          <summary>{domain} · {permissions.filter(p=>draft.keys.includes(p.key)).length}/{permissions.length} quyền</summary>
-          <fieldset disabled={!editable||busy}>
+        {groups.length?groups.map(([domain,permissions])=>{
+          const groupKeys=permissions.map(permission=>permission.key);
+          const selection=groupSelectionState(draft.keys,groupKeys);
+          const open=expandedGroups[domain]??Boolean(search);
+          return <div className="ho-role-group" key={domain}>
+          <div className="ho-role-group-head">
+            <input className="ho-role-group-select" type="checkbox"
+              aria-label={"Chọn tất cả quyền nhóm "+domain}
+              checked={selection==="all"} aria-checked={selection==="mixed"?"mixed":selection==="all"}
+              ref={node=>{if(node)node.indeterminate=selection==="mixed";}}
+              disabled={!editable||busy} onChange={()=>toggleGroup(groupKeys)} />
+            <strong className="ho-role-group-title">{domain}</strong>
+            <span className="ho-role-group-count">{permissions.filter(p=>draft.keys.includes(p.key)).length}/{permissions.length} quyền</span>
+            <button type="button" className="ho-role-group-expand" aria-expanded={open}
+              aria-label={(open?"Thu gọn nhóm ":"Mở rộng nhóm ")+domain}
+              onClick={()=>setExpandedGroups(prev=>({...prev,[domain]:!open}))}>
+              <span aria-hidden="true">{open?"⌄":"›"}</span>
+            </button>
+          </div>
+          {open?<fieldset disabled={!editable||busy}>
             <legend className="ho-role-legend">{domain}</legend>
             {permissions.map(permission=><label className="ho-role-permission-row" key={permission.key}>
               <input type="checkbox" checked={draft.keys.includes(permission.key)}
@@ -177,8 +265,9 @@ export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, o
               <span className="ho-role-permission-info"><strong>{permission.displayLabel}</strong>
                 <small> {permission.key} · {permission.accessKind} · {permission.allowedScopes.join("/")}</small></span>
             </label>)}
-          </fieldset>
-        </details>):<p className="ho-role-empty" role="status">Không có quyền khớp tìm kiếm.</p>}
+          </fieldset>:null}
+        </div>;
+        }):<p className="ho-role-empty" role="status">Không có quyền khớp tìm kiếm.</p>}
         </div>
       </section>
     </TosCard>
