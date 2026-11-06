@@ -9,7 +9,7 @@ import { useRef, useState } from "react";
 import { authorizedHostActions, tddActionFeedback, type AuthorizationContext, type ModuleSchema, type TddActionDescriptor, type TddActionBindings } from "@/lib/workspace-schema";
 
 export type TddStage<F extends readonly FieldSchema[] = readonly FieldSchema[]> =
-  | { readonly kind: "table"; readonly props: TddTableProps<F>; readonly mobileMenu?: ReactNode }
+  | { readonly kind: "table"; readonly props: TddTableProps<F>; readonly mobileMenu?: ReactNode; readonly headerActions?: ReactNode }
   | { readonly kind: "drawer"; readonly props: Parameters<typeof TddDrawer<F>>[0]; readonly table?: TddTableProps<F> }
   | { readonly kind: "detail"; readonly props: Parameters<typeof TddDetail<F>>[0] }
   | { readonly kind: "form"; readonly props: { readonly registry: TddRegistry; readonly schema: ModuleSchema<F>; readonly context: AuthorizationContext; readonly mode: "create" | "edit"; readonly recordId?: string; readonly title: string; readonly content: ReactNode; readonly onClose: () => void; readonly actionBindings: TddActionBindings } };
