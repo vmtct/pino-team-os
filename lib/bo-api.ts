@@ -112,6 +112,8 @@ export type WorkforceWindowPolicyKey = "AVAILABILITY_WINDOW_V1" | "PLANNING_WIND
 export type WorkforcePolicyTarget = OpenStudioPolicyTarget;
 export type WorkforceWindowPolicyValue = { autoLock: { enabled:boolean; timeLocal:string; daysBeforeWeekStart:number } };
 export type WorkforceWindowPolicyInspection = OpenStudioPolicyInspection<WorkforceWindowPolicyValue>;
+export type BoParentStandaloneCreateInput = { displayName: string; contacts: Array<{ identifierType: "PHONE" | "EMAIL"; value: string; isPrimary: boolean }> };
+export type BoParentStandaloneCreateResult = { parentUserId: string; version: 1; createdContactIdentifierIds: string[]; directoryVisibility: "UNLINKED_NOT_LISTED" };
 export type BoStudentIntakeCreateInput = {
   displayName: string;
   birthYear: number | null;
@@ -389,6 +391,19 @@ export const boApi = {
   registrations: (sessionId: string) => read<BoRegistration>(`sessions/${encodeURIComponent(sessionId)}/registrations`),
   learners: (query = "", limit = 200, beforeStudentId?: string) => read<BoLearnerDirectoryItem>(`learners?limit=${encodeURIComponent(String(limit))}${beforeStudentId ? `&beforeStudentId=${encodeURIComponent(beforeStudentId)}` : ""}${query ? `&query=${encodeURIComponent(query)}` : ""}`),
   parents: (query = "", limit = 20) => read<BoParentSearchResult>(`identity/parents?limit=${encodeURIComponent(String(limit))}${query ? `&query=${encodeURIComponent(query)}` : ""}`),
+  createStandaloneParent: async (centerId: string, body: BoParentStandaloneCreateInput, idempotencyKey: string): Promise<BoParentStandaloneCreateResult> => {
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+    if (!uuid.test(centerId) || !idempotencyKey.trim()) throw new BoApiError(400, "Center or request key is invalid.", null, true);
+    const result = await write<BoParentStandaloneCreateResult>(`identity/parents?centerId=${encodeURIComponent(centerId)}`, body, idempotencyKey);
+    if (!result || !uuid.test(result.parentUserId) || result.version !== 1 ||
+      result.directoryVisibility !== "UNLINKED_NOT_LISTED" ||
+      !Array.isArray(result.createdContactIdentifierIds) ||
+      result.createdContactIdentifierIds.length !== body.contacts.length ||
+      result.createdContactIdentifierIds.some(id => typeof id !== "string" || !uuid.test(id))) {
+      throw new BoApiError(502, "Parent Create returned an invalid response.", null, false);
+    }
+    return result;
+  },
   acquisitionIntents: (status?: BoAcquisitionIntentStatus, limit = 100) => read<BoAcquisitionIntent>(`acquisition/intents?limit=${encodeURIComponent(String(limit))}${status ? `&status=${encodeURIComponent(status)}` : ""}`),
   acquisitionIntent: (intentId: string) => readOne<BoAcquisitionIntent>(`acquisition/intents/${encodeURIComponent(intentId)}`),
   createAcquisitionIntent: (body: BoAcquisitionCreateInput, idempotencyKey: string) => write<{ leadId: string; intentId: string; status: "SUBMITTED"; nextStep: "MANUAL_CONTACT" }>("acquisition/intents", body, idempotencyKey),

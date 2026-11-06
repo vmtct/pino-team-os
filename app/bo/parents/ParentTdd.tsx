@@ -10,6 +10,7 @@ import { TddRegistry } from "@/lib/workspace-schema";
 import { useBoCenterSelection } from "../components/registration/BoCenterSelection";
 import { parentDefinition, parentFields, parentProvider, parentQuery } from "./schema";
 import { readScopedParentDetail } from "./provider";
+import { ParentCreateDrawer } from "./ParentCreateDrawer";
 
 type Fields = typeof parentFields;
 type Ready = { centerId: string; adapter: AuthenticatedSurfaceAdapter<Fields>; navigation: AdapterNavigation<Fields> };
@@ -54,6 +55,8 @@ export function ParentTdd() {
   const [ready, setReady] = useState<Ready | null>(null);
   const [failure, setFailure] = useState<{ centerId: string; retry: number; message: string } | null>(null);
   const [retry, setRetry] = useState(0);
+  const [createForCenter, setCreateForCenter] = useState<string | null>(null);
+  const [created, setCreated] = useState<{ centerId: string; parentUserId: string } | null>(null);
   useEffect(() => {
     if (!selected) return;
     const ctl = new AbortController();
@@ -76,7 +79,14 @@ export function ParentTdd() {
       center.loading ? <p role="status">Đang tải cơ sở được cấp quyền…</p> :
       center.error ? <p role="alert">{center.error}</p> : null}
     {selected ? error ? <p role="alert">{error} <button type="button" onClick={() => setRetry(n => n + 1)}>Thử lại</button></p> :
-      current ? <SurfaceWorkspace key={selected} adapter={current.adapter} navigation={current.navigation} initialQuery={parentQuery} businessLoaders={loaders} /> :
+      current ? <>
+        {created?.centerId === selected ? <p role="status" className="settings-hint">Đã tạo phụ huynh {created.parentUserId}. Hồ sơ sẽ xuất hiện tại cơ sở khi liên kết với học viên.</p> : null}
+        <SurfaceWorkspace key={selected} adapter={current.adapter} navigation={current.navigation} initialQuery={parentQuery} businessLoaders={loaders}
+          tableHeaderActions={current.adapter.context.authorize("identity.parent.create") ?
+            <button type="button" className="primary-btn" onClick={() => setCreateForCenter(selected)}>＋ Tạo phụ huynh</button> : undefined} />
+        {createForCenter === selected ? <ParentCreateDrawer centerId={selected} onClose={() => setCreateForCenter(null)}
+          onCreated={result => { setCreated({ centerId: selected, parentUserId: result.parentUserId }); setCreateForCenter(null); }} /> : null}
+      </> :
       <p role="status">Đang xác thực quyền Parents theo cơ sở…</p> :
       !center?.loading && !center?.error ? <p role="status">Chọn trung tâm tại góc trên trái để xem Parents.</p> : null}
   </section>;
