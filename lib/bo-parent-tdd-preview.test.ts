@@ -31,20 +31,20 @@ test("PAP-1543 / PAP-1316: canonical BO Parents never renders the unscoped direc
   // the former pilot. A query flag must not decide whether identity is scoped.
   assert.match(page, /<BoRuntimeEntry moduleKey=/);
   assert.doesNotMatch(page, /parentTddPilot|boParentTddPilotAllowed/);
-  assert.match(runtime, /if \\(moduleKey === "parents"\\) return <ParentTdd \\/>;/);
+  assert.match(runtime, /if \(moduleKey === "parents"\) return <ParentTdd \/>;/);
   assert.doesNotMatch(runtime, /parentTddPilot|isParentPilot/);
-  assert.doesNotMatch(runtime, /content=\\{moduleKey === "parents"/);
+  assert.doesNotMatch(runtime, /content=\{moduleKey === "parents"/);
 
   // The replacement provider is server-attested, not a client-side filter.
-  assert.match(provider, /payload\\.scopeCenterId !== centerId/);
-  assert.match(provider, /new URLSearchParams\\(\\{ centerId, limit:/);
-  assert.match(provider, /No unscoped\\/legacy fallback/);
-  assert.match(tdd, /ready\\?\\.centerId === selected/);
-  assert.match(tdd, /<SurfaceWorkspace key=\\{selected\\}/);
+  assert.match(provider, /payload\.scopeCenterId !== centerId/);
+  assert.match(provider, /new URLSearchParams\(\{ centerId, limit:/);
+  assert.match(provider, /No unscoped\/legacy fallback/);
+  assert.match(tdd, /ready\?\.centerId === selected/);
+  assert.match(tdd, /<SurfaceWorkspace key=\{selected\}/);
 
   // Old generic Subscription writer remains intentionally blocked.
-  assert.match(runtime, /if \\(moduleKey === "subscriptions"\\) return <BoRegistrationWorkspace/);
+  assert.match(runtime, /if \(moduleKey === "subscriptions"\) return <BoRegistrationWorkspace/);
   assert.match(runtime, /data-testid="bo-subscription-center-contract-pending"/);
-  assert.doesNotMatch(runtime, /<BoSubscriptionsView embedded \\/>/);
-  assert.doesNotMatch(page, /\\.\\.\\.query/);
+  assert.doesNotMatch(runtime, /<BoSubscriptionsView embedded \/>/);
+  assert.doesNotMatch(page, /\.\.\.query/);
 });
