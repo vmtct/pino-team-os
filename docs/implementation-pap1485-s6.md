@@ -1,3 +1,11 @@
+# CURRENT DELIVERY CHECKPOINT — 2026-11-07 — PAP-1485 / PAP-1123 / PAP-1097 PNR-WARD
+
+The older "partial / missing Core contract / MIG-0169 held" notes below are HISTORICAL and superseded for Core dependencies. Core MIG-0169 PAP-1499 is **Done on Staging**, verified ledger 0169, FK0, official Core Staging CD #42242706486 SUCCESS, Core Worker 100% serving SHA 01d866ec9aa4568e44066c22762126da5a74ae8c. Core pinoria-self-set-transport exposes authorized GET Set, GET frozen member media [0..7], POST /set/apply, /set/clear, /set/starter; Core read projection includes eligibleSets, starterAvailable, starterSets and members. These are actual Core service contracts, not guessed endpoints.
+
+Team FE PR #1207 owns BO Set-first chooser, approved portrait 9:16 preview, opaque full-stage authorized member composition, first Starter grant/apply control, Apply/Clear with CAS/idempotency+readback, eight independent base slots, Vietnamese fail-closed error states, Core-only host-fenced credential gateway. After merging Team main at 86097018 without overlaps, i5 scoped node --test scripts/pap1485-self-set.test.mjs: 11/11 PASS; node --import tsx --test lib/pap1356-self-loadout-ui.test.ts lib/pap1456-self-loadout-form-ui.test.ts: 17/17 PASS. Local npm run typecheck via pre-existing shared junction is **NOT PASS** (2 out-of-scope BoActionButton/BoActionGroup exports missing in old shared design-system dependencies); fresh locked-dependency GitHub CI on exact HEAD is authoritative, do not call local typecheck green. PINO DS/TDD G3 two-axis five viewport browser QA, real authenticated Staging G4 positive/negative Starter/Set/Center E2E, served Team SHA and fixture readiness remain NOT_VERIFIED. Merge/Stage is not E2E PASS. Staging data disposable per PAP-1053; no Production changes.
+
+---
+
 # PAP-1485 partial implementation
 
 Epic PAP-1097 / PNR-WARD / pinoria-wardrobe-loadout / Story PAP-1123 S6.
