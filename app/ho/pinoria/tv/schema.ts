@@ -100,14 +100,13 @@ export const tvProvider:SurfaceProvider<F>={
   return(await load(scope.surface,fetcher,signal)).find(x=>x.row.id===id)||null;
  },
 };
+const hoScope=(surface:"BO"|"HO")=>{if(surface!=="HO")throw adapterError(403);return{surface:"HO" as const};};
 const registry=new TddRegistry();
 export const tvSchema=registry.register({...tvDefinition,data:{
- id:"ho-tv-directory",list:async(_query,context,signal)=>{
-  const rows=await tvProvider.list(tvQuery,{surface:context.surface==="HO"?"HO":"BO",...(context.surface==="BO"?{centerId:""}:{})} as Parameters<typeof tvProvider.list>[1],fetch,signal);
+ id:"ho-tv-directory",
+ list:async(_query,context,signal)=>{
+  const rows=await tvProvider.list(tvQuery,hoScope(context.surface),fetch,signal);
   return{rows:rows.records.map(x=>x.row),total:rows.total};
  },
- detail:async(id,context,signal)=>{
-  const scope=context.surface==="HO"?{surface:"HO" as const}:{surface:"BO" as const,centerId:""};
-  return(await tvProvider.detail(id,scope,fetch,signal))?.row||null;
- },
+ detail:async(id,context,signal)=>(await tvProvider.detail(id,hoScope(context.surface),fetch,signal))?.row||null,
 }});
