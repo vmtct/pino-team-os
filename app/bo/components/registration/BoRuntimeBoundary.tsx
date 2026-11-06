@@ -2,7 +2,7 @@
 import { createContext, useContext, useMemo, useState } from "react";
 import type { BoShellContext } from "@/lib/bo-shell-gate";
 import { BoRegistrationWorkspace, type BoWorkspaceSource } from "./BoRegistrationWorkspace";
-import { BoStaffsViews, staffsViewRows, type StaffsView } from "./BoStaffsViews";
+import { BoStaffsViews, type StaffsView } from "./BoStaffsViews";
 import { readStaffCenterApplications } from "@/lib/bo-staff-center-registration-adapter";
 import { unifiedBoWorkspaceSource } from "../../architecture/bo-unified-workspace-source";
 import { BoOperationalView } from "../../BoOperationalView";
