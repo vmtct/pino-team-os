@@ -413,7 +413,7 @@ test("PAP-1542 Founder-authorized HO Staff Link retirement is exactly Center-own
   };
   mutate(files[0],s=>s.replace('redirect("/ho/centers"','redirect("/ho/legacy"'));
   mutate(files[1],s=>s.replace('detailOverview=','otherOverview='));
-  mutate(files[2],s=>s.replace("readFounderStaffLink","unsafeLegacyLinkRead"));
+  mutate(files[2],s=>s.replaceAll("readFounderStaffLink","unsafeLegacyLinkRead"));
   mutate(files[3],s=>s.replace("export const hoModules","export const altModules"));
   mutate(files[4],s=>s.replace("staffLinksBase", "staffLinksGone"));
 });
