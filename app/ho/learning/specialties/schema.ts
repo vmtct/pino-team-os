@@ -1,4 +1,4 @@
-import type { FieldSchema, TableQuery } from "@/lib/workspace-schema";
+import { TddRegistry, type FieldSchema, type TableQuery } from "@/lib/workspace-schema";
 import type { ApprovalVerifier } from "@/lib/workspace-schema/registry";
 import type { SurfaceDefinition, SurfaceProvider } from "@/lib/workspace-adapters/contracts";
 import { BoApiError } from "@/lib/bo-api-error";
@@ -67,3 +67,11 @@ export const specialtyProvider: SurfaceProvider<F> = {
     throw new BoApiError(503,"Chưa tải được chi tiết Chuyên đề.",null);
   },
 };
+
+/** PAP-1495: explicit route admission schema; runtime uses authenticated adapter. */
+const specialtyRegistry = new TddRegistry(verifySpecialtyExtension);
+export const specialtySchema = specialtyRegistry.register({ ...specialtyDefinition, data: {
+  id: "ho-v2-specialty-reader-unavailable",
+  list: async () => { throw new Error("SPECIALTY_V2_READER_UNAVAILABLE"); },
+  detail: async () => { throw new Error("SPECIALTY_V2_READER_UNAVAILABLE"); },
+}});
