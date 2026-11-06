@@ -1,7 +1,7 @@
 "use client";
 import "@pino/design-system/bo-tokens.css";
 import "@pino/design-system/components.css";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { HoWorkspace } from "@/app/ho/HoWorkspace";
 import { SurfaceWorkspace } from "@/app/components/workspace-adapters/SurfaceWorkspace";
 import { createHoTddAdapter, type AuthenticatedSurfaceAdapter } from "@/lib/workspace-adapters";
@@ -36,7 +36,7 @@ export function HoSpecialties() {
   },[retry]);
   const content=error?<p role="alert">{error} <button type="button" onClick={()=>{setReady(null);setError("");setRetry(n=>n+1);}}>Thử lại</button></p>
     :ready?<><SurfaceWorkspace adapter={ready.adapter} navigation={ready.navigation} initialQuery={specialtyQuery}
-      tableHeaderActions={<button className="primary-btn" type="button" onClick={()=>setCreateOpen(true)}>＋ Tạo Chuyên đề</button>}
+      tableHeaderActions={<button className="primary-btn" type="button" onClick={()=>setCreateOpen(true)}>＋ Tạo chuyên đề</button>}
       detailApprovedExtension={(_row,_context,tab)=>tab==="missions"?<>
         <p role="status">Chưa tải được nhiệm vụ liên kết.</p>
         <HoSpecialtyMissionsTab pathProgramId="" levels={[]} missionCatalog={[]} disabled
@@ -48,30 +48,43 @@ export function HoSpecialties() {
 }
 export function SpecialtyCreateDrawer({ onClose }: { onClose: () => void }) {
   const [draft, setDraft] = useState<SpecialtyDraft>({ name: "", pathCode: "", description: "" });
+  const inputRef = useRef<HTMLInputElement>(null);
   const invalid = validateSpecialtyDraft(draft);
-  return <DrawerFrame title="Tạo Chuyên đề" path="Chuyên đề" onClose={onClose} footer={<>
+  // PAP-1495: shared DrawerFrame traps Tab and restores the invoker on close.
+  // Its dialog effect starts on the close icon; return to the approved first field afterwards.
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => inputRef.current?.focus());
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+  return <DrawerFrame title="Tạo chuyên đề" path="Learning / Chuyên đề" onClose={onClose} footer={<>
     <button type="button" className="secondary-btn" onClick={onClose}>Hủy</button>
-    <button type="button" className="primary-btn" disabled aria-disabled="true"
-      title="Chưa thể lưu Chuyên đề">Tạo Chuyên đề</button>
+    <button type="submit" form="ho-spec-create-form" className="primary-btn" disabled aria-disabled="true"
+      title="Chưa thể tạo chuyên đề">Tạo chuyên đề</button>
   </>}>
-    <section className="v25-form-fields" aria-label="Thông tin Chuyên đề mới">
-      <label className="v25-form-field"><span>Tên Chuyên đề *</span>
-        <input autoFocus required maxLength={160} value={draft.name} onChange={event =>
-          setDraft(value => ({ ...value, name: event.target.value }))} placeholder="Tên Chuyên đề" />
+    <form id="ho-spec-create-form" className="ho-spec-form" data-ho-specialty-create
+      aria-label="Thông tin chuyên đề mới" onSubmit={event => event.preventDefault()}>
+      <label className="ho-spec-field">
+        <span>Tên chuyên đề <span aria-hidden="true">*</span></span>
+        <input ref={inputRef} required minLength={3} maxLength={160} autoComplete="off"
+          value={draft.name} onChange={event => setDraft(value => ({ ...value, name: event.target.value }))}
+          placeholder="Tên chuyên đề" />
       </label>
-      <label className="v25-form-field"><span>Path *</span>
+      <label className="ho-spec-field">
+        <span>Path</span>
         <select required aria-label="Path" value={draft.pathCode}
           onChange={event => setDraft(value => ({ ...value, pathCode: event.target.value }))}>
           <option value="">Chọn Path</option>
           {specialtyVisualPaths.map(path => <option key={path.code} value={path.code}>{path.label}</option>)}
         </select>
       </label>
-      <label className="v25-form-field"><span>Mô tả</span>
-        <textarea rows={4} maxLength={4000} value={draft.description} onChange={event =>
-          setDraft(value => ({ ...value, description: event.target.value }))} />
+      <label className="ho-spec-field">
+        <span>Mô tả</span>
+        <textarea rows={4} maxLength={4000} value={draft.description}
+          onChange={event => setDraft(value => ({ ...value, description: event.target.value }))}
+          placeholder="Mô tả chuyên đề" />
       </label>
-      {invalid && (draft.name || draft.pathCode) ? <p role="status">{invalid}</p> : null}
-      <p role="status">Chưa thể lưu Chuyên đề.</p>
-    </section>
+      {invalid && (draft.name || draft.pathCode) ? <p className="ho-spec-create-status" role="status">{invalid}</p> : null}
+      <p className="ho-spec-create-status" role="status">Chưa thể tạo chuyên đề.</p>
+    </form>
   </DrawerFrame>;
 }
