@@ -83,7 +83,7 @@ export function CenterStaffRegistrationSection({ centerId }: { centerId: string 
           ? new Date(link.updatedAt).toLocaleString("vi-VN") : "Chưa thay đổi"}</div>
       </div>
     </div> : null}
-    {link ? <p role="status">Chia sẻ link sẽ khả dụng khi cổng đăng ký theo Center được kết nối.</p> : null}
+    {link ? <p role="status">Sao chép link hiện chưa khả dụng.</p> : null}
     {notice ? <p role="status">{notice}</p> : null}
   </section>;
 }
