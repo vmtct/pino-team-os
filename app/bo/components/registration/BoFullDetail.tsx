@@ -23,6 +23,12 @@ const BoWorkforcePlannerTab = lazy(async () => {
   const { WorkforcePlanningView } = await import("@/app/bo/workforce/WorkforcePlanningView");
   return { default: WorkforcePlanningView };
 });
+// PAP-1496 / SPEC-UNLOCK: canonical /bo Students detail owns the approved
+// Specialty tab. Defer the CSS-module import until the tab is opened.
+const BoStudentSpecialtyTab = lazy(async () => {
+  const { StudentSpecialtyTab } = await import("@/app/bo/learners/StudentSpecialtyTab");
+  return { default: StudentSpecialtyTab };
+});
 import type { BoModule, BoRecord } from "@/lib/bo-registration";
 
 export function BoFullDetail({
@@ -55,7 +61,7 @@ export function BoFullDetail({
     : moduleKey === "subscriptions"
     ? ["Detail", "Enrollment", "Lịch Sử"]
     : moduleKey === "students" && enableStudentSubscriptions
-    ? ["Detail", "Subscription", "Lịch Sử"]
+    ? ["Detail", "Subscription", "Chuyên đề", "Lịch Sử"]
     : ["Detail", "Lịch Sử"];
   const selectedTabIndex = tabs.indexOf(tab);
   const activeTab = selectedTabIndex >= 0 ? tab : "Detail";
@@ -108,6 +114,10 @@ export function BoFullDetail({
               </section>
             : activeTab === "Subscription" && moduleKey === "students" && enableStudentSubscriptions
               ? <BoStudentSubscriptionRelation studentId={record.id} onFullDetail={openSubscriptionFromStudent} />
+              : activeTab === "Chuyên đề" && moduleKey === "students" && enableStudentSubscriptions
+                ? <Suspense fallback={<p role="status">Đang tải Chuyên đề…</p>}>
+                    <BoStudentSpecialtyTab items={undefined} currentCenterLocalDate="" readOnly />
+                  </Suspense>
               : activeTab === "Enrollment" && moduleKey === "classes"
                 ? <BoRunningClassEnrollment runningClassId={record.id} className={record.name} pathName={typeof record.path === "string" ? record.path : "—"} centerTimeZone={typeof record.centerTimeZone === "string" ? record.centerTimeZone : null} />
               : activeTab === "Enrollment" && moduleKey === "subscriptions"
