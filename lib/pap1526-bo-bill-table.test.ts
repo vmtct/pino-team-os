@@ -94,3 +94,31 @@ test("PAP-1526 cap overflow fails explicitly; abort prevents stale A response af
  const source=readFileSync("app/bo/bills/BoBillsTdd.tsx","utf8");assert.match(source,/key=\{selected\}/);assert.match(source,/ctl.abort\(\);bound\?\.dispose\(\)/);
  assert.doesNotMatch(source,/<select|boApi\.centers/);
 });
+
+
+test("PAP-1526 only explicit Core VERIFIED identity is displayed, while REDACTED stays hidden",()=>{
+ const authorized={...row(),payerDisplay:{state:"VERIFIED",label:"Phụ huynh A"},
+  students:[{studentProfileId:bill,display:{state:"VERIFIED",label:"Học viên B"}}]};
+ const parsed=parseBillTablePage(page([authorized]),center).items[0]!;
+ assert.deepEqual(parsed.payerDisplay,{state:"VERIFIED",label:"Phụ huynh A"});
+ assert.deepEqual(parsed.students[0].display,{state:"VERIFIED",label:"Học viên B"});
+ assert.equal(projectBillTable(parsed).parent,"Phụ huynh A");
+ assert.equal(projectBillTable(parsed).students,"Học viên B");
+ const redacted=parseBillTablePage(page([row()]),center).items[0]!;
+ assert.equal(projectBillTable(redacted).parent,"Đã ẩn");
+ assert.equal(projectBillTable(redacted).students,"Đã ẩn");
+});
+test("PAP-1526 fails closed on unproven, malformed or forged identity labels",()=>{
+ for(const display of [
+  {state:"VERIFIED",label:null},{state:"VERIFIED",label:""},
+  {state:"VERIFIED",label:" "},{state:"VERIFIED",label:" secret"},
+  {state:"VERIFIED",label:"secret "},{state:"VERIFIED",label:"x".repeat(161)},
+  {state:"VISIBLE",label:"secret"},{state:"REDACTED",label:"secret"},
+  {state:"VERIFIED",label:"line\nsecret"},
+ ]){
+  assert.throws(()=>parseBillTablePage(page([{...row(),payerDisplay:display}]),center));
+  assert.throws(()=>parseBillTablePage(page([{...row(),students:[{studentProfileId:bill,display}]}]),center));
+ }
+ assert.throws(()=>parseBillTablePage(page([{...row(),centerId:draft,
+  payerDisplay:{state:"VERIFIED",label:"Foreign Center Parent"}}]),center));
+});
