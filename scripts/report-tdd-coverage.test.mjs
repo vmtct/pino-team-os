@@ -30,15 +30,14 @@ test("S9 reports distinct TDD-admitted and grandfathered source routes without i
   assert.ok(r.rows.every(x=>x.servingSha===null&&x.g4==="NOT_ATTESTED_BY_STATIC_INVENTORY"));
   assert.equal(r.rows.find(x=>x.category==="GRANDFATHERED_MIGRATION_PENDING").baselineEligibility,"PENDING");
 });
-test("S9 independently blocks unadmitted new BO/HO routes, including JS pages",t=>{
+test("PAP-1532 inventories non-Engine BO/HO pages without TDD admission",t=>{
   const f=fixture(t);
   f.put("app/ho/new-ad-hoc/page.jsx","export default function Page() {}");
   f.put("app/bo/hidden-route/page.ts","export default function Page() {}");
   const r=reportTddCoverage(f.root);
-  assert.equal(r.totals.UNADMITTED_NEW_ROUTE,2);
-  assert.equal(r.errors.length,2);
-  assert.ok(r.errors.some(x=>x.includes("app/ho/new-ad-hoc/page.jsx")));
-  assert.ok(r.errors.some(x=>x.includes("app/bo/hidden-route/page.ts")));
+  assert.equal(r.totals.NON_ENGINE_ROUTE_UNVERIFIED,2);
+  assert.deepEqual(r.errors,[]);
+  assert.ok(r.rows.filter(x=>x.category==="NON_ENGINE_ROUTE_UNVERIFIED").every(x=>x.classification==="UNVERIFIED"&&x.servingSha===null));
 });
 test("S9 rejects orphaned/duplicate admission and route identity drift",t=>{
   const f=fixture(t);
