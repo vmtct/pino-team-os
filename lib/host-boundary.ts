@@ -124,6 +124,8 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
 
   if (hostname === HO_STAGING_HOSTNAME) {
     const p = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
+    // PAP-1594: Founder-only Path directory GET; all non-GET verbs remain hidden.
+    if (p === "/api/ho/learning/paths") return { action: method === "GET" ? "next" : "not_found" };
     // PAP-1221: HO Staging-only Diary GLOBAL read, exact collection/UUID detail.
     // BFF HO pilot gate + Core Founder learning.diary.global.view remain mandatory.
     if (/^\/api\/ho\/learning\/path-diaries(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/mission-links)?)?$/i.test(p))
