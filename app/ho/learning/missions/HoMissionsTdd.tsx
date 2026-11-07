@@ -17,6 +17,9 @@ import { loadMissionPathChoices, validateMissionSelectedPath, type MissionPathCh
 type F = typeof missionFields;
 type Ready = { adapter: AuthenticatedSurfaceAdapter<F>; navigation: AdapterNavigation<F> };
 type EditTarget = { id: string; version: number; status: MissionInput["status"] };
+type PathState =
+  | { state: "idle" | "loading" | "error"; message?: string }
+  | { state: "ready"; choices: readonly MissionPathChoice[] };
 /** PAP-1207: Create/Edit/Archive use canonical TDD Action Host; no local mutation buttons. */
 export function HoMissionsTdd() {
   const [ready, setReady] = useState<Ready | null>(null);
@@ -25,6 +28,7 @@ export function HoMissionsTdd() {
   const [mode, setMode] = useState<"create" | "edit" | null>(null);
   const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
   const [draft, setDraft] = useState<MissionInput>(emptyMission);
+  const [pathState, setPathState] = useState<PathState>({ state: "idle" });
   const [pending, setPending] = useState(false);
   const [uncertain, setUncertain] = useState(false);
   const [formError, setFormError] = useState("");
