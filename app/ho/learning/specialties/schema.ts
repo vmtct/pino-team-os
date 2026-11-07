@@ -10,12 +10,12 @@ const permission = "catalog.learning.view";
 const read = { display:true, search:true, filter:true, sort:true, group:true, inlineEdit:false } as const;
 const specialtyBaseFields = [
   {key:"name",label:"Chuyên đề",type:"text",icon:"Aa",width:240},
-  {key:"path",label:"Path",type:"text",icon:"▣",width:180},
-  {key:"status",label:"Trạng thái",type:"text",icon:"◉",width:140},
-  {key:"description",label:"Mô tả",type:"text",icon:"≡",width:280},
+  {key:"path",label:"Path",type:"relation",icon:"↗",width:180},
+  {key:"status",label:"Trạng thái",type:"select",icon:"◉",width:140,options:["Bản nháp","Đang áp dụng","Đã lưu trữ"]},
+  {key:"description",label:"Mô tả",type:"textarea",icon:"≡",width:280},
   {key:"levelCount",label:"Cấp",type:"number",icon:"#",width:100},
   {key:"prerequisiteView",label:"Tiên quyết",type:"text",icon:"↗",width:220},
-  {key:"tagView",label:"Tag",type:"text",icon:"#",width:180},
+  {key:"tagView",label:"Tag",type:"multiselect",icon:"⌗",width:180},
   {key:"missionCount",label:"Nhiệm vụ",type:"number",icon:"#",width:110},
   {key:"createdTime",label:"Created Time",type:"text",icon:"◷",width:195},
   {key:"createdBy",label:"Created by (User)",type:"text",icon:"Aa",width:205},
@@ -78,10 +78,12 @@ export function specialtyPathLabel(id:string,paths:readonly SpecialtyV2PathOptio
  if(!option)throw new BoApiError(502,'Core trả Path Chuyên đề không hợp lệ.',null);
  return option.label;
 }
+/** PAP-1495 S3: UI labels never replace Core lifecycle codes in DTOs. */
+export const specialtyStatusLabel = (status:SpecialtyV2Summary["status"]):string => ({DRAFT:"Bản nháp",ACTIVE:"Đang áp dụng",ARCHIVED:"Đã lưu trữ"})[status];
 const summaryRow=(s:SpecialtyV2Summary,paths:readonly SpecialtyV2PathOption[]):ModuleRow<F>=>({
- id:s.id,name:s.name,path:specialtyPathLabel(s.pathProgramId,paths),status:s.status,
+ id:s.id,name:s.name,path:specialtyPathLabel(s.pathProgramId,paths),status:specialtyStatusLabel(s.status),
  description:s.description,levelCount:null,prerequisiteView:null,
- tagView:s.tags.join(', '),missionCount:s.missionCountDistinct,
+ tagView:s.tags,missionCount:s.missionCountDistinct,
  createdTime:formatSpecialtyAuditTime(s.createdAt),createdBy:s.createdByVerifiedLegalName??'—',
  lastModifiedTime:formatSpecialtyAuditTime(s.updatedAt),lastModifiedBy:s.updatedByVerifiedLegalName??'—',
 });
