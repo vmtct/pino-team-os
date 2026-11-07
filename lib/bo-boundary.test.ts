@@ -95,7 +95,8 @@ test("BO layout gates canonical authorization before rendering the shell", async
   assert.match(source, /authorizeBoShell/);
   assert.match(source, /forbidden\(\)/);
   assert.match(source, /PINO_BO_CORE|BoShellGateEnv/);
-  assert.ok(source.indexOf("authorizeBoShell") < source.indexOf("<BoShell"));
+  assert.ok(source.indexOf("authorizeBoShell") < source.indexOf("<BoApplicationShell"));
+  assert.doesNotMatch(source, /<BoShell\b/);
 });
 
 

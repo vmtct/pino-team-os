@@ -31,7 +31,7 @@ export function middleware(request: NextRequest) {
     const ret = safeHoReturnTo(request.nextUrl.pathname + request.nextUrl.search);
     if (ret) forwarded.set("x-pino-ho-return-to",ret);
   }
-  if (requiresBoStagingPageSession(host, request.nextUrl.pathname)) forwarded.set("x-pino-bo-runtime-path", request.nextUrl.pathname);
+  if (requiresBoStagingPageSession(host, request.nextUrl.pathname) || requiresBoStaffPasswordSession(host, request.nextUrl.pathname)) forwarded.set("x-pino-bo-runtime-path", request.nextUrl.pathname);
   // Public Staff auth pages must not load the restricted HO authority CSS.
   // The marker is set by middleware, never trusted from caller headers.
   if (normalizeHostname(host) === HO_STAGING_HOSTNAME &&

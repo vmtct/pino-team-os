@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
-import { boSkeletonEnabled, BO_SKELETON_HOST, BO_AUTHORITY_ASSETS, serveBoSkeleton, type BoSkeletonEnv } from "./bo-skeleton";
+import { boSkeletonEnabled, boAuthorityStylesEnabled, BO_SKELETON_HOST, BO_AUTHORITY_ASSETS, serveBoSkeleton, type BoSkeletonEnv } from "./bo-skeleton";
 
 const base = "public/bo-authority-source/";
 const manifest = JSON.parse(readFileSync(base + "manifest.json", "utf8"));
@@ -37,4 +37,27 @@ test("controller preserves authentication, ACL denial, private caching and asset
   const css=await serveBoSkeleton(request("styles.css"),env(),"styles.css");
   assert.equal(css.headers.get("cache-control"),"private, no-store");assert.equal(await css.text(),readFileSync(base+"bo-scoped.css","utf8"));
   for(const file of ['playground.js','school-adapters.js','skeleton-bridge.js','manifest.json']) assert.equal((await serveBoSkeleton(request(file),env(),file)).status,404);
+});
+
+test("PAP-1598 Production presentation never enables Staging data dispatch", () => {
+  for (const config of [{}, {APP_ENV:"production"}]) {
+    assert.equal(boAuthorityStylesEnabled(config,"bo.pinohouse.art"),true);
+    assert.equal(boSkeletonEnabled(config,"bo.pinohouse.art"),false);
+    for (const host of ["tos.pinohouse.art","ho.staging.pinohouse.art","bo.pinohouse.art.evil.test",BO_SKELETON_HOST])
+      assert.equal(boAuthorityStylesEnabled(config,host),false);
+  }
+  assert.equal(boAuthorityStylesEnabled({APP_ENV:"staging",BO_UI_ONLY:"enabled"},"bo.pinohouse.art"),false);
+});
+
+test("PAP-1598 Production stylesheet retains session, ACL, cache and asset fences", async () => {
+  const config={...env(),APP_ENV:"production",BO_UI_ONLY:undefined};
+  const req=(cookie=true)=>new Request("https://bo.pinohouse.art/bo-skeleton/styles.css",{headers:cookie?{cookie:"pino_staff_password_session=fixture-only"}:{}});
+  assert.equal((await serveBoSkeleton(req(false),config,"styles.css")).status,401);
+  assert.equal((await serveBoSkeleton(req(),{...config,PINO_BO_CORE:env(403).PINO_BO_CORE},"styles.css")).status,403);
+  const response=await serveBoSkeleton(req(),config,"styles.css");
+  assert.equal(response.status,200);
+  assert.equal(response.headers.get("cache-control"),"private, no-store");
+  assert.equal(await response.text(),readFileSync(base+"bo-scoped.css","utf8"));
+  for(const file of ["playground.html","school-adapters.js","manifest.json"])
+    assert.equal((await serveBoSkeleton(req(),config,file)).status,404);
 });
