@@ -42,8 +42,11 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
     const detail=/^\/api\/ho\/learning\/specialties\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pathname);
     const options=pathname===specialtyBase+'/path-options';
     const create=pathname===specialtyBase&&method==='POST';
+    // PAP-1495 S5: exact Founder DRAFT command endpoint, never other writers/descendants.
+    const graph=/^\/api\/ho\/learning\/specialties\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/commands$/i.test(pathname);
     return {action:hostname===HO_STAGING_HOSTNAME&&
-      ((method==="GET"&&(pathname===specialtyBase||detail||options))||create)?"next":"not_found"};
+      ((method==="GET"&&(pathname===specialtyBase||detail||options))||create||
+       (method==="POST"&&graph))?"next":"not_found"};
   }
   // PAP-1407 / PAP-220 — exact Center-only Staff Registration ingress.
   // E2E found middleware 404 before the BFF/Core; never widen the generic BO/HO host fence.
