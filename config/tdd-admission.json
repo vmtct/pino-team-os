@@ -556,6 +556,7 @@
         "app/ho/learning/missions/command.ts",
         "app/ho/learning/missions/read-edit.ts",
         "app/ho/learning/missions/MissionCreateFields.tsx",
+        "app/ho/learning/missions/mission-path-options.ts",
         "lib/mission-history.ts",
         "lib/bo-registration.ts"
       ],
@@ -572,6 +573,7 @@
         "lib/pap1207-ho-mission-write.test.ts",
         "lib/pap1207-ho-mission-command.test.ts",
         "lib/pap1207-ho-mission-create-ui.test.ts",
+        "lib/pap1207-ho-mission-s2-path-selector.test.ts",
         "lib/pap1207-ho-mission-edit.test.ts",
         "lib/pap1188-mission-history.test.ts"
       ],
@@ -579,6 +581,10 @@
         {
           "file": "lib/ho-a1.ts",
           "owner": "PAP-1207"
+        },
+        {
+          "file": "lib/ho-paths.ts",
+          "owner": "PAP-1594"
         },
         {
           "file": "lib/host-boundary.ts",
