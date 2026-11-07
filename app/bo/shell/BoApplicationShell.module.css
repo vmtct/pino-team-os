@@ -1,0 +1,5 @@
+/* Keep a page's canonical heading/menu slot. Content-only routes get the
+   outer fallback; the two controls are never displayed together. */
+.host :global(#workspace):has([data-bo-content-menu]) > :global(#bo-application-menu-btn) {
+  display: none;
+}

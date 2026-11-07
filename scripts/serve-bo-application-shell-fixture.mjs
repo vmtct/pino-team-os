@@ -26,7 +26,7 @@ import './app/bo/design-system/foundation.css';
 const user={displayName:'Synthetic Manager',email:'shell-fixture@example.invalid'};
 const source={modules:{students:{label:'Local route content',group:'SCHOOL',fields:[]}},scopeLabel:()=>'',load:async()=>{throw Error('Unexpected generic module load')}};
 function Probe(){const user=useBoStagingUser(),center=useBoCenterSelection(),path=usePathname();return <section id='route-content' data-staging-user={!!user} data-content-center={!!center}><h1>Local route content</h1><p>{path}</p><button type='button' id='content-focus'>Content action</button></section>}
-function App(){const query=useSearchParams(),staging=query.get('fixtureProduction')!=='1';const content=query.get('nested')==='1'?<BoRegistrationWorkspace source={source} currentUser={user} moduleKey='students' content={<Probe/>}/>:<Probe/>;return <BoRuntimeBoundary currentUser={user} staging={staging}><BoApplicationShell currentUser={user} staging={staging}>{content}</BoApplicationShell></BoRuntimeBoundary>}
+function App(){const query=useSearchParams(),staging=query.get('fixtureProduction')!=='1';const content=query.get('nested')==='1'?<BoRegistrationWorkspace source={source} currentUser={user} moduleKey='students' content={query.get('table')==='1'?undefined:<Probe/>}/>:<Probe/>;return <BoRuntimeBoundary currentUser={user} staging={staging}><BoApplicationShell currentUser={user} staging={staging}>{content}</BoApplicationShell></BoRuntimeBoundary>}
 createRoot(document.getElementById('root')).render(<App/>);`,loader:'tsx',resolveDir:process.cwd()},
 outfile:resolve(output,'fixture.js'),bundle:true,format:'esm',jsx:'automatic',
 plugins:[{name:'local-shell-fixture',setup(b){

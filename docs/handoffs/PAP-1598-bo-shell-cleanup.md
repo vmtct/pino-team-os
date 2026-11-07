@@ -46,18 +46,19 @@ not proof of runtime admission. Detailed local evidence is in
 - Official capsule validation: CONTEXT_VALID / V2_COMPLETE; independent SHA256
   `0d50a6808f609add21b3e5b7ccc2ec8c5757a1696a17e9ce6f2ea4d6fe981067`.
 - Allocation/current-main baseline: `7f16bef358ede495576ada9d4bbc2bdb4caf1564`.
-- `npm test`: **PASS**, 2076 TypeScript tests + 6 script tests, no failures.
-  Three subsequently added real React composition tests also **PASS** separately.
+- `npm test`: **PASS**, 2079 TypeScript tests + 6 script tests, no failures, including the
+  three real React composition regressions.
 - `npm run typecheck`: **PASS**, including those three composition tests.
-- `npm run build`: **PASS**. Build-manifest digest
-  `8e3bc028665395b9d257537e783a405878dab6efd5395f8a23c567b4d30ecaac`
-  identifies build bytes, not a Git or serving SHA.
+- `npm run build`: **PASS**. Build-manifest digests are retained in task-local build logs;
+  they identify build bytes, not a Git or serving SHA.
 - ESLint changed code: **PASS**, 0 errors, 4 warnings on existing effect/CSS-tag code.
 - BO contract, runtime ownership, single Center owner, Staging route policy and
   Foundation verifiers: **PASS**; protected CI/build scripts are unchanged.
 - Local browser fixture: Production and Staging compositions at
   **320/390/768/1440**, one app/sidebar/account footer, one mobile trigger when displayed,
-  no page overflow in the controlled fixture. Mobile menu, authorized Center
+  no page overflow in the controlled fixture. The existing Table heading owns
+  its mobile menu; a shell-scoped display rule suppresses only the redundant
+  outer fallback. Content-only/pending pages retain that fallback. Mobile menu, authorized Center
   switch, scoped deep link, Back and invalid Center handling verified.
 - Nested Production detail selects the correct sidebar item and retains My
   Profile. Production content probes receive neither Staging user nor

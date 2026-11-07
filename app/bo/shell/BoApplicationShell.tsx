@@ -7,6 +7,7 @@ import { boScopedModuleHref } from "../components/registration/BoGlobalCenterPol
 import { BoContentCenterBoundary, useBoCenterSelection } from "../components/registration/BoCenterSelection";
 import { unifiedBoWorkspaceSource } from "../architecture/bo-unified-workspace-source";
 import { boNavigation } from "../navigation";
+import styles from "./BoApplicationShell.module.css";
 
 // Keep Production's existing destinations and content dispatch. Staging-only
 // adapters and aliases are not enabled by adopting the shared presentation.
@@ -55,8 +56,8 @@ export function BoApplicationShell({ currentUser, staging, children }: {
   const stagingKey = pathname === "/bo" || pathname === "/bo/"
     ? query.get("module") ?? "students"
     : pathname.slice("/bo/".length);
-  return <BoRegistrationWorkspace shellOnly currentUser={currentUser}
+  return <div className={styles.host}><BoRegistrationWorkspace shellOnly currentUser={currentUser}
     moduleKey={staging ? stagingKey : productionKey}
     source={staging ? scopedSource : productionSource}
-    content={<BoContentCenterBoundary staging={staging}>{children}</BoContentCenterBoundary>} />;
+    content={<BoContentCenterBoundary staging={staging}>{children}</BoContentCenterBoundary>} /></div>;
 }
