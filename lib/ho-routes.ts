@@ -8,6 +8,7 @@ export const HO_PAGE_PATHS = {
   shiftTemplates: "/ho/workforce/shift-templates",
   staffs: "/ho/staff",
   staffLinks: "/ho/workforce/staff-links",
+  paths: "/ho/learning/paths",
   syllabi: "/ho/learning/syllabi",
   missions: "/ho/learning/missions",
   specialties: "/ho/learning/specialties",
