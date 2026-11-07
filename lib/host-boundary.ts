@@ -35,6 +35,16 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
     return {action:hostname===HO_STAGING_HOSTNAME&&isHoTvReadRequest(pathname,method)?"next":"not_found"};
   if (pathname === HO_BILLS_API || pathname.startsWith(HO_BILLS_API + "/"))
     return {action:hostname === HO_STAGING_HOSTNAME && isHoBillsRequest(pathname,method) ? "next" : "not_found"};
+  // PAP-1495 / Epic PAP-1491 SPEC-UNLOCK: exact HO V2 Specialty GET BFF ingress.
+  // Fail closed for BO/TOS/production hosts, writers and unsupported descendants.
+  const specialtyBase="/api/ho/learning/specialties";
+  if(pathname===specialtyBase||pathname.startsWith(specialtyBase+"/")){
+    const detail=/^\/api\/ho\/learning\/specialties\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pathname);
+    const options=pathname===specialtyBase+'/path-options';
+    const create=pathname===specialtyBase&&method==='POST';
+    return {action:hostname===HO_STAGING_HOSTNAME&&
+      ((method==="GET"&&(pathname===specialtyBase||detail||options))||create)?"next":"not_found"};
+  }
   // PAP-1407 / PAP-220 — exact Center-only Staff Registration ingress.
   // E2E found middleware 404 before the BFF/Core; never widen the generic BO/HO host fence.
   const staffQueueBase = "/api/bo/workforce/staff-center-registration-requests";
