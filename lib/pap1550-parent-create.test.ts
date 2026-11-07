@@ -69,7 +69,8 @@ test("PAP-1550 keeps Core authority for deny; no browser-supplied grant", async 
 test("PAP-1550 Parent UI respects TDD header action, named Center and no fake directory entry", () => {
   const source = readFileSync(new URL("../app/bo/parents/ParentTdd.tsx", import.meta.url), "utf8");
   const drawer = readFileSync(new URL("../app/bo/parents/ParentCreateDrawer.tsx", import.meta.url), "utf8");
-  assert.match(source, /tableHeaderActions=/);
+  assert.match(source, /tableHeaderActions=\{current\.adapter\.context\.authorize\("identity\.parent\.create"\)/);
+  assert.match(source, /onClick=\{\(\) => setCreateForCenter\(selected\)\}>\+ Parent<\/button>/);
   assert.match(source, /context\.authorize\("identity\.parent\.create"\)/);
   assert.match(source, /<ParentCreateDrawer centerId=\{selected\}/);
   assert.match(drawer, /UNLINKED_NOT_LISTED|chưa liên kết học viên/);
