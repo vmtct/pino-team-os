@@ -11,7 +11,7 @@ export const hoA1Modules:Record<HoA1Module,BoModule>={
  syllabi:{label:"Syllabi",group:"Learning",fields:fields([
   ["name","Syllabus","text"],["id","ID","id"],["code","Code","text"],["owner","Owner","text"],["ownerType","Owner Type","select"],["lifecycle","Lifecycle","select"],["publishedVersion","Published Version","text"],["draftVersion","Draft Version","text"],["versions","Version History","multiselect"],["createdAt","Created At","date"],
  ])},
- missions:{label:"Missions",group:"Learning",fields:fields([
+ missions:{label:"Nhiệm vụ",group:"Learning",fields:fields([
   ["name","Mission","text"],["id","ID","id"],["code","Code","text"],["level","Level","number"],["status","Status","select"],["plsValue","PLS Value","number"],["paperSize","Paper Size","select"],["path","Path","text"],["prerequisite","Prerequisite","text"],["reconciliation","Reconciliation","select"],["description","Description","textarea"],["guideline","Guideline","textarea"],["diagnostics","Diagnostics","multiselect"],
  ])},
  worlds:{label:"World Catalog",group:"Pinoria",fields:fields([
