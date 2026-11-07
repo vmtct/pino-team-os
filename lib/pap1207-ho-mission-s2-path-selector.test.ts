@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { loadMissionPathChoices, validateMissionSelectedPath } from "../app/ho/learning/missions/mission-path-options";
@@ -82,4 +83,15 @@ test("PAP-1207 S2 Edit remains legacy until Founder S5, does not silently mutate
   assert.match(html, /Prerequisite Mission ID/);
   assert.match(html, /Path Program ID/);
   assert.doesNotMatch(html, /data-mission-create-audit/);
+});
+
+test("PAP-1207 S2 uses the original Dsa one-column edit-form / form-row CSS primitives", () => {
+  const source = readFileSync("app/ho/learning/missions/MissionCreateFields.tsx", "utf8");
+  const dsaCss = readFileSync("public/ho-authority-source/ho-scoped.css", "utf8");
+  assert.match(source, /className="v25-form-fields edit-form"/);
+  assert.match(source, /className="v25-form-metadata edit-form"/);
+  assert.ok((source.match(/className="v25-form-field form-row"/g) ?? []).length >= 8);
+  assert.doesNotMatch(source, /className="v25-form-field"/);
+  assert.match(dsaCss, /\.edit-form\{display:flex;flex-direction:column;gap:16px/);
+  assert.match(dsaCss, /\.form-row\{display:flex;flex-direction:column;gap:6px/);
 });
