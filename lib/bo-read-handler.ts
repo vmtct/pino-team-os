@@ -61,6 +61,13 @@ export async function handleBoOperationalReadRequest(
     const url = new URL(request.url);
     const readBody = readQueryBody(path, url);
     const readResource = readQueryResource(path, url);
+    // PAP-1536 / PAP-220: Core currently ignores resource.centerId for this
+    // broad Staff directory route. Until PAP-1537's canonical membership
+    // reader authorizes AND filters Center, never expose global rows under
+    // an apparently Center-scoped request (including unknown Center IDs).
+    if (path === "workforce/staff-records" && readResource?.centerId) {
+      return json({ error: { code: "STAFF_CENTER_DIRECTORY_NOT_READY", message: "Center Staff directory is not available yet" } }, 503);
+    }
     const corePath = readCorePath(path, url);
     const result = await callBoAccessCoreWithCredential(env.PINO_BO_CORE, { method: "GET", path: corePath, ...(readResource ? { resource: readResource } : {}), ...(readBody ? { body: readBody } : {}) }, credential);
     return json(url.hostname === HO_STAGING_HOSTNAME && path === "access/audit" && result.status === 200 ? projectHoAuditResponse(result.body) : result.body, result.status, { "x-request-id": result.requestId });
@@ -303,11 +310,11 @@ function readCorePath(path: string, url: URL): string {
 }
 
 function readQueryResource(path: string, url: URL): BoAccessRequest["resource"] | undefined {
-  // PAP-1536 / Epic PAP-220: optional, explicitly selected Center on the
-  // existing Staff directory reader. This only forwards a read constraint;
-  // Core independently authorizes the principal and must filter membership.
-  // Keep the legacy no-Center request unchanged until Core scoped reader and
-  // Center-selector UI ship together. Never manufacture a GLOBAL grant.
+  // PAP-1536 / Epic PAP-220: validate an optional Center before
+  // fail-closed 503 in the caller above. Core still uses a global reader
+  // that ignores Center and has no canonical Staff membership filter.
+  // Do not forward Center-scoped reads until Core securely implements it.
+  // Legacy no-Center read remains unchanged; never infer a GLOBAL grant.
   if (path === "workforce/staff-records") {
     const keys = [...url.searchParams.keys()];
     if (!keys.length) return undefined;
