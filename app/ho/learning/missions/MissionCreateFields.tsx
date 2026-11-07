@@ -31,7 +31,7 @@ export function MissionCreateFields({ value, setValue, disabled, editing = false
   const set = <K extends keyof MissionInput>(key: K, entry: MissionInput[K]) => setValue({ ...value, [key]: entry });
   // The legacy edit surface retains existing backend/soft-link fields until Founder S5.
   const input = (id: keyof MissionInput, label: string, placeholder = "") =>
-    <label key={id} className="v25-form-field"><span>{label}</span>
+    <label key={id} className="v25-form-field form-row"><span>{label}</span>
       <input type="text" value={String(value[id] ?? "")} placeholder={placeholder} disabled={disabled}
         onChange={e => set(id, (e.target.value.trim() || null) as never)} />
     </label>;
@@ -39,30 +39,30 @@ export function MissionCreateFields({ value, setValue, disabled, editing = false
     const choice = pathChoices.find(option => option.id === id);
     setValue({ ...value, pathProgramId: choice?.id ?? null, pathKeySnapshot: choice?.code ?? null });
   };
-  return <section aria-label={editing ? "Thông tin sửa Mission" : "Thông tin Mission mới"} className="v25-form-fields">
+  return <section aria-label={editing ? "Thông tin sửa Mission" : "Thông tin Mission mới"} className="v25-form-fields edit-form">
     {editing ? <>
-      <label className="v25-form-field"><span>Mã Mission *</span><input autoFocus required maxLength={64}
+      <label className="v25-form-field form-row"><span>Mã Mission *</span><input autoFocus required maxLength={64}
         value={value.code} disabled={disabled} onChange={e => set("code", e.target.value)} /></label>
-      <label className="v25-form-field"><span>Tên Mission *</span><input required maxLength={160}
+      <label className="v25-form-field form-row"><span>Tên Mission *</span><input required maxLength={160}
         value={value.name} disabled={disabled} onChange={e => set("name", e.target.value)} /></label>
     </> : <>
-      <label className="v25-form-field"><span>Nhiệm vụ *</span><input autoFocus required maxLength={160}
+      <label className="v25-form-field form-row"><span>Nhiệm vụ *</span><input autoFocus required maxLength={160}
         value={value.name} disabled={disabled} onChange={e => set("name", e.target.value)} /></label>
-      <label className="v25-form-field"><span>Mã *</span><input required maxLength={64}
+      <label className="v25-form-field form-row"><span>Mã *</span><input required maxLength={64}
         value={value.code} disabled={disabled} onChange={e => set("code", e.target.value)} /></label>
     </>}
-    <label className="v25-form-field"><span>Cấp độ</span>
+    <label className="v25-form-field form-row"><span>Cấp độ</span>
       <select value={value.level} disabled={disabled} onChange={e => set("level", Number(e.target.value))}>
         {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n}</option>)}
       </select></label>
-    <label className="v25-form-field"><span>Trạng thái</span>
+    <label className="v25-form-field form-row"><span>Trạng thái</span>
       <select value={value.status} disabled={disabled || !editing} onChange={e => set("status", e.target.value as MissionInput["status"])}>
         <option value="ACTIVE">ACTIVE</option><option value="INACTIVE">INACTIVE</option>
       </select></label>
-    <label className="v25-form-field"><span>PLS</span><input type="number" min={0} step={1}
+    <label className="v25-form-field form-row"><span>PLS</span><input type="number" min={0} step={1}
       value={value.plsValue} disabled={disabled} onChange={e => set("plsValue", Number(e.target.value))} /></label>
     {editing ? <>
-      <label className="v25-form-field"><span>Khổ giấy</span>
+      <label className="v25-form-field form-row"><span>Khổ giấy</span>
         <select value={value.paperSize ?? ""} disabled={disabled} onChange={e => set("paperSize", e.target.value ? e.target.value as "B5" | "A4" | "A3" : null)}>
           <option value="">Không áp dụng</option>{["B5", "A4", "A3"].map(s => <option key={s} value={s}>{s}</option>)}
         </select></label>
@@ -71,7 +71,7 @@ export function MissionCreateFields({ value, setValue, disabled, editing = false
       {input("prerequisiteMissionId", "Prerequisite Mission ID", "UUID Mission trước")}
       {input("prerequisiteCodeSnapshot", "Prerequisite Code Snapshot", "Mã Mission trước")}
     </> : <>
-      <label className="v25-form-field"><span>Path *</span>
+      <label className="v25-form-field form-row"><span>Path *</span>
         <select aria-label="Path" required value={value.pathProgramId ?? ""}
           disabled={disabled || pathState !== "ready" || pathChoices.length !== 4}
           onChange={e => pickPath(e.target.value)}>
@@ -81,13 +81,13 @@ export function MissionCreateFields({ value, setValue, disabled, editing = false
       </label>
       {pathState === "error" ? <p role="alert">{pathError || "Không tải được Path canonical. Đóng và mở lại form."}</p> : null}
     </>}
-    <label className="v25-form-field"><span>Mô tả</span><textarea rows={3} maxLength={4000} disabled={disabled}
+    <label className="v25-form-field form-row"><span>Mô tả</span><textarea rows={3} maxLength={4000} disabled={disabled}
       value={value.description ?? ""} onChange={e => set("description", e.target.value || null)} /></label>
-    <label className="v25-form-field"><span>Hướng dẫn</span><textarea rows={4} maxLength={8000} disabled={disabled}
+    <label className="v25-form-field form-row"><span>Hướng dẫn</span><textarea rows={4} maxLength={8000} disabled={disabled}
       value={value.guideline ?? ""} onChange={e => set("guideline", e.target.value || null)} /></label>
-    {!editing ? <div className="v25-form-metadata" aria-label="Thông tin hệ thống" data-mission-create-audit>
+    {!editing ? <div className="v25-form-metadata edit-form" aria-label="Thông tin hệ thống" data-mission-create-audit>
       {(["Created Time", "Created by (User)", "Last Modified Time", "Last Modified By (User)"] as const)
-        .map(label => <label key={label} className="v25-form-field"><span>{label}</span>
+        .map(label => <label key={label} className="v25-form-field form-row"><span>{label}</span>
           <input type="text" value="—" readOnly disabled aria-label={label} />
         </label>)}
     </div> : null}
