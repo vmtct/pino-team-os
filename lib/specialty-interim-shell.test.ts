@@ -47,16 +47,16 @@ test("PAP-1495: shared Table, Quick View and Detail keep geometry/properties wit
   assert.match(history,/Chưa tải được lịch sử Chuyên đề/);
 });
 
-test("PAP-1495: missing reader fails truthfully without any network call, even for direct record URL",async()=>{
+test("PAP-1495: real Founder GET errors stay errors, BO is denied and no fixture data leaks",async()=>{
   let calls=0;
-  const fetcher:typeof fetch=async()=>{calls++;throw Error("UNEXPECTED_NETWORK");};
+  const fetcher:typeof fetch=async()=>{calls++;return Response.json({error:{code:"SPECIALTY_V2_UNAVAILABLE"}},{status:503});};
   const signal=new AbortController().signal;
-  for(const scope of [{surface:"HO" as const},{surface:"BO" as const,centerId:"other"}]){
-    const status=scope.surface==="HO"?503:403;
-    await assert.rejects(specialtyProvider.list(specialtyQuery,scope,fetcher,signal),{status});
-    await assert.rejects(specialtyProvider.detail("arbitrary",scope,fetcher,signal),{status});
-  }
-  assert.equal(calls,0);
+  const id="01234567-89ab-7cde-8fab-0123456789ab";
+  await assert.rejects(specialtyProvider.list(specialtyQuery,{surface:"HO"},fetcher,signal),{status:503});
+  await assert.rejects(specialtyProvider.detail(id,{surface:"HO"},fetcher,signal),{status:503});
+  await assert.rejects(specialtyProvider.list(specialtyQuery,{surface:"BO",centerId:"other"},fetcher,signal),{status:403});
+  await assert.rejects(specialtyProvider.detail(id,{surface:"BO",centerId:"other"},fetcher,signal),{status:403});
+  assert.equal(calls,2);
 });
 
 test("PAP-1495: adapter still requires real authenticated context and canonical permission",async()=>{

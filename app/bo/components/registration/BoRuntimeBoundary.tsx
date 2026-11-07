@@ -26,8 +26,8 @@ const globalAuditWorkspaceSource: BoWorkspaceSource = {
     : unifiedBoWorkspaceSource.scopeLabel(key, options),
 };
 export const useBoStagingUser = () => useContext(RuntimeContext);
-export function BoRuntimeBoundary({ currentUser, children }: { currentUser: Pick<BoShellContext, "displayName" | "email">; children: React.ReactNode }) {
-  return <RuntimeContext.Provider value={currentUser}><BoCenterSelectionProvider>{children}</BoCenterSelectionProvider><BoAuthenticatedAccount displayName={currentUser.displayName} email={currentUser.email} /></RuntimeContext.Provider>;
+export function BoRuntimeBoundary({ currentUser, children, staging = true }: { currentUser: Pick<BoShellContext, "displayName" | "email">; children: React.ReactNode; staging?: boolean }) {
+  return <RuntimeContext.Provider value={staging ? currentUser : null}><BoCenterSelectionProvider>{children}</BoCenterSelectionProvider><BoAuthenticatedAccount displayName={currentUser.displayName} email={currentUser.email} profileHref={staging ? undefined : "/bo/profile"} /></RuntimeContext.Provider>;
 }
 function CenterReadPending({ message, denied }: { message: string; denied: boolean }) {
   const menu = useContext(TddHostMenu);

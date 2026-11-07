@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { LogoutButton } from "@/app/components/tos-shell/LogoutButton";
@@ -20,7 +21,7 @@ const BO_ACCOUNT_STYLES = `
 `;
 
 /** The BO runtime shell owns the authenticated account footer; feature modules do not. */
-export function BoAuthenticatedAccount({ displayName, email }: { displayName: string | null; email: string }) {
+export function BoAuthenticatedAccount({ displayName, email, profileHref }: { displayName: string | null; email: string; profileHref?: "/bo/profile" }) {
   const [target, setTarget] = useState<HTMLElement | null>(null);
   useEffect(() => {
     const update = () => setTarget(document.querySelector<HTMLElement>('#app[data-bo-runtime="react"]:not([data-surface="ho"]) #sidebar .sidebar-footer'));
@@ -35,7 +36,7 @@ export function BoAuthenticatedAccount({ displayName, email }: { displayName: st
     {target ? createPortal(
       <div id="bo-auth-account">
         <div className="avatar" aria-hidden="true">{Array.from(name)[0] ?? "@"}</div>
-        <div><strong title={name}>{name}</strong><small>{subtitle}</small></div>
+        <div>{profileHref ? <Link href={profileHref} aria-label="Hồ sơ của tôi" style={{ color: "inherit", textDecoration: "none" }}><strong title={name}>{name}</strong></Link> : <strong title={name}>{name}</strong>}<small>{subtitle}</small></div>
         <LogoutButton />
       </div>,
       target

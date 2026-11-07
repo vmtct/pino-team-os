@@ -43,6 +43,10 @@
         {
           "file": "lib/diary-mission-projection.ts",
           "owner": "PAP-1342"
+        },
+        {
+          "file": "app/bo/components/registration/BoCenterSelection.tsx",
+          "owner": "PAP-1598"
         }
       ]
     },
@@ -305,6 +309,10 @@
         {
           "file": "lib/workspace-adapters/session.ts",
           "owner": "PAP-1221"
+        },
+        {
+          "file": "app/bo/components/registration/BoCenterSelection.tsx",
+          "owner": "PAP-1598"
         }
       ],
       "schema": {
@@ -632,6 +640,10 @@
         {
           "file": "app/bo/components/registration/BoRegistrationWorkspace.tsx",
           "owner": "PAP-1080"
+        },
+        {
+          "file": "app/bo/components/registration/BoCenterSelection.tsx",
+          "owner": "PAP-1598"
         }
       ],
       "schema": {
@@ -790,7 +802,15 @@
         {"file":"app/bo/components/registration/BoRuntimeBoundary.tsx","owner":"PAP-1407"},
         {"file":"lib/host-boundary.ts","owner":"PAP-1220"},
         {"file":"lib/ho-routes.ts","owner":"PAP-1221"},
-        {"file":"lib/workspace-adapters/session.ts","owner":"PAP-1221"}
+        {"file":"lib/workspace-adapters/session.ts","owner":"PAP-1221"},
+        {
+          "file": "app/bo/components/registration/BoCenterSelection.tsx",
+          "owner": "PAP-1598"
+        },
+        {
+          "file": "app/bo/components/registration/BoRegistrationWorkspace.tsx",
+          "owner": "PAP-1598"
+        }
       ]
     }
 ,
@@ -862,6 +882,8 @@
       },
       "tests": [
         "lib/specialty-interim-shell.test.ts",
+        "lib/pap1495-ho-specialty-v2-reader.test.ts",
+        "lib/pap1495-specialty-draft-create.test.ts",
         "lib/ho-specialty-missions-tab.test.ts",
         "lib/specialty-mission-picker.test.ts",
         "lib/ho-routes.test.ts"
@@ -882,6 +904,14 @@
         {
           "file": "lib/host-boundary.ts",
           "owner": "PAP-1220"
+        },
+        {
+          "file": "lib/ho-specialty-v2-reader.ts",
+          "owner": "PAP-1495"
+        },
+        {
+          "file": "lib/workspace-adapters/session.ts",
+          "owner": "PAP-1221"
         }
       ]
     }
