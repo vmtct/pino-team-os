@@ -4,6 +4,7 @@ import test from "node:test";
 import { surfaceSession } from "./workspace-adapters/session";
 import { HO_STAGING_HOSTNAME } from "./host-boundary";
 import { BoApiError } from "./bo-api-error";
+import { pathReadTransport } from "../app/ho/learning/paths/transport";
 
 const base = "https://" + HO_STAGING_HOSTNAME;
 
@@ -14,8 +15,9 @@ test("PAP-1594: HO adapter admits only exact private GET Path read, no write or 
     return Response.json({ data: { paths: [] } });
   };
   const s=surfaceSession("HO",base,fetcher);
+  const limited=pathReadTransport(s,fetcher);
   try {
-    const ok=await s.transport("/api/ho/learning/paths");
+    const ok=await limited("/api/ho/learning/paths");
     assert.equal(ok.status,200);
     assert.deepEqual(calls,[base+"/api/ho/learning/paths"]);
     for(const input of [
@@ -24,9 +26,9 @@ test("PAP-1594: HO adapter admits only exact private GET Path read, no write or 
       "/api/ho/learning/paths-copy",
       "/api/ho/learning/paths/",
       "/api/ho/learning/private",
-    ]) await assert.rejects(s.transport(input), (error:unknown)=> error instanceof BoApiError && error.status===404);
+    ]) await assert.rejects(limited(input), (error:unknown)=> error instanceof BoApiError && error.status===404);
     for(const method of ["POST","PUT","PATCH","DELETE","OPTIONS","HEAD"])
-      await assert.rejects(s.transport("/api/ho/learning/paths",{method}), (error:unknown)=>error instanceof BoApiError && error.status===404);
+      await assert.rejects(limited("/api/ho/learning/paths",{method}), (error:unknown)=>error instanceof BoApiError && error.status===404);
     assert.equal(calls.length,1,"bad routes never reach the fetcher");
   }finally{s.dispose()}
 });

@@ -4,7 +4,8 @@ import "@pino/design-system/components.css";
 import { useEffect, useState } from "react";
 import { HoWorkspace } from "@/app/ho/HoWorkspace";
 import { SurfaceWorkspace } from "@/app/components/workspace-adapters/SurfaceWorkspace";
-import { createHoTddAdapter, type AuthenticatedSurfaceAdapter } from "@/lib/workspace-adapters";
+import type { AuthenticatedSurfaceAdapter } from "@/lib/workspace-adapters";
+import { createHoPathTddAdapter } from "./transport";
 import { browserTddNavigation, type AdapterNavigation } from "@/lib/workspace-adapters/navigation";
 import { TddRegistry } from "@/lib/workspace-schema";
 import { BoApiError } from "@/lib/bo-api-error";
@@ -19,7 +20,7 @@ export function HoPaths() {
   useEffect(() => {
     const controller = new AbortController();
     let adapter: AuthenticatedSurfaceAdapter<F> | null = null;
-    void createHoTddAdapter({ registry: new TddRegistry(), definition: pathDefinition, provider: pathProvider }, controller.signal)
+    void createHoPathTddAdapter({ registry: new TddRegistry(), definition: pathDefinition, provider: pathProvider }, controller.signal)
       .then(result => {
         adapter = result;
         if (controller.signal.aborted) { result.dispose(); return; }
