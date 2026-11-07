@@ -15,7 +15,8 @@ test("PAP-1207: command adapter is headless; never forks engine action placement
   const code = readFileSync("app/ho/learning/missions/command.ts", "utf8");
   assert.doesNotMatch(code, /<button|localStorage|sessionStorage|onClick=|actionHost|window\./);
   const ui = readFileSync("app/ho/learning/missions/HoMissionsTdd.tsx", "utf8");
-  assert.match(ui, /missionLifecycleNote/);
+  assert.doesNotMatch(ui, /missionLifecycleNote|<p role="note">/);
+  assert.match(ui, /window\.confirm/); // Archive safety confirmation remains.
 });
 test("PAP-1207: Create confirms exact Core POST receipt and authorized GET readback", async () => {
   const requests: { url: string; method: string; headers: Headers; body?: string }[] = [];
