@@ -61,3 +61,27 @@ test("PAP-1356 unauthenticated fails closed; Core 403 and 409 are preserved",asy
   assert.equal((await handleBoSelfLoadoutRequest(request(),fixture(403).env,path)).status,403);
   assert.equal((await handleBoSelfLoadoutRequest(request("POST",{expectedVersion:0,itemIdsBySlot:slots(),reason:"QA"}),fixture(409).env,path)).status,409);
 });
+
+
+// PAP-1486 / Epic PAP-1097 PNR-WARD: BFF route contract for Set commands.
+test("PAP-1486 BO Set command paths forward only Center-bound, authenticated CAS and idempotency",async()=>{
+ const f=fixture();const base="pinoria/selfs/"+selfId+"/set";
+ const rootUrl="https://bo.staging.pinohouse.art/api/bo/"+base+"?centerId="+centerId;
+ assert.equal(isBoSelfLoadoutPath(base),true);
+ assert.equal(isBoSelfLoadoutPath(base+"/media/0"),true);
+ assert.equal(isBoSelfLoadoutPath(base+"/media/7"),true);
+ assert.equal(isBoSelfLoadoutPath(base+"/media/8"),false);
+ assert.equal((await handleBoSelfLoadoutRequest(request("GET",undefined,rootUrl),f.env,base)).status,200);
+ assert.deepEqual(f.seen.pop()?.request,{method:"GET",path:base,resource:{centerId}});
+ for(const command of ["starter","apply","clear"] as const){
+   const body={expectedVersion:0,expectedSelfVersion:11,reason:" PAP-1486 QA ",...(command!=="clear"?{setItemId:itemId}:{})};
+   const p=base+"/"+command;
+   assert.equal(isBoSelfLoadoutPath(p),true);
+   const response=await handleBoSelfLoadoutRequest(request("POST",body,rootUrl.replace("/set?","/set/"+command+"?"),"pap1486-"+command+"-request"),f.env,p);
+   assert.equal(response.status,200,command);
+   assert.deepEqual(f.seen.pop()?.request,{method:"POST",path:p,resource:{centerId},body:{...body,reason:"PAP-1486 QA"},idempotencyKey:"pap1486-"+command+"-request"});
+ }
+ for(const bad of ["set/starter/extra","set/delete","set/media/8"]){
+   assert.equal(isBoSelfLoadoutPath("pinoria/selfs/"+selfId+"/"+bad),false);
+ }
+});
