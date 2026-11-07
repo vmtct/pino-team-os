@@ -38,6 +38,8 @@ export function surfaceSession(surface: "BO" | "HO", origin: string | undefined,
       url.pathname === "/api/ho/workforce/shift-templates" && hoShiftTemplateQuery.length === 1 &&
       (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(hoShiftTemplateQuery[0]!) || ["ALL","GLOBAL"].includes(hoShiftTemplateQuery[0]!)) &&
       [...url.searchParams.keys()].every(key => key === "centerId");
+    const admittedHoPathRead = surface === "HO" && method === "GET" && url.search === "" &&
+      url.pathname === "/api/ho/learning/paths";
     const admittedHoDiary = surface === "HO" && method === "GET" && /^\/api\/ho\/learning\/path-diaries(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/mission-links)?)?$/i.test(url.pathname);
     // PAP-1342: exact same-origin Founder Mission detail read for source-owned Diary label.
     const admittedHoMissionDetail = surface === "HO" && method === "GET" && /^\/api\/ho\/learning\/missions\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(url.pathname);
@@ -51,7 +53,7 @@ export function surfaceSession(surface: "BO" | "HO", origin: string | undefined,
       (!url.searchParams.has("limit") || (/^[1-9][0-9]*$/.test(url.searchParams.get("limit")!) &&
         Number(url.searchParams.get("limit")) <= 50)) &&
       (!url.searchParams.has("cursor") || /^[A-Za-z0-9_-]{20,2048}$/.test(url.searchParams.get("cursor")!));
-    if (url.origin !== base.origin || !(url.pathname.startsWith("/api/bo/") || admittedHoBills || admittedHoGlobalTerms || admittedHoPassInventory || admittedHoGlobalTermWeeksRead || admittedHoShiftTemplateRead || admittedHoDiary || admittedHoMissionDetail || admittedHoMissionHistory || admittedHoStaffLinkRead) || url.username || url.password || url.hash ||
+    if (url.origin !== base.origin || !(url.pathname.startsWith("/api/bo/") || admittedHoBills || admittedHoGlobalTerms || admittedHoPassInventory || admittedHoGlobalTermWeeksRead || admittedHoShiftTemplateRead || admittedHoDiary || admittedHoPathRead || admittedHoMissionDetail || admittedHoMissionHistory || admittedHoStaffLinkRead) || url.username || url.password || url.hash ||
         /%2f|%5c|\.\./i.test(url.pathname) || decideHostBoundary(base.host, url.pathname, method).action !== "next" ||
         (surface === "HO" && method !== "GET" && !admittedHoGlobalTerms)) throw adapterError(404);
     const headers = new Headers(init?.headers);
