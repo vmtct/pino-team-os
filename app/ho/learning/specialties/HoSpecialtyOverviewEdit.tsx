@@ -42,7 +42,7 @@ export function HoSpecialtyOverviewEdit({properties,canManage,onSaved}:{
  const options=selection&&data?(()=>{
   const field=selection.field;
   if(field.key==="prerequisiteView")return eligibleSpecialtyPrerequisites(data.detail,data.catalog).map(x=>x.label);
-  if(field.key==="tagView")return [...new Set(data.catalog.flatMap(s=>s.tags).concat(data.detail.tags))].sort();
+  if(field.key==="tagView")return [...new Set([...data.catalog.flatMap(s=>s.tags),...["Nhân vật","Mỹ thuật","Sáng tạo","Anime","Gouache","Acrylic","Chibi"],...data.detail.tags])];
   return undefined;
  })():undefined;
  const value:BoValue=selection&&data?(()=>{
@@ -91,6 +91,6 @@ export function HoSpecialtyOverviewEdit({properties,canManage,onSaved}:{
   {selection&&data&&!saving?<BoTypedEditor key={selection.field.key} field={{
       ...selection.field,readonly:false,...(options?{options}:{}),
     }} value={value} anchor={selection.anchor} onClose={close} onSave={v=>{void save(v);}}
-    closeOnSave={false} allowCustomOptions={selection.field.key==="tagView"}/>:null}
+    closeOnSave={false}/>:null}
  </>;
 }

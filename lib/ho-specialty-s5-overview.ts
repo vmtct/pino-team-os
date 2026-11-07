@@ -19,7 +19,7 @@ export function planSpecialtyOverviewEdit(
  if(detail.status!=="DRAFT")throw new BoApiError(409,"Chỉ cho phép sửa Chuyên đề bản nháp.",null);
  let levelCount=detail.levels.length,prerequisiteIds=[...detail.prerequisiteIds],tags=[...detail.tags];
  if(field==="levelCount"){
-  if(typeof value!=="number"||!Number.isSafeInteger(value)||value<0||value>20)invalid();
+  if(typeof value!=="number"||!Number.isSafeInteger(value)||value<1||value>12)invalid();
   levelCount=value;
  }else if(field==="prerequisiteView"){
   if(!Array.isArray(value)||value.length>20||!value.every(v=>typeof v==="string"))invalid();

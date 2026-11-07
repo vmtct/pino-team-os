@@ -24,7 +24,7 @@ export function parseHoSpecialtyV2Command(raw:unknown):Command|null{
  if(!Number.isSafeInteger(x.expectedVersion)||Number(x.expectedVersion)<1)return null;
  if(x.type==="SET_OVERVIEW"){
   if(!keys(x,["type","expectedVersion","levelCount","prerequisiteIds","tags"])||
-     !Number.isSafeInteger(x.levelCount)||Number(x.levelCount)<0||Number(x.levelCount)>20||
+     !Number.isSafeInteger(x.levelCount)||Number(x.levelCount)<1||Number(x.levelCount)>12||
      !Array.isArray(x.prerequisiteIds)||x.prerequisiteIds.length>20||
      !x.prerequisiteIds.every(v=>typeof v==="string"&&uuid.test(v))||
      new Set(x.prerequisiteIds).size!==x.prerequisiteIds.length||

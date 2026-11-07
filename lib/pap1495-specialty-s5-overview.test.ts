@@ -27,7 +27,7 @@ test("PAP-1495 S5: Cấp/Tag patch retains other canonical metadata; denied publ
   type:"SET_OVERVIEW",expectedVersion:2,levelCount:3,prerequisiteIds:[],tags:["Art"],
  });
  assert.deepEqual(planSpecialtyOverviewEdit(s,list,"tagView",["Art","Anime"]).tags,["Art","Anime"]);
- for(const x of [-1,21,2.5,"3"])assert.throws(()=>planSpecialtyOverviewEdit(s,list,"levelCount",x));
+ for(const x of [0,-1,13,21,2.5,"3"])assert.throws(()=>planSpecialtyOverviewEdit(s,list,"levelCount",x));
  for(const x of [["Art","art"],[""],["  "],["a".repeat(49)]])assert.throws(()=>planSpecialtyOverviewEdit(s,list,"tagView",x));
  assert.throws(()=>planSpecialtyOverviewEdit({...s,status:"ACTIVE"},list,"levelCount",2));
 });

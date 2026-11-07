@@ -17,7 +17,7 @@ test("PAP-1495 PAP-1491 S5: strict graph command schema with canonical mission r
  assert.deepEqual(parseHoSpecialtyV2Command({type:"LINK_MISSION",expectedVersion:3,levelId:level,missionId:mid}),
   {type:"LINK_MISSION",expectedVersion:3,levelId:level,missionId:mid});
  for(const payload of [
-  {...cmd,status:"ACTIVE"}, {...cmd,levelCount:21}, {...cmd,levelCount:-1},
+  {...cmd,status:"ACTIVE"}, {...cmd,levelCount:21}, {...cmd,levelCount:13}, {...cmd,levelCount:0}, {...cmd,levelCount:-1},
   {...cmd,expectedVersion:0}, {...cmd,tags:["Art","art"]},
   {...cmd,prerequisiteIds:[id,id]}, {...cmd,prerequisiteIds:["not-uuid"]},
   {...cmd,tags:[""]}, {...cmd,tags:[" space "]},
