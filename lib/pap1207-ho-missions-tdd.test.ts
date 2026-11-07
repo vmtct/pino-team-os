@@ -28,9 +28,13 @@ test("PAP-1207: registered HO TDD module exposes explicit source-backed Archive,
   assert.match(uiSource, /kind: "archive"/);
   assert.match(uiSource, /window\.confirm/);
   assert.match(uiSource, /Assignment và Nhật Ký hiện có vẫn được giữ nguyên/);
-  assert.match(uiSource, /Xóa vật lý không khả dụng/);
+  assert.doesNotMatch(uiSource, /missionLifecycleNote|Xóa vật lý không khả dụng|<p role="note">/);
   assert.doesNotMatch(uiSource, /method:\s*"DELETE"/);
-  assert.match(readFileSync("app/ho/learning/missions/HoMissionsTdd.tsx", "utf8"), /Xóa vật lý không khả dụng/);
+  const hoTheme = readFileSync("app/ho/ho-theme.css", "utf8");
+  assert.match(hoTheme, /\[data-surface="ho"\] \.tdd-action-host \.pds-bo-action-button-primary/);
+  assert.match(hoTheme, /--bo-color-accent:var\(--ds-primary\)/);
+  assert.match(hoTheme, /--bo-color-accent-strong:var\(--ds-primary-hover\)/);
+  assert.match(hoTheme, /--bo-color-focus:var\(--ds-primary-border\)/);
   assert.equal(missionUuid.test(id), true);
   const page = readFileSync("app/ho/learning/missions/page.tsx", "utf8");
   const ui = readFileSync("app/ho/learning/missions/HoMissionsTdd.tsx", "utf8");

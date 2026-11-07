@@ -16,9 +16,6 @@ import { emptyMission, MissionCreateFields, validateMissionCreate } from "./Miss
 type F = typeof missionFields;
 type Ready = { adapter: AuthenticatedSurfaceAdapter<F>; navigation: AdapterNavigation<F> };
 type EditTarget = { id: string; version: number; status: MissionInput["status"] };
-export const missionLifecycleNote =
-  "Lưu trữ chuyển Mission sang INACTIVE và ngừng giao mới; Assignment và Nhật Ký hiện có được giữ nguyên. Xóa vật lý không khả dụng.";
-
 /** PAP-1207: Create/Edit/Archive use canonical TDD Action Host; no local mutation buttons. */
 export function HoMissionsTdd() {
   const [ready, setReady] = useState<Ready | null>(null);
@@ -167,7 +164,6 @@ export function HoMissionsTdd() {
       !editTarget || editTarget.status !== draft.status, run: submit },
   };
   const content = <section data-testid="ho-missions-tdd" aria-label="Danh mục Mission toàn hệ thống">
-    <p role="note">{missionLifecycleNote}</p>
     {confirmed ? <p role="status">{confirmed}</p> : null}
     {editLoadError ? <p role="alert">{editLoadError}</p> : null}
     {uncertain ? <p role="alert">Lệnh ghi chưa được xác minh. Không gửi lại thao tác hoặc mở form mới trước khi đối chiếu Mission trên Core.</p> : null}
