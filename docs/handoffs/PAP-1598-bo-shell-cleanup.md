@@ -57,8 +57,8 @@ not proof of runtime admission. Detailed local evidence is in
 - Local browser fixture: Production and Staging compositions at
   **320/390/768/1440**, one app/sidebar/account footer, one mobile trigger when displayed,
   no page overflow in the controlled fixture. The existing Table heading owns
-  its mobile menu; a shell-scoped display rule suppresses only the redundant
-  outer fallback. Content-only/pending pages retain that fallback. Mobile menu, authorized Center
+  its mobile menu through the outer React controller. The outer fallback renders
+  only while no content menu is mounted; no new shell CSS is introduced. Mobile menu, authorized Center
   switch, scoped deep link, Back and invalid Center handling verified.
 - Nested Production detail selects the correct sidebar item and retains My
   Profile. Production content probes receive neither Staging user nor
