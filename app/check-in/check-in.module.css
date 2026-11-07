@@ -90,3 +90,11 @@
 .noteCard { border: 1px solid #ebe9e4; border-radius: 17px; background: #fff; padding: 18px; }
 .noteCard h3 { font-size: 14px; font-weight: 700; margin: 0 0 12px; }
 .noteCard p { margin: 0; color: #73777b; font-size: 12px; line-height: 1.6; }
+
+/* PAP-1431 — PINO DS V4 tokens, non-blocking evidence after canonical Check-in. */
+.evidenceCard {display:grid;gap:var(--tos-space-2);padding:var(--tos-inset-card);border:1px solid var(--tos-color-border);border-radius:var(--tos-radius-sheet);background:var(--tos-color-surface);}
+.evidenceCard>span {font-size:var(--tos-text-caption);letter-spacing:.12em;font-weight:var(--tos-weight-strong);color:var(--tos-color-info-text);}
+.evidenceCard>strong {font-size:var(--tos-text-label);color:var(--tos-color-warning-text);}
+.evidenceCard>p {font-size:var(--tos-text-caption);color:var(--tos-color-muted);line-height:var(--tos-text-body-line);margin:0;}
+.evidenceCard>button {min-height:var(--tos-hit-min);border:0;border-radius:var(--tos-radius-control);padding:var(--tos-button-padding-y) var(--tos-button-padding-x);font-size:var(--tos-text-button);font-weight:var(--tos-weight-strong);color:var(--tos-color-inverse);background:var(--tos-color-info);}
+.evidenceCard>button:focus-visible {outline:var(--tos-focus-ring);outline-offset:var(--tos-focus-offset);}
