@@ -5,9 +5,18 @@ import { hoCentersModule, mapHoCenters } from "./ho-centers";
 import {hoA1Modules,type HoA1Module} from "./ho-a1";
 import { HO_PAGE_PATHS } from "./ho-routes";
 
-export type HoModule = "specialties" | "bills" | "globalTerms" | "centers" | "walkinPasses" | "termWeeks" | "shiftTemplates" | "staffs" | "staffLinks" | "users" | "roles" | "audits" | "tddReference" | "classroomDiaries" | HoA1Module;
+export type HoModule = "paths" | "specialties" | "bills" | "globalTerms" | "centers" | "walkinPasses" | "termWeeks" | "shiftTemplates" | "staffs" | "staffLinks" | "users" | "roles" | "audits" | "tddReference" | "classroomDiaries" | HoA1Module;
 export const hoRoutes: Record<HoModule, string> = HO_PAGE_PATHS;
-export const hoModules: Record<HoModule,BoModule> = {
+// PAP-1542 / PAP-220: Staff registration link is an attribute of Centers, not an HO module.
+export const hoModules: Record<Exclude<HoModule,"staffLinks">,BoModule> = {
+ paths: {label:"Path",group:"Learning",fields:[
+  {key:"name",label:"Tên Path",type:"text",icon:"Aa",w:250,readonly:true},
+  {key:"code",label:"Mã Path",type:"text",icon:"#",w:205,readonly:true},
+  {key:"group",label:"Nhóm",type:"text",icon:"Aa",w:115,readonly:true},
+  {key:"status",label:"Trạng thái",type:"text",icon:"◉",w:145,readonly:true},
+  {key:"createdAt",label:"Created Time",type:"text",icon:"◷",w:225,readonly:true},
+  {key:"createdBy",label:"Created by (User)",type:"text",icon:"Aa",w:220,readonly:true},
+ ]},
  specialties: {label:"Chuyên đề",group:"Learning",fields:[
   {key:"name",label:"Chuyên đề",type:"text",icon:"Aa",w:240,readonly:true},
   {key:"path",label:"Path",type:"text",icon:"▣",w:180,readonly:true},
@@ -58,12 +67,6 @@ export const hoModules: Record<HoModule,BoModule> = {
   {key:"path",label:"Path",type:"text",icon:"▣",w:115,readonly:true},
   {key:"parent",label:"Parent ID",type:"text",icon:"@",w:260,readonly:true},
   {key:"center",label:"Center ID",type:"text",icon:"⌖",w:260,readonly:true},
- ]},
- staffLinks:{label:"Link đăng ký Staff",group:"Nhân sự",fields:[
-  {key:"name",label:"Cơ sở",type:"text",icon:"Aa",w:240,readonly:true},
-  {key:"centerKey",label:"Mã cơ sở",type:"text",icon:"#",w:170,readonly:true},
-  {key:"status",label:"Nhận hồ sơ",type:"text",icon:"◉",w:160,readonly:true},
-  {key:"updatedAt",label:"Cập nhật",type:"text",icon:"◷",w:180,readonly:true},
  ]},
  staffs:{label:"Staff",group:"Nhân sự",fields:[
   {key:"name",label:"Nhân sự",type:"text",icon:"Aa",w:220,readonly:true},

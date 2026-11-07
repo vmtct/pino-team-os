@@ -9,6 +9,7 @@ import { browserTddNavigation, type AdapterNavigation } from "@/lib/workspace-ad
 import { TddRegistry } from "@/lib/workspace-schema";
 import { BoApiError } from "@/lib/bo-api-error";
 import { centerDefinition, centerFields, centerProvider, centerQuery } from "./schema";
+import { CenterStaffRegistrationSection } from "./CenterStaffRegistrationSection";
 type F = typeof centerFields;
 type Ready = { adapter: AuthenticatedSurfaceAdapter<F>; navigation: AdapterNavigation<F> };
 export function HoCenters() {
@@ -27,6 +28,7 @@ export function HoCenters() {
     return () => { controller.abort(); adapter?.dispose(); };
   }, [retry]);
   const content = error ? <p role="alert">{error === "denied" ? "Không có quyền xem Centers." : "Không tải được danh sách Centers."} <button type="button" onClick={() => { setReady(null); setError(null); setRetry(x => x + 1); }}>Thử lại</button></p>
-    : ready ? <SurfaceWorkspace adapter={ready.adapter} navigation={ready.navigation} initialQuery={centerQuery} /> : <p role="status">Đang tải Centers…</p>;
+    : ready ? <SurfaceWorkspace adapter={ready.adapter} navigation={ready.navigation} initialQuery={centerQuery}
+        detailOverview={record => <CenterStaffRegistrationSection key={record.id} centerId={record.id} />} /> : <p role="status">Đang tải Centers…</p>;
   return <HoWorkspace module="centers" content={content} />;
 }

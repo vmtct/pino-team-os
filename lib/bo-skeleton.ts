@@ -17,12 +17,17 @@ export const BO_AUTHORITY_ASSETS = new Set<string>(BO_AUTHORITY_STYLES);
 export function boSkeletonEnabled(env: Pick<BoSkeletonEnv, "APP_ENV" | "BO_UI_ONLY">, host: string) {
   return env.APP_ENV === "staging" && env.BO_UI_ONLY === "enabled" && isBoStagingHost(host);
 }
+/** PAP-1598: Production opts into presentation only. The staging data switch
+ * remains staging-only; matching environment and exact host are both required. */
+export function boAuthorityStylesEnabled(env: Pick<BoSkeletonEnv, "APP_ENV" | "BO_UI_ONLY">, host: string) {
+  return boSkeletonEnabled(env, host) || ((env.APP_ENV === undefined || env.APP_ENV === "production") && host === "bo.pinohouse.art");
+}
 /** Historical controller path now serves only authenticated surface-specific stylesheets.
  * /bo is rendered by React; prototype HTML/JS and the monkey-patch bridge never execute. */
 export async function serveBoSkeleton(request: Request, env: BoSkeletonEnv, asset: string): Promise<Response> {
   const url = new URL(request.url), headers = { "cache-control": "private, no-store", "x-content-type-options": "nosniff" };
   const ho = url.hostname === HO_STAGING_HOSTNAME && env.APP_ENV === "staging";
-  if ((!ho && !boSkeletonEnabled(env, url.hostname)) || !(ho ? HO_AUTHORITY_ASSETS : BO_AUTHORITY_ASSETS).has(asset)) return new Response("Not Found", { status: 404, headers });
+  if ((!ho && !boAuthorityStylesEnabled(env, url.hostname)) || !(ho ? HO_AUTHORITY_ASSETS : BO_AUTHORITY_ASSETS).has(asset)) return new Response("Not Found", { status: 404, headers });
   try { if (ho) await authorizeHoShell(request.headers, env as HoEnv); else await authorizeBoShell(request.headers, env); }
   catch (error) {
     return new Response(error instanceof BoShellGateError ? "BO access denied" : "BO authorization unavailable", { status: error instanceof BoShellGateError ? error.status : 503, headers });

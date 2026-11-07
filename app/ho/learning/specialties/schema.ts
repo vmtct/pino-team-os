@@ -2,6 +2,8 @@ import { TddRegistry, type FieldSchema, type TableQuery } from "@/lib/workspace-
 import type { ApprovalVerifier } from "@/lib/workspace-schema/registry";
 import type { SurfaceDefinition, SurfaceProvider } from "@/lib/workspace-adapters/contracts";
 import { BoApiError } from "@/lib/bo-api-error";
+import type { ModuleRow } from "@/lib/workspace-schema";
+import { readSpecialtyV2List,readSpecialtyV2Detail,type SpecialtyV2Summary,type SpecialtyV2Detail } from "@/lib/ho-specialty-v2-reader";
 
 /** PAP-1491 / SPEC-UNLOCK, PAP-1495. Approved V2 geometry; no candidate API integration. */
 const permission = "catalog.learning.view";
@@ -53,19 +55,32 @@ export const verifySpecialtyExtension: ApprovalVerifier = (approval,scope) =>
   approval.jira==="PAP-1495" && approval.owner==="HO Runtime" && approval.designAuthority==="Founder" &&
   approval.files.includes("app/ho/learning/specialties/HoSpecialtyMissionsTab.tsx");
 
-/** No fabricated empty Catalog, speculative RPC, V1 purchase source or writer.
- * Replace only after PAP-1493's Founder V2 reader and FE contract are serving. */
+/** PAP-1495 / PAP-1491 SPEC-UNLOCK: Core-owned Founder V2 readback only.
+ * Summary intentionally leaves levels/prerequisites UNKNOWN rather than 0.
+ * Detail resolves real Core levels; create/edit stays separately fail-closed.
+ */
+const summaryRow=(s:SpecialtyV2Summary):ModuleRow<F>=>({
+ id:s.id,name:s.name,path:s.pathProgramId,status:s.status,
+ description:s.description,levelCount:null,prerequisiteView:null,
+ tagView:s.tags.join(", "),missionCount:s.missionCountDistinct,
+});
+const detailRow=(s:SpecialtyV2Detail):ModuleRow<F>=>({
+ ...summaryRow(s),levelCount:s.levels.length,
+ prerequisiteView:s.prerequisiteIds.join(", "),
+});
 export const specialtyProvider: SurfaceProvider<F> = {
   pagination:"local-ui",
-  async list(_query,scope,_fetcher,signal) {
+  async list(_query,scope,fetcher,signal) {
     signal.throwIfAborted();
     if(scope.surface!=="HO")throw new BoApiError(403,"Không có quyền xem Chuyên đề.",null);
-    throw new BoApiError(503,"Chưa tải được danh mục Chuyên đề.",null);
+    const records=await readSpecialtyV2List(fetcher,signal);
+    return {records:records.map(s=>({row:summaryRow(s),version:String(s.version)})),total:records.length};
   },
-  async detail(_id,scope,_fetcher,signal) {
+  async detail(id,scope,fetcher,signal) {
     signal.throwIfAborted();
     if(scope.surface!=="HO")throw new BoApiError(403,"Không có quyền xem Chuyên đề.",null);
-    throw new BoApiError(503,"Chưa tải được chi tiết Chuyên đề.",null);
+    const s=await readSpecialtyV2Detail(id,fetcher,signal);
+    return {row:detailRow(s),version:String(s.version)};
   },
 };
 
@@ -76,14 +91,18 @@ export const specialtySchema = specialtyRegistry.register({ ...specialtyDefiniti
   list: async () => { throw new Error("SPECIALTY_V2_READER_UNAVAILABLE"); },
   detail: async () => { throw new Error("SPECIALTY_V2_READER_UNAVAILABLE"); },
 }});
+/** PAP-1495 / PAP-1491: display only 4 Founder-approved canonical codes.
+ * Actual UUIDs must be fetched from Core (never hardcode staging Path IDs).
+ */
 export const specialtyVisualPaths = Object.freeze([
+  { code: "little-piner-art", label: "Little Piner Art" },
+  { code: "little-piner-piano", label: "Little Piner Piano" },
   { code: "artchitect", label: "Artchitect" },
   { code: "pianohouse", label: "PianoHouse" },
-  { code: "little-piner", label: "Little Piner" },
 ]);
 export type SpecialtyDraft = { name: string; pathCode: string; description: string };
 export function validateSpecialtyDraft(draft: SpecialtyDraft): string | null {
-  if (!draft.name.trim() || draft.name.trim().length > 160) return "Tên Chuyên đề phải có từ 1 đến 160 ký tự.";
+  if (draft.name.trim().length < 3 || draft.name.trim().length > 160) return "Tên chuyên đề phải có từ 3 đến 160 ký tự.";
   if (!specialtyVisualPaths.some(path => path.code === draft.pathCode)) return "Chọn Path hợp lệ.";
   if (draft.description.length > 4000) return "Mô tả không được quá 4.000 ký tự.";
   return null;

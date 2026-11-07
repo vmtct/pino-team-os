@@ -78,7 +78,7 @@ test("BO authenticated account belongs to shell and does not mutate shared rende
  const runtime=readFileSync("app/bo/components/registration/BoRuntimeBoundary.tsx","utf8");
  const account=readFileSync("app/bo/shell/BoAuthenticatedAccount.tsx","utf8");
  assert.ok(layout.includes("email: currentUser.email"));
- assert.ok(runtime.includes("<BoAuthenticatedAccount displayName={currentUser.displayName} email={currentUser.email} />"));
+ assert.ok(runtime.includes('<BoAuthenticatedAccount displayName={currentUser.displayName} email={currentUser.email} profileHref={staging ? undefined : "/bo/profile"} />'));
  assert.ok(account.includes("createPortal"));
  assert.ok(account.includes("<LogoutButton />"));
  assert.ok(account.includes("resolveBoAccountLabel(displayName, email)"));

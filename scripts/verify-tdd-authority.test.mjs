@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {verify,inspectModuleSource,inspectModuleDelta,inspectCss,validateSpecial,isFounderRetiredBoTvRoute} from './verify-tdd-authority.mjs';
+import {verify,inspectModuleSource,inspectModuleDelta,inspectCss,validateSpecial,isFounderRetiredBoTvRoute,isFounderRetiredHoStaffLinksRoute} from './verify-tdd-authority.mjs';
 const now=Date.parse('2026-10-28T06:00:00Z');
 function schema(surface='BO') {
  const fields=[{key:'name',label:'Name',type:'text',icon:'Aa',width:175,permission:'fixture.read',readOnly:true,capabilities:{display:true,search:true,filter:true,sort:true,group:true,inlineEdit:false}}];
@@ -387,4 +387,33 @@ test("PAP-1460 Founder-approved BO TV retirement is an exact, 404-fenced excepti
   mutate("lib/host-boundary.ts",s=>s.replace('return { action: "not_found" };','return { action: "next" };'));
   mutate("app/bo/navigation.ts",s=>s.replace('label: "Operations"','label: "Operations", href: "/bo/tvs"'));
   mutate("app/bo/architecture/bo-staging-route-policy.ts",s=>s.replace('  "/bo/missions",','  "/bo/tvs",\\n  "/bo/missions",'));
+});
+
+test("PAP-1542 Founder-authorized HO Staff Link retirement is exactly Center-owned",t=>{
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),"pap1542-staff-links-retired-"));
+  t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+  const original=path.resolve(new URL("..",import.meta.url).pathname.replace(/^\/([A-Z]:)/, "$1"));
+  const files=[
+    "app/ho/workforce/staff-links/page.tsx",
+    "app/ho/centers/HoCenters.tsx",
+    "app/ho/centers/CenterStaffRegistrationSection.tsx",
+    "lib/ho-system.ts","lib/host-boundary.ts",
+  ];
+  for(const file of files){fs.mkdirSync(path.dirname(path.join(root,file)),{recursive:true});fs.copyFileSync(path.join(original,file),path.join(root,file));}
+  const entry={file:"app/ho/workforce/staff-links/page.tsx",route:"/ho/workforce/staff-links",key:"staffLinks",surface:"HO",profile:"TDD_DEFAULT"};
+  assert.equal(isFounderRetiredHoStaffLinksRoute(root,entry),true);
+  for(const invalid of [{...entry,route:"/ho/other"},{...entry,key:"centers"},{...entry,surface:"BO"},{...entry,profile:"EXISTING_GRANDFATHERED"}])
+    assert.equal(isFounderRetiredHoStaffLinksRoute(root,invalid),false);
+  const mutate=(file,change)=>{
+    const p=path.join(root,file),before=fs.readFileSync(p,"utf8"),after=change(before);
+    assert.notEqual(after,before);
+    fs.writeFileSync(p,after);
+    assert.equal(isFounderRetiredHoStaffLinksRoute(root,entry),false,file);
+    fs.writeFileSync(p,before);
+  };
+  mutate(files[0],s=>s.replace('redirect("/ho/centers"','redirect("/ho/legacy"'));
+  mutate(files[1],s=>s.replace('detailOverview=','otherOverview='));
+  mutate(files[2],s=>s.replaceAll("readFounderStaffLink","unsafeLegacyLinkRead"));
+  mutate(files[3],s=>s.replace("export const hoModules","export const altModules"));
+  mutate(files[4],s=>s.replaceAll("staffLinksBase", "staffLinksGone"));
 });

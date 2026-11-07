@@ -47,16 +47,16 @@ test("PAP-1495: shared Table, Quick View and Detail keep geometry/properties wit
   assert.match(history,/Chưa tải được lịch sử Chuyên đề/);
 });
 
-test("PAP-1495: missing reader fails truthfully without any network call, even for direct record URL",async()=>{
+test("PAP-1495: real Founder GET errors stay errors, BO is denied and no fixture data leaks",async()=>{
   let calls=0;
-  const fetcher:typeof fetch=async()=>{calls++;throw Error("UNEXPECTED_NETWORK");};
+  const fetcher:typeof fetch=async()=>{calls++;return Response.json({error:{code:"SPECIALTY_V2_UNAVAILABLE"}},{status:503});};
   const signal=new AbortController().signal;
-  for(const scope of [{surface:"HO" as const},{surface:"BO" as const,centerId:"other"}]){
-    const status=scope.surface==="HO"?503:403;
-    await assert.rejects(specialtyProvider.list(specialtyQuery,scope,fetcher,signal),{status});
-    await assert.rejects(specialtyProvider.detail("arbitrary",scope,fetcher,signal),{status});
-  }
-  assert.equal(calls,0);
+  const id="01234567-89ab-7cde-8fab-0123456789ab";
+  await assert.rejects(specialtyProvider.list(specialtyQuery,{surface:"HO"},fetcher,signal),{status:503});
+  await assert.rejects(specialtyProvider.detail(id,{surface:"HO"},fetcher,signal),{status:503});
+  await assert.rejects(specialtyProvider.list(specialtyQuery,{surface:"BO",centerId:"other"},fetcher,signal),{status:403});
+  await assert.rejects(specialtyProvider.detail(id,{surface:"BO",centerId:"other"},fetcher,signal),{status:403});
+  assert.equal(calls,2);
 });
 
 test("PAP-1495: adapter still requires real authenticated context and canonical permission",async()=>{
@@ -97,8 +97,45 @@ test("PAP-1497: existing eligible-only data preserved; any unsupported all/locke
     assert.equal(requiresSpecialtySelectionGuard(items),true);
   const source=readFileSync("app/components/tos-vnext/DiaryCapturePanel.tsx","utf8");
   assert.equal(source.match(/requiresSpecialtySelectionGuard\(fresh.items\)/g)?.length,2);
-  assert.match(source,/data-specialty-selection="guarded"/);
-  assert.doesNotMatch(source,/import.*TosSpecialtyMissionChoiceList/);
+  // PAP-1497: the server-authenticated extension may render in the real Diary
+  // flow, but it MUST remain read-only until Core S4 owns write enforcement.
+  assert.match(source,/import.*TosSpecialtyMissionChoiceList/);
+  assert.match(source,/current\.phase==="ready"&&specialtyGuarded&&<section/);
+  assert.match(source,/<TosSpecialtyMissionChoiceList[\s\S]*?onSelect=\{\(\)=>\{\}\} disabled\/>/);
+  assert.match(source,/permitted&&!specialtyGuarded&&<fieldset/);
+  assert.match(source,/data-specialty-selection="read-only"/);
+  assert.doesNotMatch(source,/onSelect=\{(?:submitDiary|toggleMission)\}/);
+});
+
+test("PAP-1497: extended Core eligibility renders available and locked choices without enabling writes",()=>{
+  const require=createRequire(import.meta.url),prior=require.extensions[".css"];
+  require.extensions[".css"]=module=>{module.exports={};};
+  try{
+    const {TosSpecialtyMissionChoiceList}=require("../app/classroom/TosSpecialtyMissionChoiceList") as typeof import("../app/classroom/TosSpecialtyMissionChoiceList");
+    const choices=[
+      {missionId:"m2",code:"P-02",name:"Vẽ chân dung",level:2,assignmentId:null,
+        available:false,lockReasons:[{code:"NO_EFFECTIVE_SPECIALTY_GRANT",relatedId:"spec-2"}]},
+      {missionId:"m1",code:"P-01",name:"Vẽ hình khối",level:1,assignmentId:null,
+        available:true,lockReasons:[]},
+    ];
+    let selected=0;
+    const output=html(h(TosSpecialtyMissionChoiceList,{items:choices,studentName:"Học viên A",
+      onSelect:()=>{selected++;},disabled:true}));
+    assert.match(output,/Chọn Nhiệm Vụ · Học viên A/);
+    assert.match(output,/Vẽ hình khối/);
+    assert.match(output,/Vẽ chân dung/);
+    assert.ok(output.indexOf("Vẽ hình khối")<output.indexOf("Vẽ chân dung"));
+    assert.match(output,/Đang khóa/);
+    assert.match(output,/Xem lý do khóa/);
+    assert.match(output,/Có thể chọn/);
+    assert.match(output,/disabled=""/);
+    assert.equal(selected,0);
+    const rejected=html(h(TosSpecialtyMissionChoiceList,{items:[{missionId:"x",code:"X",name:"Legacy",level:1,assignmentId:null}],
+      studentName:"Học viên B",onSelect:()=>{selected++;},disabled:true}));
+    assert.match(rejected,/role="alert"/);
+    assert.doesNotMatch(rejected,/Chọn nhiệm vụ/);
+    assert.equal(selected,0);
+  }finally{if(prior)require.extensions[".css"]=prior;else delete require.extensions[".css"];}
 });
 
 test("PAP-1495/1496: one HO shell; Student tab behind scoped read and before History",()=>{

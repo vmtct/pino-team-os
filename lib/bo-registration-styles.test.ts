@@ -30,5 +30,5 @@ test("legacy styling keeps its exact build mapping and is not imported into the 
   assert.match(build, /copyFile\('app\/globals\.css','public\/team-legacy-global\.css'\)/);
   assert.match(build, /copyFile\('app\/bo\/design-system\/foundation\.css','public\/bo-legacy-foundation\.css'\)/);
   assert.doesNotMatch(root, /import\s+["']\.\/globals\.css["']/);
-  assert.match(root, /boSkeletonEnabled\(env/);
+  assert.match(root, /boAuthorityStylesEnabled\(env/);
 });

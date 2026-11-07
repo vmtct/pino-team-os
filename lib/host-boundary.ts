@@ -35,6 +35,16 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
     return {action:hostname===HO_STAGING_HOSTNAME&&isHoTvReadRequest(pathname,method)?"next":"not_found"};
   if (pathname === HO_BILLS_API || pathname.startsWith(HO_BILLS_API + "/"))
     return {action:hostname === HO_STAGING_HOSTNAME && isHoBillsRequest(pathname,method) ? "next" : "not_found"};
+  // PAP-1495 / Epic PAP-1491 SPEC-UNLOCK: exact HO V2 Specialty GET BFF ingress.
+  // Fail closed for BO/TOS/production hosts, writers and unsupported descendants.
+  const specialtyBase="/api/ho/learning/specialties";
+  if(pathname===specialtyBase||pathname.startsWith(specialtyBase+"/")){
+    const detail=/^\/api\/ho\/learning\/specialties\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pathname);
+    const options=pathname===specialtyBase+'/path-options';
+    const create=pathname===specialtyBase&&method==='POST';
+    return {action:hostname===HO_STAGING_HOSTNAME&&
+      ((method==="GET"&&(pathname===specialtyBase||detail||options))||create)?"next":"not_found"};
+  }
   // PAP-1407 / PAP-220 — exact Center-only Staff Registration ingress.
   // E2E found middleware 404 before the BFF/Core; never widen the generic BO/HO host fence.
   const staffQueueBase = "/api/bo/workforce/staff-center-registration-requests";
@@ -67,6 +77,15 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   }
   // PAP-1356: global fail-closed fence so unknown hosts cannot fall through.
   const loadoutId = "[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
+  const setRoot = new RegExp("^/api/bo/pinoria/selfs/" + loadoutId + "/set$").test(pathname);
+  // PAP-1486 / Epic PAP-1097 PNR-WARD: exact Starter command and authorized
+  // member media must pass the host fence before the BO BFF/Core ACL re-check.
+  // Never allow arbitrary Set descendants, foreign hosts or alternate verbs.
+  const setCommand = new RegExp("^/api/bo/pinoria/selfs/" + loadoutId + "/set/(apply|clear|starter)$").test(pathname);
+  const setMemberMedia = new RegExp("^/api/bo/pinoria/selfs/" + loadoutId + "/set/media/[0-7]$").test(pathname);
+  if (setRoot || setCommand || setMemberMedia) return hostname === BO_STAGING_HOSTNAME &&
+    (setCommand ? method === "POST" : method === "GET") ? { action: "next" } : { action: "not_found" };
+  if (/^\/api\/bo\/pinoria\/selfs\/[^/]+\/set(?:\/|$)/.test(pathname)) return { action: "not_found" };
   const loadoutRoute = new RegExp("^/api/bo/pinoria/selfs/" + loadoutId + "/loadout(?:/media/(AURA_GROUND|AURA_BACK|BACK|OUTFIT|HAIR|FACE|HEADWEAR|PATH_MARK))?$").exec(pathname);
   if (loadoutRoute) return hostname === BO_STAGING_HOSTNAME && (loadoutRoute[1] ? method === "GET" : (method === "GET" || method === "POST"))
     ? { action: "next" } : { action: "not_found" };
@@ -105,6 +124,8 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
 
   if (hostname === HO_STAGING_HOSTNAME) {
     const p = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
+    // PAP-1594: Founder-only Path directory GET; all non-GET verbs remain hidden.
+    if (p === "/api/ho/learning/paths") return { action: method === "GET" ? "next" : "not_found" };
     // PAP-1221: HO Staging-only Diary GLOBAL read, exact collection/UUID detail.
     // BFF HO pilot gate + Core Founder learning.diary.global.view remain mandatory.
     if (/^\/api\/ho\/learning\/path-diaries(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/mission-links)?)?$/i.test(p))
@@ -229,6 +250,8 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
     // PAP-1035: Worker-first admission must match the already-authenticated
     // BO read facade. This is a staging-only GET/HEAD fence, never a write bypass.
     if (hostname === BO_STAGING_HOSTNAME && (method === "GET" || method === "HEAD") && (isBoStagingS3ReadPath(pathname) || isBoStagingRunningClassEnrollmentReadPath(pathname))) return { action: "next" };
+    // PAP-1598: one exact authenticated presentation asset; no prototype JS/HTML or API admission.
+    if (hostname === BO_HOSTNAME && pathname === "/bo-skeleton/styles.css" && (method === "GET" || method === "HEAD")) return { action: "next" };
     if (pathname === "/") return { action: "redirect", pathname: "/bo" };
     if ((hostname === BO_STAGING_HOSTNAME && method === "GET" && pathname.replace(/\/$/, "") === "/api/bo/school/enrollments") || ((method === "GET" || method === "HEAD") && ["/team-legacy-global.css", "/bo-legacy-foundation.css"].includes(pathname)) || isBoLocalAuthPath(pathname) || isApprovedBoPath(pathname) || isFrameworkAsset(pathname) || (hostname === BO_STAGING_HOSTNAME && isBoStagingStylesheet(pathname))) return { action: "next" };
     return { action: "not_found" };

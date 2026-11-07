@@ -403,6 +403,39 @@ export function isFounderRetiredBoTvRoute(root, entry) {
     /\bSurfaceWorkspace\b/.test(source("app/bo/tvs/TvsTdd.tsx"));
 }
 
+/** PAP-1542 / PAP-220: exact Founder-authorized HO Staff Link retirement.
+ * The Center Detail keeps typed TDD + Core ACL; only the second editable route retires.
+ * Never permit an unrelated admitted route to drop its owner contract.
+ */
+export function isFounderRetiredHoStaffLinksRoute(root, entry) {
+  if (entry.file !== "app/ho/workforce/staff-links/page.tsx" ||
+      entry.route !== "/ho/workforce/staff-links" || entry.key !== "staffLinks" ||
+      entry.surface !== "HO" || entry.profile !== "TDD_DEFAULT") return false;
+  const required = [
+    "app/ho/workforce/staff-links/page.tsx",
+    "app/ho/centers/HoCenters.tsx",
+    "app/ho/centers/CenterStaffRegistrationSection.tsx",
+    "lib/ho-system.ts",
+    "lib/host-boundary.ts",
+  ];
+  if (required.some(file => !fs.existsSync(path.join(root, file)))) return false;
+  const page = read(root, required[0]);
+  const centers = read(root, required[1]);
+  const detail = read(root, required[2]);
+  const system = read(root, required[3]);
+  const boundary = read(root, required[4]);
+  return /PAP-1542/.test(page) &&
+    /redirect\(\s*["']\/ho\/centers/.test(page) &&
+    !/HoStaffLinksTdd|SurfaceWorkspace/.test(page) &&
+    /detailOverview=/.test(centers) &&
+    /CenterStaffRegistrationSection/.test(centers) &&
+    /PAP-1542/.test(detail) &&
+    /readFounderStaffLink/.test(detail) &&
+    system.includes("export const hoModules") &&
+    !/\bstaffLinks\s*:/.test(system.slice(system.indexOf("export const hoModules"))) &&
+    /staffLinksBase/.test(boundary);
+}
+
 export async function main() {
   const baseIndex=process.argv.indexOf('--base');
   const base=baseIndex<0?(process.env.TDD_BASE||'origin/main'):process.argv[baseIndex+1];
@@ -417,7 +450,7 @@ export async function main() {
   let previous=[];
   if(git(ROOT,['ls-tree','--name-only',base,MANIFEST])) previous=JSON.parse(git(ROOT,['show',base+':'+MANIFEST])).modules;
   const current=JSON.parse(read(ROOT,MANIFEST));
-  for(const e of previous.filter(e=>e.profile!=='EXISTING_GRANDFATHERED')) if(!current.modules.some(n=>n.file===e.file&&n.profile===e.profile) && !isFounderRetiredBoTvRoute(ROOT,e)) throw Error('admitted route cannot return to grandfathered inventory: '+e.file);
+  for(const e of previous.filter(e=>e.profile!=='EXISTING_GRANDFATHERED')) if(!current.modules.some(n=>n.file===e.file&&n.profile===e.profile) && !isFounderRetiredBoTvRoute(ROOT,e) && !isFounderRetiredHoStaffLinksRoute(ROOT,e)) throw Error('admitted route cannot return to grandfathered inventory: '+e.file);
   const readBaseSource=file=>{try{return git(ROOT,['show',base+':'+file]);}catch{return null;}};
   const result=await verify(ROOT,{changed,baseline,approvals,readBaseSource});
   for(const f of changed.filter(f=>f.endsWith('.css')&&!/^(?:public\/(?:bo|ho)-authority-source\/|app\/ho\/ho-theme\.css)/.test(f))) {
