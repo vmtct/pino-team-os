@@ -20,7 +20,12 @@ test("BO shell receives canonical current-user context and exposes My Profile", 
   const layout = read("app/bo/layout.tsx");
   const menu = read("app/components/tos-shell/BoCurrentUserMenu.tsx");
   assert.match(layout, /currentUser = await authorizeBoShell/);
-  assert.match(layout, /currentUser=\{currentUser\}/);
+  assert.match(layout, /<BoApplicationShell currentUser=\{\{ displayName: currentUser.displayName, email: currentUser.email \}\}/);
+  const account = read("app/bo/shell/BoAuthenticatedAccount.tsx");
+  const runtime = read("app/bo/components/registration/BoRuntimeBoundary.tsx");
+  assert.match(account, /href=\{profileHref\}/);
+  assert.match(account, /aria-label="Hồ sơ của tôi"/);
+  assert.match(runtime, /profileHref=\{staging \? undefined : "\/bo\/profile"\}/);
   assert.match(menu, /shortDisplayName\(currentUser\.displayName\)/);
   assert.match(menu, /href="\/bo\/profile"/);
 });

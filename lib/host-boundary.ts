@@ -248,6 +248,8 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
     // PAP-1035: Worker-first admission must match the already-authenticated
     // BO read facade. This is a staging-only GET/HEAD fence, never a write bypass.
     if (hostname === BO_STAGING_HOSTNAME && (method === "GET" || method === "HEAD") && (isBoStagingS3ReadPath(pathname) || isBoStagingRunningClassEnrollmentReadPath(pathname))) return { action: "next" };
+    // PAP-1598: one exact authenticated presentation asset; no prototype JS/HTML or API admission.
+    if (hostname === BO_HOSTNAME && pathname === "/bo-skeleton/styles.css" && (method === "GET" || method === "HEAD")) return { action: "next" };
     if (pathname === "/") return { action: "redirect", pathname: "/bo" };
     if ((hostname === BO_STAGING_HOSTNAME && method === "GET" && pathname.replace(/\/$/, "") === "/api/bo/school/enrollments") || ((method === "GET" || method === "HEAD") && ["/team-legacy-global.css", "/bo-legacy-foundation.css"].includes(pathname)) || isBoLocalAuthPath(pathname) || isApprovedBoPath(pathname) || isFrameworkAsset(pathname) || (hostname === BO_STAGING_HOSTNAME && isBoStagingStylesheet(pathname))) return { action: "next" };
     return { action: "not_found" };

@@ -96,4 +96,10 @@ function saveRecentCenter(centerId: string): void {
   try { localStorage.setItem(BO_ACTIVE_CENTER_SESSION_KEY, centerId); } catch { /* unavailable */ }
   try { sessionStorage.setItem(BO_ACTIVE_CENTER_SESSION_KEY, centerId); } catch { /* unavailable */ }
 }
+/** Presentation may share the Center control without opting Production's
+ * retained content into Staging-only data adapters. */
+export function BoContentCenterBoundary({ staging, children }: { staging: boolean; children: React.ReactNode }) {
+  const selection = useContext(Context);
+  return <Context.Provider value={staging ? selection : null}>{staging ? children : <div data-bo-design-system="v23" style={{ display: "contents" }}>{children}</div>}</Context.Provider>;
+}
 export const useBoCenterSelection = () => useContext(Context);

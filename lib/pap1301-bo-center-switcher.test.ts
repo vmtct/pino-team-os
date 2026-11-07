@@ -14,7 +14,7 @@ test("PAP-1301/PAP-1327: one global BO shell switcher retains canonical Center-s
   assert.match(runtime, /if \(moduleKey === "parents"\) return <BoRegistrationWorkspace currentUser=\{currentUser\}/);
   assert.match(runtime, /source=\{unifiedBoWorkspaceSource\} moduleKey="parents" options=\{options\}/);
   assert.match(runtime, /content=\{<ParentTdd \/>\} \/>;/);
-  assert.match(runtime, /RuntimeContext.Provider value=\{currentUser\}><BoCenterSelectionProvider>\{children\}<\/BoCenterSelectionProvider>/);
+  assert.match(runtime, /RuntimeContext.Provider value=\{staging \? currentUser : null\}><BoCenterSelectionProvider>\{children\}<\/BoCenterSelectionProvider>/);
   assert.equal((runtime.match(/<BoCenterSelectionProvider>/g) ?? []).length, 1);
   assert.match(shell, /useBoCenterSelection\(\)/);
   assert.match(shell, /className="workspace-switcher"/);
