@@ -4,6 +4,7 @@ import { createElement as h } from "react";
 import { renderToStaticMarkup as html } from "react-dom/server";
 import { specialtyProvider,specialtyFields,specialtyPrerequisiteLabels } from "../app/ho/learning/specialties/schema";
 import { loadSpecialtyS4Read } from "./ho-specialty-s4-read";
+import type { SpecialtyV2Summary } from "./ho-specialty-v2-reader";
 import { SpecialtyMissionsReadContent } from "../app/ho/learning/specialties/HoSpecialtyMissionsRead";
 
 const id="01234567-89ab-7cde-8fab-0123456789ab",
@@ -11,7 +12,7 @@ const id="01234567-89ab-7cde-8fab-0123456789ab",
   prereq="21234567-89ab-7cde-8fab-0123456789ab",
   missionId="31234567-89ab-7cde-8fab-0123456789ab",
   levelId="41234567-89ab-7cde-8fab-0123456789ab";
-const summary={id,pathProgramId:path,name:"Anime",description:null,status:"DRAFT",
+const summary:SpecialtyV2Summary={id,pathProgramId:path,name:"Anime",description:null,status:"DRAFT",
   tags:["Anime"],version:1,missionCountDistinct:0};
 const detail={...summary,prerequisiteIds:[],levels:[]};
 const options=["little-piner-art","little-piner-piano","artchitect","pianohouse"].map((code,i)=>
@@ -29,10 +30,11 @@ test("PAP-1495 (PAP-1491) S4: canonical prerequisite names, fail closed on orpha
   return Response.json({data:{...detail,prerequisiteIds:[prereq]}});
  };
  const result=await specialtyProvider.detail(id,{surface:"HO"},fetcher,ac());
+ if(!result)throw new Error("Expected canonical Specialty Detail");
  assert.deepEqual(result.row.prerequisiteView,["Gouache"]);
  assert.equal(result.row.levelCount,0);
  assert.equal(result.row.description,null);
- const denied=await assert.rejects(specialtyProvider.detail(id,{surface:"BO"},fetcher,ac()));
+ await assert.rejects(specialtyProvider.detail(id,{surface:"BO",centerId:"not-authorized"},fetcher,ac()));
 });
 
 test("PAP-1495 S4: Core-backed empty Level is truthful, no phantom mission or writer",async()=>{
