@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { composeTabs, validateModule } from "./workspace-schema";
 import { BoApiError } from "./bo-api-error";
+import { surfaceSession } from "./workspace-adapters/session";
 import { decideHostBoundary } from "./host-boundary";
 import { missionDefinition, missionProvider, missionQuery, missionSchema, projectMission, missionUuid, missionTableColumnKeys, formatMissionAuditTime, missionVerifiedActorName } from "../app/ho/learning/missions/schema";
 
@@ -129,4 +130,27 @@ test("PAP-1207 S3 Path labels require matching authorized Core Path ID and snaps
   assert.equal(full.path,"Artchitect");
   assert.equal(projectMission({...row,pathProgramId:options[0].id,pathKeySnapshot:"pianohouse"},options).path,"—");
   assert.equal(projectMission({...row,pathProgramId:"01900000-0000-7000-8000-000000000012",pathKeySnapshot:options[0].code},options).path,"—");
+});
+test("PAP-1221/PAP-1207 MISSION S3 HO TDD session admits ONLY canonical Path GET", async () => {
+  const origin = "https://ho.staging.pinohouse.art";
+  const calls: string[] = [];
+  const fetcher: typeof fetch = async input => {
+    calls.push(String(input));
+    return Response.json({ data: { paths: [] } });
+  };
+  const session = surfaceSession("HO", origin, fetcher);
+  assert.equal((await session.transport("/api/ho/learning/paths")).status, 200);
+  assert.deepEqual(calls, [origin + "/api/ho/learning/paths"]);
+  for (const route of [
+    "/api/ho/learning/paths?limit=1",
+    "/api/ho/learning/paths/",
+    "/api/ho/learning/paths/other",
+    "/api/ho/learning/mission-paths",
+    "https://bo.staging.pinohouse.art/api/ho/learning/paths",
+  ]) await assert.rejects(session.transport(route), { status: 404 });
+  for (const method of ["POST", "PUT", "PATCH", "DELETE"]) {
+    await assert.rejects(session.transport("/api/ho/learning/paths", { method }), { status: 404 });
+  }
+  assert.deepEqual(calls, [origin + "/api/ho/learning/paths"]);
+  session.dispose();
 });
