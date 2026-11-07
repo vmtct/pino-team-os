@@ -303,6 +303,19 @@ function readCorePath(path: string, url: URL): string {
 }
 
 function readQueryResource(path: string, url: URL): BoAccessRequest["resource"] | undefined {
+  // PAP-1536 / Epic PAP-220: optional, explicitly selected Center on the
+  // existing Staff directory reader. This only forwards a read constraint;
+  // Core independently authorizes the principal and must filter membership.
+  // Keep the legacy no-Center request unchanged until Core scoped reader and
+  // Center-selector UI ship together. Never manufacture a GLOBAL grant.
+  if (path === "workforce/staff-records") {
+    const keys = [...url.searchParams.keys()];
+    if (!keys.length) return undefined;
+    const centers = url.searchParams.getAll("centerId");
+    if (keys.length !== 1 || keys[0] !== "centerId" || centers.length !== 1 || !S3_UUID.test(centers[0]!))
+      throw new RangeError("Invalid Staff directory Center query");
+    return { centerId: centers[0]! };
+  }
   if (STAFF_CENTER_APPLICATION_READ.test(path)) {
     // PAP-1407: mandatory single Center, no identity/query overrides.
     const keys = [...url.searchParams.keys()];
