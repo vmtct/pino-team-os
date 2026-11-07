@@ -871,6 +871,7 @@
         "app/ho/learning/specialties/HoSpecialties.tsx",
         "app/ho/learning/specialties/schema.ts",
         "app/ho/learning/specialties/HoSpecialtyMissionsTab.tsx",
+        "app/ho/learning/specialties/HoSpecialtyMissionsRead.tsx",
         "app/ho/learning/specialties/SpecialtyMissionPicker.tsx",
         "app/ho/learning/specialties/HoSpecialtyCreate.module.css"
       ],
@@ -895,6 +896,7 @@
         "lib/pap1495-ho-specialty-v2-reader.test.ts",
         "lib/pap1495-specialty-draft-create.test.ts",
         "lib/ho-specialty-missions-tab.test.ts",
+        "lib/pap1495-specialty-s4-detail.test.ts",
         "lib/specialty-mission-picker.test.ts",
         "lib/ho-routes.test.ts"
       ],
@@ -917,6 +919,10 @@
         },
         {
           "file": "lib/ho-specialty-v2-reader.ts",
+          "owner": "PAP-1495"
+        },
+        {
+          "file": "lib/ho-specialty-s4-read.ts",
           "owner": "PAP-1495"
         },
         {
