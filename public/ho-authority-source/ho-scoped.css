@@ -579,6 +579,8 @@
 [data-surface="ho"] .nav-link.active { background:var(--ds-primary); color:var(--ds-on-primary); box-shadow:inset 3px 0 0 var(--ds-primary-border); }
 [data-surface="ho"] .primary-btn { background:var(--ds-primary); border-color:var(--ds-primary); color:var(--ds-on-primary); }
 [data-surface="ho"] .primary-btn:hover { background:var(--ds-primary-hover); }
+/* PAP-1207 / PAP-1188: map the portable TDD ActionHost primary button to the canonical HO token palette. */
+[data-surface="ho"] .tdd-action-host .pds-bo-action-button-primary { --bo-color-accent:var(--ds-primary); --bo-color-accent-strong:var(--ds-primary-hover); --bo-color-focus:var(--ds-primary-border); box-shadow:none; }
 [data-surface="ho"] :is(button,a,input,select,textarea):focus-visible { outline-color:var(--ds-primary); }
 [data-surface="ho"] :is(.view-tab.active,.view-tab.selected,.detail-tab.selected) { color:var(--ds-primary); border-color:var(--ds-primary); }
 [data-surface="ho"] :is(.typed-cell:hover,.typed-cell:focus-visible,.property-control:hover,.row-open:hover) { background:var(--ds-primary-subtle); color:var(--ds-primary); }
