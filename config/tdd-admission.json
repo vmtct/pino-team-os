@@ -577,6 +577,10 @@
       ],
       "externalReferences": [
         {
+          "file": "lib/ho-a1.ts",
+          "owner": "PAP-1207"
+        },
+        {
           "file": "lib/host-boundary.ts",
           "owner": "PAP-1207"
         },
