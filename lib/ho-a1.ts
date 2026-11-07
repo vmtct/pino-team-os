@@ -42,6 +42,10 @@ export function mapHoMissions(value:unknown):BoRecord[]{
  return listOf(value).map(r=>({
   id:word(r.id),name:word(r.name),code:word(r.code),level:numeric(r.level),status:word(r.status),
   plsValue:numeric(r.plsValue),paperSize:nullable(r.paperSize),path:nullable(r.pathKeySnapshot)||nullable(r.pathProgramId),
+  pathProgramId:nullable(r.pathProgramId),pathKeySnapshot:nullable(r.pathKeySnapshot),
+  createdAt:nullable(r.createdAt),updatedAt:nullable(r.updatedAt),
+  createdByVerifiedLegalName:nullable(r.createdByVerifiedLegalName),
+  updatedByVerifiedLegalName:nullable(r.updatedByVerifiedLegalName),
   prerequisite:nullable(r.prerequisiteCodeSnapshot)||nullable(r.prerequisiteMissionId),
   reconciliation:word(r.reconciliation),description:nullable(r.description),guideline:nullable(r.guideline),
   diagnostics:words(r.diagnostics),
