@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { composeTabs, validateModule } from "./workspace-schema";
 import { BoApiError } from "./bo-api-error";
 import { decideHostBoundary } from "./host-boundary";
-import { missionDefinition, missionProvider, missionQuery, missionSchema, projectMission, missionUuid } from "../app/ho/learning/missions/schema";
+import { missionDefinition, missionProvider, missionQuery, missionSchema, projectMission, missionUuid, missionTableColumnKeys, formatMissionAuditTime, missionVerifiedActorName } from "../app/ho/learning/missions/schema";
 
 const id = "01900000-0000-7000-8000-000000000002";
 const row = { id, name: "Mori water", code: "MORI-1", status: "ACTIVE", level: 3,
@@ -46,7 +46,14 @@ test("PAP-1207: registered HO TDD module exposes explicit source-backed Archive,
   assert.equal(decideHostBoundary("bo.staging.pinohouse.art", "/ho/learning/missions").action, "not_found");
 });
 test("PAP-1207: only valid source MissionDefinition projected, never arbitrary metadata", () => {
-  assert.deepEqual(projectMission({ ...row, secret: "NEVER" }), row);
+  const projected = projectMission({ ...row, secret: "NEVER" });
+  assert.equal(projected.path, "—");
+  assert.equal(projected.createdAt, "—");
+  assert.equal(projected.createdBy, "—");
+  assert.equal(projected.updatedAt, "—");
+  assert.equal(projected.updatedBy, "—");
+  assert.equal(Object.hasOwn(projected, "secret"), false);
+  assert.equal(projected.name, row.name);
   for (const patch of [{ id: "bad" }, { status: "COMPLETED" }, { name: "" }, { code: "" },
     { level: 6 }, { level: 0 }, { level: null }, { plsValue: -1 }, { paperSize: "A1" }]) {
     assert.throws(() => projectMission({ ...row, ...patch }), BoApiError);
@@ -56,15 +63,23 @@ test("PAP-1207: paginated real HO catalog and exact scoped GET detail with fail-
   const paths: string[] = [];
   const f: typeof fetch = async input => {
     const url = String(input); paths.push(url);
+    if (url === "/api/ho/learning/paths") return Response.json({ data: { paths: [
+      { id: "01900000-0000-7000-8000-000000000011", code: "artchitect", displayName: "Artchitect", status: "ACTIVE" },
+      { id: "01900000-0000-7000-8000-000000000012", code: "pianohouse", displayName: "PianoHouse", status: "ACTIVE" },
+      { id: "01900000-0000-7000-8000-000000000013", code: "little-piner-art", displayName: "Little Piner Art", status: "ACTIVE" },
+      { id: "01900000-0000-7000-8000-000000000014", code: "little-piner-piano", displayName: "Little Piner Piano", status: "ACTIVE" },
+    ] } });
     if (url.includes("/" + id)) return Response.json({ data: row });
-    return Response.json({ data: paths.length === 1 ? [row] : [] });
+    return Response.json({ data: [row] });
   };
   const list = await missionProvider.list(missionQuery, { surface: "HO" }, f, signal());
   assert.equal(list.total, 1);
   assert.equal(list.records[0]?.row.name, row.name);
   assert.match(paths[0]!, /\/api\/bo\/learning\/missions\?limit=50&offset=0/);
   assert.equal((await missionProvider.detail(id, { surface: "HO" }, f, signal()))?.row.id, id);
-  assert.equal(paths[1], "/api/bo/learning/missions/" + id);
+  assert.equal(paths[1], "/api/ho/learning/paths");
+  assert.equal(paths[2], "/api/bo/learning/missions/" + id);
+  assert.equal(paths[3], "/api/ho/learning/paths");
   await assert.rejects(missionProvider.list(missionQuery, { surface: "BO", centerId: id }, f, signal()), BoApiError);
   await assert.rejects(missionProvider.detail(id, { surface: "BO", centerId: id }, f, signal()), BoApiError);
   await assert.rejects(missionProvider.detail("bad", { surface: "HO" }, f, signal()), BoApiError);
@@ -75,4 +90,43 @@ test("PAP-1207: paginated real HO catalog and exact scoped GET detail with fail-
   await assert.rejects(missionProvider.detail(id, { surface: "HO" }, async () => Response.json({ data: { ...row, paperSize: undefined } }), signal()), BoApiError);
   await assert.rejects(missionProvider.list(missionQuery, { surface: "HO" }, async () => Response.json({ data: [row, row] }), signal()), BoApiError);
   await assert.rejects(missionProvider.list(missionQuery, { surface: "HO" }, async () => Response.json({ error: "denied" }, { status: 403 }), signal()));
+});
+
+test("PAP-1207 S3 Founder G0 primary Table is exactly ten ordered fields, with no technical or paper-size column", () => {
+  const keys = ["name","code","level","status","plsValue","path","createdAt","createdBy","updatedAt","updatedBy"];
+  assert.deepEqual(missionTableColumnKeys, keys);
+  assert.deepEqual(missionQuery.visible, keys);
+  assert.deepEqual(missionQuery.order, keys);
+  assert.deepEqual(missionDefinition.table.columns.map(x => x.field), keys);
+  assert.ok(missionDefinition.table.columns.every(x => x.visible));
+  for (const x of ["paperSize", "prerequisite", "description", "guideline", "id"])
+    assert.ok(!missionDefinition.table.columns.some(c => c.field === x), x);
+  assert.deepEqual(missionDefinition.table.search.fields, ["name", "code", "path"]);
+  assert.deepEqual(missionDefinition.table.filters.fields, ["status", "level", "path"]);
+  assert.equal(missionDefinition.capabilities.read, "catalog.learning.view");
+});
+test("PAP-1207 S3 reads authentic Vietnam-local Core timestamps and no guessed actor identities", () => {
+  assert.equal(formatMissionAuditTime("2026-08-25T17:00:00.000Z"), "26/08/2026 · 00:00");
+  assert.equal(formatMissionAuditTime("2026-08-26T00:00:00+07:00"), "26/08/2026 · 00:00");
+  assert.equal(formatMissionAuditTime(""), "—");
+  assert.equal(formatMissionAuditTime("unverified"), "—");
+  assert.equal(formatMissionAuditTime(null), "—");
+  assert.equal(missionVerifiedActorName(null), "—");
+  assert.equal(missionVerifiedActorName("somebody@pinohouse.art"), "—");
+  assert.equal(missionVerifiedActorName("01900000-0000-7000-8000-000000000011"), "—");
+  assert.equal(missionVerifiedActorName("  Nguyễn Văn An  "), "Nguyễn Văn An");
+  const value = projectMission({ ...row, createdAt:"2026-08-25T17:00:00Z", updatedAt:"2026-08-26T00:00:00Z",
+    createdBy: "email.user@pinohouse.art", updatedBy: "01900000-0000-7000-8000-000000000011",
+    createdByVerifiedLegalName: null, updatedByVerifiedLegalName: null });
+  assert.equal(value.createdAt, "26/08/2026 · 00:00");
+  assert.equal(value.updatedAt, "26/08/2026 · 07:00");
+  assert.equal(value.createdBy, "—");
+  assert.equal(value.updatedBy, "—");
+});
+test("PAP-1207 S3 Path labels require matching authorized Core Path ID and snapshot", () => {
+  const options = [{id:"01900000-0000-7000-8000-000000000011",code:"artchitect",label:"Artchitect"}] as const;
+  const full = projectMission({...row, pathProgramId:options[0].id,pathKeySnapshot:options[0].code},options);
+  assert.equal(full.path,"Artchitect");
+  assert.equal(projectMission({...row,pathProgramId:options[0].id,pathKeySnapshot:"pianohouse"},options).path,"—");
+  assert.equal(projectMission({...row,pathProgramId:"01900000-0000-7000-8000-000000000012",pathKeySnapshot:options[0].code},options).path,"—");
 });
