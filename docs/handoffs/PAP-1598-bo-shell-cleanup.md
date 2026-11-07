@@ -35,7 +35,9 @@ not proof of runtime admission. Detailed local evidence is in
   requires its own scope. No Founder/TOS code is modified by this PR.
 - `foundation.css` and its packaged stylesheet remain live in retained V2.3
   data-grid interiors. The content-only V2.3 token scope is preserved without
-  restoring old outer chrome. Build packaging and protected CI are unchanged.
+  restoring old outer chrome. Build packaging and protected CI are unchanged. The admission ledger adds five
+  exact PAP-1598 owner references for existing shared dependencies; no wildcard
+  admission or verifier relaxation is used.
 - No Core, API contract, D1, ACL grant, business writer, Mission source/CSS,
   shared DS source or authoritative i5 prototype changes.
 
@@ -54,7 +56,7 @@ not proof of runtime admission. Detailed local evidence is in
 - BO contract, runtime ownership, single Center owner, Staging route policy and
   Foundation verifiers: **PASS**; protected CI/build scripts are unchanged.
 - Local browser fixture: Production and Staging compositions at
-  **320/390/768/1440**, one app/sidebar/account footer, one visible mobile trigger,
+  **320/390/768/1440**, one app/sidebar/account footer, one mobile trigger when displayed,
   no page overflow in the controlled fixture. Mobile menu, authorized Center
   switch, scoped deep link, Back and invalid Center handling verified.
 - Nested Production detail selects the correct sidebar item and retains My

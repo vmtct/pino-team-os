@@ -100,6 +100,6 @@ function saveRecentCenter(centerId: string): void {
  * retained content into Staging-only data adapters. */
 export function BoContentCenterBoundary({ staging, children }: { staging: boolean; children: React.ReactNode }) {
   const selection = useContext(Context);
-  return <Context.Provider value={staging ? selection : null}>{staging ? children : <div data-bo-design-system="v23" style={{ display: "contents" }}>{children}</div>}</Context.Provider>;
+  return <Context.Provider value={staging ? selection : null}>{staging ? children : <div data-bo-design-system="v23">{children}</div>}</Context.Provider>;
 }
 export const useBoCenterSelection = () => useContext(Context);
