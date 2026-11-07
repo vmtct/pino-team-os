@@ -1,3 +1,4 @@
+import {handleBoSelfCreateRequest, type BoSelfCreateEnv} from "@/lib/bo-self-create-handler";
 import {handleBoBillsRequest,isBoBillsPath} from "@/lib/bo-bills-handler";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { handleBoPublicViewRequest, type BoPublicViewEnv } from "@/lib/bo-public-view-handler";
@@ -21,7 +22,7 @@ import { handleReviewedEnrollmentActivation, REVIEWED_ENROLLMENT_ACTIVATION_PATH
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type BoEnv = BoSelfLoadoutEnv & BoSelfItemEnv & BoMissionWriteEnv & BoPublicViewEnv & BoReadEnv & BoWriteEnv & BoWorkforcePlanningEnv & BoWorkforceTrainingEnv & BoWorkforceDutyExceptionEnv & BoPayrollReviewEnv & BoPayrollPeriodEnv & ReviewedEnrollmentEnv & BoPracticeMediaEnv & BoSyllabusMediaEnv & BoStaffPrivateEnv & BoWardSetMediaEnv & BoPinoriaWorldMediaEnv;
+type BoEnv = BoSelfCreateEnv & BoSelfLoadoutEnv & BoSelfItemEnv & BoMissionWriteEnv & BoPublicViewEnv & BoReadEnv & BoWriteEnv & BoWorkforcePlanningEnv & BoWorkforceTrainingEnv & BoWorkforceDutyExceptionEnv & BoPayrollReviewEnv & BoPayrollPeriodEnv & ReviewedEnrollmentEnv & BoPracticeMediaEnv & BoSyllabusMediaEnv & BoStaffPrivateEnv & BoWardSetMediaEnv & BoPinoriaWorldMediaEnv;
 type RouteContext = { params: Promise<{ path: string[] }> };
 
 export async function GET(request: Request, context: RouteContext): Promise<Response> {
@@ -49,6 +50,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
   if (isBoBillsPath(joined)) return handleBoBillsRequest(request, env, joined);
   if (isBoSelfLoadoutPath(joined)) return handleBoSelfLoadoutRequest(request, env, joined);
   if (isBoSelfItemPath(joined)) return handleBoSelfItemRequest(request, env, joined);
+  if (joined === "pinoria/avatars") return handleBoSelfCreateRequest(request, env, joined);
   if (joined.startsWith("views/")) return handleBoPublicViewRequest(request, env, joined);
   if (isBoMissionAssignmentWritePath(joined) && request.method !== "GET") return handleBoMissionAssignmentWrite(request, env, joined);
   if (isBoWorkforcePlanningPath(joined)) return handleBoWorkforcePlanningRequest(request, env, joined);
