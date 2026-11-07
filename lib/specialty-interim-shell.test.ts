@@ -17,7 +17,7 @@ const schema = registry.register({...specialtyDefinition,data:{id:"test-only-spe
 const context = {surface:"HO" as const,authorize:(permission:string)=>permission==="catalog.learning.view"};
 const record:ModuleRow<typeof specialtyDefinition.fields> = {
   id:"specialty-test",name:"Chuyên đề hình khối",path:"Mỹ thuật",status:"ACTIVE",description:"Quan sát hình khối",
-  levelCount:2,prerequisiteView:"",tagView:"Hình khối",missionCount:3,
+  levelCount:2,prerequisiteView:"",tagView:["Hình khối"],missionCount:3,
   createdTime:"—",createdBy:"—",lastModifiedTime:"—",lastModifiedBy:"—",
 };
 const noop=()=>{};
