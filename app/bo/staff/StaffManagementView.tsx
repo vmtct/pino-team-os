@@ -12,6 +12,7 @@ import { boDataGridRange } from "@/lib/bo-data-grid-state";
 import { staffDirectoryHref, staffFullDetailHref } from "@/lib/bo-staff-detail-navigation";
 import { buildStaffQuickPeekModel } from "@/lib/bo-staff-quick-peek";
 import { STAFF_DETAIL_TABS, resolveStaffDetailTab, staffDetailTabHref } from "@/lib/bo-staff-detail-tabs";
+import { StaffCompensationTab } from "./StaffCompensationTab";
 import { offboardStaff } from "@/lib/bo-staff-offboarding";
 import { createStaffPrivateRevealFence } from "@/lib/staff-private-reveal-fence";
 import type { BoAccessRole, BoAccessUser, BoCenter, BoContext, BoPathProgram, BoRunningClass, BoStaffPinoriaProjection, BoPinoriaOnboardingStatus, BoStaffPrivateData, BoStaffProfile, BoStaffProfilePatch, BoStaffRecord } from "@/lib/bo-model";
@@ -597,7 +598,8 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
           </>}
         </section> : null}
         {(["profile", "pinoria", "access"] as const).includes(activeTab as "profile" | "pinoria" | "access") ? detailContents : null}
-        {(["assignments", "training", "income", "audit"] as const).includes(activeTab as "assignments" | "training" | "income" | "audit")
+        {activeTab === "income" && selectedId && profile ? <StaffCompensationTab key={selectedId} staffId={selectedId} centers={privateCenterOptions} /> : null}
+        {(["assignments", "training", "audit"] as const).includes(activeTab as "assignments" | "training" | "audit")
           ? <section className={styles.panel} data-testid="staff-v2-unavailable"><h2>{STAFF_DETAIL_TABS.find(tab => tab.key === activeTab)?.label}</h2><p>Chức năng đang được triển khai. Chưa có dữ liệu được xác minh để hiển thị.</p></section> : null}
       </div> : <BoDataGridSidePeek title={selected?.displayLabel ?? "Staff"} eyebrow="Workforce · Staff quick peek" onClose={() => selectStaff("")}>
         <div className={styles.staffQuickPeek} data-testid="staff-quick-peek">
