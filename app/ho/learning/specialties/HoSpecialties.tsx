@@ -9,7 +9,8 @@ import { browserTddNavigation, type AdapterNavigation } from "@/lib/workspace-ad
 import { TddRegistry } from "@/lib/workspace-schema";
 import { BoApiError } from "@/lib/bo-api-error";
 import { readSpecialtyV2PathOptions, createSpecialtyV2Draft, type SpecialtyV2PathOption } from "@/lib/ho-specialty-v2-reader";
-import { HoSpecialtyMissionsRead } from "./HoSpecialtyMissionsRead";
+import { HoSpecialtyMissionsEdit } from "./HoSpecialtyMissionsEdit";
+import { HoSpecialtyOverviewEdit } from "./HoSpecialtyOverviewEdit";
 import { DrawerFrame } from "@/app/components/workspace-renderer/DrawerFrame";
 import createStyles from "./HoSpecialtyCreate.module.css";
 import { specialtyDefinition, specialtyFields, specialtyProvider, specialtyQuery, verifySpecialtyExtension, validateSpecialtyDraft, shouldPrimeSpecialtyS4Detail, type SpecialtyDraft } from "./schema";
@@ -42,8 +43,11 @@ export function HoSpecialties() {
   const content=error?<p role="alert">{error} <button type="button" onClick={()=>{setReady(null);setError("");setRetry(n=>n+1);}}>Thử lại</button></p>
     :ready?<><SurfaceWorkspace adapter={ready.adapter} navigation={ready.navigation} initialQuery={specialtyQuery}
       tableHeaderActions={<button className="primary-btn" type="button" onClick={()=>setCreateOpen(true)}>＋ Tạo chuyên đề</button>}
-      detailApprovedExtension={(row,_context,tab)=>tab==="missions"?
-        <HoSpecialtyMissionsRead key={row.id} specialtyId={row.id}/>:null}/>
+      detailProperties={(properties,context,_actor,onSaved)=><HoSpecialtyOverviewEdit key={properties.record.id}
+        properties={properties} canManage={context.authorize("catalog.learning.manage")} onSaved={onSaved}/>}
+      detailApprovedExtension={(row,context,tab,_actor,onSaved)=>tab==="missions"?
+        <HoSpecialtyMissionsEdit key={row.id} specialtyId={row.id}
+          canManage={context.authorize("catalog.learning.manage")} onSaved={onSaved}/>:null}/>
       {createOpen ? <SpecialtyCreateDrawer onClose={()=>setCreateOpen(false)}
         onCreated={()=>{setCreateOpen(false);setRetry(n=>n+1);}} /> : null}
     </>:<p role="status">Đang tải Chuyên đề…</p>;
