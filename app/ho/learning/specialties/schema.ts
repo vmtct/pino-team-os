@@ -78,6 +78,14 @@ export function specialtyPathLabel(id:string,paths:readonly SpecialtyV2PathOptio
  if(!option)throw new BoApiError(502,'Core trả Path Chuyên đề không hợp lệ.',null);
  return option.label;
 }
+/** PAP-1495 / PAP-1491 S4: on a new, authorized deep link, ?record opens
+ * Full Detail; an existing Quick Drawer in this same module must remain Drawer.
+ * The shared TDD navigation contract for other modules is unchanged. */
+export function shouldPrimeSpecialtyS4Detail(
+ kind:"table"|"drawer"|"detail", recordId:string|undefined, ownedRecordId:string|undefined,
+):boolean {
+ return kind==="drawer"&&Boolean(recordId)&&recordId!==ownedRecordId;
+}
 /** PAP-1495 S3: UI labels never replace Core lifecycle codes in DTOs. */
 export const specialtyStatusLabel = (status:SpecialtyV2Summary["status"]):string => ({DRAFT:"Bản nháp",ACTIVE:"Đang áp dụng",ARCHIVED:"Đã lưu trữ"})[status];
 const summaryRow=(s:SpecialtyV2Summary,paths:readonly SpecialtyV2PathOption[]):ModuleRow<F>=>({

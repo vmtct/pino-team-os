@@ -12,7 +12,7 @@ import { readSpecialtyV2PathOptions, createSpecialtyV2Draft, type SpecialtyV2Pat
 import { HoSpecialtyMissionsRead } from "./HoSpecialtyMissionsRead";
 import { DrawerFrame } from "@/app/components/workspace-renderer/DrawerFrame";
 import createStyles from "./HoSpecialtyCreate.module.css";
-import { specialtyDefinition, specialtyFields, specialtyProvider, specialtyQuery, verifySpecialtyExtension, validateSpecialtyDraft, type SpecialtyDraft } from "./schema";
+import { specialtyDefinition, specialtyFields, specialtyProvider, specialtyQuery, verifySpecialtyExtension, validateSpecialtyDraft, shouldPrimeSpecialtyS4Detail, type SpecialtyDraft } from "./schema";
 
 type F = typeof specialtyFields;
 type Ready = {adapter:AuthenticatedSurfaceAdapter<F>;navigation:AdapterNavigation<F>};
@@ -29,7 +29,12 @@ export function HoSpecialties() {
       definition:specialtyDefinition,provider:specialtyProvider},controller.signal).then(result=>{
         adapter=result;
         if(controller.signal.aborted){result.dispose();return;}
-        setReady({adapter:result,navigation:browserTddNavigation("HO","specialties",specialtyQuery)});
+        const navigation=browserTddNavigation("HO","specialties",specialtyQuery);
+        const initial=navigation.read();
+        const owned=window.history.state?.["pino:tdd:HO:specialties"] as {recordId?:string}|undefined;
+        if(shouldPrimeSpecialtyS4Detail(initial.kind,initial.recordId,owned?.recordId))
+          navigation.change({...initial,kind:"detail",tab:"overview"},true);
+        setReady({adapter:result,navigation});
       }).catch(error=>{if(!controller.signal.aborted)setError(error instanceof BoApiError && [401,403].includes(error.status)
         ?"Bạn không có quyền xem Chuyên đề.":"Chưa tải được danh mục Chuyên đề.");});
     return ()=>{controller.abort();adapter?.dispose();};

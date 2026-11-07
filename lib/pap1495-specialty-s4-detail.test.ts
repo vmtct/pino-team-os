@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createElement as h } from "react";
 import { renderToStaticMarkup as html } from "react-dom/server";
-import { specialtyProvider,specialtyFields,specialtyPrerequisiteLabels } from "../app/ho/learning/specialties/schema";
+import { specialtyProvider,specialtyFields,specialtyPrerequisiteLabels,shouldPrimeSpecialtyS4Detail } from "../app/ho/learning/specialties/schema";
 import { loadSpecialtyS4Read } from "./ho-specialty-s4-read";
 import type { SpecialtyV2Summary } from "./ho-specialty-v2-reader";
 import { SpecialtyMissionsReadContent } from "../app/ho/learning/specialties/HoSpecialtyMissionsRead";
@@ -83,4 +83,13 @@ test("PAP-1495 S4: wrong-Path Mission does not become a verified label",async()=
 test("PAP-1495 S4: 403 on Core detail remains denial, never empty",async()=>{
  const fetcher:typeof fetch=async()=>new Response(null,{status:403});
  await assert.rejects(loadSpecialtyS4Read(id,fetcher,ac()),{status:403});
+});
+
+test("PAP-1495 S4: fresh validated Specialty ?record deep-link opens Detail; internal Drawer is preserved",()=>{
+  assert.equal(shouldPrimeSpecialtyS4Detail("drawer",id,undefined),true);
+  assert.equal(shouldPrimeSpecialtyS4Detail("drawer",id,prereq),true);
+  assert.equal(shouldPrimeSpecialtyS4Detail("drawer",id,id),false);
+  assert.equal(shouldPrimeSpecialtyS4Detail("detail",id,undefined),false);
+  assert.equal(shouldPrimeSpecialtyS4Detail("table",undefined,undefined),false);
+  assert.equal(shouldPrimeSpecialtyS4Detail("drawer",undefined,undefined),false);
 });
