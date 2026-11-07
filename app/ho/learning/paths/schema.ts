@@ -9,13 +9,15 @@ const read = { display: true, search: true, filter: true, sort: true, group: tru
 export const pathFields = [
   { key: "name", label: "Tên Path", type: "text", icon: "Aa", width: 250, permission: "bo.operations.view", readOnly: true, capabilities: read },
   { key: "code", label: "Mã Path", type: "text", icon: "#", width: 205, permission: "bo.operations.view", readOnly: true, capabilities: read },
-  { key: "group", label: "Nhóm", type: "text", icon: "Aa", width: 115, permission: "bo.operations.view", readOnly: true, capabilities: read },
+  { key: "group", label: "Nhóm (Art/Music)", type: "text", icon: "Aa", width: 115, permission: "bo.operations.view", readOnly: true, capabilities: read },
   { key: "status", label: "Trạng thái", type: "text", icon: "Aa", width: 145, permission: "bo.operations.view", readOnly: true, capabilities: read },
   { key: "createdAt", label: "Created Time", type: "text", icon: "◷", width: 225, permission: "bo.operations.view", readOnly: true, capabilities: read },
   { key: "createdBy", label: "Created by (User)", type: "text", icon: "Aa", width: 220, permission: "bo.operations.view", readOnly: true, capabilities: read },
+  { key: "updatedAt", label: "Last Modified Time", type: "text", icon: "◷", width: 225, permission: "bo.operations.view", readOnly: true, capabilities: read },
+  { key: "updatedBy", label: "Last Modified By (User)", type: "text", icon: "Aa", width: 230, permission: "bo.operations.view", readOnly: true, capabilities: read },
 ] as const satisfies readonly FieldSchema[];
 type F = typeof pathFields;
-const columns = ["name", "code", "group", "status", "createdAt", "createdBy"] as const;
+const columns = ["name", "code", "group", "status", "createdAt", "createdBy", "updatedAt", "updatedBy"] as const;
 const sections = [{ id: "path-info", label: "Thông tin Path", fields: columns }] as const;
 const searchable = ["name", "code", "group", "status"] as const;
 export const pathQuery: TableQuery<F> = {
