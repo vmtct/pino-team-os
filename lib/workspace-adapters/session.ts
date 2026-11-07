@@ -41,6 +41,15 @@ export function surfaceSession(surface: "BO" | "HO", origin: string | undefined,
     const admittedHoDiary = surface === "HO" && method === "GET" && /^\/api\/ho\/learning\/path-diaries(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/mission-links)?)?$/i.test(url.pathname);
     // PAP-1342: exact same-origin Founder Mission detail read for source-owned Diary label.
     const admittedHoMissionDetail = surface === "HO" && method === "GET" && /^\/api\/ho\/learning\/missions\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(url.pathname);
+    // PAP-1495 / PAP-1491 SPEC-UNLOCK: only real Founder V2 Catalog GET reads.
+    // No BO surrogate, cross-origin auth, writes or generic /api/ho escape.
+    const specialtyParams=url.searchParams;
+    const admittedHoSpecialtyList=surface==="HO" && method==="GET" &&
+      url.pathname==="/api/ho/learning/specialties" &&
+      [...specialtyParams.keys()].every(key=>["limit","offset","status","search","pathProgramId"].includes(key) &&
+        specialtyParams.getAll(key).length===1);
+    const admittedHoSpecialtyDetail=surface==="HO" && method==="GET" && !url.search &&
+      /^\/api\/ho\/learning\/specialties\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(url.pathname);
     // PAP-1407 / PAP-220: Founder HO Staff link READ ONLY. Core + HO BFF reauthorize.
     const admittedHoStaffLinkRead = surface === "HO" && method === "GET" && url.search === "" &&
       /^\/api\/ho\/staff-center-links\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(url.pathname);
@@ -51,7 +60,7 @@ export function surfaceSession(surface: "BO" | "HO", origin: string | undefined,
       (!url.searchParams.has("limit") || (/^[1-9][0-9]*$/.test(url.searchParams.get("limit")!) &&
         Number(url.searchParams.get("limit")) <= 50)) &&
       (!url.searchParams.has("cursor") || /^[A-Za-z0-9_-]{20,2048}$/.test(url.searchParams.get("cursor")!));
-    if (url.origin !== base.origin || !(url.pathname.startsWith("/api/bo/") || admittedHoBills || admittedHoGlobalTerms || admittedHoPassInventory || admittedHoGlobalTermWeeksRead || admittedHoShiftTemplateRead || admittedHoDiary || admittedHoMissionDetail || admittedHoMissionHistory || admittedHoStaffLinkRead) || url.username || url.password || url.hash ||
+    if (url.origin !== base.origin || !(url.pathname.startsWith("/api/bo/") || admittedHoBills || admittedHoGlobalTerms || admittedHoPassInventory || admittedHoGlobalTermWeeksRead || admittedHoShiftTemplateRead || admittedHoDiary || admittedHoMissionDetail || admittedHoMissionHistory || admittedHoStaffLinkRead || admittedHoSpecialtyList || admittedHoSpecialtyDetail) || url.username || url.password || url.hash ||
         /%2f|%5c|\.\./i.test(url.pathname) || decideHostBoundary(base.host, url.pathname, method).action !== "next" ||
         (surface === "HO" && method !== "GET" && !admittedHoGlobalTerms)) throw adapterError(404);
     const headers = new Headers(init?.headers);
