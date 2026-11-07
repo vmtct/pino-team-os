@@ -26,9 +26,8 @@ export const missionFields = [
   { key: "updatedBy", label: "Last Modified By (User)", type: "text", icon: "Aa", width: 235, permission, readOnly: true, capabilities: read },
 ] as const satisfies readonly FieldSchema[];
 type F = typeof missionFields;
-const fieldKeys = missionFields.map(f => f.key);
-// PAP-1188 Founder G0: exact S3 PRIMARY Table manifest. Legacy Drawer/Detail
-// remain separately gated for S4; their existing definitions are retained.
+// PAP-1188 Founder G0/S3 and Founder-authorized S4 share the exact same ten
+// Core-backed property keys in Table, Quick View Drawer and Full Detail.
 export const missionTableColumnKeys = ["name", "code", "level", "status", "plsValue", "path",
   "createdAt", "createdBy", "updatedAt", "updatedBy"] as const;
 export const missionQuery: TableQuery<F> = {
@@ -59,9 +58,9 @@ export const missionDefinition = {
     inlineEdit: { enabled: false, fields: [] },
     interaction: { settings: ["properties", "grouping", "filters", "quick-views"], quickView: "separate-opener", keyboard: "canonical", undo: "local-ui-only" },
   },
-  drawer: { density: "one-column", sections: [{ id: "mission-summary", label: "Mission", fields: ["name", "code", "status", "level", "plsValue", "paperSize", "path"] }], actions: [] },
+  drawer: { density: "one-column", sections: [{ id: "mission-summary", label: "Nhiệm vụ", fields: [...missionTableColumnKeys] }], actions: [] },
   detail: {
-    overview: { sections: [{ id: "mission-data", label: "Mission Definition", fields: fieldKeys }] },
+    overview: { sections: [{ id: "mission-data", label: "Nhiệm vụ", fields: [...missionTableColumnKeys] }] },
     businessTabs: [],
     history: { kind: "unavailable", reason: "Lịch sử cập nhật Mission chưa được kết nối với Core; không tạo dữ liệu thay thế." },
   },

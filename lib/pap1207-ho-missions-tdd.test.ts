@@ -154,3 +154,31 @@ test("PAP-1221/PAP-1207 MISSION S3 HO TDD session admits ONLY canonical Path GET
   assert.deepEqual(calls, [origin + "/api/ho/learning/paths"]);
   session.dispose();
 });
+test("PAP-1207 / PAP-1188 MISSION S4 Quick View and Full Detail strictly match the ten-property manifest", () => {
+  const ten = [...missionTableColumnKeys];
+  assert.equal(ten.length, 10);
+  assert.deepEqual(ten, ["name", "code", "level", "status", "plsValue", "path",
+    "createdAt", "createdBy", "updatedAt", "updatedBy"]);
+  assert.equal(missionDefinition.drawer.density, "one-column");
+  assert.deepEqual(missionDefinition.drawer.sections, [{ id: "mission-summary", label: "Nhiệm vụ", fields: ten }]);
+  assert.deepEqual(missionDefinition.detail.overview.sections, [{ id: "mission-data", label: "Nhiệm vụ", fields: ten }]);
+  const keys = new Set(ten);
+  for (const surface of [missionDefinition.drawer.sections, missionDefinition.detail.overview.sections]) {
+    for (const section of surface) {
+      assert.equal(section.fields.length, keys.size);
+      assert.ok(section.fields.every(field => keys.has(field)));
+      for (const legacy of ["paperSize", "prerequisite", "description", "guideline", "id"])
+        assert.ok(!section.fields.includes(legacy as never), "Unexpected S4 field: " + legacy);
+    }
+  }
+  // S4 is read only; the S2 Create and later S5 Edit writer paths remain distinct.
+  assert.equal(missionProvider.mutation, undefined);
+  assert.equal(missionDefinition.drawer.actions.length, 0);
+  assert.deepEqual(composeTabs(missionSchema).map(t => t.id), ["overview", "history"]);
+  assert.equal(missionProvider.history?.subjectType, "learning_mission");
+  const binder = missionProvider.history?.bind(
+    (async () => Response.json({ data: { events: [], nextCursor: null } })) as typeof fetch,
+    { surface: "HO" },
+  );
+  assert.equal(binder?.kind, "provider");
+});
