@@ -91,9 +91,14 @@ export const specialtySchema = specialtyRegistry.register({ ...specialtyDefiniti
   list: async () => { throw new Error("SPECIALTY_V2_READER_UNAVAILABLE"); },
   detail: async () => { throw new Error("SPECIALTY_V2_READER_UNAVAILABLE"); },
 }});
+/** PAP-1495 / PAP-1491: display only 4 Founder-approved canonical codes.
+ * Actual UUIDs must be fetched from Core (never hardcode staging Path IDs).
+ */
 export const specialtyVisualPaths = Object.freeze([
-  { code: "art-foundation", label: "Art Foundation" },
-  { code: "piano-foundation", label: "Piano Foundation" },
+  { code: "little-piner-art", label: "Little Piner Art" },
+  { code: "little-piner-piano", label: "Little Piner Piano" },
+  { code: "artchitect", label: "Artchitect" },
+  { code: "pianohouse", label: "PianoHouse" },
 ]);
 export type SpecialtyDraft = { name: string; pathCode: string; description: string };
 export function validateSpecialtyDraft(draft: SpecialtyDraft): string | null {

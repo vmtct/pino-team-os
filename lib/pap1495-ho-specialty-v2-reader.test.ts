@@ -82,7 +82,7 @@ test("PAP-1495 host admission permits only HO Staging GET list and canonical det
   assert.equal(decideHostBoundary(host,list,"GET").action,"not_found");
   assert.equal(decideHostBoundary(host,detail,"GET").action,"not_found");
  }
- for(const [path,method] of [[list,"POST"],[detail,"PUT"],[list+"/unknown","GET"]]){
+ for(const [path,method] of [[detail,"PUT"],[list+"/unknown","GET"],[list+"/path-options","POST"]]){
   assert.equal(decideHostBoundary(HO_STAGING_HOSTNAME,path,method).action,"not_found");
  }
 });

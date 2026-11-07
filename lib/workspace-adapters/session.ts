@@ -48,6 +48,8 @@ export function surfaceSession(surface: "BO" | "HO", origin: string | undefined,
       url.pathname==="/api/ho/learning/specialties" &&
       [...specialtyParams.keys()].every(key=>["limit","offset","status","search","pathProgramId"].includes(key) &&
         specialtyParams.getAll(key).length===1);
+    const admittedHoSpecialtyOptions=surface==="HO" && method==="GET" && !url.search &&
+      url.pathname==="/api/ho/learning/specialties/path-options";
     const admittedHoSpecialtyDetail=surface==="HO" && method==="GET" && !url.search &&
       /^\/api\/ho\/learning\/specialties\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(url.pathname);
     // PAP-1407 / PAP-220: Founder HO Staff link READ ONLY. Core + HO BFF reauthorize.
@@ -60,7 +62,7 @@ export function surfaceSession(surface: "BO" | "HO", origin: string | undefined,
       (!url.searchParams.has("limit") || (/^[1-9][0-9]*$/.test(url.searchParams.get("limit")!) &&
         Number(url.searchParams.get("limit")) <= 50)) &&
       (!url.searchParams.has("cursor") || /^[A-Za-z0-9_-]{20,2048}$/.test(url.searchParams.get("cursor")!));
-    if (url.origin !== base.origin || !(url.pathname.startsWith("/api/bo/") || admittedHoBills || admittedHoGlobalTerms || admittedHoPassInventory || admittedHoGlobalTermWeeksRead || admittedHoShiftTemplateRead || admittedHoDiary || admittedHoMissionDetail || admittedHoMissionHistory || admittedHoStaffLinkRead || admittedHoSpecialtyList || admittedHoSpecialtyDetail) || url.username || url.password || url.hash ||
+    if (url.origin !== base.origin || !(url.pathname.startsWith("/api/bo/") || admittedHoBills || admittedHoGlobalTerms || admittedHoPassInventory || admittedHoGlobalTermWeeksRead || admittedHoShiftTemplateRead || admittedHoDiary || admittedHoMissionDetail || admittedHoMissionHistory || admittedHoStaffLinkRead || admittedHoSpecialtyList || admittedHoSpecialtyDetail || admittedHoSpecialtyOptions) || url.username || url.password || url.hash ||
         /%2f|%5c|\.\./i.test(url.pathname) || decideHostBoundary(base.host, url.pathname, method).action !== "next" ||
         (surface === "HO" && method !== "GET" && !admittedHoGlobalTerms)) throw adapterError(404);
     const headers = new Headers(init?.headers);

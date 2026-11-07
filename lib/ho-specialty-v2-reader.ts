@@ -60,6 +60,56 @@ export async function readSpecialtyV2List(fetcher:typeof fetch,signal:AbortSigna
  }
  throw new BoApiError(503,"Danh mục Chuyên đề vượt giới hạn tải.",null);
 }
+
+/** PAP-1495 / PAP-1491 — four active canonical Path IDs resolved from Core. */
+export interface SpecialtyV2PathOption {id:string;code:string;label:string}
+const canonicalCodes=['little-piner-art','little-piner-piano','artchitect','pianohouse'] as const;
+export async function readSpecialtyV2PathOptions(fetcher:typeof fetch,signal:AbortSignal):Promise<SpecialtyV2PathOption[]>{
+ const data=await getData('/api/ho/learning/specialties/path-options',fetcher,signal);
+ if(!Array.isArray(data)||data.length!==4)
+  throw new BoApiError(502,'Core trả danh sách Path không hợp lệ.',null);
+ const byCode=new Map<string,SpecialtyV2PathOption>();
+ const ids=new Set<string>();
+ for(const row of data){
+  if(!record(row)||typeof row.id!=='string'||!uuid.test(row.id)||
+     typeof row.code!=='string'||!canonicalCodes.includes(row.code as typeof canonicalCodes[number])||
+     typeof row.label!=='string'||!row.label.trim()||byCode.has(row.code)||ids.has(row.id))
+   throw new BoApiError(502,'Core trả danh sách Path không hợp lệ.',null);
+  byCode.set(row.code,{id:row.id,code:row.code,label:row.label});ids.add(row.id);
+ }
+ if(byCode.size!==canonicalCodes.length||canonicalCodes.some(c=>!byCode.has(c)))
+  throw new BoApiError(502,'Core trả danh sách Path không hợp lệ.',null);
+ return canonicalCodes.map(c=>byCode.get(c)!);
+}
+/** Founder create requires explicit 201 and an independent Core detail readback. */
+export async function createSpecialtyV2Draft(
+ payload:{name:string;pathProgramId:string;description:string|null},
+ key:string,fetcher:typeof fetch,signal:AbortSignal,
+):Promise<SpecialtyV2Detail>{
+ if(!uuid.test(payload.pathProgramId)||!key||!payload.name.trim())
+  throw new BoApiError(400,'Thông tin Chuyên đề không hợp lệ.',null);
+ const response=await fetcher('/api/ho/learning/specialties',{
+  method:'POST',signal,credentials:'same-origin',cache:'no-store',redirect:'error',
+  headers:{'content-type':'application/json','idempotency-key':key},
+  body:JSON.stringify(payload),
+ });
+ signal.throwIfAborted();
+ if(response.status!==201)throw new BoApiError(response.status,
+  response.status===403?'Không có quyền tạo Chuyên đề.':
+  response.status===409?'Yêu cầu tạo bị xung đột.':'Không thể tạo Chuyên đề.',response.headers.get('x-request-id'));
+ const envelope:unknown=await response.json();
+ if(!record(envelope))throw new BoApiError(502,'Core trả kết quả tạo không hợp lệ.',null);
+ const data=parseSpecialtyDetail(envelope.data);
+ if(!data||data.status!=='DRAFT'||data.version!==1||data.pathProgramId!==payload.pathProgramId||
+    data.name!==payload.name.trim()||data.description!==payload.description)
+  throw new BoApiError(502,'Core trả kết quả tạo không hợp lệ.',null);
+ const readback=await readSpecialtyV2Detail(data.id,fetcher,signal);
+ if(readback.version!==1||readback.status!=='DRAFT'||readback.pathProgramId!==payload.pathProgramId||
+    readback.name!==data.name||readback.description!==data.description)
+  throw new BoApiError(409,'Chuyên đề đã tạo nhưng chưa xác minh được dữ liệu. Vui lòng thử lại.',null);
+ return readback;
+}
+
 export async function readSpecialtyV2Detail(id:string,fetcher:typeof fetch,signal:AbortSignal):Promise<SpecialtyV2Detail>{
  if(!uuid.test(id))throw new BoApiError(404,"Chuyên đề không hợp lệ.",null);
  const data=await getData("/api/ho/learning/specialties/"+id,fetcher,signal);

@@ -19,6 +19,7 @@ export function parseHoSpecialtyV2ReadRequest(request:Request,id?:string):
     url.username||url.password||url.hash) return {status:404,code:"PLATFORM_NOT_FOUND"};
  if(request.method!=="GET")return {status:405,code:"PLATFORM_METHOD_NOT_ALLOWED"};
  if(id!==undefined){
+  if(id==='path-options'&&!url.search)return {path:'learning/specialties/path-options'};
   if(!uuid.test(id)||url.search)return {status:404,code:"PLATFORM_NOT_FOUND"};
   return {path:"learning/specialties/"+id};
  }

@@ -863,6 +863,7 @@
       "tests": [
         "lib/specialty-interim-shell.test.ts",
         "lib/pap1495-ho-specialty-v2-reader.test.ts",
+        "lib/pap1495-specialty-draft-create.test.ts",
         "lib/ho-specialty-missions-tab.test.ts",
         "lib/specialty-mission-picker.test.ts",
         "lib/ho-routes.test.ts"
