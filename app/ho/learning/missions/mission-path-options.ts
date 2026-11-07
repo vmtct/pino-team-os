@@ -34,7 +34,9 @@ export async function loadMissionPathChoices(
   const envelope: unknown = await response.json();
   if (!envelope || typeof envelope !== "object" || !("data" in envelope))
     throw new Error("Danh sách Path từ Core không hợp lệ.");
-  const rows = mapHoPaths(envelope.data);
+  // Live HO Path API returns { data: Path[] }. Retain compatible legacy { data: { paths } }
+  // while reusing the strict source-owned Path validator; never fabricate Path identities.
+  const rows = mapHoPaths(Array.isArray(envelope.data) ? { paths: envelope.data } : envelope.data);
   const seenCodes = new Set<string>();
   const seenIds = new Set<string>();
   if (rows.length !== 4) throw new Error("Chưa đủ bốn Path canonical được xác minh.");

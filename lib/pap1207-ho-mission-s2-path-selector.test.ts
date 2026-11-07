@@ -16,7 +16,7 @@ function source(paths: readonly unknown[] = canonical, status = 200) {
   const calls: { input: RequestInfo | URL; init?: RequestInit }[] = [];
   const fetcher = (async (input: RequestInfo | URL, init?: RequestInit) => {
     calls.push({ input, init });
-    return new Response(JSON.stringify({ data: { paths } }), {
+    return new Response(JSON.stringify({ data: paths }), {
       status, headers: { "content-type": "application/json" },
     });
   }) as typeof fetch;
@@ -94,4 +94,16 @@ test("PAP-1207 S2 uses the original Dsa one-column edit-form / form-row CSS prim
   assert.doesNotMatch(source, /className="v25-form-field"/);
   assert.match(dsaCss, /\.edit-form\{display:flex;flex-direction:column;gap:16px/);
   assert.match(dsaCss, /\.form-row\{display:flex;flex-direction:column;gap:6px/);
+});
+test("PAP-1207 S3 canonical live HO Path envelope is data array and legacy nested is accepted", async () => {
+  const live = source().fetcher;
+  const rows = await loadMissionPathChoices(live);
+  assert.equal(rows.length, 4);
+  assert.equal(rows.find(x => x.code === "artchitect")?.id, canonical[0].id);
+  const nested = (async () => Response.json({ data: { paths: canonical } })) as typeof fetch;
+  assert.deepEqual(await loadMissionPathChoices(nested), rows);
+  for (const value of [null, {wrong: canonical}, {data: "not-array"}, {data: {paths: "not-array"}}, {data: [canonical[0]]}]) {
+    const malformed = (async () => Response.json(value)) as typeof fetch;
+    await assert.rejects(loadMissionPathChoices(malformed));
+  }
 });

@@ -63,12 +63,12 @@ test("PAP-1207: paginated real HO catalog and exact scoped GET detail with fail-
   const paths: string[] = [];
   const f: typeof fetch = async input => {
     const url = String(input); paths.push(url);
-    if (url === "/api/ho/learning/paths") return Response.json({ data: { paths: [
+    if (url === "/api/ho/learning/paths") return Response.json({ data: [
       { id: "01900000-0000-7000-8000-000000000011", code: "artchitect", displayName: "Artchitect", status: "ACTIVE" },
       { id: "01900000-0000-7000-8000-000000000012", code: "pianohouse", displayName: "PianoHouse", status: "ACTIVE" },
       { id: "01900000-0000-7000-8000-000000000013", code: "little-piner-art", displayName: "Little Piner Art", status: "ACTIVE" },
       { id: "01900000-0000-7000-8000-000000000014", code: "little-piner-piano", displayName: "Little Piner Piano", status: "ACTIVE" },
-    ] } });
+    ] });
     if (url.includes("/" + id)) return Response.json({ data: row });
     return Response.json({ data: [row] });
   };
