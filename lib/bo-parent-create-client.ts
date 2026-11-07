@@ -1,6 +1,14 @@
 import { BoApiError } from "./bo-api-error";
 import { recoverInvalidStaffPasswordSession } from "./staff-session-recovery";
 
+/** PAP-1550 / Epic PAP-1384: approved i5 Create Drawer has ONE contact input. */
+export function inferParentContactType(value: string): "PHONE" | "EMAIL" | null {
+  const contact = value.trim();
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact)) return "EMAIL";
+  if (/^[0-9+(). -]{9,18}$/.test(contact)) return "PHONE";
+  return null;
+}
+
 export type BoParentStandaloneCreateInput = {
   displayName: string;
   contacts: Array<{ identifierType: "PHONE" | "EMAIL"; value: string; isPrimary: boolean }>;
