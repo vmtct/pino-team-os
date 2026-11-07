@@ -933,6 +933,7 @@
         {"file":"lib/ho-specialty-s5-missions.ts","owner":"PAP-1495"},
         {"file":"lib/ho-specialty-s5-overview.ts","owner":"PAP-1495"},
         {"file":"lib/ho-specialty-v2-graph-client.ts","owner":"PAP-1495"},
+        {"file":"app/ho/learning/missions/schema.ts","owner":"PAP-1207"},
         {
           "file": "lib/workspace-adapters/session.ts",
           "owner": "PAP-1221"
