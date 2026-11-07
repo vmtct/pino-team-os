@@ -8,6 +8,9 @@ type Status="DRAFT"|"ACTIVE"|"ARCHIVED";
 export type SpecialtyV2Summary={
  id:string;pathProgramId:string;name:string;description:string|null;status:Status;
  tags:string[];version:number;missionCountDistinct:number;
+ /** Only verified Core-owned audit data is displayed; missing fields remain unavailable. */
+ createdAt?:string|null;updatedAt?:string|null;
+ createdByVerifiedLegalName?:string|null;updatedByVerifiedLegalName?:string|null;
 };
 export type SpecialtyV2Detail=SpecialtyV2Summary&{
  prerequisiteIds:string[];
@@ -23,8 +26,20 @@ export function parseSpecialtySummary(x:unknown):SpecialtyV2Summary|null{
    !Array.isArray(x.tags)||!x.tags.every(t=>typeof t==="string")||
    !Number.isSafeInteger(x.version)||Number(x.version)<1||
    !Number.isSafeInteger(x.missionCountDistinct)||Number(x.missionCountDistinct)<0)return null;
+ const auditKeys=['createdAt','updatedAt','createdByVerifiedLegalName','updatedByVerifiedLegalName'] as const;
+ const audit:Record<string,string|null>={};
+ for(const key of auditKeys){
+  const value=x[key];
+  if(value===undefined)continue;
+  if(value!==null&&typeof value!=='string')return null;
+  if((key==='createdAt'||key==='updatedAt')&&typeof value==='string'&&
+    (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)||!Number.isFinite(Date.parse(value))))return null;
+  if((key==='createdByVerifiedLegalName'||key==='updatedByVerifiedLegalName')&&
+    typeof value==='string'&&(!value.trim()||value.includes('@')))return null;
+  audit[key]=value as string|null;
+ }
  return {id:x.id,pathProgramId:x.pathProgramId,name:x.name,description:x.description as string|null,
-  status:x.status as Status,tags:x.tags as string[],version:Number(x.version),missionCountDistinct:Number(x.missionCountDistinct)};
+  status:x.status as Status,tags:x.tags as string[],version:Number(x.version),missionCountDistinct:Number(x.missionCountDistinct),...audit};
 }
 export function parseSpecialtyDetail(x:unknown):SpecialtyV2Detail|null{
  const summary=parseSpecialtySummary(x);if(!summary||!record(x)||
