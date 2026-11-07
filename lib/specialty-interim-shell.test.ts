@@ -18,6 +18,7 @@ const context = {surface:"HO" as const,authorize:(permission:string)=>permission
 const record:ModuleRow<typeof specialtyDefinition.fields> = {
   id:"specialty-test",name:"Chuyên đề hình khối",path:"Mỹ thuật",status:"ACTIVE",description:"Quan sát hình khối",
   levelCount:2,prerequisiteView:"",tagView:"Hình khối",missionCount:3,
+  createdTime:"—",createdBy:"—",lastModifiedTime:"—",lastModifiedBy:"—",
 };
 const noop=()=>{};
 
@@ -56,7 +57,8 @@ test("PAP-1495: real Founder GET errors stay errors, BO is denied and no fixture
   await assert.rejects(specialtyProvider.detail(id,{surface:"HO"},fetcher,signal),{status:503});
   await assert.rejects(specialtyProvider.list(specialtyQuery,{surface:"BO",centerId:"other"},fetcher,signal),{status:403});
   await assert.rejects(specialtyProvider.detail(id,{surface:"BO",centerId:"other"},fetcher,signal),{status:403});
-  assert.equal(calls,2);
+  // S3 resolves Core canonical Path options once for list and once for detail.
+  assert.equal(calls,4);
 });
 
 test("PAP-1495: adapter still requires real authenticated context and canonical permission",async()=>{
