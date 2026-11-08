@@ -41,7 +41,7 @@ test("PAP-1710 canonical Dsa Drawer with one combobox and correct preserved Core
  assert.match(c,/role="listbox"/);
  assert.match(c,/aria-activedescendant/);
  assert.match(c,/if\(e\.key==="Enter"&&open\)/);
- assert.match(c,/setTimeout\(\(\)=>setOpen\(false\),120\)/);
+ assert.match(c,/document\.activeElement!==inputRef\.current/);
  assert.match(c,/method:"POST"/);
  assert.match(c,/JSON\.stringify\(\{personId:chosen\.personId/);
  assert.match(c,/r\.status===409|response\.status===409/);
