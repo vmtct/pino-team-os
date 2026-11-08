@@ -1,4 +1,5 @@
 "use client";
+import { LocalizedModuleTitle } from "@/lib/pino-nav-locale-context";
 import { useEffect, useMemo, useState } from "react";
 import bo from "../bo.module.css";
 import styles from "./pinoria-wish.module.css";
@@ -42,7 +43,7 @@ export function WishBoView(){
   async function validate(banner:Banner){setBusy(`${banner.id}:validate`);setError("");setMessage("");try{const result=await request<{valid:boolean;issues:string[];definitionHash:string|null}>(`pinoria/wish/banners/${banner.id}/validation`);setMessage(result.valid?`Validation PASS · ${result.definitionHash?.slice(0,12)}`:`Validation FAIL · ${result.issues.join(" · ")}`);}catch(cause){setError(cause instanceof Error?cause.message:"Validation failed");}finally{setBusy("");}}
   if(!catalog&&!error)return <div className={bo.state}><strong>Đang tải Pinoria Wish BO…</strong><span>Đọc catalog và banner từ pino-core staging.</span></div>;
   return <div className={bo.page}>
-    <header className={bo.heading}><span>PINORIA · STAGING CONFIG</span><h1>Wish / Hạt Năng Lượng</h1><p>Config banner từ canonical catalog, validate snapshot, rồi schedule/activate. TOS và TV chỉ đọc state đã publish từ Core.</p></header>
+    <header className={bo.heading}><span>PINORIA · STAGING CONFIG</span><h1><LocalizedModuleTitle label="Wish" moduleKey="pinoria-wish" /></h1><p>Config banner từ canonical catalog, validate snapshot, rồi schedule/activate. TOS và TV chỉ đọc state đã publish từ Core.</p></header>
     <section className={bo.metrics}>
       <div className={bo.metric}><span>Bearers</span><strong>{catalog?.bearers.length??0}</strong></div>
       <div className={bo.metric}><span>Wearables</span><strong>{catalog?.wearables.length??0}</strong></div>
