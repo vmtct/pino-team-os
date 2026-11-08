@@ -8,7 +8,7 @@ import {BoApiError} from "@/lib/bo-api-error";
 import {readSpecialtyV2Detail,readSpecialtyV2List,type SpecialtyV2Detail,type SpecialtyV2Summary} from "@/lib/ho-specialty-v2-reader";
 import {postSpecialtyGraphCommand} from "@/lib/ho-specialty-v2-graph-client";
 import {specialtyPublishWarnings} from "@/lib/ho-specialty-v2-publish";
-import {HoSpecialtyPublishDialog} from "./HoSpecialtyPublishDialog";
+import {ConfirmDialog} from "@pino/design-system/react";
 import {eligibleSpecialtyPrerequisites,planSpecialtyOverviewEdit,type SpecialtyS5OverviewKey} from "@/lib/ho-specialty-s5-overview";
 import {planSpecialtyMetadataEdit,type SpecialtyMetadataPatch} from "@/lib/ho-specialty-s5-metadata";
 import {putSpecialtyMetadataEdit} from "@/lib/ho-specialty-v2-metadata-client";
@@ -25,7 +25,6 @@ export function HoSpecialtyOverviewEdit({properties,canManage,onSaved}:{
  const [selection,setSelection]=useState<{field:BoField;anchor:HTMLElement}|null>(null);
  const [saving,setSaving]=useState(false);
  const [publishVersion,setPublishVersion]=useState<number|null>(null);
- const [focusReturn,setFocusReturn]=useState<HTMLElement|null>(null);
  const pending=useRef<AbortController|null>(null);
  const attempt=useRef<{payload:string;key:string}|null>(null);
  const [labelWidth,setLabelWidth]=useState(160);
@@ -74,7 +73,7 @@ export function HoSpecialtyOverviewEdit({properties,canManage,onSaved}:{
     if(field==="status"){
      if(value==="Bản nháp"){setSelection(null);setError("");return;}
      if(value!=="Đang áp dụng"){setError("Trạng thái không hợp lệ.");return;}
-     setFocusReturn(selection.anchor);setSelection(null);setError("");
+     setSelection(null);setError("");
      setPublishVersion(data.detail.version);return;
     }
    const metadata=field==="name"||field==="description";
@@ -122,7 +121,7 @@ export function HoSpecialtyOverviewEdit({properties,canManage,onSaved}:{
   }
   return <>
   <PropertySections variant="detail" fields={props.fields} record={props.record} sections={props.sections}
-    canEdit={editable} onEdit={(field,anchor)=>{attempt.current=null;setError("");setFocusReturn(anchor);setSelection({field,anchor});}}
+    canEdit={editable} onEdit={(field,anchor)=>{attempt.current=null;setError("");setSelection({field,anchor});}}
     labelWidth={labelWidth} onLabelWidthChange={setLabelWidth}/>
   {!data&&!error?<p role="status">Đang kiểm tra quyền chỉnh sửa và dữ liệu Core…</p>:null}
   {error?<p role="alert">{error} <button type="button" disabled={saving} onClick={()=>{
@@ -133,9 +132,14 @@ export function HoSpecialtyOverviewEdit({properties,canManage,onSaved}:{
       ...selection.field,readonly:false,...(options?{options}:{}),
     }} value={value} anchor={selection.anchor} onClose={close} onSave={v=>{void save(v);}}
     closeOnSave={false}/>:null}
-   {publishVersion!==null&&data?<HoSpecialtyPublishDialog detail={data.detail}
-     warnings={specialtyPublishWarnings(data.detail,data.catalog)} busy={saving} error={error}
-     focusReturn={focusReturn} onCancel={()=>{if(!saving){setPublishVersion(null);setError("");}}}
-     onConfirm={()=>{void publish();}}/>:null}
+   {publishVersion!==null&&data?<ConfirmDialog
+      surface="ho" context="Chuyên đề · Trạng thái" title="Xuất bản chuyên đề"
+      subject={data.detail.name}
+      description="Sau khi xuất bản, chuyên đề có thể được cấp cho học viên. Cấu hình DRAFT sẽ khóa và chưa thể hoàn tác."
+      readyMessage="Đã kiểm tra cấu hình cơ bản. Core sẽ kiểm chứng trạng thái Mission, Path và tiên quyết khi lưu."
+      confirmLabel="Xác nhận xuất bản" busyLabel="Đang xác minh…"
+      warnings={specialtyPublishWarnings(data.detail,data.catalog)} busy={saving} error={error}
+      onCancel={()=>{if(!saving){setPublishVersion(null);setError("");}}}
+      onConfirm={()=>{void publish();}}/>:null}
  </>;
 }
