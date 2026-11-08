@@ -145,3 +145,13 @@ test("loaded S3 rows are readable but cannot advertise an unimplemented S4 Quick
   assert.match(html, /disabled=""/);
   assert.doesNotMatch(html, /Mở Quick View|data-open="tvp1-default"/);
 });
+
+test("PAP-1419 S3 PINO DS Table exposes usable search/filter/sort without dead Quick View controls", () => {
+  const html = renderToStaticMarkup(createElement(TvPolicyDirectory));
+  assert.match(html, /id="search"/);
+  assert.match(html, /id="filter-toggle"/);
+  assert.match(html, /id="visible-columns"/);
+  assert.doesNotMatch(html, /id="table-count"|id="result-count"|id="group-shortcut"|id="add-view-tab"|id="save-view"/);
+  assert.equal(tvPolicyModule.fields.find(f => f.key === "active")?.type, "number");
+  assert.equal(tvPolicyModule.fields.find(f => f.key === "latest")?.type, "number");
+});

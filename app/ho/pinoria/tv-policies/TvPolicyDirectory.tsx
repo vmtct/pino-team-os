@@ -16,6 +16,7 @@ export function TvPolicyDirectory() {
   const menu = useContext(TddHostMenu);
   const [value, setValue] = useState(() => defaultTable(tvPolicyModule.fields));
   const [settings, setSettings] = useState<string | null>(null);
+  const [filterOpen, setFilterOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [read, setRead] = useState<TvPolicyDirectoryRead | null>(null);
   useEffect(() => {
@@ -25,7 +26,13 @@ export function TvPolicyDirectory() {
     });
     return () => { live = false; };
   }, []);
-  const policy = { identity: "name", search: [], filter: [], sort: [], group: [], edit: [], viewActions: [] };
+  const policy = {
+    identity: "name",
+    search: ["name", "typeName", "scope", "center", "resolution"],
+    filter: ["typeName", "scope", "center", "resolution", "inherited", "aspectRatio"],
+    sort: ["name", "typeName", "scope", "center", "resolution", "active", "latest"],
+    group: [], edit: [], viewActions: [],
+  };
   const update = (patch: Partial<typeof value>) => setValue(current => ({ ...current, ...patch }));
   const noop = () => {};
   const loadState = read === null ? "loading" : read.status === "ready" ? "ready"
@@ -40,10 +47,10 @@ export function TvPolicyDirectory() {
     </div></div>
     <BoDataTable module={tvPolicyModule} rows={rows} loadState={loadState}
       value={value} update={update} page={page} setPage={setPage} onOpen={noop}
-      onSettings={setSettings} filterOpen={false} setFilterOpen={noop}
+      onSettings={setSettings} filterOpen={filterOpen} setFilterOpen={setFilterOpen}
       views={[]} changeViews={noop} activeView={null} applyView={noop}
       reset={() => setValue(defaultTable(tvPolicyModule.fields))} undo={noop} canUndo={false}
-      showChrome={false} openEnabled={false} totalKnown={read?.status === "ready"} policy={policy} />
+      showChrome minimal openEnabled={false} totalKnown={read?.status === "ready"} policy={policy} />
     {settings ? <BoTableSettings screen={settings} setScreen={setSettings} onClose={() => setSettings(null)}
       fields={tvPolicyModule.fields} rows={rows} value={value} update={update}
       views={[]} setViews={noop} applyView={noop} policy={policy} /> : null}

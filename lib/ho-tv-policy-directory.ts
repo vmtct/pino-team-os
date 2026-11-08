@@ -16,7 +16,8 @@ export const tvPolicyColumns = [
 export const tvPolicyModule: BoModule = {
   label: "Pinoria TV", group: "Pinoria",
   fields: tvPolicyColumns.map(([key, label, w]) => ({
-    key, label, w, type: "text", icon: "", readonly: true, defaultVisible: true,
+    key, label, w, type: key === "active" || key === "latest" ? "number" : "text",
+    icon: "", readonly: true, defaultVisible: true,
   })),
 };
 
