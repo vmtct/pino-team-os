@@ -143,7 +143,7 @@ export function CreateSelfDrawer({centerId,onClose,onCreated}:{centerId:string;o
        onClick={()=>{setOpen(true);setActive(0);}}
        onChange={e=>changeQuery(e.target.value)}
        onKeyDown={onComboboxKeyDown}
-       onBlur={()=>{setTimeout(()=>setOpen(false),120);}}/>
+       onBlur={()=>{setTimeout(()=>{if(document.activeElement!==inputRef.current)setOpen(false);},120);}}/>
       {open?<div className={styles.options} id={listId} role="listbox" aria-label="Chọn Person">
        {loading?<p role="status">Đang tìm Person tại cơ sở đã chọn…</p>:
         loadError?<div role="alert">{loadError} <button type="button" onMouseDown={e=>e.preventDefault()} onClick={()=>setRetry(n=>n+1)}>Thử lại</button></div>:
