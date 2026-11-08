@@ -1,4 +1,5 @@
 "use client";
+import { LocalizedModuleTitle } from "@/lib/pino-nav-locale-context";
 
 import { useEffect, useState } from "react";
 import { boApi, BoApiError } from "@/lib/bo-api";
@@ -59,7 +60,7 @@ export function OpenStudioView() {
   return <main className={styles.page}>
     <header className={styles.heading}>
       <span>Back Office · Open Studio</span>
-      <h1>Open Studio Operations</h1>
+      <h1><LocalizedModuleTitle label="Open Studio" moduleKey="open-studio" /></h1>
       <p>Listing, Pass và admission dùng authority canonical từ pino-core. Outcome được settle ở TOS.</p>
     </header>
     <label className={styles.field}>Center<select value={centerId} onChange={(event) => { setCenterId(event.target.value); void refresh(event.target.value); void refreshCatalog(event.target.value); }}><option value="">Tất cả Center</option>{centers.map((center) => <option key={center.id} value={center.id}>{center.displayName}</option>)}</select></label>

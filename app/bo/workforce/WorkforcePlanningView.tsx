@@ -1,4 +1,5 @@
 "use client";
+import { LocalizedModuleTitle } from "@/lib/pino-nav-locale-context";
 
 import { useEffect, useState } from "react";
 import { BoDataGridState, BoDataGridStatus } from "@/app/bo/components/data-grid";
@@ -249,7 +250,7 @@ export function WorkforcePlanningView({ embedded = false, scope }: { embedded?: 
   return <div className={embedded ? styles.plannerPage : styles.page + " " + styles.plannerPage}>
     {!embedded ? <header className={styles.heading}>
       <span>PINO TEAM · BACK OFFICE</span>
-      <h1>Lịch ca tuần</h1>
+      <h1><LocalizedModuleTitle label="Schedule & Time" moduleKey="workforce" /></h1>
       <p>Availability là input của Staff; assignment là quyết định final của Manager. Hai cửa sổ tuần được khóa độc lập.</p>
     </header> : null}
 

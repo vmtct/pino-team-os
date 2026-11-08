@@ -1,4 +1,5 @@
 "use client";
+import { LocalizedModuleTitle } from "@/lib/pino-nav-locale-context";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BoApiError } from "@/lib/bo-api-error";
@@ -112,7 +113,7 @@ export function WebsiteCmsView() {
 
   return <div className={styles.page}>
     <header className={styles.header}>
-      <div><span>Content · PLT-WEB-CMS / F1-BO</span><h1>Website CMS</h1><p>Editorial copy and canonical public media only. Core owns permissions, revisions, publication, and audit.</p></div>
+      <div><span>Content · PLT-WEB-CMS / F1-BO</span><h1><LocalizedModuleTitle label="Website CMS" moduleKey="content" /></h1><p>Editorial copy and canonical public media only. Core owns permissions, revisions, publication, and audit.</p></div>
       <div className={styles.sites} aria-label="Website selector">{BO_WEB_CMS_SITES.map(item => <button key={item.id} className={site === item.id ? styles.siteActive : ""} disabled={!!busy} onClick={() => setSite(item.id)}>{item.label}</button>)}</div>
     </header>
     {error ? <div className={styles.error}><strong>Could not complete the operation</strong><span>{error}</span></div> : null}

@@ -1,4 +1,5 @@
 "use client";
+import { LocalizedModuleTitle } from "@/lib/pino-nav-locale-context";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -104,7 +105,7 @@ export function TimekeepingView() {
   return <main className={styles.page}>
     <header className={styles.heading}>
       <span>Back Office · Workforce</span>
-      <h1>Timekeeping</h1>
+      <h1><LocalizedModuleTitle label="Timekeeping" moduleKey="workforce/timekeeping" /></h1>
       <p>Recorded attendance stays immutable. Authorized corrections are appended as provenance and shown separately.</p>
     </header>
 

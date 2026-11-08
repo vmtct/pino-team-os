@@ -26,10 +26,14 @@ test("PAP-1594 S1: HO Learning navigation has one Path target with exact Founder
 test("PAP-1594 S1: shared HO navigation retains grouping, selected item, keyboard-accessible links and mobile close", () => {
   const ho = read("app/ho/HoWorkspace.tsx");
   const shell = read("app/bo/components/registration/BoRegistrationWorkspace.tsx");
-  assert.match(ho, /modules:hoModules, surface:"ho",readOnly:true/);
-  assert.match(ho, /routeForModule:key=>hoRoutes\[key as HoModule\]/);
+  assert.match(ho, /modules:\{\.\.\.hoModules,languageMappings:\{/);
+  assert.match(ho, /surface:"ho",readOnly:true/);
+  assert.match(ho, /routeForModule:key=>key==="languageMappings"/);
+  assert.match(ho, /hoRoutes\[key as HoModule\]/);
+  assert.match(ho, /"\/ho\/language-mappings"/);
   assert.match(shell, /Object\.values\(navModules\)\.map\(m => m\.group\)/);
-  assert.match(shell, /m\.group === group && norm\(m\.label\)/);
+  assert.match(shell, /m\.group === group && \(pinoLocaleSearchMatches/);
+  assert.match(shell, /pinoLocalizedLabel\(surface, "Nav Group"/);
   assert.match(shell, /aria-current=\{key === moduleKey \? "page"/);
   assert.match(shell, /href=\{source\.routeForModule\?\.\(key\)/);
   assert.match(shell, /prefetch=\{false\}/);
