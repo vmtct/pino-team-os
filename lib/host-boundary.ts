@@ -31,7 +31,7 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   // BO host, role, query and deep link. Deny before generic BO/preview fallthrough.
   if (/^\/bo\/tvs(?:\/|$)/i.test(pathname)) return { action: "not_found" };
   // PAP-1418 / PNR-TV: exact Founder HO read paths only; never BO/other hosts.
-  if(pathname.startsWith("/api/ho/pinoria/tv-health") || pathname.startsWith("/api/ho/pinoria/tv-config"))
+  if(pathname.startsWith("/api/ho/pinoria/tv-health") || pathname.startsWith("/api/ho/pinoria/tv-config") || pathname.startsWith("/api/ho/pinoria/tv-policies"))
     return {action:hostname===HO_STAGING_HOSTNAME&&isHoTvReadRequest(pathname,method)?"next":"not_found"};
   if (pathname === HO_BILLS_API || pathname.startsWith(HO_BILLS_API + "/"))
     return {action:hostname === HO_STAGING_HOSTNAME && isHoBillsRequest(pathname,method) ? "next" : "not_found"};
