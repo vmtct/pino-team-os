@@ -1,7 +1,8 @@
 /* PAP-1604/1605/1606 · Epic PAP-1601 · exact VI/EN S1 contract tests. */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { pinoLocaleRows, pinoLocalizedLabel, pinoLocaleSearchMatches, pinoLocaleStorageKey } from "./pino-nav-locale";
+import { pinoLocaleRows, pinoBuildHoLocaleRows, pinoLocalizedLabel, pinoLocaleSearchMatches, pinoLocaleStorageKey } from "./pino-nav-locale";
+import { hoModules } from "./ho-system";
 import { HO_PAGE_PATHS } from "./ho-routes";
 
 test("Founder-approved vocabulary is exact, including singular Running Class", () => {
@@ -26,12 +27,15 @@ test("typed source-backed mapping registry is immutable, complete and source-key
   assert.equal(new Set(pinoLocaleRows.map(row => row.key)).size, pinoLocaleRows.length);
   assert.ok(pinoLocaleRows.every(row => row.vi.trim() && row.en.trim()));
   assert.ok(pinoLocaleRows.some(row => row.surface === "BO" && row.kind === "Nav Group"));
-  assert.ok(pinoLocaleRows.some(row => row.surface === "HO" && row.kind === "Nav Group"));
+  const hoRows = pinoBuildHoLocaleRows({...hoModules,languageMappings:{label:"Language Mapping",group:"System"}});
+  assert.ok(hoRows.some(row => row.surface === "HO" && row.kind === "Nav Group"));
   assert.ok(pinoLocaleRows.some(row => row.surface === "BO" && row.kind === "Module Title"));
-  assert.ok(pinoLocaleRows.some(row => row.surface === "HO" && row.kind === "Module Title"));
+  assert.ok(hoRows.some(row => row.surface === "HO" && row.kind === "Module Title"));
   assert.ok(pinoLocaleRows.some(row => row.key === "bo.nav.item.classes" && row.en === "Running Class"));
-  assert.ok(pinoLocaleRows.some(row => row.key === "ho.nav.item.languageMappings" && row.vi === "Đối chiếu ngôn ngữ"));
+  assert.ok(hoRows.some(row => row.key === "ho.nav.item.languageMappings" && row.vi === "Đối chiếu ngôn ngữ"));
   assert.ok(Object.isFrozen(pinoLocaleRows));
+  assert.ok(Object.isFrozen(hoRows));
+  assert.ok(hoRows.every(row => Object.isFrozen(row)));
   assert.ok(pinoLocaleRows.every(row => Object.isFrozen(row)));
 });
 test("search works in both languages and never mutates route/module identity", () => {

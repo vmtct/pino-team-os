@@ -5,7 +5,6 @@
  */
 import { boNavigation } from "@/app/bo/navigation";
 import { unifiedBoWorkspaceSource } from "@/app/bo/architecture/bo-unified-workspace-source";
-import { hoModules, hoRoutes } from "@/lib/ho-system";
 
 export type PinoSurface = "bo" | "ho";
 export type PinoLanguage = "vi" | "en";
@@ -170,9 +169,26 @@ for (const [key, module] of Object.entries(unifiedBoWorkspaceSource.modules)) {
   record("bo", "Nav Item", key, module.label);
   record("bo", "Module Title", key, module.label);
 }
-for (const [key, module] of Object.entries(hoModules)) {
-  record("ho", "Nav Group", clean(module.group ?? "System"), module.group ?? "System");
-  record("ho", "Nav Item", key, module.label);
-  record("ho", "Module Title", key, module.label);
-}
 export const pinoLocaleRows: readonly PinoLocaleRow[] = Object.freeze(rows);
+/** PAP-1606/S3 seam. HO passes its module inventory into the SAME registry functions.
+ * BO remains independent of protected HO system dependencies. */
+export function pinoBuildHoLocaleRows(
+  modules: Readonly<Record<string, Readonly<{ label: string; group?: string }>>>,
+): readonly PinoLocaleRow[] {
+  const values: PinoLocaleRow[] = [];
+  const seenHo = new Set<string>();
+  const add = (kind: PinoLocaleKind, id: string, label: string) => {
+    const key = "ho." + kind.toLowerCase().replaceAll(" ", ".") + "." + id;
+    if (seenHo.has(key)) return;
+    seenHo.add(key);
+    const pair = getPair("ho", kind, id, label);
+    values.push(Object.freeze({ key, surface: "HO", kind, vi: pair.vi, en: pair.en }));
+  };
+  for (const [key, module] of Object.entries(modules)) {
+    const group = module.group ?? "System";
+    add("Nav Group", clean(group), group);
+    add("Nav Item", key, module.label);
+    add("Module Title", key, module.label);
+  }
+  return Object.freeze(values);
+}

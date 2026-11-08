@@ -5,7 +5,7 @@ import { hoCentersModule, mapHoCenters } from "./ho-centers";
 import {hoA1Modules,type HoA1Module} from "./ho-a1";
 import { HO_PAGE_PATHS } from "./ho-routes";
 
-export type HoModule = "paths" | "specialties" | "bills" | "globalTerms" | "centers" | "walkinPasses" | "termWeeks" | "shiftTemplates" | "staffs" | "staffLinks" | "users" | "roles" | "audits" | "tddReference" | "classroomDiaries" | "tvPolicies" | "languageMappings" | HoA1Module;
+export type HoModule = "paths" | "specialties" | "bills" | "globalTerms" | "centers" | "walkinPasses" | "termWeeks" | "shiftTemplates" | "staffs" | "staffLinks" | "users" | "roles" | "audits" | "tddReference" | "classroomDiaries" | "tvPolicies" | HoA1Module;
 export const hoRoutes: Record<HoModule, string> = HO_PAGE_PATHS;
 // PAP-1542 / PAP-220: Staff registration link is an attribute of Centers, not an HO module.
 export const hoModules: Record<Exclude<HoModule,"staffLinks">,BoModule> = {
@@ -47,8 +47,6 @@ export const hoModules: Record<Exclude<HoModule,"staffLinks">,BoModule> = {
  ]},
  tvPolicies: {label:"Pinoria TV",group:"Pinoria",fields:[]},
  tddReference: {label:"TDD Reference",group:"System",fields:[{key:"name",label:"Demo",type:"text",icon:"Aa",w:240,readonly:true}]},
- // S1 nav-only placeholder, S3 read-only table remains PAP-1649 pending Founder approval.
- languageMappings: {label:"Language Mapping",group:"System",fields:[]},
  centers: {...hoCentersModule,group:"Network"},
  shiftTemplates:{label:"Mẫu ca",group:"Workforce",fields:[
   {key:"displayLabel",label:"Mẫu ca",type:"text",icon:"Aa",w:240,readonly:true},
