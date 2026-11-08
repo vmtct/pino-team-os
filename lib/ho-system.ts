@@ -5,7 +5,7 @@ import { hoCentersModule, mapHoCenters } from "./ho-centers";
 import {hoA1Modules,type HoA1Module} from "./ho-a1";
 import { HO_PAGE_PATHS } from "./ho-routes";
 
-export type HoModule = "paths" | "specialties" | "bills" | "globalTerms" | "centers" | "walkinPasses" | "termWeeks" | "shiftTemplates" | "staffs" | "staffLinks" | "users" | "roles" | "audits" | "tddReference" | "classroomDiaries" | "tvPolicies" | HoA1Module;
+export type HoModule = "paths" | "specialties" | "bills" | "globalTerms" | "centers" | "walkinPasses" | "termWeeks" | "shiftTemplates" | "staffs" | "staffLinks" | "users" | "roles" | "audits" | "tddReference" | "classroomDiaries" | "tvPolicies" | "customAttributes" | HoA1Module;
 export const hoRoutes: Record<HoModule, string> = HO_PAGE_PATHS;
 // PAP-1542 / PAP-220: Staff registration link is an attribute of Centers, not an HO module.
 export const hoModules: Record<Exclude<HoModule,"staffLinks">,BoModule> = {
@@ -46,6 +46,7 @@ export const hoModules: Record<Exclude<HoModule,"staffLinks">,BoModule> = {
   {key:"diaryCode",label:"Diary ID",type:"text",icon:"#",w:300,readonly:true},
  ]},
  tvPolicies: {label:"Pinoria TV",group:"Pinoria",fields:[]},
+ customAttributes: {label:"Custom Attributes",group:"System",fields:[]},
  tddReference: {label:"TDD Reference",group:"System",fields:[{key:"name",label:"Demo",type:"text",icon:"Aa",w:240,readonly:true}]},
  centers: {...hoCentersModule,group:"Network"},
  shiftTemplates:{label:"Mẫu ca",group:"Workforce",fields:[
