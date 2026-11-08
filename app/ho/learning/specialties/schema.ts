@@ -25,7 +25,7 @@ const specialtyBaseFields = [
 export const specialtyFields = Object.freeze(specialtyBaseFields.map(field => ({...field,permission,readOnly:true,capabilities:read}))) satisfies readonly FieldSchema[];
 type F = typeof specialtyFields;
 const keys = specialtyFields.map(field => field.key);
-const sections = [{id:"specialty",label:"Chuyên đề",fields:keys}];
+const sections = [{id:"specialty",label:"Thông tin chính",fields:keys}];
 export const specialtyQuery: TableQuery<F> = {
   search:"",filters:{logic:"AND",rules:[]},sort:{field:"name",direction:"asc"},group:null,
   order:["name","path","status","levelCount","prerequisiteView","tagView","missionCount","createdTime","createdBy","lastModifiedTime","lastModifiedBy","description"],
