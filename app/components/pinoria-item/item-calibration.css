@@ -77,3 +77,20 @@
 .ho-rel-stage .ho-rel-base{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;opacity:.35;z-index:20}
 .ho-rel-stage .ho-rel-layer{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
 @media(max-width:540px){.ho-rel-member{flex-wrap:wrap}.ho-rel-member-actions{width:100%;justify-content:flex-end}.ho-item-relations{min-width:0}}
+
+/* PAP-1700 / Epic PAP-1097: approved HO Item Dsa Create Drawer (shared DrawerFrame). */
+.ho-pinoria-items #drawer .pino-item-create-form{display:grid;grid-template-columns:minmax(0,1fr);align-items:start;gap:18px;margin:0;padding:0;border:0;border-radius:0;background:transparent}
+.ho-pinoria-items #drawer .pino-item-create-section{display:grid;gap:14px;min-width:0}
+.ho-pinoria-items #drawer .pino-item-create-section h3{font-size:11px;font-weight:750;letter-spacing:.06em;color:var(--ds-primary,#74283e);margin:0}
+.ho-pinoria-items #drawer .pino-item-create-section label{display:grid;gap:6px;font-size:12px;font-weight:650;min-width:0}
+.ho-pinoria-items #drawer .pino-item-create-section label :is(input,select){width:100%;min-height:39px;font:inherit;font-weight:400;border:1px solid var(--ds-border,#ded9df);border-radius:7px;padding:7px 10px;color:var(--text-primary,#302a33);background:var(--ds-surface,#fff)}
+.ho-pinoria-items #drawer .pino-item-create-section label input[type=file]{padding:8px}
+.ho-pinoria-items #drawer .pino-item-create-section label small,.ho-pinoria-items #drawer .pino-item-create-helper{font-size:11px;line-height:1.5;color:var(--muted,#726b75);font-weight:400}
+.ho-pinoria-items #drawer .pino-item-create-state{display:grid;gap:6px;padding:12px;border:1px solid var(--ds-border,#ded9df);border-radius:8px;font-size:12px}
+.ho-pinoria-items #drawer .pino-item-create-state strong{color:var(--ds-primary,#74283e)}
+.ho-pinoria-items #drawer .pino-item-create-state small{color:var(--muted,#726b75);font-size:11px}
+.ho-pinoria-items #drawer .pino-item-create-system{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:13px 10px;font-size:12px}
+.ho-pinoria-items #drawer .pino-item-create-system strong{font-weight:650}
+.ho-pinoria-items #drawer .pino-item-create-error{font-size:12px;color:#992d38;margin:0}
+.ho-pinoria-items #drawer .lab-bottom{display:flex;justify-content:flex-end;gap:9px;align-items:center;flex-wrap:wrap}
+@media(max-width:480px){.ho-pinoria-items #drawer{width:100vw;max-width:100vw}}
