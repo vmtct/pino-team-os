@@ -74,15 +74,18 @@ test("PAP-1495 HO session transport admits only exact same-origin GET Catalog ro
   assert.equal(requests,2);
  }finally{session.dispose();}
 });
-test("PAP-1495 host admission permits only HO Staging GET list and canonical detail",()=>{
+test("PAP-1495 host admission scopes GET catalog and S5 detail-only PUT to HO Staging",()=>{
  const list="/api/ho/learning/specialties",detail=list+"/"+sid;
  assert.equal(decideHostBoundary(HO_STAGING_HOSTNAME,list,"GET").action,"next");
  assert.equal(decideHostBoundary(HO_STAGING_HOSTNAME,detail,"GET").action,"next");
+ assert.equal(decideHostBoundary(HO_STAGING_HOSTNAME,detail,"PUT").action,"next");
  for(const host of ["bo.staging.pinohouse.art","tos.staging.pinohouse.art","ho.pinohouse.art"]){
   assert.equal(decideHostBoundary(host,list,"GET").action,"not_found");
   assert.equal(decideHostBoundary(host,detail,"GET").action,"not_found");
+  assert.equal(decideHostBoundary(host,detail,"PUT").action,"not_found");
  }
- for(const [path,method] of [[detail,"PUT"],[list+"/unknown","GET"],[list+"/path-options","POST"]]){
+ for(const [path,method] of [[list,"PUT"],[detail,"DELETE"],[detail+"/publish","PUT"],
+  [list+"/unknown","GET"],[list+"/path-options","POST"]]){
   assert.equal(decideHostBoundary(HO_STAGING_HOSTNAME,path,method).action,"not_found");
  }
 });
