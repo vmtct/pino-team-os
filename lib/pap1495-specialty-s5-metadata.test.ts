@@ -71,3 +71,8 @@ test("PAP-1495 S5 metadata client does GET→PUT→GET and requires actual readb
  const stale:typeof fetch=async()=>Response.json({data:{...detail,version:2}});
  await assert.rejects(putSpecialtyMetadataEdit(id,{expectedVersion:1,name:"Chibi mới"},stale,new AbortController().signal,"spec_s5_name_test_1234"),{status:409});
 });
+
+test("PAP-1495 / PAP-1491 S5 G3: Full Detail section follows approved i5 Specialty prototype",async()=>{
+ const {specialtyDefinition}=await import("../app/ho/learning/specialties/schema");
+ assert.equal(specialtyDefinition.detail.overview.sections[0].label,"Thông tin chính");
+});
