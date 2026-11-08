@@ -1,0 +1,165 @@
+/* PAP-1448 / PNR-TV House Mesh north-star · scoped to existing HO design tokens */
+.ho-house-mesh{min-width:0;display:grid;gap:16px}
+.ho-house-mesh *{box-sizing:border-box}
+.ho-house-mesh button:focus-visible,.ho-house-mesh input:focus-visible,.ho-house-mesh select:focus-visible{outline:2px solid #719bb4;outline-offset:2px}
+.house-metrics{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.house-metrics>div{background:#fff;border:1px solid #e2e8ec;border-radius:12px;padding:11px 14px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.house-metrics strong{font-size:21px;line-height:1.1;color:#385a72;font-weight:720}
+.house-metrics small{font-size:11px;color:#7b8d9a}
+.house-tooltop{display:flex;justify-content:space-between;gap:14px;align-items:center;flex-wrap:wrap}
+.house-tool-buttons{display:flex;gap:8px;flex-wrap:wrap}
+.house-tool-buttons button:disabled{opacity:.42;cursor:not-allowed}
+.house-edit-status{color:#8a7456;border-radius:10px;background:#f6f3ed;padding:9px 13px;font-size:11px;font-weight:750}
+.house-workbench{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;align-items:start}
+.house-side{background:#fff;border:1px solid #dfe6eb;border-radius:12px;padding:14px;min-width:0;display:flex;flex-direction:column;gap:8px}
+.house-side h3{font-size:14px;font-weight:750;margin:2px 0 10px;color:#374f60}
+.house-tools{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.house-tools h3,.house-tool-help,.house-layer-title,.house-layer-list,.house-local-disclaimer,.house-toggleline{grid-column:1/-1}
+.house-layer-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.house-tools>button{display:flex;align-items:center;gap:10px;min-height:40px;border:1px solid transparent;padding:8px 9px;background:#fff;border-radius:9px;color:#5b7282;font-size:11px;font-weight:690;text-align:left;cursor:pointer}
+.house-tools>button:hover{background:#f3f7f9}
+.house-tools>button.active{background:#eaf1f5;border-color:#abc2cf;color:#335d76}
+.house-tool-icon{flex:0 0 23px;text-align:center;font-size:18px;font-weight:850}
+.house-tool-help{padding:12px;border-radius:9px;background:#f3f6f8;margin-top:6px}
+.house-tool-help strong{font-size:11px;color:#425d70}
+.house-tool-help p{font-size:11px;line-height:1.5;color:#778893;margin:5px 0 0}
+.house-toggleline{display:flex;align-items:center;gap:8px;font-size:11px;color:#677b89;margin:6px 0}
+.house-layer-title{font-size:10px;letter-spacing:.07em;text-transform:uppercase;border-top:1px solid #e7ecef;padding-top:15px;margin-top:6px;font-weight:800;color:#83909a}
+.house-layer-list{display:flex;flex-direction:column;gap:8px}
+.house-layer-list label{display:flex;align-items:center;gap:8px;color:#536d7c;font-size:11px}
+.house-layer-list input,.house-toggleline input{accent-color:#6088a2;width:14px;height:14px}
+.house-local-disclaimer{border-top:1px solid #e9eef1;padding-top:12px;font-size:10px;line-height:1.55;color:#8797a1;margin:6px 0 0}
+.house-stage{min-width:0;background:#fff;border:1px solid #dce4e9;border-radius:12px;overflow:hidden;box-shadow:0 3px 14px rgba(31,52,70,.055)}
+.house-stage-header{display:flex;justify-content:space-between;align-items:center;gap:14px;min-width:0;padding:12px 14px}
+.house-stage-header>div{display:flex;flex-direction:column;gap:4px;min-width:0}
+.house-stage-header strong{font-size:12px;color:#3a5668}
+.house-stage-header span{font-size:10px;color:#81919b}
+.house-stage-header label{display:flex;align-items:center;gap:6px;font-size:10px;color:#687e8d;white-space:nowrap}
+.house-stage-header input{width:75px;accent-color:#6088a2}
+.house-stage-canvas{min-width:0;position:relative;aspect-ratio:16/9;background:#5a7587}
+.house-stage-canvas svg{display:block;width:100%;height:auto;aspect-ratio:16/9;touch-action:none;cursor:crosshair}
+.house-stage-canvas svg [data-kind=lane],.house-stage-canvas svg [data-kind=checkpoint],.house-stage-canvas svg [data-kind=pin],.house-stage-canvas svg [data-kind=connector],.house-stage-canvas svg [data-kind=area]{cursor:pointer}
+.house-stage-canvas svg [data-kind=lane]:hover,.house-stage-canvas svg [data-kind=connector]:hover{filter:brightness(1.2)}
+.house-stage-foot{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;padding:9px 12px;border-top:1px solid #e8edf0}
+.house-stage-foot span{font-size:10px;color:#748893}
+.house-canvas-hint{min-height:25px;margin:0;padding:10px 12px;border-top:1px solid #e8edf0;color:#607888;font-size:11px;line-height:1.5}
+.house-inspector{gap:11px}
+.house-selection-id{font-size:16px;color:#3b5c71;font-weight:800;overflow-wrap:anywhere}
+.house-selection-kind{font-size:10px;color:#80929f;font-weight:750;letter-spacing:.09em}
+.house-inspector label{font-size:11px;color:#607688;display:flex;flex-direction:column;gap:5px}
+.house-inspector input,.house-inspector select{width:100%;min-width:0;border:1px solid #dce5e9;background:#fff;color:#334f60;border-radius:8px;min-height:37px;padding:8px 9px;font-size:12px}
+.house-inspector input[readonly]{background:#f5f7f9;color:#8a98a2}
+.house-inspector-empty{font-size:12px;line-height:1.6;color:#84949e;margin:0}
+.house-object-meta{font-size:11px;color:#748a99;line-height:1.5;margin:0}
+.house-delete{font-size:11px;padding:9px;border-radius:8px;border:1px solid #edd5d2;background:#fff8f7;color:#9b6562;cursor:pointer;margin-top:4px}
+.house-validation,.house-legend{border-top:1px solid #e7ecef;margin-top:6px;padding-top:14px}
+.house-validation h4,.house-legend h4{font-size:12px;margin:0 0 8px;font-weight:760;color:#5b7283}
+.house-validation p,.house-validation ul{font-size:10px;line-height:1.55;color:#668774;margin:0;padding-left:0}
+.house-validation ul{color:#a67358;padding-left:16px}
+.house-legend{display:grid;gap:8px}
+.house-legend h4{margin-bottom:4px}
+.house-legend>div{display:flex;gap:8px;align-items:center;color:#7d8e98;font-size:10px}
+.house-legend i{display:block;width:19px;height:5px;border-radius:4px}
+.house-legend .front{background:#8be6b9}.house-legend .behind{background:#91a9f8}.house-legend .connector{background:#ffc875}.house-legend .area{background:#4bd6c4}.house-legend .checkpoint{background:#d8b26b}.house-legend .pin{background:#e38ab6}
+@media(min-width:961px){.house-inspector{grid-column:1/-1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));align-items:start}.house-inspector h3{grid-column:1/-1}.house-validation,.house-legend{grid-column:span 2}}
+@media(max-width:960px){.house-workbench{grid-template-columns:1fr}.house-tools{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.house-tools h3,.house-tool-help,.house-layer-title,.house-layer-list,.house-local-disclaimer,.house-toggleline{grid-column:1/-1}.house-layer-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.house-inspector{grid-column:auto}.house-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:620px){.house-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.house-tools{grid-template-columns:repeat(2,minmax(0,1fr))}.house-inspector{grid-template-columns:repeat(2,minmax(0,1fr))}.house-inspector h3{grid-column:1/-1}.house-validation,.house-legend{grid-column:1/-1}.house-stage-header{flex-wrap:wrap}.house-tooltop{align-items:stretch}.house-tool-buttons{width:100%}.house-stage-foot{flex-direction:column;align-items:start}}
+
+/* PAP-1454 · canvas-first configure UX, typed business workspace only */
+.ho-house-mesh{gap:10px}
+.house-metrics{display:flex;flex-wrap:wrap;gap:6px}
+.house-metrics>div{display:flex;flex:1 1 110px;flex-direction:row;gap:7px;align-items:center;padding:7px 10px;min-height:38px}
+.house-metrics strong{font-size:16px;white-space:nowrap}.house-metrics small{font-size:10px;line-height:1.15}
+.house-tooltop{gap:7px}.house-tool-buttons{gap:6px}.house-tool-buttons button{font-size:11px;padding:6px 10px;min-height:31px}
+.house-edit-status{font-size:10px;min-height:31px;display:flex;align-items:center;padding:6px 9px}
+.house-config-bar{display:flex;flex-direction:row;align-items:center;justify-content:space-between;gap:7px;flex-wrap:wrap;padding:8px 9px;position:relative}
+.house-quick-tools{display:flex;flex-wrap:wrap;align-items:center;gap:3px;flex:1 1 400px;min-width:0}
+.house-quick-tools button{border:1px solid transparent;display:flex;align-items:center;justify-content:center;gap:6px;min-height:34px;padding:6px 8px;border-radius:8px;background:transparent;color:inherit;font-size:10px;font-weight:650;cursor:pointer;white-space:nowrap}
+.house-quick-tools button:hover{background:rgba(118,154,178,.12)}.house-quick-tools button.active,.house-quick-tools button[aria-pressed=true]{border-color:#729ab0;background:rgba(102,153,183,.18);color:inherit}
+.house-quick-tools .house-tool-icon{flex:0 0 auto;min-width:14px;text-align:center;font-size:16px}
+.house-config-options{display:flex;align-items:center;justify-content:flex-end;gap:11px;flex:0 0 auto}
+.house-config-options .house-toggleline{display:flex;align-items:center;gap:5px;margin:0;white-space:nowrap;font-size:10px}
+.house-layer-details{position:relative;min-width:0;font-size:11px}.house-layer-details>summary{list-style:none;border:1px solid #8ba8b955;border-radius:8px;padding:6px 9px;cursor:pointer;white-space:nowrap;user-select:none}.house-layer-details>summary::-webkit-details-marker{display:none}
+.house-layer-details[open]>summary{background:rgba(102,153,183,.14);border-color:#729ab0}
+.house-layer-popover{position:absolute;right:0;top:calc(100% + 7px);z-index:80;width:min(295px,calc(100vw - 65px));padding:13px 15px;border:1px solid #8ba8b966;border-radius:11px;background:inherit;color:inherit;box-shadow:0 12px 30px #0003}
+.house-layer-popover>strong{display:block;margin-bottom:12px;font-size:11px}.house-layer-popover .house-layer-list{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.house-layer-popover .house-layer-list label{display:flex;align-items:center;gap:7px;font-size:11px;min-width:0}
+.house-layer-popover p{font-size:10px;margin:11px 0 0;opacity:.76;line-height:1.5}
+.house-workbench{gap:9px}.house-stage{order:1}.house-config-bar{order:0}.house-inspector{order:2}
+.house-stage-header{padding:8px 12px;gap:10px}.house-stage-header strong{font-size:12px}
+.house-stage-controls{display:flex;align-items:center;gap:9px;flex-wrap:wrap;justify-content:flex-end}
+.house-stage-controls button{border:1px solid #8ba8b966;background:transparent;color:inherit;padding:6px 9px;border-radius:8px;font-size:10px;cursor:pointer}
+.house-stage-controls button.active{background:rgba(102,153,183,.16);border-color:#729ab0}
+.house-stage-controls label{display:flex;gap:6px;align-items:center;font-size:10px;white-space:nowrap}
+.house-stage-controls input{width:68px}
+.house-stage-foot{padding:7px 12px}.house-canvas-hint{padding:7px 12px;min-height:27px}
+.house-inspector{position:relative;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px 12px;align-items:start;padding:12px}
+.house-inspector h3{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0}
+.house-inspector .house-selection-id,.house-inspector .house-selection-kind{grid-column:auto}
+.house-inspector .house-validation,.house-inspector .house-legend{grid-column:span 1;margin-top:3px}
+.house-inspector-close{border:1px solid #8ba8b966;background:transparent;color:inherit;border-radius:7px;padding:3px 9px;font-size:16px;cursor:pointer}
+@media(max-width:1150px){.house-quick-tools{flex-basis:100%}.house-config-options{margin-left:auto}.house-inspector{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:640px){.house-metrics>div{flex:1 1 95px}.house-quick-tools{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3px}.house-quick-tools button{justify-content:flex-start;white-space:normal;min-height:33px;padding:5px;font-size:9px}.house-config-options{justify-content:space-between;width:100%}.house-stage-header{flex-wrap:wrap}.house-stage-controls{width:100%;justify-content:space-between}.house-stage-foot{gap:4px;align-items:flex-start}.house-inspector{grid-template-columns:repeat(2,minmax(0,1fr))}.house-inspector h3{grid-column:1/-1}}
+
+.house-layer-popover{background:Canvas;color:CanvasText}
+.ho-house-mesh:focus-visible{outline:2px solid #729ab0;outline-offset:3px}
+
+/* PAP-1454: Inspector docks beside canvas only when the actual TDD content is wide enough. */
+.ho-house-mesh{container-type:inline-size}
+@container (min-width:760px){
+ .house-workbench.with-inspector{grid-template-columns:minmax(0,1fr) 242px;gap:10px;align-items:start}
+ .house-workbench.with-inspector .house-config-bar{grid-column:1/-1;grid-row:1}
+ .house-workbench.with-inspector .house-stage{grid-column:1;grid-row:2}
+ .house-workbench.with-inspector .house-inspector{grid-column:2;grid-row:2;position:sticky;top:14px;max-height:calc(100vh - 140px);overflow:auto;display:flex;flex-direction:column;align-items:stretch;gap:9px}
+ .house-workbench.with-inspector .house-inspector h3,.house-workbench.with-inspector .house-inspector .house-validation,.house-workbench.with-inspector .house-inspector .house-legend{grid-column:auto}
+}
+
+/* PAP-1417: explanatory House Mesh business guidance, scoped to the existing HO DS. */
+.house-function-guide{min-width:0;padding:16px;border:1px solid #dfe6eb;border-radius:12px;background:#fff;color:#374f60}
+.house-guide-heading{display:grid;gap:4px;margin-bottom:13px}
+.house-guide-heading h3{font-size:15px;line-height:1.3;font-weight:750;margin:0}
+.house-guide-heading p{font-size:12px;line-height:1.55;color:#778893;margin:0}
+.house-guide-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0}
+.house-guide-item{display:flex;flex-direction:column;gap:9px;min-width:0;border:1px solid #e3eaee;border-radius:10px;background:#fafcfd;padding:13px}
+.house-guide-item dt{display:flex;gap:9px;align-items:center;min-width:0;font-size:12px;font-weight:750;line-height:1.4;color:#3b576a}
+.house-guide-icon{display:grid;place-items:center;flex:none;width:26px;height:26px;background:#edf3f6;border:1px solid #d9e4eb;border-radius:7px;font-size:16px;color:#456d86}
+.house-guide-item dd{display:grid;gap:4px;margin:0;font-size:11px;line-height:1.6;color:#5e7380;overflow-wrap:anywhere}
+.house-guide-item dd strong{font-size:10px;letter-spacing:.02em;color:#4b6171}
+.house-guide-note{margin:13px 0 0;border-top:1px solid #e3eaee;padding-top:12px;font-size:11px;line-height:1.65;color:#677c89}
+.house-guide-note strong{color:#3b576a}
+@container (max-width:900px){.house-guide-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@container (max-width:570px){.house-function-guide{padding:12px}.house-guide-grid{grid-template-columns:1fr}.house-guide-item{padding:11px}}
+
+/* PAP-1417 Area Polygon Editor - scoped HO DS. */
+.house-area-existing{display:flex;align-items:center;flex-wrap:wrap;gap:7px;padding:10px 12px;border:1px solid #dfe8ed;border-radius:10px;background:#fff}
+.house-area-existing>strong{font-size:11px;color:#47647a;margin-right:4px}
+.house-area-existing button{display:flex;align-items:center;gap:6px;border:1px solid #d2e1e8;border-radius:8px;background:#f7fafb;padding:7px 10px;min-height:33px;color:#456478;font-size:11px;cursor:pointer}
+.house-area-existing button small{font-size:10px;color:#8396a1}
+.house-area-existing button[aria-pressed=true]{border-color:#6c9ab1;background:#e6f1f6;color:#365e78;font-weight:750}
+@media(max-width:620px){.house-area-existing{align-items:stretch}.house-area-existing>strong{width:100%}.house-area-existing button{flex:1 1 42%;justify-content:space-between}}
+.house-area-draw-controls{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;min-width:0;padding:10px 12px;border:1px solid #d6e4ea;background:#f3f8fa;border-radius:10px;font-size:11px;line-height:1.6;color:#405e72}
+.house-area-draw-controls strong{font-size:12px}
+.house-area-draw-controls>div{display:flex;gap:7px;flex-wrap:wrap}
+.house-area-draw-controls button{font-size:11px;padding:6px 10px;min-height:33px}
+.house-area-draw-controls button:disabled{opacity:.45;cursor:not-allowed}
+.house-area-vertex-list{display:grid;gap:7px;grid-column:1/-1;min-width:0}
+.house-area-vertex-list>strong{font-size:11px;color:#4c6980}
+.house-area-vertex-list>div{display:flex;gap:5px;flex-wrap:wrap}
+.house-area-vertex-list button{cursor:pointer;border-radius:7px;border:1px solid #cbdce5;padding:7px 9px;background:#f5fafc;color:#37586b;font-size:10px;min-height:31px}
+.house-area-vertex-list button[aria-pressed=true]{border-color:#517d9c;background:#dcebf3;font-weight:750}
+.house-area-vertex-edit{display:flex;align-items:end;flex-wrap:wrap;gap:8px;grid-column:1/-1;min-width:0}
+.house-area-vertex-edit label{min-width:94px;flex:1 1 100px}
+.house-area-vertex-edit button{min-height:37px}
+.house-area-vertex-edit button:disabled{opacity:.4;cursor:not-allowed}
+.house-stage-canvas svg [data-kind=area-vertex]{cursor:move}
+.house-stage-canvas svg [data-kind=area-edge]{cursor:copy}
+.house-stage-canvas svg [data-area-draft-close=true]{cursor:pointer}
+@media(max-width:620px){.house-area-draw-controls{align-items:stretch;flex-direction:column}.house-area-draw-controls>div{width:100%}}
+
+/* PAP-1417 / PNR-TV: remaining Mesh tool UX drift reconciliation. */
+.house-object-picker{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0;padding:9px 11px;background:#fff;border:1px solid #dfe8ec;border-radius:10px;color:#526d80;font-size:11px;font-weight:650;min-width:0}
+.house-object-picker select{min-width:175px;flex:1 1 190px;max-width:390px;border:1px solid #d9e6ee;border-radius:8px;background:#fff;color:#3b5e76;font-size:11px;padding:7px 9px;min-height:36px}
+.house-draw-tip{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:9px 12px;border:1px solid #d8e5ea;background:#f5f9fa;border-radius:10px;color:#45667a;font-size:11px;line-height:1.5}
+.house-draw-tip button{border:1px solid #bbd0dc;border-radius:7px;background:#fff;color:#46687e;cursor:pointer;padding:6px 10px;min-height:33px}
+.house-stage-canvas svg [data-kind=lane-endpoint],.house-stage-canvas svg [data-kind=connector-endpoint]{cursor:ew-resize}
+@media(max-width:620px){.house-object-picker{align-items:stretch;flex-direction:column}.house-object-picker select{max-width:none;width:100%;flex-basis:auto}}
