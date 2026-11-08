@@ -70,10 +70,10 @@ export function HoMissionsTdd() {
     refreshArchiveEligibility();
     return () => { active = false; sequence += 1; unsubscribe(); };
   }, [ready]);
-  // S2: source-owned Core Path lookup only while the Create Drawer is open.
+  // PAP-1207 / MISSION S5: source-owned Core Path lookup for Create and Edit drawers.
   // Aborted requests never populate a closed/stale form.
   useEffect(() => {
-    if (mode !== "create") return;
+    if (mode === null) return;
     const controller = new AbortController();
     setPathState({ state: "loading" });
     void loadMissionPathChoices(fetch, controller.signal)
@@ -147,7 +147,7 @@ export function HoMissionsTdd() {
   const submit = async () => {
     if (!mode) return { state: "invalid" as const };
     const invalid = validateMissionCreate(draft) ||
-      (mode === "create" ? validateMissionSelectedPath(draft, pathChoices) : null);
+      validateMissionSelectedPath(draft, pathChoices);
     if (invalid) { setFormError(invalid); return { state: "invalid" as const }; }
     if (mode === "edit" && (!editTarget || editTarget.status !== draft.status)) {
       setFormError("Không đổi trạng thái tại Sửa Mission. Lưu trữ cần thao tác xác nhận riêng.");
@@ -157,15 +157,15 @@ export function HoMissionsTdd() {
     if (!ready?.adapter.context.authorize("learning.mission.manage")) return { state: "denied" as const };
     writing.current = true; setPending(true); setFormError("");
     try {
-      if (mode === "create") {
-        // Re-read the authorized Core canon immediately before any write.
+      if (mode === "create" || mode === "edit") {
+        // Re-read the authorized Core canon immediately before any Create/Edit write.
         // An inactive/renamed/replaced Path never proceeds to POST.
         try {
           const fresh = await loadMissionPathChoices();
           const changed = validateMissionSelectedPath(draft, fresh);
           if (changed) { setFormError(changed); return { state: "invalid" as const }; }
         } catch {
-          setFormError("Không thể xác minh Path từ Core trước khi tạo. Chưa gửi Mission.");
+          setFormError("Không thể xác minh Path từ Core trước khi lưu. Chưa gửi Mission.");
           return { state: "invalid" as const };
         }
       }
@@ -192,7 +192,8 @@ export function HoMissionsTdd() {
     saveCreate: { kind: "mutation", disabled: pending || uncertain ||
       Boolean(validateMissionCreate(draft) || validateMissionSelectedPath(draft, pathChoices)), run: submit },
     cancelEdit: { kind: "navigation", disabled: pending, run: close },
-    saveEdit: { kind: "mutation", disabled: pending || uncertain || Boolean(validateMissionCreate(draft)) ||
+    saveEdit: { kind: "mutation", disabled: pending || uncertain ||
+      Boolean(validateMissionCreate(draft) || validateMissionSelectedPath(draft, pathChoices)) ||
       !editTarget || editTarget.status !== draft.status, run: submit },
   };
   const content = <section data-testid="ho-missions-tdd" aria-label="Danh mục Mission toàn hệ thống">
