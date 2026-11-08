@@ -74,12 +74,11 @@ export function ParentCreateDrawer({
     <form id="parent-create-form" onSubmit={event => void submit(event)}>
       <section className="property-section">
         <h3>Thông tin phụ huynh</h3>
-        <div className="property-row"><label className="property-label" htmlFor="parent-create-name">Họ và tên *</label>
-          <div className="property-control"><input id="parent-create-name" className="edit-input" autoComplete="name" maxLength={120} required disabled={locked} value={name} onChange={e => { setName(e.target.value); setError(""); }} /></div></div>
-        <div className="property-row"><label className="property-label" htmlFor="parent-create-contact">Điện thoại hoặc email *</label>
-          <div className="property-control"><input id="parent-create-contact" className="edit-input" type="text" autoComplete="off" maxLength={120} required disabled={locked} value={contactValue} onChange={e => { setContactValue(e.target.value); setError(""); }} /></div></div>
+        <label className="property-row"><span className="property-label">Họ và tên *</span>
+          <input id="parent-create-name" className="os-create-select" autoComplete="name" maxLength={120} required autoFocus disabled={locked} value={name} onChange={e => { setName(e.target.value); setError(""); }} /></label>
+        <label className="property-row"><span className="property-label">Điện thoại hoặc email *</span>
+          <input id="parent-create-contact" className="os-create-select" type="text" autoComplete="off" maxLength={120} required disabled={locked} value={contactValue} onChange={e => { setContactValue(e.target.value); setError(""); }} /></label>
       </section>
-      <p className="settings-hint">Phụ huynh chưa liên kết học viên sẽ không xuất hiện trong danh sách theo cơ sở.</p>
       {error ? <div role="alert" className="edit-error">{error}{uncertain ? <p>Chưa xác định kết quả. Thử lại cùng yêu cầu để đối soát.</p> : null}</div> : null}
     </form>
   </DrawerFrame>;
