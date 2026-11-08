@@ -18,6 +18,7 @@ export const HO_PAGE_PATHS = {
   wardrobeSets: "/ho/pinoria/wardrobe-sets",
   effects: "/ho/pinoria/effects",
   tvPolicies: "/ho/pinoria/tv-policies",
+ customAttributes: "/ho/system/custom-attributes",
   users: "/ho/system/users",
   roles: "/ho/system/roles",
   audits: "/ho/system/audit",
