@@ -1,4 +1,8 @@
 import type { ReactNode } from "react";
+import {
+  policyViewerBlockedCopy,
+  type PolicyViewerBlockedReason,
+} from "@/lib/pinoria-tv-viewer-admission";
 import type { TvPolicyViewerAspect } from "@/lib/pinoria-tv-viewer-layout";
 import styles from "./policy-viewer-frame.module.css";
 
@@ -32,13 +36,20 @@ export function PolicyViewerFrame({
   );
 }
 
-/** Explicit unavailable content; never evidence of a live authorized viewer. */
-export function PolicyViewerUnavailable() {
+/** Explicitly blocked until the owning server verifies a published Policy. */
+export function PolicyViewerUnavailable({
+  reason = "unavailable",
+}: Readonly<{ reason?: PolicyViewerBlockedReason }>) {
+  const { heading, description } = policyViewerBlockedCopy(reason);
   return (
-    <main className={styles.stage} data-pnr-tv-viewer="unavailable">
-      <div className={styles.unavailable} role="status">
-        <strong>Pinoria TV</strong>
-        <span>Chưa thể mở trình chiếu. Policy đang chờ kết nối Core được cấp quyền.</span>
+    <main
+      className={styles.stage}
+      data-pnr-tv-viewer="unavailable"
+      data-pnr-tv-blocked-reason={reason}
+    >
+      <div className={styles.unavailable} role="status" aria-live="polite">
+        <strong>{heading}</strong>
+        <span>{description}</span>
       </div>
     </main>
   );

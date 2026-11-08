@@ -34,3 +34,10 @@ This prototype is only UI evidence, NOT a Core-backed viewer.
 - Targeted ESLint of 3 changed TS/TSX files: exit 0 PASS.
 - i5 CDP Playwright independent CSS/DOM geometry at 390x844, 768x1024, 1440x900, 1920x1080 (16:9 and 9:16): 8/8 PASS, no document overflow/crop. Temporary test tabs closed.
 - Not authenticated Staging G3/G4. No live Policy data, API or route. No Core/Repo merge/Cloudflare/Production change.
+
+## PAP-1646 fail-closed policy admission UI contract (ChatGPT + RDC)
+The UI display-only component has no Core client, session exchange, physical Device lifecycle or viewer URL route. It cannot be used as proof of authorized rendering.
+- HTTP 401 -> `login_required`; 403 -> `access_denied`; 404 -> `not_found`; 503/5xx/unknown -> `unavailable`.
+- HTTP 200 and 204 are **also `unavailable`** in this pure helper until the future server-side authenticated Core Policy projection independently proves the actor, Center, published Policy and safe content. No browser-only status ever authorizes display.
+- No raw ID, principal, token or private data appears in copy. `PolicyViewerUnavailable` shows accessible status with predictable reason.
+- Local i5 Node tests 22/22 PASS; scoped ESLint PASS. Full exact-head PR CI and Staging G3/G4 require separate checks.
