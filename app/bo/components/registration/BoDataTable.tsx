@@ -10,7 +10,7 @@ import { BoFilters, type BoSavedView, type BoTableUpdate } from "./BoTableSettin
 import { display, opLabels, tableRows, type BoModule, type BoRecord, type BoTableState } from "@/lib/bo-registration";
 import type { TablePolicy } from "@/app/components/workspace-renderer/TablePolicy";
 import { registeredTableRows } from "@/app/components/workspace-renderer/tableRows";
-export function BoDataTable({ module, rows, loadState, value, update, page, setPage, onOpen, onPrimaryCellOpen, selected, onSettings, filterOpen, setFilterOpen, views, changeViews, activeView, applyView, reset, undo, canUndo, minimal = false, legacyStyles = false, showChrome = true, policy, serverTotal, onCellEdit, builtInViews, freezeEnabled = false, totalKnown = true }: { totalKnown?: boolean; freezeEnabled?: boolean; policy?: TablePolicy; serverTotal?: number; onCellEdit?: (record: BoRecord, field: string, anchor: HTMLButtonElement) => void; builtInViews?: ReactNode; legacyStyles?: boolean; minimal?: boolean; showChrome?: boolean; module: BoModule; rows: BoRecord[]; loadState: string; value: BoTableState; update: BoTableUpdate; page: number; setPage: (p: number) => void; onOpen: (r: BoRecord) => void; onPrimaryCellOpen?: (r: BoRecord) => void; selected?: string; onSettings: (s: string) => void; filterOpen: boolean; setFilterOpen: (v: boolean) => void; views: BoSavedView[]; changeViews: (v: BoSavedView[]) => void; activeView: string | null; applyView: (v: BoSavedView | null) => void; reset: () => void; undo: () => void; canUndo: boolean }) {
+export function BoDataTable({ module, rows, loadState, value, update, page, setPage, onOpen, onPrimaryCellOpen, selected, onSettings, filterOpen, setFilterOpen, views, changeViews, activeView, applyView, reset, undo, canUndo, minimal = false, legacyStyles = false, showChrome = true, policy, serverTotal, onCellEdit, builtInViews, freezeEnabled = false, totalKnown = true, openEnabled = true }: { openEnabled?: boolean; totalKnown?: boolean; freezeEnabled?: boolean; policy?: TablePolicy; serverTotal?: number; onCellEdit?: (record: BoRecord, field: string, anchor: HTMLButtonElement) => void; builtInViews?: ReactNode; legacyStyles?: boolean; minimal?: boolean; showChrome?: boolean; module: BoModule; rows: BoRecord[]; loadState: string; value: BoTableState; update: BoTableUpdate; page: number; setPage: (p: number) => void; onOpen: (r: BoRecord) => void; onPrimaryCellOpen?: (r: BoRecord) => void; selected?: string; onSettings: (s: string) => void; filterOpen: boolean; setFilterOpen: (v: boolean) => void; views: BoSavedView[]; changeViews: (v: BoSavedView[]) => void; activeView: string | null; applyView: (v: BoSavedView | null) => void; reset: () => void; undo: () => void; canUndo: boolean }) {
   const fields = useMemo(() => value.order.filter(key => value.visible.includes(key)).map(key => module.fields.find(f => f.key === key)!), [value.order, value.visible, module.fields]);
   const found = serverTotal !== undefined ? rows : policy ? registeredTableRows(rows, module.fields, value, policy) : tableRows(rows, module.fields, value);
   const total = serverTotal ?? found.length, pages = Math.max(1, Math.ceil(total / value.pageSize)), current = Math.min(page, pages), offset = (current - 1) * value.pageSize, visible = serverTotal !== undefined ? found : found.slice(offset, offset + value.pageSize);
@@ -74,15 +74,17 @@ export function BoDataTable({ module, rows, loadState, value, update, page, setP
   const candidates = [...new Set([...found.map(r => display(r[value.group])), ...(module.fields.find(f => f.key === value.group)?.options ?? [])])].sort((a, b) => a.localeCompare(b, "vi"));
   if (value.groupDesc) candidates.reverse();
   function row(record: BoRecord) {
-    return <tr key={record.id} data-record={record.id} data-open={record.id}
-      tabIndex={0} aria-label={"Mở Quick View " + record.name}
+    return <tr key={record.id} data-record={record.id} data-open={openEnabled ? record.id : undefined}
+      tabIndex={openEnabled ? 0 : undefined} aria-label={openEnabled ? "Mở Quick View " + record.name : undefined}
       className={(selected === record.id ? "selected " : "") + "tdd-data-row"}
       onClick={event => {
+        if (!openEnabled) return;
         if (event.target instanceof Element && event.target.closest("button,a,input,select,textarea,[role=button]")) return;
         event.currentTarget.focus({ preventScroll: true });
         onOpen(record);
       }}
       onKeyDown={event => {
+        if (!openEnabled) return;
         if (event.target !== event.currentTarget || !["Enter", " "].includes(event.key)) return;
         event.preventDefault();
         onOpen(record);
@@ -90,9 +92,9 @@ export function BoDataTable({ module, rows, loadState, value, update, page, setP
       {fields.map((f, index) => <td key={f.key} data-tdd-legacy-sticky-release={index === 1 && f.key !== identity ? "" : undefined} data-tdd-identity-column={f.key === identity ? "" : undefined} data-freeze-column={freezeEnabled ? f.key : undefined}
         className={legacyStyles ? undefined : "schema-column"}
         style={legacyStyles ? { width: f.w, minWidth: f.w } : { "--bo-column-width": f.w + "px" } as CSSProperties}>
-        <button type="button" className={"typed-cell" + (["id", "formula"].includes(f.type) ? " readonly" : "")}
-          data-edit={f.key} aria-label={onCellEdit && policy?.edit.includes(f.key) ? "Sửa " + f.label + ": " + display(record[f.key]) : "Mở Quick View " + record.name + " - " + f.label + ": " + display(record[f.key])}
-          title={onCellEdit && policy?.edit.includes(f.key) ? "Sửa " + f.label : "Mở Quick View"}
+        <button type="button" disabled={!openEnabled} className={"typed-cell" + (!openEnabled || ["id", "formula"].includes(f.type) ? " readonly" : "")}
+          data-edit={f.key} aria-label={!openEnabled ? f.label + ": " + display(record[f.key]) : onCellEdit && policy?.edit.includes(f.key) ? "Sửa " + f.label + ": " + display(record[f.key]) : "Mở Quick View " + record.name + " - " + f.label + ": " + display(record[f.key])}
+          title={!openEnabled ? "Chỉ xem" : onCellEdit && policy?.edit.includes(f.key) ? "Sửa " + f.label : "Mở Quick View"}
           onClick={onCellEdit && policy?.edit.includes(f.key)
             ? event => onCellEdit(record, f.key, event.currentTarget)
             : f.key === identity && onPrimaryCellOpen ? () => onPrimaryCellOpen(record) : () => onOpen(record)}>
