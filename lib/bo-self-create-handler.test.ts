@@ -51,3 +51,18 @@ test("PAP-1625 unauthenticated fails closed; Core 403 preserved verbatim",async(
  assert.equal(denied.status,403);
  assert.equal((await denied.json() as {error:{code:string}}).error.code,"ACCESS_PERMISSION_DENIED");
 });
+
+test("PAP-1661 nickname is forwarded as trimmed Self-owned field",async()=>{
+ const f=fixture();
+ const r=await handleBoSelfCreateRequest(req({personId,nickname:"  Mây Hồng  "}),f.env,path);
+ assert.equal(r.status,201);
+ assert.deepEqual(f.seen[0]?.request.body,{personId,nickname:"Mây Hồng"});
+});
+test("PAP-1661 invalid Nickname fails closed before Core write",async()=>{
+ const f=fixture();
+ for(const nickname of ["  ","n".repeat(41),"a"+String.fromCharCode(10)+"b",12,null]){
+  const r=await handleBoSelfCreateRequest(req({personId,nickname}),f.env,path);
+  assert.equal(r.status,400,JSON.stringify(nickname));
+ }
+ assert.equal(f.seen.length,0);
+});

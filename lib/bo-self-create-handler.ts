@@ -15,11 +15,15 @@ export async function handleBoSelfCreateRequest(request:Request,env:BoSelfCreate
   if(!request.headers.get("content-type")?.toLowerCase().startsWith("application/json"))throw new Invalid("JSON body required");
   let payload:unknown;
   try{payload=await request.json()}catch{throw new Invalid("Valid JSON required")}
-  if(!payload||typeof payload!=="object"||Array.isArray(payload)||Object.keys(payload).length!==1||
+  if(!payload||typeof payload!=="object"||Array.isArray(payload)||Object.keys(payload).some(k=>!["personId","nickname"].includes(k))||
      !("personId" in payload)||typeof payload.personId!=="string"||!V7.test(payload.personId))
     throw new Invalid("Select an eligible canonical Person");
+  const nickname=("nickname" in payload ? payload.nickname : undefined);
+  if(nickname!==undefined && (typeof nickname!=="string" || nickname.trim().length===0 ||
+     [...nickname.trim()].length>40 || [...nickname].some(c=>c.charCodeAt(0)<32||c.charCodeAt(0)===127)))
+    throw new Invalid("Nickname phải có từ 1 đến 40 ký tự hợp lệ");
   const credential=await teamCredential(request,env,"BO",keyResolver);
-  const req:BoAccessRequest={method:"POST",path,resource:{centerId:params[0][1]},body:{personId:payload.personId}};
+  const req:BoAccessRequest={method:"POST",path,resource:{centerId:params[0][1]},body:{personId:payload.personId,...(typeof nickname==="string"?{nickname:nickname.trim()}:{})}};
   const core=await callBoAccessCoreWithCredential(env.PINO_BO_CORE,req,credential);
   return result(core.body,core.status,core.requestId);
  }catch(error){
