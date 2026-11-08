@@ -76,7 +76,7 @@ function ScopedSelfDirectory({selected,centerSource}: {selected: string; centerS
     {createdNotice ? <p role="status">{createdNotice}</p> : null}
     <SurfaceWorkspace adapter={current.adapter} key={selected} navigation={current.navigation} initialQuery={selfQuery}
     tableHeaderActions={canCreate
-      ? <BoActionButton type="button" variant="primary" onClick={()=>{setCreatedNotice("");setCreating(true)}}>＋ Tạo Self</BoActionButton>
+      ? <BoActionButton type="button" variant="primary" onClick={()=>{setCreatedNotice("");setCreating(true)}}>＋ Tạo Avatar</BoActionButton>
       : null}
     detailProperties={properties => <SelfDirectoryProperties fields={properties.fields} record={properties.record} sections={properties.sections}/>}
     detailApprovedExtension={(row,context,activeTab,_principalId,onSaved) =>
@@ -88,6 +88,6 @@ function ScopedSelfDirectory({selected,centerSource}: {selected: string; centerS
             canView={context.authorize("pinoria.self.item.view")} canManage={context.authorize("pinoria.self.item.manage")}
             onSaved={onSaved} />}/>
     {creating && canCreate ? <CreateSelfDrawer centerId={selected} onClose={()=>setCreating(false)}
-      onCreated={()=>{setCreating(false);setCreatedNotice("Đã tạo Self.");setReady(null);setRetry(n=>n+1)}}/> : null}
+      onCreated={()=>{setCreating(false);setCreatedNotice("Đã tạo Avatar.");setReady(null);setRetry(n=>n+1)}}/> : null}
   </>;
 }
