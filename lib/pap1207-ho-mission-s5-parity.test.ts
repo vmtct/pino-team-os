@@ -82,6 +82,6 @@ test("PAP-1207 S5 both Create/Edit acquire fresh Core Path before mutation; stat
   assert.match(source, /if \(mode === "create" \|\| mode === "edit"\)/);
   assert.match(source, /const fresh = await loadMissionPathChoices\(\)/);
   assert.match(source, /editTarget\.status !== draft\.status/);
-  assert.match(source, /kind: "update".*expectedVersion: editTarget!\.version/s);
+  assert.match(source, /kind: "update"[\s\S]*expectedVersion: editTarget!\.version/);
   assert.match(source, /result\.state === "unverified"/);
 });
