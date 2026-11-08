@@ -31,7 +31,7 @@ const css = scopeAuthority(readFileSync(base + 'styles.css', 'utf8')) + '\n' +
   scopeAuthority(readFileSync('app/components/workspace-renderer/tdd-detail-layout.css', 'utf8')) + '\n' +
   scopeAuthority(readFileSync('app/components/workspace-renderer/tdd-table-geometry.css', 'utf8')) + '\n' +
   // PAP-1722: BO-only extension; never compile into the shared HO authority.
-  scopeAuthority(readFileSync('app/components/workspace-renderer/tdd-bo-forms.css', 'utf8'));
+  scopeAuthority(readFileSync('public/bo-authority-source/bo-form-extension.css', 'utf8'));
 if (process.argv.includes('--check')) assert.equal(readFileSync(base + 'bo-scoped.css', 'utf8'), css);
 else writeFileSync(base + 'bo-scoped.css', css);
 console.log('PAP-1022 authority bytes and deterministic BO scope verified');

@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const drawer = readFileSync(new URL("../app/bo/parents/ParentCreateDrawer.tsx", import.meta.url), "utf8");
-const css = readFileSync(new URL("../app/components/workspace-renderer/tdd-bo-forms.css", import.meta.url), "utf8");
+const css = readFileSync(new URL("../public/bo-authority-source/bo-form-extension.css", import.meta.url), "utf8");
 const hoCss = readFileSync(new URL("../public/ho-authority-source/ho-scoped.css", import.meta.url), "utf8");
 const boCss = readFileSync(new URL("../public/bo-authority-source/bo-scoped.css", import.meta.url), "utf8");
 
