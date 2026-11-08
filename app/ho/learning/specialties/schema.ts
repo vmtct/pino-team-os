@@ -10,12 +10,12 @@ const permission = "catalog.learning.view";
 const read = { display:true, search:true, filter:true, sort:true, group:true, inlineEdit:false } as const;
 const specialtyBaseFields = [
   {key:"name",label:"Chuyên đề",type:"text",icon:"Aa",width:240},
-  {key:"path",label:"Path",type:"text",icon:"▣",width:180},
-  {key:"status",label:"Trạng thái",type:"text",icon:"◉",width:140},
-  {key:"description",label:"Mô tả",type:"text",icon:"≡",width:280},
+  {key:"path",label:"Path",type:"relation",icon:"↗",width:180},
+  {key:"status",label:"Trạng thái",type:"select",icon:"◉",width:140,options:["Bản nháp","Đang áp dụng","Đã lưu trữ"]},
+  {key:"description",label:"Mô tả",type:"textarea",icon:"≡",width:280},
   {key:"levelCount",label:"Cấp",type:"number",icon:"#",width:100},
-  {key:"prerequisiteView",label:"Tiên quyết",type:"text",icon:"↗",width:220},
-  {key:"tagView",label:"Tag",type:"text",icon:"#",width:180},
+  {key:"prerequisiteView",label:"Tiên quyết",type:"multirelation",icon:"↗",width:220},
+  {key:"tagView",label:"Tag",type:"multiselect",icon:"⌗",width:180},
   {key:"missionCount",label:"Nhiệm vụ",type:"number",icon:"#",width:110},
   {key:"createdTime",label:"Created Time",type:"text",icon:"◷",width:195},
   {key:"createdBy",label:"Created by (User)",type:"text",icon:"Aa",width:205},
@@ -53,7 +53,7 @@ export const specialtyDefinition = {
     approval:{jira:"PAP-1495",owner:"HO Runtime",designAuthority:"Founder",
       files:["app/ho/learning/specialties/HoSpecialtyMissionsTab.tsx"],
       tests:["lib/specialty-interim-shell.test.ts"],reviewBy:"2026-11-30T00:00:00+07:00"},
-  }],history:{kind:"unavailable",reason:"Chưa tải được lịch sử Chuyên đề."}},
+  }],history:{kind:"unavailable",reason:"Core chưa cung cấp lịch sử thay đổi Chuyên đề được xác minh."}},
 } as const satisfies SurfaceDefinition<F>;
 export const verifySpecialtyExtension: ApprovalVerifier = (approval,scope) =>
   scope.surface==="HO" && scope.key==="specialties" && scope.extensionId==="ho.learning.specialty-missions" &&
@@ -78,16 +78,34 @@ export function specialtyPathLabel(id:string,paths:readonly SpecialtyV2PathOptio
  if(!option)throw new BoApiError(502,'Core trả Path Chuyên đề không hợp lệ.',null);
  return option.label;
 }
+/** PAP-1495 / PAP-1491 S4: on a new, authorized deep link, ?record opens
+ * Full Detail; an existing Quick Drawer in this same module must remain Drawer.
+ * The shared TDD navigation contract for other modules is unchanged. */
+export function shouldPrimeSpecialtyS4Detail(
+ kind:"table"|"drawer"|"detail", recordId:string|undefined, ownedRecordId:string|undefined,
+):boolean {
+ return kind==="drawer"&&Boolean(recordId)&&recordId!==ownedRecordId;
+}
+/** PAP-1495 S3: UI labels never replace Core lifecycle codes in DTOs. */
+export const specialtyStatusLabel = (status:SpecialtyV2Summary["status"]):string => ({DRAFT:"Bản nháp",ACTIVE:"Đang áp dụng",ARCHIVED:"Đã lưu trữ"})[status];
 const summaryRow=(s:SpecialtyV2Summary,paths:readonly SpecialtyV2PathOption[]):ModuleRow<F>=>({
- id:s.id,name:s.name,path:specialtyPathLabel(s.pathProgramId,paths),status:s.status,
+ id:s.id,name:s.name,path:specialtyPathLabel(s.pathProgramId,paths),status:specialtyStatusLabel(s.status),
  description:s.description,levelCount:null,prerequisiteView:null,
- tagView:s.tags.join(', '),missionCount:s.missionCountDistinct,
+ tagView:s.tags,missionCount:s.missionCountDistinct,
  createdTime:formatSpecialtyAuditTime(s.createdAt),createdBy:s.createdByVerifiedLegalName??'—',
  lastModifiedTime:formatSpecialtyAuditTime(s.updatedAt),lastModifiedBy:s.updatedByVerifiedLegalName??'—',
 });
-const detailRow=(s:SpecialtyV2Detail,paths:readonly SpecialtyV2PathOption[]):ModuleRow<F>=>({
+export function specialtyPrerequisiteLabels(ids:readonly string[],catalog:readonly SpecialtyV2Summary[]):string[]{
+ const byId=new Map(catalog.map(s=>[s.id,s.name]));
+ return ids.map(id=>{
+  const name=byId.get(id);
+  if(!name)throw new BoApiError(502,"Core trả tiên quyết Chuyên đề không thể xác minh.",null);
+  return name;
+ });
+}
+const detailRow=(s:SpecialtyV2Detail,paths:readonly SpecialtyV2PathOption[],prerequisites:readonly SpecialtyV2Summary[]):ModuleRow<F>=>({
  ...summaryRow(s,paths),levelCount:s.levels.length,
- prerequisiteView:s.prerequisiteIds.join(', '),
+ prerequisiteView:specialtyPrerequisiteLabels(s.prerequisiteIds,prerequisites),
 });
 export const specialtyProvider: SurfaceProvider<F> = {
   pagination:"local-ui",
@@ -101,7 +119,8 @@ export const specialtyProvider: SurfaceProvider<F> = {
     signal.throwIfAborted();
     if(scope.surface!=="HO")throw new BoApiError(403,"Không có quyền xem Chuyên đề.",null);
     const [s,paths]=await Promise.all([readSpecialtyV2Detail(id,fetcher,signal),readSpecialtyV2PathOptions(fetcher,signal)]);
-    return {row:detailRow(s,paths),version:String(s.version)};
+    const prerequisites=s.prerequisiteIds.length?await readSpecialtyV2List(fetcher,signal):[];
+    return {row:detailRow(s,paths,prerequisites),version:String(s.version)};
   },
 };
 

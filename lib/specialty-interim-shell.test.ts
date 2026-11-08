@@ -17,7 +17,7 @@ const schema = registry.register({...specialtyDefinition,data:{id:"test-only-spe
 const context = {surface:"HO" as const,authorize:(permission:string)=>permission==="catalog.learning.view"};
 const record:ModuleRow<typeof specialtyDefinition.fields> = {
   id:"specialty-test",name:"Chuyên đề hình khối",path:"Mỹ thuật",status:"ACTIVE",description:"Quan sát hình khối",
-  levelCount:2,prerequisiteView:"",tagView:"Hình khối",missionCount:3,
+  levelCount:2,prerequisiteView:[],tagView:["Hình khối"],missionCount:3,
   createdTime:"—",createdBy:"—",lastModifiedTime:"—",lastModifiedBy:"—",
 };
 const noop=()=>{};
@@ -45,7 +45,7 @@ test("PAP-1495: shared Table, Quick View and Detail keep geometry/properties wit
   const denied=html(h(TddDetail<typeof specialtyDefinition.fields>,{...base,context:{...context,authorize:()=>false},record,onBack:noop,subject:{type:"specialties",id:record.id}}));
   assert.doesNotMatch(denied,/Chuyên đề hình khối|Quan sát hình khối/);
   const history=html(h(TddDetail<typeof specialtyDefinition.fields>,{...base,record,activeTab:"history",onBack:noop,subject:{type:"specialties",id:record.id}}));
-  assert.match(history,/Chưa tải được lịch sử Chuyên đề/);
+  assert.match(history,/Core chưa cung cấp lịch sử thay đổi Chuyên đề được xác minh/);
 });
 
 test("PAP-1495: real Founder GET errors stay errors, BO is denied and no fixture data leaks",async()=>{

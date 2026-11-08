@@ -9,15 +9,14 @@ import { browserTddNavigation, type AdapterNavigation } from "@/lib/workspace-ad
 import { TddRegistry } from "@/lib/workspace-schema";
 import { BoApiError } from "@/lib/bo-api-error";
 import { readSpecialtyV2PathOptions, createSpecialtyV2Draft, type SpecialtyV2PathOption } from "@/lib/ho-specialty-v2-reader";
-import { HoSpecialtyMissionsTab } from "./HoSpecialtyMissionsTab";
+import { HoSpecialtyMissionsEdit } from "./HoSpecialtyMissionsEdit";
+import { HoSpecialtyOverviewEdit } from "./HoSpecialtyOverviewEdit";
 import { DrawerFrame } from "@/app/components/workspace-renderer/DrawerFrame";
 import createStyles from "./HoSpecialtyCreate.module.css";
-import { specialtyDefinition, specialtyFields, specialtyProvider, specialtyQuery, verifySpecialtyExtension, validateSpecialtyDraft, type SpecialtyDraft } from "./schema";
+import { specialtyDefinition, specialtyFields, specialtyProvider, specialtyQuery, verifySpecialtyExtension, validateSpecialtyDraft, shouldPrimeSpecialtyS4Detail, type SpecialtyDraft } from "./schema";
 
 type F = typeof specialtyFields;
 type Ready = {adapter:AuthenticatedSurfaceAdapter<F>;navigation:AdapterNavigation<F>};
-const rejectWrite = async (): Promise<never> => { throw new Error("SPECIALTY_WRITER_UNAVAILABLE"); };
-
 /** PAP-1495 / PAP-1491: same HO PINO DS TDD shell, real Core Catalog source. */
 export function HoSpecialties() {
   const [ready,setReady]=useState<Ready|null>(null);
@@ -31,7 +30,12 @@ export function HoSpecialties() {
       definition:specialtyDefinition,provider:specialtyProvider},controller.signal).then(result=>{
         adapter=result;
         if(controller.signal.aborted){result.dispose();return;}
-        setReady({adapter:result,navigation:browserTddNavigation("HO","specialties",specialtyQuery)});
+        const navigation=browserTddNavigation("HO","specialties",specialtyQuery);
+        const initial=navigation.read();
+        const owned=window.history.state?.["pino:tdd:HO:specialties"] as {recordId?:string}|undefined;
+        if(shouldPrimeSpecialtyS4Detail(initial.kind,initial.recordId,owned?.recordId))
+          navigation.change({...initial,kind:"detail",tab:"overview"},true);
+        setReady({adapter:result,navigation});
       }).catch(error=>{if(!controller.signal.aborted)setError(error instanceof BoApiError && [401,403].includes(error.status)
         ?"Bạn không có quyền xem Chuyên đề.":"Chưa tải được danh mục Chuyên đề.");});
     return ()=>{controller.abort();adapter?.dispose();};
@@ -39,11 +43,11 @@ export function HoSpecialties() {
   const content=error?<p role="alert">{error} <button type="button" onClick={()=>{setReady(null);setError("");setRetry(n=>n+1);}}>Thử lại</button></p>
     :ready?<><SurfaceWorkspace adapter={ready.adapter} navigation={ready.navigation} initialQuery={specialtyQuery}
       tableHeaderActions={<button className="primary-btn" type="button" onClick={()=>setCreateOpen(true)}>＋ Tạo chuyên đề</button>}
-      detailApprovedExtension={(_row,_context,tab)=>tab==="missions"?<>
-        <p role="status">Chưa tải được nhiệm vụ liên kết.</p>
-        <HoSpecialtyMissionsTab pathProgramId="" levels={[]} missionCatalog={[]} disabled
-          onLink={rejectWrite} onUnlink={rejectWrite} onOpenMission={()=>{}} />
-      </>:null}/>
+      detailProperties={(properties,context,_actor,onSaved)=><HoSpecialtyOverviewEdit key={properties.record.id}
+        properties={properties} canManage={context.authorize("catalog.learning.manage")} onSaved={onSaved}/>}
+      detailApprovedExtension={(row,context,tab,_actor,onSaved)=>tab==="missions"?
+        <HoSpecialtyMissionsEdit key={row.id} specialtyId={row.id}
+          canManage={context.authorize("catalog.learning.manage")} onSaved={onSaved}/>:null}/>
       {createOpen ? <SpecialtyCreateDrawer onClose={()=>setCreateOpen(false)}
         onCreated={()=>{setCreateOpen(false);setRetry(n=>n+1);}} /> : null}
     </>:<p role="status">Đang tải Chuyên đề…</p>;
