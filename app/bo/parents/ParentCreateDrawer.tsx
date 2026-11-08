@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { BoActionButton } from "@pino/design-system/react";
 import { DrawerFrame } from "@/app/components/workspace-renderer/DrawerFrame";
 import { BoApiError } from "@/lib/bo-api-error";
@@ -16,6 +16,7 @@ export function ParentCreateDrawer({
   centerId, onClose, onCreated,
 }: { centerId: string; onClose: () => void; onCreated: (result: BoParentStandaloneCreateResult) => void }) {
   const inFlight = useRef(false);
+  const nameInputRef = useRef<HTMLInputElement>(null);
   const attemptRef = useRef<Attempt | null>(null);
   const [name, setName] = useState("");
   const [contactValue, setContactValue] = useState("");
@@ -23,6 +24,13 @@ export function ParentCreateDrawer({
   const [error, setError] = useState("");
   const [locked, setLocked] = useState(false);
   const [canEdit, setCanEdit] = useState(false);
+  // PAP-1722: after DrawerFrame's shared focus trap initializes, restore the
+  // Founder-approved prototype's initial field focus. Keep shared dialog
+  // policy unchanged so the original invoker receives focus on close.
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => nameInputRef.current?.focus());
+    return () => cancelAnimationFrame(frame);
+  }, []);
   const uncertain = locked && !!error && !canEdit;
   const dirty = !!name.trim() || !!contactValue.trim();
 
@@ -75,7 +83,7 @@ export function ParentCreateDrawer({
       <section className="property-section">
         <h3>Thông tin phụ huynh</h3>
         <label className="property-row"><span className="property-label">Họ và tên *</span>
-          <input id="parent-create-name" className="os-create-select" autoComplete="name" maxLength={120} required autoFocus disabled={locked} value={name} onChange={e => { setName(e.target.value); setError(""); }} /></label>
+          <input id="parent-create-name" className="os-create-select" autoComplete="name" maxLength={120} required ref={nameInputRef} disabled={locked} value={name} onChange={e => { setName(e.target.value); setError(""); }} /></label>
         <label className="property-row"><span className="property-label">Điện thoại hoặc email *</span>
           <input id="parent-create-contact" className="os-create-select" type="text" autoComplete="off" maxLength={120} required disabled={locked} value={contactValue} onChange={e => { setContactValue(e.target.value); setError(""); }} /></label>
       </section>

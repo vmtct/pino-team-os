@@ -28,3 +28,13 @@ test("PAP-1722: canonical BO CSS matches i5 input geometry without unscoped over
   assert.match(boCss, /#parent-create-form/);
   assert.doesNotMatch(hoCss, /#parent-create-form/, "BO Create Drawer declarations must never leak into HO");
 });
+
+test("PAP-1722: Parent Create focuses the first input after shared dialog mount and preserves invoker focus", () => {
+  const policy = readFileSync(new URL("../app/bo/components/registration/useBoDialog.ts", import.meta.url), "utf8");
+  assert.match(policy, /focusables\(\)\[0\]\?\.focus\(\)/, "Default shared dialog focus order remains untouched");
+  assert.match(drawer, /const nameInputRef = useRef<HTMLInputElement>\(null\)/);
+  assert.match(drawer, /requestAnimationFrame\(\(\) => nameInputRef\.current\?\.focus\(\)\)/);
+  assert.match(drawer, /cancelAnimationFrame\(frame\)/);
+  assert.match(drawer, /ref=\{nameInputRef\}/);
+  assert.doesNotMatch(drawer, /\bautoFocus\b/, "Native autofocus must not steal useBoDialog's invoker origin");
+});
