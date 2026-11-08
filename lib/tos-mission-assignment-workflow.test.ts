@@ -33,6 +33,12 @@ function cancelled(){return record({status:"CANCELLED",cancelledReason:"Thay Ä‘á
 const denied=(code:string,status=403)=>new TosMissionAssignmentApiError(status,code,code);
 const fail=(task:()=>unknown,code:string)=>assert.throws(task,(e:unknown)=>
  e instanceof TosMissionAssignmentApiError&&e.code===code);
+// PAP-1488 reader-only tests: unexpected writes must always fail explicitly.
+const noWrites={
+ create:async():Promise<never>=>{throw Error("Unexpected Assignment CREATE in reader test")},
+ updateContext:async():Promise<never>=>{throw Error("Unexpected Assignment EDIT in reader test")},
+ cancel:async():Promise<never>=>{throw Error("Unexpected Assignment CANCEL in reader test")},
+};
 
 test("only an authentic projected V18b occurrence with CANDIDATE enters Assignment",()=>{
  assert.deepEqual(assignmentScopeForCandidate(today,today.occurrences[0]!,ids.student),scope);
@@ -58,20 +64,79 @@ test("read filters exact class/date; same student in other occurrence is not tod
  assert.equal(rows.length,1);assert.equal(rows[0]!.id,ids.assignment);assert.equal(calls,1);
 });
 
-test("read rejects cross-center and duplicate IDs; refuses incomplete pages",async()=>{
+test("PAP-1488 reader rejects cross-center and duplicate IDs",async()=>{
  const api=(rows:TosMissionAssignmentRecord[])=>({list:async()=>rows,
   create:async()=>{throw Error("unreachable")},
   updateContext:async()=>{throw Error("unreachable")},
   cancel:async()=>{throw Error("unreachable")}});
  for(const [rows,code] of [
   [[record({centerId:ids.replacement})],"MISSION_ASSIGNMENT_SOURCE_MISMATCH"],
+  [[record({studentId:ids.replacement})],"MISSION_ASSIGNMENT_SOURCE_MISMATCH"],
   [[record(),record()],"MISSION_ASSIGNMENT_DUPLICATE_ID"],
-  [Array.from({length:100},(_,i)=>record({id:String(i).padStart(8,"0")+"-5555-4555-8555-555555555555"})),
-  "MISSION_ASSIGNMENT_PAGE_INCOMPLETE"],
  ] as const){
-  await assert.rejects(loadAssignmentsInOccurrence(api(rows as TosMissionAssignmentRecord[]),scope),
+  await assert.rejects(loadAssignmentsInOccurrence(api([...rows]),scope),
    (e:unknown)=>e instanceof TosMissionAssignmentApiError&&e.code===code);
  }
+});
+
+test("PAP-1488 reader collects all pages before filtering dated occurrence; exact 100 is complete",async()=>{
+ const pageOf=(offset:number,count:number,contextKey=scope.teachingContextKey)=>
+  Array.from({length:count},(_,i)=>record({
+   id:String(offset+i).padStart(8,"0")+"-5555-4555-8555-555555555555",contextKey}));
+ for(const tail of [[],pageOf(100,1)]){
+  const offsets:number[]=[];
+  const first=pageOf(0,100,ids.runningClass+":2026-11-04");
+  const api={...noWrites,list:async(input:{offset?:number;limit?:number})=>{
+   assert.equal(input.limit,100);offsets.push(input.offset??-1);
+   return input.offset===0?first:tail;
+  }};
+  const rows=await loadAssignmentsInOccurrence(api,scope);
+  assert.equal(rows.length,tail.length);
+  assert.deepEqual(rows.map(x=>x.id),tail.map(x=>x.id));
+  assert.deepEqual(offsets,[0,100]);
+ }
+});
+
+test("PAP-1488 reader rejects duplicate IDs and changed Center/Student on later pages",async()=>{
+ const first=Array.from({length:100},(_,i)=>record({
+  id:String(i).padStart(8,"0")+"-5555-4555-8555-555555555555"}));
+ const cases=[
+  {page:[first[0]!],code:"MISSION_ASSIGNMENT_DUPLICATE_ID"},
+  {page:[record({id:ids.replacement,centerId:ids.replacement})],code:"MISSION_ASSIGNMENT_SOURCE_MISMATCH"},
+  {page:[record({id:ids.replacement,studentId:ids.replacement})],code:"MISSION_ASSIGNMENT_SOURCE_MISMATCH"},
+  {page:first,code:"MISSION_ASSIGNMENT_DUPLICATE_ID"},
+ ] as const;
+ for(const variant of cases){
+  const offsets:number[]=[];
+  const api={...noWrites,list:async(input:{offset?:number})=>{
+   offsets.push(input.offset??-1);
+   return input.offset===0?first:[...variant.page];
+  }};
+  await assert.rejects(loadAssignmentsInOccurrence(api,scope),
+   (e:unknown)=>e instanceof TosMissionAssignmentApiError&&e.code===variant.code);
+  assert.deepEqual(offsets,[0,100]);
+ }
+});
+
+test("PAP-1488 reader fails closed on later fetch error, overfull page and exhausted offset bound",async()=>{
+ const first=Array.from({length:100},(_,i)=>record({
+  id:String(i).padStart(8,"0")+"-5555-4555-8555-555555555555"}));
+ const failure=new TosMissionAssignmentApiError(503,"SECOND_PAGE_DOWN","retry");
+ let calls=0;
+ await assert.rejects(loadAssignmentsInOccurrence({...noWrites,list:async(input:{offset?:number})=>{
+  calls++;if(input.offset===0)return first;throw failure;
+ }},scope),(e:unknown)=>e===failure);
+ assert.equal(calls,2);
+ await assert.rejects(loadAssignmentsInOccurrence({...noWrites,list:async()=>[...first,record()]},scope),
+  (e:unknown)=>e instanceof TosMissionAssignmentApiError&&e.code==="MISSION_ASSIGNMENT_PAGE_INCOMPLETE");
+ const offsets:number[]=[];
+ await assert.rejects(loadAssignmentsInOccurrence({...noWrites,list:async(input:{offset?:number})=>{
+  const offset=input.offset??-1;offsets.push(offset);
+  return Array.from({length:100},(_,i)=>record({
+   id:String(offset+i).padStart(8,"0")+"-5555-4555-8555-555555555555"}));
+ }},scope),(e:unknown)=>e instanceof TosMissionAssignmentApiError&&e.code==="MISSION_ASSIGNMENT_PAGE_INCOMPLETE");
+ assert.equal(offsets.length,101);
+ assert.equal(offsets[0],0);assert.equal(offsets.at(-1),10000);
 });
 
 test("create only Core Assignment; rejects mismatched persisted Center",async()=>{
