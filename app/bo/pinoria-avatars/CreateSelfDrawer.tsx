@@ -8,7 +8,7 @@ import {
  candidateHasAvatar,isEligibleAvatarCandidate,matchingAvatarCandidates,
  type AvatarCandidate
 } from "./avatar-picker";
-import "./CreateAvatarDrawer.css";
+import styles from "./CreateAvatarDrawer.module.css";
 
 type DirectoryPage={items:AvatarCandidate[];nextCursor:string|null};
 
@@ -75,6 +75,7 @@ export function CreateSelfDrawer({centerId,onClose,onCreated}:{centerId:string;o
   return ()=>{clearTimeout(timer);ctl.abort();};
  },[centerId,query,retry]);
  const matches=useMemo(()=>matchingAvatarCandidates(candidates,query),[candidates,query]);
+ const visibleMatches=matches.slice(0,8);
  const duplicate=!!person&&(duplicateConflict||candidateHasAvatar(person));
  const canCreate=!!person&&!duplicate&&!saving&&!loading&&!loadError;
  function choose(option:AvatarCandidate){
@@ -92,9 +93,9 @@ export function CreateSelfDrawer({centerId,onClose,onCreated}:{centerId:string;o
   if(e.key==="ArrowDown"||e.key==="ArrowUp"){
    e.preventDefault();
    if(!open){setOpen(true);setActive(0);return;}
-   if(matches.length)setActive(i=>(i+(e.key==="ArrowDown"?1:-1)+matches.length)%matches.length);
+   if(visibleMatches.length)setActive(i=>(i+(e.key==="ArrowDown"?1:-1)+visibleMatches.length)%visibleMatches.length);
   }else if(e.key==="Enter"&&open){
-   e.preventDefault();if(matches[active])choose(matches[active]);
+   e.preventDefault();if(visibleMatches[active])choose(visibleMatches[active]);
   }else if(e.key==="Escape"&&open){
    e.preventDefault();e.stopPropagation();setOpen(false);
   }
@@ -126,36 +127,37 @@ export function CreateSelfDrawer({centerId,onClose,onCreated}:{centerId:string;o
   </BoActionButton>
  </>;
  return <DrawerFrame title="Tạo Avatar" path="Pinoria · Avatar" onClose={close} footer={footer}>
-  <div className="pino-avatar-create" data-jira="PAP-1710">
+  <div className={styles.body} data-jira="PAP-1710">
    <section className="property-section" aria-label="Thông tin Avatar">
     <h3>Thông tin Avatar</h3>
     <div className="property-row">
      <label className="property-label" htmlFor="ps-create-person">Person *</label>
-     <div className="property-control pino-avatar-picker">
+     <div className={styles.picker}>
       <input id="ps-create-person" ref={inputRef} autoFocus type="text" role="combobox"
        aria-autocomplete="list" aria-expanded={open} aria-controls={listId}
-       aria-activedescendant={open&&matches[active]?listId+"-"+active:undefined}
+       aria-activedescendant={open&&visibleMatches[active]?listId+"-"+active:undefined}
        aria-describedby="ps-create-person-hint" aria-invalid={!!inputValue&&!person}
-       placeholder="Chọn hoặc tìm Person…" value={inputValue} maxLength={120}
+       placeholder="Chọn hoặc tìm Person…" className="pds-property-input" value={inputValue} maxLength={120}
        autoComplete="off" disabled={saving}
        onFocus={()=>{setOpen(true);setActive(0);}}
        onClick={()=>{setOpen(true);setActive(0);}}
        onChange={e=>changeQuery(e.target.value)}
        onKeyDown={onComboboxKeyDown}
        onBlur={()=>{setTimeout(()=>setOpen(false),120);}}/>
-      {open?<div className="pino-avatar-options" id={listId} role="listbox" aria-label="Chọn Person">
+      {open?<div className={styles.options} id={listId} role="listbox" aria-label="Chọn Person">
        {loading?<p role="status">Đang tìm Person tại cơ sở đã chọn…</p>:
         loadError?<div role="alert">{loadError} <button type="button" onMouseDown={e=>e.preventDefault()} onClick={()=>setRetry(n=>n+1)}>Thử lại</button></div>:
-        matches.length?matches.map((option,i)=>
+        visibleMatches.length?visibleMatches.map((option,i)=>
          <button ref={el=>{optionRefs.current[i]=el;}} type="button" role="option"
           id={listId+"-"+i} aria-selected={i===active}
-          className={"pino-avatar-option"+(i===active?" is-active":"")+(candidateHasAvatar(option)?" is-taken":"")}
+          className="secondary-btn"
           key={option.personId} onMouseDown={e=>e.preventDefault()}
           onMouseEnter={()=>setActive(i)} onClick={()=>choose(option)}>
-          <span className="pino-avatar-option-copy"><strong>{option.displayName}</strong><small>{option.subjectTypes.join(" / ")}</small></span>
-          <span className="pino-avatar-option-state">{candidateHasAvatar(option)?"Đã có Avatar":"Chưa có Avatar"}</span>
+          <span className={styles.optionCopy}><strong>{option.displayName}</strong><small>{option.subjectTypes.join(" / ")}</small></span>
+          <span>{candidateHasAvatar(option)?"Đã có Avatar":"Chưa có Avatar"}</span>
          </button>):
         <p role="status">Không có Person phù hợp tại cơ sở này.</p>}
+       {!loading&&matches.length>visibleMatches.length?<p role="status">Đang hiển thị 8 kết quả đầu. Gõ để tìm thêm.</p>:null}
        {!loading&&hasMore?<p role="status">Danh sách bị giới hạn. Gõ tên Person để tìm thêm.</p>:null}
       </div>:null}
      </div>
@@ -167,7 +169,7 @@ export function CreateSelfDrawer({centerId,onClose,onCreated}:{centerId:string;o
     <div className="property-row">
      <label className="property-label" htmlFor="ps-create-nickname">Nickname Avatar (tùy chọn)</label>
      <div className="property-control"><input ref={nicknameRef} id="ps-create-nickname" type="text"
-      maxLength={40} autoComplete="off" placeholder="Tên hiển thị của Avatar"
+      maxLength={40} className="pds-property-input" autoComplete="off" placeholder="Tên hiển thị của Avatar"
       value={nickname} onChange={e=>{setNickname(e.target.value);setError("");}} disabled={saving}/></div>
     </div>
     <p className="pino-avatar-hint">Nickname không đổi tên Person. Avatar không tự nhận Starter Set hay Item.</p>
