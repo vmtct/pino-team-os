@@ -20,6 +20,12 @@ export function validateMissionCreate(value: MissionInput): string | null {
   if (value.guideline && value.guideline.length > 8000) return "Hướng dẫn quá dài.";
   return null;
 }
+
+/** PAP-1188 / MISSION S5 — same approved PINO DSA fields for Create and Edit.
+ * System soft-reference metadata is retained in the draft/write payload but
+ * NEVER surfaced as editable IDs, snapshots or optional paper-size inputs.
+ * Status is a read-only property: Archive has a separate confirmed action.
+ */
 export function MissionCreateFields({ value, setValue, disabled, editing = false, pathChoices = [],
   pathState = "idle", pathError = "" }: {
   readonly value: MissionInput; readonly setValue: (value: MissionInput) => void;
@@ -29,58 +35,39 @@ export function MissionCreateFields({ value, setValue, disabled, editing = false
   readonly pathError?: string;
 }) {
   const set = <K extends keyof MissionInput>(key: K, entry: MissionInput[K]) => setValue({ ...value, [key]: entry });
-  // The legacy edit surface retains existing backend/soft-link fields until Founder S5.
-  const input = (id: keyof MissionInput, label: string, placeholder = "") =>
-    <label key={id} className="v25-form-field form-row"><span>{label}</span>
-      <input type="text" value={String(value[id] ?? "")} placeholder={placeholder} disabled={disabled}
-        onChange={e => set(id, (e.target.value.trim() || null) as never)} />
-    </label>;
   const pickPath = (id: string) => {
     const choice = pathChoices.find(option => option.id === id);
     setValue({ ...value, pathProgramId: choice?.id ?? null, pathKeySnapshot: choice?.code ?? null });
   };
+  const pathReady = pathState === "ready" && pathChoices.length === 4;
   return <section aria-label={editing ? "Thông tin sửa Mission" : "Thông tin Mission mới"} className="v25-form-fields edit-form">
-    {editing ? <>
-      <label className="v25-form-field form-row"><span>Mã Mission *</span><input autoFocus required maxLength={64}
-        value={value.code} disabled={disabled} onChange={e => set("code", e.target.value)} /></label>
-      <label className="v25-form-field form-row"><span>Tên Mission *</span><input required maxLength={160}
-        value={value.name} disabled={disabled} onChange={e => set("name", e.target.value)} /></label>
-    </> : <>
-      <label className="v25-form-field form-row"><span>Nhiệm vụ *</span><input autoFocus required maxLength={160}
-        value={value.name} disabled={disabled} onChange={e => set("name", e.target.value)} /></label>
-      <label className="v25-form-field form-row"><span>Mã *</span><input required maxLength={64}
-        value={value.code} disabled={disabled} onChange={e => set("code", e.target.value)} /></label>
-    </>}
+    <label className="v25-form-field form-row"><span>Nhiệm vụ *</span><input autoFocus required maxLength={160}
+      value={value.name} disabled={disabled} onChange={e => set("name", e.target.value)} /></label>
+    <label className="v25-form-field form-row"><span>Mã *</span><input required maxLength={64}
+      value={value.code} disabled={disabled} onChange={e => set("code", e.target.value)} /></label>
     <label className="v25-form-field form-row"><span>Cấp độ</span>
       <select value={value.level} disabled={disabled} onChange={e => set("level", Number(e.target.value))}>
         {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n}</option>)}
       </select></label>
     <label className="v25-form-field form-row"><span>Trạng thái</span>
-      <select value={value.status} disabled={disabled || !editing} onChange={e => set("status", e.target.value as MissionInput["status"])}>
-        <option value="ACTIVE">ACTIVE</option><option value="INACTIVE">INACTIVE</option>
-      </select></label>
-    <label className="v25-form-field form-row"><span>PLS</span><input type="number" min={0} step={1}
-      value={value.plsValue} disabled={disabled} onChange={e => set("plsValue", Number(e.target.value))} /></label>
-    {editing ? <>
-      <label className="v25-form-field form-row"><span>Khổ giấy</span>
-        <select value={value.paperSize ?? ""} disabled={disabled} onChange={e => set("paperSize", e.target.value ? e.target.value as "B5" | "A4" | "A3" : null)}>
-          <option value="">Không áp dụng</option>{["B5", "A4", "A3"].map(s => <option key={s} value={s}>{s}</option>)}
-        </select></label>
-      {input("pathProgramId", "Path Program ID (nếu có)", "UUID của Path")}
-      {input("pathKeySnapshot", "Path Code Snapshot", "Mã Path")}
-      {input("prerequisiteMissionId", "Prerequisite Mission ID", "UUID Mission trước")}
-      {input("prerequisiteCodeSnapshot", "Prerequisite Code Snapshot", "Mã Mission trước")}
-    </> : <>
-      <label className="v25-form-field form-row"><span>Path *</span>
-        <select aria-label="Path" required value={value.pathProgramId ?? ""}
-          disabled={disabled || pathState !== "ready" || pathChoices.length !== 4}
-          onChange={e => pickPath(e.target.value)}>
-          <option value="">{pathState === "loading" ? "Đang tải Path từ Core…" : "Chọn Path"}</option>
-          {pathChoices.map(path => <option key={path.id} value={path.id}>{path.label}</option>)}
-        </select>
-      </label>
-      {pathState === "error" ? <p role="alert">{pathError || "Không tải được Path canonical. Đóng và mở lại form."}</p> : null}
-    </>}
+      {editing
+        ? <input value={value.status} type="text" readOnly disabled aria-label="Trạng thái" />
+        : <select value={value.status} disabled>
+            <option value="ACTIVE">ACTIVE</option><option value="INACTIVE">INACTIVE</option>
+          </select>}
+    </label>
+    <label className="v25-form-field form-row"><span>PLS</span>
+      <input type="number" min={0} step={1} value={value.plsValue} disabled={disabled}
+        onChange={e => set("plsValue", Number(e.target.value))} /></label>
+    <label className="v25-form-field form-row"><span>Path *</span>
+      <select aria-label="Path" required value={value.pathProgramId ?? ""}
+        disabled={disabled || !pathReady}
+        onChange={e => pickPath(e.target.value)}>
+        <option value="">{pathState === "loading" ? "Đang tải Path từ Core…" : "Chọn Path"}</option>
+        {pathChoices.map(path => <option key={path.id} value={path.id}>{path.label}</option>)}
+      </select>
+    </label>
+    {pathState === "error" ? <p role="alert">{pathError || "Không tải được Path canonical. Đóng và mở lại form."}</p> : null}
     <label className="v25-form-field form-row"><span>Mô tả</span><textarea rows={3} maxLength={4000} disabled={disabled}
       value={value.description ?? ""} onChange={e => set("description", e.target.value || null)} /></label>
     <label className="v25-form-field form-row"><span>Hướng dẫn</span><textarea rows={4} maxLength={8000} disabled={disabled}
