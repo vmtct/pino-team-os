@@ -78,10 +78,10 @@ test("PAP-1353 exact Self Item paths/verbs are BO Staging only", () => {
       assert.deepEqual(decideHostBoundary(bo, path, verb), { action: "not_found" }, path + " " + verb);
   }
 });
-test("PAP-982 scoped Self Directory is GET-only and Staging-BO-only at host ingress", () => {
+test("PAP-1625 Self Directory GET and Create Self POST are exact Staging-BO-only", () => {
   const route="/api/bo/pinoria/avatars";
-  assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art",route,"GET"), {action:"next"});
-  for(const method of ["HEAD","POST","PUT","PATCH","DELETE"]) assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art",route,method),{action:"not_found"},method);
+  for(const method of ["GET","POST"]) assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art",route,method), {action:"next"});
+  for(const method of ["HEAD","PUT","PATCH","DELETE"]) assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art",route,method),{action:"not_found"},method);
   for(const host of ["bo.pinohouse.art","ho.staging.pinohouse.art","tos.staging.pinohouse.art"]) assert.deepEqual(decideHostBoundary(host,route),{action:"not_found"},host);
   for(const path of [route+"/extra",route+"/PERSON:abc",route+"%2f",route.slice(0,-1)]) assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art",path),{action:"not_found"},path);
 });

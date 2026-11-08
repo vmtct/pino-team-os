@@ -2,6 +2,8 @@
 import "@pino/design-system/bo-tokens.css";
 import "@pino/design-system/components.css";
 import { useEffect, useState } from "react";
+import { BoActionButton } from "@pino/design-system/react";
+import { CreateSelfDrawer } from "./CreateSelfDrawer";
 import readApi from "@/public/bo-authority-source/school-adapters.js";
 import { BoRegistrationWorkspace } from "@/app/bo/components/registration/BoRegistrationWorkspace";
 import { SurfaceWorkspace } from "@/app/components/workspace-adapters/SurfaceWorkspace";
@@ -48,6 +50,8 @@ function ScopedSelfDirectory({selected,centerSource}: {selected: string; centerS
   const [ready,setReady]=useState<Bound|null>(null);
   const [failure,setFailure]=useState<Failure|null>(null);
   const [retry,setRetry]=useState(0);
+  const [creating,setCreating]=useState(false);
+  const [createdNotice,setCreatedNotice]=useState("");
   useEffect(()=>{
     const ctl=new AbortController();let instance:AuthenticatedSurfaceAdapter<F>|null=null;
     void createBoTddAdapter({
@@ -67,7 +71,13 @@ function ScopedSelfDirectory({selected,centerSource}: {selected: string; centerS
   const error=failure?.centerId===selected && failure.retry===retry ? failure.message : "";
   if(error) return <p role="alert">Không thể mở danh bạ được cấp quyền. <button type="button" onClick={()=>{setReady(null);setRetry(n=>n+1)}}>Thử lại</button></p>;
   if(!current)return <p role="status">Đang xác minh quyền và tải danh bạ…</p>;
-  return <SurfaceWorkspace adapter={current.adapter} key={selected} navigation={current.navigation} initialQuery={selfQuery}
+  const canCreate=current.adapter.context.authorize("pinoria.self.create");
+  return <>
+    {createdNotice ? <p role="status">{createdNotice}</p> : null}
+    <SurfaceWorkspace adapter={current.adapter} key={selected} navigation={current.navigation} initialQuery={selfQuery}
+    tableHeaderActions={canCreate
+      ? <BoActionButton type="button" variant="primary" onClick={()=>{setCreatedNotice("");setCreating(true)}}>＋ Tạo Self</BoActionButton>
+      : null}
     detailProperties={properties => <SelfDirectoryProperties fields={properties.fields} record={properties.record} sections={properties.sections}/>}
     detailApprovedExtension={(row,context,activeTab,_principalId,onSaved) =>
       activeTab === "loadout"
@@ -76,5 +86,8 @@ function ScopedSelfDirectory({selected,centerSource}: {selected: string; centerS
             canViewItems={context.authorize("pinoria.self.item.view")} onSaved={onSaved}/>
         : <SelfWardrobeDetail key={selected + ":" + row.id} row={row} centerId={selected} activeTab={activeTab}
             canView={context.authorize("pinoria.self.item.view")} canManage={context.authorize("pinoria.self.item.manage")}
-            onSaved={onSaved} />}/>;
+            onSaved={onSaved} />}/>
+    {creating && canCreate ? <CreateSelfDrawer centerId={selected} onClose={()=>setCreating(false)}
+      onCreated={()=>{setCreating(false);setCreatedNotice("Đã tạo Self.");setReady(null);setRetry(n=>n+1)}}/> : null}
+  </>;
 }

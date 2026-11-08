@@ -59,6 +59,7 @@
       "files": [
         "app/bo/pinoria-avatars/page.tsx",
         "app/bo/pinoria-avatars/SelfDirectoryTdd.tsx",
+        "app/bo/pinoria-avatars/CreateSelfDrawer.tsx",
         "app/bo/pinoria-avatars/schema.ts",
         "app/bo/pinoria-avatars/provider.ts",
         "app/bo/pinoria-avatars/centers.ts",
