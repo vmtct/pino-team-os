@@ -8,6 +8,9 @@ import {BoApiError} from "@/lib/bo-api-error";
 import {readSpecialtyV2Detail,readSpecialtyV2List,type SpecialtyV2Detail,type SpecialtyV2Summary} from "@/lib/ho-specialty-v2-reader";
 import {postSpecialtyGraphCommand} from "@/lib/ho-specialty-v2-graph-client";
 import {eligibleSpecialtyPrerequisites,planSpecialtyOverviewEdit,type SpecialtyS5OverviewKey} from "@/lib/ho-specialty-s5-overview";
+import {planSpecialtyMetadataEdit,type SpecialtyMetadataPatch} from "@/lib/ho-specialty-s5-metadata";
+import {putSpecialtyMetadataEdit} from "@/lib/ho-specialty-v2-metadata-client";
+import type {SpecialtyGraphCommand} from "@/lib/ho-specialty-v2-graph-client";
 
 /** S5 explicitly authorized Founder action: shared DS property grid/typed editor, not TDD mutation transport. */
 export function HoSpecialtyOverviewEdit({properties,canManage,onSaved}:{
@@ -35,8 +38,8 @@ export function HoSpecialtyOverviewEdit({properties,canManage,onSaved}:{
   return ()=>{controller.abort();pending.current?.abort();};
  },[id,retry]);
  const allowed=canManage&&data?.detail.status==="DRAFT"&&!saving;
- const editable=(field:BoField):field is BoField & {key:SpecialtyS5OverviewKey} =>
-  allowed&&["levelCount","prerequisiteView","tagView"].includes(field.key);
+ const editable=(field:BoField):field is BoField & {key:SpecialtyS5OverviewKey|"name"|"description"} =>
+  allowed&&["name","description","levelCount","prerequisiteView","tagView"].includes(field.key);
  const close=()=>{if(!saving)setSelection(null);};
  const props=properties;
  const options=selection&&data?(()=>{
@@ -47,6 +50,8 @@ export function HoSpecialtyOverviewEdit({properties,canManage,onSaved}:{
  })():undefined;
  const value:BoValue=selection&&data?(()=>{
   switch(selection.field.key){
+   case "name":return data.detail.name;
+   case "description":return data.detail.description??"";
    case "levelCount":return data.detail.levels.length;
    case "tagView":return data.detail.tags;
    case "prerequisiteView":{
@@ -59,15 +64,19 @@ export function HoSpecialtyOverviewEdit({properties,canManage,onSaved}:{
  async function save(value:BoValue){
   if(!selection||!data||!allowed||saving)return;
   try{
-   const field=selection.field.key as SpecialtyS5OverviewKey;
-   const command=planSpecialtyOverviewEdit(data.detail,data.catalog,field,value);
+   const field=selection.field.key;
+   const metadata=field==="name"||field==="description";
+   const command=metadata?planSpecialtyMetadataEdit(data.detail,data.catalog,field,value):
+    planSpecialtyOverviewEdit(data.detail,data.catalog,field as SpecialtyS5OverviewKey,value);
    const payload=JSON.stringify(command);
    if(!attempt.current||attempt.current.payload!==payload)
     attempt.current={payload,key:"spec_s5_"+crypto.randomUUID().replaceAll("-","")};
    const controller=new AbortController();
    pending.current=controller;
    setSaving(true);setError("");
-   const detail=await postSpecialtyGraphCommand(id,command,window.fetch.bind(window),controller.signal,attempt.current.key);
+   const detail=metadata?
+    await putSpecialtyMetadataEdit(id,command as SpecialtyMetadataPatch,window.fetch.bind(window),controller.signal,attempt.current.key):
+    await postSpecialtyGraphCommand(id,command as SpecialtyGraphCommand,window.fetch.bind(window),controller.signal,attempt.current.key);
    setData(previous=>previous?{...previous,detail}:previous);
    setSelection(null);
    attempt.current=null;
