@@ -1,0 +1,5 @@
+/* PAP-1710 / Epic PAP-1705. PINO DS layout-only CSS Module owned in TDD admission. */
+.body { display: grid; gap: 12px; min-width: 0; }
+.picker { display: grid; gap: 5px; width: 100%; min-width: 0; }
+.options { display: grid; gap: 4px; min-width: 0; }
+.optionCopy { display: grid; gap: 3px; min-width: 0; }
