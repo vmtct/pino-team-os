@@ -9,10 +9,13 @@ const {renderToStaticMarkup} = require("react-dom/server");
 const {buildSync} = require("esbuild");
 const root=path.resolve(__dirname,"..");
 const component=path.join(root,"app","ho","pinoria","tv-policies","components","HoTvSpaceMeshDraft.tsx");
-const stylesheet=path.join(root,"app","ho","pinoria","tv-policies","components","HoTvSpaceMeshDraft.css");
+const dsArchive=path.join(root,"vendor","pino-design-system","pino-design-system-0.4.0.tgz");
 test("PAP-1385 imported FE Mesh draft matches pinned full-scope prototype without exposing Core writes",()=>{
  assert(fs.existsSync(component));
- assert(fs.existsSync(stylesheet));
+ assert(fs.existsSync(dsArchive));
+ assert.match(fs.readFileSync(component,"utf8"),/SpatialEditorFrame/);
+ assert.match(fs.readFileSync(component,"utf8"),/SpatialVertexHandle/);
+ assert.doesNotMatch(fs.readFileSync(component,"utf8"),/\.\/HoTvSpaceMeshDraft\.css/);
  const source=fs.readFileSync(component,"utf8");
  assert.match(source,/FSG0_SPACE_DELTA_APPROVED/);
  assert.doesNotMatch(source,/fetch\s*\(|localStorage\s*\.setItem|sessionStorage\s*\.setItem|POST|mutation\s*\(/);
@@ -26,6 +29,7 @@ test("PAP-1385 imported FE Mesh draft matches pinned full-scope prototype withou
  assert.equal(typeof mod.exports.HoTvSpaceMeshDraft,"function");
  const html=renderToStaticMarkup(React.createElement(mod.exports.HoTvSpaceMeshDraft,{record:{scope:"DEFAULT"}}));
  assert.match(html,/data-house-mesh-northstar/);
+ assert.match(html,/data-pds-spatial-editor/);
  assert.match(html,/Chú thích chức năng/);
  assert.match(html,/Khu vực hiện hữu/);
  assert.match(html,/Điểm xuất hiện/);

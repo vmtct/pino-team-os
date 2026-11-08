@@ -7,7 +7,8 @@ import {createAmbientAgents,stepAmbientAgents,resolveAmbientConnectors,type Ambi
 import graphSeed from "@/app/pinoria-tv/ambient-house-motion-graph.saved.json";
 import approvedAreas from "@/app/pinoria-tv/ambient-house-areas.prototype.json";
 import approvedEmergence from "@/app/pinoria-tv/ambient-house-emergence.prototype.json";
-import "./HoTvSpaceMeshDraft.css";
+import "@pino/design-system/spatial-editor.css";
+import {SpatialEditorFrame,SpatialVertexHandle} from "@pino/design-system/spatial-editor";
 
 type Point={x:number;y:number};
 type Lane={id:string;x1:number;x2:number;y:number;midLayer:"front"|"behind"};
@@ -318,7 +319,7 @@ export function HoTvSpaceMeshDraft({record}:{record:HoTvSpaceRecord}){
   const active=shortcuts[event.key.toLowerCase()];
   if(active){event.preventDefault();setTool(active);setAreaDraft([]);setCursorPoint(null);setSelectedAreaVertex(null);setAnchor(null);setNote(tools.find(x=>x.id===active)?.hint??"");}
  };
- return <section className="ho-tv-domain ho-house-mesh" data-house-mesh-northstar tabIndex={0} onKeyDown={onShortcut}>
+ return <SpatialEditorFrame label="Biên tập không gian House Mesh"><section className="ho-tv-domain ho-house-mesh" data-house-mesh-northstar tabIndex={0} onKeyDown={onShortcut}>
   <header className="ho-tv-domain-heading"><div><span className="ho-tv-eyebrow">PINORIA TV · AMBIENT WELCOME · 1920 × 1080</span><h2>House Mesh</h2><p>Chỉnh đường đi, nối tuyến, vùng hoạt động và checkpoint trực tiếp trên đúng ảnh House đã duyệt.</p></div><span className="ho-tv-scope-pill is-default">{String(record.scope??"DEFAULT")}</span></header>
   <div className="house-metrics"><div><strong>{mesh.lanes.length}</strong><small>Đường đi · Lanes</small></div><div><strong>{mesh.connectors.length}</strong><small>Nối tuyến · Connectors</small></div><div><strong>{mesh.areas.length}</strong><small>Khu vực · Areas</small></div><div><strong>{mesh.checkpoints.length}</strong><small>Điểm kiểm soát</small></div><div><strong>{mesh.pins.length}</strong><small>Điểm xuất hiện</small></div></div>
   <div className="house-area-existing" role="group" aria-label="Chọn khu vực hiện hữu">
@@ -411,8 +412,12 @@ export function HoTvSpaceMeshDraft({record}:{record:HoTvSpaceRecord}){
        {a.points.map((v,i)=>{const next=a.points[(i+1)%a.points.length];return <line key={"edge-"+i} data-kind="area-edge" data-id={a.id} data-index={i}
         x1={v.x} y1={v.y} x2={next.x} y2={next.y} stroke="transparent" strokeWidth="28" pointerEvents="stroke"/>;})}
        {a.points.map((v,i)=><g key={"vertex-"+i}>
-        <circle data-kind="area-vertex" data-id={a.id} data-index={i} cx={v.x} cy={v.y} r="19"
-          fill={selectedAreaVertex===i?"#fff0a5":"#eafcff"} stroke="#1f5b73" strokeWidth="5"/>
+         <SpatialVertexHandle x={v.x} y={v.y} index={i} objectId={a.id}
+          selected={selectedAreaVertex===i} label={"Đỉnh "+(i+1)+" của "+a.label}
+          fill={selectedAreaVertex===i?"#fff0a5":"#eafcff"} stroke="#1f5b73"
+          onSelect={()=>setSelectedAreaVertex(i)}
+          onNudge={(dx,dy)=>update(d=>{const area=d.areas.find(item=>item.id===a.id),vertex=area?.points[i];if(vertex){vertex.x=clamp(vertex.x+dx,0,1920);vertex.y=clamp(vertex.y+dy,0,1080);}},"Đã di chuyển đỉnh "+(i+1)+" bằng bàn phím.")}
+          onDelete={()=>{if(a.points.length<=3){setNote("Khu vực phải giữ tối thiểu 3 đỉnh.");return;}update(d=>{const area=d.areas.find(item=>item.id===a.id);area?.points.splice(i,1);},"Đã xóa đỉnh "+(i+1));setSelectedAreaVertex(null);}}/>
         <text x={v.x} y={v.y+6} textAnchor="middle" fill="#24475d" fontSize="17" fontWeight="900" pointerEvents="none">{i+1}</text>
        </g>)}
       </g>)}
@@ -499,5 +504,5 @@ export function HoTvSpaceMeshDraft({record}:{record:HoTvSpaceRecord}){
    </dl>
    <p className="house-guide-note"><strong>Công cụ hỗ trợ:</strong> Snap 10px giúp căn tọa độ; Layers bật/tắt các lớp khi thiết kế; Thuộc tính chỉnh đối tượng đã chọn; Undo/Khôi phục bố cục hoàn tác; Chạy thử 20 Piner theo hàm chuyển động PAP-651 trên Mesh đang thiết kế (chỉ là tác nhân giả lập, không có Presence). Không ghi Core, không publish hay điều khiển TV thật.</p>
   </section>
- </section>;
+ </section></SpatialEditorFrame>;
 }
