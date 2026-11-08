@@ -51,3 +51,13 @@ test("BO/HO local storage preferences are separate and no unknown label is inven
   assert.equal(pinoLocalizedLabel("bo", "Nav Group", "School", "School", "vi"), "Trường học");
   assert.equal(pinoLocalizedLabel("ho", "Nav Group", "System", "System", "en"), "System");
 });
+
+test("PAP-1684 HO module-owned H1 retains canonical aliases and synthetic warning", () => {
+  assert.equal(pinoLocalizedLabel("ho", "Module Title", "wardrobe", "Pinoria · Items", "en"), "Wardrobe Catalog");
+  assert.equal(pinoLocalizedLabel("ho", "Module Title", "wardrobe", "Pinoria · Items", "vi"), "Danh mục trang phục");
+  assert.equal(pinoLocalizedLabel("ho", "Nav Item", "customAttributes", "Custom Attributes", "vi"), "Thuộc tính bổ sung");
+  assert.equal(pinoLocalizedLabel("ho", "Module Title", "customAttributes", "Custom Attributes", "en"), "Custom Attributes");
+  assert.equal(pinoLocalizedLabel("ho", "Module Title", "customAttributes", "Custom Attributes", "vi"), "Thuộc tính bổ sung");
+  assert.equal(pinoLocalizedLabel("ho", "Module Title", "tddReference", "TDD Reference — DEMO", "en"), "TDD Reference — DEMO");
+  assert.equal(pinoLocalizedLabel("ho", "Module Title", "tddReference", "TDD Reference — DEMO", "vi"), "Tham chiếu TDD — DEMO");
+});
