@@ -73,7 +73,10 @@ test("PAP-1247: shared host renders DS variants, native disabled semantics and a
 });
 
 test("PAP-1247: DS owns host geometry, focus/disabled styling and BO/HO CSS loading", () => {
-  const css = readFileSync("node_modules/@pino/design-system/dist/0.3.0/components.css", "utf8");
+  // PAP-1697 / PNR-TV: inspect the *installed* DS release; immutable 0.3.0 is attested separately.
+  const activePackage = JSON.parse(readFileSync("node_modules/@pino/design-system/package.json", "utf8"));
+  assert.equal(activePackage.version, "0.4.0");
+  const css = readFileSync(`node_modules/@pino/design-system/dist/${activePackage.version}/components.css`, "utf8");
   const rule = (selector: string) => css.slice(css.indexOf(selector + "{"), css.indexOf("}", css.indexOf(selector + "{")) + 1);
   assert.match(rule(".pds-bo-action-group"), /flex-wrap:wrap/);
   assert.match(rule(".pds-bo-action-group"), /gap:8px/);
