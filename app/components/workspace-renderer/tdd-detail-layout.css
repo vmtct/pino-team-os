@@ -17,29 +17,3 @@
   [data-tdd-detail-resize] .v24-prop-item { grid-template-columns: minmax(90px, 37%) minmax(0, 1fr); }
   [data-tdd-detail-resize] .tdd-label-resize-handle { display: none; }
 }
-
-/* PAP-1722 · SCH-PARENTS-GUARDIANS FSG2: i5 DSA Create Drawer geometry.
-   Scope the shared BO TDD extension only to the Parent Create form;
-   the hash-pinned historical BO styles.css is immutable. */
-#drawer-content > #parent-create-form > .property-section { margin: 0; }
-#drawer #parent-create-form .os-create-select {
-  box-sizing: border-box;
-  width: 100%;
-  min-width: 0;
-  min-height: 38px;
-  padding: 7px 9px;
-  border: 1px solid var(--bo-color-border-strong);
-  border-radius: 7px;
-  background: var(--bo-color-surface);
-  color: var(--bo-color-text);
-  font: inherit;
-  font-size: 13px;
-}
-#drawer #parent-create-form .os-create-select:focus-visible {
-  outline: 2px solid var(--bo-color-accent);
-  outline-offset: 2px;
-}
-#drawer #parent-create-form .os-create-select:disabled {
-  opacity: .65;
-  cursor: not-allowed;
-}

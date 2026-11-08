@@ -4,7 +4,9 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const drawer = readFileSync(new URL("../app/bo/parents/ParentCreateDrawer.tsx", import.meta.url), "utf8");
-const css = readFileSync(new URL("../app/components/workspace-renderer/tdd-detail-layout.css", import.meta.url), "utf8");
+const css = readFileSync(new URL("../app/components/workspace-renderer/tdd-bo-forms.css", import.meta.url), "utf8");
+const hoCss = readFileSync(new URL("../public/ho-authority-source/ho-scoped.css", import.meta.url), "utf8");
+const boCss = readFileSync(new URL("../public/bo-authority-source/bo-scoped.css", import.meta.url), "utf8");
 
 test("PAP-1722: Parent Create uses the canonical two-row DSA primitive and no surplus hint", () => {
   assert.equal((drawer.match(/className="property-row"/g) ?? []).length, 2);
@@ -23,4 +25,6 @@ test("PAP-1722: canonical BO CSS matches i5 input geometry without unscoped over
   assert.match(inputRule, /font-size:\s*13px/);
   assert.match(inputRule, /width:\s*100%/);
   assert.match(css, /#drawer-content\s*>\s*#parent-create-form\s*>\s*\.property-section\s*\{\s*margin:\s*0/);
+  assert.match(boCss, /#parent-create-form/);
+  assert.doesNotMatch(hoCss, /#parent-create-form/, "BO Create Drawer declarations must never leak into HO");
 });
