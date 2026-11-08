@@ -1,4 +1,5 @@
 "use client";
+import { LocalizedModuleTitle } from "@/lib/pino-nav-locale-context";
 
 import { useEffect, useMemo, useState } from "react";
 import { boApi, type DeliveryFutureReservationPolicyInspection, type WorkforcePolicyInspection, type WorkforcePolicyKey } from "@/lib/bo-api";
@@ -89,7 +90,7 @@ export function WorkforcePoliciesView() {
   return <section className={styles.page}>
     <header className={styles.heading}>
       <span>PINO TEAM · SYSTEM</span>
-      <h1>Policies</h1>
+      <h1><LocalizedModuleTitle label="Policies" moduleKey="system/policies" /></h1>
       <p>Canonical Center-scoped Workforce policies. Missing policy remains fail-closed; there is no hidden default.</p>
     </header>
     {error ? <p className={styles.ownerError}>{error}</p> : null}

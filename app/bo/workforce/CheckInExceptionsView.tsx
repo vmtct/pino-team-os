@@ -1,4 +1,5 @@
 "use client";
+import { LocalizedModuleTitle } from "@/lib/pino-nav-locale-context";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -132,7 +133,7 @@ export function CheckInExceptionsView() {
   ], []);
 
   return <main className={`${styles.page} ${styles.exceptionPage}`}>
-    <header className={styles.heading}><span>Workforce · WFM-EXC</span><h1>Check-in Exceptions</h1><p>Review yêu cầu check-in ngoài lịch. Duyệt tạo một ca làm canonical; Timekeeping vẫn dùng flow check-in bình thường.</p></header>
+    <header className={styles.heading}><span>Workforce · WFM-EXC</span><h1><LocalizedModuleTitle label="Check-in Exceptions" moduleKey="workforce/check-in-exceptions" /></h1><p>Review yêu cầu check-in ngoài lịch. Duyệt tạo một ca làm canonical; Timekeeping vẫn dùng flow check-in bình thường.</p></header>
     {notice ? <div className={styles.successCard}><strong>{notice}</strong></div> : null}
     <BoDataGrid
       rows={visibleRows}

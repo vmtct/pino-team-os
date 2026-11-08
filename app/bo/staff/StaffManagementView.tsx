@@ -1,4 +1,5 @@
 "use client";
+import { LocalizedModuleTitle } from "@/lib/pino-nav-locale-context";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -535,7 +536,7 @@ export function StaffManagementView({ detailStaffId }: { detailStaffId?: string 
 
   return (
     <section id="staff-management" className={styles.page}>
-      {detailOnly ? <header className={styles.heading}><span>PINO TEAM · BACK OFFICE / STAFF DETAIL</span><h1>Chi tiết nhân viên</h1><p>Hồ sơ, vận hành và truy cập theo canonical Staff.</p><div className={styles.headingActions}><Link className={styles.secondaryButton} href={returnHref}><FontAwesomeIcon icon={faArrowLeft} aria-hidden="true" /> Trở về danh sách</Link></div></header> : <header className={styles.heading}><span>PINO TEAM · BACK OFFICE</span><h1>Nhân viên & phân quyền</h1><p>Quản lý hồ sơ nhân viên, trạng thái truy cập và role/scope dùng trên TOS.</p><div className={styles.headingActions}><a className={styles.primaryButton} href="#add-staff">+ Thêm nhân viên</a><button type="button" className={styles.secondaryButton} disabled={busy === "perimeter"} onClick={() => void syncTosPerimeter()}>{busy === "perimeter" ? "Đang đồng bộ…" : "Đồng bộ TOS access"}</button></div></header>}
+      {detailOnly ? <header className={styles.heading}><span>PINO TEAM · BACK OFFICE / STAFF DETAIL</span><h1>Chi tiết nhân viên</h1><p>Hồ sơ, vận hành và truy cập theo canonical Staff.</p><div className={styles.headingActions}><Link className={styles.secondaryButton} href={returnHref}><FontAwesomeIcon icon={faArrowLeft} aria-hidden="true" /> Trở về danh sách</Link></div></header> : <header className={styles.heading}><span>PINO TEAM · BACK OFFICE</span><h1><LocalizedModuleTitle label="Staff" moduleKey="staff" /></h1><p>Quản lý hồ sơ nhân viên, trạng thái truy cập và role/scope dùng trên TOS.</p><div className={styles.headingActions}><a className={styles.primaryButton} href="#add-staff">+ Thêm nhân viên</a><button type="button" className={styles.secondaryButton} disabled={busy === "perimeter"} onClick={() => void syncTosPerimeter()}>{busy === "perimeter" ? "Đang đồng bộ…" : "Đồng bộ TOS access"}</button></div></header>}
       {error ? <p className={styles.ownerError}>{error}</p> : null}{message ? <p className={styles.ownerBulkStatus}>{message}</p> : null}
       {!detailOnly ? <BoDataGrid
         rows={visibleRows}

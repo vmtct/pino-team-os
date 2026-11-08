@@ -1,4 +1,5 @@
 "use client";
+import { LocalizedModuleTitle } from "@/lib/pino-nav-locale-context";
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -169,7 +170,7 @@ function CenterScopedLearnersView({ activeCenter }: { activeCenter: string }) {
   return <main className={styles.page}>
     <header className={styles.heading}>
       <div>
-        <h1>Học viên</h1>
+        <h1><LocalizedModuleTitle label="Students" moduleKey="learners" /></h1>
       </div>
       <div className={styles.headingActions}><button type="button" className={styles.primaryButton} onClick={() => { if (selectedId) selectStudent(null); setShowCreate(true); }}>＋ Tạo mới</button></div>
     </header>

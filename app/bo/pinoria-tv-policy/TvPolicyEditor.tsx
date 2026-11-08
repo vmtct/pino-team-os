@@ -1,4 +1,5 @@
 "use client";
+import { LocalizedModuleTitle } from "@/lib/pino-nav-locale-context";
 import { useCallback, useMemo, useState } from "react";
 import {
   KINDS, FIELDS, defaultPolicy, policyIssues, safeDemoProjection, tvPolicyApi,
@@ -74,7 +75,7 @@ export default function TvPolicyEditor(){
   }
   return <main className={styles.shell}>
     <header className={styles.header}>
-      <div><p className={styles.kicker}>PAP-660 · Pinoria TV</p><h1>Projection Policies</h1>
+      <div><p className={styles.kicker}>PAP-660 · Pinoria TV</p><h1><LocalizedModuleTitle label="TV Projection Policy" moduleKey="pinoria-tv-policy" /></h1>
         <p>Điều chỉnh nội dung được phép xuất hiện trên TV chung. Không thay đổi dữ liệu học viên hay quyền sở hữu.</p></div>
     </header>
     <section className={styles.card}>
