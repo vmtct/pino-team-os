@@ -17,7 +17,8 @@ const schema = registry.register({...specialtyDefinition,data:{id:"test-only-spe
 const context = {surface:"HO" as const,authorize:(permission:string)=>permission==="catalog.learning.view"};
 const record:ModuleRow<typeof specialtyDefinition.fields> = {
   id:"specialty-test",name:"Chuyên đề hình khối",path:"Mỹ thuật",status:"ACTIVE",description:"Quan sát hình khối",
-  levelCount:2,prerequisiteView:"",tagView:"Hình khối",missionCount:3,
+  levelCount:2,prerequisiteView:[],tagView:["Hình khối"],missionCount:3,
+  createdTime:"—",createdBy:"—",lastModifiedTime:"—",lastModifiedBy:"—",
 };
 const noop=()=>{};
 
@@ -44,19 +45,20 @@ test("PAP-1495: shared Table, Quick View and Detail keep geometry/properties wit
   const denied=html(h(TddDetail<typeof specialtyDefinition.fields>,{...base,context:{...context,authorize:()=>false},record,onBack:noop,subject:{type:"specialties",id:record.id}}));
   assert.doesNotMatch(denied,/Chuyên đề hình khối|Quan sát hình khối/);
   const history=html(h(TddDetail<typeof specialtyDefinition.fields>,{...base,record,activeTab:"history",onBack:noop,subject:{type:"specialties",id:record.id}}));
-  assert.match(history,/Chưa tải được lịch sử Chuyên đề/);
+  assert.match(history,/Core chưa cung cấp lịch sử thay đổi Chuyên đề được xác minh/);
 });
 
-test("PAP-1495: missing reader fails truthfully without any network call, even for direct record URL",async()=>{
+test("PAP-1495: real Founder GET errors stay errors, BO is denied and no fixture data leaks",async()=>{
   let calls=0;
-  const fetcher:typeof fetch=async()=>{calls++;throw Error("UNEXPECTED_NETWORK");};
+  const fetcher:typeof fetch=async()=>{calls++;return Response.json({error:{code:"SPECIALTY_V2_UNAVAILABLE"}},{status:503});};
   const signal=new AbortController().signal;
-  for(const scope of [{surface:"HO" as const},{surface:"BO" as const,centerId:"other"}]){
-    const status=scope.surface==="HO"?503:403;
-    await assert.rejects(specialtyProvider.list(specialtyQuery,scope,fetcher,signal),{status});
-    await assert.rejects(specialtyProvider.detail("arbitrary",scope,fetcher,signal),{status});
-  }
-  assert.equal(calls,0);
+  const id="01234567-89ab-7cde-8fab-0123456789ab";
+  await assert.rejects(specialtyProvider.list(specialtyQuery,{surface:"HO"},fetcher,signal),{status:503});
+  await assert.rejects(specialtyProvider.detail(id,{surface:"HO"},fetcher,signal),{status:503});
+  await assert.rejects(specialtyProvider.list(specialtyQuery,{surface:"BO",centerId:"other"},fetcher,signal),{status:403});
+  await assert.rejects(specialtyProvider.detail(id,{surface:"BO",centerId:"other"},fetcher,signal),{status:403});
+  // S3 resolves Core canonical Path options once for list and once for detail.
+  assert.equal(calls,4);
 });
 
 test("PAP-1495: adapter still requires real authenticated context and canonical permission",async()=>{

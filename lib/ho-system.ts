@@ -5,10 +5,18 @@ import { hoCentersModule, mapHoCenters } from "./ho-centers";
 import {hoA1Modules,type HoA1Module} from "./ho-a1";
 import { HO_PAGE_PATHS } from "./ho-routes";
 
-export type HoModule = "specialties" | "bills" | "globalTerms" | "centers" | "walkinPasses" | "termWeeks" | "shiftTemplates" | "staffs" | "staffLinks" | "users" | "roles" | "audits" | "tddReference" | "classroomDiaries" | HoA1Module;
+export type HoModule = "paths" | "specialties" | "bills" | "globalTerms" | "centers" | "walkinPasses" | "termWeeks" | "shiftTemplates" | "staffs" | "staffLinks" | "users" | "roles" | "audits" | "tddReference" | "classroomDiaries" | "tvPolicies" | "customAttributes" | HoA1Module;
 export const hoRoutes: Record<HoModule, string> = HO_PAGE_PATHS;
 // PAP-1542 / PAP-220: Staff registration link is an attribute of Centers, not an HO module.
 export const hoModules: Record<Exclude<HoModule,"staffLinks">,BoModule> = {
+ paths: {label:"Path",group:"Learning",fields:[
+  {key:"name",label:"Tên Path",type:"text",icon:"Aa",w:250,readonly:true},
+  {key:"code",label:"Mã Path",type:"text",icon:"#",w:205,readonly:true},
+  {key:"group",label:"Nhóm",type:"text",icon:"Aa",w:115,readonly:true},
+  {key:"status",label:"Trạng thái",type:"text",icon:"◉",w:145,readonly:true},
+  {key:"createdAt",label:"Created Time",type:"text",icon:"◷",w:225,readonly:true},
+  {key:"createdBy",label:"Created by (User)",type:"text",icon:"Aa",w:220,readonly:true},
+ ]},
  specialties: {label:"Chuyên đề",group:"Learning",fields:[
   {key:"name",label:"Chuyên đề",type:"text",icon:"Aa",w:240,readonly:true},
   {key:"path",label:"Path",type:"text",icon:"▣",w:180,readonly:true},
@@ -37,6 +45,8 @@ export const hoModules: Record<Exclude<HoModule,"staffLinks">,BoModule> = {
   {key:"status",label:"Trạng thái",type:"text",icon:"◉",w:140,readonly:true},
   {key:"diaryCode",label:"Diary ID",type:"text",icon:"#",w:300,readonly:true},
  ]},
+ tvPolicies: {label:"Pinoria TV",group:"Pinoria",fields:[]},
+ customAttributes: {label:"Custom Attributes",group:"System",fields:[]},
  tddReference: {label:"TDD Reference",group:"System",fields:[{key:"name",label:"Demo",type:"text",icon:"Aa",w:240,readonly:true}]},
  centers: {...hoCentersModule,group:"Network"},
  shiftTemplates:{label:"Mẫu ca",group:"Workforce",fields:[

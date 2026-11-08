@@ -39,8 +39,8 @@ test("BO session watcher cannot suspend the presentation shell", async () => {
   const source = await import("node:fs/promises").then((fs) => fs.readFile(new URL("../app/bo/layout.tsx", import.meta.url), "utf8"));
   const boundary = await import("node:fs/promises").then((fs) => fs.readFile(new URL("../app/bo/BoSessionBoundary.tsx", import.meta.url), "utf8"));
   assert.match(source, /<BoSessionBoundary \/>/);
-  assert.ok(source.indexOf("<BoSessionBoundary />") < source.indexOf("<BoShell"));
-  assert.doesNotMatch(source, /<BoSessionBoundary>[\s\S]*<BoShell/);
+  assert.ok(source.indexOf("<BoSessionBoundary />") < source.indexOf("<BoApplicationShell"));
+  assert.doesNotMatch(source, /<BoSessionBoundary>[\s\S]*<BoApplicationShell/);
   assert.match(boundary, /return null;/);
   assert.doesNotMatch(boundary, /children/);
 });

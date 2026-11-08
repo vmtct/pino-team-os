@@ -1,4 +1,5 @@
 "use client";
+import { LocalizedModuleTitle } from "@/lib/pino-nav-locale-context";
 
 import { useEffect, useState } from "react";
 import bo from "../bo.module.css";
@@ -139,7 +140,7 @@ export function PinoriaCompanionsView() {
   return <div className={bo.page}>
     <header className={bo.heading}>
       <span>PINORIA · STAGING CONFIG</span>
-      <h1>Companion Species & Eggs</h1>
+      <h1><LocalizedModuleTitle label="Companions" moduleKey="pinoria-companions" /></h1>
       <p>BO quản lý visual/content Species và cấp Egg; Hatch eligibility và ownership luôn do Core quyết định.</p>
     </header>
     <section className={bo.metrics}>

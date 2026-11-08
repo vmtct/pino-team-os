@@ -43,12 +43,13 @@ test("PAP-1356 typed TDD uses shared DS with owner-fenced business layout styles
   const entry=admission.modules.find((m:{key:string})=>m.key==="pinoria-avatars");
   assert.ok(entry.files.includes("app/bo/pinoria-avatars/SelfLoadoutDetail.tsx"));
   assert.ok(entry.externalReferences.some((x:{file:string;owner:string})=>x.file==="app/components/pinoria/SelfLoadoutPreview.tsx"&&x.owner==="PAP-1356"));
-  // PAP-1500: exactly scoped domain layout CSS, NOT a new shell stylesheet.
-  assert.deepEqual(entry.files.filter((p:string)=>p.endsWith(".css")),["app/bo/pinoria-avatars/SelfWardrobeDetail.module.css"]);
+  // PAP-1500 / PAP-1710: exact owner-scoped layout CSS modules; never a new shell stylesheet.
+  assert.deepEqual(entry.files.filter((p:string)=>p.endsWith(".css")),["app/bo/pinoria-avatars/CreateAvatarDrawer.module.css","app/bo/pinoria-avatars/SelfWardrobeDetail.module.css"]);
   assert.ok(entry.externalReferences.some((x:{file:string;owner:string})=>x.file==="app/components/pinoria/SelfLoadoutPreview.module.css"&&x.owner==="PAP-1489"));
   assert.deepEqual(entry.businessStyles.map((b:{file:string;owner:string;consumer:string;classes:string[]})=>b),[
     {file:"app/bo/pinoria-avatars/SelfWardrobeDetail.module.css",owner:"PAP-1490",consumer:"app/bo/pinoria-avatars/SelfWardrobeDetail.tsx",classes:["items"]},
     {file:"app/components/pinoria/SelfLoadoutPreview.module.css",owner:"PAP-1489",consumer:"app/components/pinoria/SelfLoadoutPreview.tsx",classes:["canvas"]},
+    {file:"app/bo/pinoria-avatars/CreateAvatarDrawer.module.css",owner:"PAP-1710",consumer:"app/bo/pinoria-avatars/CreateSelfDrawer.tsx",classes:["body","picker","options","optionCopy"]},
   ]);
   assert.ok(entry.tests.includes("lib/pap1356-self-loadout-ui.test.ts"));
   assert.match(ui,/SelfLoadoutEditorLayout/);

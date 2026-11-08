@@ -11,7 +11,7 @@ export const hoA1Modules:Record<HoA1Module,BoModule>={
  syllabi:{label:"Syllabi",group:"Learning",fields:fields([
   ["name","Syllabus","text"],["id","ID","id"],["code","Code","text"],["owner","Owner","text"],["ownerType","Owner Type","select"],["lifecycle","Lifecycle","select"],["publishedVersion","Published Version","text"],["draftVersion","Draft Version","text"],["versions","Version History","multiselect"],["createdAt","Created At","date"],
  ])},
- missions:{label:"Missions",group:"Learning",fields:fields([
+ missions:{label:"Nhiệm vụ",group:"Learning",fields:fields([
   ["name","Mission","text"],["id","ID","id"],["code","Code","text"],["level","Level","number"],["status","Status","select"],["plsValue","PLS Value","number"],["paperSize","Paper Size","select"],["path","Path","text"],["prerequisite","Prerequisite","text"],["reconciliation","Reconciliation","select"],["description","Description","textarea"],["guideline","Guideline","textarea"],["diagnostics","Diagnostics","multiselect"],
  ])},
  worlds:{label:"World Catalog",group:"Pinoria",fields:fields([
@@ -42,6 +42,10 @@ export function mapHoMissions(value:unknown):BoRecord[]{
  return listOf(value).map(r=>({
   id:word(r.id),name:word(r.name),code:word(r.code),level:numeric(r.level),status:word(r.status),
   plsValue:numeric(r.plsValue),paperSize:nullable(r.paperSize),path:nullable(r.pathKeySnapshot)||nullable(r.pathProgramId),
+  pathProgramId:nullable(r.pathProgramId),pathKeySnapshot:nullable(r.pathKeySnapshot),
+  createdAt:nullable(r.createdAt),updatedAt:nullable(r.updatedAt),
+  createdByVerifiedLegalName:nullable(r.createdByVerifiedLegalName),
+  updatedByVerifiedLegalName:nullable(r.updatedByVerifiedLegalName),
   prerequisite:nullable(r.prerequisiteCodeSnapshot)||nullable(r.prerequisiteMissionId),
   reconciliation:word(r.reconciliation),description:nullable(r.description),guideline:nullable(r.guideline),
   diagnostics:words(r.diagnostics),

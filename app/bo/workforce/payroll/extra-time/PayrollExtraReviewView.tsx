@@ -1,4 +1,5 @@
 "use client";
+import { LocalizedModuleTitle } from "@/lib/pino-nav-locale-context";
 import {useEffect,useRef,useState,type FormEvent} from "react";
 import {boApi} from "@/lib/bo-api";
 import {reviewApi,ReviewApiError,decisionPayload,localClock,reviewedAmount,
@@ -95,7 +96,7 @@ export default function PayrollExtraReviewView(){
   }
   return <main className={styles.page}>
     <header className={styles.heading}><small>Back Office · Workforce · Payroll</small>
-      <h1>Duyệt tính thêm giờ</h1>
+      <h1><LocalizedModuleTitle label="Overtime Approvals" moduleKey="workforce/payroll/extra-time" /></h1>
       <p>Chỉ khoản được duyệt mới có thể cộng vào lương. Không được ghi đè chấm công hoặc sửa lương đã chốt.</p>
     </header>
     <section className={styles.filters} aria-label="Bộ lọc">

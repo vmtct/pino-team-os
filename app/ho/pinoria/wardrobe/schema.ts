@@ -9,11 +9,16 @@ export const itemFields=[
  {key:"slot",label:"Slot",type:"text",icon:"◈",width:180,permission:"pinoria.item.view",readOnly:true,capabilities:read},
  {key:"status",label:"Trạng thái",type:"text",icon:"◉",width:140,permission:"pinoria.item.view",readOnly:true,capabilities:read},
  {key:"revision",label:"Revision",type:"number",icon:"#",width:110,permission:"pinoria.item.view",readOnly:true,capabilities:read},
+ {key:"createdAt",label:"Created Time",type:"text",icon:"◷",width:210,permission:"pinoria.item.view",readOnly:true,capabilities:read},
+ {key:"createdBy",label:"Created by (User)",type:"text",icon:"Aa",width:225,permission:"pinoria.item.view",readOnly:true,capabilities:read},
+ {key:"updatedAt",label:"Last Modified Time",type:"text",icon:"◷",width:210,permission:"pinoria.item.view",readOnly:true,capabilities:read},
+ {key:"updatedBy",label:"Last Modified By (User)",type:"text",icon:"Aa",width:235,permission:"pinoria.item.view",readOnly:true,capabilities:read},
 ] as const satisfies readonly FieldSchema[];
 type F=typeof itemFields;
-const sections=[{id:"item-definition",label:"Item Definition",fields:["displayName","key","type","slot","status","revision"]}] as const;
+const auditKeys=["createdAt","createdBy","updatedAt","updatedBy"] as const;
+const sections=[{id:"item-definition",label:"Item Definition",fields:["displayName","key","type","slot","status","revision",...auditKeys]}] as const;
 export const itemQuery:TableQuery<F>={search:"",filters:{logic:"AND",rules:[]},sort:{field:"displayName",direction:"asc"},
- group:null,order:["displayName","key","type","slot","status","revision"],visible:["displayName","type","slot","status","revision"],page:1,pageSize:15};
+ group:null,order:["displayName","key","type","slot","status","revision",...auditKeys],visible:["displayName","type","slot","status","revision",...auditKeys],page:1,pageSize:15};
 const extensionApproval={
  jira:"PAP-1119",owner:"Founder",designAuthority:"PAP-1109 V3.1 approved 2026-10-30",
  files:["app/components/pinoria-item/HoItemCalibration.tsx","app/ho/pinoria/wardrobe/HoItemsTdd.tsx","app/components/workspace-renderer/Slots.tsx"],
@@ -30,7 +35,7 @@ export const itemDefinition={
  fields:itemFields,capabilities:{read:"pinoria.item.view"},
  table:{
   identity:{field:"displayName",pinned:"left",hideable:false,reorderable:false},
-  columns:[{field:"displayName",visible:true},{field:"key",visible:false},{field:"type",visible:true},{field:"slot",visible:true},{field:"status",visible:true},{field:"revision",visible:true}],
+  columns:[{field:"displayName",visible:true},{field:"key",visible:false},{field:"type",visible:true},{field:"slot",visible:true},{field:"status",visible:true},{field:"revision",visible:true},...auditKeys.map(field=>({field,visible:true}))],
   search:{fields:["displayName","key","type","slot","status"],normalization:"vi-diacritic-insensitive"},
   filters:{fields:["displayName","key","type","slot","status","revision"],mode:"flat",logic:"AND"},
   sort:{fields:["displayName","key","type","slot","status","revision"],mode:"single",nulls:"last",tieBreak:"record-id"},
@@ -57,13 +62,22 @@ export const extensionVerifier=(approval:Approval,scope:{surface:"BO"|"HO";key:s
   (scope.extensionId==="pap1119-ho-item-calibration-v1"&&approval.jira==="PAP-1119"&&approval.designAuthority===extensionApproval.designAuthority&&approval.files.length===3&&approval.tests.length===2)||
   (["pap1253-ho-variant-v1","pap1253-ho-members-v1"].includes(scope.extensionId??"")&&approval.jira==="PAP-1253"&&approval.designAuthority===s2Approval.designAuthority&&approval.files.length===3&&approval.tests.length===1)
  );
-const projection=(i:ItemRecord):ModuleRow<F>=>({
- id:i.id,displayName:i.displayName,key:i.key,type:i.type,slot:i.type==="SET"?"—":slotNames[i.slot],status:i.status,revision:i.revision
+/** PAP-1700: only Core ISO instants, never fabricate legacy timestamps. */
+export function formatItemAuditTime(value:unknown):string{
+ if(typeof value!=="string"||!/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?(?:Z|[+-]\d\d:\d\d)$/.test(value))return "—";
+ const instant=new Date(value);if(!Number.isFinite(instant.getTime()))return "—";
+ const parts=new Intl.DateTimeFormat("en-GB",{timeZone:"Asia/Ho_Chi_Minh",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(instant);
+ const get=(type:string)=>parts.find(x=>x.type===type)?.value??"—";
+ return `${get("day")}/${get("month")}/${get("year")} · ${get("hour")}:${get("minute")}`;
+}
+export const projectItemRow=(i:ItemRecord):ModuleRow<F>=>({
+ id:i.id,displayName:i.displayName,key:i.key,type:i.type,slot:i.type==="SET"?"—":slotNames[i.slot],status:i.status,revision:i.revision,
+ createdAt:formatItemAuditTime(i.createdAt),createdBy:"—",updatedAt:formatItemAuditTime(i.updatedAt),updatedBy:"—"
 });
 export const itemProvider:SurfaceProvider<F>={
  pagination:"local-ui",
  async list(_query,scope,_fetch,signal){if(scope.surface!=="HO")throw Error("HO only");
-  const items=await listItems(signal);signal.throwIfAborted();return {records:items.map(i=>({row:projection(i)})),total:items.length};},
+  const items=await listItems(signal);signal.throwIfAborted();return {records:items.map(i=>({row:projectItemRow(i)})),total:items.length};},
  async detail(id,scope,_fetch,signal){if(scope.surface!=="HO")throw Error("HO only");
-  const item=await getItem(id,signal);signal.throwIfAborted();return {row:projection(item)};}
+  const item=await getItem(id,signal);signal.throwIfAborted();return {row:projectItemRow(item)};}
 };

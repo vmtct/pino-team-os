@@ -1,4 +1,5 @@
 "use client";
+import { LocalizedModuleTitle } from "@/lib/pino-nav-locale-context";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { boApi, BoApiError } from "@/lib/bo-api";
@@ -123,7 +124,7 @@ export function BoCalendarClosuresView() {
   const missingReasonDetail = reason === "OTHER" && !detail.trim();
   return <main className={styles.page}>
     <header className={styles.heading}>
-      <span>Schedule</span><h1>Holidays & center closures</h1>
+      <span>Schedule</span><h1><LocalizedModuleTitle label="Holidays & closures" moduleKey="calendar" /></h1>
       <p>Publish governed calendar exclusions. Future materialized Sessions reconcile atomically; historical participation is never rewritten.</p>
     </header>
     {error ? <section className={`${styles.state} ${styles.errorState}`}><strong>Calendar command failed</strong><span>{error}</span></section> : null}
