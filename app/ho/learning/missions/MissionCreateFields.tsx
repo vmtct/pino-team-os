@@ -50,7 +50,11 @@ export function MissionCreateFields({ value, setValue, disabled, editing = false
         {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n}</option>)}
       </select></label>
     <label className="v25-form-field form-row"><span>Trạng thái</span>
-      <input value={value.status} type="text" readOnly disabled aria-label="Trạng thái" />
+      {editing
+        ? <input value={value.status} type="text" readOnly disabled aria-label="Trạng thái" />
+        : <select value={value.status} disabled>
+            <option value="ACTIVE">ACTIVE</option><option value="INACTIVE">INACTIVE</option>
+          </select>}
     </label>
     <label className="v25-form-field form-row"><span>PLS</span>
       <input type="number" min={0} step={1} value={value.plsValue} disabled={disabled}
