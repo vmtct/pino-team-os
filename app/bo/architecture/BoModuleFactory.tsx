@@ -9,6 +9,7 @@ import { TddRenderer, type TddStage } from "@/app/components/workspace-renderer/
 import { SurfaceWorkspace, type SurfaceWorkspaceProps } from "@/app/components/workspace-adapters/SurfaceWorkspace";
 import type { FieldSchema } from "@/lib/workspace-schema";
 import { requireBoModule } from "./registry";
+import { LocalizedModuleTitle } from "@/lib/pino-nav-locale-context";
 import type { BoPublicViewRuntime } from "@/lib/bo-public-view-runtime";
 
 /**
@@ -67,7 +68,7 @@ function LegacyBoModuleFactory({ moduleKey, adapter, publicViewRuntime }: { modu
   const title=definition.label;
   return (
     <section aria-label={title}>
-      <h1>{title}</h1>
+      <h1><LocalizedModuleTitle label={title} moduleKey={moduleKey} /></h1>
       <BoDataGrid rows={rows} columns={columns} rowKey={row=>String(row.id)}
         caption={title} state={status} onRowOpen={setSelected} publicViewRuntime={publicViewRuntime}
         emptyTitle="Không có bản ghi" emptyMessage="Chưa có dữ liệu có quyền truy cập." />

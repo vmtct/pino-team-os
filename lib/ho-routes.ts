@@ -22,6 +22,7 @@ export const HO_PAGE_PATHS = {
   roles: "/ho/system/roles",
   audits: "/ho/system/audit",
   tddReference: "/ho/system/tdd-reference",
+  languageMappings: "/ho/language-mappings",
 } as const;
 export const HO_HOME_PATH = HO_PAGE_PATHS.centers;
 const approved = new Set<string>(["/ho",...Object.values(HO_PAGE_PATHS)]);
