@@ -24,18 +24,24 @@ function receipt(value: unknown, centerId: string): Json {
 }
 function row(value: unknown): Row {
   const item = asObject(value);
-  if (Object.keys(item).some(key => !["id","displayName","maskedContact","linkedStudentCount","centers","updatedAt","attention"].includes(key))) return invalid();
+  if (Object.keys(item).some(key => !["id","displayName","maskedContact","linkedStudentCount","centers","createdAt","createdBy","updatedAt","updatedBy","attention"].includes(key))) return invalid();
   if (typeof item.id !== "string" || !UUID.test(item.id) ||
       (item.displayName !== null && typeof item.displayName !== "string") ||
       (item.maskedContact !== null && (typeof item.maskedContact !== "string" || !/[•*]/.test(item.maskedContact))) ||
       !Number.isSafeInteger(item.linkedStudentCount) || Number(item.linkedStudentCount) < 0 ||
       !Array.isArray(item.centers) || item.centers.some(x => typeof x !== "string" || !x.trim()) ||
+      (item.createdAt !== undefined && (typeof item.createdAt !== "string" || !Number.isFinite(Date.parse(item.createdAt)))) ||
+      (item.createdBy !== undefined && item.createdBy !== null) ||
       typeof item.updatedAt !== "string" || !Number.isFinite(Date.parse(item.updatedAt)) ||
+      (item.updatedBy !== undefined && item.updatedBy !== null) ||
       (item.attention !== null && typeof item.attention !== "string")) return invalid();
   return {
     id: item.id, name: item.displayName === null ? "Chưa có tên" : item.displayName as string,
     maskedContact: item.maskedContact as string | null, studentCount: Number(item.linkedStudentCount),
-    centers: (item.centers as string[]).join(", "), updatedAt: item.updatedAt as string,
+    centers: (item.centers as string[]).join(", "),
+    // PAP-1740: optional until Core guarded deploy; no invented actor identities.
+    createdAt: (item.createdAt as string | undefined) ?? "—",
+    createdBy: "—", updatedAt: item.updatedAt as string, updatedBy: "—",
     attention: item.attention as string | null,
   };
 }

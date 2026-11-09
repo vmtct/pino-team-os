@@ -12,14 +12,17 @@ export const parentFields = [
   { key: "maskedContact", label: "Liên hệ (đã che)", icon: "Aa", width: 180, type: "text", permission: PARENT_VIEW, readOnly: true, capabilities: base, sensitive: true },
   { key: "studentCount", label: "Số học viên", icon: "#", width: 120, type: "number", permission: PARENT_VIEW, readOnly: true, capabilities: sortable },
   { key: "centers", label: "Cơ sở", icon: "Aa", width: 190, type: "text", permission: PARENT_VIEW, readOnly: true, capabilities: base },
-  { key: "updatedAt", label: "Cập nhật", icon: "▦", width: 170, type: "datetime", permission: PARENT_VIEW, readOnly: true, capabilities: sortable },
+  { key: "createdAt", label: "Created Time", icon: "▦", width: 170, type: "datetime", permission: PARENT_VIEW, readOnly: true, capabilities: base },
+  { key: "createdBy", label: "Created by (User)", icon: "Aa", width: 190, type: "text", permission: PARENT_VIEW, readOnly: true, capabilities: base },
+  { key: "updatedAt", label: "Last Modified Time", icon: "▦", width: 170, type: "datetime", permission: PARENT_VIEW, readOnly: true, capabilities: sortable },
+  { key: "updatedBy", label: "Last Modified By (User)", icon: "Aa", width: 190, type: "text", permission: PARENT_VIEW, readOnly: true, capabilities: base },
   { key: "attention", label: "Lưu ý", icon: "Aa", width: 155, type: "text", permission: PARENT_VIEW, readOnly: true, capabilities: base },
 ] as const satisfies readonly FieldSchema[];
 export type ParentFields = typeof parentFields;
 export const parentQuery: TableQuery<ParentFields> = {
   search: "", filters: { logic: "AND", rules: [] }, sort: null, group: null,
-  order: ["name", "id", "maskedContact", "studentCount", "centers", "updatedAt", "attention"],
-  visible: ["name", "maskedContact", "studentCount", "centers", "updatedAt"], page: 1, pageSize: 15,
+  order: ["name", "id", "maskedContact", "studentCount", "centers", "createdAt", "createdBy", "updatedAt", "updatedBy", "attention"],
+  visible: ["name", "maskedContact", "studentCount", "centers", "createdAt", "createdBy", "updatedAt", "updatedBy"], page: 1, pageSize: 15,
 };
 const sections = [{ id: "overview", label: "Thông tin chính", fields: parentQuery.order }] as const;
 export const parentDefinition = {

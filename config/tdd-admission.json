@@ -832,6 +832,10 @@
         {
           "file": "app/bo/components/registration/BoRegistrationWorkspace.tsx",
           "owner": "PAP-1598"
+        },
+        {
+          "file": "app/bo/parents/provider.ts",
+          "owner": "PAP-1740"
         }
       ]
     }
