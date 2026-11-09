@@ -50,7 +50,9 @@ test("PAP-1710 canonical Dsa Drawer with one combobox and correct preserved Core
  assert.match(c,/new URLSearchParams\(\{centerId/);
  assert.match(c,/page<10/);
  assert.match(c,/ctl\.abort\(\)/);
- assert.match(c,/<details className="property-section pino-avatar-audit">/);
+ // PAP-1743: shared typed disclosure, no bespoke duplicate wrapper.
+ assert.match(c,/<PropertySections variant="drawer" fields=\{auditFields\} record=\{draft\} sections=\{selfDefinition\.drawer\.sections\}\/>/);
+ assert.doesNotMatch(c,/<details className="property-section pino-avatar-audit">/);
  assert.doesNotMatch(c,/id="ps-create-search"/);
  assert.doesNotMatch(c,/>Tìm Person<\/label>/);
  assert.match(host,/authorize\("pinoria.self.create"\)/);
