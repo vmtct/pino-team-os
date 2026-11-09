@@ -93,6 +93,11 @@ export function CreateSelfDrawer({centerId,onClose,onCreated}:{centerId:string;o
   setInputValue(text);setQuery(text);setPerson(null);
   setDuplicateConflict(false);setError("");setOpen(true);setActive(0);
  }
+ // PAP-1742: stop the *first* Escape while the listbox is open before the
+ // native document-level Drawer Escape listener can close the whole dialog.
+ function onComboboxKeyDownCapture(e:KeyboardEvent<HTMLInputElement>){
+  if(e.key==="Escape"&&open){e.preventDefault();e.stopPropagation();setOpen(false);}
+ }
  function onComboboxKeyDown(e:KeyboardEvent<HTMLInputElement>){
   if(e.key==="ArrowDown"||e.key==="ArrowUp"){
    e.preventDefault();
@@ -139,7 +144,7 @@ export function CreateSelfDrawer({centerId,onClose,onCreated}:{centerId:string;o
        onFocus={()=>{setOpen(true);setActive(0);}}
        onClick={()=>{setOpen(true);setActive(0);}}
        onChange={e=>changeQuery(e.target.value)}
-       onKeyDown={onComboboxKeyDown}
+       onKeyDown={onComboboxKeyDown} onKeyDownCapture={onComboboxKeyDownCapture}
        onBlur={()=>{setTimeout(()=>{if(document.activeElement!==inputRef.current)setOpen(false);},120);}}/>
       {open?<div className={styles.options} id={listId} role="listbox" aria-label="Chọn Person">
        {loading?<p role="status">Đang tìm Person tại cơ sở đã chọn…</p>:
@@ -159,6 +164,14 @@ export function CreateSelfDrawer({centerId,onClose,onCreated}:{centerId:string;o
       </div>:null}
      </div>
  );
+ // PAP-1742: the default bare property-control input has no visible DS border;
+ // opt into the shared row's control slot, not a cloned property-row/label.
+ const nicknameControl=(
+  <input id="ps-create-nickname" type="text" ref={nicknameRef}
+   className="pds-property-input" placeholder="Tên hiển thị của Avatar"
+   maxLength={40} autoComplete="off" disabled={saving} value={nickname}
+   onChange={e=>{setNickname(e.target.value);setError("");}}/>
+ );
  const footer=<>
   <BoActionButton type="button" variant="secondary" onClick={close} disabled={saving}>Hủy</BoActionButton>
   <BoActionButton type="button" variant="primary" onClick={()=>void create()} disabled={!canCreate}>
@@ -169,7 +182,7 @@ export function CreateSelfDrawer({centerId,onClose,onCreated}:{centerId:string;o
   <div className={styles.body} data-jira="PAP-1734" data-avatar-schema="PAP-1734" data-avatar-mode="CREATE">
    <PropertySections variant="drawer" fields={drawerEditableFields} record={draft} sections={selfDefinition.drawer.sections} createFields={{
      name: {id:"ps-create-person",label:"Person *",required:true,value:inputValue,onChange:changeQuery,control:personPicker},
-     nickname: {id:"ps-create-nickname",label:"Nickname Avatar (tùy chọn)",value:nickname,onChange:value=>{setNickname(value);setError("");},inputRef:nicknameRef,maxLength:40,autoComplete:"off",disabled:saving},
+     nickname: {id:"ps-create-nickname",label:"Nickname Avatar (tùy chọn)",value:nickname,onChange:value=>{setNickname(value);setError("");},control:nicknameControl},
    }}/>
    <p id="ps-create-person-hint" className="pino-avatar-hint">
     Chỉ chọn Person thuộc cơ sở hiện tại. Người đã có Avatar được đánh dấu để tránh tạo trùng.
