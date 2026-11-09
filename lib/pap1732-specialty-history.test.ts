@@ -75,3 +75,26 @@ void describe("PAP-1732 S1L-A shared TDD History capability boundary",()=>{
   assert.equal(bind.source.permission,"catalog.learning.view");
  });
 });
+
+// PAP-1732 / PAP-1491 SPEC-UNLOCK — actual Stage 404 regression: exact host+verb route fence.
+void describe("PAP-1732 HO History middleware fail-closed admission",()=>{
+ void it("admits only exact Founder HO GET v7 /history; blocks all other hosts and writers",async()=>{
+  const {decideHostBoundary}=await import("./host-boundary");
+  const id="01a1bfda-fc7c-7481-991e-60ccba5e6666";
+  const base="/api/ho/learning/specialties/"+id;
+  assert.deepEqual(decideHostBoundary("ho.staging.pinohouse.art",base+"/history","GET"),{action:"next"});
+  for(const host of ["bo.staging.pinohouse.art","tos.staging.pinohouse.art","ho.pinohouse.art","evil.example"]) {
+   assert.deepEqual(decideHostBoundary(host,base+"/history","GET"),{action:"not_found"},host);
+  }
+  for(const method of ["POST","PUT","PATCH","DELETE","HEAD","OPTIONS"]) {
+   assert.deepEqual(decideHostBoundary("ho.staging.pinohouse.art",base+"/history",method),{action:"not_found"},method);
+  }
+  for(const suffix of ["/history/","/history/export","/history/raw","/histories","/history/.."]) {
+   assert.deepEqual(decideHostBoundary("ho.staging.pinohouse.art",base+suffix,"GET"),{action:"not_found"},suffix);
+  }
+  const invalid="/api/ho/learning/specialties/00000000-0000-0000-0000-000000000000/history";
+  assert.deepEqual(decideHostBoundary("ho.staging.pinohouse.art",invalid,"GET"),{action:"not_found"});
+  assert.deepEqual(decideHostBoundary("ho.staging.pinohouse.art",base,"GET"),{action:"next"});
+  assert.deepEqual(decideHostBoundary("ho.staging.pinohouse.art",base+"/commands","POST"),{action:"next"});
+ });
+});
