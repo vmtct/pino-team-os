@@ -5,7 +5,7 @@ import { parentDirectoryProvider } from "./provider";
 export const PARENT_VIEW = "identity.parent_directory.view";
 const base = { display: true, search: false, filter: false, sort: false, group: false, inlineEdit: false } as const;
 const named = { ...base, search: true, sort: true };
-const sortable = { ...base, sort: true };
+const sortable = { ...base, sort: true, filter: true };
 export const parentFields = [
   { key: "name", label: "Phụ huynh", icon: "Aa", width: 235, type: "text", permission: PARENT_VIEW, readOnly: true, capabilities: named },
   { key: "id", label: "Parent ID", icon: "#", width: 160, type: "id", permission: PARENT_VIEW, readOnly: true, capabilities: base },
@@ -30,10 +30,13 @@ export const parentDefinition = {
     identity: { field: "name", pinned: "left", hideable: false, reorderable: false },
     columns: parentQuery.order.map(field => ({ field, visible: parentQuery.visible.includes(field as typeof parentQuery.visible[number]) })),
     search: { fields: ["name"], normalization: "vi-diacritic-insensitive" },
-    filters: { fields: [], mode: "flat", logic: "AND" },
+    filters: { fields: ["studentCount"], mode: "flat", logic: "AND" },
     sort: { fields: ["name", "studentCount", "updatedAt"], mode: "single", nulls: "last", tieBreak: "record-id" },
     group: { fields: [], mode: "single" },
-    views: { builtIn: [], saved: { kind: "local-ui" }, actions: ["add", "apply", "rename", "delete", "reorder"] },
+    views: { builtIn: [
+      { id: "has-students", label: "Có học viên", state: { ...parentQuery, filters: { logic: "AND", rules: [{ field: "studentCount", op: "gt", value: 0 }] } } },
+      { id: "unlinked", label: "Chưa liên kết", state: { ...parentQuery, filters: { logic: "AND", rules: [{ field: "studentCount", op: "eq", value: 0 }] } } },
+    ], saved: { kind: "local-ui" }, actions: ["add", "apply", "rename", "delete", "reorder"] },
     pagination: { sizes: [8, 15, 30], defaultSize: 15, mode: "local-ui" },
     inlineEdit: { fields: [], enabled: false },
     interaction: { settings: ["properties", "grouping", "filters", "quick-views"], quickView: "separate-opener", keyboard: "canonical", undo: "local-ui-only" },
