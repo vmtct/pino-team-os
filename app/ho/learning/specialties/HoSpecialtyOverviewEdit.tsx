@@ -26,6 +26,8 @@ export function HoSpecialtyOverviewEdit({properties,canManage,onSaved}:{
  const [saving,setSaving]=useState(false);
  const [publishVersion,setPublishVersion]=useState<number|null>(null);
  const [unpublishVersion,setUnpublishVersion]=useState<number|null>(null);
+ const [archiveVersion,setArchiveVersion]=useState<number|null>(null);
+ const [restoreVersion,setRestoreVersion]=useState<number|null>(null);
  const pending=useRef<AbortController|null>(null);
  const attempt=useRef<{payload:string;key:string}|null>(null);
  const [labelWidth,setLabelWidth]=useState(160);
@@ -42,7 +44,7 @@ export function HoSpecialtyOverviewEdit({properties,canManage,onSaved}:{
   return ()=>{controller.abort();pending.current?.abort();};
  },[id,retry]);
  const allowed=canManage&&data?.detail.status==="DRAFT"&&!saving;
- const activeStatusAllowed=canManage&&data?.detail.status==="ACTIVE"&&!saving;
+ const activeStatusAllowed=canManage&&(data?.detail.status==="ACTIVE"||data?.detail.status==="ARCHIVED")&&!saving;
  const editable=(field:BoField):field is BoField & {key:SpecialtyS5OverviewKey|"name"|"description"} =>
   (allowed&&["name","description","levelCount","prerequisiteView","tagView","status"].includes(field.key))||
   (activeStatusAllowed&&field.key==="status");
@@ -50,14 +52,15 @@ export function HoSpecialtyOverviewEdit({properties,canManage,onSaved}:{
  const props=properties;
  const options=selection&&data?(()=>{
   const field=selection.field;
-  if(field.key==="status")return data.detail.status==="ACTIVE"?["Đang áp dụng","Bản nháp"]:["Bản nháp","Đang áp dụng"];
+  if(field.key==="status")return data.detail.status==="ACTIVE"?["Đang áp dụng","Bản nháp","Đã lưu trữ"]:
+   data.detail.status==="ARCHIVED"?["Đã lưu trữ","Bản nháp"]:["Bản nháp","Đang áp dụng","Đã lưu trữ"];
    if(field.key==="prerequisiteView")return eligibleSpecialtyPrerequisites(data.detail,data.catalog).map(x=>x.label);
   if(field.key==="tagView")return [...new Set([...data.catalog.flatMap(s=>s.tags),...["Nhân vật","Mỹ thuật","Sáng tạo","Anime","Gouache","Acrylic","Chibi"],...data.detail.tags])];
   return undefined;
  })():undefined;
  const value:BoValue=selection&&data?(()=>{
   switch(selection.field.key){
-   case "status":return data.detail.status==="DRAFT"?"Bản nháp":"Đang áp dụng";
+    case "status":return data.detail.status==="DRAFT"?"Bản nháp":data.detail.status==="ACTIVE"?"Đang áp dụng":"Đã lưu trữ";
     case "name":return data.detail.name;
    case "description":return data.detail.description??"";
    case "levelCount":return data.detail.levels.length;
@@ -75,13 +78,20 @@ export function HoSpecialtyOverviewEdit({properties,canManage,onSaved}:{
    const field=selection.field.key;
     if(field==="status"){
      const isCurrent=(data.detail.status==="ACTIVE"&&value==="Đang áp dụng")||
-       (data.detail.status==="DRAFT"&&value==="Bản nháp");
+       (data.detail.status==="DRAFT"&&value==="Bản nháp")||
+       (data.detail.status==="ARCHIVED"&&value==="Đã lưu trữ");
      if(isCurrent){setSelection(null);setError("");return;}
      if(value==="Đang áp dụng"&&data.detail.status==="DRAFT"){
        setSelection(null);setError("");setPublishVersion(data.detail.version);return;
      }
      if(value==="Bản nháp"&&data.detail.status==="ACTIVE"){
        setSelection(null);setError("");setUnpublishVersion(data.detail.version);return;
+     }
+     if(value==="Đã lưu trữ"&&(data.detail.status==="ACTIVE"||data.detail.status==="DRAFT")){
+       setSelection(null);setError("");setArchiveVersion(data.detail.version);return;
+     }
+     if(value==="Bản nháp"&&data.detail.status==="ARCHIVED"){
+       setSelection(null);setError("");setRestoreVersion(data.detail.version);return;
      }
      setError("Trạng thái không hợp lệ.");return;
     }
@@ -151,6 +161,32 @@ export function HoSpecialtyOverviewEdit({properties,canManage,onSaved}:{
     if(cause instanceof BoApiError&&cause.status===409){setUnpublishVersion(null);setRetry(n=>n+1);}
    }finally{pending.current=null;setSaving(false);}
   }
+  /** PAP-1732 / S1L-A: all transitions remain Core-authorized, no UI-only grant count. */
+  async function archiveOrRestore(action:"ARCHIVE"|"RESTORE"){
+   const version=action==="ARCHIVE"?archiveVersion:restoreVersion;
+   if(version===null||!data||saving||!canManage)return;
+   const valid=action==="RESTORE"?data.detail.status==="ARCHIVED":
+    data.detail.status==="DRAFT"||data.detail.status==="ACTIVE";
+   if(!valid||data.detail.version!==version){
+    setArchiveVersion(null);setRestoreVersion(null);setRetry(n=>n+1);
+    setError("Chuyên đề đã thay đổi. Tải lại trước khi cập nhật trạng thái.");return;
+   }
+   const command:SpecialtyGraphCommand={type:action,expectedVersion:version};
+   const payload=JSON.stringify(command);
+   if(!attempt.current||attempt.current.payload!==payload)
+    attempt.current={payload,key:"spec_lifecycle_"+crypto.randomUUID().replaceAll("-","")};
+   const controller=new AbortController();pending.current=controller;
+   setSaving(true);setError("");
+   try{
+    const detail=await postSpecialtyGraphCommand(id,command,window.fetch.bind(window),controller.signal,attempt.current.key);
+    setData(previous=>previous?{...previous,detail}:previous);
+    setArchiveVersion(null);setRestoreVersion(null);attempt.current=null;
+    onSaved();
+   }catch(cause){
+    setError(cause instanceof BoApiError?cause.message:"Không thể xác minh cập nhật trạng thái.");
+    if(cause instanceof BoApiError&&cause.status===409){setArchiveVersion(null);setRestoreVersion(null);setRetry(n=>n+1);}
+   }finally{pending.current=null;setSaving(false);}
+  }
   return <>
   <PropertySections variant="detail" fields={props.fields} record={props.record} sections={props.sections}
     canEdit={editable} onEdit={(field,anchor)=>{attempt.current=null;setError("");setSelection({field,anchor});}}
@@ -173,6 +209,24 @@ export function HoSpecialtyOverviewEdit({properties,canManage,onSaved}:{
       warnings={specialtyPublishWarnings(data.detail,data.catalog)} busy={saving} error={error}
       onCancel={()=>{if(!saving){setPublishVersion(null);setError("");}}}
       onConfirm={()=>{void publish();}}/>:null}
+   {archiveVersion!==null&&data?<ConfirmDialog
+      surface="ho" context="Chuyên đề · Trạng thái" title="Lưu trữ chuyên đề"
+      subject={data.detail.name}
+      description="Ẩn khỏi danh mục cấp quyền mới, giữ nguyên ID và lịch sử. Core phải xác minh không có Grant cần bảo toàn hoặc chuyên đề ACTIVE phụ thuộc; không thể chứng minh thì sẽ từ chối."
+      readyMessage="Core sẽ kiểm chứng điều kiện lưu trữ và version khi xác nhận; không sửa hay thu hồi quyền học cũ."
+      confirmLabel="Xác nhận lưu trữ" busyLabel="Đang kiểm chứng lưu trữ…"
+      warnings={[]} busy={saving} error={error}
+      onCancel={()=>{if(!saving){setArchiveVersion(null);setError("");}}}
+      onConfirm={()=>{void archiveOrRestore("ARCHIVE");}}/>:null}
+   {restoreVersion!==null&&data?<ConfirmDialog
+      surface="ho" context="Chuyên đề · Trạng thái" title="Khôi phục chuyên đề"
+      subject={data.detail.name}
+      description="Khôi phục về Bản nháp, không tự kích hoạt. Sau đó phải kiểm tra điều kiện Publish lại."
+      readyMessage="Giữ nguyên ID, lịch sử và Published snapshot trước đó. Core sẽ xác minh version khi lưu."
+      confirmLabel="Xác nhận khôi phục" busyLabel="Đang khôi phục…"
+      warnings={[]} busy={saving} error={error}
+      onCancel={()=>{if(!saving){setRestoreVersion(null);setError("");}}}
+      onConfirm={()=>{void archiveOrRestore("RESTORE");}}/>:null}
    {unpublishVersion!==null&&data?<ConfirmDialog
       surface="ho" context="Chuyên đề · Trạng thái" title="Chuyển về bản nháp"
       subject={data.detail.name}
