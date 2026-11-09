@@ -29,7 +29,9 @@ test("PAP-1495: route remains HO-only and TDD has one ordered business tab",()=>
   assert.deepEqual(composeTabs(schema).map(tab=>tab.label),["Tổng quan","Nhiệm vụ","Lịch sử"]);
   assert.deepEqual(authorizedTabs(schema,{...context,authorize:()=>false}),[]);
   assert.equal(specialtyProvider.mutation,undefined);
-  assert.deepEqual(Object.keys(schema.capabilities),["read"]);
+  // PAP-1732 / PAP-1491: read-only verified Core History is now an allowed HO capability.
+  assert.deepEqual(Object.keys(schema.capabilities),["read","history"]);
+  assert.equal(schema.capabilities.history,"catalog.learning.view");
   assert.ok(schema.fields.every(field=>field.readOnly&&!field.capabilities.inlineEdit));
 });
 
