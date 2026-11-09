@@ -80,6 +80,8 @@ export function CreateSelfDrawer({centerId,onClose,onCreated}:{centerId:string;o
  },[centerId,query,retry]);
  const matches=useMemo(()=>matchingAvatarCandidates(candidates,query),[candidates,query]);
  const visibleMatches=matches.slice(0,8);
+ // PAP-1754: scrolling the bounded listbox must also expose the keyboard-active option.
+ useEffect(()=>{if(open)optionRefs.current[active]?.scrollIntoView({block:"nearest"});},[active,open,query,candidates]);
  const duplicate=!!person&&(duplicateConflict||candidateHasAvatar(person));
  const canCreate=!!person&&!duplicate&&!saving&&!loading&&!loadError;
  function choose(option:AvatarCandidate){
@@ -152,11 +154,11 @@ export function CreateSelfDrawer({centerId,onClose,onCreated}:{centerId:string;o
         visibleMatches.length?visibleMatches.map((option,i)=>
          <button ref={el=>{optionRefs.current[i]=el;}} type="button" role="option"
           id={listId+"-"+i} aria-selected={i===active}
-          className="secondary-btn"
+          className={`secondary-btn ${styles.option}`}
           key={option.personId} onMouseDown={e=>e.preventDefault()}
           onMouseEnter={()=>setActive(i)} onClick={()=>choose(option)}>
           <span className={styles.optionCopy}><strong>{option.displayName}</strong><small>{option.subjectTypes.join(" / ")}</small></span>
-          <span>{candidateHasAvatar(option)?"Đã có Avatar":"Chưa có Avatar"}</span>
+          <span className={styles.optionState}>{candidateHasAvatar(option)?"Đã có Avatar":"Chưa có Avatar"}</span>
          </button>):
         <p role="status">Không có Person phù hợp tại cơ sở này.</p>}
        {!loading&&matches.length>visibleMatches.length?<p role="status">Đang hiển thị 8 kết quả đầu. Gõ để tìm thêm.</p>:null}
