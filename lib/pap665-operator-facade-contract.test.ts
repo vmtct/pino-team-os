@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { callTosLearningCoreWithCredential } from "./tos-learning-core";
+import { tosLearningCoreTarget } from "./tos-completion-get-bridge";
 
 const source = readFileSync(new URL("../app/api/tos-learning/[...path]/route.ts", import.meta.url), "utf8");
 
@@ -29,7 +30,12 @@ test("operator facade forwards identity and idempotency to Core, never TV runtim
 
 test("operator facade preserves Core read and command paths", () => {
   assert.match(source, /const normalizedPath = path\.join\("\/"\)/);
-  assert.match(source, /path: `\/\$\{normalizedPath\}`/);
+  assert.match(source, /tosLearningCoreTarget\(request\.method, normalizedPath, url, body\)/);
+  assert.match(source, /const coreRequest = \{ method: request\.method, \.\.\.target,/);
+  const body = { centerId: "QA" };
+  assert.deepEqual(tosLearningCoreTarget("GET", "pinoria/presentations/queue",
+    new URL("https://tos.test/api/tos-learning/pinoria/presentations/queue?centerId=QA"), body),
+  { path: "/pinoria/presentations/queue", body });
   assert.match(source, /method: request\.method/);
   assert.match(source, /idempotencyKey \? \{ idempotencyKey \} : \{\}/);
 });
