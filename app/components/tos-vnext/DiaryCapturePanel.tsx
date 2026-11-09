@@ -16,6 +16,10 @@ import {readDiaryTicket,stageDiaryTicket,clearVerifiedDiaryTicket,type DiaryTick
 import {isConfirmedSkipDiaryEntry} from "@/lib/tos-diary-skip-opening";
 import {isDiaryStagingWriterHost} from "@/lib/tos-diary-stage-admission";
 import {diaryWriteView} from "@/lib/tos-diary-stage-status";
+import {createTosMissionAssignmentApiTransport} from "@/lib/tos-mission-assignment-api";
+import {assignmentScopeForCandidate} from "@/lib/tos-mission-assignment-workflow";
+import {readTosMissionCompletion} from "@/lib/tos-mission-completion-read";
+import {submitVerifiedC1Completion} from "@/lib/tos-mission-completion-command";
 import {requiresSpecialtySelectionGuard} from "@/lib/tos-specialty-mission-availability";
 import {TosSpecialtyMissionChoiceList} from "@/app/classroom/TosSpecialtyMissionChoiceList";
 import type {ClassroomV4ViewModel,ScheduledClass} from "@/lib/tos-classroom-v4-view-model";
@@ -42,6 +46,11 @@ export default function DiaryCapturePanel({model,classroom,confirmedSkipClassId}
  const [difficulty,setDifficulty]=useState("");
  const [showValidation,setShowValidation]=useState(false);
  const [receipt,setReceipt]=useState<ObservationOutcome|null>(null);
+ // PAP-1756: independent Core C1, never infer from Diary or C2 MissionResult.
+ const [completionIntent,setCompletionIntent]=useState<string[]>([]);
+ const [completionStatus,setCompletionStatus]=useState<Record<string,"READING"|"IN_PROGRESS"|"VERIFIED"|"UNVERIFIED">>({});
+ const [completionBusy,setCompletionBusy]=useState(false);
+ const [completionMessage,setCompletionMessage]=useState("");
  const [registerTicket,setRegisterTicket]=useState<DiaryTicketState>({state:"UNAVAILABLE",key:null});
  const [registerRecovery,setRegisterRecovery]=useState<LostAckResult|null>(null);
  const [recovering,setRecovering]=useState(false);
@@ -58,7 +67,7 @@ export default function DiaryCapturePanel({model,classroom,confirmedSkipClassId}
  const skipEntryConfirmed=isConfirmedSkipDiaryEntry(model,classroom,confirmedSkipClassId);
  const writerApi=useMemo(()=>createV18bApiTransport(stagingHostAdmitted),[stagingHostAdmitted]);
  const writeAdmitted=stagingHostAdmitted&&skipEntryConfirmed;
- const locked=receipt!==null||busy||reloadBusy;
+ const locked=receipt!==null||busy||reloadBusy||completionBusy;
  const receiptView=diaryUiReceipt(receipt);
  const writeView=diaryWriteView({
   admitted:writeAdmitted,busy,checking:recovering||reloadBusy,
@@ -106,6 +115,40 @@ export default function DiaryCapturePanel({model,classroom,confirmedSkipClassId}
    return true;
   }catch{return false;}
  },[permitted,model,classroom,studentId,eligibility,chosen,specialtyGuarded]);
+ // PAP-1756: read actual independent C1 execution before enabling the checkbox.
+ // No optimistic success or inference from Diary/MissionResult.
+ useEffect(()=>{
+  if(!permitted||!eligibility||eligibility.hasMore||specialtyGuarded)return;
+  const linked=eligibility.items.filter(item=>item.assignmentId!==null);
+  if(linked.length===0)return;
+  let active=true;
+  // Undefined status remains disabled until an asynchronous verified Core read.
+  void (async()=>{
+   const states:Record<string,"IN_PROGRESS"|"VERIFIED"|"UNVERIFIED">={};
+   try{
+    const day=await writerApi.today(model.centerId,model.today);
+    const occurrence=day.occurrences.find(item=>
+     item.runningClassId===classroom.runningClassId&&item.teachingContextKey===classroom.id);
+    if(!occurrence)throw new Error("Missing canonical classroom occurrence");
+    const scope=assignmentScopeForCandidate(day,occurrence,studentId);
+    const assignments=createTosMissionAssignmentApiTransport(false);
+    for(const item of linked){
+     if(!active)return;
+     try{
+      const assignment=await assignments.get(scope,item.assignmentId!);
+      if(assignment.missionId!==item.missionId)throw new Error("Mission mismatch");
+      const execution=await readTosMissionCompletion(day,occurrence,studentId,assignment);
+      states[item.missionId]=execution.executionStatus==="COMPLETED"?"VERIFIED":"IN_PROGRESS";
+     }catch{states[item.missionId]="UNVERIFIED";}
+    }
+   }catch{
+    for(const item of linked)states[item.missionId]="UNVERIFIED";
+   }
+   if(active)setCompletionStatus(previous=>({...previous,...states}));
+  })();
+  return()=>{active=false;};
+ },[permitted,eligibility,specialtyGuarded,writerApi,model.centerId,model.today,
+   classroom.id,classroom.runningClassId,studentId]);
  const errors=[
   ...validateDiaryCaptureDraft({studentId,missionIds,eligibleIds:eligibility?.items.map(x=>x.missionId)??[],
    eligibilityLoaded:current.phase==="ready",eligibilityHasMore:eligibility?.hasMore??false,notes,interest,difficulty}),
@@ -123,6 +166,16 @@ export default function DiaryCapturePanel({model,classroom,confirmedSkipClassId}
    if(requiresSpecialtySelectionGuard(fresh.items))throw new Error("Chưa xác nhận được quyền chọn Nhiệm vụ.");
    const prepared=prepareDiarySubmission({model,classroom,studentId,eligibility:fresh,
     selected:chosen,submissionKey:crypto.randomUUID()});
+   // PAP-1756: reject a stale or unassigned C1 intention BEFORE writing a Diary.
+   for(const missionId of completionIntent){
+    const prior=eligibility.items.find(item=>item.missionId===missionId);
+    const latest=fresh.items.find(item=>item.missionId===missionId);
+    if(!prior?.assignmentId||prior.assignmentId!==latest?.assignmentId||
+       !prepared.selected.some(item=>item.missionId===missionId&&item.assignmentId===latest.assignmentId)||
+       completionStatus[missionId]!=="IN_PROGRESS")
+     throw new V18bCoreError(409,"MISSION_C1_ASSIGNMENT_STALE",
+      "Nhiệm vụ đã đổi hoặc Core chưa xác minh. Tải lại trước khi gửi.");
+   }
    const storage=ticketStorage();
    // Save only the opaque original key BEFORE network, not student scope/notes.
    if(!stageDiaryTicket(storage,prepared.submissionKey))
@@ -133,6 +186,45 @@ export default function DiaryCapturePanel({model,classroom,confirmedSkipClassId}
    setReceipt(outcome);
    if(outcome.state==="LINK_VERIFIED"&&clearVerifiedDiaryTicket(storage,prepared.submissionKey))
     setRegisterTicket(readDiaryTicket(storage));
+   // PAP-1756: the approved checkbox only expresses intent. C1 is independently
+   // written AFTER Core verifies the original Diary plus exact Assignment link.
+   if(outcome.state==="LINK_VERIFIED"&&completionIntent.length){
+    setCompletionBusy(true);setCompletionMessage("");
+    try{
+     const day=await writerApi.today(model.centerId,model.today);
+     const occurrence=day.occurrences.find(item=>
+      item.runningClassId===classroom.runningClassId&&item.teachingContextKey===classroom.id);
+     if(!occurrence)throw new V18bCoreError(403,"MISSION_C1_OCCURRENCE_MISSING","Không xác nhận được lớp.");
+     const scope=assignmentScopeForCandidate(day,occurrence,studentId);
+     const assignments=createTosMissionAssignmentApiTransport(false);
+     for(const missionId of completionIntent){
+      const selected=prepared.selected.find(item=>item.missionId===missionId);
+      if(!selected?.assignmentId)throw new V18bCoreError(403,"MISSION_C1_ASSIGNMENT_MISSING","Thiếu Assignment.");
+      const assignment=await assignments.get(scope,selected.assignmentId);
+      if(assignment.missionId!==missionId)
+       throw new V18bCoreError(409,"MISSION_C1_MISSION_MISMATCH","Mission không khớp.");
+      // Stable original key, derived from the immutable Diary submission
+      // receipt and Assignment. Never generate a second key after lost ACK.
+      const idempotencyKey="pap1756:"+prepared.submissionKey+":"+assignment.id;
+      const result=await submitVerifiedC1Completion({
+       day,occurrence,studentId,assignment,diaryReceipt:outcome,
+       checked:true,writeAdmitted,idempotencyKey,
+      });
+      if(result.state==="VERIFIED"){
+       setCompletionStatus(previous=>({...previous,[missionId]:"VERIFIED"}));
+      }else{
+       setCompletionStatus(previous=>({...previous,[missionId]:"UNVERIFIED"}));
+       setCompletionMessage("Nhật ký đã xác minh; C1 chưa được Core xác nhận. Không gửi lại tự động.");
+       break;
+      }
+     }
+    }catch(error){
+     setCompletionMessage(error instanceof Error?error.message:
+      "Nhật ký đã xác minh nhưng Completion chưa được Core xác nhận.");
+    }finally{setCompletionBusy(false);}
+   }else if(completionIntent.length){
+    setCompletionMessage("Diary hoặc liên kết Mission chưa xác minh; không gửi Completion.");
+   }
   }catch(error){setRuntimeError(error instanceof V18bCoreError?error.message:
     "Chưa thể xác nhận lệnh gửi. Giữ mã gốc để đối soát, không Register lần hai.");}
   finally{setBusy(false);}
@@ -200,10 +292,12 @@ export default function DiaryCapturePanel({model,classroom,confirmedSkipClassId}
  function onStudent(value:string){
   reloadGeneration.current++;setStudentId(value);setRead(idle);setMissionIds([]);setNotes("");setInterest(null);setDifficulty("");setShowValidation(false);
   setKnownDiaryId("");setReloadReceipt(null);setReloadBusy(false);setRegisterRecovery(null);
+  setCompletionIntent([]);setCompletionStatus({});setCompletionMessage("");setCompletionBusy(false);
  }
  function toggleMission(id:string,checked:boolean){
   reloadGeneration.current++;setReloadReceipt(null);setReloadBusy(false);
   setMissionIds(prev=>checked?[...prev.filter(x=>x!==id),id]:prev.filter(x=>x!==id));
+  if(!checked)setCompletionIntent(previous=>previous.filter(item=>item!==id));
  }
  return <section className={styles.panel} aria-label="Soạn Nhật ký lớp học từ dữ liệu Core">
   <div className={styles.heading}><h3>Nhật ký học viên</h3><span role="status" aria-live="polite">{writeView.label}</span></div>
@@ -231,8 +325,19 @@ export default function DiaryCapturePanel({model,classroom,confirmedSkipClassId}
       <span>{m.code} · {m.name} <small>Cấp {m.level}</small></span>
      </label>
      {missionIds.includes(m.missionId)&&<label className={styles.complete}>
-      <input type="checkbox" checked={false} disabled readOnly/>
-      Nhiệm vụ hoàn tất <small>Chưa nhận kết quả MissionResult từ Core</small>
+      <input type="checkbox" aria-label={"Nhiệm vụ hoàn tất: "+m.name}
+       checked={completionStatus[m.missionId]==="VERIFIED"||completionIntent.includes(m.missionId)}
+       disabled={locked||!writeAdmitted||!m.assignmentId||
+        completionStatus[m.missionId]!=="IN_PROGRESS"}
+       onChange={e=>setCompletionIntent(previous=>e.target.checked?
+        [...previous.filter(id=>id!==m.missionId),m.missionId]:
+        previous.filter(id=>id!==m.missionId))}/>
+      Nhiệm vụ hoàn tất <small>{completionStatus[m.missionId]==="VERIFIED"?
+       "Core đã xác nhận hoàn tất C1":completionStatus[m.missionId]==="UNVERIFIED"?
+       "Chưa xác minh C1; không tự gửi lại":!m.assignmentId?
+       "Chưa có Assignment hợp lệ":completionStatus[m.missionId]==="IN_PROGRESS"?
+       "Ghi C1 sau khi Nhật ký được Core xác minh":
+       "Đang đọc trạng thái C1 từ Core"}</small>
      </label>}
     </div>)}</div>}
    {eligibility?.hasMore&&<p className={styles.hint}>Danh sách chưa đầy đủ; chưa cho phép gửi.</p>}
@@ -289,6 +394,7 @@ export default function DiaryCapturePanel({model,classroom,confirmedSkipClassId}
    {receiptView.canRetry&&<button className={styles.secondary} disabled={!canRetryDiary(receipt,writeAdmitted)||busy} type="button" onClick={()=>void retryDiary()}>Đối soát và thử lại trên cùng Diary</button>}
   </div>}
   {runtimeError&&<p role="alert" className={styles.errors}>{runtimeError}</p>}
+  {completionMessage&&<p role="status" aria-live="polite" className={styles.hint}>{completionMessage}</p>}
   <div className={styles.actions}>
    <button type="button" className={styles.secondary} disabled={busy} onClick={()=>setShowValidation(true)}>Kiểm tra biểu mẫu</button>
    <button type="button" className={styles.primary} disabled={!canCreateDiary(receipt,writeAdmitted)||busy||registerTicket.state!=="EMPTY"} onClick={()=>void submitDiary()} aria-describedby="tos-diary-admission-message">Gửi Nhật ký</button>

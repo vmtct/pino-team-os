@@ -956,6 +956,7 @@
         {"file":"lib/ho-specialty-s5-metadata.ts","owner":"PAP-1495"},
         {"file":"lib/ho-specialty-v2-metadata-client.ts","owner":"PAP-1495"},
         {"file":"lib/ho-specialty-v2-graph-client.ts","owner":"PAP-1495"},
+        {"file":"lib/ho-specialty-v2-history-client.ts","owner":"PAP-1732"},
         {"file":"lib/ho-specialty-v2-publish.ts","owner":"PAP-1695"},
         {"file":"app/ho/learning/missions/schema.ts","owner":"PAP-1207"},
         {
