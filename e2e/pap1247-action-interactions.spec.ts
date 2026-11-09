@@ -1,5 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
 import { buildSync } from "esbuild";
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { resolve } from "node:path";
+
+const actionCss = readFileSync(createRequire(resolve(process.cwd(), "package.json")).resolve("@pino/design-system/components.css"), "utf8");
 
 const bundle = buildSync({
   entryPoints: ["e2e/fixtures/pap1247-action-interactions.tsx"],
@@ -13,11 +18,32 @@ async function scenario(page: Page, mode: string) {
   page.on("pageerror", error => { throw error; });
   await page.route("**/*", route => route.fulfill({
     contentType: "text/html",
-    body: `<!doctype html><html lang="vi"><body><main id="root"></main><script>${bundle}</script></body></html>`,
+    body: `<!doctype html><html lang="vi"><head><style>${actionCss}</style></head><body><main id="root"></main><script>${bundle}</script></body></html>`,
   }));
   await page.goto(`https://ho.staging.pinohouse.art/pap1247-g2-synthetic?mode=${mode}`);
   await expect(page.getByRole("button", { name: "Xem", exact: true })).toBeVisible();
 }
+test("PAP-1247 DS host keeps 8px wrapping and native keyboard focus/disabled behavior", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 600 });
+  await scenario(page, "verified");
+  const host = page.locator('[data-tdd-action-slot="table.header"]');
+  await expect(host).toHaveClass(/pds-bo-action-group/);
+  await expect(host).toHaveCSS("gap", "8px");
+  await expect(host).toHaveCSS("flex-wrap", "wrap");
+  const buttons = host.getByRole("button");
+  const read = buttons.first();
+  const disabled = buttons.nth(1);
+  const save = buttons.last();
+  await expect(disabled).toBeDisabled();
+  await page.keyboard.press("Tab");
+  await expect(read).toBeFocused();
+  await expect(read).toHaveCSS("outline-style", "solid");
+  await expect(read).toHaveCSS("outline-width", "2px");
+  await page.keyboard.press("Tab");
+  await expect(save).toBeFocused();
+  await expect(disabled).toHaveCSS("cursor", "not-allowed");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+});
 for (const mode of ["verified", "conflict", "invalid", "denied-result", "unverified", "network"] as const) {
   test(`PAP-1247 actual host ${mode} is truthful; no blind replay`, async ({ page }) => {
     await scenario(page, mode);

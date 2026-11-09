@@ -1,4 +1,5 @@
 "use client";
+import { LocalizedModuleTitle } from "@/lib/pino-nav-locale-context";
 
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { boApi, BoApiError } from "@/lib/bo-api";
@@ -257,7 +258,7 @@ export function BoSubscriptionsView({embedded = false}: {embedded?:boolean} = {}
     <header className="page-heading">
       <div className="page-heading-left">
         {hostMenu("subscription-menu-btn")}
-        <h1>Subscriptions</h1>
+        <h1><LocalizedModuleTitle label="Subscriptions" moduleKey="subscriptions" /></h1>
       </div>
       <div className="heading-actions">
         <button type="button" className="primary-btn" disabled={Boolean(billingReplay.busy || billingReplay.pending || commandState.busy || pendingAttempt)} onClick={() => setCreateOpen(true)}><span>＋</span> Tạo mới</button>

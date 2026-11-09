@@ -17,6 +17,12 @@ test("PAP-867: nested navigation additions are automatically collected", () => {
   assert.deepEqual(collectNavHrefs([{href:"/bo",children:[{href:"/bo/new"},{href:"/bo/new"}]}]), ["/bo", "/bo/new"]);
 });
 
+test("PAP-1421 BO Bills stays accessible only on Staging and explicitly denied on Production", () => {
+  const root=process.cwd(), route="/bo/bills";
+  assert.deepEqual(checkPageContract(root, "bo.staging.pinohouse.art", route), []);
+  assert.ok(checkPageContract(root, BO_HOSTNAME, route).includes("host_denied"));
+  assert.ok(checkPageContract(root, TOS_HOSTNAME, route).includes("host_denied"));
+});
 test("PAP-1220 staged-only Classroom Diary stays in navigation coverage, not Production",()=>{
  const bo="bo.staging.pinohouse.art",route="/bo/classroom-diaries";
  assert.deepEqual(checkPageContract(process.cwd(),bo,route),[]);

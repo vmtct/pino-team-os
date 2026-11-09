@@ -22,7 +22,9 @@
       "marker": "subscriptions-core",
       "canonicalUrl": "/bo?module=subscriptions",
       "legacyAlias": "/bo/subscriptions",
-      "uiAnchor": "subscription-create-student-search"
+      "uiAnchor": "subscription-create-student-search",
+      "deliveryState": "suspended",
+      "suspensionIssue": "PAP-1334"
     }
   }
 }

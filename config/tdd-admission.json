@@ -43,6 +43,10 @@
         {
           "file": "lib/diary-mission-projection.ts",
           "owner": "PAP-1342"
+        },
+        {
+          "file": "app/bo/components/registration/BoCenterSelection.tsx",
+          "owner": "PAP-1598"
         }
       ]
     },
@@ -55,13 +59,26 @@
       "files": [
         "app/bo/pinoria-avatars/page.tsx",
         "app/bo/pinoria-avatars/SelfDirectoryTdd.tsx",
+        "app/bo/pinoria-avatars/CreateSelfDrawer.tsx",
+        "app/bo/pinoria-avatars/avatar-picker.ts",
+        "app/bo/pinoria-avatars/CreateAvatarDrawer.module.css",
         "app/bo/pinoria-avatars/schema.ts",
         "app/bo/pinoria-avatars/provider.ts",
         "app/bo/pinoria-avatars/centers.ts",
         "app/bo/pinoria-avatars/SharedProperties.tsx",
-        "app/bo/pinoria-avatars/SelfWardrobeDetail.tsx"
+        "app/bo/pinoria-avatars/SelfWardrobeDetail.tsx",
+        "app/bo/pinoria-avatars/SelfWardrobeDetail.module.css",
+        "app/bo/pinoria-avatars/SelfLoadoutDetail.tsx"
       ],
       "externalReferences": [
+        {
+          "file": "app/components/pinoria/SelfLoadoutPreview.tsx",
+          "owner": "PAP-1356"
+        },
+        {
+          "file": "app/components/pinoria/SelfLoadoutPreview.module.css",
+          "owner": "PAP-1489"
+        },
         {
           "file": "lib/host-boundary.ts",
           "owner": "PAP-982"
@@ -81,7 +98,20 @@
         {
           "file": "app/bo/components/registration/BoRegistrationWorkspace.tsx",
           "owner": "PAP-1080"
+        },
+        {
+          "file": "app/bo/components/registration/BoCenterSelection.tsx",
+          "owner": "PAP-1316"
+        },
+        {
+          "file": "app/bo/components/registration/BoValue.tsx",
+          "owner": "PAP-1737"
         }
+      ],
+      "businessStyles": [
+        {"file":"app/bo/pinoria-avatars/SelfWardrobeDetail.module.css","owner":"PAP-1490","consumer":"app/bo/pinoria-avatars/SelfWardrobeDetail.tsx","classes":["items"]},
+        {"file":"app/components/pinoria/SelfLoadoutPreview.module.css","owner":"PAP-1489","consumer":"app/components/pinoria/SelfLoadoutPreview.tsx","classes":["canvas"]},
+        {"file":"app/bo/pinoria-avatars/CreateAvatarDrawer.module.css","owner":"PAP-1710","consumer":"app/bo/pinoria-avatars/CreateSelfDrawer.tsx","classes":["body","picker","options","optionCopy"]}
       ],
       "schema": {
         "file": "app/bo/pinoria-avatars/schema.ts",
@@ -96,7 +126,9 @@
         "app/bo/pinoria-avatars/centers.test.ts",
         "lib/host-boundary.test.ts",
         "lib/pap1170-shared-properties.test.ts",
-        "lib/pap1300-self-wardrobe-ui.test.ts"
+        "lib/pap1300-self-wardrobe-ui.test.ts",
+        "lib/pap1356-self-loadout-ui.test.ts",
+        "lib/pap1456-self-loadout-form-ui.test.ts"
       ]
     },
     {
@@ -285,6 +317,10 @@
         {
           "file": "lib/workspace-adapters/session.ts",
           "owner": "PAP-1221"
+        },
+        {
+          "file": "app/bo/components/registration/BoCenterSelection.tsx",
+          "owner": "PAP-1598"
         }
       ],
       "schema": {
@@ -309,6 +345,7 @@
       "files": [
         "app/ho/centers/page.tsx",
         "app/ho/centers/HoCenters.tsx",
+        "app/ho/centers/CenterStaffRegistrationSection.tsx",
         "app/ho/centers/schema.ts"
       ],
       "externalReferences": [
@@ -492,6 +529,10 @@
         {
           "file": "lib/workspace-adapters/session.ts",
           "owner": "PAP-1166"
+        },
+        {
+          "file": "lib/ho-shift-template-create-recovery.ts",
+          "owner": "PAP-1463"
         }
       ],
       "schema": {
@@ -506,7 +547,8 @@
         "lib/pap1198-ho-shift-templates-read.test.ts",
         "lib/pap1198-ho-shift-templates-mutation.test.ts",
         "lib/ho-routes.test.ts",
-        "lib/pap1198-ho-shift-template-tdd.test.ts"
+        "lib/pap1198-ho-shift-template-tdd.test.ts",
+        "lib/pap1463-ho-create-recovery.test.ts"
       ]
     },
     {
@@ -522,6 +564,8 @@
         "app/ho/learning/missions/command.ts",
         "app/ho/learning/missions/read-edit.ts",
         "app/ho/learning/missions/MissionCreateFields.tsx",
+        "app/ho/learning/missions/mission-path-options.ts",
+        "lib/mission-history.ts",
         "lib/bo-registration.ts"
       ],
       "schema": {
@@ -537,9 +581,23 @@
         "lib/pap1207-ho-mission-write.test.ts",
         "lib/pap1207-ho-mission-command.test.ts",
         "lib/pap1207-ho-mission-create-ui.test.ts",
-        "lib/pap1207-ho-mission-edit.test.ts"
+        "lib/pap1207-ho-mission-s2-path-selector.test.ts",
+        "lib/pap1207-ho-mission-edit.test.ts",
+        "lib/pap1188-mission-history.test.ts"
       ],
       "externalReferences": [
+        {
+          "file": "app/ho/HoWorkspace.tsx",
+          "owner": "PAP-1606"
+        },
+        {
+          "file": "lib/ho-a1.ts",
+          "owner": "PAP-1207"
+        },
+        {
+          "file": "lib/ho-paths.ts",
+          "owner": "PAP-1594"
+        },
         {
           "file": "lib/host-boundary.ts",
           "owner": "PAP-1207"
@@ -573,7 +631,8 @@
         "lib/bo-mission-assignments.ts",
         "lib/bo-mission-assignment-write-facade.ts",
         "lib/bo-mission-assignment-command.ts",
-        "lib/bo-mission-assignment-options.ts"
+        "lib/bo-mission-assignment-options.ts",
+        "lib/mission-history.ts"
       ],
       "externalReferences": [
         {
@@ -599,6 +658,14 @@
         {
           "file": "lib/workspace-adapters/session.ts",
           "owner": "PAP-1221"
+        },
+        {
+          "file": "app/bo/components/registration/BoRegistrationWorkspace.tsx",
+          "owner": "PAP-1080"
+        },
+        {
+          "file": "app/bo/components/registration/BoCenterSelection.tsx",
+          "owner": "PAP-1598"
         }
       ],
       "schema": {
@@ -614,48 +681,8 @@
         "lib/pap1210-bo-mission-write-facade.test.ts",
         "lib/pap1210-bo-mission-command.test.ts",
         "lib/pap1210-bo-mission-options.test.ts",
-        "lib/pap1210-bo-mission-form.test.ts"
-      ]
-    },
-    {
-      "profile": "TDD_DEFAULT",
-      "surface": "BO",
-      "key": "tvs",
-      "route": "/bo/tvs",
-      "file": "app/bo/tvs/page.tsx",
-      "files": [
-        "app/bo/tvs/page.tsx",
-        "app/bo/tvs/TvsTdd.tsx",
-        "app/bo/tvs/schema.ts"
-      ],
-      "schema": {
-        "file": "app/bo/tvs/schema.ts",
-        "export": "tvSchema"
-      },
-      "binding": {
-        "kind": "SURFACE_WORKSPACE_ADAPTER",
-        "file": "app/bo/tvs/TvsTdd.tsx"
-      },
-      "tests": [
-        "app/bo/tvs/schema.test.ts"
-      ],
-      "externalReferences": [
-        {
-          "file": "lib/host-boundary.ts",
-          "owner": "PAP-1263"
-        },
-        {
-          "file": "app/bo/pinoria-tv-mesh/HouseMeshEditor.tsx",
-          "owner": "PAP-1266"
-        },
-        {
-          "file": "lib/ho-routes.ts",
-          "owner": "PAP-1221"
-        },
-        {
-          "file": "lib/workspace-adapters/session.ts",
-          "owner": "PAP-1221"
-        }
+        "lib/pap1210-bo-mission-form.test.ts",
+        "lib/pap1188-mission-history.test.ts"
       ]
     },
     {
@@ -760,6 +787,181 @@
       "tests": [
         "lib/pap1320-ho-global-terms.test.ts",
         "lib/ho-routes.test.ts"
+      ]
+    },
+    {
+      "profile": "TDD_DEFAULT",
+      "surface": "BO",
+      "key": "bills",
+      "route": "/bo/bills",
+      "file": "app/bo/bills/page.tsx",
+      "files": [
+        "app/bo/bills/page.tsx",
+        "app/bo/bills/BoBillsTdd.tsx",
+        "app/bo/bills/BillDraftEditor.tsx",
+        "app/bo/bills/schema.ts",
+        "lib/bo-bills-api.ts",
+        "lib/bo-bills-handler.ts",
+        "lib/bo-bills-paths.ts",
+        "lib/bill-table-presentation.ts",
+        "lib/bo-bill-table-client.ts",
+        "lib/bo-bill-table-contract.ts"
+      ],
+      "schema": {
+        "export": "billSchema",
+        "file": "app/bo/bills/schema.ts"
+      },
+      "binding": {
+        "kind": "SURFACE_WORKSPACE_ADAPTER",
+        "file": "app/bo/bills/BoBillsTdd.tsx"
+      },
+      "tests": [
+        "lib/bo-bills-paths.test.ts",
+        "lib/pap1526-bo-bill-table.test.ts"
+      ],
+      "externalReferences": [
+        {"file":"app/bo/architecture/bo-unified-workspace-source.ts","owner":"PAP-1421"},
+        {"file":"app/bo/components/registration/BoRuntimeBoundary.tsx","owner":"PAP-1407"},
+        {"file":"lib/host-boundary.ts","owner":"PAP-1220"},
+        {"file":"lib/ho-routes.ts","owner":"PAP-1221"},
+        {"file":"lib/workspace-adapters/session.ts","owner":"PAP-1221"},
+        {
+          "file": "app/bo/components/registration/BoCenterSelection.tsx",
+          "owner": "PAP-1598"
+        },
+        {
+          "file": "app/bo/components/registration/BoRegistrationWorkspace.tsx",
+          "owner": "PAP-1598"
+        },
+        {
+          "file": "app/bo/parents/provider.ts",
+          "owner": "PAP-1740"
+        }
+      ]
+    }
+,
+    {
+      "profile": "TDD_DEFAULT",
+      "surface": "HO",
+      "key": "bills",
+      "route": "/ho/billing/bills",
+      "file": "app/ho/billing/bills/page.tsx",
+      "files": [
+        "app/ho/billing/bills/page.tsx",
+        "app/ho/billing/bills/HoBillsTdd.tsx",
+        "app/ho/billing/bills/BillDomain.tsx",
+        "app/ho/billing/bills/schema.ts",
+        "lib/ho-bills-client.ts",
+        "lib/ho-bills-contract.ts",
+        "lib/ho-bills-facade.ts",
+        "lib/bill-table-presentation.ts"
+      ],
+      "schema": {
+        "export": "billSchema",
+        "file": "app/ho/billing/bills/schema.ts"
+      },
+      "binding": {
+        "file": "app/ho/billing/bills/HoBillsTdd.tsx",
+        "kind": "SURFACE_WORKSPACE_ADAPTER"
+      },
+      "tests": [
+        "lib/pap1422-ho-bills.test.ts",
+        "lib/ho-bills-contract.test.ts"
+      ],
+      "externalReferences": [
+        {
+          "file": "app/ho/HoWorkspace.tsx",
+          "owner": "PAP-1606"
+        },
+        {"file":"lib/ho-routes.ts","owner":"PAP-1221"},
+        {"file":"lib/ho-system.ts","owner":"PAP-1221"},
+        {"file":"lib/host-boundary.ts","owner":"PAP-1220"},
+        {"file":"lib/workspace-adapters/session.ts","owner":"PAP-1221"}
+      ]
+    },
+
+    {
+      "profile": "TDD_DEFAULT",
+      "surface": "HO",
+      "key": "specialties",
+      "route": "/ho/learning/specialties",
+      "file": "app/ho/learning/specialties/page.tsx",
+      "files": [
+        "app/ho/learning/specialties/page.tsx",
+        "app/ho/learning/specialties/HoSpecialties.tsx",
+        "app/ho/learning/specialties/schema.ts",
+        "app/ho/learning/specialties/HoSpecialtyMissionsTab.tsx",
+        "app/ho/learning/specialties/HoSpecialtyMissionsRead.tsx",
+        "app/ho/learning/specialties/HoLinkedMissionDrawer.tsx",
+        "app/ho/learning/specialties/HoSpecialtyMissionsEdit.tsx",
+        "app/ho/learning/specialties/HoSpecialtyOverviewEdit.tsx",
+        "app/ho/learning/specialties/SpecialtyMissionPicker.tsx",
+        "app/ho/learning/specialties/HoSpecialtyCreate.module.css"
+      ],
+      "businessStyles": [
+        {
+          "file": "app/ho/learning/specialties/HoSpecialtyCreate.module.css",
+          "owner": "PAP-1495",
+          "consumer": "app/ho/learning/specialties/HoSpecialties.tsx",
+          "classes": ["createForm", "field"]
+        }
+      ],
+      "schema": {
+        "file": "app/ho/learning/specialties/schema.ts",
+        "export": "specialtySchema"
+      },
+      "binding": {
+        "kind": "SURFACE_WORKSPACE_ADAPTER",
+        "file": "app/ho/learning/specialties/HoSpecialties.tsx"
+      },
+      "tests": [
+        "lib/specialty-interim-shell.test.ts",
+        "lib/pap1495-ho-specialty-v2-reader.test.ts",
+        "lib/pap1495-specialty-draft-create.test.ts",
+        "lib/ho-specialty-missions-tab.test.ts",
+        "lib/pap1495-specialty-s4-detail.test.ts",
+        "lib/pap1495-specialty-s5-command.test.ts",
+        "lib/pap1495-specialty-s5-overview.test.ts",
+        "lib/pap1695-specialty-publish.test.ts",
+        "lib/specialty-mission-picker.test.ts",
+        "lib/ho-routes.test.ts"
+      ],
+      "externalReferences": [
+        {
+          "file": "app/ho/HoWorkspace.tsx",
+          "owner": "PAP-1148"
+        },
+        {
+          "file": "lib/ho-routes.ts",
+          "owner": "PAP-1221"
+        },
+        {
+          "file": "lib/ho-system.ts",
+          "owner": "PAP-1221"
+        },
+        {
+          "file": "lib/host-boundary.ts",
+          "owner": "PAP-1220"
+        },
+        {
+          "file": "lib/ho-specialty-v2-reader.ts",
+          "owner": "PAP-1495"
+        },
+        {
+          "file": "lib/ho-specialty-s4-read.ts",
+          "owner": "PAP-1495"
+        },
+        {"file":"lib/ho-specialty-s5-missions.ts","owner":"PAP-1495"},
+        {"file":"lib/ho-specialty-s5-overview.ts","owner":"PAP-1495"},
+        {"file":"lib/ho-specialty-s5-metadata.ts","owner":"PAP-1495"},
+        {"file":"lib/ho-specialty-v2-metadata-client.ts","owner":"PAP-1495"},
+        {"file":"lib/ho-specialty-v2-graph-client.ts","owner":"PAP-1495"},
+        {"file":"lib/ho-specialty-v2-publish.ts","owner":"PAP-1695"},
+        {"file":"app/ho/learning/missions/schema.ts","owner":"PAP-1207"},
+        {
+          "file": "lib/workspace-adapters/session.ts",
+          "owner": "PAP-1221"
+        }
       ]
     }
   ],

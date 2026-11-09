@@ -1,15 +1,16 @@
 "use client";
+import { BoActionButton, BoActionGroup } from "@pino/design-system/react";
 import { allows, type FieldSchema, type TddRegistry } from "@/lib/workspace-schema";
 import type { ReactNode } from "react";
 import { TddDrawer, TddDetail, registeredSchema, RecordState } from "./Record";
 import { DrawerFrame } from "./DrawerFrame";
+import { LocalizedModuleTitle } from "@/lib/pino-nav-locale-context";
 import { TddTable, type TddTableProps } from "./Table";
-import { TosButton } from "@pino/design-system/react";
 import { useRef, useState } from "react";
 import { authorizedHostActions, tddActionFeedback, type AuthorizationContext, type ModuleSchema, type TddActionDescriptor, type TddActionBindings } from "@/lib/workspace-schema";
 
 export type TddStage<F extends readonly FieldSchema[] = readonly FieldSchema[]> =
-  | { readonly kind: "table"; readonly props: TddTableProps<F>; readonly mobileMenu?: ReactNode }
+  | { readonly kind: "table"; readonly props: TddTableProps<F>; readonly mobileMenu?: ReactNode; readonly headerActions?: ReactNode }
   | { readonly kind: "drawer"; readonly props: Parameters<typeof TddDrawer<F>>[0]; readonly table?: TddTableProps<F> }
   | { readonly kind: "detail"; readonly props: Parameters<typeof TddDetail<F>>[0] }
   | { readonly kind: "form"; readonly props: { readonly registry: TddRegistry; readonly schema: ModuleSchema<F>; readonly context: AuthorizationContext; readonly mode: "create" | "edit"; readonly recordId?: string; readonly title: string; readonly content: ReactNode; readonly onClose: () => void; readonly actionBindings: TddActionBindings } };
@@ -18,7 +19,7 @@ export function TddRenderer<F extends readonly FieldSchema[]>({ view }: { readon
   const schema = registeredSchema(view.props.registry, view.props.schema);
   if (!allows(schema, view.props.context, "read")) return <RecordState status="denied" />;
   switch (view.kind) {
-    case "table": return <section id="list-screen"><div className="page-heading"><div className="page-heading-left">{view.mobileMenu}<h1>{view.props.schema.label}</h1></div>{view.props.actionBindings ? <TddActionHost schema={schema} context={view.props.context} slot="table.header" bindings={view.props.actionBindings} /> : null}</div><TddTable {...view.props} /></section>;
+    case "table": return <section id="list-screen"><div className="page-heading"><div className="page-heading-left">{view.mobileMenu}<h1><LocalizedModuleTitle label={view.props.schema.label} moduleKey={view.props.schema.key} /></h1></div>{view.headerActions ? <div className="heading-actions" data-tdd-action-region="table.header">{view.headerActions}</div> : null}{view.props.actionBindings ? <TddActionHost schema={schema} context={view.props.context} slot="table.header" bindings={view.props.actionBindings} /> : null}</div><TddTable {...view.props} /></section>;
     case "drawer": {
       if (view.table && (view.table.schema !== view.props.schema || view.table.context !== view.props.context)) throw Error("TDD Drawer background scope mismatch");
       return <>{view.table ? <TddTable {...view.table} /> : null}<TddDrawer {...view.props} headerActions={view.props.actionBindings && view.props.status !== "denied" ? <TddActionHost schema={schema} context={view.props.context} slot="drawer.header" bindings={view.props.actionBindings} /> : null} /></>;
@@ -51,14 +52,15 @@ export function TddActionHost({ schema, context, slot, bindings, targetId, formM
   const pending = useRef(false);
   const actions = authorizedHostActions(schema, context, slot, bindings, targetId, formMode);
   if (!actions.length) return null;
-  return <div className="tdd-action-host" data-tdd-action-slot={slot} role="group"
+  return <BoActionGroup className="tdd-action-host" data-tdd-action-slot={slot}
     aria-label="Thao tác" aria-busy={busy !== null}>
     {actions.map(action => {
       const binding = bindings[action.handler];
       if (!binding) return null;
       const disabled = Boolean(busy || binding.disabled);
-      return <TosButton key={action.id} type="button"
-        variant={action.variant === "primary" ? "primary" : "secondary"}
+      return <BoActionButton key={action.id} type="button"
+        variant={action.variant === "primary" || action.variant === "danger" ? action.variant : "secondary"}
+        aria-label={action.icon ? action.label : undefined} title={action.icon ? action.label : undefined}
         disabled={disabled} onClick={() => {
           if (disabled || pending.current || !allows(schema, context, action.capability)) return;
           pending.current = true;
@@ -71,9 +73,9 @@ export function TddActionHost({ schema, context, slot, bindings, targetId, formM
             })
             .catch(() => setError("Chưa xác minh được kết quả. Đọc lại dữ liệu trước khi thử lại."))
             .finally(() => { pending.current = false; setBusy(null); });
-        }}>{action.label}</TosButton>;
+        }}>{action.icon === "refresh" ? <svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 7v5h-5"/><path d="M4 17v-5h5"/><path d="M5.7 9A7 7 0 0 1 18 7l2 5"/><path d="M18.3 15A7 7 0 0 1 6 17l-2-5"/></svg> : action.label}</BoActionButton>;
     })}
     {error ? <p role="alert">{error}</p> : null}
     {notice ? <p role="status">{notice}</p> : null}
-  </div>;
+  </BoActionGroup>;
 }

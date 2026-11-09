@@ -1,4 +1,5 @@
 "use client";
+import { LocalizedModuleTitle } from "@/lib/pino-nav-locale-context";
 import { useEffect, useMemo, useState } from "react";
 import {
   BoDataGrid, BoDataGridCanonicalId, BoDataGridSidePeek, BoDataGridStatus,
@@ -47,7 +48,7 @@ export function HoAccessAudit() {
   {key:"requestId",header:"Request ID",minWidth:200,render:e=><BoDataGridCanonicalId value={e.requestId}/>},
  ],[]);
  return <section aria-label="Head Office Access Audit" className="ho-audit">
-  <header className="page-heading"><div className="page-heading-left"><h1>Access Audit<small>Read only · Access events only</small></h1></div></header>
+  <header className="page-heading"><div className="page-heading-left"><h1><LocalizedModuleTitle label="Access Audit" moduleKey="audits" /><small>Read only · Access events only</small></h1></div></header>
   <p className="ho-audit-description">Lịch sử quản trị quyền truy cập. Không bao gồm nhật ký hoạt động kinh doanh hoặc payload nhạy cảm.</p>
   <BoDataGrid
    rows={result.events} columns={cols} rowKey={e=>e.id} caption="Access Audit"

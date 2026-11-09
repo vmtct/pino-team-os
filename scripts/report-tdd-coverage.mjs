@@ -101,7 +101,8 @@ export function reportTddCoverage(root = ROOT, { now = Date.now() } = {}) {
     else if (isSpecial) category = invalid.length ? "INVALID_SPECIAL_APPROVAL" : "FOUNDER_APPROVED_SPECIAL";
     else if (route === "/bo" || route === "/ho") category = "ROOT_OR_OUT_OF_SCOPE";
     else if (base && !a) category = "GRANDFATHERED_MIGRATION_PENDING";
-    else category = "UNADMITTED_NEW_ROUTE";
+    else if (a) category = "INVALID_ENGINE_PROFILE";
+    else category = "NON_ENGINE_ROUTE_UNVERIFIED";
     // Admission is partial evidence, never proof that G0-G4 and live visual acceptance passed.
     const classification = ({ TDD_ADMITTED_FOUNDATION: "TDD_PARTIAL", FOUNDER_APPROVED_SPECIAL: "FOUNDER_EXEMPT", ROOT_OR_OUT_OF_SCOPE: "OUT_OF_SCOPE", GRANDFATHERED_MIGRATION_PENDING: "GRANDFATHERED" })[category] ?? "UNVERIFIED";
     return {
@@ -127,7 +128,7 @@ export function reportTddCoverage(root = ROOT, { now = Date.now() } = {}) {
     ...(duplicateAdmissions ? ["duplicate admission files"] : []),
     ...missing.map(f => "missing admitted route: " + f),
     ...exceptionErrors,
-    ...rows.filter(x => x.category === "UNADMITTED_NEW_ROUTE").map(x => "new BO/HO page requires TDD admission: " + x.file),
+    ...rows.filter(x => x.category === "INVALID_ENGINE_PROFILE").map(x => "invalid Engine admission profile: " + x.file),
   ];
   const bySurface = Object.fromEntries(["BO","HO"].map(s=>[s,count(rows.filter(x=>x.surface===s))]));
   return {
@@ -137,7 +138,7 @@ export function reportTddCoverage(root = ROOT, { now = Date.now() } = {}) {
     queryHostedBo: queryHostedBo(root,pages),
     coverage: {
       denominator: "BO/HO filesystem page entrypoints only; root hosts are not separate data modules. Query aliases are separately enumerated as unverified source declarations; actual modules and live reachability require the PAP-1068 inventory.",
-      basis: "Source declarations only, not verified live compliance. TDD_PARTIAL means admitted with acceptance not attested here; zero TDD_COMPLIANT does not assert live module failure. Special records pass the shared structural validator; G0 separately requires already-merged Founder authority.",
+      basis: "Source declarations only, not verified live compliance. Non-Engine routes are inventoried as UNVERIFIED; prototype/DS, BO/HO ACL and Staging remain separately checked. TDD_PARTIAL means Engine-admitted with acceptance not attested here. Special records validate voluntarily registered profiles.",
       ...coverage(rows),
       bySurface: Object.fromEntries(["BO", "HO"].map(surface => [surface, coverage(rows.filter(row => row.surface === surface))])),
     },

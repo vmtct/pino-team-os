@@ -3,7 +3,7 @@ import {useEffect,useMemo,useRef,useState} from "react";
 import {FontAwesomeIcon,faArrowLeft,faBookOpen,faCalendarDays,faCamera,faCheck,faChevronRight,faCircleCheck,faClipboardList,faClock,faFlag,faGraduationCap,faInfoCircle,faLink,faMagnifyingGlass,faMusic,faPalette,faPlay,faPlus,faRotate,faStar,faTriangleExclamation,faUserPlus,faUsers,faXmark} from "./classroom-icons";
 import type {IconDefinition} from "./classroom-icons";
 import styles from "./classroom.module.css";
-import ScopedEligibleMissions from "./ScopedEligibleMissions";
+import MissionAssignmentTab from "./MissionAssignmentTab";
 import DiaryCapturePanel from "./DiaryCapturePanel";
 import {createSlotKeys} from "../tos-ds";
 const tosSlotKeys=createSlotKeys(styles);
@@ -17,7 +17,12 @@ const interestText=(value:number|null,closedAt?:string)=>value===null?"Chưa đ�
 const plsText=(m?:Mission)=>m?.plsValue===undefined?"— PLS":m.plsValue+" PLS";
 const diaryFormSignature=(results:Record<string,boolean|null>,interest:number|null,notes:string,difficulty:string,evidence:Evidence[])=>JSON.stringify([Object.entries(results).sort(),interest,notes,difficulty,evidence.map(e=>[e.name,e.kind,e.preview?.length||0])]);
 const icon=(subject:Domain):IconDefinition=>subject==="art"?faPalette:subject==="piano"?faMusic:faBookOpen;
-export default function ClassroomV4Presentation({model,initialView,onDetailChange}:{model:ClassroomV4ViewModel;initialView?:ClassroomV4InitialView;onDetailChange?:(open:boolean)=>void}){
+// PAP-1488 / Epic PAP-1188 / featureId tos-student-mission-assignment.
+// Team Surface Decision: TOS, MOBILE, LOP_HOC; existing classroom entry, green theme,
+// footer [Học viên, Nhiệm vụ, Nhật ký]; primary action read Assignments; capture NONE.
+// BO layout NONE; Core session.roster.view + Center/occurrence/CANDIDATE scope;
+// cross-domain links NONE; founder_layout_review APPROVED. PAP-945 owns the mount.
+export default function ClassroomV4Presentation({model,initialView,onDetailChange,readOnly=false}:{model:ClassroomV4ViewModel;initialView?:ClassroomV4InitialView;onDetailChange?:(open:boolean)=>void;readOnly?:boolean}){
  const classes=model.classes,catalog=model.missions,staff=model.staffLabel;
  const mission=(id:string)=>catalog.find(item=>item.id===id);
  const blocked=()=>notify("Chức năng chưa khả dụng. Chưa gửi hoặc lưu dữ liệu.");
@@ -163,7 +168,7 @@ export default function ClassroomV4Presentation({model,initialView,onDetailChang
      <div className={styles.previousLessonTop} data-tos-slot={tosSlotKeys(styles.previousLessonTop)}><span className={styles.previousLessonTask} data-tos-slot={tosSlotKeys(styles.previousLessonTask)}><strong>Nhiệm vụ trước:</strong> {previous.missions.at(-1)?.name||"Chưa có nhiệm vụ"}</span><strong className={styles.previousLessonRating} data-tos-slot={tosSlotKeys(styles.previousLessonRating)} aria-label={"Độ hứng thú "+(previous.interest!==null&&previous.interest>=1&&previous.interest<=4?previous.interest:"chưa có")+" trên 4"}>{previous.interest!==null&&previous.interest>=1&&previous.interest<=4?previous.interest:"—"}/4</strong></div>
      <p className={styles.previousLessonNote} data-tos-slot={tosSlotKeys(styles.previousLessonNote)}><strong>{previous.closedBy||previous.registeredBy||"Giáo viên"}:</strong> {previous.notes.trim()||"Chưa có nhận xét."}</p>
     </div>:<div className={styles.previousLessonEmpty} data-tos-slot={tosSlotKeys(styles.previousLessonEmpty)} data-previous-lesson={s.id}>{model.diaryReadState==="LOADED"?"Chưa có Nhật ký của buổi học trước.":"Chưa tải được Nhật ký của buổi học trước."}</div>}
-   <div className={styles.personActions} data-tos-slot={tosSlotKeys(styles.personActions)}><button onClick={()=>openStudent(s.id)}>Hồ sơ & lịch sử</button><button onClick={()=>assign(s.id)}>+ Nhiệm Vụ</button></div></div></article>;
+   <div className={styles.personActions} data-tos-slot={tosSlotKeys(styles.personActions)}><button onClick={()=>openStudent(s.id)}>Hồ sơ & lịch sử</button><button type="button" disabled title="Chức năng giao nhiệm vụ chưa khả dụng">+ Nhiệm Vụ</button></div></div></article>;
  };
  const rows=diaryStateFilter==="all"?currentDiaries:currentDiaries.filter(d=>d.status===diaryStateFilter);
  return <main className={styles.shell} data-tos-slot={tosSlotKeys(styles.shell)}><div className={styles.phone} data-tos-slot={tosSlotKeys(styles.phone)}>
@@ -173,33 +178,10 @@ export default function ClassroomV4Presentation({model,initialView,onDetailChang
   "Không tạo mở ca, ảnh setup hay chấm công. Chỉ Nhật ký có thể ghi nếu Staff, roster, Mission và Staging admission hợp lệ; các thao tác khác vẫn khóa.":
   "Bạn chỉ đang xem dữ liệu được cấp quyền. Quay về danh sách và xác nhận “Vào lớp không mở ca” để dùng Nhật ký."}</p></div><button type="button" onClick={()=>askOpen(current)}>Mở lớp đúng quy trình</button></section>}
     {tab==="students"&&<section role="tabpanel" id="tos-classroom-panel-students" aria-labelledby="tos-classroom-tab-students"><div className={styles.sectionHead} data-tos-slot={tosSlotKeys(styles.sectionHead)}><div><h2>Học viên trong buổi ({people.length})</h2></div><button onClick={showAdd}><FontAwesomeIcon icon={faUserPlus}/> + Thêm</button></div>{people.map(person)}{people.some(s=>model.conflictStudentIds.includes(s.id))&&<p role="alert">Danh sách có học viên xung đột. Cần kiểm tra trước khi ghi.</p>}</section>}
-    {tab==="missions"&&<section role="tabpanel" id="tos-classroom-panel-missions" aria-labelledby="tos-classroom-tab-missions">
-     <div className={styles.sectionHead} data-tos-slot={tosSlotKeys(styles.sectionHead)}><div><h2>Nhiệm vụ hôm nay ({model.diaryReadState==="LOADED"?currentDiaries.reduce((n,d)=>n+d.missions.length,0):"—"})</h2><p>Mỗi Mission một hàng. Hoàn thành và lưu nháp trước khi gán nhiệm vụ tiếp theo cùng Path.</p></div><button type="button" aria-label="Thêm Nhiệm Vụ" title="Thêm" onClick={()=>assign()}><FontAwesomeIcon icon={faPlus}/> + Thêm</button></div>
-     <ScopedEligibleMissions key={current.id} model={model} classroom={current}/>
-     {currentDiaries.length===0?<p className={styles.empty} data-tos-slot={tosSlotKeys(styles.empty)}>{model.diaryReadState==="LOADED"?"Chưa có Mission được giao.":"Chưa tải được nhiệm vụ đã giao."}</p>:currentDiaries.map(d=>{
-      const s=data.students.find(x=>x.id===d.studentId),allowNext=canAppendToDiary(d);
-      return <section className={styles.missionBatch} data-tos-slot={tosSlotKeys(styles.missionBatch)} key={d.id} data-mission-diary-id={d.id} data-path={d.path} aria-label={"Mission của "+(s?.name||"Học viên")+" Path "+d.path}>
-       <div className={styles.missionBatchHead} data-tos-slot={tosSlotKeys(styles.missionBatchHead)}>
-        <div><strong>{s?<>{s.name} {genderBadge(s)}</>:"Học viên"}</strong><small>Path {d.path} · {d.missions.length} nhiệm vụ · 1 Diary</small></div>
-        {badge(d)}
-       </div>
-       {d.missions.map(entry=>{const m=mission(entry.id);return <article className={styles.missionCompactRow} data-tos-slot={tosSlotKeys(styles.missionCompactRow)} key={entry.id} data-mission-code={entry.id}>
-        <div className={styles.missionCompactSummary} data-tos-slot={tosSlotKeys(styles.missionCompactSummary)}>
-         <div className={styles.missionCompactName} data-tos-slot={tosSlotKeys(styles.missionCompactName)}><strong>{entry.id} · {entry.name}</strong>{missionBadge(d,entry)}</div>
-         <small>Cấp {m?.level??"—"} · <span className={styles.plsChip} data-tos-slot={tosSlotKeys(styles.plsChip)}>{plsText(m)}</span></small>
-        </div>
-        <div className={styles.missionCompactActions} data-tos-slot={tosSlotKeys(styles.missionCompactActions)}>
-         <button type="button" className={styles.missionPrimaryCta} data-tos-slot={tosSlotKeys(styles.missionPrimaryCta)} aria-label={"Giáo Án "+entry.id} onClick={()=>openGuide(d,entry.id)}><FontAwesomeIcon icon={faBookOpen}/> Giáo Án</button>
-         <button type="button" className={styles.missionNextCta} data-tos-slot={tosSlotKeys(styles.missionNextCta)} aria-label={"Thêm nhiệm vụ sau "+entry.id} title="Thêm nhiệm vụ" onClick={()=>addMissionToDiary(d)}><FontAwesomeIcon icon={faPlus}/> + Thêm</button>
-         <button type="button" className={styles.missionSwapCta} data-tos-slot={tosSlotKeys(styles.missionSwapCta)} aria-label={"Đổi nhiệm vụ "+entry.id} disabled={d.status!=="REGISTERED"||entry.completed!==null} title={entry.completed!==null?"Đã lưu kết quả; không thể đổi nhiệm vụ này":"Đổi nhiệm vụ chưa có kết quả"} onClick={()=>changeMission(d,entry.id)}><FontAwesomeIcon icon={faRotate}/> Đổi</button>
-        </div>
-       </article>})}
-      </section>;
-     })}
-    </section>}
+    {tab==="missions"&&<MissionAssignmentTab key={JSON.stringify([model.centerId,model.today,current.runningClassId,current.id])} scope={{centerId:model.centerId,localDate:model.today,runningClassId:current.runningClassId,teachingContextKey:current.id}} readOnly={readOnly}/>}
     {tab==="diaries"&&<section role="tabpanel" id="tos-classroom-panel-diaries" aria-labelledby="tos-classroom-tab-diaries">
       <div className={styles.sectionHead} data-tos-slot={tosSlotKeys(styles.sectionHead)}><div><h2>Nhật ký buổi học ({model.diaryReadState==="LOADED"?currentDiaries.length:"—"})</h2><p>Mỗi học viên × Path có đúng một Diary; tất cả Mission của Path nằm chung bên trong.</p></div></div>
-      <DiaryCapturePanel key={model.centerId+":"+current.id} model={model} classroom={current} confirmedSkipClassId={skipConfirmed?current.id:""}/>
+      {!readOnly&&<DiaryCapturePanel key={model.centerId+":"+current.id} model={model} classroom={current} confirmedSkipClassId={skipConfirmed?current.id:""}/>}
       <div className={styles.filterPills} data-tos-slot={tosSlotKeys(styles.filterPills)}>{([["all","Tất cả"],["REGISTERED","Đang học"],["CLOSED","Đã kết thúc"]] as const).map(([key,label])=><button key={key} className={diaryStateFilter===key?styles.selectedPill:""} data-tos-slot={tosSlotKeys(diaryStateFilter===key?styles.selectedPill:"")} aria-pressed={diaryStateFilter===key} onClick={()=>setDiaryStateFilter(key)}>{label}</button>)}</div>
       {rows.length===0?<p className={styles.empty} data-tos-slot={tosSlotKeys(styles.empty)}>{model.diaryReadState==="LOADED"?"Không có Nhật ký phù hợp.":"Chưa tải được Nhật ký. Vui lòng thử lại sau."}</p>:rows.map(d=>{const s=data.students.find(p=>p.id===d.studentId);return <button className={styles.diaryCard} data-tos-slot={tosSlotKeys(styles.diaryCard)} key={d.id} data-diary-id={d.id} data-diary-path={d.path} onClick={()=>openDiary(d)}><div className={styles.rowTop} data-tos-slot={tosSlotKeys(styles.rowTop)}><strong>{s?<>{s.name} {genderBadge(s)}</>:"Học viên"}</strong>{badge(d)}</div><h3>Path {d.path} · {d.missions.length} Mission</h3><div className={styles.diaryMissionChips} data-tos-slot={tosSlotKeys(styles.diaryMissionChips)}>{d.missions.map(m=><span key={m.id}>{m.id} · {m.completed===true?"✓ Đã hoàn thành":m.completed===false?"○ Chưa hoàn thành":"Đang học"}</span>)}</div><p>{d.notes||"Chưa ghi nhận kết quả chung cho Path này."}</p><span>{timeLabel(d.at)} · {d.status==="REGISTERED"?"Mở Diary · Lưu nháp / Kết thúc":"Xem kết quả chung"} <FontAwesomeIcon icon={faChevronRight}/></span></button>})}
     </section>}

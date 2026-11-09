@@ -5,17 +5,22 @@
 import { boCenterWave1Href, isBoCenterReadWave1 } from "./BoCenterWave1";
 import { scopedClassesFetcher } from "./BoScopedClassRead";
 import { scopedLearnerFetcher } from "./BoScopedLearnerRead";
+import { scopedEnrollmentFetcher } from "./BoScopedEnrollmentRead";
 
 export type BoCenterModuleScope = "CENTER" | "MIXED" | "GLOBAL" | "UNVERIFIED";
 // These screens mix authorized Center operations with legacy/unverified global reads.
 // They are NOT auto-admitted by choosing a Center at the shell.
-const MIXED_MODULES = new Set(["subscriptions", "enrollments", "parents"]);
+const MIXED_MODULES = new Set(["subscriptions", "parents"]);
 const CENTER_WORKFORCE_ROUTES: Record<string, string> = {
   "workforce-shift-plans": "/bo/workforce-shift-plans",
   "workforce-availability": "/bo/workforce-availability",
   "workforce-assignments": "/bo/workforce-assignments",
+  "payroll-periods": "/bo/payroll-periods",
 };
-const VERIFIED_GLOBAL_MODULES = new Set<string>(); // Admit only after a Core contract audit.
+// PAP-1545 / PAP-1316: Core dispatchBoAccessAdminControlPlane
+// GET access/audit authorizes access.audit.view against GLOBAL resource {}.
+// It deliberately does not bind a selected workspace Center.
+const VERIFIED_GLOBAL_MODULES = new Set<string>(["audits"]);
 
 export function boCenterModuleScope(moduleKey: string): BoCenterModuleScope {
   if (isBoCenterReadWave1(moduleKey) || Object.hasOwn(CENTER_WORKFORCE_ROUTES, moduleKey)) return "CENTER";
@@ -29,6 +34,7 @@ export function scopedBoReadFetcher(moduleKey: string, fetcher: typeof fetch, au
   if (!isBoCenterReadWave1(moduleKey)) throw Error("Module chưa có hợp đồng đọc theo cơ sở.");
   switch (moduleKey) {
     case "students": return scopedLearnerFetcher(fetcher, authorizedCenterId);
+    case "enrollments": return scopedEnrollmentFetcher(fetcher, authorizedCenterId);
     case "classes": return scopedClassesFetcher(fetcher, authorizedCenterId);
     case "visits":
     case "timekeeping": return fetcher; // school adapter validates Center scope per row
@@ -62,7 +68,7 @@ export function restoreBoAuthorizedCenter(
     const selected = requested.length === 1 && authorizedIds.includes(requested[0]!) ? requested[0]! : "";
     return { selected, invalidExplicit: !selected };
   }
-  return { selected: sessionHint && authorizedIds.includes(sessionHint) ? sessionHint : "", invalidExplicit: false };
+  return { selected: sessionHint && authorizedIds.includes(sessionHint) ? sessionHint : (authorizedIds[0] ?? ""), invalidExplicit: false };
 }
 
 export const BO_ACTIVE_CENTER_SESSION_KEY = "pino:bo:active-center:v1";

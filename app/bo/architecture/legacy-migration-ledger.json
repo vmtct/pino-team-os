@@ -45,6 +45,10 @@
     {
       "path": "/bo/system/users",
       "issue": "PAP-1030"
+    },
+    {
+      "path": "/bo/tvs",
+      "issue": "PAP-1460"
     }
   ]
 }

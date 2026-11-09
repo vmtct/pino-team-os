@@ -4,7 +4,11 @@ import { readFileSync, readdirSync } from "node:fs";
 import ts from "typescript";
 import { BO_AUTHORITY_ASSETS } from "./bo-skeleton";
 test("React presentation uses only classes defined by Hồ sơ đăng ký; no per-module CSS", () => {
-  const css = [...BO_AUTHORITY_ASSETS].map(f => readFileSync("public/bo-authority-source/" + f, "utf8")).join("\n");
+  // PAP-1476 / Epic PAP-1067: registered shared Table geometry is a style authority,
+  // not a per-module CSS exception. Keep the class/name scan fail-closed.
+  const sharedTddCss = readFileSync("app/components/workspace-renderer/tdd-table-geometry.css", "utf8");
+  assert.match(sharedTddCss, /\.tdd-setting-icon\b/);
+  const css = [...BO_AUTHORITY_ASSETS].map(f => readFileSync("public/bo-authority-source/" + f, "utf8")).join("\n") + "\n" + sharedTddCss;
   const classes = new Set([...css.matchAll(/\.([A-Za-z_][\w-]*)/g)].map(m => m[1]));
   const folder = "app/bo/components/registration/";
   for (const file of readdirSync(folder)) {
@@ -26,5 +30,5 @@ test("legacy styling keeps its exact build mapping and is not imported into the 
   assert.match(build, /copyFile\('app\/globals\.css','public\/team-legacy-global\.css'\)/);
   assert.match(build, /copyFile\('app\/bo\/design-system\/foundation\.css','public\/bo-legacy-foundation\.css'\)/);
   assert.doesNotMatch(root, /import\s+["']\.\/globals\.css["']/);
-  assert.match(root, /boSkeletonEnabled\(env/);
+  assert.match(root, /boAuthorityStylesEnabled\(env/);
 });

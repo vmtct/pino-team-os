@@ -26,13 +26,13 @@ jobs:
           bun-version: 1.2.15
       - name: Install dependencies
         run: bun install --frozen-lockfile
-      - name: Enforce scoped TDD G0/G1 ownership (PAP-1071)
+      - name: Verify registered TDD Engine contracts + DS CSS (PAP-1532)
         env:
           TDD_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
           bun run tdd:authority:test
           bun run tdd:authority:check
-      - name: Enforce BO/HO TDD route denominator (PAP-1077)
+      - name: Inventory BO/HO Engine and non-Engine routes (PAP-1532)
         run: |
           node --test scripts/report-tdd-coverage.test.mjs
           node scripts/report-tdd-coverage.mjs
@@ -45,6 +45,10 @@ jobs:
           node --test scripts/verify-bo-staging-route-policy.test.mjs
           node scripts/verify-bo-runtime-surface-ownership.mjs
           node --test scripts/verify-bo-runtime-surface-ownership.test.mjs
+          node --test scripts/verify-bo-center-ownership.test.mjs
+          node scripts/verify-bo-center-ownership.mjs
+          node --test scripts/pap1472-guarded-staging-cd.test.mjs
+          node --test scripts/pap1475-staging-version-readback.test.mjs
       - name: Check BO V2.3 pilot parity contract (PAP-889)
         run: |
           node --test public/bo-ui-replica/*.test.cjs

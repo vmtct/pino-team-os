@@ -1,10 +1,10 @@
+import "@pino/design-system/components.css";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { headers } from "next/headers";
 import { forbidden, redirect } from "next/navigation";
-import { BoShell } from "@/app/components/tos-shell";
+import { BoApplicationShell } from "./shell/BoApplicationShell";
 import { authorizeBoShell, BoShellGateError, type BoShellContext, type BoShellGateEnv } from "@/lib/bo-shell-gate";
 import { BoSessionBoundary } from "./BoSessionBoundary";
-import { boNavigation } from "./navigation";
 import { isBoStagingRouteAdmitted } from "./architecture/bo-staging-route-policy";
 import { boSkeletonEnabled } from "@/lib/bo-skeleton";
 import { BoRuntimeBoundary } from "./components/registration/BoRuntimeBoundary";
@@ -30,17 +30,15 @@ export default async function BoLayout({ children }: { children: React.ReactNode
   }
   if (uiOnly) {
     if (!isBoStagingRouteAdmitted(routePath) && routePath !== "/bo" && routePath !== "/bo/") redirect("/bo");
-    // The BO authority React shell owns nav, styles and module content on all admitted staging paths.
-    return <><BoSessionBoundary /><BoRuntimeBoundary currentUser={{ displayName: currentUser.displayName, email: currentUser.email }}>{children}</BoRuntimeBoundary></>;
   }
-
-  return (
-    <>
-      <link rel="stylesheet" href="/bo-legacy-foundation.css" />
-      <BoSessionBoundary />
-      <BoShell title="PINO House" subtitle="Back Office" groups={boNavigation.map(group => ({ ...group, items:group.items.filter(item=>item.href!=="/bo/open-studio-passes") }))} currentUser={currentUser}>
+  return <>
+    {/* Still consumed by retained V2.3 data-grid interiors, never the outer chrome. */}
+    <link rel="stylesheet" href="/bo-legacy-foundation.css" />
+    <BoSessionBoundary />
+    <BoRuntimeBoundary currentUser={{ displayName: currentUser.displayName, email: currentUser.email }} staging={uiOnly}>
+      <BoApplicationShell currentUser={{ displayName: currentUser.displayName, email: currentUser.email }} staging={uiOnly}>
         {children}
-      </BoShell>
-    </>
-  );
+      </BoApplicationShell>
+    </BoRuntimeBoundary>
+  </>;
 }

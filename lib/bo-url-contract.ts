@@ -6,6 +6,7 @@ export const BO_LEGACY_QUERY_MODULES = [
 type LegacyKey = (typeof BO_LEGACY_QUERY_MODULES)[number];
 type Target = Readonly<{ key: string; path: string; tabs: readonly string[]; legacyModule?: LegacyKey }>;
 export const BO_TARGET_ROUTES = [
+  { key: "bills", path: "/bo/bills", tabs: ["overview", "subscriptions", "payments", "history"] },
   { key: "missions", path: "/bo/missions", tabs: ["overview", "results", "diary", "history"], legacyModule: "missions" },
   { key: "students", path: "/bo/students", tabs: ["overview", "subscriptions", "history"], legacyModule: "students" },
   { key: "parents", path: "/bo/parents", tabs: ["overview", "students", "contacts", "history"], legacyModule: "parents" },
@@ -18,7 +19,6 @@ export const BO_TARGET_ROUTES = [
   { key: "pinoria-avatars", path: "/bo/pinoria-avatars", tabs: ["overview", "history"] },
   { key: "open-studio-passes", path: "/bo/open-studio-passes", tabs: ["overview", "history"] },
   { key: "classroom-diaries", path: "/bo/classroom-diaries", tabs: ["overview", "history"] },
-  { key: "tvs", path: "/bo/tvs", tabs: ["overview", "space", "history"] },
 ] as const satisfies readonly Target[];
 export type BoTargetModule = (typeof BO_TARGET_ROUTES)[number]["key"];
 export type BoUrlSurface = "table" | "drawer" | "detail";
@@ -54,6 +54,7 @@ export function retiredSalaryPeriodRedirectUrl(query: Readonly<Record<string,str
   return "/bo/payroll-periods"+(params.size?"?"+params.toString():"");
 }
 export function currentBoModuleHref(key: string, admitted: Readonly<Record<string,string>>): string {
+  if (key==="bills") return "/bo/bills";
   if (key==="salaryPeriods") return "/bo/payroll-periods";
   if (Object.prototype.hasOwnProperty.call(admitted,key)) return admitted[key];
   return key==="students"?"/bo":"/bo?module="+encodeURIComponent(key);

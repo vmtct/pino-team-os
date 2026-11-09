@@ -10,9 +10,10 @@ import { TddRegistry } from "@/lib/workspace-schema";
 import { useBoCenterSelection } from "../components/registration/BoCenterSelection";
 import { parentDefinition, parentFields, parentProvider, parentQuery } from "./schema";
 import { readScopedParentDetail } from "./provider";
+import { ParentCreateDrawer } from "./ParentCreateDrawer";
 
 type Fields = typeof parentFields;
-type Ready = { centerId: string; adapter: AuthenticatedSurfaceAdapter<Fields>; navigation: AdapterNavigation<Fields> };
+type Ready = { centerId: string; retry: number; adapter: AuthenticatedSurfaceAdapter<Fields>; navigation: AdapterNavigation<Fields> };
 
 export function parentBusinessLoaders(adapter: AuthenticatedSurfaceAdapter<Fields>): SlotLoaders {
   return {
@@ -54,6 +55,8 @@ export function ParentTdd() {
   const [ready, setReady] = useState<Ready | null>(null);
   const [failure, setFailure] = useState<{ centerId: string; retry: number; message: string } | null>(null);
   const [retry, setRetry] = useState(0);
+  const [createForCenter, setCreateForCenter] = useState<string | null>(null);
+  const [created, setCreated] = useState<{ centerId: string; parentUserId: string } | null>(null);
   useEffect(() => {
     if (!selected) return;
     const ctl = new AbortController();
@@ -62,11 +65,11 @@ export function ParentTdd() {
       .then(adapter => {
         active = adapter;
         if (ctl.signal.aborted) { adapter.dispose(); return; }
-        setReady({ centerId: selected, adapter, navigation: browserTddNavigation("BO", "parents", parentQuery) });
+        setReady({ centerId: selected, retry, adapter, navigation: browserTddNavigation("BO", "parents", parentQuery) });
       }).catch(() => { if (!ctl.signal.aborted) setFailure({ centerId: selected, retry, message: "Không có quyền hoặc chưa thể tải Parent TDD trong cơ sở này." }); });
     return () => { ctl.abort(); active?.dispose(); };
   }, [selected, source, retry]);
-  const current = ready?.centerId === selected ? ready : null;
+  const current = ready?.centerId === selected && ready.retry === retry ? ready : null;
   const loaders = useMemo(() => current ? parentBusinessLoaders(current.adapter) : undefined, [current]);
   const error = failure?.centerId === selected && failure.retry === retry ? failure.message : "";
   return <section aria-label="Parents & Guardians">
@@ -76,7 +79,14 @@ export function ParentTdd() {
       center.loading ? <p role="status">Đang tải cơ sở được cấp quyền…</p> :
       center.error ? <p role="alert">{center.error}</p> : null}
     {selected ? error ? <p role="alert">{error} <button type="button" onClick={() => setRetry(n => n + 1)}>Thử lại</button></p> :
-      current ? <SurfaceWorkspace key={selected} adapter={current.adapter} navigation={current.navigation} initialQuery={parentQuery} businessLoaders={loaders} /> :
+      current ? <>
+        {created?.centerId === selected ? <p role="status" className="settings-hint">Đã tạo phụ huynh {created.parentUserId}. Hồ sơ đã thuộc cơ sở này và hiển thị trong danh sách với 0 học viên.</p> : null}
+        <SurfaceWorkspace key={selected + ":" + retry} adapter={current.adapter} navigation={current.navigation} initialQuery={parentQuery} businessLoaders={loaders}
+          tableHeaderActions={current.adapter.context.authorize("identity.parent.create") ?
+            <button type="button" className="primary-btn" onClick={() => setCreateForCenter(selected)}>+ Parent</button> : undefined} />
+        {createForCenter === selected ? <ParentCreateDrawer centerId={selected} centerName={center?.centers.find(c => c.id === selected)?.displayName} onClose={() => setCreateForCenter(null)}
+          onCreated={result => { setCreated({ centerId: selected, parentUserId: result.parentUserId }); setCreateForCenter(null); setRetry(n => n + 1); }} /> : null}
+      </> :
       <p role="status">Đang xác thực quyền Parents theo cơ sở…</p> :
       !center?.loading && !center?.error ? <p role="status">Chọn trung tâm tại góc trên trái để xem Parents.</p> : null}
   </section>;

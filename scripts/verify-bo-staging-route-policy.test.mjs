@@ -28,7 +28,7 @@ function fixture(run) {
     const content=fs.readFileSync(path.join(repo,file),"utf8");
     // Existing PAP-901 factory fixtures have no TDD manifest; keep scopes independent.
     write(file,file===policy?content.replace(/\r\n/g,"\n").replace('  "/bo/pinoria-avatars",\n',"").replace('  "/bo/open-studio-passes",\n',"")
-      .replace(/\s*"\/bo\/classroom-diaries",\r?\n/,"\n").replace('  "/bo/missions",\n',"").replace('  "/bo/tvs",\n',""):content);
+      .replace(/\s*"\/bo\/classroom-diaries",\r?\n/,"\n").replace('  "/bo/bills",\n',"").replace('  "/bo/missions",\n',"").replace('  "/bo/tvs",\n',""):content);
   }
   try { return run({ root, read, write }); }
   finally { fs.rmSync(root, { recursive: true, force: true }); }
@@ -91,7 +91,7 @@ test("all three registered Workforce routes must stay in canonical nav", () => f
   assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"), /Unified BO navigation/);
 }));
 test("Core adapter cannot be replaced with silent empty fallback data", () => fixture(({root,read,write}) => {
-  write(source,read(source).replace("await adapters[key].list(fetcher)", "Promise.resolve([])"));
+  write(source,read(source).replace("await adapters[key].list(fetcher, options.centerId)", "Promise.resolve([])"));
   assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"), /authorized and read-only/);
 }));
 test("staging route must use BO authority CSS rather than unstyled legacy shell", () => fixture(({root,read,write}) => {

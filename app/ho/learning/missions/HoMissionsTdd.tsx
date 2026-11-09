@@ -12,13 +12,14 @@ import { missionDefinition, missionFields, missionProvider, missionQuery } from 
 import { submitHoMission, type MissionInput } from "./command";
 import { loadMissionForEdit } from "./read-edit";
 import { emptyMission, MissionCreateFields, validateMissionCreate } from "./MissionCreateFields";
+import { loadMissionPathChoices, validateMissionSelectedPath, type MissionPathChoice } from "./mission-path-options";
 
 type F = typeof missionFields;
 type Ready = { adapter: AuthenticatedSurfaceAdapter<F>; navigation: AdapterNavigation<F> };
 type EditTarget = { id: string; version: number; status: MissionInput["status"] };
-export const missionLifecycleNote =
-  "Lưu trữ chuyển Mission sang INACTIVE và ngừng giao mới; Assignment và Nhật Ký hiện có được giữ nguyên. Xóa vật lý không khả dụng.";
-
+type PathState =
+  | { state: "idle" | "loading" | "error"; message?: string }
+  | { state: "ready"; choices: readonly MissionPathChoice[] };
 /** PAP-1207: Create/Edit/Archive use canonical TDD Action Host; no local mutation buttons. */
 export function HoMissionsTdd() {
   const [ready, setReady] = useState<Ready | null>(null);
@@ -27,6 +28,7 @@ export function HoMissionsTdd() {
   const [mode, setMode] = useState<"create" | "edit" | null>(null);
   const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
   const [draft, setDraft] = useState<MissionInput>(emptyMission);
+  const [pathState, setPathState] = useState<PathState>({ state: "idle" });
   const [pending, setPending] = useState(false);
   const [uncertain, setUncertain] = useState(false);
   const [formError, setFormError] = useState("");
@@ -68,14 +70,27 @@ export function HoMissionsTdd() {
     refreshArchiveEligibility();
     return () => { active = false; sequence += 1; unsubscribe(); };
   }, [ready]);
+  // PAP-1207 / MISSION S5: source-owned Core Path lookup for Create and Edit drawers.
+  // Aborted requests never populate a closed/stale form.
+  useEffect(() => {
+    if (mode === null) return;
+    const controller = new AbortController();
+    setPathState({ state: "loading" });
+    void loadMissionPathChoices(fetch, controller.signal)
+      .then(choices => { if (!controller.signal.aborted) setPathState({ state: "ready", choices }); })
+      .catch(() => { if (!controller.signal.aborted) setPathState({ state: "error", message: "Không tải được bốn Path canonical từ Core. Đóng và mở lại form." }); });
+    return () => controller.abort();
+  }, [mode]);
+  const pathChoices = pathState.state === "ready" ? pathState.choices : [];
   const close = () => {
     if (writing.current || pending) return;
-    setMode(null); setEditTarget(null); setFormError("");
+    setMode(null); setEditTarget(null); setFormError(""); setPathState({ state: "idle" });
   };
   const open = () => {
     if (writing.current || pending || uncertain) return;
     idempotency.current = "mission-create-" + crypto.randomUUID();
-    setDraft(emptyMission); setEditTarget(null); setFormError(""); setEditLoadError(""); setConfirmed(""); setMode("create");
+    setDraft(emptyMission); setEditTarget(null); setPathState({ state: "idle" });
+    setFormError(""); setEditLoadError(""); setConfirmed(""); setMode("create");
   };
   const openEdit = async () => {
     if (writing.current || pending || uncertain || !ready || mode) return;
@@ -131,7 +146,8 @@ export function HoMissionsTdd() {
   };
   const submit = async () => {
     if (!mode) return { state: "invalid" as const };
-    const invalid = validateMissionCreate(draft);
+    const invalid = validateMissionCreate(draft) ||
+      validateMissionSelectedPath(draft, pathChoices);
     if (invalid) { setFormError(invalid); return { state: "invalid" as const }; }
     if (mode === "edit" && (!editTarget || editTarget.status !== draft.status)) {
       setFormError("Không đổi trạng thái tại Sửa Mission. Lưu trữ cần thao tác xác nhận riêng.");
@@ -141,6 +157,18 @@ export function HoMissionsTdd() {
     if (!ready?.adapter.context.authorize("learning.mission.manage")) return { state: "denied" as const };
     writing.current = true; setPending(true); setFormError("");
     try {
+      if (mode === "create" || mode === "edit") {
+        // Re-read the authorized Core canon immediately before any Create/Edit write.
+        // An inactive/renamed/replaced Path never proceeds to POST.
+        try {
+          const fresh = await loadMissionPathChoices();
+          const changed = validateMissionSelectedPath(draft, fresh);
+          if (changed) { setFormError(changed); return { state: "invalid" as const }; }
+        } catch {
+          setFormError("Không thể xác minh Path từ Core trước khi lưu. Chưa gửi Mission.");
+          return { state: "invalid" as const };
+        }
+      }
       const command = mode === "create"
         ? { kind: "create" as const, data: draft, idempotencyKey: idempotency.current }
         : { kind: "update" as const, id: editTarget!.id, expectedVersion: editTarget!.version,
@@ -161,13 +189,14 @@ export function HoMissionsTdd() {
     openEdit: { kind: "navigation", disabled: pending || uncertain || mode !== null, run: openEdit },
     archiveMission: { kind: "mutation", disabled: pending || uncertain || mode !== null, visible: archiveAvailable, run: archiveMission },
     cancelCreate: { kind: "navigation", disabled: pending, run: close },
-    saveCreate: { kind: "mutation", disabled: pending || uncertain || Boolean(validateMissionCreate(draft)), run: submit },
+    saveCreate: { kind: "mutation", disabled: pending || uncertain ||
+      Boolean(validateMissionCreate(draft) || validateMissionSelectedPath(draft, pathChoices)), run: submit },
     cancelEdit: { kind: "navigation", disabled: pending, run: close },
-    saveEdit: { kind: "mutation", disabled: pending || uncertain || Boolean(validateMissionCreate(draft)) ||
+    saveEdit: { kind: "mutation", disabled: pending || uncertain ||
+      Boolean(validateMissionCreate(draft) || validateMissionSelectedPath(draft, pathChoices)) ||
       !editTarget || editTarget.status !== draft.status, run: submit },
   };
   const content = <section data-testid="ho-missions-tdd" aria-label="Danh mục Mission toàn hệ thống">
-    <p role="note">{missionLifecycleNote}</p>
     {confirmed ? <p role="status">{confirmed}</p> : null}
     {editLoadError ? <p role="alert">{editLoadError}</p> : null}
     {uncertain ? <p role="alert">Lệnh ghi chưa được xác minh. Không gửi lại thao tác hoặc mở form mới trước khi đối chiếu Mission trên Core.</p> : null}
@@ -179,7 +208,9 @@ export function HoMissionsTdd() {
           mode, ...(mode === "edit" ? { recordId: editTarget?.id } : {}),
           title: mode === "create" ? "Tạo Mission" : "Sửa Mission", onClose: close, actionBindings: actions,
           content: <>
-            <MissionCreateFields value={draft} setValue={setDraft} disabled={pending || uncertain} editing={mode === "edit"} />
+            <MissionCreateFields value={draft} setValue={setDraft} disabled={pending || uncertain}
+               editing={mode === "edit"} pathChoices={pathChoices}
+               pathState={pathState.state} pathError={pathState.state === "error" ? pathState.message : ""} />
             {formError ? <p role="alert">{formError}</p> : null}
           </>,
         } }} /> : null}

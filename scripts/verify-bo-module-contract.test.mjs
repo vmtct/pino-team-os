@@ -32,6 +32,9 @@ function fixture() {
     .replace(/\s*\{ href: "\/bo\/payroll-periods", label: "Kỳ lương \(Read-only\)" \},/,"")
     .replace(/\s*\{ href: "\/bo\/pinoria-avatars", label: "Self Directory" \},/,"")
     .replace(/\s*\{ href: "\/bo\/open-studio-passes", label: "Pass Trạm Nghệ Thuật" \},/,"")
+    // PAP-1421 Bills nav is valid in the real registry/TDD contract checked
+    // above, but synthetic frozen-baseline-only fixtures remove new modules.
+    .replace(/\s*\{label:"TÀI CHÍNH",items:\[\{href:"\/bo\/bills",label:"Bills"\}\]\},/,"")
     // Strip newly admitted Diary nav from the frozen-baseline-only synthetic fixture;
     // real main + its TDD admission are still verified by the first test.
     .replace(/\s*\{ href: "\/bo\/classroom-diaries", label: "Nhật ký lớp học" \},/,""));
@@ -74,7 +77,7 @@ test("PAP-982 BO TDD route requires an exact separate manifest and navigation ow
   const root=fixture(),key="self-test",file="app/bo/self-test/page.tsx";
   try{
     route(root,key,'import {Self} from "./Self"; export default function Page(){return <Self/>}');
-    assert.ok(check(root).some(s=>s.includes("Unregistered NEW BO page")));
+    assert.deepEqual(check(root),[]);
     fs.mkdirSync(path.join(root,"config"),{recursive:true});
     const entry={profile:"TDD_DEFAULT",surface:"BO",key,route:"/bo/"+key,file,
       files:[file,"app/bo/self-test/Self.tsx","app/bo/self-test/schema.ts"],
@@ -92,14 +95,14 @@ test("PAP-982 BO TDD route requires an exact separate manifest and navigation ow
     assert.ok(check(root).some(s=>s.includes("Invalid BO TDD admission")));
   }finally{fs.rmSync(root,{recursive:true,force:true});}
 });
-test("new route without registry FAILS",()=>{
+test("PAP-1532 non-Engine BO route needs no factory/TDD registry",()=>{
   const root=fixture();
   try {
-    route(root,"rogue",`export default function Page(){ return <table /> }`);
-    assert.ok(check(root).some(s=>s.includes("Unregistered NEW BO page")));
+    route(root,"rogue",`export default function Page(){ return <main>Prototype-first FE</main> }`);
+    assert.deepEqual(check(root),[]);
   } finally {fs.rmSync(root,{recursive:true,force:true});}
 });
-test("new nav path without registered module FAILS",()=>{
+test("new navigation path without matching route still FAILS",()=>{
   const root=fixture();
   try{
     edit(root,navFile,s=>s.replace('href: "/bo/learners"','href: "/bo/unregistered-thing"'));
@@ -397,4 +400,16 @@ test("PAP-929 missing retirement ledger fails closed even when no routes are mig
     fs.rmSync(path.join(root,migrationFile));
     assert.ok(check(root).some(x=>x.includes("Missing/malformed BO legacy migration ledger")));
   }finally{fs.rmSync(root,{recursive:true,force:true});}
+});
+
+test("PAP-1460 retired BO TV nav carries exact migration receipt and cannot reappear",()=>{
+  const result=verifyBoModuleContract(repo);
+  assert.deepEqual(result.issues,[]);
+  const ledger=JSON.parse(fs.readFileSync(path.join(repo,migrationFile),"utf8"));
+  assert.deepEqual(ledger.retiredNavigation.find(r=>r.path==="/bo/tvs"),{path:"/bo/tvs",issue:"PAP-1460"});
+  const root=fixture();
+  try {
+    edit(root,navFile,s=>s.replace('label: "Operations"','label: "Operations", href: "/bo/tvs"'));
+    assert.ok(check(root).some(s=>s.includes("Retired legacy BO navigation reintroduced: /bo/tvs")));
+  } finally {fs.rmSync(root,{recursive:true,force:true});}
 });

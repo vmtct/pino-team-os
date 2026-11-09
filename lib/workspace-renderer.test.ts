@@ -142,7 +142,7 @@ for (const surface of ["BO", "HO"] as const) {
     const out = html(h(TddTable, { ...f, rows, status: "ready", onQueryChange: noop, onOpen: noop }));
     assert.equal((out.match(/id="typed-table"/g) ?? []).length, 1);
     for (const id of ["filter-toggle", "visible-columns", "group-shortcut", "search", "page-size"]) assert.ok(out.includes(`id="${id}"`));
-    assert.match(out, /class="first-quick-cell"/); assert.match(out, /data-column="name"[^>]*draggable="false"/);
+    assert.doesNotMatch(out, /class="first-quick-cell"/); assert.match(out, /data-open="record-a"/); assert.match(out, /data-column="name"[^>]*draggable="false"/);
     assert.match(out, /data-sort="name" disabled=""/); assert.match(out, /value="8"/); assert.match(out, /value="15"/); assert.match(out, /value="30"/);
     const filtered = html(h(TddTable, { ...f, query: { ...f.query, search: "bao tran", filters: { logic: "AND", rules: [{ field: "count", op: "gt", value: 10 }] } }, rows, status: "ready", onQueryChange: noop, onOpen: noop }));
     assert.match(filtered, /data-record="record-a"/); assert.doesNotMatch(filtered, /data-record="record-b"/);
@@ -400,8 +400,8 @@ test("PAP-1105: typed freeze survives legacy Table and keeps protected identity"
   assert.equal(converted.frozenThrough, "count");
   assert.equal(fromLegacyTableState(f.schema, converted, f.context).frozenThrough, "count");
   const out = html(h(TddTable, { ...f, query, rows: [f.record], status: "ready", onQueryChange: noop, onOpen: noop }));
-  assert.match(out, /Tùy chọn cố định cột Số lượng/);
-  assert.doesNotMatch(out, /Tùy chọn cố định cột Tên/);
+  assert.match(out, /Tùy chọn cột Số lượng/);
+  assert.doesNotMatch(out, /data-freeze-trigger=/); assert.match(out, /Tùy chọn cột Tên/);
   assert.throws(() => validateQuery(f.schema, { ...query, frozenThrough: "unknown" }, f.context), /freeze boundary/);
   assert.throws(() => validateQuery(f.schema, { ...query, frozenThrough: "name" }, f.context), /freeze boundary/);
   assert.throws(() => validateQuery(f.schema, { ...query, visible: ["name", "id"], frozenThrough: "count" }, f.context), /freeze boundary/);
@@ -475,7 +475,9 @@ for (const surface of ["BO", "HO"] as const) {
       const activeIndex = ["overview", "relations", "more", "enrollments", "history"].indexOf(selected);
       assert.match(out, new RegExp(`role="tabpanel" aria-labelledby="detail-tab-${activeIndex}"`));
       assert.match(out, new RegExp(`id="detail-tab-${activeIndex}" aria-selected="true"`));
-      assert.equal((out.match(/tabindex="0"/g) ?? []).length, 2, "keyboard-selected tab and panel only");
+      const resizeHandles = (out.match(/role="separator"/g) ?? []).length;
+      assert.ok(resizeHandles <= 1, "Detail owns at most one shared resize handle");
+      assert.equal((out.match(/tabindex="0"/g) ?? []).length, 2 + resizeHandles, "selected tab/panel plus optional Overview separator");
     }
   });
 
@@ -539,3 +541,51 @@ test("PAP-1117 property presentation receives only authorized projection and ove
  html(h(TddDetail, { ...props, context: { ...context, authorize: () => false } }));
  assert.equal(calls, 1);
 });
+
+for (const surface of ["BO", "HO"] as const) {
+ test(`PAP-1464 ${surface}: approved extensions retain standard Overview, usage and History`, () => {
+  const base = fixture(surface);
+  const registry = new TddRegistry((approval, scope) => approval.jira === "PAP-1464" && scope.extensionId === "fixture-extension");
+  const schema = registry.register({ ...base.schema, detail: { ...base.schema.detail, businessTabs: [{
+   id: "usage", label: "Usage", kind: "approved-extension", extensionId: "fixture-extension",
+   source: { adapter: "fixture", permission: "fixture.read" },
+   approval: { jira: "PAP-1464", owner: "Founder", designAuthority: "test-only", files: ["lib/workspace-renderer.test.ts"], tests: ["lib/workspace-renderer.test.ts"], reviewBy: "2026-12-01" },
+  }] } });
+  const props = { ...base, registry, schema, onBack: noop, subject: { type: "fixture", id: base.record.id }, overviewAfter: h("p", null, "After overview") };
+  for (const overviewContent of [null, h("p", null, "Extension overview")]) {
+   const calls: string[] = [];
+   const renderApprovedExtension = (_record: unknown, _context: unknown, active: string) => {
+    calls.push(active);
+    return active === "overview" ? overviewContent : h("p", { "data-extension": active }, "Usage draft");
+   };
+   const render = (activeTab: string) => html(h(TddDetail, { ...props, activeTab, renderApprovedExtension }));
+   const overview = render("overview");
+   assert.match(overview, /data-tdd-properties="detail"/);
+   assert.match(overview, /class="v24-prop-value readonly"[^>]*>12</);
+   assert.equal((overview.match(/class="v24-prop-item"/g) ?? []).length, 3);
+   assert.match(overview, /After overview/);
+   if (overviewContent) assert.match(overview, /Extension overview/);
+   const usage = render("usage");
+   assert.match(usage, /<div><p data-extension="usage">Usage draft<\/p><\/div>/);
+   assert.doesNotMatch(usage, /data-tdd-properties="detail"|After overview/);
+   const history = render("history");
+   assert.match(history, /<div hidden=""><p data-extension="history">Usage draft<\/p><\/div>/);
+   assert.match(history, /Chưa có lịch sử khả dụng/);
+   assert.doesNotMatch(history, /data-tdd-properties="detail"|After overview/);
+   for (const out of [overview, usage, history]) {
+    assert.equal((out.match(/data-tdd-shell="detail"/g) ?? []).length, 1);
+    assert.deepEqual([...out.matchAll(/role="tab"[^>]*>([^<]+)<\/button>/g)].map(m => m[1]), ["Tổng quan", "Usage", "Lịch sử"]);
+   }
+   assert.deepEqual(calls, ["overview", "usage", "history"]);
+  }
+  let presentations = 0;
+  const renderOverviewProperties: NonNullable<Parameters<typeof TddDetail>[0]["renderOverviewProperties"]> = properties => {
+   presentations++;
+   assert.deepEqual(properties.sections[0].fields, ["name", "id", "count"]);
+   return h(PropertySections, { ...properties, variant: "detail" });
+  };
+  const custom = html(h(TddDetail, { ...props, renderOverviewProperties, renderApprovedExtension: () => null }));
+  assert.match(custom, /class="v24-prop-value readonly"[^>]*>12</);
+  assert.equal(presentations, 1);
+ });
+}

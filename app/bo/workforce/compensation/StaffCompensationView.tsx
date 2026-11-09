@@ -1,4 +1,5 @@
 "use client";
+import { LocalizedModuleTitle } from "@/lib/pino-nav-locale-context";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BoDataGrid, BoDataGridSidePeek, BoDataGridStatus, type BoDataGridColumn } from "@/app/bo/components/data-grid";
@@ -79,7 +80,7 @@ export function StaffCompensationView(){
 
   return <main className={styles.panel} data-testid="staff-compensation-private">
     <div className={styles.panelHeading}>
-      <div><h1>Lịch sử lương</h1>
+      <div><h1><LocalizedModuleTitle label="Payroll History" moduleKey="workforce/compensation" /></h1>
         <p>Workforce · Dữ liệu nhạy cảm. BO chỉ xem sau khi Core xác thực quyền; thay đổi mức lương thuộc HO.</p></div>
       <span className={styles.readOnly}>private · read-only · VND</span>
     </div>

@@ -130,12 +130,13 @@ export function validateModule(input: unknown): asserts input is ModuleSchema {
     array(m.actions); unique(m.actions.map(action => action.id));
     const primaryBySlot = new Set<string>();
     for (const action of m.actions) {
-      object(action, ["id", "label", "slot", "variant", "capability", "handler", "targetId", "formMode"], ["id", "label", "slot", "variant", "capability", "handler"]);
+      object(action, ["id", "label", "slot", "variant", "capability", "handler", "targetId", "formMode", "icon"], ["id", "label", "slot", "variant", "capability", "handler"]);
       for (const key of ["id", "label", "handler"] as const) nonempty(action[key]);
       check(/^[a-zA-Z][\w.-]{1,63}$/.test(action.id), "invalid action identifier");
       check(["table.header", "drawer.header", "drawer.footer", "detail.header", "overview.section", "businessTab.toolbar"].includes(action.slot), "unknown action slot");
       check(["primary", "secondary", "tertiary", "danger"].includes(action.variant), "unsupported action variant");
       check(["read", "create", "edit"].includes(action.capability) && Boolean(m.capabilities[action.capability]), "action capability not registered");
+      check(action.icon === undefined || (action.icon === "refresh" && action.slot === "overview.section" && action.variant !== "danger"), "invalid action icon presentation");
       const scoped = action.slot === "overview.section" || action.slot === "businessTab.toolbar";
       check(scoped ? typeof action.targetId === "string" && /^[A-Za-z][\w.-]{0,63}$/.test(action.targetId) : action.targetId === undefined, "invalid action target");
       check(action.slot === "drawer.footer" ? ["create", "edit"].includes(String(action.formMode)) : action.formMode === undefined, "invalid form-only action mode");
@@ -153,7 +154,7 @@ export function validateModule(input: unknown): asserts input is ModuleSchema {
   };
   const sections = (items: unknown) => {
     array(items); check(items.length > 0, "sections required");
-    for (const s of items) { object(s, ["id", "label", "fields"]); nonempty(s.id); nonempty(s.label); refs(s.fields as string[]); }
+    for (const s of items) { object(s, ["id", "label", "fields", "collapsed"], ["id", "label", "fields"]); check(s.collapsed === undefined || s.collapsed === true, "invalid collapsed section metadata"); nonempty(s.id); nonempty(s.label); refs(s.fields as string[]); }
     unique(items.map(s => (s as { id: string }).id));
   };
   object(m.table, ["identity", "columns", "search", "filters", "sort", "group", "views", "pagination", "inlineEdit", "interaction"]);

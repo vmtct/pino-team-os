@@ -16,7 +16,7 @@ test("PAP-1064 Oct27 canonical BO authority + Payroll extension and one styleshe
 });
 test("BO scope preserves every rule declaration and at-rule in original order", () => {
   const addon = readFileSync("app/components/workspace-renderer/tdd-freeze.css", "utf8");
-  const original = postcss.parse(raw + "\n" + addon), isolated = postcss.parse(scoped);
+  const original = postcss.parse(raw + "\n" + addon + "\n" + readFileSync("app/components/workspace-renderer/tdd-detail-layout.css", "utf8") + "\n" + readFileSync("app/components/workspace-renderer/tdd-table-geometry.css", "utf8") + "\n" + readFileSync("public/bo-authority-source/bo-form-extension.css", "utf8")), isolated = postcss.parse(scoped);
   const declarations = (root: postcss.Root) => { const result: string[] = []; root.walkDecls(d => { result.push(JSON.stringify([d.prop, d.value, d.important, d.parent?.type === "atrule" ? d.parent.name : "rule"])); }); return result; };
   assert.deepEqual(declarations(isolated), declarations(original));
   const rules: string[] = []; original.walkRules(rule => { rules.push(rule.selector); });
@@ -78,7 +78,7 @@ test("BO authenticated account belongs to shell and does not mutate shared rende
  const runtime=readFileSync("app/bo/components/registration/BoRuntimeBoundary.tsx","utf8");
  const account=readFileSync("app/bo/shell/BoAuthenticatedAccount.tsx","utf8");
  assert.ok(layout.includes("email: currentUser.email"));
- assert.ok(runtime.includes("<BoAuthenticatedAccount displayName={currentUser.displayName} email={currentUser.email} />"));
+ assert.ok(runtime.includes('<BoAuthenticatedAccount displayName={currentUser.displayName} email={currentUser.email} profileHref={staging ? undefined : "/bo/profile"} />'));
  assert.ok(account.includes("createPortal"));
  assert.ok(account.includes("<LogoutButton />"));
  assert.ok(account.includes("resolveBoAccountLabel(displayName, email)"));

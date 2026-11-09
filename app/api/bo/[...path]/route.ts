@@ -1,8 +1,12 @@
+import {handleBoSelfCreateRequest, type BoSelfCreateEnv} from "@/lib/bo-self-create-handler";
+import {handleBoBillsRequest,isBoBillsPath} from "@/lib/bo-bills-handler";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { handleBoPublicViewRequest, type BoPublicViewEnv } from "@/lib/bo-public-view-handler";
 import { handleBoOperationalReadRequest, type BoReadEnv } from "@/lib/bo-read-handler";
 import { handleBoSelfItemRequest, isBoSelfItemPath, type BoSelfItemEnv } from "@/lib/bo-self-item-ownership-handler";
+import { handleBoSelfLoadoutRequest, isBoSelfLoadoutPath, type BoSelfLoadoutEnv } from "@/lib/bo-self-loadout-handler";
 import { handleBoMissionAssignmentWrite, isBoMissionAssignmentWritePath, type BoMissionWriteEnv } from "@/lib/bo-mission-assignment-write-facade";
+import { handleBoMissionCompletionRequest, isBoMissionCompletionPath, type BoMissionCompletionEnv } from "@/lib/bo-mission-completion-facade";
 import { handleBoWriteRequest, type BoWriteEnv } from "@/lib/bo-write-handler";
 import { handleBoPracticeMediaUpload, type BoPracticeMediaEnv } from "@/lib/bo-practice-media-handler";
 import { handleBoSyllabusMediaRequest, type BoSyllabusMediaEnv } from "@/lib/bo-syllabus-media-handler";
@@ -19,13 +23,16 @@ import { handleReviewedEnrollmentActivation, REVIEWED_ENROLLMENT_ACTIVATION_PATH
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type BoEnv = BoSelfItemEnv & BoMissionWriteEnv & BoPublicViewEnv & BoReadEnv & BoWriteEnv & BoWorkforcePlanningEnv & BoWorkforceTrainingEnv & BoWorkforceDutyExceptionEnv & BoPayrollReviewEnv & BoPayrollPeriodEnv & ReviewedEnrollmentEnv & BoPracticeMediaEnv & BoSyllabusMediaEnv & BoStaffPrivateEnv & BoWardSetMediaEnv & BoPinoriaWorldMediaEnv;
+type BoEnv = BoSelfCreateEnv & BoSelfLoadoutEnv & BoSelfItemEnv & BoMissionWriteEnv & BoMissionCompletionEnv & BoPublicViewEnv & BoReadEnv & BoWriteEnv & BoWorkforcePlanningEnv & BoWorkforceTrainingEnv & BoWorkforceDutyExceptionEnv & BoPayrollReviewEnv & BoPayrollPeriodEnv & ReviewedEnrollmentEnv & BoPracticeMediaEnv & BoSyllabusMediaEnv & BoStaffPrivateEnv & BoWardSetMediaEnv & BoPinoriaWorldMediaEnv;
 type RouteContext = { params: Promise<{ path: string[] }> };
 
 export async function GET(request: Request, context: RouteContext): Promise<Response> {
   const { env } = await getCloudflareContext({ async: true }) as unknown as { env: BoEnv };
   const { path } = await context.params;
   const joined = path.join("/");
+  if (isBoMissionCompletionPath(joined)) return handleBoMissionCompletionRequest(request, env, joined);
+  if (isBoBillsPath(joined)) return handleBoBillsRequest(request, env, joined);
+  if (isBoSelfLoadoutPath(joined)) return handleBoSelfLoadoutRequest(request, env, joined);
   if (isBoSelfItemPath(joined)) return handleBoSelfItemRequest(request, env, joined);
   if (joined.startsWith("views/")) return handleBoPublicViewRequest(request, env, joined);
   if (isBoWorkforcePlanningPath(joined)) return handleBoWorkforcePlanningRequest(request, env, joined);
@@ -42,7 +49,11 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
   const { env } = await getCloudflareContext({ async: true }) as unknown as { env: BoEnv };
   const { path } = await context.params;
   const joined = path.join("/");
+  if (isBoMissionCompletionPath(joined)) return handleBoMissionCompletionRequest(request, env, joined);
+  if (isBoBillsPath(joined)) return handleBoBillsRequest(request, env, joined);
+  if (isBoSelfLoadoutPath(joined)) return handleBoSelfLoadoutRequest(request, env, joined);
   if (isBoSelfItemPath(joined)) return handleBoSelfItemRequest(request, env, joined);
+  if (joined === "pinoria/avatars") return handleBoSelfCreateRequest(request, env, joined);
   if (joined.startsWith("views/")) return handleBoPublicViewRequest(request, env, joined);
   if (isBoMissionAssignmentWritePath(joined) && request.method !== "GET") return handleBoMissionAssignmentWrite(request, env, joined);
   if (isBoWorkforcePlanningPath(joined)) return handleBoWorkforcePlanningRequest(request, env, joined);
@@ -62,6 +73,8 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
   const { env } = await getCloudflareContext({ async: true }) as unknown as { env: BoEnv };
   const { path } = await context.params;
   const joined = path.join("/");
+  if (isBoBillsPath(joined)) return handleBoBillsRequest(request, env, joined);
+  if (isBoSelfLoadoutPath(joined)) return handleBoSelfLoadoutRequest(request, env, joined);
   if (isBoSelfItemPath(joined)) return handleBoSelfItemRequest(request, env, joined);
   if (joined.startsWith("views/")) return handleBoPublicViewRequest(request, env, joined);
   if (isBoPayrollPeriodPath(joined)) return handleBoPayrollPeriodRequest(request, env, joined);
@@ -72,6 +85,8 @@ export async function PUT(request: Request, context: RouteContext): Promise<Resp
   const { env } = await getCloudflareContext({ async: true }) as unknown as { env: BoEnv };
   const { path } = await context.params;
   const joined = path.join("/");
+  if (isBoBillsPath(joined)) return handleBoBillsRequest(request, env, joined);
+  if (isBoSelfLoadoutPath(joined)) return handleBoSelfLoadoutRequest(request, env, joined);
   if (isBoSelfItemPath(joined)) return handleBoSelfItemRequest(request, env, joined);
   if (joined.startsWith("views/")) return handleBoPublicViewRequest(request, env, joined);
   if (isBoMissionAssignmentWritePath(joined)) return handleBoMissionAssignmentWrite(request, env, joined);
@@ -82,6 +97,8 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
   const { env } = await getCloudflareContext({ async: true }) as unknown as { env: BoEnv };
   const { path } = await context.params;
   const joined = path.join("/");
+  if (isBoBillsPath(joined)) return handleBoBillsRequest(request, env, joined);
+  if (isBoSelfLoadoutPath(joined)) return handleBoSelfLoadoutRequest(request, env, joined);
   if (isBoSelfItemPath(joined)) return handleBoSelfItemRequest(request, env, joined);
   if (joined.startsWith("views/")) return handleBoPublicViewRequest(request, env, joined);
   return handleBoWriteRequest(request, env, joined);

@@ -9,7 +9,7 @@ async function fixture(page: Page, surface: "BO" | "HO") {
   const host = surface === "BO" ? 'data-bo-ui-authority="v25"' : 'data-surface="ho"';
   await page.route("**/*", route => route.fulfill({ contentType: "text/html", body: '<!doctype html><html lang="vi" ' + host + '><head><style>' + css + '</style></head><body><div id="root"></div><script>' + bundle + '</script></body></html>' }));
   await page.goto(surface === "BO" ? "https://bo.staging.pinohouse.art/bo?module=parents" : "https://ho.staging.pinohouse.art/ho/centers");
-  await expect(page.getByRole("button", { name: "Quick View Fixture 01", exact: true })).toBeVisible();
+  await expect(page.locator("tbody tr[data-open]").first()).toBeVisible();
 }
 async function queryState(page: Page) {
   return page.evaluate(() => {
@@ -18,12 +18,72 @@ async function queryState(page: Page) {
   });
 }
 async function requested(page: Page) { return (await queryState(page))?.frozenThrough; }
-const trigger = (page: Page, name = "Ghi chú") => page.getByRole("button", { name: "Tùy chọn cố định cột " + name, exact: true });
+const trigger = (page: Page, name = "Ghi chú") => page.locator('th[data-column="' + ({ "Ghi chú": "note", "Trạng thái": "status" } as Record<string, string>)[name] + '"]');
 async function freeze(page: Page, name = "Ghi chú") {
-  await trigger(page, name).click();
+  // A clipped horizontal header on mobile cannot receive pointer events behind the frozen prefix.
+  // The keyboard menu path must remain equivalent to desktop right-click.
+  if ((await page.evaluate(() => innerWidth)) <= 390) {
+    await trigger(page, name).focus();
+    await page.keyboard.press("Shift+F10");
+  } else {
+    await trigger(page, name).click({ button: "right" });
+  }
   await page.getByRole("menuitem", { name: "Cố định đến cột này", exact: true }).click();
 }
 for (const surface of ["BO", "HO"] as const) {
+  test(surface + " PAP-1437 row keyboard activation and full column context without visible arrow", async ({ page }) => {
+    await fixture(page, surface);
+    await expect(page.locator("button.row-open,th.quick-open-th,td.first-quick-cell")).toHaveCount(0);
+    const row = page.locator("tbody tr[data-open]").first();
+    await row.focus(); await page.keyboard.press("Enter");
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await row.focus(); await page.keyboard.press("Space");
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await page.locator('th[data-column="name"]').click({button:"right"});
+    await expect(page.getByRole("menu", { name:/Tùy chọn cột/ })).toBeVisible();
+    await expect(page.getByRole("menuitem", { name:"Ẩn cột" })).toBeDisabled();
+    await expect(page.getByRole("menuitem", { name:"Sắp xếp tăng dần" })).toBeEnabled();
+    await page.keyboard.press("Escape");
+    await page.locator('th[data-column="status"]').focus();
+    await page.keyboard.press("Shift+F10");
+    await expect(page.getByRole("menu", { name:/Tùy chọn cột/ })).toBeVisible();
+  });
+  test(surface + " PAP-1437 disabled sort still focuses first enabled column menu action", async ({ page }) => {
+    await fixture(page, surface);
+    await trigger(page, "Trạng thái").focus();
+    await page.keyboard.press("Shift+F10");
+    const menu = page.getByRole("menu", { name: /Tùy chọn cột/ });
+    await expect(menu).toBeVisible();
+    const firstEnabled = menu.locator('[role="menuitem"]:not(:disabled):not([aria-disabled="true"])').first();
+    await expect(firstEnabled).toBeFocused();
+    await page.keyboard.press("ArrowDown");
+    const enabled = menu.locator('[role="menuitem"]:not(:disabled):not([aria-disabled="true"])');
+    await expect(enabled.nth(1)).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(trigger(page, "Trạng thái")).toBeFocused();
+  });
+  test(surface + " PAP-1474 typed identity remains sticky while legacy second column scrolls", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 900 });
+    await fixture(page, surface);
+    const viewport = page.locator("#table-scroll");
+    const id = page.locator('thead th[data-tdd-identity-column]');
+    const second = page.locator('thead th[data-tdd-legacy-sticky-release]');
+    await expect(id).toHaveCSS("position", "sticky");
+    await expect(second).toHaveCSS("position", "static");
+    const beforeId = (await id.boundingBox())!.x, beforeSecond = (await second.boundingBox())!.x;
+    await viewport.evaluate(el => { el.scrollLeft = 120; el.dispatchEvent(new Event("scroll")); });
+    await expect.poll(() => viewport.evaluate(el => el.scrollLeft)).toBeGreaterThan(50);
+    const afterId = (await id.boundingBox())!.x, afterSecond = (await second.boundingBox())!.x;
+    expect(Math.abs(afterId - beforeId)).toBeLessThan(2);
+    expect(afterSecond).toBeLessThan(beforeSecond - 50);
+    const cell = page.locator('tbody tr:first-child button[data-edit="status"]');
+    const displayedValue = (await cell.innerText()).trim();
+    expect(displayedValue.length).toBeGreaterThan(0);
+    expect(await cell.getAttribute("aria-label")).toContain(displayedValue);
+  });
   test(surface + " Freeze Escape restores trigger focus", async ({ page }) => {
     await fixture(page, surface);
     await trigger(page).focus(); await page.keyboard.press("Shift+F10");
@@ -37,24 +97,27 @@ for (const surface of ["BO", "HO"] as const) {
     await page.locator('th[data-column="status"]').click({ button: "right" });
     const pin = page.getByRole("menuitem", { name: "Cố định đến cột này", exact: true });
     const unpin = page.getByRole("menuitem", { name: "Bỏ cố định từ cột này", exact: true });
-    await expect(pin).toBeFocused(); await page.keyboard.press("ArrowDown"); await expect(unpin).toBeFocused();
-    await page.keyboard.press("Tab"); await expect(pin).toBeFocused();
+    await pin.focus(); await page.keyboard.press("ArrowDown"); await expect(unpin).toBeFocused();
+    await page.keyboard.press("Tab"); await expect(page.getByRole("menuitem", { name: "Ẩn cột", exact: true })).toBeFocused(); // Disabled sort is skipped.
     await page.keyboard.press("End"); await expect(unpin).toBeFocused();
     await page.keyboard.press("Enter");
     await expect(page.locator("#table-scroll")).toHaveAttribute("data-tdd-freeze-limit", "count");
     await expect(trigger(page, "Trạng thái")).toBeFocused();
-    await expect(page.locator('[data-freeze-trigger="name"],[data-freeze-trigger="id"],[data-freeze-trigger="secret"]')).toHaveCount(0);
+    await expect(page.locator("button.row-open")).toHaveCount(0);
+    await page.locator('th[data-column="name"]').click({ button: "right" });
+    await expect(page.getByRole("menuitem", { name: /Cố định đến cột này/ })).toHaveCount(0);
+    await page.keyboard.press("Escape");
     await expect(page.locator("body")).not.toContainText("PRIVATE_MUST_NOT_RENDER");
   });
   test(surface + " Freeze query survives Drawer Detail Back reload and Undo", async ({ page }) => {
     await fixture(page, surface); await freeze(page);
-    await page.getByRole("button", { name: "Quick View Fixture 01", exact: true }).click();
+    await page.locator("tbody tr[data-open]").first().click();
     await page.getByRole("button", { name: /Full Detail/ }).click();
     await page.getByRole("button", { name: "Quay lại bảng", exact: true }).click();
     await expect.poll(() => requested(page)).toBe("note");
     await page.reload();
     await expect.poll(() => requested(page)).toBe("note");
-    await trigger(page).click(); await page.getByRole("menuitem", { name: "Bỏ cố định từ cột này", exact: true }).click();
+    await trigger(page).click({ button: "right" }); await page.getByRole("menuitem", { name: "Bỏ cố định từ cột này", exact: true }).click();
     await expect.poll(() => requested(page)).toBe("status");
     await page.getByRole("button", { name: "Hoàn tác", exact: true }).click();
     await expect.poll(() => requested(page)).toBe("note");
@@ -94,7 +157,9 @@ for (const surface of ["BO", "HO"] as const) {
     await expect(page.locator("#table-scroll")).toHaveAttribute("data-tdd-freeze-limit","name");
     await expect.poll(() => requested(page)).toBe("note");
     await page.setViewportSize({width:1440,height:900});
-    await expect(page.locator("#table-scroll")).toHaveAttribute("data-tdd-freeze-limit","status");
+    // PAP-1474 fixed typed column widths make all three requested columns fit on desktop.
+    // On narrow screens the effective prefix clips; widening restores the complete requested state.
+    await expect(page.locator("#table-scroll")).toHaveAttribute("data-tdd-freeze-limit","note");
     await expect.poll(() => requested(page)).toBe("note");
   });
   for (const width of [1440, 1024, 768, 390, 320]) test(surface + " Freeze measured sticky geometry " + width, async ({ page }) => {

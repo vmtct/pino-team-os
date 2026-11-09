@@ -16,6 +16,8 @@ import {readDiaryTicket,stageDiaryTicket,clearVerifiedDiaryTicket,type DiaryTick
 import {isConfirmedSkipDiaryEntry} from "@/lib/tos-diary-skip-opening";
 import {isDiaryStagingWriterHost} from "@/lib/tos-diary-stage-admission";
 import {diaryWriteView} from "@/lib/tos-diary-stage-status";
+import {requiresSpecialtySelectionGuard} from "@/lib/tos-specialty-mission-availability";
+import {TosSpecialtyMissionChoiceList} from "@/app/classroom/TosSpecialtyMissionChoiceList";
 import type {ClassroomV4ViewModel,ScheduledClass} from "@/lib/tos-classroom-v4-view-model";
 import styles from "./diary-capture.module.css";
 
@@ -90,18 +92,20 @@ export default function DiaryCapturePanel({model,classroom,confirmedSkipClassId}
  },[key,permitted,model.centerId,model.today,classroom.id,classroom.runningClassId,studentId,writerApi]);
  const current=permitted&&read.key===key?read:idle;
  const eligibility=current.phase==="ready"?current.data:null;
+ // PAP-1497: no safe all/locked selection integration before the source-owned S4 guard.
+ const specialtyGuarded=Boolean(eligibility&&requiresSpecialtySelectionGuard(eligibility.items));
  const chosen=useMemo(()=>missionIds.map(missionId=>{
   const row=eligibility?.items.find(x=>x.missionId===missionId);
   return {missionId,...(row?.assignmentId?{assignmentId:row.assignmentId}:{})};
  }),[eligibility,missionIds]);
  const preflight=useMemo(()=>{
-  if(!permitted||!eligibility||eligibility.hasMore)return false;
+  if(!permitted||!eligibility||eligibility.hasMore||specialtyGuarded)return false;
   try{
    // Sentinel can only be used for local validation. Never a submitted idempotency key.
    prepareDiarySubmission({model,classroom,studentId,eligibility,selected:chosen,submissionKey:"PAP945_PREFLIGHT_ONLY"});
    return true;
   }catch{return false;}
- },[permitted,model,classroom,studentId,eligibility,chosen]);
+ },[permitted,model,classroom,studentId,eligibility,chosen,specialtyGuarded]);
  const errors=[
   ...validateDiaryCaptureDraft({studentId,missionIds,eligibleIds:eligibility?.items.map(x=>x.missionId)??[],
    eligibilityLoaded:current.phase==="ready",eligibilityHasMore:eligibility?.hasMore??false,notes,interest,difficulty}),
@@ -109,13 +113,14 @@ export default function DiaryCapturePanel({model,classroom,confirmedSkipClassId}
   ...(missionIds.length>0&&!preflight?["Mission hoặc ngữ cảnh học chưa được Core xác nhận."]:[]),
  ];
  async function submitDiary(){
-  if(!canCreateDiary(receipt,writeAdmitted)||busy||!permitted||!eligibility||registerTicket.state!=="EMPTY")return;
+  if(!canCreateDiary(receipt,writeAdmitted)||busy||!permitted||!eligibility||specialtyGuarded||registerTicket.state!=="EMPTY")return;
   if(errors.length){setShowValidation(true);return;}
   setBusy(true);setRuntimeError("");
   try{
    const fresh=await writerApi.eligibleMissions({centerId:model.centerId,
     runningClassId:classroom.runningClassId,studentId,localDate:model.today,teachingContextKey:classroom.id});
    if(fresh.hasMore)throw new V18bCoreError(409,"DIARY_ELIGIBILITY_INCOMPLETE","Danh sách Mission chưa đầy đủ.");
+   if(requiresSpecialtySelectionGuard(fresh.items))throw new Error("Chưa xác nhận được quyền chọn Nhiệm vụ.");
    const prepared=prepareDiarySubmission({model,classroom,studentId,eligibility:fresh,
     selected:chosen,submissionKey:crypto.randomUUID()});
    const storage=ticketStorage();
@@ -162,6 +167,7 @@ export default function DiaryCapturePanel({model,classroom,confirmedSkipClassId}
     localDate:model.today,teachingContextKey:classroom.id,
    });
    if(fresh.hasMore)throw new V18bCoreError(409,"DIARY_ELIGIBILITY_INCOMPLETE","Danh sách Mission chưa đầy đủ.");
+   if(requiresSpecialtySelectionGuard(fresh.items))throw new Error("Chưa xác nhận được quyền chọn Nhiệm vụ.");
    const prepared=prepareDiarySubmission({model,classroom,studentId,eligibility:fresh,
     selected:chosen,submissionKey:registerTicket.key});
    const outcome=await reconcileUnknownDiaryRegister(writerApi,{
@@ -209,7 +215,13 @@ export default function DiaryCapturePanel({model,classroom,confirmedSkipClassId}
      {students.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
     </select>
    </label>}
-  {permitted&&<fieldset className={styles.missions} disabled={current.phase!=="ready"||locked}>
+  {permitted&&current.phase==="ready"&&specialtyGuarded&&<section aria-label="Danh sách nhiệm vụ và lý do khóa" data-specialty-selection="read-only">
+   <TosSpecialtyMissionChoiceList items={eligibility?.items}
+    studentName={students.find(s=>s.id===studentId)?.name??"Học viên"}
+    onSelect={()=>{}} disabled/>
+   {eligibility?.hasMore&&<p role="status" className={styles.hint}>Danh sách nhiệm vụ chưa đầy đủ. Chưa thể giao nhiệm vụ.</p>}
+  </section>}
+  {permitted&&!specialtyGuarded&&<fieldset className={styles.missions} disabled={current.phase!=="ready"||locked}>
    <legend>Nhiệm vụ <span aria-hidden="true">*</span></legend>
    {current.phase==="idle"||current.phase==="loading"?<p role="status">Đang xác nhận Mission từ Core…</p>:
     current.phase==="error"?<p role="alert">{current.message}</p>:

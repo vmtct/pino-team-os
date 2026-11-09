@@ -1,4 +1,5 @@
 "use client";
+import { LocalizedModuleTitle } from "@/lib/pino-nav-locale-context";
 
 import { useEffect, useMemo, useState } from "react";
 import { boApi, BoApiError } from "@/lib/bo-api";
@@ -56,7 +57,7 @@ export function LearningSyllabusDesk(){
   if(load.status==="loading")return <State text="Loading canonical Learning Syllabus catalog…"/>;
   if(load.status==="error")return <State text={load.message} requestId={load.requestId} error/>;
   return <section className={`${styles.page} ${styles.syllabusPage}`}>
-    <header className={styles.heading}><span>PINO TEAM · LEARNING</span><h1>Syllabus</h1><p>Shared catalog identity for teachable learning units across PINO House and Toppi.</p></header>
+    <header className={styles.heading}><span>PINO TEAM · LEARNING</span><h1><LocalizedModuleTitle label="Programs & Syllabus" moduleKey="syllabus" /></h1><p>Shared catalog identity for teachable learning units across PINO House and Toppi.</p></header>
     <div className={styles.syllabusBanner}><strong>Publish is catalog-only.</strong><span>Publishing a Syllabus version does not rewrite Sessions, Open Studio Listings, Journey, Content access, or Toppi progression.</span></div>
     {error?<State text={error.message} requestId={error.requestId} error compact/>:null}
     <section className={styles.syllabusWorkspace}>

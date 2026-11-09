@@ -18,7 +18,7 @@ const WORKFORCE_POLICY_READ = /^policies\/workforce\/(AVAILABILITY_ELIGIBILITY|T
 const PRACTICE_RESOURCE_READ = /^practice\/resources\/[0-9a-f-]{36}$/;
 const TV_POLICY_READ = new Set(["pinoria/tv-config/policy/head","pinoria/tv-config/policy/versions","pinoria/tv-config/policy/version","pinoria/tv-config/policy/active"]);
 const MISSION_CATALOG_READ = /^learning\/missions(?:\/[0-9a-f-]{36})?$/;
-const MISSION_ASSIGNMENT_READ = /^learning\/mission-assignments(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/diaries)?)?$/i;
+const MISSION_ASSIGNMENT_READ = /^learning\/mission-assignments(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/(?:diaries|history))?)?$/i;
 /** PAP-1220: strictly Center/day-scoped BO Diary read facade; no HO GLOBAL. */
 const BO_DIARY_READ = /^learning\/path-diaries(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/mission-links)?)?$/i;
 const TV_DIALOGUE_CONFIG_READ = new Set(["pinoria/tv-config/dialogue/head","pinoria/tv-config/dialogue/versions","pinoria/tv-config/dialogue/version","pinoria/tv-config/dialogue/active"]);
@@ -38,6 +38,8 @@ const BILLING_BILL_READ = /^billing\/bills\/[0-9a-f-]{36}$/;
 const SPECIALTY_STUDENT_READ = /^specialty\/students\/[0-9a-f-]{36}$/;
 const STUDENT_VISIT_DETAIL_READ = /^student-visits\/[0-9a-f-]{36}$/;
 const SPECIALTY_POLICY_READ = /^policies\/specialty\/(purchase\.v1|session_settlement\.v1|completion\.v1|reward\.v1)\/(effective|stream)$/;
+/** PAP-1407 / PAP-220: exact BO Center Staff application list and pending Drawer detail. */
+const STAFF_CENTER_APPLICATION_READ = /^workforce\/staff-center-registration-requests(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$/i;
 
 export async function handleBoOperationalReadRequest(
   request: Request,
@@ -59,6 +61,13 @@ export async function handleBoOperationalReadRequest(
     const url = new URL(request.url);
     const readBody = readQueryBody(path, url);
     const readResource = readQueryResource(path, url);
+    // PAP-1536 / PAP-220: Core currently ignores resource.centerId for this
+    // broad Staff directory route. Until PAP-1537's canonical membership
+    // reader authorizes AND filters Center, never expose global rows under
+    // an apparently Center-scoped request (including unknown Center IDs).
+    if (path === "workforce/staff-records" && readResource?.centerId) {
+      return json({ error: { code: "STAFF_CENTER_DIRECTORY_NOT_READY", message: "Center Staff directory is not available yet" } }, 503);
+    }
     const corePath = readCorePath(path, url);
     const result = await callBoAccessCoreWithCredential(env.PINO_BO_CORE, { method: "GET", path: corePath, ...(readResource ? { resource: readResource } : {}), ...(readBody ? { body: readBody } : {}) }, credential);
     return json(url.hostname === HO_STAGING_HOSTNAME && path === "access/audit" && result.status === 200 ? projectHoAuditResponse(result.body) : result.body, result.status, { "x-request-id": result.requestId });
@@ -139,6 +148,7 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "access/audit"
     || path === "access/users"
     || path === "workforce/staff-records"
+    || STAFF_CENTER_APPLICATION_READ.test(path)
     || (isStaffCompensationPath(path) && path.split("/").length===5)
     || path === "workforce/timekeeping"
     || path === "workforce/timekeeping/centers"
@@ -199,7 +209,7 @@ function readCorePath(path: string, url: URL): string {
     const params = url.searchParams;
     const collection = path === "learning/mission-assignments";
     const allowed = collection ? ["centerId", "studentId", "missionId", "status", "limit", "offset"] :
-        path.endsWith("/diaries") ? ["centerId", "limit", "offset"] : ["centerId"];
+        path.endsWith("/diaries") ? ["centerId", "limit", "offset"] : path.endsWith("/history") ? ["centerId", "limit", "cursor"] : ["centerId"];
     for (const key of params.keys()) if (!allowed.includes(key) || params.getAll(key).length !== 1) throw new RangeError("Invalid assignment query");
     const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuid.test(params.get("centerId") ?? "")) throw new RangeError("Center required");
@@ -208,6 +218,13 @@ function readCorePath(path: string, url: URL): string {
     for (const key of ["limit", "offset"]) if (params.has(key)) {
       const value = params.get(key)!;
       if (!/^(0|[1-9]\d*)$/.test(value) || !Number.isSafeInteger(Number(value)) || (key === "limit" && (Number(value) < 1 || Number(value) > 100))) throw new RangeError("Invalid assignment pagination");
+    }
+    if (path.endsWith("/history")) {
+      const limit = params.get("limit");
+      const cursor = params.get("cursor");
+      if ((limit !== null && (!/^[1-9][0-9]*$/.test(limit) || Number(limit) > 50)) ||
+          (cursor !== null && !/^[A-Za-z0-9_-]{20,2048}$/.test(cursor)))
+        throw new RangeError("Invalid protected Mission history pagination");
     }
     return path + "?" + params.toString();
   }
@@ -293,6 +310,27 @@ function readCorePath(path: string, url: URL): string {
 }
 
 function readQueryResource(path: string, url: URL): BoAccessRequest["resource"] | undefined {
+  // PAP-1536 / Epic PAP-220: validate an optional Center before
+  // fail-closed 503 in the caller above. Core still uses a global reader
+  // that ignores Center and has no canonical Staff membership filter.
+  // Do not forward Center-scoped reads until Core securely implements it.
+  // Legacy no-Center read remains unchanged; never infer a GLOBAL grant.
+  if (path === "workforce/staff-records") {
+    const keys = [...url.searchParams.keys()];
+    if (!keys.length) return undefined;
+    const centers = url.searchParams.getAll("centerId");
+    if (keys.length !== 1 || keys[0] !== "centerId" || centers.length !== 1 || !S3_UUID.test(centers[0]!))
+      throw new RangeError("Invalid Staff directory Center query");
+    return { centerId: centers[0]! };
+  }
+  if (STAFF_CENTER_APPLICATION_READ.test(path)) {
+    // PAP-1407: mandatory single Center, no identity/query overrides.
+    const keys = [...url.searchParams.keys()];
+    const centers = url.searchParams.getAll("centerId");
+    if (keys.length !== 1 || keys[0] !== "centerId" || centers.length !== 1 || !S3_UUID.test(centers[0]!))
+      throw new RangeError("Staff application Center is required");
+    return { centerId: centers[0]! };
+  }
   if (path === "tv/operator-health") {
     const keys=[...url.searchParams.keys()];
     const ids=url.searchParams.getAll("centerId");

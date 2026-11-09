@@ -1,4 +1,8 @@
+import {isHoTvReadRequest} from "./ho-tv-read-contract";
+import {billMethodAllowed} from "./bo-bills-paths";
+import {billTableCenter,billTableRoot} from "./bo-bill-table-contract";
 import {tosV4StagingHost} from "./tos-v4-staging-host";
+import {HO_BILLS_API,isHoBillsRequest} from "./ho-bills-contract";
 import { HO_PAGE_PATHS, HO_HOME_PATH } from "./ho-routes";
 import { GLOBAL_TERMS_API, isGlobalTermsRequest } from "./ho-global-terms-contract";
 export const HO_STAGING_HOSTNAME = "ho.staging.pinohouse.art";
@@ -20,6 +24,76 @@ export type HostBoundaryDecision =
 
 export function decideHostBoundary(host: string, pathname: string, method = "GET"): HostBoundaryDecision {
   const hostname = normalizeHostname(host);
+  // PAP-1526: fence the entire namespace; admit only this exact Center GET.
+  if(pathname===billTableRoot||pathname.startsWith(billTableRoot+"/"))
+    return {action:hostname===BO_STAGING_HOSTNAME&&method==="GET"&&billTableCenter(pathname)!==null?"next":"not_found"};
+  // PAP-1460 / Epic PAP-1316: Founder removed BO TV management from every
+  // BO host, role, query and deep link. Deny before generic BO/preview fallthrough.
+  if (/^\/bo\/tvs(?:\/|$)/i.test(pathname)) return { action: "not_found" };
+  // PAP-1418 / PNR-TV: exact Founder HO read paths only; never BO/other hosts.
+  if(pathname.startsWith("/api/ho/pinoria/tv-health") || pathname.startsWith("/api/ho/pinoria/tv-config") || pathname.startsWith("/api/ho/pinoria/tv-policies"))
+    return {action:hostname===HO_STAGING_HOSTNAME&&isHoTvReadRequest(pathname,method)?"next":"not_found"};
+  if (pathname === HO_BILLS_API || pathname.startsWith(HO_BILLS_API + "/"))
+    return {action:hostname === HO_STAGING_HOSTNAME && isHoBillsRequest(pathname,method) ? "next" : "not_found"};
+  // PAP-1495 / Epic PAP-1491 SPEC-UNLOCK: exact HO V2 Specialty GET BFF ingress.
+  // Fail closed for BO/TOS/production hosts, writers and unsupported descendants.
+  const specialtyBase="/api/ho/learning/specialties";
+  if(pathname===specialtyBase||pathname.startsWith(specialtyBase+"/")){
+    const detail=/^\/api\/ho\/learning\/specialties\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pathname);
+    const options=pathname===specialtyBase+'/path-options';
+    const create=pathname===specialtyBase&&method==='POST';
+    // PAP-1495 S5: exact Founder DRAFT command endpoint, never other writers/descendants.
+    const graph=/^\/api\/ho\/learning\/specialties\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/commands$/i.test(pathname);
+    return {action:hostname===HO_STAGING_HOSTNAME&&
+      ((method==="GET"&&(pathname===specialtyBase||detail||options))||create||
+       (method==="POST"&&graph)||(method==="PUT"&&detail))?"next":"not_found"};
+  }
+  // PAP-1407 / PAP-220 — exact Center-only Staff Registration ingress.
+  // E2E found middleware 404 before the BFF/Core; never widen the generic BO/HO host fence.
+  const staffQueueBase = "/api/bo/workforce/staff-center-registration-requests";
+  if (pathname === staffQueueBase || pathname.startsWith(staffQueueBase + "/")) {
+    const record = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    const suffix = pathname.slice(staffQueueBase.length);
+    return { action: hostname === BO_STAGING_HOSTNAME && method === "GET"
+      && (suffix === "" || suffix.startsWith("/") && record.test(suffix.slice(1))) ? "next" : "not_found" };
+  }
+  const staffLinksBase = "/api/ho/staff-center-links";
+  if (pathname === staffLinksBase || pathname.startsWith(staffLinksBase + "/")) {
+    const match = /^\/api\/ho\/staff-center-links\/([0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})(\/status)?$/i.exec(pathname);
+    return { action: hostname === HO_STAGING_HOSTNAME && Boolean(match)
+      && (match?.[2] ? method === "POST" : method === "GET") ? "next" : "not_found" };
+  }
+  // PAP-1181 / PAP-435: Staging-only synthetic Center affiliation ingress.
+  // Team BO BFF checks password + idempotency; canonical Core enforces actor,
+  // Center scope, QA Intake predicates, CAS and atomic audit. Never a wildcard.
+  const stagingAffiliationFixture = "/api/bo/staging-fixtures/center-affiliations";
+  if (pathname === stagingAffiliationFixture || pathname.startsWith(stagingAffiliationFixture + "/")) {
+    return pathname === stagingAffiliationFixture && hostname === BO_STAGING_HOSTNAME && method === "POST"
+      ? { action: "next" } : { action: "not_found" };
+  }
+  // PAP-1479 / SCH-STUDENT-MGMT: exact BO Staging-only Student name edit ingress.
+  // Team BO facade enforces one Center query and two-field name/CAS body;
+  // Core independently rechecks Manager CENTER grant, current affiliation and audit.
+  const studentNameEdit = /^\/api\/bo\/students\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(pathname);
+  if (studentNameEdit) {
+    return hostname === BO_STAGING_HOSTNAME && method === "PATCH" ? { action: "next" } : { action: "not_found" };
+  }
+  // PAP-1356: global fail-closed fence so unknown hosts cannot fall through.
+  const loadoutId = "[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
+  const setRoot = new RegExp("^/api/bo/pinoria/selfs/" + loadoutId + "/set$").test(pathname);
+  // PAP-1486 / Epic PAP-1097 PNR-WARD: exact Starter command and authorized
+  // member media must pass the host fence before the BO BFF/Core ACL re-check.
+  // Never allow arbitrary Set descendants, foreign hosts or alternate verbs.
+  const setCommand = new RegExp("^/api/bo/pinoria/selfs/" + loadoutId + "/set/(apply|clear|starter)$").test(pathname);
+  const setMemberMedia = new RegExp("^/api/bo/pinoria/selfs/" + loadoutId + "/set/media/[0-7]$").test(pathname);
+  if (setRoot || setCommand || setMemberMedia) return hostname === BO_STAGING_HOSTNAME &&
+    (setCommand ? method === "POST" : method === "GET") ? { action: "next" } : { action: "not_found" };
+  if (/^\/api\/bo\/pinoria\/selfs\/[^/]+\/set(?:\/|$)/.test(pathname)) return { action: "not_found" };
+  const loadoutRoute = new RegExp("^/api/bo/pinoria/selfs/" + loadoutId + "/loadout(?:/media/(AURA_GROUND|AURA_BACK|BACK|OUTFIT|HAIR|FACE|HEADWEAR|PATH_MARK))?$").exec(pathname);
+  if (loadoutRoute) return hostname === BO_STAGING_HOSTNAME && (loadoutRoute[1] ? method === "GET" : (method === "GET" || method === "POST"))
+    ? { action: "next" } : { action: "not_found" };
+  // Reject malformed descendants without passing through generic BO / foreign-host routes.
+  if (new RegExp("^/api/bo/pinoria/selfs/" + loadoutId + "/loadout/").test(pathname)) return { action: "not_found" };
   // PAP-1342: protected source Link GET cannot fall through on foreign hosts.
   const diaryLinkRead = /^\/api\/(ho|bo)\/learning\/path-diaries\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/mission-links$/i.exec(pathname);
   if (diaryLinkRead) return method === "GET" && hostname === (diaryLinkRead[1]!.toLowerCase()==="ho" ? HO_STAGING_HOSTNAME : BO_STAGING_HOSTNAME)
@@ -29,6 +103,10 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   // PAP-1248: hard host and verb fence BEFORE HO/production generic fallthrough.
   if (pathname === "/api/bo/open-studio/walkin/parent-contact-lookup" || pathname === "/api/bo/open-studio/walkin/parent-center-proofs")
     return hostname === BO_STAGING_HOSTNAME && method === "POST" ? {action:"next"} : {action:"not_found"};
+  // PAP-1421: Bills staging slice; exact paths/verbs, no HO/TOS/Production fallthrough.
+  if (pathname === "/bo/bills") return hostname === BO_STAGING_HOSTNAME && method === "GET" ? {action:"next"} : {action:"not_found"};
+  if (pathname === "/api/bo/billing/bill-drafts" || pathname.startsWith("/api/bo/billing/bill-drafts/"))
+    return hostname === BO_STAGING_HOSTNAME && billMethodAllowed(pathname.slice("/api/bo/".length),method) ? {action:"next"} : {action:"not_found"};
   // PAP-1210: exact Center Mission Assignment read and Staging-only writes.
   // Core owns effective Manager permission, Center/Student linkage, CAS and audit.
   const assignmentRead = /^\/api\/bo\/learning\/mission-assignments(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?\/?$/i.test(pathname);
@@ -37,21 +115,38 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   // PAP-1332: one source-authorized Mission Diary projection; no child wildcard.
   // Middleware must admit the path before the BO BFF can enforce Center/actor ACL.
   const assignmentDiaryRead = /^\/api\/bo\/learning\/mission-assignments\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/diaries\/?$/i.test(pathname);
-  if (assignmentRead || assignmentChange || assignmentCancel || assignmentDiaryRead) {
+  // PAP-1210: exact Staging-only Center Assignment audit read.
+  const assignmentHistoryRead = /^\/api\/bo\/learning\/mission-assignments\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/history\/?$/i.test(pathname);
+  // PAP-1676 / PAP-1210: admit only the three independent Completion endpoints.
+  // Host fence precedes the BO BFF, which rechecks auth/Center and Core CAS/audit.
+  const assignmentCompletion = /^\/api\/bo\/learning\/mission-assignments\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/(execution|completion-history|reopen)$/i.exec(pathname);
+  if (assignmentCompletion) {
+    const operation = assignmentCompletion[1]!.toLowerCase();
+    const allowed = hostname === BO_STAGING_HOSTNAME &&
+      (operation === "reopen" ? method === "POST" : method === "GET");
+    return { action: allowed ? "next" : "not_found" };
+  }
+  if (assignmentRead || assignmentChange || assignmentCancel || assignmentDiaryRead || assignmentHistoryRead) {
     const readAllowed = assignmentRead && isBoHostname(hostname) && method === "GET";
     const diaryReadAllowed = assignmentDiaryRead && hostname === BO_STAGING_HOSTNAME && method === "GET";
     const writeAllowed = hostname === BO_STAGING_HOSTNAME && ((pathname.replace(/\/$/, "") === "/api/bo/learning/mission-assignments" && method === "POST") || (assignmentChange && method === "PUT") || (assignmentCancel && method === "POST"));
-    return readAllowed || diaryReadAllowed || writeAllowed ? { action: "next" } : { action: "not_found" };
+    const historyReadAllowed = assignmentHistoryRead && hostname === BO_STAGING_HOSTNAME && method === "GET";
+    return readAllowed || diaryReadAllowed || historyReadAllowed || writeAllowed ? { action: "next" } : { action: "not_found" };
   }
 
   if (hostname === HO_STAGING_HOSTNAME) {
     const p = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
+    // PAP-1594: Founder-only Path directory GET; all non-GET verbs remain hidden.
+    if (p === "/api/ho/learning/paths") return { action: method === "GET" ? "next" : "not_found" };
     // PAP-1221: HO Staging-only Diary GLOBAL read, exact collection/UUID detail.
     // BFF HO pilot gate + Core Founder learning.diary.global.view remain mandatory.
     if (/^\/api\/ho\/learning\/path-diaries(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/mission-links)?)?$/i.test(p))
       return { action: method === "GET" ? "next" : "not_found" };
     // PAP-1207: exact HO GLOBAL MissionDefinition writer only; Core rechecks GLOBAL Founder.
     if (p === "/api/ho/learning/missions") return { action: method === "POST" ? "next" : "not_found" };
+    // PAP-1207: exact Founder Mission audit GET; no other verbs or descendant paths.
+    if (/^\/api\/ho\/learning\/missions\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/history$/.test(p))
+      return { action: method === "GET" ? "next" : "not_found" };
     if (/^\/api\/ho\/learning\/missions\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(p))
       return { action: (method === "PUT" || method === "GET") ? "next" : "not_found" };
     const staffRateWrite = /^\/api\/ho\/staff\/[0-9a-f-]{36}\/compensation$/.test(p);
@@ -159,14 +254,17 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
       return hostname === BO_STAGING_HOSTNAME && (selfItemRead ? method === "GET" : method === "POST")
         ? { action: "next" } : { action: "not_found" };
     }
-    // PAP-982 S3: exact Staging-only directory read; BFF and Core reauthorize the actor and Center.
-    // All write/HEAD methods, child paths, HO/TOS and Production stay denied at the host edge.
+    // PAP-1625 FG2: exact Staging-only Directory GET + Create Self POST.
+    // Child paths/other verbs/HO/TOS/Production remain denied; Core reauthorizes Center.
     if (pathname.replace(/\/$/, "") === "/api/bo/pinoria/avatars") {
-      return hostname === BO_STAGING_HOSTNAME && method === "GET" ? { action: "next" } : { action: "not_found" };
+      return hostname === BO_STAGING_HOSTNAME && (method === "GET" || method === "POST")
+        ? { action: "next" } : { action: "not_found" };
     }
     // PAP-1035: Worker-first admission must match the already-authenticated
     // BO read facade. This is a staging-only GET/HEAD fence, never a write bypass.
     if (hostname === BO_STAGING_HOSTNAME && (method === "GET" || method === "HEAD") && (isBoStagingS3ReadPath(pathname) || isBoStagingRunningClassEnrollmentReadPath(pathname))) return { action: "next" };
+    // PAP-1598: one exact authenticated presentation asset; no prototype JS/HTML or API admission.
+    if (hostname === BO_HOSTNAME && pathname === "/bo-skeleton/styles.css" && (method === "GET" || method === "HEAD")) return { action: "next" };
     if (pathname === "/") return { action: "redirect", pathname: "/bo" };
     if ((hostname === BO_STAGING_HOSTNAME && method === "GET" && pathname.replace(/\/$/, "") === "/api/bo/school/enrollments") || ((method === "GET" || method === "HEAD") && ["/team-legacy-global.css", "/bo-legacy-foundation.css"].includes(pathname)) || isBoLocalAuthPath(pathname) || isApprovedBoPath(pathname) || isFrameworkAsset(pathname) || (hostname === BO_STAGING_HOSTNAME && isBoStagingStylesheet(pathname))) return { action: "next" };
     return { action: "not_found" };
@@ -268,14 +366,13 @@ function isApprovedBoPath(pathname: string): boolean {
     "/bo/learners",
     "/bo/student-visits",
     "/bo/subscriptions",
+    "/bo/bills",
     "/bo/sales/leads",
     "/bo/open-studio",
     "/api/bo/open-studio/walkin/inventory",
     "/api/bo/open-studio/walkin/batches",
     "/api/bo/open-studio/walkin/assign",
     "/api/bo/open-studio/walkin/revoke",
-    "/bo/tvs",
-    // PAP-1266 is the only live TV TDD page; legacy mesh/TV operator remain unadmitted.
     "/bo/delivery-activation",
     "/bo/calendar",
     "/bo/running-classes",

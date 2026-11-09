@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {verify,inspectModuleSource,inspectModuleDelta,inspectCss,validateSpecial} from './verify-tdd-authority.mjs';
+import {verify,inspectModuleSource,inspectModuleDelta,inspectCss,validateSpecial,isFounderRetiredBoTvRoute,isFounderRetiredHoStaffLinksRoute} from './verify-tdd-authority.mjs';
 const now=Date.parse('2026-10-28T06:00:00Z');
 function schema(surface='BO') {
  const fields=[{key:'name',label:'Name',type:'text',icon:'Aa',width:175,permission:'fixture.read',readOnly:true,capabilities:{display:true,search:true,filter:true,sort:true,group:true,inlineEdit:false}}];
@@ -32,12 +32,13 @@ for(const [label,mutate] of [
 ]) test('gate rejects '+label,async t=>{const x=setup(t);mutate(x.m);assert.ok((await x.check()).errors.length);});
 test('optional nonempty builtIns and separate saved views remain valid; column count/order not prototype',async t=>{const x=setup(t);x.m.table.views.builtIn=[{id:'pending',label:'Pending',state:{search:'',filters:{logic:'AND',rules:[]},sort:null,group:null,order:['name'],visible:['name'],page:1,pageSize:8}}];assert.deepEqual((await x.check()).errors,[]);});
 test('unused schema import cannot substitute for renderer binding',async t=>{const x=setup(t);x.put(x.file,`import {schema} from './schema'; import {TddRenderer} from '@/app/components/workspace-renderer/Renderer'; export default function Page(){return <p/>}`);assert.match((await x.check()).errors.join(),/binding required/);});
-test('new unregistered route fails',async t=>{const x=setup(t);x.manifest.modules=[];assert.match((await x.check()).errors.join(),/requires explicit TDD/);});
+test('PAP-1532 optional Engine route has no mandatory admission',async t=>{const x=setup(t);x.manifest.modules=[];const r=await x.check();assert.deepEqual(r.errors,[]);assert.match(r.reports.join(),/NON_ENGINE_ROUTE/);});
 test('new route cannot self-grandfather',async t=>{const x=setup(t);x.entry.profile='EXISTING_GRANDFATHERED';assert.match((await x.check()).errors.join(),/cannot self-grandfather/);});
 test('legacy hotfix and unrelated work do not inherit TDD gate',async t=>{const x=setup(t);x.baseline.routes=[{file:x.file}];x.manifest.modules=[];x.put(x.file,'export default function Page(){return <table style={{width:500}}/>}');assert.deepEqual((await x.check([x.file,'app/tos/hotfix.tsx'])).errors,[]);});
 test('explicit migration admission gates old route',async t=>{const x=setup(t);x.baseline.routes=[{file:x.file}];x.put(x.file,'export default function Page(){return <table/>}');assert.ok((await x.check()).errors.length);});
 test('imported helper shell is inspected and must be in file fence',async t=>{const x=setup(t);x.put(x.file,fs.readFileSync(path.join(x.root,x.file),'utf8')+"\nimport './helper';");x.put('app/bo/new/helper.tsx','export const Copy=()=> <div className="detail-hero"/>');assert.match((await x.check()).errors.join(),/outside admission fence/);x.entry.files.push('app/bo/new/helper.tsx');assert.match((await x.check()).errors.join(),/reserved shell/);});
 test('new shared owner cannot be claimed by module',async t=>{const x=setup(t);x.entry.files.push('app/components/workspace-renderer/Renderer.tsx');assert.match((await x.check()).errors.join(),/cannot claim shared/);});
+test('PAP-1532 non-Engine layout CSS module needs no manifest owner, still denies shell CSS',async t=>{const x=setup(t),file='app/ho/non-engine/layout.module.css';x.put(file,'.grid { display:grid; gap:8px }');assert.deepEqual((await x.check([file])).errors,[]);x.put(file,'.detail-hero { width:500px!important }');assert.match((await x.check([file])).errors.join(),/business CSS|forbidden/);});
 test('new CSS and important cannot be hidden in helper',async t=>{const x=setup(t);const css='app/bo/new/override.css';x.put(css,'.detail-hero { width: 500px!important }');assert.match((await x.check([css])).errors.join(),/unauthorized surface stylesheet/);x.entry.files.push(css);assert.match((await x.check()).errors.join(),/module CSS/);});
 for(const [surface,css] of [['BO','.detail-hero{width:20px}'],['HO',':where(html[data-bo-ui-authority="v25"]) .detail-hero{width:20px}'],['BO',':where(html[data-surface="ho"]) .detail-hero{width:20px}'],['HO',':where(html[data-surface="ho"]) .x, .leak{color:red}']]) test(surface+' CSS leakage '+css,()=>assert.ok(inspectCss('surface.css',css,surface).length));
 test('surface CSS valid scope passes',()=>assert.deepEqual(inspectCss('bo.css',':where(html[data-bo-ui-authority="v25"]) .x {color:red}','BO'),[]));
@@ -66,7 +67,7 @@ test('new shared source path requires owner reconciliation',async t=>{const x=se
 test('changed shell CSS outside authority fails; unrelated TOS CSS and untouched legacy rules pass',async()=>{const {inspectForeignCss}=await import('./verify-tdd-authority.mjs');assert.ok(inspectForeignCss('app/globals.css','.detail-hero{width:1px}','.detail-hero{width:500px!important}').length);assert.deepEqual(inspectForeignCss('app/globals.css','.detail-hero{width:1px}','.detail-hero{width:1px}.tos-card{padding:3px}'),[]);});
 
 test('special stylesheet cannot leak across surfaces',async t=>{const x=setup(t),a=special(x),css='app/bo/new/special.css';x.entry.files.push(css);a.files=[...x.entry.files];x.put(css,'.global {color:red}');assert.match((await x.check([css])).errors.join(),/unscoped CSS/);});
-test('JavaScript page cannot evade route admission',async t=>{const x=setup(t);x.put('app/ho/hidden/page.jsx','export default function Hidden(){return <main/>}');assert.match((await x.check()).errors.join(),/hidden.*requires explicit/);});
+test('PAP-1532 non-Engine JavaScript page needs no TDD admission',async t=>{const x=setup(t);x.put('app/ho/hidden/page.jsx','export default function Hidden(){return <main/>}');const result=await x.check();assert.deepEqual(result.errors,[]);assert.match(result.reports.join(),/hidden.*NON_ENGINE_ROUTE/);});
 
 test('special malformed owner or permissions rejects',async t=>{const x=setup(t),a=special(x);a.permissions=[null];a.owner={name:'invented'};assert.match((await x.check()).errors.join(),/incomplete special profile/);});
 test('duplicate approval identity cannot hide revocation',async t=>{const x=setup(t),a=special(x);x.manifest.approvals.push({...a,status:'revoked'});assert.match((await x.check()).errors.join(),/ambiguous Founder approval/);});
@@ -314,4 +315,105 @@ test('PAP-1105: only exact shared Freeze owner is admitted (no arbitrary shared 
   x.put('app/components/workspace-renderer/tdd-freeze.css','[data-tdd-freeze] {position:sticky}');
   assert.deepEqual((await x.check(['app/components/workspace-renderer/tdd-freeze.css'])).errors,[]);
   assert.match((await x.check(['app/components/workspace-renderer/tdd-freeze-copy.css'])).errors.join(),/owner reconciliation/);
+});
+
+function setupBusinessStyle(t) {
+ const x=setup(t),file='app/bo/new/business.tsx',css='app/bo/new/business.module.css';
+ x.put(x.file,fs.readFileSync(path.join(x.root,x.file),'utf8')+"\nimport './business';");
+ x.put(file,"import styles from './business.module.css';export const Business=()=> <div className={styles.items}/>;");
+ x.put(css,'.items {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}@media (max-width: 840px){.items{grid-template-columns:minmax(0,1fr)}}');
+ x.entry.files.push(file,css);
+ x.entry.businessStyles=[{file:css,owner:'PAP-1500',consumer:file,classes:['items']}];
+ return {...x,file,css};
+}
+test('PAP-1500 explicit business CSS only within owner+consumer+layout declaration passes',async t=>{
+ const x=setupBusinessStyle(t);
+ assert.deepEqual((await x.check([x.file,x.file.replace('page.tsx','business.tsx'),x.css])).errors,[]);
+});
+for(const [label,source] of [
+ ['global selector','.items, body{display:grid}'],
+ ['shell selector','.detail-hero{display:grid}'],
+ ['cross surface selector','[data-surface="ho"] .items{display:grid}'],
+ ['important declaration','.items{max-width:100%!important}'],
+ ['color styling','.items{color:red}'],
+ ['remote CSS import',"@import url('https://example.invalid/a.css');.items{display:grid}"],
+ ['position override','.items{position:fixed}']
+])test('PAP-1500 business CSS denies '+label,async t=>{
+ const x=setupBusinessStyle(t);x.put(x.css,source);assert.ok((await x.check([x.file,x.css])).errors.length,label);
+});
+test('PAP-1500 computed CSS module classNames remain denied',async t=>{
+ const x=setupBusinessStyle(t);
+ x.put(x.file,"import styles from './business.module.css';export const Business=()=> <div className={styles[dynamic]}/>;");
+ assert.match((await x.check([x.file])).errors.join(),/opaque className/);
+});
+test('PAP-1500 undeclared CSS module remains denied',async t=>{
+ const x=setupBusinessStyle(t);delete x.entry.businessStyles;
+ assert.match((await x.check([x.file,x.css])).errors.join(),/module CSS/);
+});
+test('PAP-1500 business CSS consumer must import declared exact file',async t=>{
+ const x=setupBusinessStyle(t);x.put(x.file,'export const Business=()=> <div className="items"/>;');
+ assert.match((await x.check([x.file,x.css])).errors.join(),/invalid business CSS owner fence/);
+});
+
+
+test("PAP-1460 Founder-approved BO TV retirement is an exact, 404-fenced exception, not a TDD bypass",t=>{
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),"pap1460-tv-retired-"));
+  t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+  const original=path.resolve(new URL("..",import.meta.url).pathname.replace(/^\/([A-Z]:)/, "$1"));
+  const files=[
+    "app/bo/tvs/page.tsx", "app/bo/tvs/TvsTdd.tsx", "app/bo/tvs/schema.ts",
+    "middleware.ts", "lib/host-boundary.ts", "app/bo/navigation.ts",
+    "app/bo/pinoria-tv-operator/page.tsx", "lib/bo-url-contract.ts",
+    "app/bo/architecture/bo-staging-route-policy.ts",
+  ];
+  for(const f of files){
+    fs.mkdirSync(path.dirname(path.join(root,f)),{recursive:true});
+    fs.copyFileSync(path.join(original,f),path.join(root,f));
+  }
+  const entry={file:"app/bo/tvs/page.tsx",key:"tvs",surface:"BO",route:"/bo/tvs",profile:"TDD_DEFAULT"};
+  assert.equal(isFounderRetiredBoTvRoute(root,entry),true);
+  assert.equal(isFounderRetiredBoTvRoute(root,{...entry,route:"/bo/other"}),false);
+  assert.equal(isFounderRetiredBoTvRoute(root,{...entry,file:"app/bo/missions/page.tsx"}),false);
+  const mutate=(file,change)=>{
+    const p=path.join(root,file),original=fs.readFileSync(p,"utf8");
+    const changed=change(original);
+    assert.notEqual(changed,original,"negative fixture must actually mutate "+file);
+    fs.writeFileSync(p,changed);
+    assert.equal(isFounderRetiredBoTvRoute(root,entry),false,file);
+    fs.writeFileSync(p,original);
+  };
+  mutate("app/bo/tvs/page.tsx",s=>s.replace("notFound();","return <TvsTdd/>;"));
+  mutate("middleware.ts",s=>s.replace("if (/^\\/bo\\/tvs(?:\\/|$)/i.test(request.nextUrl.pathname))","if (false)"));
+  mutate("lib/host-boundary.ts",s=>s.replace('return { action: "not_found" };','return { action: "next" };'));
+  mutate("app/bo/navigation.ts",s=>s.replace('label: "Operations"','label: "Operations", href: "/bo/tvs"'));
+  mutate("app/bo/architecture/bo-staging-route-policy.ts",s=>s.replace('  "/bo/missions",','  "/bo/tvs",\\n  "/bo/missions",'));
+});
+
+test("PAP-1542 Founder-authorized HO Staff Link retirement is exactly Center-owned",t=>{
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),"pap1542-staff-links-retired-"));
+  t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+  const original=path.resolve(new URL("..",import.meta.url).pathname.replace(/^\/([A-Z]:)/, "$1"));
+  const files=[
+    "app/ho/workforce/staff-links/page.tsx",
+    "app/ho/centers/HoCenters.tsx",
+    "app/ho/centers/CenterStaffRegistrationSection.tsx",
+    "lib/ho-system.ts","lib/host-boundary.ts",
+  ];
+  for(const file of files){fs.mkdirSync(path.dirname(path.join(root,file)),{recursive:true});fs.copyFileSync(path.join(original,file),path.join(root,file));}
+  const entry={file:"app/ho/workforce/staff-links/page.tsx",route:"/ho/workforce/staff-links",key:"staffLinks",surface:"HO",profile:"TDD_DEFAULT"};
+  assert.equal(isFounderRetiredHoStaffLinksRoute(root,entry),true);
+  for(const invalid of [{...entry,route:"/ho/other"},{...entry,key:"centers"},{...entry,surface:"BO"},{...entry,profile:"EXISTING_GRANDFATHERED"}])
+    assert.equal(isFounderRetiredHoStaffLinksRoute(root,invalid),false);
+  const mutate=(file,change)=>{
+    const p=path.join(root,file),before=fs.readFileSync(p,"utf8"),after=change(before);
+    assert.notEqual(after,before);
+    fs.writeFileSync(p,after);
+    assert.equal(isFounderRetiredHoStaffLinksRoute(root,entry),false,file);
+    fs.writeFileSync(p,before);
+  };
+  mutate(files[0],s=>s.replace('redirect("/ho/centers"','redirect("/ho/legacy"'));
+  mutate(files[1],s=>s.replace('detailOverview=','otherOverview='));
+  mutate(files[2],s=>s.replaceAll("readFounderStaffLink","unsafeLegacyLinkRead"));
+  mutate(files[3],s=>s.replace("export const hoModules","export const altModules"));
+  mutate(files[4],s=>s.replaceAll("staffLinksBase", "staffLinksGone"));
 });

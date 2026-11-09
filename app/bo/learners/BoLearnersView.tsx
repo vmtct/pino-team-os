@@ -1,4 +1,5 @@
 "use client";
+import { LocalizedModuleTitle } from "@/lib/pino-nav-locale-context";
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -8,6 +9,7 @@ import { useBoDataGridUrlState } from "@/app/bo/components/data-grid/useBoDataGr
 import { useAuthorizedBoPublicView } from "@/app/bo/components/data-grid/useAuthorizedBoPublicView";
 import { useBoPilotSharedGridView } from "@/app/bo/components/data-grid/useBoPilotSharedGridView";
 import { boApi, BoApiError } from "@/lib/bo-api";
+import { studentCenterApi } from "@/lib/bo-student-center-api";
 import { boDataGridRange } from "@/lib/bo-data-grid-state";
 import { BO_STUDENT_PILOT_FIELDS, BO_STUDENT_PILOT_DEFAULT_COLUMNS, studentPilotFilterRow } from "@/lib/bo-student-pilot-fields";
 import { applyBoFilterSettings, type BoFilterSettings } from "@/lib/bo-filter-settings-state";
@@ -17,32 +19,47 @@ import styles from "./bo-learners.module.css";
 import { StudentPinoriaPanel } from "./StudentPinoriaPanel";
 import { StudentProperties } from "./StudentProperties";
 import { StudentFullDetail } from "./StudentFullDetail";
+import { useStudentCenterEditCapability } from "./useStudentCenterEditCapability";
+import { useBoCenterSelection } from "../components/registration/BoCenterSelection";
 
 type Catalog = { paths: BoPathProgram[]; classes: BoRunningClass[] };
 type Load<T> = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; data: T };
 const STUDENT_GRID_OPTIONS = { defaultPageSize: 25, allowedPageSizes: [10, 25, 50, 100] as const };
 
-function StudentNameInlineCell({ student, onSaved }: { student: BoLearnerDirectoryItem; onSaved: () => void }) {
+function StudentNameInlineCell({ student, canEditName, onSaved }: { student: BoLearnerDirectoryItem; canEditName: boolean; onSaved: () => void }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(student.displayName);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const center = useBoCenterSelection();
+  const selectedCenter = center?.selected ?? "";
+  const canEdit = canEditName && Boolean(selectedCenter) && !center?.loading && !center?.error && Boolean(center?.centers.some(entry => entry.id === selectedCenter)) && student.status !== "ARCHIVED";
+  const currentCenter = useRef(selectedCenter);
+  useEffect(() => { currentCenter.current = selectedCenter; return () => { currentCenter.current = ""; }; }, [selectedCenter]);
   async function submit() {
-    if (saving) return;
+    if (saving || !canEdit || !selectedCenter) return;
     if (!draft.trim()) { setError("Tên học viên không được để trống."); return; }
     setSaving(true); setError("");
     try {
-      const lifecycle = await boApi.learnerLifecycle(student.id);
-      await boApi.updateStudentProfile(student.id, { displayName: draft.trim(), status: lifecycle.student.status as "ACTIVE" | "INACTIVE" | "ARCHIVED", expectedVersion: lifecycle.student.version });
+      const lifecycle = await studentCenterApi.learnerLifecycle(student.id, selectedCenter);
+      if (currentCenter.current !== selectedCenter) return;
+      await studentCenterApi.updateStudentProfile(student.id, { displayName: draft.trim(), expectedVersion: lifecycle.student.version }, selectedCenter);
+      if (currentCenter.current !== selectedCenter) return;
       setEditing(false); onSaved();
     } catch (caught) {
       setError(caught instanceof BoApiError && caught.status === 409 ? "Hồ sơ đã thay đổi, hãy tải lại." : caught instanceof BoApiError && caught.status === 403 ? "Bạn không có quyền sửa học viên." : caught instanceof Error ? caught.message : "Không thể lưu học viên.");
     } finally { setSaving(false); }
   }
-  if (!editing) return <button type="button" aria-label={`Chỉnh sửa tên ${student.displayName}`} onClick={(event) => { event.stopPropagation(); setDraft(student.displayName); setError(""); setEditing(true); }}>{student.displayName}</button>;
+  if (!editing) return canEdit ? <button type="button" aria-label={`Chỉnh sửa tên ${student.displayName}`} onClick={(event) => { event.stopPropagation(); setDraft(student.displayName); setError(""); setEditing(true); }}>{student.displayName}</button> : <span>{student.displayName}</span>;
   return <BoTypedCellEditor label={`Tên học viên ${student.displayName}`} value={draft} saving={saving} error={error} onChange={setDraft} onCommit={() => void submit()} onCancel={() => setEditing(false)} />;
 }
 export function BoLearnersView() {
+  const activeCenter = useBoCenterSelection()?.selected ?? "";
+  // PAP-1426: remount the whole Student workspace on Center switch so no old-Center rows, drawer or in-flight editor survive.
+  return <CenterScopedLearnersView key={activeCenter} activeCenter={activeCenter} />;
+}
+function CenterScopedLearnersView({ activeCenter }: { activeCenter: string }) {
+  const canEditName = useStudentCenterEditCapability(activeCenter);
   const publicViewRuntime = useAuthorizedBoPublicView("students", "student.profile.view", BO_STUDENT_PILOT_DEFAULT_COLUMNS);
   const pathname = usePathname();
   const router = useRouter();
@@ -61,7 +78,8 @@ export function BoLearnersView() {
   const selectedIdRef = useRef<string | null>(null);
 
   async function readDirectory() {
-    return collectPagedDirectory((beforeStudentId, limit) => boApi.learners("", limit, beforeStudentId));
+    if (!activeCenter) return [];
+    return collectPagedDirectory((beforeStudentId, limit) => studentCenterApi.learners("", limit, beforeStudentId, activeCenter));
   }
 
   function selectStudent(id: string | null, history: "push" | "replace" = "replace") {
@@ -91,7 +109,7 @@ export function BoLearnersView() {
     const ticket = detailRequestFence.current.begin(id);
     setDetail({ state: "loading" });
     try {
-      const data = await boApi.learnerLifecycle(id);
+      const data = await studentCenterApi.learnerLifecycle(id, activeCenter);
       if (detailRequestFence.current.isCurrent(ticket, selectedIdRef.current)) setDetail({ state: "ready", data });
     } catch (error) {
       if (detailRequestFence.current.isCurrent(ticket, selectedIdRef.current)) setDetail({ state: "error", message: message(error) });
@@ -100,19 +118,20 @@ export function BoLearnersView() {
 
   useEffect(() => {
     let active = true;
-    void collectPagedDirectory((beforeStudentId, limit) => boApi.learners("", limit, beforeStudentId)).then((rows) => {
+    if (!activeCenter) return () => { active = false; };
+    void collectPagedDirectory((beforeStudentId, limit) => studentCenterApi.learners("", limit, beforeStudentId, activeCenter)).then((rows) => {
       if (!active) return;
       setDirectory({ state: "ready", data: rows });
     }).catch((error: unknown) => { if (active) setDirectory({ state: "error", message: message(error) }); });
     void boApi.scopeCatalog().then((value) => { if (active) setCatalog({ state: "ready", data: { paths: value.paths, classes: value.classes } }); }).catch((error: unknown) => { if (active) setCatalog({ state: "error", message: message(error) }); });
     return () => { active = false; };
-  }, []);
+  }, [activeCenter]);
   useEffect(() => {
     selectedIdRef.current = selectedId;
     detailRequestFence.current.invalidate();
-    if (selectedId) void loadDetail(selectedId);
+    if (selectedId && activeCenter) void loadDetail(selectedId);
     else setDetail(null);
-  }, [selectedId]);
+  }, [selectedId, activeCenter]);
 
   const rows = useMemo(() => directory.state === "ready" ? directory.data : [], [directory]);
   const filtered = useMemo(() => {
@@ -132,23 +151,26 @@ export function BoLearnersView() {
   const visibleRows = pilotFiltered.slice((range.page - 1) * grid.state.pageSize, range.page * grid.state.pageSize);
   const selectedRow = rows.find((student) => student.id === selectedId) ?? null;
   const columns = useMemo<BoDataGridColumn<BoLearnerDirectoryItem>[]>(() => [
-    { key: "name", header: "Học viên", sortable: true, sticky: true, minWidth: 230, render: (student) => <StudentNameInlineCell student={student} onSaved={() => { void loadDirectory(); if (selectedIdRef.current === student.id) void loadDetail(student.id); }} /> },
+    { key: "name", header: "Học viên", sortable: true, sticky: true, minWidth: 230, render: (student) => <StudentNameInlineCell key={`${student.id}:${activeCenter}`} student={student} canEditName={canEditName} onSaved={() => { void loadDirectory(); if (selectedIdRef.current === student.id) void loadDetail(student.id); }} /> },
     { key: "id", header: "Student ID", minWidth: 180, render: (student) => <BoDataGridCanonicalId value={student.id} label="Copy Student ID" /> },
     { key: "birth", header: "Tuổi / sinh", sortable: true, minWidth: 130, render: (student) => <div className={styles.gridStack}><strong>{ageLabel(student.birthYear)}</strong><small>{student.birthPrecision.replaceAll("_", " ")}</small></div> },
     { key: "paths", header: "Active Paths", sortable: true, minWidth: 210, render: (student) => student.activePaths.length ? <div className={styles.gridPathList}>{student.activePaths.slice(0, 2).map((path) => <BoDataGridBadge key={path.id}>{path.displayName}</BoDataGridBadge>)}{student.activePaths.length > 2 ? <BoDataGridBadge>+{student.activePaths.length - 2}</BoDataGridBadge> : null}</div> : <span className={styles.gridMuted}>Chưa có active Path</span> },
     { key: "learning", header: "Subscription / Class", sortable: true, minWidth: 170, render: (student) => <div className={styles.gridStack}><BoDataGridStatus value={student.activeSubscriptions > 0 ? "Đang học" : "Chưa active"} tone={student.activeSubscriptions > 0 ? "success" : "warning"} /><small>{student.activeSubscriptions > 0 ? `${student.activeSubscriptions} active Path · mở detail để xem class` : "Cần Subscription trước khi xếp lớp"}</small></div> },
     { key: "member", header: "House", sortable: true, minWidth: 115, render: (student) => <BoDataGridStatus value={student.houseMember ? "Member" : "Non-member"} tone={student.houseMember ? "info" : "neutral"} /> },
     { key: "attention", header: "Attention", sortable: true, minWidth: 150, render: (student) => { const attention = studentAttention(student); return <BoDataGridStatus value={attention.label} tone={attention.tone} />; } },
-  ], []);
+  ], [activeCenter, canEditName]);
+
+  // PAP-1496 / SPEC-UNLOCK: direct Student Full Detail has its own Center-scoped
+  // Core lifecycle read. An unrelated list/scope catalog failure must not
+  // prevent that authorized detail reader from resolving its own 403/404.
+  if (fullDetailId) return <StudentFullDetail key={`${fullDetailId}:${activeCenter}`} studentId={fullDetailId} />;
 
   if (catalog.state === "loading") return <BoDataGridState kind="loading" message="Đang tải canonical scope catalog cho Student detail…" />;
   if (catalog.state === "error") return <BoDataGridState kind="error" message={catalog.message} />;
-
-  if (fullDetailId) return <StudentFullDetail key={fullDetailId} studentId={fullDetailId} />;
   return <main className={styles.page}>
     <header className={styles.heading}>
       <div>
-        <h1>Học viên</h1>
+        <h1><LocalizedModuleTitle label="Students" moduleKey="learners" /></h1>
       </div>
       <div className={styles.headingActions}><button type="button" className={styles.primaryButton} onClick={() => { if (selectedId) selectStudent(null); setShowCreate(true); }}>＋ Tạo mới</button></div>
     </header>
