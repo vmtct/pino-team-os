@@ -9,9 +9,9 @@ const hoCss = readFileSync(new URL("../public/ho-authority-source/ho-scoped.css"
 const boCss = readFileSync(new URL("../public/bo-authority-source/bo-scoped.css", import.meta.url), "utf8");
 
 test("PAP-1722: Parent Create uses the canonical two-row DSA primitive and no surplus hint", () => {
-  assert.equal((drawer.match(/className="property-row"/g) ?? []).length, 2);
-  assert.equal((drawer.match(/className="os-create-select"/g) ?? []).length, 2);
-  assert.doesNotMatch(drawer, /className="property-control"/);
+  assert.match(drawer, /<PropertySections variant="drawer"/);
+  assert.match(drawer, /createFields=\{\{/);
+  assert.doesNotMatch(drawer, /<label className="property-row"/);
   assert.doesNotMatch(drawer, /className="settings-hint"/);
   assert.match(drawer, /<form id="parent-create-form" onSubmit=/);
   assert.match(drawer, /inferParentContactType\(contactValue\)/);
@@ -35,6 +35,6 @@ test("PAP-1722: Parent Create focuses the first input after shared dialog mount 
   assert.match(drawer, /const nameInputRef = useRef<HTMLInputElement>\(null\)/);
   assert.match(drawer, /requestAnimationFrame\(\(\) => nameInputRef\.current\?\.focus\(\)\)/);
   assert.match(drawer, /cancelAnimationFrame\(frame\)/);
-  assert.match(drawer, /ref=\{nameInputRef\}/);
+  assert.match(drawer, /inputRef: nameInputRef/);
   assert.doesNotMatch(drawer, /\bautoFocus\b/, "Native autofocus must not steal useBoDialog's invoker origin");
 });
