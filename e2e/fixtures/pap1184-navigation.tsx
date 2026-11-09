@@ -8,7 +8,7 @@ import type { ParentFields } from "../../app/bo/parents/schema";
 
 // Isolated synthetic controller fixture; no live auth, API, or browser profile.
 const registry = new TddRegistry();
-const row = { id: "019d2000-0002-7000-8000-000000000001", name: "Parent fixture", maskedContact: null, studentCount: 0, centers: "Fixture Center", updatedAt: "2026-10-30T00:00:00Z", attention: null };
+const row = { id: "019d2000-0002-7000-8000-000000000001", name: "Parent fixture", maskedContact: null, studentCount: 0, centers: "Fixture Center", createdAt: "2026-10-30T00:00:00Z", createdBy: "—", updatedAt: "2026-10-30T00:00:00Z", updatedBy: "—", attention: null };
 const schema = registry.register({ ...parentDefinition, data: { id: "pap1184-fixture", list: async () => ({ rows: [row], total: 1 }), detail: async () => row } });
 const adapter: AuthenticatedSurfaceAdapter<ParentFields> = {
   registry, schema, context: { surface: "BO", centerId: "0199f001-0000-7000-8000-000000000001", authorize: permission => permission === "identity.parent_directory.view" },
