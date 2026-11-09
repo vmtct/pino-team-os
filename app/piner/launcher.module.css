@@ -140,3 +140,36 @@
 .visibilityConfirm:disabled{opacity:.42;cursor:not-allowed}
 .visibilityRevoke{background:#985367;border-color:#985367}
 @media(max-width:350px){.postActions button span{font-size:10px}.visibilityDialog{padding:15px}.visibilityDialog h2{font-size:19px}}
+
+/* PAP-1772 · TOS-framed family profile switcher. No extra desktop-only layout. */
+.profilePicker{background:var(--surface);border:1px solid var(--line);border-radius:17px;padding:11px 12px 8px;margin-bottom:12px;box-shadow:0 2px 10px #35223e0d}
+.profilePickerHeading{display:flex;align-items:center;justify-content:space-between;gap:7px;margin-bottom:9px}
+.profilePickerHeading>div{display:flex;flex-direction:column;gap:1px;min-width:0}
+.profileKicker{color:var(--tone);font-size:10px;letter-spacing:.065em;font-weight:850;line-height:1.2}
+.profilePickerHeading strong{font-size:15px;line-height:1.3;color:var(--ink)}
+.profileCount{color:var(--tone);background:var(--tint);border-radius:99px;font-size:10px;font-weight:750;padding:5px 8px;white-space:nowrap}
+.profileChoices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.profileChoice,.profileSelected{min-width:0;min-height:64px;display:flex;align-items:center;gap:6px;text-align:left;border-radius:12px;padding:7px;border:1px solid var(--line);background:#fff;color:var(--ink)}
+.profileSelected{background:var(--tint);border-color:var(--tone);box-shadow:inset 0 0 0 1px var(--tone)}
+.profileAvatar{width:34px;height:34px;flex:0 0 34px;border-radius:12px;display:grid;place-items:center;background:#f0edf0;color:var(--tone);font-size:16px;font-weight:850}
+.profileSelected .profileAvatar{background:var(--surface)}
+.profileCopy{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.profileCopy strong{font-size:12px;font-weight:800;line-height:1.25;color:var(--ink)}
+.profileCopy small{font-size:9px;color:var(--muted);line-height:1.28;overflow-wrap:normal}
+.profileTick{font-size:13px;font-weight:800;color:var(--tone);min-width:13px;text-align:center}
+.profileHelper{font-size:10px;color:var(--muted);line-height:1.35;margin:7px 2px 0}
+.modalAuthor{margin:6px 3px 0!important;font-size:12px;color:var(--tone)!important}
+.modalAuthor strong{font-weight:850}
+@media(max-width:350px){
+ .profilePicker{padding:9px 9px 6px}
+ .profileChoice,.profileSelected{padding:5px;gap:4px;min-height:60px}
+ .profileAvatar{width:28px;height:28px;flex-basis:28px;font-size:14px;border-radius:9px}
+ .profileCopy small{font-size:8px}
+ .profileHelper{font-size:9px}
+ .homeIntro{min-height:102px}
+}
+
+/* PAP-1772 · Explicit empty states when the selected learner has no media of this type. */
+.emptyMedia{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:138px;padding:23px 16px;text-align:center;background:var(--surface);border:1px dashed var(--line);border-radius:16px;color:var(--muted)}
+.emptyMedia strong{font-size:14px;color:var(--ink);font-weight:800}
+.emptyMedia p{font-size:12px;line-height:1.5;margin:0;max-width:255px}
