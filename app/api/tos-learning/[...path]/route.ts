@@ -26,13 +26,12 @@ async function handle(request: Request, context: Context) {
     }
     const idempotencyKey = request.headers.get("idempotency-key") ?? undefined;
     const completionGet = tosMissionCompletionGetRequest(request.method, normalizedPath, url);
-    const coreRequest = { method: request.method,
-      path: completionGet?.path ?? `/${normalizedPath}`,
-      body: completionGet?.body ?? body,
+    const coreRequest = { method: request.method, path: `/${normalizedPath}`, body,
       ...(idempotencyKey ? { idempotencyKey } : {}) };
+    const routedRequest = completionGet ? { ...coreRequest, ...completionGet } : coreRequest;
     const result = await callTosLearningCoreWithCredential(
       env.PINO_TOS_LEARNING_CORE,
-      coreRequest,
+      routedRequest,
       await teamCredential(request, env, "TOS"),
     );
     return Response.json(result.body, { status: result.status, headers: { "cache-control": "no-store", "x-request-id": result.requestId } });
