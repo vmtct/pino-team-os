@@ -2,6 +2,7 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { callTosLearningCoreWithCredential, type TosLearningCoreBinding } from "@/lib/tos-learning-core";
 import { teamCredential, TeamAuthError, type TeamAccessEnv } from "@/lib/team-auth";
 import { tosQueryParamValue } from "@/lib/tos-query-params";
+import { tosMissionCompletionGetRequest } from "@/lib/tos-mission-completion-facade-get";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,7 +25,11 @@ async function handle(request: Request, context: Context) {
       if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) body = { ...body, ...parsed };
     }
     const idempotencyKey = request.headers.get("idempotency-key") ?? undefined;
-    const coreRequest = { method: request.method, path: `/${normalizedPath}`, body, ...(idempotencyKey ? { idempotencyKey } : {}) };
+    const completionGet = tosMissionCompletionGetRequest(request.method, normalizedPath, url);
+    const coreRequest = { method: request.method,
+      path: completionGet?.path ?? `/${normalizedPath}`,
+      body: completionGet?.body ?? body,
+      ...(idempotencyKey ? { idempotencyKey } : {}) };
     const result = await callTosLearningCoreWithCredential(
       env.PINO_TOS_LEARNING_CORE,
       coreRequest,
