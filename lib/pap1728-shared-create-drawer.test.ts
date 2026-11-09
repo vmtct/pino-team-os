@@ -5,12 +5,13 @@ import { readFileSync } from "node:fs";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { PropertySections } from "../app/components/workspace-renderer/Properties";
-import { parentDefinition, parentSchema } from "../app/bo/parents/schema";
+import { parentDefinition, parentQuery, parentSchema } from "../app/bo/parents/schema";
 import { toLegacyModule } from "./workspace-schema";
 import type { BoRecord } from "./bo-registration";
 
 const fields = toLegacyModule(parentSchema as unknown as Parameters<typeof toLegacyModule>[0]).fields;
 const sections = parentDefinition.drawer.sections;
+const visibleDrawerFields = sections.flatMap(section => [...section.fields]);
 const draft: BoRecord = {
   id: "", name: "", maskedContact: null, studentCount: 0,
   centers: "PINO Cần Thơ", updatedAt: null, attention: null,
@@ -26,10 +27,11 @@ test("PAP-1728 Create and View use the identical typed Drawer property renderer"
     },
   }));
   const count = (html: string, fragment: RegExp) => Array.from(html.matchAll(fragment)).length;
-  assert.equal(count(view, /class="property-row"/g), fields.length);
-  assert.equal(count(create, /class="property-row"/g), fields.length);
+  assert.deepEqual(visibleDrawerFields, parentQuery.visible, "Create and View use the Founder-approved eight default Table fields");
+  assert.equal(count(view, /class="property-row"/g), visibleDrawerFields.length);
+  assert.equal(count(create, /class="property-row"/g), visibleDrawerFields.length);
   assert.equal(count(create, /<input\b/g), 2, "only two approved inputs");
-  assert.equal(count(create, /<button\b/g), fields.length - 2, "other properties stay read-only");
+  assert.equal(count(create, /<button\b/g), visibleDrawerFields.length - 2, "other visible properties stay read-only");
   assert.match(create, /data-tdd-create=""/);
   assert.doesNotMatch(view, /data-tdd-create=/);
   assert.match(create, /data-prop="studentCount"/);
