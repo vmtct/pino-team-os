@@ -189,10 +189,7 @@ export function CreateSelfDrawer({centerId,onClose,onCreated}:{centerId:string;o
    </p>
    {duplicate?<p role="status" className="pino-avatar-duplicate">Person này đã có Avatar. Không thể tạo bản ghi trùng.</p>:null}
    <p className="pino-avatar-hint">Nickname không đổi tên Person. Avatar không tự nhận Starter Set hay Item.</p>
-   <details className="property-section pino-avatar-audit">
-    <summary>Thông tin hệ thống</summary>
-    <PropertySections variant="drawer" fields={auditFields} record={draft} sections={selfDefinition.drawer.sections}/>
-   </details>
+   <PropertySections variant="drawer" fields={auditFields} record={draft} sections={selfDefinition.drawer.sections}/>
    {error?<p className="pino-avatar-error" role="alert">{error}</p>:null}
   </div>
  </DrawerFrame>;

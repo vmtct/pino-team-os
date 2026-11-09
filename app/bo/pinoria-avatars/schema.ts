@@ -41,7 +41,7 @@ export const selfQuery: TableQuery<SelfFields> = {
 const sections = [
   { id: "identity", label: "Định danh", fields: ["name", "nickname", "roles", "subjectLabel", "rowKey", "personId", "staffMemberId", "studentProfileId"] },
   { id: "self", label: "Pinoria Self", fields: ["avatarLabel", "loadoutSummary", "pinoriaSelfId", "selfStatus", "loadoutVersion", "equippedCount"] },
-  { id: "system", label: "Thông tin hệ thống", fields: ["createdAt", "createdBy", "updatedAt", "updatedBy"] },
+  { id: "system", label: "Thông tin hệ thống", fields: ["createdAt", "createdBy", "updatedAt", "updatedBy"], collapsed: true },
 ] as const;
 export const selfDefinition = {
   version: 1, classification: "TDD_DEFAULT", surface: "BO", key: "pinoria-avatars",

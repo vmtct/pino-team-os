@@ -154,7 +154,7 @@ export function validateModule(input: unknown): asserts input is ModuleSchema {
   };
   const sections = (items: unknown) => {
     array(items); check(items.length > 0, "sections required");
-    for (const s of items) { object(s, ["id", "label", "fields"]); nonempty(s.id); nonempty(s.label); refs(s.fields as string[]); }
+    for (const s of items) { object(s, ["id", "label", "fields", "collapsed"], ["id", "label", "fields"]); check(s.collapsed === undefined || s.collapsed === true, "invalid collapsed section metadata"); nonempty(s.id); nonempty(s.label); refs(s.fields as string[]); }
     unique(items.map(s => (s as { id: string }).id));
   };
   object(m.table, ["identity", "columns", "search", "filters", "sort", "group", "views", "pagination", "inlineEdit", "interaction"]);

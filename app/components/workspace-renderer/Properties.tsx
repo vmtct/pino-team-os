@@ -6,7 +6,7 @@ import { useRef, type CSSProperties, type ReactNode, type Ref, type PointerEvent
 /** Presentation seam receives only the renderer's authorized record projection. */
 export type OverviewProperties = {
   readonly fields: readonly BoField[]; readonly record: BoRecord;
-  readonly sections: readonly { readonly id: string; readonly label: string; readonly fields: readonly string[] }[];
+  readonly sections: readonly { readonly id: string; readonly label: string; readonly fields: readonly string[]; readonly collapsed?: boolean }[];
 };
 
 /** PAP-1728: CREATE reuses the View Drawer field/section renderer; the caller
@@ -29,7 +29,7 @@ export type CreateDrawerField = {
 /** Drawer uses property rows, never the viewport-driven Full Detail grid. */
 export function PropertySections({ fields, record, sections, variant, canEdit, onEdit, legacyStyles = false, sectionActions, labelWidth = 160, onLabelWidthChange, createFields }: {
   readonly fields: readonly BoField[]; readonly record: BoRecord;
-  readonly sections: readonly { readonly id: string; readonly label: string; readonly fields: readonly string[] }[];
+  readonly sections: readonly { readonly id: string; readonly label: string; readonly fields: readonly string[]; readonly collapsed?: boolean }[];
   readonly variant: "drawer" | "detail"; readonly legacyStyles?: boolean;
   readonly sectionActions?: (sectionId: string) => ReactNode;
   readonly createFields?: Readonly<Record<string, CreateDrawerField>>;
@@ -67,9 +67,13 @@ export function PropertySections({ fields, record, sections, variant, canEdit, o
   };
   const visibleSections = sections.filter(section => section.fields.some(key => fields.some(f => f.key === key)));
   if (!visibleSections.length) return <p role="status">Không có thuộc tính được phép xem.</p>;
-  return <>{visibleSections.map(section => <section key={section.id} className={variant === "drawer" ? "property-section" : "v24-prop-section"} data-tdd-create={createFields ? "" : undefined} data-tdd-properties={variant} data-tdd-detail-resize={variant === "detail" ? "" : undefined}
+  return <>{visibleSections.map(section => {
+    // PAP-1743: metadata-driven native disclosure; one shared typed row renderer.
+    const Shell = variant === "drawer" && section.collapsed ? "details" : "section";
+    return <Shell key={section.id} className={variant === "drawer" ? "property-section" : "v24-prop-section"} data-tdd-create={createFields ? "" : undefined} data-tdd-properties={variant} data-tdd-detail-resize={variant === "detail" ? "" : undefined}
+    data-tdd-collapsed={Shell === "details" ? "" : undefined}
     style={variant === "detail" ? { "--tdd-detail-label-width": String(labelWidth) + "px" } as CSSProperties : undefined}>
-    {variant === "drawer" ? <h3>{section.label}</h3> : <div className="v24-section-heading"><div style={{ display: "inline-flex", alignItems: "center", gap: 8 }}><h4>{section.label}</h4>{sectionActions?.(section.id)}</div><span className="v24-lock" aria-label="Chỉ đọc">⌁</span></div>}
+    {variant === "drawer" ? section.collapsed ? <summary>{section.label}</summary> : <h3>{section.label}</h3> : <div className="v24-section-heading"><div style={{ display: "inline-flex", alignItems: "center", gap: 8 }}><h4>{section.label}</h4>{sectionActions?.(section.id)}</div><span className="v24-lock" aria-label="Chỉ đọc">⌁</span></div>}
     <div className={variant === "detail" ? "v24-prop-grid" : undefined}>{section.fields.map((key, index) => {
       const field = fields.find(f => f.key === key); if (!field) return null;
       const editable = Boolean(onEdit && canEdit?.(field));
@@ -105,5 +109,6 @@ export function PropertySections({ fields, record, sections, variant, canEdit, o
         </div>}
       </div>;
     })}</div>
-  </section>)}</>;
+  </Shell>;
+  })}</>;
 }
