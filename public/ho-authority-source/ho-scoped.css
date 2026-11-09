@@ -593,6 +593,12 @@
 [data-surface="ho"] :is(.id-code,.pagination select,.detail-subtitle,.drawer-path,.v24-field-glyph) { color:var(--ds-primary); }
 [data-surface="ho"] :is(.lab-menu,.detail-hero-back,.settings-trigger,.pager) { color:var(--ds-primary); border-color:var(--ds-primary-border); }
 [data-surface="ho"] .toolbar-button:where(:not([data-tdd-shell="table"] *)), [data-surface="ho"] .view-add:where(:not([data-tdd-shell="table"] *)) { display:none!important; }
+/* PAP-1419 / PNR-TV S3: the HO legacy shell hides Table controls globally.
+   Restore only the three approved PINO DS list actions within the Founder
+   Policy Directory; do not expose disabled Quick Views, grouping or S4 actions. */
+[data-surface="ho"] [data-pnr-tv-stage="s3-list"] .toolbar :is(#filter-toggle, #visible-columns, #reset-all) {
+  display: inline-flex !important;
+}
 [data-surface="ho"] :is(.view-rename-input,input:focus,select:focus) { border-color:var(--ds-primary-border); }
 
 [data-surface="ho"] .nav-link.active .nav-icon { color:var(--ds-on-primary); }
