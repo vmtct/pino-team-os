@@ -102,6 +102,10 @@
         {
           "file": "app/bo/components/registration/BoCenterSelection.tsx",
           "owner": "PAP-1316"
+        },
+        {
+          "file": "app/bo/components/registration/BoValue.tsx",
+          "owner": "PAP-1737"
         }
       ],
       "businessStyles": [
