@@ -15,13 +15,18 @@ const respond=(status:number,code:string)=>Response.json({error:{code}},{status,
  headers:{'cache-control':'no-store','x-content-type-options':'nosniff'}});
 type Command=
  | {type:"SET_OVERVIEW";expectedVersion:number;levelCount:number;prerequisiteIds:string[];tags:string[]}
- | {type:"LINK_MISSION"|"UNLINK_MISSION";expectedVersion:number;levelId:string;missionId:string};
+ | {type:"LINK_MISSION"|"UNLINK_MISSION";expectedVersion:number;levelId:string;missionId:string}
+ | {type:"PUBLISH";expectedVersion:number};
 const keys=(x:Record<string,unknown>,expect:readonly string[])=>Object.keys(x).length===expect.length&&
  expect.every(k=>Object.hasOwn(x,k))&&Object.keys(x).every(k=>expect.includes(k));
 export function parseHoSpecialtyV2Command(raw:unknown):Command|null{
  if(!raw||typeof raw!=='object'||Array.isArray(raw))return null;
  const x=raw as Record<string,unknown>;
  if(!Number.isSafeInteger(x.expectedVersion)||Number(x.expectedVersion)<1)return null;
+ if(x.type==="PUBLISH"){
+  if(!keys(x,["type","expectedVersion"]))return null;
+  return {type:"PUBLISH",expectedVersion:Number(x.expectedVersion)};
+ }
  if(x.type==="SET_OVERVIEW"){
   if(!keys(x,["type","expectedVersion","levelCount","prerequisiteIds","tags"])||
      !Number.isSafeInteger(x.levelCount)||Number(x.levelCount)<1||Number(x.levelCount)>12||
@@ -73,11 +78,12 @@ export async function handleHoSpecialtyV2Command(request:Request,env:HoSpecialty
   if(core.status!==200)return Response.json(core.body,{status:core.status,
    headers:{"cache-control":"no-store","x-content-type-options":"nosniff"}});
   const dto=parseSpecialtyDetail((core.body as {data?:unknown}|null)?.data);
-  if(!dto||dto.id!==specialtyId||dto.status!=="DRAFT"||dto.version!==cmd.expectedVersion+1)
+  if(!dto||dto.id!==specialtyId||dto.status!==(cmd.type==="PUBLISH"?"ACTIVE":"DRAFT")||dto.version!==cmd.expectedVersion+1)
    return respond(502,"SPECIALTY_V2_COMMAND_RESPONSE_INVALID");
   const get=await callFounderCoreWithStaffPassword(env.PINO_CORE,{method:"GET",path:route},credential.token);
   const verified=parseSpecialtyDetail((get.body as {data?:unknown}|null)?.data);
   if(get.status!==200||!verified||verified.id!==specialtyId||verified.version!==dto.version||
+     verified.status!==dto.status||
      JSON.stringify(verified.levels)!==JSON.stringify(dto.levels)||
      JSON.stringify(verified.prerequisiteIds)!==JSON.stringify(dto.prerequisiteIds)||
      JSON.stringify(verified.tags)!==JSON.stringify(dto.tags)||

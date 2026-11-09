@@ -2,6 +2,8 @@
 import { createElement as h } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
+import {createRequire} from "node:module";
+const requirePinoDs=createRequire(import.meta.url);
 import { resolve } from "node:path";
 import { TddTable, TddDrawer, TddDetail } from "../app/components/workspace-renderer";
 import { TddRenderer, type TddStage } from "../app/components/workspace-renderer/Renderer";
@@ -121,7 +123,7 @@ function actionMarkup(surface: Surface, stage: ActionStage): string {
 }
 // PAP-1247: only action-present fixtures load the pinned DS action primitives.
 // Keep htmlDocument's no-action golden CSS unchanged.
-const actionStyles = readFileSync(resolve("node_modules/@pino/design-system/dist/0.3.0/components.css"), "utf8");
+const actionStyles = readFileSync(requirePinoDs.resolve("@pino/design-system/components.css"), "utf8");
 for (const required of [".pds-bo-action-button", ".pds-bo-action-group"]) {
   if (!actionStyles.includes(required)) throw Error("PAP-1247: pinned DS missing CSS " + required);
 }

@@ -7,6 +7,8 @@ import {BoTypedEditor} from "@/app/bo/components/registration/BoTypedEditor";
 import {BoApiError} from "@/lib/bo-api-error";
 import {readSpecialtyV2Detail,readSpecialtyV2List,type SpecialtyV2Detail,type SpecialtyV2Summary} from "@/lib/ho-specialty-v2-reader";
 import {postSpecialtyGraphCommand} from "@/lib/ho-specialty-v2-graph-client";
+import {specialtyPublishWarnings} from "@/lib/ho-specialty-v2-publish";
+import {ConfirmDialog} from "@pino/design-system/react";
 import {eligibleSpecialtyPrerequisites,planSpecialtyOverviewEdit,type SpecialtyS5OverviewKey} from "@/lib/ho-specialty-s5-overview";
 import {planSpecialtyMetadataEdit,type SpecialtyMetadataPatch} from "@/lib/ho-specialty-s5-metadata";
 import {putSpecialtyMetadataEdit} from "@/lib/ho-specialty-v2-metadata-client";
@@ -22,6 +24,7 @@ export function HoSpecialtyOverviewEdit({properties,canManage,onSaved}:{
  const [retry,setRetry]=useState(0);
  const [selection,setSelection]=useState<{field:BoField;anchor:HTMLElement}|null>(null);
  const [saving,setSaving]=useState(false);
+ const [publishVersion,setPublishVersion]=useState<number|null>(null);
  const pending=useRef<AbortController|null>(null);
  const attempt=useRef<{payload:string;key:string}|null>(null);
  const [labelWidth,setLabelWidth]=useState(160);
@@ -39,18 +42,20 @@ export function HoSpecialtyOverviewEdit({properties,canManage,onSaved}:{
  },[id,retry]);
  const allowed=canManage&&data?.detail.status==="DRAFT"&&!saving;
  const editable=(field:BoField):field is BoField & {key:SpecialtyS5OverviewKey|"name"|"description"} =>
-  allowed&&["name","description","levelCount","prerequisiteView","tagView"].includes(field.key);
+  allowed&&["name","description","levelCount","prerequisiteView","tagView","status"].includes(field.key);
  const close=()=>{if(!saving)setSelection(null);};
  const props=properties;
  const options=selection&&data?(()=>{
   const field=selection.field;
-  if(field.key==="prerequisiteView")return eligibleSpecialtyPrerequisites(data.detail,data.catalog).map(x=>x.label);
+  if(field.key==="status")return ["Bản nháp","Đang áp dụng"];
+   if(field.key==="prerequisiteView")return eligibleSpecialtyPrerequisites(data.detail,data.catalog).map(x=>x.label);
   if(field.key==="tagView")return [...new Set([...data.catalog.flatMap(s=>s.tags),...["Nhân vật","Mỹ thuật","Sáng tạo","Anime","Gouache","Acrylic","Chibi"],...data.detail.tags])];
   return undefined;
  })():undefined;
  const value:BoValue=selection&&data?(()=>{
   switch(selection.field.key){
-   case "name":return data.detail.name;
+   case "status":return data.detail.status==="DRAFT"?"Bản nháp":"Đang áp dụng";
+    case "name":return data.detail.name;
    case "description":return data.detail.description??"";
    case "levelCount":return data.detail.levels.length;
    case "tagView":return data.detail.tags;
@@ -65,6 +70,12 @@ export function HoSpecialtyOverviewEdit({properties,canManage,onSaved}:{
   if(!selection||!data||!allowed||saving)return;
   try{
    const field=selection.field.key;
+    if(field==="status"){
+     if(value==="Bản nháp"){setSelection(null);setError("");return;}
+     if(value!=="Đang áp dụng"){setError("Trạng thái không hợp lệ.");return;}
+     setSelection(null);setError("");
+     setPublishVersion(data.detail.version);return;
+    }
    const metadata=field==="name"||field==="description";
    const command=metadata?planSpecialtyMetadataEdit(data.detail,data.catalog,field,value):
     planSpecialtyOverviewEdit(data.detail,data.catalog,field as SpecialtyS5OverviewKey,value);
@@ -88,7 +99,27 @@ export function HoSpecialtyOverviewEdit({properties,canManage,onSaved}:{
    pending.current=null;setSaving(false);
   }
  }
- return <>
+ async function publish(){
+   if(publishVersion===null||!data||saving||!canManage)return;
+   if(data.detail.status!=="DRAFT"||data.detail.version!==publishVersion){setPublishVersion(null);setRetry(n=>n+1);setError("Chuyên đề đã thay đổi. Tải lại trước khi xuất bản.");return;}
+   if(specialtyPublishWarnings(data.detail,data.catalog).length)return;
+   const command:SpecialtyGraphCommand={type:"PUBLISH",expectedVersion:publishVersion};
+   const payload=JSON.stringify(command);
+   if(!attempt.current||attempt.current.payload!==payload)
+    attempt.current={payload,key:"spec_publish_"+crypto.randomUUID().replaceAll("-","")};
+   const controller=new AbortController();pending.current=controller;
+   setSaving(true);setError("");
+   try{
+    const detail=await postSpecialtyGraphCommand(id,command,window.fetch.bind(window),controller.signal,attempt.current.key);
+    setData(previous=>previous?{...previous,detail}:previous);
+    setPublishVersion(null);attempt.current=null;
+    onSaved();
+   }catch(cause){
+    setError(cause instanceof BoApiError?cause.message:"Không thể xác minh xuất bản. Thử lại sau.");
+    if(cause instanceof BoApiError&&cause.status===409){setPublishVersion(null);setRetry(n=>n+1);}
+   }finally{pending.current=null;setSaving(false);}
+  }
+  return <>
   <PropertySections variant="detail" fields={props.fields} record={props.record} sections={props.sections}
     canEdit={editable} onEdit={(field,anchor)=>{attempt.current=null;setError("");setSelection({field,anchor});}}
     labelWidth={labelWidth} onLabelWidthChange={setLabelWidth}/>
@@ -101,5 +132,14 @@ export function HoSpecialtyOverviewEdit({properties,canManage,onSaved}:{
       ...selection.field,readonly:false,...(options?{options}:{}),
     }} value={value} anchor={selection.anchor} onClose={close} onSave={v=>{void save(v);}}
     closeOnSave={false}/>:null}
+   {publishVersion!==null&&data?<ConfirmDialog
+      surface="ho" context="Chuyên đề · Trạng thái" title="Xuất bản chuyên đề"
+      subject={data.detail.name}
+      description="Sau khi xuất bản, chuyên đề có thể được cấp cho học viên. Cấu hình DRAFT sẽ khóa và chưa thể hoàn tác."
+      readyMessage="Đã kiểm tra cấu hình cơ bản. Core sẽ kiểm chứng trạng thái Mission, Path và tiên quyết khi lưu."
+      confirmLabel="Xác nhận xuất bản" busyLabel="Đang xác minh…"
+      warnings={specialtyPublishWarnings(data.detail,data.catalog)} busy={saving} error={error}
+      onCancel={()=>{if(!saving){setPublishVersion(null);setError("");}}}
+      onConfirm={()=>{void publish();}}/>:null}
  </>;
 }

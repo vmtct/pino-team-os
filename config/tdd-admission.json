@@ -914,6 +914,7 @@
         "lib/pap1495-specialty-s4-detail.test.ts",
         "lib/pap1495-specialty-s5-command.test.ts",
         "lib/pap1495-specialty-s5-overview.test.ts",
+        "lib/pap1695-specialty-publish.test.ts",
         "lib/specialty-mission-picker.test.ts",
         "lib/ho-routes.test.ts"
       ],
@@ -947,6 +948,7 @@
         {"file":"lib/ho-specialty-s5-metadata.ts","owner":"PAP-1495"},
         {"file":"lib/ho-specialty-v2-metadata-client.ts","owner":"PAP-1495"},
         {"file":"lib/ho-specialty-v2-graph-client.ts","owner":"PAP-1495"},
+        {"file":"lib/ho-specialty-v2-publish.ts","owner":"PAP-1695"},
         {"file":"app/ho/learning/missions/schema.ts","owner":"PAP-1207"},
         {
           "file": "lib/workspace-adapters/session.ts",
