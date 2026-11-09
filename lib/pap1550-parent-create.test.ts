@@ -73,7 +73,7 @@ test("PAP-1550 Parent UI respects TDD header action, named Center and no fake di
   assert.match(source, /onClick=\{\(\) => setCreateForCenter\(selected\)\}>\+ Parent<\/button>/);
   assert.match(source, /context\.authorize\("identity\.parent\.create"\)/);
   assert.match(source, /<ParentCreateDrawer centerId=\{selected\}/);
-  assert.match(readFileSync(new URL("./bo-parent-create-client.ts", import.meta.url), "utf8"), /directoryVisibility: "UNLINKED_NOT_LISTED"/);
+  assert.match(readFileSync(new URL("./bo-parent-create-client.ts", import.meta.url), "utf8"), /directoryVisibility: "CENTER_VISIBLE"/);
   assert.match(drawer, /attemptRef\.current/);
   assert.doesNotMatch(drawer, /fetch\(["']http:/);
 });

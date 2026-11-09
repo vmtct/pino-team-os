@@ -80,12 +80,12 @@ export function ParentTdd() {
       center.error ? <p role="alert">{center.error}</p> : null}
     {selected ? error ? <p role="alert">{error} <button type="button" onClick={() => setRetry(n => n + 1)}>Thử lại</button></p> :
       current ? <>
-        {created?.centerId === selected ? <p role="status" className="settings-hint">Đã tạo phụ huynh {created.parentUserId}. Hồ sơ sẽ xuất hiện tại cơ sở khi liên kết với học viên.</p> : null}
-        <SurfaceWorkspace key={selected} adapter={current.adapter} navigation={current.navigation} initialQuery={parentQuery} businessLoaders={loaders}
+        {created?.centerId === selected ? <p role="status" className="settings-hint">Đã tạo phụ huynh {created.parentUserId}. Hồ sơ đã thuộc cơ sở này và hiển thị trong danh sách với 0 học viên.</p> : null}
+        <SurfaceWorkspace key={selected + ":" + retry} adapter={current.adapter} navigation={current.navigation} initialQuery={parentQuery} businessLoaders={loaders}
           tableHeaderActions={current.adapter.context.authorize("identity.parent.create") ?
             <button type="button" className="primary-btn" onClick={() => setCreateForCenter(selected)}>+ Parent</button> : undefined} />
         {createForCenter === selected ? <ParentCreateDrawer centerId={selected} centerName={center?.centers.find(c => c.id === selected)?.displayName} onClose={() => setCreateForCenter(null)}
-          onCreated={result => { setCreated({ centerId: selected, parentUserId: result.parentUserId }); setCreateForCenter(null); }} /> : null}
+          onCreated={result => { setCreated({ centerId: selected, parentUserId: result.parentUserId }); setCreateForCenter(null); setRetry(n => n + 1); }} /> : null}
       </> :
       <p role="status">Đang xác thực quyền Parents theo cơ sở…</p> :
       !center?.loading && !center?.error ? <p role="status">Chọn trung tâm tại góc trên trái để xem Parents.</p> : null}
