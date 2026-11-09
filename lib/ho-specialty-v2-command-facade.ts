@@ -16,14 +16,14 @@ const respond=(status:number,code:string)=>Response.json({error:{code}},{status,
 type Command=
  | {type:"SET_OVERVIEW";expectedVersion:number;levelCount:number;prerequisiteIds:string[];tags:string[]}
  | {type:"LINK_MISSION"|"UNLINK_MISSION";expectedVersion:number;levelId:string;missionId:string}
- | {type:"PUBLISH"|"UNPUBLISH";expectedVersion:number};
+ | {type:"PUBLISH"|"UNPUBLISH"|"ARCHIVE"|"RESTORE";expectedVersion:number};
 const keys=(x:Record<string,unknown>,expect:readonly string[])=>Object.keys(x).length===expect.length&&
  expect.every(k=>Object.hasOwn(x,k))&&Object.keys(x).every(k=>expect.includes(k));
 export function parseHoSpecialtyV2Command(raw:unknown):Command|null{
  if(!raw||typeof raw!=='object'||Array.isArray(raw))return null;
  const x=raw as Record<string,unknown>;
  if(!Number.isSafeInteger(x.expectedVersion)||Number(x.expectedVersion)<1)return null;
- if(x.type==="PUBLISH"||x.type==="UNPUBLISH"){
+ if(x.type==="PUBLISH"||x.type==="UNPUBLISH"||x.type==="ARCHIVE"||x.type==="RESTORE"){
   if(!keys(x,["type","expectedVersion"]))return null;
   return {type:x.type,expectedVersion:Number(x.expectedVersion)};
  }
@@ -78,7 +78,8 @@ export async function handleHoSpecialtyV2Command(request:Request,env:HoSpecialty
   if(core.status!==200)return Response.json(core.body,{status:core.status,
    headers:{"cache-control":"no-store","x-content-type-options":"nosniff"}});
   const dto=parseSpecialtyDetail((core.body as {data?:unknown}|null)?.data);
-  if(!dto||dto.id!==specialtyId||dto.status!==(cmd.type==="PUBLISH"?"ACTIVE":"DRAFT")||dto.version!==cmd.expectedVersion+1)
+  const expectedStatus=cmd.type==="PUBLISH"?"ACTIVE":cmd.type==="ARCHIVE"?"ARCHIVED":"DRAFT";
+  if(!dto||dto.id!==specialtyId||dto.status!==expectedStatus||dto.version!==cmd.expectedVersion+1)
    return respond(502,"SPECIALTY_V2_COMMAND_RESPONSE_INVALID");
   const get=await callFounderCoreWithStaffPassword(env.PINO_CORE,{method:"GET",path:route},credential.token);
   const verified=parseSpecialtyDetail((get.body as {data?:unknown}|null)?.data);
