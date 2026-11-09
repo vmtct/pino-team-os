@@ -24,7 +24,16 @@ export const parentQuery: TableQuery<ParentFields> = {
   order: ["name", "id", "maskedContact", "studentCount", "centers", "createdAt", "createdBy", "updatedAt", "updatedBy", "attention"],
   visible: ["name", "maskedContact", "studentCount", "centers", "createdAt", "createdBy", "updatedAt", "updatedBy"], page: 1, pageSize: 15,
 };
-const sections = [{ id: "overview", label: "Thông tin chính", fields: parentQuery.order }] as const;
+const primaryFields = ["name", "maskedContact", "studentCount", "centers"] as const;
+const auditFields = ["createdAt", "createdBy", "updatedAt", "updatedBy"] as const;
+// PAP-1755: Drawer keeps one compact Dsa section; Detail mirrors the approved
+// i5 two-section Overview. Hidden optional Table fields remain in the schema
+// and Full Detail identity header, never injected into the visible 8-field grid.
+const drawerSections = [{ id: "overview", label: "Thông tin chính", fields: [...primaryFields, ...auditFields] }] as const;
+const detailSections = [
+  { id: "overview", label: "Thông tin chính", fields: primaryFields },
+  { id: "system", label: "Thông tin hệ thống", fields: auditFields },
+] as const;
 export const parentDefinition = {
   version: 1, classification: "TDD_DEFAULT", surface: "BO", key: "parents",
   label: "Parents & Guardians", group: "SCHOOL", fields: parentFields,
@@ -44,9 +53,9 @@ export const parentDefinition = {
     inlineEdit: { fields: [], enabled: false },
     interaction: { settings: ["properties", "grouping", "filters", "quick-views"], quickView: "separate-opener", keyboard: "canonical", undo: "local-ui-only" },
   },
-  drawer: { density: "one-column", sections, actions: [] },
+  drawer: { density: "one-column", sections: drawerSections, actions: [] },
   detail: {
-    overview: { sections },
+    overview: { sections: detailSections },
     businessTabs: [
       { id: "students", label: "Học viên", kind: "relation-grid", relatedModule: "students", source: { adapter: "bo-parent-detail", permission: PARENT_VIEW } },
       { id: "contacts", label: "Liên hệ", kind: "data-grid", relatedModule: "parent-contacts", source: { adapter: "bo-parent-detail", permission: PARENT_VIEW } },

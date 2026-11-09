@@ -40,7 +40,7 @@ function row(value: unknown): Row {
     maskedContact: item.maskedContact as string | null, studentCount: Number(item.linkedStudentCount),
     centers: (item.centers as string[]).join(", "),
     // PAP-1740: optional until Core guarded deploy; no invented actor identities.
-    createdAt: (item.createdAt as string | undefined) ?? "—",
+    createdAt: (item.createdAt as string | undefined) ?? null,
     createdBy: "—", updatedAt: item.updatedAt as string, updatedBy: "—",
     attention: item.attention as string | null,
   };
