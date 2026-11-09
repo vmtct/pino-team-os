@@ -3,7 +3,7 @@ import {useEffect,useMemo,useRef,useState} from "react";
 import {FontAwesomeIcon,faArrowLeft,faBookOpen,faCalendarDays,faCamera,faCheck,faChevronRight,faCircleCheck,faClipboardList,faClock,faFlag,faGraduationCap,faInfoCircle,faLink,faMagnifyingGlass,faMusic,faPalette,faPlay,faPlus,faRotate,faStar,faTriangleExclamation,faUserPlus,faUsers,faXmark} from "./classroom-icons";
 import type {IconDefinition} from "./classroom-icons";
 import styles from "./classroom.module.css";
-import {startMissionAssignmentTabRead,missionTabReadMessage,type MissionTabReadState,type MissionTabScope} from "@/lib/tos-mission-assignment-tab-read";
+import MissionAssignmentTab from "./MissionAssignmentTab";
 import DiaryCapturePanel from "./DiaryCapturePanel";
 import {createSlotKeys} from "../tos-ds";
 const tosSlotKeys=createSlotKeys(styles);
@@ -22,36 +22,6 @@ const icon=(subject:Domain):IconDefinition=>subject==="art"?faPalette:subject===
 // footer [Học viên, Nhiệm vụ, Nhật ký]; primary action read Assignments; capture NONE.
 // BO layout NONE; Core session.roster.view + Center/occurrence/CANDIDATE scope;
 // cross-domain links NONE; founder_layout_review APPROVED. PAP-945 owns the mount.
-function MissionAssignmentTab({scope}:{scope:MissionTabScope}){
- const [read,setRead]=useState<MissionTabReadState>({state:"LOADING",groups:[]});
- const [attempt,setAttempt]=useState(0);
- const {centerId,localDate,runningClassId,teachingContextKey}=scope;
- useEffect(()=>startMissionAssignmentTabRead({centerId,localDate,runningClassId,teachingContextKey},setRead),[centerId,localDate,runningClassId,teachingContextKey,attempt]);
- const writeReason="Chức năng giao và đổi nhiệm vụ chưa khả dụng.";
- const count=read.state==="READY"||read.state==="EMPTY"?read.groups.reduce((n,g)=>n+g.cards.length,0):"—";
- return <section role="tabpanel" id="tos-classroom-panel-missions" aria-labelledby="tos-classroom-tab-missions" aria-busy={read.state==="LOADING"}>
-  <div className={styles.sectionHead} data-tos-slot={tosSlotKeys(styles.sectionHead)}><div><h2>Nhiệm vụ hôm nay ({count})</h2><p id="tos-mission-write-reason">{writeReason}</p></div><button type="button" aria-label="Thêm Nhiệm Vụ" disabled aria-describedby="tos-mission-write-reason" title={writeReason}><FontAwesomeIcon icon={faPlus}/> + Thêm</button></div>
-  {read.state==="LOADING"&&<p role="status" className={styles.empty} data-tos-slot={tosSlotKeys(styles.empty)}>Đang tải nhiệm vụ đã giao…</p>}
-  {read.state==="UNAVAILABLE"&&<p role="alert" className={styles.empty} data-tos-slot={tosSlotKeys(styles.empty)}>{missionTabReadMessage(read.error)}</p>}
-  {(read.state==="UNAVAILABLE"||attempt>0)&&<button type="button" aria-disabled={read.state==="LOADING"} onClick={()=>{if(read.state!=="LOADING")setAttempt(n=>n+1)}}>Thử lại</button>}
-  {read.state==="EMPTY"&&<p role="status" className={styles.empty} data-tos-slot={tosSlotKeys(styles.empty)}>Chưa có nhiệm vụ được giao.</p>}
-  {read.state==="READY"&&read.groups.map(group=><section className={styles.missionBatch} data-tos-slot={tosSlotKeys(styles.missionBatch)} key={group.studentId} aria-label={"Nhiệm vụ của "+group.studentName}>
-   <div className={styles.missionBatchHead} data-tos-slot={tosSlotKeys(styles.missionBatchHead)}><div><strong>{group.studentName}</strong><small>{group.cards.length} nhiệm vụ</small></div></div>
-   {group.cards.map(card=><article className={styles.missionCompactRow} data-tos-slot={tosSlotKeys(styles.missionCompactRow)} key={card.assignmentId} data-assignment-id={card.assignmentId} data-assignment-status={card.status} data-assignment-version={card.version} data-mission-id={card.missionId}>
-    <div className={styles.missionCompactSummary} data-tos-slot={tosSlotKeys(styles.missionCompactSummary)}>
-     <div className={styles.missionCompactName} data-tos-slot={tosSlotKeys(styles.missionCompactName)}><strong>{card.missionCodeSnapshot} · {card.missionNameSnapshot}</strong><span>Đã giao</span></div>
-     {card.contextLabel&&<small>{card.contextLabel}</small>}
-    </div>
-    <div className={styles.missionCompactActions} data-tos-slot={tosSlotKeys(styles.missionCompactActions)}>
-     <button type="button" className={styles.missionPrimaryCta} data-tos-slot={tosSlotKeys(styles.missionPrimaryCta)} aria-label={"Giáo Án "+card.missionCodeSnapshot} disabled aria-describedby="tos-mission-guide-reason" title="Chưa tải được giáo án."><FontAwesomeIcon icon={faBookOpen}/> Giáo Án</button>
-     <button type="button" className={styles.missionNextCta} data-tos-slot={tosSlotKeys(styles.missionNextCta)} aria-label={"Thêm nhiệm vụ sau "+card.missionCodeSnapshot} disabled aria-describedby="tos-mission-write-reason" title={writeReason}><FontAwesomeIcon icon={faPlus}/> + Thêm</button>
-     <button type="button" className={styles.missionSwapCta} data-tos-slot={tosSlotKeys(styles.missionSwapCta)} aria-label={"Đổi nhiệm vụ "+card.missionCodeSnapshot} disabled aria-describedby="tos-mission-write-reason" title={writeReason}><FontAwesomeIcon icon={faRotate}/> Đổi</button>
-    </div>
-   </article>)}
-  </section>)}
-  {read.state==="READY"&&<p id="tos-mission-guide-reason">Chưa tải được giáo án.</p>}
- </section>;
-}
 export default function ClassroomV4Presentation({model,initialView,onDetailChange,readOnly=false}:{model:ClassroomV4ViewModel;initialView?:ClassroomV4InitialView;onDetailChange?:(open:boolean)=>void;readOnly?:boolean}){
  const classes=model.classes,catalog=model.missions,staff=model.staffLabel;
  const mission=(id:string)=>catalog.find(item=>item.id===id);
@@ -208,7 +178,7 @@ export default function ClassroomV4Presentation({model,initialView,onDetailChang
   "Không tạo mở ca, ảnh setup hay chấm công. Chỉ Nhật ký có thể ghi nếu Staff, roster, Mission và Staging admission hợp lệ; các thao tác khác vẫn khóa.":
   "Bạn chỉ đang xem dữ liệu được cấp quyền. Quay về danh sách và xác nhận “Vào lớp không mở ca” để dùng Nhật ký."}</p></div><button type="button" onClick={()=>askOpen(current)}>Mở lớp đúng quy trình</button></section>}
     {tab==="students"&&<section role="tabpanel" id="tos-classroom-panel-students" aria-labelledby="tos-classroom-tab-students"><div className={styles.sectionHead} data-tos-slot={tosSlotKeys(styles.sectionHead)}><div><h2>Học viên trong buổi ({people.length})</h2></div><button onClick={showAdd}><FontAwesomeIcon icon={faUserPlus}/> + Thêm</button></div>{people.map(person)}{people.some(s=>model.conflictStudentIds.includes(s.id))&&<p role="alert">Danh sách có học viên xung đột. Cần kiểm tra trước khi ghi.</p>}</section>}
-    {tab==="missions"&&<MissionAssignmentTab key={JSON.stringify([model.centerId,model.today,current.runningClassId,current.id])} scope={{centerId:model.centerId,localDate:model.today,runningClassId:current.runningClassId,teachingContextKey:current.id}}/>}
+    {tab==="missions"&&<MissionAssignmentTab key={JSON.stringify([model.centerId,model.today,current.runningClassId,current.id])} scope={{centerId:model.centerId,localDate:model.today,runningClassId:current.runningClassId,teachingContextKey:current.id}} readOnly={readOnly}/>}
     {tab==="diaries"&&<section role="tabpanel" id="tos-classroom-panel-diaries" aria-labelledby="tos-classroom-tab-diaries">
       <div className={styles.sectionHead} data-tos-slot={tosSlotKeys(styles.sectionHead)}><div><h2>Nhật ký buổi học ({model.diaryReadState==="LOADED"?currentDiaries.length:"—"})</h2><p>Mỗi học viên × Path có đúng một Diary; tất cả Mission của Path nằm chung bên trong.</p></div></div>
       {!readOnly&&<DiaryCapturePanel key={model.centerId+":"+current.id} model={model} classroom={current} confirmedSkipClassId={skipConfirmed?current.id:""}/>}
