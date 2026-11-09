@@ -80,6 +80,8 @@ export function CreateSelfDrawer({centerId,onClose,onCreated}:{centerId:string;o
  },[centerId,query,retry]);
  const matches=useMemo(()=>matchingAvatarCandidates(candidates,query),[candidates,query]);
  const visibleMatches=matches.slice(0,8);
+ // PAP-1754: scrolling the bounded listbox must also expose the keyboard-active option.
+ useEffect(()=>{if(open)optionRefs.current[active]?.scrollIntoView({block:"nearest"});},[active,open,query,candidates]);
  const duplicate=!!person&&(duplicateConflict||candidateHasAvatar(person));
  const canCreate=!!person&&!duplicate&&!saving&&!loading&&!loadError;
  function choose(option:AvatarCandidate){
@@ -146,17 +148,17 @@ export function CreateSelfDrawer({centerId,onClose,onCreated}:{centerId:string;o
        onChange={e=>changeQuery(e.target.value)}
        onKeyDown={onComboboxKeyDown} onKeyDownCapture={onComboboxKeyDownCapture}
        onBlur={()=>{setTimeout(()=>{if(document.activeElement!==inputRef.current)setOpen(false);},120);}}/>
-      {open?<div className={styles.options} id={listId} role="listbox" aria-label="Chọn Person">
+      {open?<div className={styles.options} id={listId} role="listbox" aria-label="Chọn Person" data-avatar-person-options="">
        {loading?<p role="status">Đang tìm Person tại cơ sở đã chọn…</p>:
         loadError?<div role="alert">{loadError} <button type="button" onMouseDown={e=>e.preventDefault()} onClick={()=>setRetry(n=>n+1)}>Thử lại</button></div>:
         visibleMatches.length?visibleMatches.map((option,i)=>
          <button ref={el=>{optionRefs.current[i]=el;}} type="button" role="option"
           id={listId+"-"+i} aria-selected={i===active}
-          className="secondary-btn"
+          className="secondary-btn ps-avatar-person-option"
           key={option.personId} onMouseDown={e=>e.preventDefault()}
           onMouseEnter={()=>setActive(i)} onClick={()=>choose(option)}>
           <span className={styles.optionCopy}><strong>{option.displayName}</strong><small>{option.subjectTypes.join(" / ")}</small></span>
-          <span>{candidateHasAvatar(option)?"Đã có Avatar":"Chưa có Avatar"}</span>
+          <span className="ps-avatar-person-option-state">{candidateHasAvatar(option)?"Đã có Avatar":"Chưa có Avatar"}</span>
          </button>):
         <p role="status">Không có Person phù hợp tại cơ sở này.</p>}
        {!loading&&matches.length>visibleMatches.length?<p role="status">Đang hiển thị 8 kết quả đầu. Gõ để tìm thêm.</p>:null}
