@@ -29,6 +29,9 @@ export function TvPolicyDirectory() {
   const [refresh, setRefresh] = useState(0);
   const [location, setLocation] = useState<TvPolicyLocation>(listLocation);
   const returnScroll = useRef({ y: 0, x: 0 });
+  // PAP-1419 S4: the row is briefly unmounted during reauthorization;
+  // recover keyboard focus only after the authorized Table is mounted again.
+  const returnFocusRecord = useRef<string | null>(null);
 
   useEffect(() => {
     const sync = () => {
@@ -54,6 +57,19 @@ export function TvPolicyDirectory() {
     });
     return () => { live = false; };
   }, [refresh]);
+
+  useEffect(() => {
+    // The old row was removed during GET reauthorization. Wait for the actual
+    // authorized Table DOM, rather than focusing a disconnected Drawer opener.
+    const id = returnFocusRecord.current;
+    if (location.policyId || read?.status !== "ready" || !id) return;
+    const row = [...document.querySelectorAll<HTMLTableRowElement>("tr[data-record]")]
+      .find(item => item.dataset.record === id);
+    if (row) {
+      row.focus({ preventScroll: true });
+      returnFocusRecord.current = null;
+    }
+  }, [location.policyId, read]);
 
   function navigate(next: TvPolicyLocation, push = true) {
     const url = tvPolicyLocationUrl(window.location.href, next);
@@ -86,6 +102,8 @@ export function TvPolicyDirectory() {
   }
 
   function closeRecord() {
+    if (location.pane === "drawer" && location.policyId)
+      returnFocusRecord.current = location.policyId;
     const depth = (window.history.state as { pnrTvDepth?: number } | null)?.pnrTvDepth;
     if (typeof depth === "number" && depth > 0) {
       window.history.back();
