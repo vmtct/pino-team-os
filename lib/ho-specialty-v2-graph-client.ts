@@ -4,7 +4,7 @@ const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}
 export type SpecialtyGraphCommand=
  | {type:"SET_OVERVIEW";expectedVersion:number;levelCount:number;prerequisiteIds:string[];tags:string[]}
  | {type:"LINK_MISSION"|"UNLINK_MISSION";expectedVersion:number;levelId:string;missionId:string}
- | {type:"PUBLISH";expectedVersion:number};
+ | {type:"PUBLISH"|"UNPUBLISH";expectedVersion:number};
 /** Read-before-write and Core readback after BFF CAS+audit, never invent success. */
 export async function postSpecialtyGraphCommand(
  specialtyId:string,cmd:SpecialtyGraphCommand,fetcher:typeof fetch,signal:AbortSignal,key:string,
@@ -13,8 +13,9 @@ export async function postSpecialtyGraphCommand(
   throw new BoApiError(400,"Lệnh Chuyên đề không hợp lệ.",null);
  const url="/api/ho/learning/specialties/"+specialtyId;
  const prior=await readSpecialtyV2Detail(specialtyId,fetcher,signal);
- if(prior.version!==cmd.expectedVersion||prior.status!=="DRAFT")
-  throw new BoApiError(409,"Chuyên đề đã thay đổi hoặc không còn là bản nháp.",null);
+ const requiredPrior=cmd.type==="UNPUBLISH"?"ACTIVE":"DRAFT";
+ if(prior.version!==cmd.expectedVersion||prior.status!==requiredPrior)
+  throw new BoApiError(409,"Chuyên đề đã thay đổi hoặc không còn ở trạng thái phù hợp.",null);
  const response=await fetcher(url+"/commands",{
   method:"POST",credentials:"same-origin",cache:"no-store",redirect:"error",signal,
   headers:{"content-type":"application/json","idempotency-key":key},

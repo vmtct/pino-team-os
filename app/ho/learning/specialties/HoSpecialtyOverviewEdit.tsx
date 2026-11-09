@@ -25,6 +25,7 @@ export function HoSpecialtyOverviewEdit({properties,canManage,onSaved}:{
  const [selection,setSelection]=useState<{field:BoField;anchor:HTMLElement}|null>(null);
  const [saving,setSaving]=useState(false);
  const [publishVersion,setPublishVersion]=useState<number|null>(null);
+ const [unpublishVersion,setUnpublishVersion]=useState<number|null>(null);
  const pending=useRef<AbortController|null>(null);
  const attempt=useRef<{payload:string;key:string}|null>(null);
  const [labelWidth,setLabelWidth]=useState(160);
@@ -41,13 +42,15 @@ export function HoSpecialtyOverviewEdit({properties,canManage,onSaved}:{
   return ()=>{controller.abort();pending.current?.abort();};
  },[id,retry]);
  const allowed=canManage&&data?.detail.status==="DRAFT"&&!saving;
+ const activeStatusAllowed=canManage&&data?.detail.status==="ACTIVE"&&!saving;
  const editable=(field:BoField):field is BoField & {key:SpecialtyS5OverviewKey|"name"|"description"} =>
-  allowed&&["name","description","levelCount","prerequisiteView","tagView","status"].includes(field.key);
+  (allowed&&["name","description","levelCount","prerequisiteView","tagView","status"].includes(field.key))||
+  (activeStatusAllowed&&field.key==="status");
  const close=()=>{if(!saving)setSelection(null);};
  const props=properties;
  const options=selection&&data?(()=>{
   const field=selection.field;
-  if(field.key==="status")return ["Bản nháp","Đang áp dụng"];
+  if(field.key==="status")return data.detail.status==="ACTIVE"?["Đang áp dụng","Bản nháp"]:["Bản nháp","Đang áp dụng"];
    if(field.key==="prerequisiteView")return eligibleSpecialtyPrerequisites(data.detail,data.catalog).map(x=>x.label);
   if(field.key==="tagView")return [...new Set([...data.catalog.flatMap(s=>s.tags),...["Nhân vật","Mỹ thuật","Sáng tạo","Anime","Gouache","Acrylic","Chibi"],...data.detail.tags])];
   return undefined;
@@ -67,14 +70,20 @@ export function HoSpecialtyOverviewEdit({properties,canManage,onSaved}:{
   }
  })():null;
  async function save(value:BoValue){
-  if(!selection||!data||!allowed||saving)return;
+  if(!selection||!data||(!allowed&&!activeStatusAllowed)||saving)return;
   try{
    const field=selection.field.key;
     if(field==="status"){
-     if(value==="Bản nháp"){setSelection(null);setError("");return;}
-     if(value!=="Đang áp dụng"){setError("Trạng thái không hợp lệ.");return;}
-     setSelection(null);setError("");
-     setPublishVersion(data.detail.version);return;
+     const isCurrent=(data.detail.status==="ACTIVE"&&value==="Đang áp dụng")||
+       (data.detail.status==="DRAFT"&&value==="Bản nháp");
+     if(isCurrent){setSelection(null);setError("");return;}
+     if(value==="Đang áp dụng"&&data.detail.status==="DRAFT"){
+       setSelection(null);setError("");setPublishVersion(data.detail.version);return;
+     }
+     if(value==="Bản nháp"&&data.detail.status==="ACTIVE"){
+       setSelection(null);setError("");setUnpublishVersion(data.detail.version);return;
+     }
+     setError("Trạng thái không hợp lệ.");return;
     }
    const metadata=field==="name"||field==="description";
    const command=metadata?planSpecialtyMetadataEdit(data.detail,data.catalog,field,value):
@@ -119,6 +128,29 @@ export function HoSpecialtyOverviewEdit({properties,canManage,onSaved}:{
     if(cause instanceof BoApiError&&cause.status===409){setPublishVersion(null);setRetry(n=>n+1);}
    }finally{pending.current=null;setSaving(false);}
   }
+  /** PAP-1732: one Founder confirmation; no manual grant or dependent preflight. */
+  async function unpublish(){
+   if(unpublishVersion===null||!data||saving||!canManage)return;
+   if(data.detail.status!=="ACTIVE"||data.detail.version!==unpublishVersion){
+    setUnpublishVersion(null);setRetry(n=>n+1);
+    setError("Chuyên đề đã thay đổi. Tải lại trước khi chuyển về bản nháp.");return;
+   }
+   const command:SpecialtyGraphCommand={type:"UNPUBLISH",expectedVersion:unpublishVersion};
+   const payload=JSON.stringify(command);
+   if(!attempt.current||attempt.current.payload!==payload)
+    attempt.current={payload,key:"spec_unpublish_"+crypto.randomUUID().replaceAll("-","")};
+   const controller=new AbortController();pending.current=controller;
+   setSaving(true);setError("");
+   try{
+    const detail=await postSpecialtyGraphCommand(id,command,window.fetch.bind(window),controller.signal,attempt.current.key);
+    setData(previous=>previous?{...previous,detail}:previous);
+    setUnpublishVersion(null);attempt.current=null;
+    onSaved();
+   }catch(cause){
+    setError(cause instanceof BoApiError?cause.message:"Không thể xác minh Unpublish. Thử lại sau.");
+    if(cause instanceof BoApiError&&cause.status===409){setUnpublishVersion(null);setRetry(n=>n+1);}
+   }finally{pending.current=null;setSaving(false);}
+  }
   return <>
   <PropertySections variant="detail" fields={props.fields} record={props.record} sections={props.sections}
     canEdit={editable} onEdit={(field,anchor)=>{attempt.current=null;setError("");setSelection({field,anchor});}}
@@ -141,5 +173,14 @@ export function HoSpecialtyOverviewEdit({properties,canManage,onSaved}:{
       warnings={specialtyPublishWarnings(data.detail,data.catalog)} busy={saving} error={error}
       onCancel={()=>{if(!saving){setPublishVersion(null);setError("");}}}
       onConfirm={()=>{void publish();}}/>:null}
+   {unpublishVersion!==null&&data?<ConfirmDialog
+      surface="ho" context="Chuyên đề · Trạng thái" title="Chuyển về bản nháp"
+      subject={data.detail.name}
+      description="Ngừng cấp quyền học mới ngay. Các quyền đã cấp vẫn tiếp tục theo phiên bản Published và tiến độ cũ. Không cần chuẩn bị snapshot hay xử lý Grant/tiên quyết."
+      readyMessage="Hệ thống tự bảo lưu lịch sử Published; chuyển về Bản nháp để chỉnh sửa, không thu hồi quyền cũ."
+      confirmLabel="Xác nhận về nháp" busyLabel="Đang chuyển về nháp…"
+      warnings={[]} busy={saving} error={error}
+      onCancel={()=>{if(!saving){setUnpublishVersion(null);setError("");}}}
+      onConfirm={()=>{void unpublish();}}/>:null}
  </>;
 }
