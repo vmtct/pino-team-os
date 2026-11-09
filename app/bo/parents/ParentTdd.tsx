@@ -84,7 +84,7 @@ export function ParentTdd() {
         <SurfaceWorkspace key={selected} adapter={current.adapter} navigation={current.navigation} initialQuery={parentQuery} businessLoaders={loaders}
           tableHeaderActions={current.adapter.context.authorize("identity.parent.create") ?
             <button type="button" className="primary-btn" onClick={() => setCreateForCenter(selected)}>+ Parent</button> : undefined} />
-        {createForCenter === selected ? <ParentCreateDrawer centerId={selected} centerName={center.centers.find(c => c.id === selected)?.displayName} onClose={() => setCreateForCenter(null)}
+        {createForCenter === selected ? <ParentCreateDrawer centerId={selected} centerName={center?.centers.find(c => c.id === selected)?.displayName} onClose={() => setCreateForCenter(null)}
           onCreated={result => { setCreated({ centerId: selected, parentUserId: result.parentUserId }); setCreateForCenter(null); }} /> : null}
       </> :
       <p role="status">Đang xác thực quyền Parents theo cơ sở…</p> :
