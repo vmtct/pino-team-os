@@ -108,3 +108,35 @@
 @media(max-width:350px){.appLead>span{flex-basis:64px;width:64px;height:64px}.appLead svg{width:61px;height:61px}.homeIntro strong{font-size:18px}.launcherIcon{width:75px;height:75px}.launcherIcon svg{width:69px;height:69px}}
 @media(max-height:670px){.homeIntro{padding:11px 14px;min-height:109px}.homeApps{margin-top:14px}.launcherTile{min-height:158px;padding-top:10px}.launcherIcon{width:68px;height:68px}.launcherIcon svg{width:65px;height:65px}.homeHint{margin-top:14px}}
 @media(prefers-reduced-motion:reduce){.phone *{scroll-behavior:auto!important;transition:none!important}}
+
+/* PAP-1765 · consent-led member sharing (prototype-only). Both app themes inherit --tone and --tint. */
+.postActions{gap:5px;flex-wrap:wrap}
+.postActions button{min-width:0;flex:1 1 auto;justify-content:center;padding:7px 2px;font-size:18px}
+.postActions button span{font-size:11px}
+.visibilityAction{color:var(--tone)!important}
+.visibilityStatus{padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--tint);color:var(--tone);font-size:12px;font-weight:750;margin:-5px 0 16px;line-height:1.55}
+.modalShareAction{display:flex;align-items:center;justify-content:center;min-height:44px;width:100%;padding:10px;margin-top:13px;border:1px solid var(--tone);border-radius:12px;background:var(--tint);color:var(--tone);font-size:13px;font-weight:800}
+.visibilityDialog{width:100%;max-height:calc(100dvh - 24px);overflow-y:auto;background:var(--surface);border-radius:20px;padding:19px;box-shadow:0 15px 45px #170d2159;scrollbar-width:thin}
+.visibilityDialogHead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:13px}
+.visibilityDialogIcon{width:47px;height:47px;display:grid;place-items:center;border-radius:15px;background:var(--tint);color:var(--tone);font-size:26px;font-weight:800}
+.visibilityClose{width:44px;height:44px;min-height:44px;display:grid;place-items:center;border:1px solid var(--line);background:#fff;color:var(--muted);border-radius:12px}
+.visibilityDialog h2{font-size:21px;line-height:1.3;letter-spacing:-.025em;margin:0 0 7px;color:var(--ink);font-weight:850}
+.visibilitySubtitle{font-size:12px;color:var(--tone);font-weight:800;margin:0 0 15px}
+.visibilityDescription{font-size:13px;line-height:1.6;color:var(--muted);margin:8px 0 16px}
+.visibilityDescription strong{color:var(--ink)}
+.audienceOption{display:flex;align-items:center;gap:11px;border:1px solid var(--tone);border-radius:14px;padding:12px;background:var(--tint);color:var(--ink)}
+.audienceIcon{width:40px;height:40px;flex:0 0 40px;display:grid;place-items:center;border-radius:13px;background:#fff;color:var(--tone);font-size:23px}
+.audienceOption>div{display:flex;flex-direction:column;min-width:0;gap:2px;flex:1}
+.audienceOption strong{font-size:12px;line-height:1.35}
+.audienceOption small{font-size:11px;color:var(--muted);line-height:1.45}
+.audienceCheck{width:20px;height:20px;flex:0 0 20px;border-radius:50%;display:grid;place-items:center;color:#fff;background:var(--tone);font-size:12px}
+.consentCheck{display:flex;align-items:flex-start;gap:10px;padding:14px 0;margin-top:7px;color:var(--ink);font-size:12px;line-height:1.55;cursor:pointer}
+.consentCheck input{width:19px;height:19px;flex:0 0 19px;margin:1px 0;accent-color:var(--tone);cursor:pointer}
+.visibilityCaution{font-size:11px;color:var(--muted);line-height:1.55;border-radius:11px;background:#f5f3f3;padding:10px;margin:0 0 15px}
+.visibilityButtons{display:flex;gap:9px;align-items:stretch;justify-content:space-between}
+.visibilityCancel,.visibilityConfirm,.visibilityRevoke{flex:1;min-width:0;min-height:48px;border-radius:12px;padding:10px 8px;font-weight:800;font-size:13px;line-height:1.3}
+.visibilityCancel{background:#fff;border:1px solid var(--line);color:var(--ink)}
+.visibilityConfirm,.visibilityRevoke{background:var(--tone);border:1px solid var(--tone);color:#fff}
+.visibilityConfirm:disabled{opacity:.42;cursor:not-allowed}
+.visibilityRevoke{background:#985367;border-color:#985367}
+@media(max-width:350px){.postActions button span{font-size:10px}.visibilityDialog{padding:15px}.visibilityDialog h2{font-size:19px}}

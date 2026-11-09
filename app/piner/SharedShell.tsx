@@ -7,7 +7,8 @@ import { AppGlyph } from "./AppGlyph";
 import { MediaArtwork } from "./MediaArtwork";
 import { PINER_APPS,type PinerApp,type PinerAppKey } from "./catalog";
 import { APP_NAV,getTabHref,type NavIcon } from "./navigation";
-import { postsFor,type MediaPost,type MediaType } from "./media";
+import { postsFor,type MediaPost,type MediaType,type Visibility } from "./media";
+import { VisibilityDialog } from "./VisibilityDialog";
 import css from "./launcher.module.css";
 
 function Glyph({name}:{name:NavIcon}){
@@ -48,7 +49,7 @@ function BottomNav({app,active}:{app:PinerApp;active:string}){
  </nav>;
 }
 function TeacherComment({post}:{post:MediaPost}){return <div className={css.teacherComment}><span className={css.teacherIcon}>✎</span><div><strong>{post.teacher}</strong><p>{post.comment}</p></div></div>}
-function PostCard({post,onOpen}:{post:MediaPost;onOpen:(post:MediaPost)=>void}){
+function PostCard({post,onOpen,onRequestVisibility}:{post:MediaPost;onOpen:(post:MediaPost)=>void;onRequestVisibility:(post:MediaPost)=>void}){
  const [commentsOpen,setCommentsOpen]=useState(false);const [liked,setLiked]=useState(false);
  const community=post.visibility==="community";
  return <article className={css.postCard} data-post={post.id}>
@@ -58,7 +59,8 @@ function PostCard({post,onOpen}:{post:MediaPost;onOpen:(post:MediaPost)=>void}){
   </button>
   <div className={css.postBody}><strong>{post.title}</strong><p>{post.caption}</p><TeacherComment post={post}/>
    <div className={css.postActions}><button onClick={()=>setLiked(v=>!v)} aria-pressed={liked} type="button">{liked?"♥":"♡"} <span>{liked?"Đã lưu":"Yêu thích"}{community?" · "+(post.reactions+(liked?1:0)):""}</span></button>
-    <button type="button" onClick={()=>setCommentsOpen(v=>!v)}>▤ <span>{community?"Bình luận ("+post.responses.length+")":"Nhận xét"}</span></button></div>
+    <button type="button" onClick={()=>setCommentsOpen(v=>!v)}>▤ <span>{community?"Bình luận ("+post.responses.length+")":"Nhận xét"}</span></button>
+    <button type="button" className={css.visibilityAction} onClick={()=>onRequestVisibility(post)} aria-label={(community?"Thu hồi chia sẻ":"Chia sẻ")+" "+post.title}>{community?"↶":"↗"} <span>{community?"Thu hồi":"Chia sẻ"}</span></button></div>
    {commentsOpen&&<div className={css.replyList}>{community?post.responses.map((comment,i)=><p key={i}><strong>PH PINO</strong> {comment.replace("PH PINO · ","")}</p>):<p>Nhận xét riêng chỉ dành cho gia đình và giáo viên có quyền truy cập.</p>}<small>Minh họa — không có chức năng gửi bình luận hoặc lưu dữ liệu thật.</small></div>}
   </div>
  </article>;
@@ -74,29 +76,75 @@ function ReelsView({posts,onOpen}:{posts:readonly MediaPost[];onOpen:(post:Media
  <div className={css.reelsGrid}>{posts.filter(p=>p.type==="reel").map(p=><button type="button" className={css.reelTile} key={p.id} onClick={()=>onOpen(p)} aria-label={"Xem "+p.title}>
  <MediaArtwork post={p}/><span className={css.playDisc}>▶</span><span className={css.reelCaption}><strong>{p.title}</strong><small>◷ {p.duration} · Xem chi tiết</small></span></button>)}</div></>;
 }
-function CommunityView({posts,onOpen}:{posts:readonly MediaPost[];onOpen:(post:MediaPost)=>void}){
+function CommunityView({posts,onOpen,onRequestVisibility}:{posts:readonly MediaPost[];onOpen:(post:MediaPost)=>void;onRequestVisibility:(post:MediaPost)=>void}){
  const community=posts.filter(p=>p.visibility==="community");
  return <><div className={css.communityIntro}><strong>Góc cộng đồng PINO ♡</strong><p>Các tác phẩm được gia đình chọn chia sẻ. Những bài riêng tư không xuất hiện ở đây.</p><span>Ví dụ minh họa · cần đồng ý chia sẻ khi triển khai thật</span></div>
- <div className={css.feedList}>{community.map(p=><PostCard key={p.id} post={p} onOpen={onOpen}/>)}</div></>;
+ <div className={css.feedList}>{community.map(p=><PostCard key={p.id} post={p} onOpen={onOpen} onRequestVisibility={onRequestVisibility}/>)}</div></>;
 }
-function PreviewDialog({post,onClose}:{post:MediaPost;onClose:()=>void}){
+function PreviewDialog({post,onClose,onRequestVisibility}:{post:MediaPost;onClose:()=>void;onRequestVisibility:(post:MediaPost)=>void}){
  useEffect(()=>{const key=(e:KeyboardEvent)=>{if(e.key==="Escape")onClose()};document.addEventListener("keydown",key);return()=>document.removeEventListener("keydown",key)},[onClose]);
  return <div className={css.modalBackdrop} role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}><section className={css.modal} role="dialog" aria-modal="true" aria-label={"Xem "+post.title}>
  <header><strong>{post.title}</strong><button autoFocus type="button" onClick={onClose} aria-label="Đóng">✕</button></header>
  <div className={css.modalMedia}><MediaArtwork post={post}/>{post.type==="reel"&&<span className={css.modalVideo}>▶ Video minh họa — chưa có video thật</span>}</div>
- <p>{post.caption}</p><TeacherComment post={post}/><small className={css.modalFoot}>Fixture tổng hợp · Không dùng ảnh hoặc dữ liệu học viên thật.</small></section></div>;
+ <p>{post.caption}</p><TeacherComment post={post}/>
+ <button type="button" className={css.modalShareAction} onClick={()=>onRequestVisibility(post)} aria-label={(post.visibility==="private"?"Chia sẻ":"Thu hồi chia sẻ")+" "+post.title}>
+   {post.visibility==="private"?"↗ Chia sẻ với phụ huynh PINO":"↶ Thu hồi chia sẻ"}
+ </button>
+ <small className={css.modalFoot}>Fixture tổng hợp · Không dùng ảnh hoặc dữ liệu học viên thật.</small></section></div>;
 }
 export function PinerAppScreen({app,tab}:{app:PinerApp;tab:string}){
- const [preview,setPreview]=useState<MediaPost|null>(null);const all=postsFor(app.id);
+ const [preview,setPreview]=useState<MediaPost|null>(null);
+ const [shareIntent,setShareIntent]=useState<MediaPost|null>(null);
+ const [visibilityOverrides,setVisibilityOverrides]=useState<Record<string,Visibility>>({});
+ const [hydrated,setHydrated]=useState(false);
+ const [statusMessage,setStatusMessage]=useState("");
+ useEffect(()=>{
+   const appPosts=postsFor(app.id);
+   const allowed=new Set(appPosts.map(post=>post.id));
+   const restored:Record<string,Visibility>={};
+   try{
+     const raw=window.sessionStorage.getItem("piner-pap1765-visibility-"+app.id);
+     if(raw){
+       const candidate=JSON.parse(raw) as Record<string,unknown>;
+       if(candidate && typeof candidate==="object" && !Array.isArray(candidate)){
+         for(const [id,value] of Object.entries(candidate)){
+           if(allowed.has(id) && (value==="private" || value==="community"))restored[id]=value;
+         }
+       }
+     }
+   }catch{ /* Session storage can be blocked: prototype still works in-memory. */ }
+   setVisibilityOverrides(restored);
+   setHydrated(true);
+ },[app.id]);
+ const all=postsFor(app.id).map(post=>({
+   ...post,visibility:hydrated?(visibilityOverrides[post.id]??post.visibility):post.visibility
+ }));
+ const onRequestVisibility=(post:MediaPost)=>{setPreview(null);setShareIntent(post);setStatusMessage("");};
+ const onConfirmVisibility=()=>{
+   if(!shareIntent)return;
+   const visibility:Visibility=shareIntent.visibility==="private"?"community":"private";
+   const updated={...visibilityOverrides,[shareIntent.id]:visibility};
+   setVisibilityOverrides(updated);
+   try{window.sessionStorage.setItem("piner-pap1765-visibility-"+app.id,JSON.stringify(updated));}
+   catch{ /* No backend; this is ephemeral prototype-only state. */ }
+   setStatusMessage(visibility==="community"
+     ?"Đã chia sẻ với Cộng đồng phụ huynh PINO (mô phỏng)."
+     :"Đã thu hồi chia sẻ. Bài đăng đã trở lại Riêng tư (mô phỏng).");
+   setShareIntent(null);
+   setPreview(null);
+ };
  const title=tab==="home"?"Bảng tin":tab==="grid"?"Bộ sưu tập":tab==="reels"?"Reels":"Cộng đồng";
  return <PhoneFrame theme={app.id}><AppHeader app={app}/>
   <main className={css.appContent} data-piner-slot="app-content" data-active-tab={tab}>
    <div className={css.appLead}><div><small>{app.eyebrow} · NHẬT KÝ SÁNG TẠO</small><h1>{title}</h1><p>{tab==="home"?app.experience:tab==="grid"?"Mỗi tác phẩm là một dấu mốc.":tab==="reels"?"Lưu lại chuyển động và giai điệu.":"Cùng chia sẻ niềm vui với PINO."}</p></div><span><AppGlyph kind={app.id}/></span></div>
-   {tab==="home"&&<><div className={css.sectionHead}><h2>Khoảnh khắc gần đây</h2><span>Mới nhất</span></div><div className={css.feedList}>{all.map(p=><PostCard key={p.id} post={p} onOpen={setPreview}/>)}</div></>}
+   {statusMessage&&<p className={css.visibilityStatus} role="status">{statusMessage}</p>}
+   {tab==="home"&&<><div className={css.sectionHead}><h2>Khoảnh khắc gần đây</h2><span>Mới nhất</span></div><div className={css.feedList}>{all.map(p=><PostCard key={p.id} post={p} onOpen={setPreview} onRequestVisibility={onRequestVisibility}/>)}</div></>}
    {tab==="grid"&&<GridView posts={all} onOpen={setPreview}/>}
    {tab==="reels"&&<ReelsView posts={all} onOpen={setPreview}/>}
-   {tab==="community"&&<CommunityView posts={all} onOpen={setPreview}/>}
+   {tab==="community"&&<CommunityView posts={all} onOpen={setPreview} onRequestVisibility={onRequestVisibility}/>
    <p className={css.prototypeNote}>Prototype PINO · Chỉ sử dụng dữ liệu minh họa, chưa kết nối Core.</p>
-  </main><BottomNav app={app} active={tab}/>{preview&&<PreviewDialog post={preview} onClose={()=>setPreview(null)}/>}
+  </main><BottomNav app={app} active={tab}/>
+  {preview&&<PreviewDialog post={all.find(p=>p.id===preview.id)??preview} onClose={()=>setPreview(null)} onRequestVisibility={onRequestVisibility}/>}
+  {shareIntent&&<VisibilityDialog post={shareIntent} onCancel={()=>setShareIntent(null)} onConfirm={onConfirmVisibility}/>
  </PhoneFrame>;
 }
