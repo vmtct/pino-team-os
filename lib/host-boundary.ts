@@ -136,6 +136,10 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
 
   if (hostname === HO_STAGING_HOSTNAME) {
     const p = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
+    // PAP-1669 / PLT-ATTR FSG2: exact HO Founder-only Custom Attributes routes.
+    const attributeBase = p === "/api/ho/custom-attributes/definitions";
+    const attributeDetail = /^\/api\/ho\/custom-attributes\/definitions\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(p);
+    if (attributeBase || attributeDetail) return {action: (attributeBase ? method === "GET" || method === "POST" : method === "GET") ? "next" : "not_found"};
     // PAP-1594: Founder-only Path directory GET; all non-GET verbs remain hidden.
     if (p === "/api/ho/learning/paths") return { action: method === "GET" ? "next" : "not_found" };
     // PAP-1221: HO Staging-only Diary GLOBAL read, exact collection/UUID detail.
