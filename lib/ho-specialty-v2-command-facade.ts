@@ -16,16 +16,16 @@ const respond=(status:number,code:string)=>Response.json({error:{code}},{status,
 type Command=
  | {type:"SET_OVERVIEW";expectedVersion:number;levelCount:number;prerequisiteIds:string[];tags:string[]}
  | {type:"LINK_MISSION"|"UNLINK_MISSION";expectedVersion:number;levelId:string;missionId:string}
- | {type:"PUBLISH";expectedVersion:number};
+ | {type:"PUBLISH"|"UNPUBLISH";expectedVersion:number};
 const keys=(x:Record<string,unknown>,expect:readonly string[])=>Object.keys(x).length===expect.length&&
  expect.every(k=>Object.hasOwn(x,k))&&Object.keys(x).every(k=>expect.includes(k));
 export function parseHoSpecialtyV2Command(raw:unknown):Command|null{
  if(!raw||typeof raw!=='object'||Array.isArray(raw))return null;
  const x=raw as Record<string,unknown>;
  if(!Number.isSafeInteger(x.expectedVersion)||Number(x.expectedVersion)<1)return null;
- if(x.type==="PUBLISH"){
+ if(x.type==="PUBLISH"||x.type==="UNPUBLISH"){
   if(!keys(x,["type","expectedVersion"]))return null;
-  return {type:"PUBLISH",expectedVersion:Number(x.expectedVersion)};
+  return {type:x.type,expectedVersion:Number(x.expectedVersion)};
  }
  if(x.type==="SET_OVERVIEW"){
   if(!keys(x,["type","expectedVersion","levelCount","prerequisiteIds","tags"])||

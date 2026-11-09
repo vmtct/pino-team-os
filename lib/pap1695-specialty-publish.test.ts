@@ -21,7 +21,7 @@ void describe("PAP-1695 S1P HO DSA inline Publish",()=>{
  void it("admits ONLY exact PUBLISH expectedVersion command without status-bypass fields",()=>{
   assert.deepEqual(parseHoSpecialtyV2Command({type:"PUBLISH",expectedVersion:3}),{type:"PUBLISH",expectedVersion:3});
   for(const raw of [
-   {type:"UNPUBLISH",expectedVersion:4},
+   {type:"UNPUBLISH",expectedVersion:4,autoRevoke:true},
    {type:"PUBLISH",expectedVersion:0},
    {type:"PUBLISH",expectedVersion:3,status:"ACTIVE"},
    {type:"PUBLISH",expectedVersion:3,permission:"founder"},
