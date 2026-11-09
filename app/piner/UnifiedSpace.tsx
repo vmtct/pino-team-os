@@ -1,0 +1,151 @@
+"use client";
+// PAP-1775 · PNR-APP-HUB · ONE responsive portfolio UI, four compact bottom tabs.
+// Synthetic local prototype only: no authenticated guardian, child media, Core/API writes.
+import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
+import { Glyph, PostCard, PreviewDialog } from "./SharedShell";
+import { MediaArtwork } from "./MediaArtwork";
+import { VisibilityDialog } from "./VisibilityDialog";
+import { POSTS, type MediaPost, type Visibility } from "./media";
+import { MANAGED_CHILDREN, useActiveProfile, isManagedChild, getProfile } from "./profiles";
+import css from "./launcher.module.css";
+
+export type UnifiedTab = "home" | "grid" | "reels" | "community";
+const TABS = [
+ {id:"home",label:"Bảng tin",icon:"home",href:"/piner"},
+ {id:"grid",label:"Bộ sưu tập",icon:"grid",href:"/piner/grid"},
+ {id:"reels",label:"Reels",icon:"video",href:"/piner/reels"},
+ {id:"community",label:"Cộng đồng",icon:"community",href:"/piner/community"}
+] as const;
+
+function dateSort(a:MediaPost,b:MediaPost){
+ const toNumber=(date:string)=>{const [day,month]=date.split("/").map(Number);return (month||0)*32+(day||0);};
+ return toNumber(b.date)-toNumber(a.date);
+}
+function Header({currentChild,select}:{currentChild:string;select:(id:"an"|"binh")=>void}){
+ const profile=getProfile(currentChild==="binh"?"binh":"an");
+ return <header className={css.unifiedHeader} data-piner-shared="unified-header">
+   <div className={css.unifiedSwitcher}>
+     <span className={css.unifiedProfileCircle} aria-hidden="true">{profile.avatar}</span>
+     <select id="piner-child-profile" aria-label="Chọn con đang xem" className={css.unifiedProfileSelect}
+       value={profile.id} onChange={event=>select(event.target.value as "an"|"binh")}>
+       {MANAGED_CHILDREN.map(child=><option value={child.id} key={child.id}>{child.display}</option>)}
+     </select>
+     <span className={css.unifiedDropdownArrow} aria-hidden="true">⌄</span>
+   </div>
+   <Link href="/piner" aria-label="Logo PINO · Bảng tin" className={css.unifiedLogo}>
+     <strong>PINO</strong><small>SPACE</small>
+   </Link>
+ </header>;
+}
+function Footer({tab}:{tab:UnifiedTab}){
+ return <nav aria-label="Điều hướng Piner Space" data-piner-shared="bottom-nav" className={css.unifiedNav}>
+   <div className={css.unifiedNavInner}>{TABS.map(item=><Link href={item.href} key={item.id}
+       data-tab={item.id} aria-current={item.id===tab?"page":undefined}
+       className={item.id===tab?css.unifiedNavActive:css.unifiedNavItem}>
+       <Glyph name={item.icon}/><small>{item.label}</small>
+     </Link>)}</div>
+ </nav>;
+}
+function MediaGrid({posts,onOpen}:{posts:MediaPost[];onOpen:(post:MediaPost)=>void}){
+ return posts.length===0?<div className={css.emptyMedia}><strong>Chưa có tác phẩm nào</strong><p>Những bức tranh và giai điệu sẽ được lưu tại đây.</p></div>:
+ <div data-gallery-view="grid" className={css.unifiedGallery}>{posts.map(post=><button key={post.id}
+   type="button" onClick={()=>onOpen(post)} aria-label={"Xem "+post.title} className={css.galleryTile}>
+   <MediaArtwork post={post}/>{post.type==="reel"&&<span>▶ {post.duration}</span>}
+ </button>)}</div>;
+}
+function MediaReels({posts,onOpen}:{posts:MediaPost[];onOpen:(post:MediaPost)=>void}){
+ const reels=posts.filter(post=>post.type==="reel");
+ return reels.length===0?<div className={css.emptyMedia}><strong>Chưa có Reel nào</strong><p>Các khoảnh khắc vẽ tranh và biểu diễn sẽ xuất hiện tại đây.</p></div>:
+ <div data-reels-view="reels" className={css.unifiedReels}>{reels.map(post=><button
+   type="button" className={css.reelTile} key={post.id} onClick={()=>onOpen(post)} aria-label={"Xem "+post.title}>
+   <MediaArtwork post={post}/><span className={css.playDisc}>▶</span>
+   <span className={css.reelCaption}><strong>{post.title}</strong><small>{post.duration} · {post.app==="piano"?"Piano":"Hội Họa"}</small></span>
+ </button>)}</div>;
+}
+
+export function PinerUnified({tab}:{tab:UnifiedTab}){
+ const {profile,activeId,select,hydrated:profileReady}=useActiveProfile();
+ const [overrides,setOverrides]=useState<Record<string,Visibility>>({});
+ const [visibilityReady,setVisibilityReady]=useState(false);
+ const [preview,setPreview]=useState<MediaPost|null>(null);
+ const [shareIntent,setShareIntent]=useState<MediaPost|null>(null);
+ const [status,setStatus]=useState("");
+ const focusReturn=useRef<HTMLElement|null>(null);
+
+ // Read the preceding PAP-1765 mock state without changing the source of ownership.
+ useEffect(()=>{
+  const restore:Record<string,Visibility>={};
+  for(const kind of ["hoi-hoa","piano"] as const){
+   const allowed=new Set(POSTS.filter(p=>p.app===kind).map(p=>p.id));
+   try{
+    const raw=sessionStorage.getItem("piner-pap1765-visibility-"+kind);
+    if(!raw)continue;
+    const data=JSON.parse(raw) as Record<string,unknown>;
+    if(data&&typeof data==="object"&&!Array.isArray(data)){
+     for(const [id,value] of Object.entries(data)){
+      if(allowed.has(id)&&(value==="private"||value==="community"))restore[id]=value;
+     }
+    }
+   }catch{/* Synthetic session can be blocked; no real write occurs. */}
+  }
+  setOverrides(restore);
+  setVisibilityReady(true);
+ },[]);
+ const loaded=profileReady&&visibilityReady;
+ const all:MediaPost[]=loaded?[...POSTS].map(p=>({...p,visibility:overrides[p.id]??p.visibility})).sort(dateSort):[];
+ const own=all.filter(p=>p.ownerId===activeId);
+ const visible=tab==="community"?all.filter(p=>p.visibility==="community"):own;
+ const restoreFocus=()=>requestAnimationFrame(()=>{
+  if(focusReturn.current?.isConnected)focusReturn.current.focus();
+  else document.querySelector<HTMLAnchorElement>('[data-piner-shared="bottom-nav"] a[aria-current="page"]')?.focus();
+ });
+ const requestVisibility=(post:MediaPost)=>{
+  // In real Core work this must be enforced by verified guardian ACL; this is UI fixture only.
+  if(!isManagedChild(post.ownerId))return;
+  focusReturn.current=document.activeElement instanceof HTMLElement?document.activeElement:null;
+  setPreview(null);setShareIntent(post);setStatus("");
+ };
+ const confirmVisibility=()=>{
+  if(!shareIntent||!isManagedChild(shareIntent.ownerId))return;
+  const next:Visibility=shareIntent.visibility==="private"?"community":"private";
+  const update={...overrides,[shareIntent.id]:next};
+  setOverrides(update);
+  try{
+   const appIds=Object.fromEntries(Object.entries(update).filter(([id])=>POSTS.some(p=>p.id===id&&p.app===shareIntent.app)));
+   sessionStorage.setItem("piner-pap1765-visibility-"+shareIntent.app,JSON.stringify(appIds));
+  }catch{/* In-memory mock remains usable. */}
+  setShareIntent(null);setPreview(null);
+  setStatus(next==="community"?"Đã chia sẻ với Cộng đồng PINO (mô phỏng).":"Đã thu hồi chia sẻ (mô phỏng).");
+  restoreFocus();
+ };
+ const title=TABS.find(item=>item.id===tab)?.label??"Bảng tin";
+ return <div className={css.unifiedBackdrop}>
+   <div className={css.unifiedShell} data-piner-shared="unified-shell" data-unified-tab={tab}>
+     <Header currentChild={activeId} select={select}/>
+     <main className={css.unifiedContent} data-piner-slot="content" data-hydrated={loaded?"true":"false"}>
+       <div className={css.unifiedContentInner}>
+         <div className={css.unifiedPageHeading}>
+           <h1>{title}</h1>
+           {tab!=="community"&&<span>{profile.display}</span>}
+         </div>
+         {status&&<p className={css.visibilityStatus} role="status">{status}</p>}
+         {!loaded?<div className={css.unifiedLoading} role="status">Đang mở hành trình...</div>:tab==="grid"?
+           <MediaGrid posts={visible} onOpen={setPreview}/>:
+           tab==="reels"?<MediaReels posts={visible} onOpen={setPreview}/>:
+           <div className={css.unifiedFeed} data-feed-scope={tab==="community"?"community":"personal"}>
+             {visible.map(post=><PostCard key={post.id} post={post} scope={tab==="community"?"community":"personal"}
+               onOpen={setPreview} onRequestVisibility={requestVisibility}/>)}
+           </div>}
+         {loaded&&visible.length===0&&tab==="home"&&
+           <div className={css.emptyMedia}><strong>Chưa có bài đăng</strong><p>Hành trình sáng tạo sẽ xuất hiện tại đây.</p></div>}
+       </div>
+     </main>
+     <Footer tab={tab}/>
+     {preview&&<PreviewDialog post={all.find(p=>p.id===preview.id)??preview} onClose={()=>setPreview(null)}
+       onRequestVisibility={requestVisibility}/>}
+     {shareIntent&&<VisibilityDialog post={shareIntent} onCancel={()=>{setShareIntent(null);restoreFocus();}}
+       onConfirm={confirmVisibility}/>}
+   </div>
+ </div>;
+}

@@ -193,3 +193,70 @@
 .focusAppTile:active{transform:scale(.985)}
 @media(max-width:350px){.minimalHome{padding:14px 12px}.familyPicker{width:171px}.focusAppGrid{gap:10px;margin-top:20px}.focusAppTile{min-height:212px;padding:13px 7px;gap:15px;border-radius:18px}.focusAppIcon{width:97px;height:97px;border-radius:23px}.focusAppTile strong{font-size:19px}}
 @media(prefers-reduced-motion:reduce){.focusAppTile{transition:none;transform:none!important}}
+
+/* PAP-1775 · Single responsive Piner Space; compact header/footer, media-first center.
+   Semantic theme only; TOS-style components reused, no duplicate child app shell. */
+.unifiedBackdrop{display:flex;justify-content:center;align-items:stretch;width:100%;height:100dvh;min-height:100svh;background:#f0eef2}
+.unifiedShell{
+ --tone:#805a7b;--tint:#f5eaf0;--canvas:#fbf9fb;--line:#e8e0e9;--ink:#33303c;--muted:#77717d;--surface:#fff;
+ font:15px/1.45 "Segoe UI",Roboto,"Noto Sans",Arial,sans-serif;
+ display:flex;flex-direction:column;position:relative;isolation:isolate;
+ width:100%;max-width:1280px;height:100dvh;min-height:100svh;overflow:hidden;
+ background:var(--canvas);color:var(--ink);
+}
+.unifiedShell *{box-sizing:border-box}
+.unifiedShell a{text-decoration:none;color:inherit}
+.unifiedShell button,.unifiedShell select{font-family:inherit}
+.unifiedShell :is(a,button,select):focus-visible{outline:2px solid #247d9a;outline-offset:2px}
+.unifiedHeader{height:50px;min-height:50px;flex:0 0 50px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:3px 14px;
+ background:var(--surface);border-bottom:1px solid var(--line);z-index:3}
+.unifiedSwitcher{display:flex;align-items:center;gap:4px;height:44px;max-width:190px;position:relative}
+.unifiedProfileCircle{flex:0 0 28px;width:28px;height:28px;display:grid;place-items:center;border-radius:50%;background:var(--tint);color:var(--tone);font-size:13px;font-weight:800;pointer-events:none}
+.unifiedProfileSelect{min-height:44px;width:105px;padding:0 19px 0 4px;appearance:none;-webkit-appearance:none;background:transparent;border:0;color:var(--ink);font-size:13px;font-weight:800;cursor:pointer}
+.unifiedDropdownArrow{font-size:21px;position:absolute;right:0;top:8px;color:var(--tone);line-height:24px;pointer-events:none}
+.unifiedLogo{height:44px;min-width:66px;display:flex;align-items:flex-end;justify-content:center;flex-direction:column;line-height:1.05;letter-spacing:.05em;color:var(--tone)!important}
+.unifiedLogo strong{font-size:21px;letter-spacing:-.08em;font-weight:950;line-height:1}
+.unifiedLogo small{font-size:8px;font-weight:850;letter-spacing:.32em;margin-right:1px;margin-top:2px}
+.unifiedContent{flex:1;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:11px 12px 20px;scrollbar-width:thin}
+.unifiedContentInner{max-width:1120px;margin:0 auto;width:100%}
+.unifiedPageHeading{display:flex;align-items:baseline;justify-content:space-between;gap:10px;min-height:37px;margin:0 1px 9px}
+.unifiedPageHeading h1{font-size:20px;font-weight:850;letter-spacing:-.035em;line-height:1.3;margin:0}
+.unifiedPageHeading span{font-size:11px;color:var(--muted);font-weight:700}
+.unifiedLoading{padding:18px;font-size:13px;color:var(--muted)}
+.unifiedFeed{display:flex;flex-direction:column;gap:12px}
+.unifiedFeed>.postCard{min-width:0;width:100%}
+.unifiedGallery{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3px}
+.unifiedReels{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.unifiedNav{height:calc(56px + env(safe-area-inset-bottom));min-height:calc(56px + env(safe-area-inset-bottom));flex:0 0 calc(56px + env(safe-area-inset-bottom));
+ background:var(--surface);border-top:1px solid var(--line);z-index:4;padding:2px 6px env(safe-area-inset-bottom)}
+.unifiedNavInner{width:100%;max-width:640px;height:53px;margin:0 auto;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:2px}
+.unifiedNavItem,.unifiedNavActive{min-width:0;min-height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;border-radius:10px;color:var(--muted)!important;padding:2px}
+.unifiedNavActive{color:var(--tone)!important;background:var(--tint)}
+.unifiedNavInner svg{height:20px;width:20px;flex:0 0 20px;display:block}
+.unifiedNavInner small{font-size:10px;font-weight:800;line-height:1.15;white-space:nowrap;max-width:100%;text-overflow:ellipsis;overflow:hidden}
+.unifiedShell .modalBackdrop{position:absolute}
+@media(min-width:600px){
+ .unifiedContent{padding:15px 22px 26px}
+ .unifiedGallery{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+ .unifiedReels{grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
+ .unifiedFeed{gap:16px}
+}
+@media(min-width:900px){
+ .unifiedShell{border-left:1px solid #fff;border-right:1px solid #fff;box-shadow:0 10px 38px #43364412}
+ .unifiedHeader{height:54px;min-height:54px;flex-basis:54px;padding-inline:25px}
+ .unifiedContent{padding:18px 26px 28px}
+ .unifiedPageHeading{margin-bottom:13px}
+ .unifiedPageHeading h1{font-size:23px}
+ .unifiedFeed{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;align-items:start}
+ .unifiedGallery{grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+ .unifiedReels{grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+ .unifiedNav{height:60px;min-height:60px;flex-basis:60px}
+ .unifiedNavInner{height:55px}
+ .unifiedNavInner small{font-size:11px}
+}
+@media(max-width:340px){
+ .unifiedHeader{padding-inline:10px}
+ .unifiedContent{padding-inline:9px}
+ .unifiedNavInner small{font-size:9px}
+}
+@media(prefers-reduced-motion:reduce){.unifiedShell *{scroll-behavior:auto!important;transition:none!important}}

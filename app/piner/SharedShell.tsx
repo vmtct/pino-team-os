@@ -12,7 +12,7 @@ import { VisibilityDialog } from "./VisibilityDialog";
 import { MANAGED_CHILDREN,getProfile,isManagedChild,useActiveProfile } from "./profiles";
 import css from "./launcher.module.css";
 
-function Glyph({name}:{name:NavIcon}){
+export function Glyph({name}:{name:NavIcon}){
  const root={width:22,height:22,viewBox:"0 0 24 24",fill:"none",stroke:"currentColor",strokeWidth:1.8,strokeLinecap:"round" as const,strokeLinejoin:"round" as const,"aria-hidden":true as const};
  if(name==="home")return <svg {...root}><path d="m3 10 9-7 9 7v10h-7v-6H9v6H3Z"/></svg>;
  if(name==="grid")return <svg {...root}><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>;
@@ -70,7 +70,7 @@ function BottomNav({app,active}:{app:PinerApp;active:string}){
  </nav>;
 }
 function TeacherComment({post}:{post:MediaPost}){return <div className={css.teacherComment}><span className={css.teacherIcon}>✎</span><div><strong>{post.teacher}</strong><p>{post.comment}</p></div></div>}
-function PostCard({post,onOpen,onRequestVisibility,scope="personal"}:{post:MediaPost;onOpen:(post:MediaPost)=>void;onRequestVisibility:(post:MediaPost)=>void;scope?:"personal"|"community"}){
+export function PostCard({post,onOpen,onRequestVisibility,scope="personal"}:{post:MediaPost;onOpen:(post:MediaPost)=>void;onRequestVisibility:(post:MediaPost)=>void;scope?:"personal"|"community"}){
  const [commentsOpen,setCommentsOpen]=useState(false);const [liked,setLiked]=useState(false);
  const community=post.visibility==="community";
  const canManage=isManagedChild(post.ownerId);
@@ -104,7 +104,7 @@ function CommunityView({posts,onOpen,onRequestVisibility}:{posts:readonly MediaP
  return <><div className={css.communityIntro}><strong>Góc cộng đồng PINO ♡</strong><p>Các tác phẩm được gia đình chọn chia sẻ. Những bài riêng tư không xuất hiện ở đây.</p><span>Ví dụ minh họa · cần đồng ý chia sẻ khi triển khai thật</span></div>
  <div className={css.feedList}>{community.map(p=><PostCard key={p.id} post={p} scope="community" onOpen={onOpen} onRequestVisibility={onRequestVisibility}/>)}</div></>;
 }
-function PreviewDialog({post,onClose,onRequestVisibility}:{post:MediaPost;onClose:()=>void;onRequestVisibility:(post:MediaPost)=>void}){
+export function PreviewDialog({post,onClose,onRequestVisibility}:{post:MediaPost;onClose:()=>void;onRequestVisibility:(post:MediaPost)=>void}){
  useEffect(()=>{const key=(e:KeyboardEvent)=>{if(e.key==="Escape")onClose()};document.addEventListener("keydown",key);return()=>document.removeEventListener("keydown",key)},[onClose]);
  return <div className={css.modalBackdrop} role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}><section className={css.modal} role="dialog" aria-modal="true" aria-label={"Xem "+post.title}>
  <header><strong>{post.title}</strong><button autoFocus type="button" onClick={onClose} aria-label="Đóng">✕</button></header>
@@ -148,7 +148,7 @@ export function PinerAppScreen({app,tab}:{app:PinerApp;tab:string}){
  const own=all.filter(post=>post.ownerId===profile.id);
  const restoreShareFocus=()=>requestAnimationFrame(()=>{
    if(focusReturnRef.current?.isConnected)focusReturnRef.current.focus();
-   else document.querySelector<HTMLAnchorElement>('a[aria-label="Về Piner Space"]')?.focus();
+   else document.querySelector<HTMLAnchorElement>('a[aria-label="Về Piner Space"],[data-piner-shared="bottom-nav"] a[aria-current="page"]')?.focus();
  });
  const onCancelVisibility=()=>{setShareIntent(null);restoreShareFocus();};
  const onRequestVisibility=(post:MediaPost)=>{

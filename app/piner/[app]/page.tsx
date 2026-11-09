@@ -1,19 +1,20 @@
-// PAP-1749 · shared app frame / bottom nav for all five app identities.
-import { notFound } from "next/navigation";
+// PAP-1775 · unified slash tabs; old two-app entry links redirect to unified feed.
 import type { Metadata } from "next";
-import { PINER_APPS } from "../catalog";
-import { PinerAppScreen } from "../SharedShell";
-type Props = { params: Promise<{ app: string }> };
-export const dynamicParams = false;
-export function generateStaticParams() { return PINER_APPS.map(item => ({ app: item.id })); }
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { app } = await params;
-  const entry = PINER_APPS.find(a => a.id === app);
-  return { title: entry ? entry.label + " · Piner Space" : "Piner Space" };
+import { notFound, redirect } from "next/navigation";
+import { PinerUnified,type UnifiedTab } from "../UnifiedSpace";
+type Props={params:Promise<{app:string}>};
+export const dynamicParams=false;
+export function generateStaticParams(){
+ return ["grid","reels","community","hoi-hoa","piano"].map(app=>({app}));
 }
-export default async function PinerAppHome({ params }: Props) {
-  const { app } = await params;
-  const entry = PINER_APPS.find(a => a.id === app);
-  if (!entry) notFound();
-  return <PinerAppScreen app={entry} tab="home"/>;
+export async function generateMetadata({params}:Props):Promise<Metadata>{
+ const {app}=await params;
+ const names:Record<string,string>={grid:"Bộ sưu tập",reels:"Reels",community:"Cộng đồng"};
+ return {title:(names[app]||"Bảng tin")+" · Piner Space"};
+}
+export default async function UnifiedTabPage({params}:Props){
+ const {app}=await params;
+ if(app==="hoi-hoa"||app==="piano")redirect("/piner");
+ if(app!=="grid"&&app!=="reels"&&app!=="community")notFound();
+ return <PinerUnified tab={app as UnifiedTab}/>;
 }
