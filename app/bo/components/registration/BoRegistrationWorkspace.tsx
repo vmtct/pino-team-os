@@ -68,7 +68,8 @@ function BoWorkspace({ moduleKey, options, currentUser, source, content, headerC
   const [hoNavReady, setHoNavReady] = useState(false);
   // One local browser preference per surface; never changes Center, route or records.
   useEffect(() => {
-    if (inheritedLocale?.surface === surface) return;
+    // PAP-1726: synthetic/ephemeral TDD exemplars never touch browser storage.
+    if (inheritedLocale?.surface === surface || source.ephemeral) return;
     let active = true;
     // Read the browser preference after hydration, without a synchronous effect setState.
     queueMicrotask(() => {
@@ -80,12 +81,12 @@ function BoWorkspace({ moduleKey, options, currentUser, source, content, headerC
       setLanguageReady(true);
     });
     return () => { active = false; };
-  }, [surface, inheritedLocale?.surface]);
+  }, [surface, inheritedLocale?.surface, source.ephemeral]);
   useEffect(() => {
-    if (!languageReady || inheritedLocale?.surface === surface) return;
+    if (!languageReady || inheritedLocale?.surface === surface || source.ephemeral) return;
     try { localStorage.setItem(pinoLocaleStorageKey(surface), localLanguage); }
     catch { /* Local state still works. */ }
-  }, [surface, localLanguage, languageReady, inheritedLocale?.surface]);
+  }, [surface, localLanguage, languageReady, inheritedLocale?.surface, source.ephemeral]);
   const [hoRecordNotFound, setHoRecordNotFound] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState("");

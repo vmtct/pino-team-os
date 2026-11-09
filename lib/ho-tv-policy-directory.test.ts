@@ -8,7 +8,7 @@ import { BoDataTable } from "../app/bo/components/registration/BoDataTable";
 import { defaultTable } from "./bo-registration";
 import { isHoTvReadRequest, parseHoTvRead, InvalidTvReadQuery } from "./ho-tv-read-contract";
 import { HO_STAGING_HOSTNAME, BO_STAGING_HOSTNAME, decideHostBoundary } from "./host-boundary";
-import { loadHoTvPolicyDirectory, readHoTvPolicyDirectory, tvPolicyModule } from "./ho-tv-policy-directory";
+import { loadHoTvPolicyDirectory, presentHoTvPolicyRows, readHoTvPolicyDirectory, tvPolicyModule } from "./ho-tv-policy-directory";
 
 const c1 = "019b1126-0001-7000-8000-000000000001";
 const defaultRow = {
@@ -154,4 +154,31 @@ test("PAP-1419 S3 PINO DS Table exposes usable search/filter/sort without dead Q
   assert.doesNotMatch(html, /id="table-count"|id="result-count"|id="group-shortcut"|id="add-view-tab"|id="save-view"/);
   assert.equal(tvPolicyModule.fields.find(f => f.key === "active")?.type, "number");
   assert.equal(tvPolicyModule.fields.find(f => f.key === "latest")?.type, "number");
+});
+
+test("PAP-1419 FSG3 presents real Core nulls as — without changing the shared TDD Table", () => {
+  const original = { ...defaultRow };
+  const presented = presentHoTvPolicyRows([original]);
+  assert.notEqual(presented[0], original, "render-only clone, not source mutation");
+  for (const key of ["displaysCount", "createdAt", "createdByUser", "updatedAt", "updatedByUser"]) {
+    assert.equal(original[key as keyof typeof original], null);
+    assert.equal(presented[0][key], "—");
+  }
+  assert.equal(presented[0].name, original.name);
+  const noop = () => {};
+  const props = {
+    module: tvPolicyModule, rows: presented, loadState: "ready",
+    value: defaultTable(tvPolicyModule.fields), update: noop, page: 1, setPage: noop,
+    onOpen: noop, onSettings: noop, filterOpen: false, setFilterOpen: noop,
+    views: [], changeViews: noop, activeView: null, applyView: noop,
+    reset: noop, undo: noop, canUndo: false, openEnabled: false,
+  };
+  const tv = renderToStaticMarkup(createElement(BoDataTable, props));
+  for (const label of ["Created Time", "Created by (User)", "Last Modified Time", "Last Modified by (User)"])
+    assert.ok(tv.includes('aria-label="' + label + ': —"'), "unverified audit " + label + " must be —");
+  assert.match(tv, /typed-cell readonly/);
+  assert.match(tv, /aria-label="Displays: —"/);
+  const baseline = renderToStaticMarkup(createElement(BoDataTable, { ...props, rows: [original] }));
+  assert.match(baseline, /aria-label="Created Time: —"/);
+  assert.match(baseline, /class="empty-val">Trống<\/span>/);
 });
