@@ -1,8 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
 import { buildSync } from "esbuild";
 import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { resolve } from "node:path";
 
-const actionCss = readFileSync("node_modules/@pino/design-system/dist/0.3.0/components.css", "utf8");
+const actionCss = readFileSync(createRequire(resolve(process.cwd(), "package.json")).resolve("@pino/design-system/components.css"), "utf8");
 
 const bundle = buildSync({
   entryPoints: ["e2e/fixtures/pap1247-action-interactions.tsx"],
