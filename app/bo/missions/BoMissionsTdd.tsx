@@ -1,8 +1,9 @@
 "use client";
 import "@pino/design-system/bo-tokens.css";
 import "@pino/design-system/components.css";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { readMissionAssignment, readMissionLinkedDiaries, type MissionAssignment, type LinkedMissionDiary } from "@/lib/bo-mission-assignments";
+import { readBoMissionExecution, reopenBoMissionCompletion, type BoMissionExecution } from "@/lib/bo-mission-completion-client";
 import { submitBoMissionAssignment, type AssignmentWrite } from "@/lib/bo-mission-assignment-command";
 import { createBoTddAdapter, type AuthenticatedSurfaceAdapter } from "@/lib/workspace-adapters";
 import { browserTddNavigation, type AdapterNavigation } from "@/lib/workspace-adapters/navigation";
@@ -83,6 +84,11 @@ function ScopedMissionAssignment({centerId,centerSource,writeLease,setWriteLease
   const [formError, setFormError] = useState("");
   const [loadError, setLoadError] = useState("");
   const [confirmed, setConfirmed] = useState("");
+  // PAP-1210: Core-owned C1 read enables narrow Manager Reopen in Full Detail.
+  const [detailExecution,setDetailExecution]=useState<BoMissionExecution|null>(null);
+  const [reopenOpen,setReopenOpen]=useState(false);
+  const [reopenVersion,setReopenVersion]=useState<number|null>(null);
+  const [reopenReason,setReopenReason]=useState("");
   const commandKey = useRef<string | null>(null);
   const writing = useRef(false);
   const effectiveCenter = useRef(centerId);
@@ -102,18 +108,36 @@ function ScopedMissionAssignment({centerId,centerSource,writeLease,setWriteLease
       });
     return () => { controller.abort(); adapter?.dispose(); };
   }, [centerId, centerSource, retry]);
+  const detailId=useSyncExternalStore(
+    ready?.navigation.subscribe ?? (()=>()=>{}),
+    ()=>{
+      if(!ready || ready.centerId!==centerId)return null;
+      const nav=ready.navigation.read();
+      return nav.kind==="detail"?nav.recordId??null:null;
+    },
+    ()=>null,
+  );
+  useEffect(()=>{
+    if(!ready || ready.centerId!==centerId || !detailId)return;
+    const controller=new AbortController();
+    void readBoMissionExecution(fetch,centerId,detailId,controller.signal).then(value=>{
+      if(!controller.signal.aborted)setDetailExecution(value);
+    }).catch(()=>{if(!controller.signal.aborted)setDetailExecution(null);});
+    return ()=>controller.abort();
+  },[ready,centerId,detailId]);
   const close = () => {
     if (writing.current || pending) return;
-    setMode(null); setTarget(null); setFormError("");
+    setMode(null);setReopenOpen(false);setReopenReason("");setReopenVersion(null);
+    setTarget(null); setFormError("");
   };
   const openCreate = () => {
-    if (!ready || ready.centerId !== centerId || writing.current || pending || uncertain || leaseBlocked || mode) return;
+    if (!ready || ready.centerId !== centerId || writing.current || pending || uncertain || leaseBlocked || mode || reopenOpen) return;
     if (!ready.adapter.context.authorize("student.mission_assignment.manage")) return;
     commandKey.current = "mission-assignment-create-" + crypto.randomUUID();
     setDraft(emptyAssignmentDraft); setTarget(null); setFormError(""); setLoadError(""); setConfirmed(""); setMode("create");
   };
   const openChange = async (kind: "edit" | "cancel") => {
-    if (!ready || ready.centerId !== centerId || writing.current || pending || uncertain || leaseBlocked || mode) return;
+    if (!ready || ready.centerId !== centerId || writing.current || pending || uncertain || leaseBlocked || mode || reopenOpen) return;
     if (!ready.adapter.context.authorize("student.mission_assignment.manage")) return;
     const selected = ready.navigation.read();
     if (selected.kind !== "detail" || !selected.recordId) return;
@@ -134,6 +158,72 @@ function ScopedMissionAssignment({centerId,centerSource,writeLease,setWriteLease
     } catch {
       setLoadError("Không đọc được bản ghi hiện tại từ Core; không thao tác trên bản cũ.");
     } finally { setPending(false); }
+  };
+  // Core Completion state is independent of ASSIGNED/CANCELLED and Diary Result.
+  const openReopen=async()=>{
+    if(!ready || ready.centerId!==centerId || writing.current || pending || uncertain ||
+      leaseBlocked || mode || reopenOpen || !detailId ||
+      detailExecution?.assignmentId!==detailId ||
+      detailExecution?.executionStatus!=="COMPLETED" ||
+      !ready.adapter.context.authorize("student.mission_assignment.manage"))return;
+    const currentId=detailId;
+    setPending(true);setLoadError("");
+    try{
+      const controller=new AbortController();
+      const [assignment,execution]=await Promise.all([
+        readMissionAssignment(fetch,centerId,currentId,controller.signal),
+        readBoMissionExecution(fetch,centerId,currentId,controller.signal),
+      ]);
+      if(!assignment || assignment.centerId!==centerId || assignment.status!=="ASSIGNED" ||
+        execution.assignmentId!==currentId || execution.assignmentStatus!=="ASSIGNED" ||
+        execution.executionStatus!=="COMPLETED" || execution.executionVersion<1){
+        setLoadError("Core chưa xác minh Nhiệm vụ Hoàn tất; tải lại bản ghi.");return;
+      }
+      if(effectiveCenter.current!==centerId || ready.navigation.read().recordId!==currentId ||
+        ready.navigation.read().kind!=="detail")return;
+      setTarget(assignment);setReopenVersion(execution.executionVersion);setReopenReason("");
+      commandKey.current="pap1210-bo-reopen-"+crypto.randomUUID();
+      setFormError("");setConfirmed("");setReopenOpen(true);
+    }catch{setLoadError("Không đọc được Completion từ Core; không mở lệnh.");}
+    finally{setPending(false);}
+  };
+  const submitReopen=async()=>{
+    if(!reopenOpen || !ready || ready.centerId!==centerId || effectiveCenter.current!==centerId ||
+      !target || target.centerId!==centerId || target.status!=="ASSIGNED" ||
+      ready.navigation.read().kind!=="detail" || ready.navigation.read().recordId!==target.id ||
+      reopenVersion===null || reopenVersion<1 || !commandKey.current ||
+      writing.current || pending || uncertain || leaseBlocked ||
+      !ready.adapter.context.authorize("student.mission_assignment.manage"))
+      return {state:"denied" as const};
+    const reason=reopenReason.trim();
+    if(reason.length<10 || reason.length>500){
+      setFormError("Lý do không duyệt phải dài từ 10 đến 500 ký tự.");
+      return {state:"invalid" as const};
+    }
+    writing.current=true;setPending(true);setFormError("");
+    setWriteLease({centerId,state:"pending"});
+    try{
+      const result=await reopenBoMissionCompletion({
+        centerId,assignmentId:target.id,expectedVersion:reopenVersion,
+        reason,idempotencyKey:commandKey.current,
+      });
+      setWriteLease(result.state==="unverified"?{centerId,state:"unverified"}:null);
+      if(result.state==="verified"){
+        if(effectiveCenter.current!==centerId)return result;
+        setConfirmed("Core xác minh Mở lại: IN_PROGRESS v"+
+          result.execution.executionVersion+". Lịch sử gốc được giữ nguyên.");
+        setReopenOpen(false);setReopenVersion(null);setReopenReason("");
+        setTarget(null);setDetailExecution(null);setReady(null);setRetry(n=>n+1);
+      }else{
+        setFormError(result.message);
+        if(result.state==="unverified")setUncertain(true);
+      }
+      return result;
+    }catch{
+      setUncertain(true);setWriteLease({centerId,state:"unverified"});
+      setFormError("Kết quả mở lại chưa xác minh. Không tự gửi lại; đối chiếu Core.");
+      return {state:"unverified" as const};
+    }finally{writing.current=false;setPending(false);}
   };
   const submit = async () => {
     if (!mode || !ready || ready.centerId !== centerId || effectiveCenter.current !== centerId ||
@@ -174,9 +264,14 @@ function ScopedMissionAssignment({centerId,centerSource,writeLease,setWriteLease
     } finally { writing.current = false;setPending(false); }
   };
   const actions: TddActionBindings = {
-    openCreate: { kind: "navigation", disabled: pending || uncertain || leaseBlocked || mode !== null, run: openCreate },
-    openEdit: { kind: "navigation", disabled: pending || uncertain || leaseBlocked || mode !== null, run: () => openChange("edit") },
-    openCancel: { kind: "navigation", disabled: pending || uncertain || leaseBlocked || mode !== null, run: () => openChange("cancel") },
+    openCreate: { kind: "navigation", disabled: pending || uncertain || leaseBlocked || mode !== null || reopenOpen, run: openCreate },
+    openEdit: { kind: "navigation", disabled: pending || uncertain || leaseBlocked || mode !== null || reopenOpen, run: () => openChange("edit") },
+    openCancel: { kind: "navigation", disabled: pending || uncertain || leaseBlocked || mode !== null || reopenOpen, run: () => openChange("cancel") },
+    openReopen: { kind: "navigation", visible: !reopenOpen && mode===null && !!detailId &&
+      detailExecution?.assignmentId===detailId && detailExecution.centerId===centerId &&
+      detailExecution.executionStatus==="COMPLETED" &&
+      detailExecution.assignmentStatus==="ASSIGNED",
+      disabled: pending || uncertain || leaseBlocked, run: openReopen },
     cancelCreate: { kind: "navigation", disabled: pending, run: close },
     saveCreate: { kind: "mutation", disabled: pending || uncertain || leaseBlocked || mode !== "create" ||
       Boolean(assignmentFormError("create", draft)), run: submit },
@@ -185,6 +280,8 @@ function ScopedMissionAssignment({centerId,centerSource,writeLease,setWriteLease
       Boolean(assignmentFormError("edit", draft)), run: submit },
     confirmCancel: { kind: "mutation", visible: mode === "cancel", disabled: pending || uncertain || leaseBlocked ||
       Boolean(assignmentFormError("cancel", draft)), run: submit },
+    confirmReopen: { kind: "mutation", visible: reopenOpen, disabled: pending || uncertain || leaseBlocked ||
+      reopenReason.trim().length<10 || reopenReason.trim().length>500, run: submitReopen },
   };
   return <>
     <p role="note">{assignmentUnavailable.create}</p>
@@ -207,6 +304,22 @@ function ScopedMissionAssignment({centerId,centerSource,writeLease,setWriteLease
                 { studentId: target.studentId, missionName: target.missionNameSnapshot, status: target.status } : null} />
             {formError ? <p role="alert">{formError}</p> : null}
           </>,
+        } }} /> : null}
+        {reopenOpen && target ? <TddRenderer view={{kind:"form",props:{
+          registry:ready.adapter.registry,schema:ready.adapter.schema,context:ready.adapter.context,
+          mode:"edit",recordId:target.id,title:"Mở lại nhiệm vụ",
+          onClose:close,actionBindings:actions,
+          content:<section className="v24-prop-section" aria-label="Lý do mở lại nhiệm vụ">
+            <p>Không duyệt lần hoàn tất này? Mở lại để học viên tiếp tục thực hiện. Nhật ký và lịch sử cũ được giữ nguyên.</p>
+            <p><strong>{target.missionNameSnapshot}</strong> · C1 COMPLETED v{reopenVersion}</p>
+            <label htmlFor="pap1210-reopen-reason">Lý do không duyệt *</label>
+            <textarea id="pap1210-reopen-reason" rows={3} maxLength={500}
+              required aria-required="true"
+              placeholder="Nêu nội dung cần chỉnh sửa hoặc bổ sung"
+              value={reopenReason} disabled={pending || uncertain}
+              onChange={e=>setReopenReason(e.target.value)} />
+            {formError?<p role="alert">{formError}</p>:null}
+          </section>,
         } }} /> : null}
       </> : <p role="status">Đang xác thực Center và quyền đọc Nhiệm vụ…</p>}
   </>;

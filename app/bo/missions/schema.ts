@@ -31,11 +31,13 @@ export const assignmentDefinition = {
     { id: "assignment-open-create", label: "Giao Nhiệm vụ", slot: "table.header", variant: "primary", capability: "create", handler: "openCreate" },
     { id: "assignment-open-edit", label: "Sửa", slot: "detail.header", variant: "secondary", capability: "edit", handler: "openEdit" },
     { id: "assignment-open-cancel", label: "Hủy giao", slot: "detail.header", variant: "danger", capability: "edit", handler: "openCancel" },
+    { id: "assignment-open-reopen", label: "Mở lại nhiệm vụ", slot: "detail.header", variant: "secondary", capability: "edit", handler: "openReopen" },
     { id: "assignment-cancel-create", label: "Đóng", slot: "drawer.footer", formMode: "create", variant: "secondary", capability: "create", handler: "cancelCreate" },
     { id: "assignment-save-create", label: "Giao", slot: "drawer.footer", formMode: "create", variant: "primary", capability: "create", handler: "saveCreate" },
     { id: "assignment-cancel-edit", label: "Đóng", slot: "drawer.footer", formMode: "edit", variant: "secondary", capability: "edit", handler: "cancelEdit" },
     { id: "assignment-save-edit", label: "Lưu", slot: "drawer.footer", formMode: "edit", variant: "primary", capability: "edit", handler: "saveEdit" },
     { id: "assignment-confirm-cancel", label: "Xác nhận hủy", slot: "drawer.footer", formMode: "edit", variant: "danger", capability: "edit", handler: "confirmCancel" },
+    { id: "assignment-confirm-reopen", label: "Xác nhận mở lại", slot: "drawer.footer", formMode: "edit", variant: "secondary", capability: "edit", handler: "confirmReopen" },
   ],
   table: {
     identity: { field: "name", pinned: "left", hideable: false, reorderable: false },

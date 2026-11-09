@@ -67,14 +67,21 @@ test("PAP-1210: one typed BO TDD with authorized declarative actions and honest 
     create: "student.mission_assignment.manage", edit: "student.mission_assignment.manage" });
   assert.deepEqual(assignmentDefinition.actions.map(a => [a.id, a.slot, a.capability]), [
     ["assignment-open-create", "table.header", "create"], ["assignment-open-edit", "detail.header", "edit"],
-    ["assignment-open-cancel", "detail.header", "edit"], ["assignment-cancel-create", "drawer.footer", "create"],
+    ["assignment-open-cancel", "detail.header", "edit"], ["assignment-open-reopen", "detail.header", "edit"], ["assignment-cancel-create", "drawer.footer", "create"],
     ["assignment-save-create", "drawer.footer", "create"], ["assignment-cancel-edit", "drawer.footer", "edit"],
     ["assignment-save-edit", "drawer.footer", "edit"], ["assignment-confirm-cancel", "drawer.footer", "edit"],
+    ["assignment-confirm-reopen", "drawer.footer", "edit"],
   ]);
   assert.equal(assignmentDefinition.detail.history.kind, "unavailable");
   assert.equal(assignmentProvider.mutation, undefined);
   assert.equal(assignmentSchema.drawer.density, "one-column");
   const ui = readFileSync("app/bo/missions/BoMissionsTdd.tsx", "utf8");
+  assert.match(ui, /readBoMissionExecution/);
+  assert.match(ui, /reopenBoMissionCompletion/);
+  assert.match(ui, /detailExecution.executionStatus==="COMPLETED"/);
+  assert.match(ui, /expectedVersion:reopenVersion/);
+  assert.match(ui, /ready\.navigation\.read\(\)\.recordId!==target\.id/);
+  assert.match(ui, /setUncertain\(true\)/);
   assert.match(ui, /SurfaceWorkspace/);
   assert.match(ui, /liên kết trực tiếp/);
   assert.match(ui, /nguồn kết quả học viên chưa được kết nối/);
