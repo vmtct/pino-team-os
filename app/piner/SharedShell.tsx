@@ -2,7 +2,7 @@
 // PAP-1764 · Shared PINO member media shell; all content is synthetic and read-only.
 // TOS PAP-934 geometry: max430px frame, 60px headers, 76px bottom nav and 44px hit targets.
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AppGlyph } from "./AppGlyph";
 import { MediaArtwork } from "./MediaArtwork";
 import { PINER_APPS,type PinerApp,type PinerAppKey } from "./catalog";
@@ -95,6 +95,7 @@ function PreviewDialog({post,onClose,onRequestVisibility}:{post:MediaPost;onClos
 export function PinerAppScreen({app,tab}:{app:PinerApp;tab:string}){
  const [preview,setPreview]=useState<MediaPost|null>(null);
  const [shareIntent,setShareIntent]=useState<MediaPost|null>(null);
+ const focusReturnRef=useRef<HTMLElement|null>(null);
  const [visibilityOverrides,setVisibilityOverrides]=useState<Record<string,Visibility>>({});
  const [hydrated,setHydrated]=useState(false);
  const [statusMessage,setStatusMessage]=useState("");
@@ -119,7 +120,15 @@ export function PinerAppScreen({app,tab}:{app:PinerApp;tab:string}){
  const all=postsFor(app.id).map(post=>({
    ...post,visibility:hydrated?(visibilityOverrides[post.id]??post.visibility):post.visibility
  }));
- const onRequestVisibility=(post:MediaPost)=>{setPreview(null);setShareIntent(post);setStatusMessage("");};
+ const restoreShareFocus=()=>requestAnimationFrame(()=>{
+   if(focusReturnRef.current?.isConnected)focusReturnRef.current.focus();
+   else document.querySelector<HTMLAnchorElement>('a[aria-label="Về Piner Space"]')?.focus();
+ });
+ const onCancelVisibility=()=>{setShareIntent(null);restoreShareFocus();};
+ const onRequestVisibility=(post:MediaPost)=>{
+   focusReturnRef.current=document.activeElement instanceof HTMLElement?document.activeElement:null;
+   setPreview(null);setShareIntent(post);setStatusMessage("");
+ };
  const onConfirmVisibility=()=>{
    if(!shareIntent)return;
    const visibility:Visibility=shareIntent.visibility==="private"?"community":"private";
@@ -132,6 +141,7 @@ export function PinerAppScreen({app,tab}:{app:PinerApp;tab:string}){
      :"Đã thu hồi chia sẻ. Bài đăng đã trở lại Riêng tư (mô phỏng).");
    setShareIntent(null);
    setPreview(null);
+   restoreShareFocus();
  };
  const title=tab==="home"?"Bảng tin":tab==="grid"?"Bộ sưu tập":tab==="reels"?"Reels":"Cộng đồng";
  return <PhoneFrame theme={app.id}><AppHeader app={app}/>
@@ -145,6 +155,6 @@ export function PinerAppScreen({app,tab}:{app:PinerApp;tab:string}){
    <p className={css.prototypeNote}>Prototype PINO · Chỉ sử dụng dữ liệu minh họa, chưa kết nối Core.</p>
   </main><BottomNav app={app} active={tab}/>
   {preview&&<PreviewDialog post={all.find(p=>p.id===preview.id)??preview} onClose={()=>setPreview(null)} onRequestVisibility={onRequestVisibility}/>}
-  {shareIntent&&<VisibilityDialog post={shareIntent} onCancel={()=>setShareIntent(null)} onConfirm={onConfirmVisibility}/>}
+  {shareIntent&&<VisibilityDialog post={shareIntent} onCancel={onCancelVisibility} onConfirm={onConfirmVisibility}/>}
  </PhoneFrame>;
 }

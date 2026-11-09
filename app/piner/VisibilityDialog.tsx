@@ -20,7 +20,14 @@ export function VisibilityDialog({ post, onCancel, onConfirm }: {
   return <div className={css.modalBackdrop} role="presentation"
     onMouseDown={event => { if (event.target === event.currentTarget) onCancel(); }}>
     <section className={css.visibilityDialog} role="dialog" aria-modal="true"
-      aria-label={isShare ? "Chia sẻ bài đăng" : "Thu hồi chia sẻ"}>
+      aria-label={isShare ? "Chia sẻ bài đăng" : "Thu hồi chia sẻ"}
+      onKeyDown={(event) => {
+        if(event.key !== "Tab")return;
+        const items=Array.from(event.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled)'));
+        if(!items.length)return;
+        if(event.shiftKey && document.activeElement===items[0]){event.preventDefault();items[items.length-1].focus();}
+        else if(!event.shiftKey && document.activeElement===items[items.length-1]){event.preventDefault();items[0].focus();}
+      }}>
       <div className={css.visibilityDialogHead}>
         <span className={css.visibilityDialogIcon} aria-hidden="true">{isShare ? "↗" : "↶"}</span>
         <button type="button" onClick={onCancel} className={css.visibilityClose} aria-label="Đóng" autoFocus>✕</button>
