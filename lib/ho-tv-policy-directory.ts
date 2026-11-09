@@ -120,3 +120,17 @@ export async function loadHoTvPolicyDirectory(
   }
   return {status: "unavailable", reason: "CORE_DIRECTORY_UNAVAILABLE_OR_INVALID", rows: [], total: null};
 }
+
+/** PAP-1419: render-only unknown marker, never mutates or backfills Core nulls.
+ * Keep the shared BO/HO Table and its "Trống" default wholly unchanged.
+ */
+const unverifiedTvColumns = ["displaysCount", "createdAt", "createdByUser", "updatedAt", "updatedByUser"] as const;
+export function presentHoTvPolicyRows(rows: readonly BoRecord[]): BoRecord[] {
+  return rows.map(row => {
+    const presentation = { ...row };
+    for (const key of unverifiedTvColumns) {
+      if (row[key] === null) presentation[key] = "—";
+    }
+    return presentation;
+  });
+}
