@@ -117,6 +117,15 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   const assignmentDiaryRead = /^\/api\/bo\/learning\/mission-assignments\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/diaries\/?$/i.test(pathname);
   // PAP-1210: exact Staging-only Center Assignment audit read.
   const assignmentHistoryRead = /^\/api\/bo\/learning\/mission-assignments\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/history\/?$/i.test(pathname);
+  // PAP-1676 / PAP-1210: admit only the three independent Completion endpoints.
+  // Host fence precedes the BO BFF, which rechecks auth/Center and Core CAS/audit.
+  const assignmentCompletion = /^\/api\/bo\/learning\/mission-assignments\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/(execution|completion-history|reopen)$/i.exec(pathname);
+  if (assignmentCompletion) {
+    const operation = assignmentCompletion[1]!.toLowerCase();
+    const allowed = hostname === BO_STAGING_HOSTNAME &&
+      (operation === "reopen" ? method === "POST" : method === "GET");
+    return { action: allowed ? "next" : "not_found" };
+  }
   if (assignmentRead || assignmentChange || assignmentCancel || assignmentDiaryRead || assignmentHistoryRead) {
     const readAllowed = assignmentRead && isBoHostname(hostname) && method === "GET";
     const diaryReadAllowed = assignmentDiaryRead && hostname === BO_STAGING_HOSTNAME && method === "GET";
