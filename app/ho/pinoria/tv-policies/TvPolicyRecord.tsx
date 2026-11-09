@@ -26,6 +26,7 @@ const sections = [
 
 type Props = Readonly<{
   policy: BoRecord | null;
+  centers: readonly TvVisibilityCenter[];
   state: "loading" | "ready" | "denied" | "unavailable";
   pane: TvPolicyPane;
   tab: TvPolicyLocation["tab"];

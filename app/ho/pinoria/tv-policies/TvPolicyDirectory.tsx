@@ -132,6 +132,10 @@ export function TvPolicyDirectory() {
       ? read.reason === "LOGIN_REQUIRED" ? tvPolicyLoginMessage : tvPolicyDeniedMessage
       : tvPolicyUnavailableMessage;
   const rows = presentHoTvPolicyRows(read?.rows ?? []);
+  // IDs are derived from the complete authorized Core Policy Directory, never URL or labels.
+  const centerChoices = read?.status === "ready" ? read.rows
+    .filter(row=>row.scope==="CENTER" && row.id.startsWith("tvp1-center-") && typeof row.center==="string")
+    .map(row=>({id:row.id.slice("tvp1-center-".length),name:String(row.center)})) : [];
   const selected = rows.find(row => row.id === location.policyId) ?? null;
   const recordState = read === null ? "loading" : read.status;
 
