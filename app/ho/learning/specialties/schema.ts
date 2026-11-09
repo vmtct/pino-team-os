@@ -2,6 +2,7 @@ import { TddRegistry, type FieldSchema, type TableQuery } from "@/lib/workspace-
 import type { ApprovalVerifier } from "@/lib/workspace-schema/registry";
 import type { SurfaceDefinition, SurfaceProvider } from "@/lib/workspace-adapters/contracts";
 import { BoApiError } from "@/lib/bo-api-error";
+import { readSpecialtyHistory } from "@/lib/ho-specialty-v2-history-client";
 import type { ModuleRow } from "@/lib/workspace-schema";
 import { readSpecialtyV2List,readSpecialtyV2Detail,readSpecialtyV2PathOptions,type SpecialtyV2Summary,type SpecialtyV2Detail,type SpecialtyV2PathOption } from "@/lib/ho-specialty-v2-reader";
 
@@ -122,6 +123,15 @@ export const specialtyProvider: SurfaceProvider<F> = {
     const prerequisites=s.prerequisiteIds.length?await readSpecialtyV2List(fetcher,signal):[];
     return {row:detailRow(s,paths,prerequisites),version:String(s.version)};
   },
+  /** PAP-1732 / S1L-A: existing TDD History renderer; verified Core event source only. */
+  history:{subjectType:"learning_specialty_v2",bind:(fetcher,scope)=>({
+    kind:"provider",source:{adapter:"ho.specialty-v2.lifecycle-history",permission},
+    load:(subject,context,cursor,signal)=>{
+      if(scope.surface!=="HO"||context.surface!=="HO"||subject.type!=="learning_specialty_v2")
+        return Promise.resolve({status:"denied" as const});
+      return readSpecialtyHistory(fetcher,subject,cursor,signal);
+    }
+  })},
 };
 
 /** PAP-1495: explicit route admission schema; runtime uses authenticated adapter. */
