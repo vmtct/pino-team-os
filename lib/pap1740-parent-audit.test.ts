@@ -17,8 +17,8 @@ const api = (row: Record<string, unknown>): typeof fetch => async () => new Resp
 
 test("PAP-1740 FSG3 Table, Quick Drawer and Detail share four default audit fields", () => {
   assert.deepEqual(parentQuery.visible.slice(-4), ["createdAt", "createdBy", "updatedAt", "updatedBy"]);
-  assert.deepEqual(parentDefinition.drawer.sections[0].fields, parentQuery.order);
-  assert.deepEqual(parentDefinition.detail.overview.sections[0].fields, parentQuery.order);
+  assert.deepEqual(parentDefinition.drawer.sections.flatMap(section => [...section.fields]), parentQuery.visible);
+  assert.deepEqual(parentDefinition.detail.overview.sections.flatMap(section => [...section.fields]), parentQuery.visible);
   assert.equal(parentFields.find(f => f.key === "createdAt")?.type, "datetime");
   assert.equal(parentFields.find(f => f.key === "updatedAt")?.type, "datetime");
   assert.equal(parentFields.find(f => f.key === "createdBy")?.label, "Created by (User)");
