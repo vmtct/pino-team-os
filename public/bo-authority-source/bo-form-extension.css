@@ -22,3 +22,62 @@
   opacity: .65;
   cursor: not-allowed;
 }
+
+/* PAP-1754 · PNR-AVATAR-CRUD — approved BO Person picker, i5 prototype parity.
+   Only the Avatar Create listbox; preserve the canonical secondary-btn palette. */
+#drawer [data-avatar-person-options] {
+  max-height: min(48vh, 360px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 2px;
+}
+#drawer button.ps-avatar-person-option.secondary-btn {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 5px;
+  width: 100%;
+  height: auto;
+  min-height: 54px;
+  padding: 10px 11px;
+  box-sizing: border-box;
+  align-content: center;
+  justify-items: stretch;
+  text-align: left;
+  white-space: normal;
+  line-height: 1.35;
+}
+#drawer .ps-avatar-person-option strong {
+  display: block;
+  max-width: 100%;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+#drawer .ps-avatar-person-option small {
+  display: block;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+#drawer .ps-avatar-person-option-state {
+  display: block;
+  min-width: 0;
+  font-size: 10px;
+  line-height: 1.3;
+  opacity: .8;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+#drawer button.ps-avatar-person-option.secondary-btn:focus-visible {
+  outline: 2px solid var(--bo-color-accent);
+  outline-offset: -2px;
+}
+@media (min-width: 768px) {
+  #drawer button.ps-avatar-person-option.secondary-btn {
+    grid-template-columns: minmax(0, 1fr) max-content;
+    align-items: center;
+    column-gap: 8px;
+  }
+  #drawer .ps-avatar-person-option-state {
+    white-space: nowrap;
+    text-align: right;
+  }
+}
