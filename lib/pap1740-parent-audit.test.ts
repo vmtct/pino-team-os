@@ -3,6 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { parentDefinition, parentFields, parentQuery } from "@/app/bo/parents/schema";
 import { readScopedParentDirectory } from "@/app/bo/parents/provider";
+import { isFieldValue } from "@/lib/workspace-schema";
 
 const center = "01a0b29a-3acd-7a18-a0f2-cf6016548ab5";
 const parentId = "01a1be6d-b06c-7868-be08-bbed0d3a9a8f";
@@ -26,13 +27,15 @@ test("PAP-1740 FSG3 Table, Quick Drawer and Detail share four default audit fiel
 
 test("PAP-1740 accepts both pre-Core and new Core directory projection without fake actors", async () => {
   const pre = await readScopedParentDirectory(center, api(sample), new AbortController().signal);
-  assert.equal(pre[0].createdAt, "—");
+  assert.equal(pre[0].createdAt, null);
+  assert.equal(isFieldValue("datetime", pre[0].createdAt), true, "old Core must pass typed TDD projection");
   assert.equal(pre[0].createdBy, "—");
   assert.equal(pre[0].updatedBy, "—");
   const current = await readScopedParentDirectory(center, api({
     ...sample, createdAt: "2026-11-09T03:50:22Z", createdBy: null, updatedBy: null,
   }), new AbortController().signal);
   assert.equal(current[0].createdAt, "2026-11-09T03:50:22Z");
+  assert.equal(isFieldValue("datetime", current[0].createdAt), true);
   assert.equal(current[0].updatedAt, sample.updatedAt);
   assert.equal(current[0].studentCount, 0);
   assert.equal(current[0].maskedContact, "q•••@example.invalid");
