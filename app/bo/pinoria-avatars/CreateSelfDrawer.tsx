@@ -152,7 +152,7 @@ export function CreateSelfDrawer({centerId,onClose,onCreated}:{centerId:string;o
        {loading?<p role="status">Đang tìm Person tại cơ sở đã chọn…</p>:
         loadError?<div role="alert">{loadError} <button type="button" onMouseDown={e=>e.preventDefault()} onClick={()=>setRetry(n=>n+1)}>Thử lại</button></div>:
         visibleMatches.length?visibleMatches.map((option,i)=>
-         <button ref={el=>{optionRefs.current[i]=el;}} type="button" role="option"
+         <button ref={el=>{optionRefs.current[i]=el;}} type="button" role="option" tabIndex={-1}
           id={listId+"-"+i} aria-selected={i===active}
           className="secondary-btn ps-avatar-person-option"
           key={option.personId} onMouseDown={e=>e.preventDefault()}
