@@ -141,10 +141,10 @@ export function PinerAppScreen({app,tab}:{app:PinerApp;tab:string}){
    {tab==="home"&&<><div className={css.sectionHead}><h2>Khoảnh khắc gần đây</h2><span>Mới nhất</span></div><div className={css.feedList}>{all.map(p=><PostCard key={p.id} post={p} onOpen={setPreview} onRequestVisibility={onRequestVisibility}/>)}</div></>}
    {tab==="grid"&&<GridView posts={all} onOpen={setPreview}/>}
    {tab==="reels"&&<ReelsView posts={all} onOpen={setPreview}/>}
-   {tab==="community"&&<CommunityView posts={all} onOpen={setPreview} onRequestVisibility={onRequestVisibility}/>
+   {tab==="community"&&<CommunityView posts={all} onOpen={setPreview} onRequestVisibility={onRequestVisibility}/>}
    <p className={css.prototypeNote}>Prototype PINO · Chỉ sử dụng dữ liệu minh họa, chưa kết nối Core.</p>
   </main><BottomNav app={app} active={tab}/>
   {preview&&<PreviewDialog post={all.find(p=>p.id===preview.id)??preview} onClose={()=>setPreview(null)} onRequestVisibility={onRequestVisibility}/>}
-  {shareIntent&&<VisibilityDialog post={shareIntent} onCancel={()=>setShareIntent(null)} onConfirm={onConfirmVisibility}/>
+  {shareIntent&&<VisibilityDialog post={shareIntent} onCancel={()=>setShareIntent(null)} onConfirm={onConfirmVisibility}/>}
  </PhoneFrame>;
 }
