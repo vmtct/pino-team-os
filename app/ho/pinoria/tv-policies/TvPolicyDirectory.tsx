@@ -6,7 +6,7 @@ import { BoTableSettings } from "@/app/bo/components/registration/BoTableSetting
 import { TddHostMenu } from "@/app/components/workspace-adapters/SurfaceWorkspace";
 import { defaultTable } from "@/lib/bo-registration";
 import {
-  loadHoTvPolicyDirectory, tvPolicyModule,
+  loadHoTvPolicyDirectory, presentHoTvPolicyRows, tvPolicyModule,
   tvPolicyDeniedMessage, tvPolicyLoginMessage, tvPolicyUnavailableMessage,
   type TvPolicyDirectoryRead,
 } from "@/lib/ho-tv-policy-directory";
@@ -39,7 +39,7 @@ export function TvPolicyDirectory() {
     : read.status === "denied"
       ? read.reason === "LOGIN_REQUIRED" ? tvPolicyLoginMessage : tvPolicyDeniedMessage
       : tvPolicyUnavailableMessage;
-  const rows = [...(read?.rows ?? [])];
+  const rows = presentHoTvPolicyRows(read?.rows ?? []);
   return <section id="list-screen" data-pnr-tv-stage="s3-list"
     data-policy-directory-state={read?.status ?? "loading"}>
     <div className="page-heading"><div className="page-heading-left">
