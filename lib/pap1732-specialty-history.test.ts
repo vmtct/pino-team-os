@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {projectSpecialtyHistoryPage,readSpecialtyHistory} from "./ho-specialty-v2-history-client";
 import {handleHoSpecialtyHistoryRead} from "./ho-specialty-v2-history-facade";
 import {BoApiError} from "./bo-api-error";
+import {specialtyDefinition,specialtyProvider} from "../app/ho/learning/specialties/schema";
 const id=(n:number)=>"01a03c6e-cc58-7d81-ac8e-"+n.toString(16).padStart(12,"0");
 const subject={type:"learning_specialty_v2",id:id(1)};
 const event=(n:number,action="Lưu trữ")=>({
@@ -60,5 +61,17 @@ void describe("PAP-1732 SPEC-UNLOCK S1L-A HO History strict redaction",()=>{
   assert.equal((await handleHoSpecialtyHistoryRead(new Request(url),base,id(1))).status,404);
   const staging={APP_ENV:"staging"} as never;
   assert.equal((await handleHoSpecialtyHistoryRead(new Request(url+"?beforeVersion=bad",{headers:{host:"ho.staging.pinohouse.art"}}),staging,id(1))).status,400);
+ });
+});
+
+void describe("PAP-1732 S1L-A shared TDD History capability boundary",()=>{
+ void it("binds existing History renderer to catalog.learning.view without role expansion",()=>{
+  assert.equal(specialtyDefinition.capabilities.history,"catalog.learning.view");
+  const owner=specialtyProvider.history;
+  assert.equal(owner?.subjectType,"learning_specialty_v2");
+  const bind=owner?.bind((async()=>Response.json({})) as typeof fetch,{surface:"HO"});
+  assert.equal(bind?.kind,"provider");
+  if(!bind||bind.kind!=="provider")throw Error("specialty history provider missing");
+  assert.equal(bind.source.permission,"catalog.learning.view");
  });
 });

@@ -34,7 +34,7 @@ export const specialtyQuery: TableQuery<F> = {
 };
 export const specialtyDefinition = {
   version:1,classification:"TDD_DEFAULT",surface:"HO",key:"specialties",label:"Chuyên đề",group:"Learning",
-  fields:specialtyFields,capabilities:{read:permission},
+  fields:specialtyFields,capabilities:{read:permission,history:permission},
   table:{
     identity:{field:"name",pinned:"left",hideable:false,reorderable:false},
     columns:specialtyFields.map(field=>({field:field.key,visible:field.key!=="description"})),
