@@ -1,7 +1,7 @@
 # PAP-1461 — UI Anti-Drift Geometry Gate
 
-**Epic:** PAP-184 / PLT-UI-GOVERNANCE  
-**Pilot feature:** PAP-1705 / PNR-AVATAR-CRUD  
+**Epic:** PAP-184 / PLT-UI-GOVERNANCE
+**Pilot feature:** PAP-1705 / PNR-AVATAR-CRUD
 **Defect:** PAP-1754 — BO Avatar Create Person option overlap
 
 This operationalizes, but does **not** replace, PAP-184, PAP-1088, PAP-1055 and PAP-1056. The i5 authoritative prototype and authenticated Staging G3/G4 remain separate evidence. CI success never approves Founder FSG.
