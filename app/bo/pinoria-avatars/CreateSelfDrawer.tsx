@@ -4,6 +4,10 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { BoActionButton } from "@pino/design-system/react";
 import { DrawerFrame } from "@/app/components/workspace-renderer/DrawerFrame";
+import { PropertySections } from "@/app/components/workspace-renderer/Properties";
+import { toLegacyModule } from "@/lib/workspace-schema";
+import type { BoRecord } from "@/lib/bo-registration";
+import { selfDefinition, selfSchema } from "./schema";
 import {
  candidateHasAvatar,isEligibleAvatarCandidate,matchingAvatarCandidates,
  type AvatarCandidate
@@ -120,18 +124,11 @@ export function CreateSelfDrawer({centerId,onClose,onCreated}:{centerId:string;o
   }catch(e){setError(e instanceof Error?e.message:"Không thể xác nhận thao tác.");}
   finally{setSaving(false);}
  }
- const footer=<>
-  <BoActionButton type="button" variant="secondary" onClick={close} disabled={saving}>Hủy</BoActionButton>
-  <BoActionButton type="button" variant="primary" onClick={()=>void create()} disabled={!canCreate}>
-   {duplicate?"Đã có Avatar":saving?"Đang tạo…":person?"Tạo Avatar":"Chọn Person"}
-  </BoActionButton>
- </>;
- return <DrawerFrame title="Tạo Avatar" path="Pinoria · Avatar" onClose={close} footer={footer}>
-  <div className={styles.body} data-jira="PAP-1710">
-   <section className="property-section" aria-label="Thông tin Avatar">
-    <h3>Thông tin Avatar</h3>
-    <div className="property-row">
-     <label className="property-label" htmlFor="ps-create-person">Person *</label>
+ const drawerFields=toLegacyModule(selfSchema as unknown as Parameters<typeof toLegacyModule>[0]).fields;
+ const drawerEditableFields=drawerFields.filter(field=>field.key==="name"||field.key==="nickname");
+ const auditFields=drawerFields.filter(field=>["createdAt","createdBy","updatedAt","updatedBy"].includes(field.key));
+ const draft:BoRecord={id:"",name:inputValue,nickname,createdAt:null,createdBy:null,updatedAt:null,updatedBy:null};
+ const personPicker=(
      <div className={styles.picker}>
       <input id="ps-create-person" ref={inputRef} autoFocus type="text" role="combobox"
        aria-autocomplete="list" aria-expanded={open} aria-controls={listId}
@@ -161,23 +158,27 @@ export function CreateSelfDrawer({centerId,onClose,onCreated}:{centerId:string;o
        {!loading&&hasMore?<p role="status">Danh sách bị giới hạn. Gõ tên Person để tìm thêm.</p>:null}
       </div>:null}
      </div>
-    </div>
-    <p id="ps-create-person-hint" className="pino-avatar-hint">
-     Chỉ chọn Person thuộc cơ sở hiện tại. Người đã có Avatar được đánh dấu để tránh tạo trùng.
-    </p>
-    {duplicate?<p role="status" className="pino-avatar-duplicate">Person này đã có Avatar. Không thể tạo bản ghi trùng.</p>:null}
-    <div className="property-row">
-     <label className="property-label" htmlFor="ps-create-nickname">Nickname Avatar (tùy chọn)</label>
-     <div className="property-control"><input ref={nicknameRef} id="ps-create-nickname" type="text"
-      maxLength={40} className="pds-property-input" autoComplete="off" placeholder="Tên hiển thị của Avatar"
-      value={nickname} onChange={e=>{setNickname(e.target.value);setError("");}} disabled={saving}/></div>
-    </div>
-    <p className="pino-avatar-hint">Nickname không đổi tên Person. Avatar không tự nhận Starter Set hay Item.</p>
-   </section>
+ );
+ const footer=<>
+  <BoActionButton type="button" variant="secondary" onClick={close} disabled={saving}>Hủy</BoActionButton>
+  <BoActionButton type="button" variant="primary" onClick={()=>void create()} disabled={!canCreate}>
+   {duplicate?"Đã có Avatar":saving?"Đang tạo…":person?"Tạo Avatar":"Chọn Person"}
+  </BoActionButton>
+ </>;
+ return <DrawerFrame title="Tạo Avatar" path="Pinoria · Avatar" onClose={close} footer={footer}>
+  <div className={styles.body} data-jira="PAP-1734" data-avatar-schema="PAP-1734" data-avatar-mode="CREATE">
+   <PropertySections variant="drawer" fields={drawerEditableFields} record={draft} sections={selfDefinition.drawer.sections} createFields={{
+     name: {id:"ps-create-person",label:"Person *",required:true,value:inputValue,onChange:changeQuery,control:personPicker},
+     nickname: {id:"ps-create-nickname",label:"Nickname Avatar (tùy chọn)",value:nickname,onChange:value=>{setNickname(value);setError("");},inputRef:nicknameRef,maxLength:40,autoComplete:"off",disabled:saving},
+   }}/>
+   <p id="ps-create-person-hint" className="pino-avatar-hint">
+    Chỉ chọn Person thuộc cơ sở hiện tại. Người đã có Avatar được đánh dấu để tránh tạo trùng.
+   </p>
+   {duplicate?<p role="status" className="pino-avatar-duplicate">Person này đã có Avatar. Không thể tạo bản ghi trùng.</p>:null}
+   <p className="pino-avatar-hint">Nickname không đổi tên Person. Avatar không tự nhận Starter Set hay Item.</p>
    <details className="property-section pino-avatar-audit">
     <summary>Thông tin hệ thống</summary>
-    {["Created Time","Created by (User)","Last Modified Time","Last Modified By (User)"].map(label=>
-     <div className="property-row" key={label}><span className="property-label">{label}</span><span className="property-control">—</span></div>)}
+    <PropertySections variant="drawer" fields={auditFields} record={draft} sections={selfDefinition.drawer.sections}/>
    </details>
    {error?<p className="pino-avatar-error" role="alert">{error}</p>:null}
   </div>

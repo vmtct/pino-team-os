@@ -9,6 +9,11 @@ const named = { ...read, search: true };
 const filter = { ...read, filter: true };
 export const selfFields = [
   { key: "name", label: "Person", type: "text", icon: "Aa", width: 240, permission: SELF_DIRECTORY_PERMISSION, readOnly: true, capabilities: named },
+  { key: "nickname", label: "Nickname Avatar", type: "text", icon: "Aa", width: 180, permission: SELF_DIRECTORY_PERMISSION, readOnly: true, capabilities: read },
+  { key: "createdAt", label: "Created Time", type: "text", icon: "Aa", width: 180, permission: SELF_DIRECTORY_PERMISSION, readOnly: true, capabilities: read },
+  { key: "createdBy", label: "Created by (User)", type: "text", icon: "Aa", width: 180, permission: SELF_DIRECTORY_PERMISSION, readOnly: true, capabilities: read },
+  { key: "updatedAt", label: "Last Modified Time", type: "text", icon: "Aa", width: 180, permission: SELF_DIRECTORY_PERMISSION, readOnly: true, capabilities: read },
+  { key: "updatedBy", label: "Last Modified By (User)", type: "text", icon: "Aa", width: 180, permission: SELF_DIRECTORY_PERMISSION, readOnly: true, capabilities: read },
   { key: "roles", label: "Vai trò", type: "text", icon: "Aa", width: 160, permission: SELF_DIRECTORY_PERMISSION, readOnly: true, capabilities: read },
   // PAP-1456 / Epic PAP-1097: presentation-only fields from Core truth; raw codes remain filterable.
   { key: "avatarLabel", label: "Trạng thái Self", type: "text", icon: "Aa", width: 165, permission: SELF_DIRECTORY_PERMISSION, readOnly: true, capabilities: read },
@@ -34,8 +39,9 @@ export const selfQuery: TableQuery<SelfFields> = {
   visible: ["name", "roles", "avatarLabel", "loadoutSummary", "subjectLabel"], page: 1, pageSize: 15,
 };
 const sections = [
-  { id: "identity", label: "Định danh", fields: ["name", "roles", "subjectLabel", "rowKey", "personId", "staffMemberId", "studentProfileId"] },
+  { id: "identity", label: "Định danh", fields: ["name", "nickname", "roles", "subjectLabel", "rowKey", "personId", "staffMemberId", "studentProfileId"] },
   { id: "self", label: "Pinoria Self", fields: ["avatarLabel", "loadoutSummary", "pinoriaSelfId", "selfStatus", "loadoutVersion", "equippedCount"] },
+  { id: "system", label: "Thông tin hệ thống", fields: ["createdAt", "createdBy", "updatedAt", "updatedBy"] },
 ] as const;
 export const selfDefinition = {
   version: 1, classification: "TDD_DEFAULT", surface: "BO", key: "pinoria-avatars",

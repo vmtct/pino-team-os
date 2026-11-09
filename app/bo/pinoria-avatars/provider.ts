@@ -28,6 +28,7 @@ function project(value: unknown): Row {
     || !Array.isArray(r.subjectTypes) || !r.subjectTypes.length
     || r.subjectTypes.some(x => x !== "STAFF" && x !== "LEARNER") || new Set(r.subjectTypes).size !== r.subjectTypes.length
     || !states.includes(String(r.avatarStatus)) || !statuses.includes(String(r.subjectStatus))) invalid();
+  if (r.nickname !== null && (typeof r.nickname !== "string" || r.nickname.length > 40)) invalid();
   for (const key of ["personId","pinoriaSelfId","staffMemberId","studentProfileId"]) if (r[key] !== null && (typeof r[key] !== "string" || !uuid.test(r[key]))) invalid();
   if (r.selfStatus !== null && r.selfStatus !== "ACTIVE" && r.selfStatus !== "ARCHIVED") invalid();
   for (const key of ["loadoutVersion","equippedCount"]) if (r[key] !== null && (!Number.isSafeInteger(r[key]) || Number(r[key]) < 0)) invalid();
@@ -35,7 +36,9 @@ function project(value: unknown): Row {
      || (r.subjectTypes.includes("STAFF") !== (r.staffMemberId !== null))
      || (r.subjectTypes.includes("LEARNER") !== (r.studentProfileId !== null))) invalid();
   return {
-    id: r.rowKey.replace(":", "_"), name: r.displayName, roles: r.subjectTypes.join(" + "), rowKey: r.rowKey,
+    id: r.rowKey.replace(":", "_"), name: r.displayName, nickname: r.nickname as string | null,
+    createdAt: null, createdBy: null, updatedAt: null, updatedBy: null,
+    roles: r.subjectTypes.join(" + "), rowKey: r.rowKey,
     avatarLabel: avatarLabels[String(r.avatarStatus)], subjectLabel: subjectLabels[String(r.subjectStatus)],
     loadoutSummary: r.equippedCount === null ? null : String(r.equippedCount)+"/"+MAX_SELF_SLOTS,
     avatarStatus: r.avatarStatus as string, subjectStatus: r.subjectStatus as string,
