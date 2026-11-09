@@ -13,7 +13,7 @@ import { readScopedParentDetail } from "./provider";
 import { ParentCreateDrawer } from "./ParentCreateDrawer";
 
 type Fields = typeof parentFields;
-type Ready = { centerId: string; adapter: AuthenticatedSurfaceAdapter<Fields>; navigation: AdapterNavigation<Fields> };
+type Ready = { centerId: string; retry: number; adapter: AuthenticatedSurfaceAdapter<Fields>; navigation: AdapterNavigation<Fields> };
 
 export function parentBusinessLoaders(adapter: AuthenticatedSurfaceAdapter<Fields>): SlotLoaders {
   return {
@@ -65,11 +65,11 @@ export function ParentTdd() {
       .then(adapter => {
         active = adapter;
         if (ctl.signal.aborted) { adapter.dispose(); return; }
-        setReady({ centerId: selected, adapter, navigation: browserTddNavigation("BO", "parents", parentQuery) });
+        setReady({ centerId: selected, retry, adapter, navigation: browserTddNavigation("BO", "parents", parentQuery) });
       }).catch(() => { if (!ctl.signal.aborted) setFailure({ centerId: selected, retry, message: "Không có quyền hoặc chưa thể tải Parent TDD trong cơ sở này." }); });
     return () => { ctl.abort(); active?.dispose(); };
   }, [selected, source, retry]);
-  const current = ready?.centerId === selected ? ready : null;
+  const current = ready?.centerId === selected && ready.retry === retry ? ready : null;
   const loaders = useMemo(() => current ? parentBusinessLoaders(current.adapter) : undefined, [current]);
   const error = failure?.centerId === selected && failure.retry === retry ? failure.message : "";
   return <section aria-label="Parents & Guardians">
