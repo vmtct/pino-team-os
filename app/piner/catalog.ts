@@ -38,9 +38,10 @@ export const PINER_APPS: readonly PinerApp[] = [
   },
   {
     id: "mytime", label: "MyTime", caption: "Creative Lifestyle",
-    descriptor: "Có hẹn với điều mình thích", href: "/mytime", color: "amber",
+    descriptor: "Có hẹn với điều mình thích", href: "/piner/mytime", color: "amber",
     eyebrow: "MYTIME BY PINO", experience: "Có hẹn với điều mình thích.",
     ideas: ["Acrylic workshop", "Piano trải nghiệm", "Khoảnh khắc của riêng mình"]
   }
 ] as const;
-export const PINER_LOCAL_APPS = PINER_APPS.filter(app => app.id !== "mytime");
+// PAP-1749: all five member apps share one Piner route / navigation shell.
+export const PINER_LOCAL_APPS = PINER_APPS;
