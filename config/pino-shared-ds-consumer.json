@@ -1,14 +1,24 @@
 {
   "package": "@pino/design-system",
-  "version": "0.3.0",
+  "version": "0.4.1",
   "sourceRepo": "https://github.com/vmtct/pino-design-system",
-  "vendoredTarball": "vendor/pino-design-system/pino-design-system-0.3.0.tgz",
-  "tarballSha256": "2b7cd14fed8804685379facc0f92f82008d4bc2f825974c34ee20af4deeca6d5",
+  "vendoredTarball": "vendor/pino-design-system/pino-design-system-0.4.1.tgz",
+  "tarballSha256": "e2eed0afb3dc39ff943a7b57bedf444e1523aa3100bd55d090b186502369f7d8",
   "owner": "PAP-1170",
   "status": "BO_HO_COMPONENT_PILOTS",
-  "notes": "PAP-1170 original BO/HO pilot retained; PAP-1247 under Epic PAP-1067 repins the merged PAP-1469 semantic BO action primitives from exact DS main SHA. HO Staff API/ACL and BO Self Directory projection remain application-owned.",
-  "sourcePullRequest": "https://github.com/vmtct/pino-design-system/pull/4",
-  "sourceCommit": "906e4a38070169223df7fc21ed841f5d57111362",
-  "sourceMainSha": "ce28e29f3c657251679b9577889730bcdd9e9542",
-  "release": "https://github.com/vmtct/pino-design-system/commit/ce28e29f3c657251679b9577889730bcdd9e9542"
+  "notes": "PAP-1720 shared ConfirmDialog v0.4.1; consumer PAP-1695 / SPEC-UNLOCK. Historical PAP-1170 v0.3.0 provenance preserved in previousRelease.",
+  "sourcePullRequest": "https://github.com/vmtct/pino-design-system/pull/6",
+  "sourceCommit": "5590b5205effcc0ade93ac3fcb55c07a4ecf135f",
+  "sourceMainSha": "72637d7a0e0ae92d97541c23b2c438b52391a4df",
+  "release": "https://github.com/vmtct/pino-design-system/commit/72637d7a0e0ae92d97541c23b2c438b52391a4df",
+  "previousRelease": {
+    "version": "0.3.0",
+    "vendoredTarball": "vendor/pino-design-system/pino-design-system-0.3.0.tgz",
+    "tarballSha256": "2b7cd14fed8804685379facc0f92f82008d4bc2f825974c34ee20af4deeca6d5",
+    "sourcePullRequest": "https://github.com/vmtct/pino-design-system/pull/4",
+    "sourceCommit": "906e4a38070169223df7fc21ed841f5d57111362",
+    "sourceMainSha": "ce28e29f3c657251679b9577889730bcdd9e9542"
+  },
+  "consumerTask": "PAP-1695",
+  "designSystemTask": "PAP-1720"
 }
