@@ -266,7 +266,9 @@ export default function TosVNextIntegrationPreview(){
    desktop})}
   onOpen={id=>void choose(id)} onNotify={()=>setHomeNotice("Thông báo chưa sẵn sàng.")}
   notice={homeNotice||error}/>;
- if(app==="station")return <TosVNextFrame app="station" mode="desktop"><TosVNextStation desktop={desktop} centerName={center?.displayName||""} onHome={()=>void choose("home")}/></TosVNextFrame>;
+ if(app==="station")return <TosVNextFrame app="station" mode="desktop"><TosVNextStation desktop={desktop} centerName={center?.displayName||""}
+   centerId={center?.id??null} authorizedCenterIds={ctx?.founderMode?[]:ctx?.centers.map(c=>c.id)??[]}
+   onHome={()=>void choose("home")}/></TosVNextFrame>;
  return <TosVNextFrame app={app} mode="mobile">
   {(app!=="classroom"||!classDetailOpen)&&<TosVNextAppHeader app={app} station={center?.displayName} onHome={()=>void choose("home")}/> }
   {app==="reception"?<TosVNextReception centerId={centerId} centerName={center?.displayName||""} profileLabel={profileLabel||""} workDate={today(zone)} assignments={data.shift?.assignments??[]} currentSession={data.shift?.current??null}/>:app==="training"?<TosVNextTraining/>:app==="classroom"?<div className={frameLayout.nativeBody}><TosVNextClassroom centerId={centerId} localDate={fromDate} profileLabel={profileLabel} onDetailChange={setClassDetailOpen}/></div>:app==="shift"&&data.shift?<div className={frameLayout.nativeBody}><TosVNextShift data={data.shift} localDate={fromDate} centerId={centerId} centerName={center?.displayName||""} profileLabel={profileLabel} key={centerId+":"+fromDate}/></div>:<TosVNextContent>
