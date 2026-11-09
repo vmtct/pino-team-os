@@ -136,7 +136,7 @@ export function TvPolicyDirectory() {
   const recordState = read === null ? "loading" : read.status;
 
   if (location.policyId && location.pane === "detail")
-    return <TvPolicyRecord policy={selected} state={recordState} pane="detail"
+    return <TvPolicyRecord policy={selected} centers={centerChoices} state={recordState} pane="detail"
       tab={location.tab} onClose={closeRecord} onDetail={openDetail} onTabChange={selectTab}
       returnFocus={() => document.querySelector<HTMLElement>('tr[data-record="' + location.policyId + '"]')} />;
 
@@ -157,7 +157,7 @@ export function TvPolicyDirectory() {
         fields={tvPolicyModule.fields} rows={rows} value={value} update={update}
         views={[]} setViews={noop} applyView={noop} policy={policy} /> : null}
     </section>
-    {location.policyId ? <TvPolicyRecord policy={selected} state={recordState} pane="drawer"
+    {location.policyId ? <TvPolicyRecord policy={selected} centers={centerChoices} state={recordState} pane="drawer"
       tab={location.tab} onClose={closeRecord} onDetail={openDetail} onTabChange={selectTab}
       returnFocus={() => document.querySelector<HTMLElement>('tr[data-record="' + location.policyId + '"]')} /> : null}
   </>;

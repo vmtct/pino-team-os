@@ -10,13 +10,14 @@ import { PropertySections } from "@/app/components/workspace-renderer/Properties
 import { RecordState } from "@/app/components/workspace-renderer/Record";
 import { TddHostMenu } from "@/app/components/workspace-adapters/SurfaceWorkspace";
 import { tvPolicyModule } from "@/lib/ho-tv-policy-directory";
+import { TvPolicyVisibilityPreview, type TvVisibilityCenter } from "./TvPolicyVisibilityPreview";
 import type { TvPolicyPane, TvPolicyLocation } from "@/lib/ho-tv-policy-navigation";
 import { tvPolicyS4State } from "@/lib/ho-tv-policy-navigation";
 
 const sections = [
   { id: "policy", label: "Thông tin Policy", fields: [
     "name", "typeName", "scope", "center", "resolution",
-    "inherited", "active", "latest", "displaysCount", "aspectRatio",
+    "inherited", "active", "latest", "aspectRatio",
   ] },
   { id: "audit", label: "Thông tin hệ thống", fields: [
     "createdAt", "createdByUser", "updatedAt", "updatedByUser",
@@ -34,7 +35,7 @@ type Props = Readonly<{
   returnFocus: () => HTMLElement | null;
 }>;
 
-export function TvPolicyRecord({ policy, state, pane, tab, onClose, onDetail, onTabChange, returnFocus }: Props) {
+export function TvPolicyRecord({ policy, centers, state, pane, tab, onClose, onDetail, onTabChange, returnFocus }: Props) {
   const menu = useContext(TddHostMenu);
   const validated = tvPolicyS4State(state, Boolean(policy));
   const content = validated === "ready" && policy
@@ -56,7 +57,7 @@ export function TvPolicyRecord({ policy, state, pane, tab, onClose, onDetail, on
     returnFocus={returnFocus}
     tabs={[{ id: "overview", label: "Tổng quan" }, { id: "history", label: "Lịch sử" }]}
     selected={tab} onSelect={next => onTabChange(next === "history" ? "history" : "overview")}>
-    {validated !== "ready" ? content : tab === "overview" ? content
+    {validated !== "ready" ? content : tab === "overview" ? <>{content}{policy ? <TvPolicyVisibilityPreview key={policy.id} policy={policy} centers={centers}/> : null}</>
       : <section className="v24-prop-section" data-pnr-tv-history="unavailable">
         <div className="v24-section-heading"><h4>Lịch sử</h4></div>
         <p role="status">Chưa có dữ liệu lịch sử Policy đã xác minh từ Core. Không hiển thị sự kiện giả hoặc suy diễn người thực hiện.</p>
