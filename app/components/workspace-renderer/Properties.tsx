@@ -21,6 +21,10 @@ export type CreateDrawerField = {
   readonly maxLength?: number;
   readonly inputRef?: Ref<HTMLInputElement>;
   readonly label?: string;
+  /** PAP-1738: opt-in complex CREATE input (e.g. searchable Person combobox).
+   * The shared renderer still owns the exact View row, label and section DOM.
+   * Existing Parent text inputs and normal View/Detail stay unchanged. */
+  readonly control?: ReactNode;
 };
 /** Drawer uses property rows, never the viewport-driven Full Detail grid. */
 export function PropertySections({ fields, record, sections, variant, canEdit, onEdit, legacyStyles = false, sectionActions, labelWidth = 160, onLabelWidthChange, createFields }: {
@@ -73,10 +77,12 @@ export function PropertySections({ fields, record, sections, variant, canEdit, o
       return variant === "drawer" ? <div className="property-row" key={key} data-tdd-field={key}>
         {creator ? <label className="property-label" htmlFor={creator.id}><small>{field.icon}</small>{creator.label ?? field.label}</label>
           : <div className="property-label"><small>{field.icon}</small>{field.label}</div>}
-        {creator ? <input type="text" id={creator.id} className="property-control os-create-select" data-prop={key}
-          aria-required={creator.required || undefined} required={creator.required} maxLength={creator.maxLength}
-          autoComplete={creator.autoComplete} ref={creator.inputRef} value={creator.value} disabled={creator.disabled}
-          onChange={e => creator.onChange(e.target.value)} />
+        {creator ? (creator.control !== undefined
+          ? <div className="property-control" data-prop={key} data-tdd-custom-create-control="">{creator.control}</div>
+          : <input type="text" id={creator.id} className="property-control os-create-select" data-prop={key}
+              aria-required={creator.required || undefined} required={creator.required} maxLength={creator.maxLength}
+              autoComplete={creator.autoComplete} ref={creator.inputRef} value={creator.value} disabled={creator.disabled}
+              onChange={e => creator.onChange(e.target.value)} />)
         : <button type="button" className="property-control" data-prop={key} disabled={!legacyStyles && !editable} aria-disabled={!editable} tabIndex={editable ? 0 : -1} aria-label={(editable ? "Sửa " : "Chỉ đọc ") + field.label} onClick={e => editable && onEdit?.(field, e.currentTarget)}>
           {key === "id" && !record.id ? <span className="empty-val">Chưa tạo</span> : <BoValue field={field} value={record[key]} />}{editable ? <span className="pencil" aria-hidden="true">✎</span> : null}
         </button>}
