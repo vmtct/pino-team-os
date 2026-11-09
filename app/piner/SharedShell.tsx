@@ -22,34 +22,38 @@ function Glyph({name}:{name:NavIcon}){
 export function PhoneFrame({theme,children}:{theme:PinerAppKey|"home";children:React.ReactNode}){
  return <div className={css.backdrop}><div className={css.phone} data-piner-shared="phone-frame" data-piner-theme={theme}>{children}</div></div>;
 }
+// PAP-1774 · App-first home, native profile select, zero secondary chrome.
 function ProfilePicker(){
  const {activeId,profile,select}=useActiveProfile();
- return <section className={css.profilePicker} aria-label="Chọn hồ sơ học viên" data-piner-slot="profile-switcher">
-  <div className={css.profilePickerHeading}><div><span className={css.profileKicker}>ĐANG XEM HỒ SƠ</span><strong>{profile.display}</strong></div><span className={css.profileCount}>2 con đang học ▾</span></div>
-  <div className={css.profileChoices}>
-   {MANAGED_CHILDREN.map(child=><button key={child.id} type="button" className={activeId===child.id?css.profileSelected:css.profileChoice}
-     aria-pressed={activeId===child.id} aria-label={"Xem hồ sơ "+child.display} data-profile-option={child.id} onClick={()=>select(child.id)}>
-     <span className={css.profileAvatar}>{child.avatar}</span>
-     <span className={css.profileCopy}><strong>{child.display}</strong><small>{child.program}</small></span>
-     <span className={css.profileTick} aria-hidden="true">{activeId===child.id?"✓":"○"}</span>
-   </button>)}
-  </div>
-  <p className={css.profileHelper}>Chọn con để xem hành trình riêng trong Hội Họa và Piano.</p>
+ return <section className={css.familySwitcher} data-piner-slot="profile-switcher" aria-label="Chuyển hồ sơ học viên">
+   <label htmlFor="piner-child-profile">Đang xem</label>
+   <div className={css.familyPicker}>
+     <span className={css.familyInitial} aria-hidden="true">{profile.avatar}</span>
+     <select id="piner-child-profile" className={css.familySelect} value={activeId}
+       aria-label="Chọn con đang xem" onChange={event=>select(event.target.value as typeof activeId)}>
+       {MANAGED_CHILDREN.map(child=><option key={child.id} value={child.id}>{child.display}</option>)}
+     </select>
+     <span className={css.familyChevron} aria-hidden="true">⌄</span>
+   </div>
  </section>;
 }
 export function PinerHome(){
  return <PhoneFrame theme="home">
-  <header className={css.header} data-piner-shared="home-header"><div className={css.brand}><span className={css.brandMark}>P</span><div><small>PINO · PINER SPACE</small><h1>Xin chào, bạn!</h1></div></div><span className={css.headerShape} aria-hidden="true">✳</span></header>
-  <main className={css.homeScroll}>
-   <ProfilePicker/>
-   <section className={css.homeIntro}><span className={css.micro}>GÓC NHỎ CỦA NHÀ MÌNH</span><strong>Những điều con làm được,<br/>luôn đáng nhớ. ♡</strong><p>Tác phẩm, những buổi biểu diễn và lời nhắn từ giáo viên — tất cả ở đây.</p></section>
-   <section aria-labelledby="app-title" className={css.homeApps}><div className={css.sectionHead}><h2 id="app-title">Ứng dụng</h2><span>2 apps</span></div>
-    <div className={css.appGrid} data-piner-slot="app-grid">{PINER_APPS.map(app=><Link key={app.id} href={app.href} aria-label={"Mở "+app.label} data-app={app.id} className={css.launcherTile}>
-     <span className={css.launcherIcon} data-icon-theme={app.color}><AppGlyph kind={app.id}/></span><strong>{app.label}</strong><small>{app.caption}</small><span className={css.launchArrow} aria-hidden="true">↗</span>
-    </Link>)}</div>
-   </section>
-   <div className={css.homeHint}><span>✦</span><div><strong>Hành trình lớn lên qua từng tác phẩm</strong><p>Chạm vào Hội Họa hoặc Piano để xem ảnh, video và nhận xét.</p></div></div>
-   <footer className={css.homeFooter}><span>© PINO HOUSE · ART & MUSIC</span><Link href="/piner/archive">Piner V1 ↗</Link></footer>
+  <header className={css.header} data-piner-shared="home-header">
+    <div className={css.brand}>
+      <span className={css.brandMark} aria-hidden="true">P</span>
+      <div><small>PINO HOUSE</small><h1>Piner Space</h1></div>
+    </div>
+  </header>
+  <main className={css.minimalHome} data-piner-home="minimal">
+    <ProfilePicker/>
+    <nav className={css.focusAppGrid} data-piner-slot="app-grid" aria-label="Ứng dụng Piner Space">
+      {PINER_APPS.map(app=><Link key={app.id} href={app.href} data-app={app.id}
+        aria-label={"Mở "+app.label} className={css.focusAppTile}>
+        <span className={css.focusAppIcon} data-icon-theme={app.color}><AppGlyph kind={app.id}/></span>
+        <strong>{app.label}</strong>
+      </Link>)}
+    </nav>
   </main>
  </PhoneFrame>;
 }

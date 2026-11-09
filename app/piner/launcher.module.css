@@ -173,3 +173,23 @@
 .emptyMedia{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:138px;padding:23px 16px;text-align:center;background:var(--surface);border:1px dashed var(--line);border-radius:16px;color:var(--muted)}
 .emptyMedia strong{font-size:14px;color:var(--ink);font-weight:800}
 .emptyMedia p{font-size:12px;line-height:1.5;margin:0;max-width:255px}
+
+/* PAP-1774 · App-first homepage: one native family dropdown, two dominant app tiles. */
+.minimalHome{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:20px 16px 16px;background:var(--canvas)}
+.familySwitcher{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:56px;width:100%}
+.familySwitcher>label{font-size:13px;font-weight:700;color:var(--muted);white-space:nowrap}
+.familyPicker{display:flex;align-items:center;gap:7px;height:52px;width:184px;max-width:70%;border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:5px 10px;position:relative;box-shadow:0 2px 8px #43334c0b}
+.familyInitial{width:33px;height:33px;flex:0 0 33px;border-radius:11px;display:grid;place-items:center;background:var(--tint);color:var(--tone);font-size:15px;font-weight:850;pointer-events:none}
+.familySelect{appearance:none;-webkit-appearance:none;width:100%;min-width:0;flex:1;height:44px;border:0;background:transparent;color:var(--ink);font:inherit;font-size:15px;font-weight:800;outline:none;padding:0 18px 0 0;cursor:pointer}
+.familySelect:focus-visible{outline:2px solid #247e9d;outline-offset:2px;border-radius:5px}
+.familyChevron{position:absolute;right:10px;top:13px;line-height:22px;font-size:22px;color:var(--tone);pointer-events:none}
+.focusAppGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch;gap:14px;margin-top:23px}
+.focusAppTile{--tile-accent:var(--tone);--tile-wash:var(--tint);--tile-border:var(--line);display:flex;flex-direction:column;justify-content:center;align-items:center;gap:18px;min-width:0;min-height:230px;padding:20px 10px;border:1px solid var(--tile-border);border-radius:23px;background:linear-gradient(155deg,var(--surface) 40%,var(--tile-wash));box-shadow:0 5px 16px #4c364713;text-align:center}
+.focusAppTile[data-app="hoi-hoa"]{--tile-accent:#a65372;--tile-wash:#fbe6ed;--tile-border:#f0dce3}
+.focusAppTile[data-app="piano"]{--tile-accent:#6e5a9a;--tile-wash:#eee8f9;--tile-border:#e4dff0}
+.focusAppIcon{width:clamp(92px,26vw,120px);height:clamp(92px,26vw,120px);flex:0 0 auto;border-radius:27px;background:var(--tile-wash);display:grid;place-items:center;box-shadow:0 5px 14px #49394d12}
+.focusAppIcon svg{width:92%;height:92%}
+.focusAppTile strong{font-size:22px;line-height:1.25;font-weight:850;letter-spacing:-.035em;color:var(--ink)}
+.focusAppTile:active{transform:scale(.985)}
+@media(max-width:350px){.minimalHome{padding:14px 12px}.familyPicker{width:171px}.focusAppGrid{gap:10px;margin-top:20px}.focusAppTile{min-height:212px;padding:13px 7px;gap:15px;border-radius:18px}.focusAppIcon{width:97px;height:97px;border-radius:23px}.focusAppTile strong{font-size:19px}}
+@media(prefers-reduced-motion:reduce){.focusAppTile{transition:none;transform:none!important}}
