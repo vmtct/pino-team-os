@@ -466,3 +466,33 @@
  .launcherTileText strong{font-size:21px}
  .launcherTileArrow{right:10px;top:12px}
 }
+
+/* PAP-1809 · compact, audience-neutral public-share form and left-aligned post actions. */
+.postActions{display:flex;justify-content:flex-start;align-items:center;align-content:flex-start;flex-wrap:wrap;gap:3px 12px}
+.postActions>button{flex:0 0 auto;margin:0}
+.postActions .publicShareGroup,.unifiedShell [data-public-mode] .publicShareGroup{display:inline-flex;align-items:center;flex:0 0 auto;flex-wrap:wrap;gap:2px 10px;min-width:0;margin:0}
+.publicShareGroup>button,.publicShareGroup>a{display:inline-flex;align-items:center;justify-content:flex-start;gap:6px;min-height:44px;padding:5px 2px;color:var(--tone);text-decoration:none;background:transparent;border:0;font-size:11px;font-weight:800;white-space:nowrap}
+.publicShareGroup>a svg{width:16px;height:16px;display:block;flex:0 0 16px;fill:currentColor}
+.publicShareGroup>a:focus-visible{outline:2px solid var(--tone);outline-offset:2px;border-radius:6px}
+.publicShareGroup>small[role=status]{flex:0 0 100%;padding:0 2px;font-size:10px;color:var(--tone)}
+.visibilityDialog{padding:16px 17px;border-radius:18px}
+.visibilityDialogHead{margin-bottom:7px}
+.visibilityDialogIcon{width:38px;height:38px;border-radius:12px}
+.visibilityDialogIcon svg{width:19px;height:19px}
+.visibilityDialog h2{font-size:18px;margin-bottom:3px}
+.visibilitySubtitle{font-size:12px;margin:0 0 12px;color:var(--muted);font-weight:700;line-height:1.3}
+.visibilityCompactContent{display:flex;flex-direction:column;gap:9px}
+.audienceOption{gap:9px;padding:9px;border-radius:11px;border-color:var(--line);background:var(--tint)}
+.audienceIcon{height:34px;width:34px;flex:0 0 34px;border-radius:10px}
+.audienceIcon svg{width:17px;height:17px;fill:currentColor}
+.audienceOption>div{gap:1px}
+.audienceOption strong{font-size:12px}
+.audienceOption small{font-size:11px;line-height:1.35}
+.consentCheck{margin:0;padding:5px 0;gap:9px;align-items:center;font-size:12px;line-height:1.35}
+.consentCheck input{margin:0;width:18px;height:18px;flex-basis:18px}
+.visibilityCaution{margin:0 0 5px;padding:0;background:none;color:var(--muted);font-size:10px;line-height:1.4}
+.visibilityDescription{margin:4px 0 11px;font-size:12px;line-height:1.45}
+.visibilityDescription .visibilityCaution{display:block;margin-top:9px}
+.visibilityButtons{display:flex;justify-content:flex-start;gap:10px;align-items:center;margin-top:12px}
+.visibilityCancel,.visibilityConfirm,.visibilityRevoke{min-height:44px;min-width:84px;flex:0 0 auto;padding:9px 14px;border-radius:10px;font-size:12px}
+@media(max-width:350px){.postActions{gap:2px 9px}.publicShareGroup>button,.publicShareGroup>a{font-size:10px;gap:5px}.visibilityDialog{padding:13px}}
