@@ -18,7 +18,10 @@ export const parentNativeFields: BoField[] = [
 export const parentNativeModule: BoModule = {
   label: "Parents & Guardians", group: "Học viên", fields: parentNativeFields,
 };
-export const parentNativeSections = [
+export const parentNativeCreateSections = [
   { id: "profile", label: "Thông tin chính", fields: ["name", "maskedContact", "studentCount", "centers", "attention"] },
+];
+export const parentNativeSections = [
+  ...parentNativeCreateSections,
   { id: "system", label: "Thông tin hệ thống", fields: ["createdAt", "createdBy", "updatedAt", "updatedBy", "id"], collapsed: true },
 ];

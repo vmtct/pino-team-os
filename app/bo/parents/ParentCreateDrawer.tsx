@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { BoActionButton } from "@pino/design-system/react";
 import { DrawerFrame } from "@/app/components/workspace-renderer/DrawerFrame";
 import { PropertySections } from "@/app/components/workspace-renderer/Properties";
-import { parentNativeFields } from "./parent-native-model";
+import { parentNativeCreateSections, parentNativeFields } from "./parent-native-model";
 import type { BoRecord } from "@/lib/bo-registration";
 
 import { BoApiError } from "@/lib/bo-api-error";
@@ -90,7 +90,7 @@ export function ParentCreateDrawer({
       <BoActionButton variant="primary" type="submit" form="parent-create-form" disabled={busy}>{busy ? "Đang tạo…" : locked ? "Thử lại cùng yêu cầu" : "Tạo Parent"}</BoActionButton>
     </>}>
     <form id="parent-create-form" onSubmit={event => void submit(event)}>
-      <PropertySections variant="drawer" fields={drawerFields} sections={[{id:"profile",label:"Thông tin chính",fields:["name","maskedContact","studentCount","centers","attention"]}]}
+      <PropertySections variant="drawer" fields={drawerFields} sections={parentNativeCreateSections}
         record={draft} createFields={{
           name: { id: "parent-create-name", label: "Họ và tên *", value: name, required: true,
             maxLength: 120, autoComplete: "name", inputRef: nameInputRef, disabled: locked,
