@@ -29,17 +29,19 @@ function dateSort(a:MediaPost,b:MediaPost){
  const toNumber=(date:string)=>{const [day,month]=date.split("/").map(Number);return (month||0)*32+(day||0);};
  return toNumber(b.date)-toNumber(a.date);
 }
-function Header({currentChild,select,space}:{currentChild:string;select:(id:"an"|"binh")=>void;space:PinerSpace}){
+// PAP-1827 / PNR-APP-HUB · canonical brand left and switcher right.
+function Header({currentChild,select,space,collapsed}:{currentChild:string;select:(id:"an"|"binh")=>void;space:PinerSpace;collapsed:boolean}){
  const profile=getProfile(currentChild==="binh"?"binh":"an");
- return <header className={css.unifiedHeader} data-piner-shared="unified-header">
-       {space==="house"?<ChildSwitcher currentChild={profile.id as "an"|"binh"} onSelect={select}/>:<div className={css.mytimeIdentity}><span className={css.unifiedProfileCircle}>M</span><strong>MyTime · Tôi</strong></div>}
-    <Link href="/piner" aria-label="Logo PINO · Danh sách ứng dụng" className={css.unifiedLogo}>
-     <strong>PINO</strong><small>SPACE</small>
-   </Link>
+ return <header className={css.unifiedHeader} data-piner-shared="unified-header" aria-hidden={collapsed} inert={collapsed}>
+    <Link href="/piner" aria-label="Piner APP · Về trang chọn ứng dụng" className={css.unifiedCanonicalBrand} data-piner-canonical-brand="true">
+      <img src="https://assets.pinohouse.art/site/core/Pino%20Sigil.png" alt="PINO" width="29" height="29" loading="eager"/>
+      <img src="https://app.pinohouse.art/piner_app_logo_no_yellow_transparent.png" alt="Piner APP" width="98" height="47" loading="eager"/>
+    </Link>
+    {space==="house"?<ChildSwitcher currentChild={profile.id as "an"|"binh"} onSelect={select}/>:<div className={css.mytimeIdentity}><span className={css.unifiedProfileCircle}>M</span><strong>MyTime · Tôi</strong></div>}
  </header>;
 }
-function Footer({tab,space}:{tab:UnifiedTab;space:PinerSpace}){
- return <nav aria-label="Điều hướng Piner Space" data-piner-shared="bottom-nav" className={css.unifiedNav}>
+function Footer({tab,space,collapsed}:{tab:UnifiedTab;space:PinerSpace;collapsed:boolean}){
+ return <nav aria-label="Điều hướng Piner Space" data-piner-shared="bottom-nav" aria-hidden={collapsed} inert={collapsed} className={css.unifiedNav}>
    <div className={css.unifiedNavInner}>{TABS.map(item=><Link href={pathFor(space,item.id)} key={item.id}
        data-tab={item.id} aria-current={item.id===tab?"page":undefined}
        className={item.id===tab?css.unifiedNavActive:css.unifiedNavItem}>
@@ -75,9 +77,40 @@ export function PinerUnified({tab,space="house"}:{tab:UnifiedTab;space?:PinerSpa
  const [shareSuccess,setShareSuccess]=useState<MediaPost|null>(null);
  const [sharedPreviewId,setSharedPreviewId]=useState<string|null>(null);
  const [status,setStatus]=useState("");
+ const [chromeCollapsed,setChromeCollapsed]=useState(false);
+ const contentRef=useRef<HTMLElement|null>(null);
  const focusReturn=useRef<HTMLElement|null>(null);
  const previewReturn=useRef<HTMLElement|null>(null);
 
+ // PAP-1827 · Bind scroll direction only to the signed-in app content viewport.
+ useEffect(()=>{
+  const viewport=contentRef.current;
+  if(!viewport)return;
+  setChromeCollapsed(false);
+  let lastY=viewport.scrollTop,travel=0,lockedUntil=0;
+  const onScroll=()=>{
+   const y=viewport.scrollTop;
+   const delta=y-lastY;lastY=y;
+   if(y<=8){travel=0;lockedUntil=0;setChromeCollapsed(false);return;}
+   if(performance.now()<lockedUntil||Math.abs(delta)<.75)return;
+   if(Math.sign(travel)!==Math.sign(delta))travel=0;
+   travel+=delta;
+   if(travel>16&&y>55){
+    const focused=document.activeElement;
+    const header=viewport.parentElement?.querySelector('[data-piner-shared="unified-header"]');
+    const footer=viewport.parentElement?.querySelector('[data-piner-shared="bottom-nav"]');
+    if(focused&&(header?.contains(focused)||footer?.contains(focused)))return;
+    setChromeCollapsed(true);travel=0;lockedUntil=performance.now()+260;
+   }else if(travel< -12){
+    setChromeCollapsed(false);travel=0;lockedUntil=performance.now()+260;
+   }
+  };
+  viewport.addEventListener("scroll",onScroll,{passive:true});
+  return()=>viewport.removeEventListener("scroll",onScroll);
+ },[space,tab]);
+ useEffect(()=>{
+  if(preview||shareIntent||shareSuccess||sharedPreviewId)setChromeCollapsed(false);
+ },[preview,shareIntent,shareSuccess,sharedPreviewId]);
  // Read the preceding PAP-1765 mock state without changing the source of ownership.
  useEffect(()=>{
   const restore:Record<string,Visibility>={};
@@ -153,9 +186,9 @@ export function PinerUnified({tab,space="house"}:{tab:UnifiedTab;space?:PinerSpa
  };
    const title=TABS.find(item=>item.id===tab)?.label??"Bảng tin";
  return <div className={css.unifiedBackdrop}>
-   <div className={css.unifiedShell} data-piner-shared="unified-shell" data-unified-tab={tab} data-piner-space={space}>
-           <Header currentChild={activeId} select={select} space={space}/>
-     <main className={tab==="home"?css.unifiedContent+" "+css.unifiedHomeContent:css.unifiedContent} data-piner-slot="content" data-hydrated={loaded?"true":"false"}>
+   <div className={css.unifiedShell} data-piner-shared="unified-shell" data-unified-tab={tab} data-piner-space={space} data-chrome-collapsed={chromeCollapsed?"true":"false"}>
+           <Header currentChild={activeId} select={select} space={space} collapsed={chromeCollapsed}/>
+     <main className={tab==="home"?css.unifiedContent+" "+css.unifiedHomeContent:css.unifiedContent} data-piner-slot="content" data-hydrated={loaded?"true":"false"} ref={contentRef}>
        <div className={css.unifiedContentInner}>
          {tab!=="home"&&<div className={css.unifiedPageHeading}>
                        <h1>{title}</h1>
@@ -173,7 +206,7 @@ export function PinerUnified({tab,space="house"}:{tab:UnifiedTab;space?:PinerSpa
            <div className={css.emptyMedia}><strong>Chưa có bài đăng</strong><p>Hành trình sáng tạo sẽ xuất hiện tại đây.</p></div>}
        </div>
      </main>
-           <Footer tab={tab} space={space}/>
+           <Footer tab={tab} space={space} collapsed={chromeCollapsed}/>
      {preview&&(preview.type==="reel"
        ?<ReelViewer post={all.find(p=>p.id===preview.id)??preview} onClose={closePreview}/>
        :<PreviewDialog post={all.find(p=>p.id===preview.id)??preview} onClose={closePreview}

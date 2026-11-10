@@ -608,3 +608,40 @@
 @media(max-width:345px){.launcherMockMain{padding-inline:11px}.launcherMockBrand{flex-basis:clamp(158px,25dvh,182px)}.launcherMockCard{min-height:157px}.launcherMockTitle{font-size:27px}.launcherMockDescription{font-size:12px}.launcherMockCardContent{padding-left:17px}}
 @media(max-height:665px){.launcherMockBrand{flex-basis:145px}.launcherMockCards{gap:11px}.launcherMockCard{aspect-ratio:1.9;min-height:151px}.launcherMockArrow{margin-top:9px}}
 @media(prefers-reduced-motion:reduce){.launcherMockCard{transition:none}}
+
+
+/* PAP-1827 / PNR-APP-HUB · scroll-direction member chrome, excluding launcher/public. */
+.unifiedShell[data-piner-space] .unifiedHeader{
+ transition:transform .22s ease,margin-bottom .22s ease,opacity .17s ease;
+ will-change:transform;
+}
+.unifiedShell[data-piner-space] .unifiedNav{
+ transition:transform .22s ease,margin-top .22s ease,opacity .17s ease;
+ will-change:transform;
+}
+.unifiedShell[data-piner-space][data-chrome-collapsed="true"] .unifiedHeader{
+ margin-bottom:-50px;transform:translateY(-100%);opacity:0;pointer-events:none;
+}
+.unifiedShell[data-piner-space][data-chrome-collapsed="true"] .unifiedNav{
+ margin-top:calc(-56px - env(safe-area-inset-bottom));
+ transform:translateY(100%);opacity:0;pointer-events:none;
+}
+.unifiedCanonicalBrand{
+ height:44px;min-height:44px;max-width:145px;min-width:0;
+ display:inline-flex;align-items:center;justify-content:flex-start;gap:5px;flex:0 1 auto;
+}
+.unifiedCanonicalBrand img:first-child{width:29px;height:29px;flex:0 0 29px;object-fit:contain}
+.unifiedCanonicalBrand img:last-child{width:98px;height:44px;max-width:100%;object-fit:contain}
+.unifiedShell[data-piner-space] .unifiedHeader>.unifiedSwitcher{margin-left:auto;max-width:190px;flex:0 1 auto}
+.unifiedHeader>.unifiedSwitcher .childOptions{left:auto;right:0}
+.unifiedShell[data-piner-space] .unifiedHeader>.mytimeIdentity{margin-left:auto}
+@media(max-width:345px){
+ .unifiedCanonicalBrand{gap:3px;max-width:112px}
+ .unifiedCanonicalBrand img:first-child{width:24px;height:24px;flex-basis:24px}
+ .unifiedCanonicalBrand img:last-child{width:84px;height:39px}
+ .unifiedShell[data-piner-space] .unifiedHeader{gap:5px;padding-inline:9px}
+}
+@media(prefers-reduced-motion:reduce){
+ .unifiedShell[data-piner-space] .unifiedHeader,
+ .unifiedShell[data-piner-space] .unifiedNav{transition:none}
+}
