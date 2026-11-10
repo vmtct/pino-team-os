@@ -625,6 +625,7 @@
       "files": [
         "app/bo/missions/page.tsx",
         "app/bo/missions/BoMissionsTdd.tsx",
+        "app/bo/missions/BoMissionHistory.tsx",
         "app/bo/missions/AssignmentFields.tsx",
         "app/bo/missions/navigation.ts",
         "app/bo/missions/schema.ts",
@@ -635,6 +636,10 @@
         "lib/mission-history.ts"
       ],
       "externalReferences": [
+        {
+          "file": "lib/bo-mission-audit-projection.ts",
+          "owner": "PAP-1792"
+        },
         {
           "file": "lib/host-boundary.ts",
           "owner": "PAP-1210"
