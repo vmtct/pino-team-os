@@ -14,7 +14,7 @@ const policy: BoRecord = {
   createdAt: "—", createdByUser: "—", updatedAt: "—", updatedByUser: "—",
 };
 const props = {
-  policy, state: "ready" as const, tab: "overview" as const,
+  policy, centers: [], state: "ready" as const, tab: "overview" as const,
   onClose() {}, onDetail() {}, onTabChange() {},
   returnFocus() { return null; },
 };
@@ -31,21 +31,21 @@ test("PAP-1419 S4 route preserves unrelated parameters and no Core authority fro
   assert.equal(tvPolicyS4State("denied",true),"denied");
   assert.equal(tvPolicyS4State("unavailable",true),"unavailable");
 });
-test("S4 one shared DrawerFrame + all 14 approved read-only values + full detail", () => {
+test("V3.2 one shared DrawerFrame + all 13 approved read-only values + full detail", () => {
   const html = renderToStaticMarkup(createElement(TvPolicyRecord,{...props,pane:"drawer"}));
   assert.match(html,/data-tdd-shell="drawer"/);
   assert.match(html,/aria-modal="true"/);
   assert.match(html,/id="full-detail"/);
-  assert.equal((html.match(/data-prop="/g)||[]).length,14);
+  assert.equal((html.match(/data-prop="/g)||[]).length,13);
   assert.match(html,/data-prop="createdByUser"/);
-  assert.match(html,/data-prop="displaysCount"/);
+  assert.doesNotMatch(html,/data-prop="displaysCount"/);
   assert.doesNotMatch(html,/Lưu và phát hành|heartbeat|Mở TV|Cấp quyền/);
 });
 test("S4 shared DetailFrame Overview first, History last; History never invented", () => {
   const overview = renderToStaticMarkup(createElement(TvPolicyRecord,{...props,pane:"detail"}));
   assert.match(overview,/data-tdd-shell="detail"/);
   assert.match(overview,/id="back-to-list"/);
-  assert.equal((overview.match(/class="v24-prop-item"/g)||[]).length,14);
+  assert.equal((overview.match(/class="v24-prop-item"/g)||[]).length,16);
   assert.ok(overview.indexOf("Tổng quan") < overview.indexOf("Lịch sử"));
   assert.match(overview,/aria-label="Chỉ đọc Created Time"/);
   const history = renderToStaticMarkup(createElement(TvPolicyRecord,{...props,pane:"detail",tab:"history"}));
@@ -61,4 +61,16 @@ test("S4 forbidden or unavailable and missing record never leak private fields",
   }
   const notFound=renderToStaticMarkup(createElement(TvPolicyRecord,{...props,policy:null,pane:"detail"}));
   assert.match(notFound,/Không tìm thấy bản ghi/);
+});
+
+
+test("PAP-1794 DSA inline Full Detail uses whole writable property cell and readonly audit rows", () => {
+  const html=renderToStaticMarkup(createElement(TvPolicyRecord,{...props,centers:[{id:"019b1126-0001-7000-8000-000000000001",name:"Cần Thơ"}],pane:"detail"}));
+  for(const key of ["name","visibilityScope","centerIds"]){
+    assert.match(html,new RegExp("class=\"v24-prop-value writable\" data-prop=\""+key+"\" data-detail-edit=\""+key+"\""));
+  }
+  assert.equal((html.match(/class="v24-prop-value writable"/g)||[]).length,3);
+  assert.equal((html.match(/class="v24-prop-value readonly"/g)||[]).length,13);
+  assert.equal((html.match(/class="v24-edit-glyph"/g)||[]).length,3);
+  assert.doesNotMatch(html,/✎ Sửa|class="inline-custom-editor"/);
 });

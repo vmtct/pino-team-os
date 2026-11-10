@@ -132,11 +132,15 @@ export function TvPolicyDirectory() {
       ? read.reason === "LOGIN_REQUIRED" ? tvPolicyLoginMessage : tvPolicyDeniedMessage
       : tvPolicyUnavailableMessage;
   const rows = presentHoTvPolicyRows(read?.rows ?? []);
+  // IDs are derived from the complete authorized Core Policy Directory, never URL or labels.
+  const centerChoices = read?.status === "ready" ? read.rows
+    .filter(row=>row.scope==="CENTER" && row.id.startsWith("tvp1-center-") && typeof row.center==="string")
+    .map(row=>({id:row.id.slice("tvp1-center-".length),name:String(row.center)})) : [];
   const selected = rows.find(row => row.id === location.policyId) ?? null;
   const recordState = read === null ? "loading" : read.status;
 
   if (location.policyId && location.pane === "detail")
-    return <TvPolicyRecord policy={selected} state={recordState} pane="detail"
+    return <TvPolicyRecord policy={selected} centers={centerChoices} state={recordState} pane="detail"
       tab={location.tab} onClose={closeRecord} onDetail={openDetail} onTabChange={selectTab}
       returnFocus={() => document.querySelector<HTMLElement>('tr[data-record="' + location.policyId + '"]')} />;
 
@@ -157,7 +161,7 @@ export function TvPolicyDirectory() {
         fields={tvPolicyModule.fields} rows={rows} value={value} update={update}
         views={[]} setViews={noop} applyView={noop} policy={policy} /> : null}
     </section>
-    {location.policyId ? <TvPolicyRecord policy={selected} state={recordState} pane="drawer"
+    {location.policyId ? <TvPolicyRecord policy={selected} centers={centerChoices} state={recordState} pane="drawer"
       tab={location.tab} onClose={closeRecord} onDetail={openDetail} onTabChange={selectTab}
       returnFocus={() => document.querySelector<HTMLElement>('tr[data-record="' + location.policyId + '"]')} /> : null}
   </>;

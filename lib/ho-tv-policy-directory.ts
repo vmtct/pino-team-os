@@ -8,7 +8,7 @@ export const tvPolicyColumns = [
   ["scope", "Scope", 135], ["center", "Center", 190],
   ["resolution", "Effective State", 170], ["inherited", "Inherited From", 165],
   ["active", "Active Revision", 145], ["latest", "Head Revision", 155],
-  ["displaysCount", "Displays", 135], ["aspectRatio", "Frame", 110],
+  ["aspectRatio", "Frame", 110],
   ["createdAt", "Created Time", 185], ["createdByUser", "Created by (User)", 205],
   ["updatedAt", "Last Modified Time", 205], ["updatedByUser", "Last Modified by (User)", 220],
 ] as const;

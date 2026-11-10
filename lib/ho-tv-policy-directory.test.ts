@@ -28,14 +28,14 @@ const answer = (data: unknown, status = 200) =>
 const reply = (data: unknown, status = 200): typeof fetch =>
   (async () => answer(data, status)) as typeof fetch;
 
-test("S3 projects exactly 14 approved read-only data fields and audit quartet", () => {
+test("V3.2 projects exactly 13 approved read-only logical-TV fields and audit quartet", () => {
   assert.deepEqual(tvPolicyModule.fields.map(f => f.label), [
     "Policy", "Loại TV", "Scope", "Center", "Effective State", "Inherited From",
-    "Active Revision", "Head Revision", "Displays", "Frame", "Created Time",
+    "Active Revision", "Head Revision", "Frame", "Created Time",
     "Created by (User)", "Last Modified Time", "Last Modified by (User)",
   ]);
   const state = defaultTable(tvPolicyModule.fields);
-  assert.equal(state.visible.length, 14);
+  assert.equal(state.visible.length, 13);
   assert.deepEqual(state.visible, state.order);
   assert.ok(tvPolicyModule.fields.every(f => f.readonly));
 });
@@ -63,7 +63,7 @@ test("unverified initial Core Directory and SSR Table never fabricate rows or ze
   assert.equal(read.total, null);
   assert.deepEqual(read.rows, []);
   const html = renderToStaticMarkup(createElement(TvPolicyDirectory));
-  assert.equal((html.match(/<th /g) ?? []).length, 14);
+  assert.equal((html.match(/<th /g) ?? []).length, 13);
   assert.match(html, /role="status"/);
   assert.match(html, /Đang tải dữ liệu/);
   assert.doesNotMatch(html, /id="result-count"|id="page-range"|data-record=|Mở Quick View|Tạo mới|Mở TV|Sao chép URL/);
@@ -177,7 +177,7 @@ test("PAP-1419 FSG3 presents real Core nulls as — without changing the shared 
   for (const label of ["Created Time", "Created by (User)", "Last Modified Time", "Last Modified by (User)"])
     assert.ok(tv.includes('aria-label="' + label + ': —"'), "unverified audit " + label + " must be —");
   assert.match(tv, /typed-cell readonly/);
-  assert.match(tv, /aria-label="Displays: —"/);
+  assert.doesNotMatch(tv, /aria-label="Displays:/);
   const baseline = renderToStaticMarkup(createElement(BoDataTable, { ...props, rows: [original] }));
   assert.match(baseline, /aria-label="Created Time: —"/);
   assert.match(baseline, /class="empty-val">Trống<\/span>/);
