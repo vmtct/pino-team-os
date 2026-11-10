@@ -46,8 +46,11 @@ test("PAP-1724 Parent Create consumes actual shared renderer, no handmade rows o
   const drawer = readFileSync(new URL("../app/bo/parents/ParentCreateDrawer.tsx", import.meta.url), "utf8");
   assert.match(drawer, /<PropertySections variant="drawer"/);
   assert.match(drawer, /fields=\{drawerFields\}/);
-  assert.match(drawer, /sections=\{parentDefinition\.drawer\.sections\}/);
-  assert.match(drawer, /toLegacyModule\(parentSchema/);
+  const nativeModel = readFileSync(new URL("../app/bo/parents/parent-native-model.ts", import.meta.url), "utf8");
+  assert.match(drawer, /sections=\{parentNativeCreateSections\}/);
+  assert.match(drawer, /drawerFields = parentNativeFields/);
+  assert.match(nativeModel, /export const parentNativeCreateSections = \[/);
+  assert.doesNotMatch(drawer, /parentDefinition|toLegacyModule|parentSchema/);
   assert.match(drawer, /studentCount: 0/);
   assert.doesNotMatch(drawer, /<section className="property-section"/);
   assert.doesNotMatch(drawer, /<label className="property-row"/);

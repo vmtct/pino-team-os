@@ -89,6 +89,13 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
     return pathname === stagingAffiliationFixture && hostname === BO_STAGING_HOSTNAME && method === "POST"
       ? { action: "next" } : { action: "not_found" };
   }
+  // PAP-1814 / Epic PAP-1384 SCH-PARENTS-GUARDIANS:
+  // Exact native Parent name-only PATCH ingress, BO Staging only.
+  // Team BFF + Core still require current Center, identity.parent.edit, CAS/audit.
+  // Do not grant writes to descendants, malformed IDs, HO/TOS or Production.
+  const parentNameEdit = /^\/api\/bo\/identity\/parents\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(pathname);
+  if (parentNameEdit)
+    return hostname === BO_STAGING_HOSTNAME && method === "PATCH" ? { action: "next" } : { action: "not_found" };
   // PAP-1479 / SCH-STUDENT-MGMT: exact BO Staging-only Student name edit ingress.
   // Team BO facade enforces one Center query and two-field name/CAS body;
   // Core independently rechecks Manager CENTER grant, current affiliation and audit.

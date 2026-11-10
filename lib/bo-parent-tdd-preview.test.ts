@@ -24,8 +24,8 @@ test("PAP-1075: preview only on exact BO Staging host with explicit option", () 
 test("PAP-1543 / PAP-1316: canonical BO Parents never renders the unscoped directory", () => {
   const page = readFileSync("app/bo/page.tsx", "utf8");
   const runtime = readFileSync("app/bo/components/registration/BoRuntimeBoundary.tsx", "utf8");
-  const provider = readFileSync("app/bo/parents/provider.ts", "utf8");
-  const tdd = readFileSync("app/bo/parents/ParentTdd.tsx", "utf8");
+  const native = readFileSync("app/bo/parents/ParentDirectoryDsa.tsx", "utf8");
+  const data = readFileSync("app/bo/parents/parent-native-data.ts", "utf8");
 
   // Normal /bo?module=parents is now the exact same Center-bound reader as
   // the former pilot. A query flag must not decide whether identity is scoped.
@@ -33,16 +33,16 @@ test("PAP-1543 / PAP-1316: canonical BO Parents never renders the unscoped direc
   assert.doesNotMatch(page, /parentTddPilot|boParentTddPilotAllowed/);
   assert.match(runtime, /if \(moduleKey === "parents"\) return <BoRegistrationWorkspace currentUser=\{currentUser\}/);
   assert.match(runtime, /source=\{unifiedBoWorkspaceSource\} moduleKey="parents" options=\{options\}/);
-  assert.match(runtime, /content=\{<ParentTdd \/>\} \/>;/);
+  assert.match(runtime, /content=\{<ParentDirectoryDsa \/>\} \/>;/);
   assert.doesNotMatch(runtime, /parentTddPilot|isParentPilot/);
   assert.doesNotMatch(runtime, /content=\{moduleKey === "parents"/);
 
   // The replacement provider is server-attested, not a client-side filter.
-  assert.match(provider, /payload\.scopeCenterId !== centerId/);
-  assert.match(provider, /new URLSearchParams\(\{ centerId, limit:/);
-  assert.match(provider, /No unscoped\/legacy fallback/);
-  assert.match(tdd, /ready\?\.centerId === selected/);
-  assert.match(tdd, /<SurfaceWorkspace key=\{selected \+ ":" \+ retry\}/);
+  assert.match(data, /data\.scopeCenterId !== centerId/);
+  assert.match(data, /new URLSearchParams\(\{ centerId, limit: "100", offset:/);
+  assert.match(native, /loadNativeParentContext\(centerId,ctl.signal\)/);
+  assert.match(native, /loadNativeParentDirectory\(centerId,ctl.signal\)/);
+  assert.doesNotMatch(native, /TddRegistry|SurfaceWorkspace|createBoTddAdapter|TddRenderer|ParentTdd/);
 
   // Old generic Subscription writer remains intentionally blocked.
   assert.match(runtime, /if \(moduleKey === "subscriptions"\) return <BoRegistrationWorkspace/);
