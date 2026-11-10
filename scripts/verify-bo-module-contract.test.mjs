@@ -30,7 +30,7 @@ function fixture() {
   fs.writeFileSync(path.join(tmp,navFile),nav
     .replace(/items: \[\{ href: "\/bo", label: "Hôm nay" \}[^\r\n]*\],/,'items: [{ href: "/bo", label: "Hôm nay" }],')
     .replace(/\s*\{ href: "\/bo\/payroll-periods", label: "Kỳ lương \(Read-only\)" \},/,"")
-    .replace(/\s*\{ href: "\/bo\/pinoria-avatars", label: "Self Directory" \},/,"")
+    .replace(/\s*\{ href: "\/bo\/pinoria-avatars", label: "Pinoria Avatar" \},/,"")
     .replace(/\s*\{ href: "\/bo\/open-studio-passes", label: "Pass Trạm Nghệ Thuật" \},/,"")
     // PAP-1421 Bills nav is valid in the real registry/TDD contract checked
     // above, but synthetic frozen-baseline-only fixtures remove new modules.

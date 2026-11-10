@@ -4438,6 +4438,37 @@ html:where([data-bo-ui-authority="v25"]),
   :where(html[data-bo-ui-authority="v25"]) [data-native-avatar] { --tdd-identity-width: 208px; }
 }
 
+/* PAP-1822 — native Avatar CSS parity proof; isolated to data-native-avatar.
+   Never re-enable TDD renderer or alter the global non-avatar table. */
+:where(html[data-bo-ui-authority="v25"]) [data-native-avatar] #typed-table {
+  table-layout: fixed !important;
+  width: max-content !important;
+  min-width: max-content !important;
+}
+:where(html[data-bo-ui-authority="v25"]) [data-native-avatar] #typed-table th[data-column],
+:where(html[data-bo-ui-authority="v25"]) [data-native-avatar] #typed-table td.schema-column {
+  box-sizing: border-box !important;
+  width: var(--bo-column-width, 225px) !important;
+  min-width: var(--bo-column-width, 225px) !important;
+  max-width: var(--bo-column-width, 225px) !important;
+}
+:where(html[data-bo-ui-authority="v25"]) [data-native-avatar] #typed-table :is(th,td)[data-tdd-identity-column] {
+  width: 240px !important; min-width: 240px !important; max-width: 240px !important;
+  position: sticky !important; left: 56px !important;
+}
+:where(html[data-bo-ui-authority="v25"]) [data-native-avatar] #typed-table :is(th,td)[data-tdd-legacy-sticky-release]:not([data-tdd-freeze-cell]) {
+  position: static !important; left: auto !important;
+}
+:where(html[data-bo-ui-authority="v25"]) [data-native-avatar] #filter-toggle,
+:where(html[data-bo-ui-authority="v25"]) [data-native-avatar] #visible-columns,
+:where(html[data-bo-ui-authority="v25"]) [data-native-avatar] #reset-all,
+:where(html[data-bo-ui-authority="v25"]) [data-native-avatar] #save-view {
+  display: inline-flex !important;
+}
+:where(html[data-bo-ui-authority="v25"]) [data-native-avatar] .toolbar {
+  display: flex !important;
+}
+
 /* PAP-1722 · SCH-PARENTS-GUARDIANS FSG2: BO-only canonical Create Drawer.
    Compiled into the single BO authority stylesheet, never the HO shared CSS. */
 :where(html[data-bo-ui-authority="v25"]) #drawer-content > #parent-create-form > .property-section { margin: 0; }

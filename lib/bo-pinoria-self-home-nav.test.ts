@@ -9,7 +9,7 @@ const shell = readFileSync(new URL("../app/bo/components/registration/BoRegistra
 const self = readFileSync(new URL("../app/bo/pinoria-avatars/AvatarDirectoryDsa.tsx", import.meta.url), "utf8");
 
 test("Pinoria Avatar stays a dedicated BO DSA route, never a legacy query module", () => {
-  const entry = boNavigation.find(group => group.label === "Pinoria")?.items.find(item => item.label === "Self Directory");
+  const entry = boNavigation.find(group => group.label === "Pinoria")?.items.find(item => item.label === "Pinoria Avatar");
   assert.equal(entry?.href, "/bo/pinoria-avatars");
   assert.ok(!(BO_LEGACY_QUERY_MODULES as readonly string[]).includes("pinoria-avatars"));
 });

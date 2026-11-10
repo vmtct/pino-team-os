@@ -53,7 +53,7 @@ const terms: readonly (readonly [string, string, readonly string[]])[] = [
   ["Payroll Periods", "Kỳ lương", ["Kỳ lương", "Salary Period", "Kỳ lương (Read-only)"]],
   ["Overtime Approvals", "Duyệt thêm giờ", ["Duyệt thêm giờ"]],
   ["Training", "Đào tạo nhân sự", []],
-  ["Self Directory", "Hồ sơ Pinoria Self", ["Pinoria Self"]],
+  ["Pinoria Avatar", "Pinoria Avatar", ["Self Directory", "Hồ sơ Pinoria Self", "Pinoria Self"]],
   ["Economy", "Kinh tế", []],
   ["Wish", "Điều ước", []],
   ["Activity", "Hoạt động", []],
