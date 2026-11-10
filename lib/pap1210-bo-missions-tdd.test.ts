@@ -38,10 +38,10 @@ test("PAP-1434: module views preserve status filters and leave All to the TDD en
 
 test("PAP-1434: displayed assignment guidance uses concise Vietnamese without technical internals", () => {
   const ui = readFileSync("app/bo/missions/BoMissionsTdd.tsx", "utf8");
-  const guidance = ui.match(/create: "([^"]+)"/)?.[1];
-  assert.equal(guidance, "Chọn học viên và nhiệm vụ đang hoạt động để giao nhiệm vụ.");
+  const guidance = ui.match(/readOnly: "([^"]+)"/)?.[1];
+  assert.equal(guidance, "Nhiệm vụ được giáo viên giao từ TOS. BO chỉ xem; Quản lý có thể mở lại khi nhiệm vụ đã hoàn tất.");
   assert.doesNotMatch(guidance!, /\b(?:Core|ACTIVE|ID)\b/);
-  assert.match(ui, /<p role="note">\{assignmentUnavailable\.create\}<\/p>/);
+  assert.match(ui, /<p role="note">\{assignmentUnavailable\.readOnly\}<\/p>/);
 });
 
 test("PAP-1210: reload restores only authorized Center; Center change clears assignment identity", () => {
@@ -64,23 +64,27 @@ test("PAP-1210: one typed BO TDD with authorized declarative actions and honest 
   assert.deepEqual(composeTabs(assignmentSchema).map(t => [t.id, t.label]), [["overview", "Tổng quan"], ["results", "Kết quả"], ["diary", "Nhật Ký"], ["history", "Lịch sử"]]);
   assert.deepEqual(assignmentDefinition.capabilities, { read: "student.mission_assignment.view",
     history: "student.mission_assignment.view",
-    create: "student.mission_assignment.manage", edit: "student.mission_assignment.manage" });
-  assert.deepEqual(assignmentDefinition.actions.map(a => [a.id, a.slot, a.capability]), [
-    ["assignment-open-create", "table.header", "create"], ["assignment-open-edit", "detail.header", "edit"],
-    ["assignment-open-cancel", "detail.header", "edit"], ["assignment-cancel-create", "drawer.footer", "create"],
-    ["assignment-save-create", "drawer.footer", "create"], ["assignment-cancel-edit", "drawer.footer", "edit"],
-    ["assignment-save-edit", "drawer.footer", "edit"], ["assignment-confirm-cancel", "drawer.footer", "edit"],
+    edit: "student.mission_assignment.manage" });
+  assert.deepEqual(assignmentDefinition.actions.map(a=>a.id),[
+    "assignment-open-reopen","assignment-cancel-reopen","assignment-confirm-reopen",
   ]);
+  assert.equal(assignmentDefinition.actions.filter(a=>a.variant==="primary").length,1);
   assert.equal(assignmentDefinition.detail.history.kind, "unavailable");
   assert.equal(assignmentProvider.mutation, undefined);
   assert.equal(assignmentSchema.drawer.density, "one-column");
   const ui = readFileSync("app/bo/missions/BoMissionsTdd.tsx", "utf8");
+  assert.match(ui, /readBoMissionExecution/);
+  assert.match(ui, /reopenBoMissionCompletion/);
+  assert.match(ui, /detailExecution.executionStatus==="COMPLETED"/);
+  assert.match(ui, /expectedVersion:reopenVersion/);
+  assert.match(ui, /ready\.navigation\.read\(\)\.recordId!==target\.id/);
+  assert.match(ui, /setUncertain\(true\)/);
   assert.match(ui, /SurfaceWorkspace/);
   assert.match(ui, /liên kết trực tiếp/);
   assert.match(ui, /nguồn kết quả học viên chưa được kết nối/);
-  assert.match(ui, /AssignmentFields/);
+  assert.doesNotMatch(ui, /AssignmentFields|\bopenCreate\b|\bopenCancel\b|\bopenEdit\b/);
   assert.match(ui, /readMissionAssignment/);
-  assert.match(ui, /submitBoMissionAssignment/);
+  assert.doesNotMatch(ui, /submitBoMissionAssignment|\bAssignmentWrite\b/);
   assert.match(ui, /TddRenderer/);
   assert.doesNotMatch(ui, /<button[^>]*Giao Nhiệm vụ|window\\.prompt|window\\.confirm/);
   assert.doesNotMatch(ui, /localStorage|mission-assignments-prototype|<table\b|MissionCatalogView/);
