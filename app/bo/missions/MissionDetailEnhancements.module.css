@@ -1,0 +1,116 @@
+/* PAP-1818 / Epic PAP-1676 MISSION-ASSIGNMENT — scoped PINO DS parity.
+   No global renderer styles, no duplicated Drawer shell. */
+.diaryNotePreview {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  max-width: 340px;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  color: var(--text-primary, #31343b);
+}
+.diaryDrawer { min-width: 0; }
+.diaryDrawer :global(.v24-prop-grid) { min-width: 0; }
+.diaryDrawer :global(.v24-prop-item) { min-width: 0; }
+.longValue {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.65;
+}
+.reopenReason {
+  display: grid;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  color: var(--text-primary, #31343b);
+}
+.reopenReason > p { margin: 0; line-height: 1.55; }
+.reopenReason label {
+  display: block;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--text-secondary, #596373);
+  margin-top: 6px;
+}
+.reopenReason textarea {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 112px;
+  padding: 11px 13px;
+  border: 1px solid var(--ds-border, #d8dce3);
+  border-radius: 9px;
+  background: var(--ds-surface, #fff);
+  color: var(--text-primary, #31343b);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  resize: vertical;
+}
+.reopenReason textarea:focus-visible {
+  outline: 2px solid var(--ds-primary, #74283e);
+  outline-offset: 2px;
+  border-color: var(--ds-primary, #74283e);
+}
+.reopenReason textarea:disabled {
+  opacity: .66;
+  cursor: not-allowed;
+  background: var(--ds-surface-subtle, #f6f7f9);
+}
+.reopenReason [role="alert"] {
+  color: var(--ds-danger, #ad2343);
+  font-size: 12px;
+  line-height: 1.5;
+  font-weight: 600;
+}
+.missionHistory { min-width: 0; }
+.missionHistory > :global(.settings-hint) { line-height: 1.55; }
+.missionHistory > :global(.v24-prop-section) { min-width: 0; }
+.missionHistory :global(.v25-audit-list) { display: grid; gap: 12px; }
+.missionHistory :global(.v25-audit-row) {
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--ds-border, #e0e2e7);
+  border-radius: 11px;
+  background: var(--ds-surface, #fff);
+  box-shadow: 0 2px 8px rgba(24, 29, 39, .04);
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.missionHistory :global(.v25-audit-row:hover) {
+  border-color: var(--ds-primary, #74283e);
+  box-shadow: 0 4px 15px rgba(24, 29, 39, .07);
+}
+.missionHistory :global(.v25-audit-when) {
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+}
+.missionHistory :global(.v25-audit-action strong) {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--ds-surface-subtle, #f5f2f4);
+  color: var(--ds-primary, #74283e);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.missionHistory :global(.v25-audit-changes) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  padding: 6px 0;
+}
+.missionHistory :global(.v25-change-flow) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.missionHistory :global(.v25-audit-outcome) { font-weight: 650; }
+@media (max-width: 600px) {
+  .missionHistory :global(.v25-audit-row) { padding: 12px; }
+  .diaryNotePreview { max-width: 160px; }
+  .reopenReason textarea { min-height: 130px; }
+}
