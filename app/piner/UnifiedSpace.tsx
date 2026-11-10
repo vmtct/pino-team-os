@@ -11,7 +11,8 @@ import { SessionPostFullscreen,UnavailableSessionPost } from "./SessionPostFulls
 import { ReelViewer } from "./ReelViewer";
 import { publicCommunityHref, isPublicFixture } from "./publicApproved";
 import { POSTS, type MediaPost, type Visibility } from "./media";
-import { MANAGED_CHILDREN, useActiveProfile, isManagedChild, getProfile } from "./profiles";
+import { useActiveProfile, isManagedChild, getProfile } from "./profiles";
+import { ChildSwitcher } from "./ChildSwitcher";
 import css from "./launcher.module.css";
 import {PinoIcon} from "./PinoIcon";
 import {SPACES,isInSpace,pathFor,type PinerSpace} from "./spaces";
@@ -31,17 +32,7 @@ function dateSort(a:MediaPost,b:MediaPost){
 function Header({currentChild,select,space}:{currentChild:string;select:(id:"an"|"binh")=>void;space:PinerSpace}){
  const profile=getProfile(currentChild==="binh"?"binh":"an");
  return <header className={css.unifiedHeader} data-piner-shared="unified-header">
-       {space==="house"?<div className={css.unifiedSwitcher} data-child-switcher="house">
-       <span className={css.unifiedProfileCircle} aria-hidden="true">{profile.avatar}</span>
-       <div className={css.unifiedSwitcherText}>
-        <label htmlFor="piner-child-profile">Đang xem</label>
-        <select id="piner-child-profile" aria-label="Chọn con đang xem" className={css.unifiedProfileSelect}
-         value={profile.id} onChange={event=>select(event.target.value as "an"|"binh")}>
-         {MANAGED_CHILDREN.map(child=><option value={child.id} key={child.id}>{child.display}</option>)}
-        </select>
-       </div>
-       <span className={css.unifiedSwitcherChevron} aria-hidden="true">⌄</span>
-      </div>:<div className={css.mytimeIdentity}><span className={css.unifiedProfileCircle}>M</span><strong>MyTime · Tôi</strong></div>}
+       {space==="house"?<ChildSwitcher currentChild={profile.id as "an"|"binh"} onSelect={select}/>:<div className={css.mytimeIdentity}><span className={css.unifiedProfileCircle}>M</span><strong>MyTime · Tôi</strong></div>}
     <Link href="/piner" aria-label="Logo PINO · Danh sách ứng dụng" className={css.unifiedLogo}>
      <strong>PINO</strong><small>SPACE</small>
    </Link>
