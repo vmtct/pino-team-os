@@ -43,10 +43,12 @@ test("PAP-1818 scoped PINO DataGrid opens shared Drawer; History and reason use 
  assert.match(css,/\.missionHistory/);assert.match(css,/\.reopenReason/);
  assert.match(ui,/className="v25-form-field"/);
 });
-test("PAP-1818 Reopen textarea uses admitted scoped PINO DS form tokens, not raw browser defaults",()=>{
+test("PAP-1818 Reopen textarea reuses shared PINO BO DS edit-input instead of custom CSS",()=>{
+ const ui=readFileSync("app/bo/missions/BoMissionsTdd.tsx","utf8");
  const css=readFileSync("app/bo/missions/MissionDetailEnhancements.module.css","utf8");
- assert.match(css,/\.reopenReason textarea\s*\{[^}]*padding:\s*11px 13px\s*;[^}]*border-radius:\s*10px\s*;/);
- assert.match(css,/\.reopenReason textarea:focus-visible\s*\{[^}]*outline:\s*2px solid var\(--ds-primary/);
- assert.match(css,/\.reopenReason textarea:disabled\s*\{/);
- assert.doesNotMatch(css,/^\s*textarea\s*\{/m);
+ const ds=readFileSync("public/bo-authority-source/bo-scoped.css","utf8");
+ assert.match(ui,/<textarea id="pap1210-reopen-reason" className="edit-input"/);
+ assert.ok(ds.includes(':where(html[data-bo-ui-authority="v25"]) textarea.edit-input'));
+ assert.ok(ds.includes(':where(html[data-bo-ui-authority="v25"]) .edit-input:focus'));
+ assert.doesNotMatch(css,/\.reopenReason\s+textarea/);
 });

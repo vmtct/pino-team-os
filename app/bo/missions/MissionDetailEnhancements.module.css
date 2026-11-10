@@ -1,46 +1,10 @@
-/* PAP-1818 / Epic PAP-1676: admitted module-local layout and
-   token-based reason-field styles. Shared PINO DS Drawer/History remain authoritative. */
+/* PAP-1818 / Epic PAP-1676: admitted module layout-only CSS.
+   PINO shared DS classes supply badges, form, audit row appearance, and focus states. */
 .diaryNotePreview { display: block; max-width: 240px; min-width: 0; }
 .diaryDrawer { display: grid; gap: 12px; min-width: 0; }
 .diaryDrawerGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; min-width: 0; }
 .noteLines { display: grid; gap: 4px; min-width: 0; }
 .reopenReason { display: grid; gap: 12px; min-width: 0; }
-/* PAP-1818 PINO DS: make the actual Reopen reason field a themed form control.
-   Scoped to the mission business field; do not restyle shared Drawer/renderer. */
-.reopenReason label { display: grid; gap: 7px; min-width: 0; }
-.reopenReason label > span {
-  font-size: 12px;
-  line-height: 1.4;
-  font-weight: 650;
-  color: var(--text-secondary, #596373);
-}
-.reopenReason textarea {
-  box-sizing: border-box;
-  display: block;
-  width: 100%;
-  min-width: 0;
-  min-height: 108px;
-  padding: 11px 13px;
-  border: 1px solid var(--ds-border, #d8dce3);
-  border-radius: 10px;
-  background: var(--ds-surface, #fff);
-  color: var(--text-primary, #31343b);
-  font: inherit;
-  font-size: 14px;
-  line-height: 1.5;
-  resize: vertical;
-}
-.reopenReason textarea::placeholder { color: var(--text-tertiary, #8a909b); }
-.reopenReason textarea:focus-visible {
-  border-color: var(--ds-primary, #74283e);
-  outline: 2px solid var(--ds-primary, #74283e);
-  outline-offset: 2px;
-}
-.reopenReason textarea:disabled {
-  background: var(--ds-surface-subtle, #f6f7f9);
-  cursor: not-allowed;
-  opacity: .66;
-}
 .missionHistory { display: grid; gap: 14px; min-width: 0; }
 @media (max-width: 600px) {
 .diaryDrawerGrid { grid-template-columns: minmax(0, 1fr); }
