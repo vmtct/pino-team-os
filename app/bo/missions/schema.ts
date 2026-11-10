@@ -3,6 +3,7 @@ import type { SurfaceDefinition, SurfaceProvider } from "@/lib/workspace-adapter
 import { readMissionAssignment, readMissionAssignments, type MissionAssignment } from "@/lib/bo-mission-assignments";
 import { readMissionHistory } from "@/lib/mission-history";
 import { readBoMissionExecution, type BoMissionExecution } from "@/lib/bo-mission-completion-client";
+import { formatMissionAuditTime } from "@/lib/bo-mission-audit-projection";
 
 const read = { display: true, search: true, filter: true, sort: true, group: true, inlineEdit: false } as const;
 const permission = "student.mission_assignment.view";
@@ -20,6 +21,11 @@ export const assignmentFields = [
   { key: "contextKey", label: "Context Key", type: "text", icon: "#", width: 160, permission, readOnly: true, capabilities: read },
   { key: "cancelledAt", label: "Ngày hủy (UTC)", type: "text", icon: "Aa", width: 200, permission, readOnly: true, capabilities: read },
   { key: "cancelledReason", label: "Lý do hủy", type: "text", icon: "Aa", width: 200, permission, readOnly: true, capabilities: read },
+  // PAP-1792 S0-R3: explicitly Founder-approved optional audit columns (PAP-1798 source pending).
+  { key: "createdAt", label: "Created Time", type: "text", icon: "Aa", width: 175, permission, readOnly: true, capabilities: { display:true, search:false, filter:false, sort:false, group:false, inlineEdit:false } },
+  { key: "createdBy", label: "Created By", type: "text", icon: "Aa", width: 170, permission, readOnly: true, capabilities: { display:true, search:false, filter:false, sort:false, group:false, inlineEdit:false } },
+  { key: "updatedAt", label: "Last Modified Time", type: "text", icon: "Aa", width: 175, permission, readOnly: true, capabilities: { display:true, search:false, filter:false, sort:false, group:false, inlineEdit:false } },
+  { key: "updatedBy", label: "Last Modified By", type: "text", icon: "Aa", width: 170, permission, readOnly: true, capabilities: { display:true, search:false, filter:false, sort:false, group:false, inlineEdit:false } },
 ] as const satisfies readonly FieldSchema[];
 type F = typeof assignmentFields;
 export const assignmentQuery: TableQuery<F> = {
@@ -52,9 +58,9 @@ export const assignmentDefinition = {
     inlineEdit: { fields: [], enabled: false },
     interaction: { settings: ["properties", "grouping", "filters", "quick-views"], quickView: "separate-opener", keyboard: "canonical", undo: "local-ui-only" },
   },
-  drawer: { density: "one-column", sections: [{ id: "summary", label: "Nhiệm vụ được giao", fields: ["student", "name", "code", "status", "executionStatus", "assignedAt", "context"] }], actions: [] },
+  drawer: { density: "one-column", sections: [{ id: "summary", label: "Nhiệm vụ được giao", fields: ["student", "name", "code", "status", "executionStatus", "assignedAt", "context", "createdAt", "createdBy", "updatedAt", "updatedBy"] }], actions: [] },
   detail: {
-    overview: { sections: [{ id: "assignment", label: "Nhiệm vụ được giao", fields: ["student", "name", "code", "status", "executionStatus", "executionVersion", "assignedAt", "context", "contextKey", "center", "mission", "cancelledAt", "cancelledReason"] }] },
+    overview: { sections: [{ id: "assignment", label: "Nhiệm vụ được giao", fields: ["student", "name", "code", "status", "executionStatus", "executionVersion", "assignedAt", "context", "contextKey", "center", "mission", "cancelledAt", "cancelledReason", "createdAt", "createdBy", "updatedAt", "updatedBy"] }] },
     businessTabs: [
       { id: "results", label: "Kết quả", kind: "relation-grid", relatedModule: "student-mission-results", source: { adapter: "mission-results-unavailable", permission } },
       { id: "diary", label: "Nhật Ký", kind: "relation-grid", relatedModule: "assignment-diaries", source: { adapter: "assignment-linked-diaries", permission } },
@@ -74,7 +80,8 @@ function project(p: MissionAssignment, execution: BoMissionExecution | null): Mo
       execution!.executionStatus === "COMPLETED" ? "Hoàn tất" : "Đang thực hiện",
     executionVersion: p.status !== "ASSIGNED" ? null : execution!.executionVersion,
     context: p.contextLabel, assignedAt: p.assignedAt, center: p.centerId, mission: p.missionId,
-    contextKey: p.contextKey, cancelledAt: p.cancelledAt, cancelledReason: p.cancelledReason };
+    contextKey: p.contextKey, cancelledAt: p.cancelledAt, cancelledReason: p.cancelledReason,
+    createdAt: null, createdBy: null, updatedAt: formatMissionAuditTime(p.updatedAt), updatedBy: null };
 }
 export const assignmentProvider: SurfaceProvider<F> = {
   pagination: "local-ui",

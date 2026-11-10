@@ -14,6 +14,7 @@ import { BoRegistrationWorkspace } from "@/app/bo/components/registration/BoRegi
 import { useBoStagingUser } from "@/app/bo/components/registration/BoRuntimeBoundary";
 import { unifiedBoWorkspaceSource } from "@/app/bo/architecture/bo-unified-workspace-source";
 import { assignmentDefinition, assignmentFields, assignmentProvider, assignmentQuery } from "./schema";
+import { BoMissionHistory } from "./BoMissionHistory";
 import { useBoCenterSelection } from "@/app/bo/components/registration/BoCenterSelection";
 import type { DirectoryCenterSource } from "@/app/bo/pinoria-avatars/centers";
 
@@ -210,7 +211,11 @@ function ScopedMissionAssignment({centerId,centerSource,writeLease,setWriteLease
     {error ? <p role="alert">{error} <button type="button" onClick={() => { setError("");setRetry(n => n + 1); }}>Thử lại</button></p> :
       ready?.centerId === centerId ? <>
         <SurfaceWorkspace key={centerId} adapter={ready.adapter} navigation={ready.navigation} initialQuery={assignmentQuery}
-          businessLoaders={businessLoaders} actionBindings={actions} />
+          businessLoaders={businessLoaders} actionBindings={actions}
+          detailHistory={(row, context) => context.surface === "BO" && row.center === context.centerId &&
+            context.authorize("student.mission_assignment.view")
+              ? <BoMissionHistory key={context.centerId + ":" + row.id} id={row.id} centerId={context.centerId} context={context} />
+              : <p role="status">Không có quyền xem lịch sử tại Center này.</p>} />
         {reopenOpen && target ? <TddRenderer view={{kind:"form",props:{
           registry:ready.adapter.registry,schema:ready.adapter.schema,context:ready.adapter.context,
           mode:"edit",recordId:target.id,title:"Mở lại nhiệm vụ",
