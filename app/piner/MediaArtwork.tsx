@@ -1,6 +1,6 @@
 // PAP-1764 · Synthetic art and video cover illustrations, NOT identifiable student imagery.
 import type { MediaPost } from "./media";
-export function MediaArtwork({post}:{post:MediaPost}){
+export function MediaArtwork({post}:{post:Pick<MediaPost,"id"|"app"|"visual"|"title">}){
  const isPiano=post.app==="piano";
  const visual=post.visual;
  return <svg viewBox="0 0 400 350" preserveAspectRatio="xMidYMid slice" role="img" aria-label={"Tranh minh họa cho "+post.title} className="piner-artwork">

@@ -277,3 +277,65 @@
 .postComment p{flex:1;min-width:0;margin:2px 0 0;font-size:12px;line-height:1.5;color:var(--ink)}
 .postComment strong{font-weight:800;color:var(--ink);margin-right:4px}
 .moreCommentsHint{font-size:11px;color:var(--muted);padding-left:32px}
+
+/* PAP-1800 · Anonymous read-only Public Community, PINO mobile-only visual parity. */
+.publicBackdrop{width:100%;height:100dvh;min-height:100svh;display:flex;align-items:stretch;justify-content:center;background:#f0eef2;color:#33303c;font:14px/1.45 "Segoe UI",Roboto,"Noto Sans",Arial,sans-serif}
+.publicBackdrop *{box-sizing:border-box}
+.publicBackdrop a{text-decoration:none;color:inherit}
+.publicBackdrop :is(a,button,video):focus-visible{outline:2px solid #247d9a;outline-offset:2px}
+.publicShell{width:100%;max-width:430px;height:100dvh;min-height:100svh;background:#fbf9fb;display:flex;flex-direction:column;overflow:hidden}
+.publicHeader{flex:0 0 50px;height:50px;border-bottom:1px solid #e8e0e9;display:flex;align-items:center;justify-content:space-between;padding:0 14px;background:#fff}
+.publicBrand{font-size:21px;font-weight:900;color:#805a7b!important;line-height:.85;letter-spacing:-.07em;display:flex;flex-direction:column}
+.publicBrand small{font-size:8px;letter-spacing:.3em;margin-top:3px}
+.publicCommunityLink{font-weight:800;font-size:12px;background:#f5eaf0;border-radius:12px;padding:8px 12px;color:#805a7b!important}
+.publicMain{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:12px 9px 20px;scrollbar-width:thin}
+.publicPageTitle{font-size:20px;line-height:1.3;margin:3px 5px 6px;font-weight:850}
+.publicLead{font-size:12px;color:#77717d;margin:0 5px 15px}
+.publicList{display:flex;flex-direction:column;gap:10px}
+.publicListCard{display:flex;gap:11px;min-height:114px;border-radius:15px;border:1px solid #e8e0e9;background:#fff;overflow:hidden;box-shadow:0 2px 8px #63455709}
+.publicThumb{width:116px;min-width:116px;align-self:stretch;position:relative;overflow:hidden;background:#f4e4ea}
+.publicThumb svg{width:100%;height:100%;display:block;object-fit:cover}
+.publicThumb span{position:absolute;bottom:8px;left:8px;color:white;background:#2e2635a0;padding:5px 8px;border-radius:8px}
+.publicListText{padding:12px 10px 12px 0;min-width:0}
+.publicListText strong,.publicListText b,.publicListText small{display:block}
+.publicListText strong{font-size:12px;color:#805a7b}
+.publicListText b{font-size:14px;margin:2px 0 3px;line-height:1.35}
+.publicListText small{font-size:11px;color:#77717d}
+.publicListText p{margin:5px 0 0;font-size:12px;color:#6c6571;line-height:1.35;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+.publicDisclaimer{margin:20px 4px 10px;color:#89828f;font-size:11px}
+.publicFooter{flex:0 0 calc(56px + env(safe-area-inset-bottom));height:calc(56px + env(safe-area-inset-bottom));display:grid;place-items:center;padding-bottom:env(safe-area-inset-bottom);background:#fff;border-top:1px solid #e8e0e9}
+.publicFooter a{height:44px;display:flex;align-items:center;justify-content:center;padding:0 18px;color:#805a7b!important;font-size:12px;font-weight:850}
+.publicDetail{border-radius:15px;background:#fff;border:1px solid #e8e0e9;overflow:hidden;padding-bottom:14px}
+.publicBack{display:flex;align-items:center;height:44px;padding:0 13px;color:#805a7b!important;font-weight:800;font-size:13px;border-bottom:1px solid #f0ecf1}
+.publicPostAuthor{display:flex;justify-content:space-between;align-items:center;gap:5px;padding:12px 13px;font-size:13px}
+.publicPostAuthor small{font-size:11px;color:#77717d}
+.publicDetailBody{padding:12px 13px}
+.publicDetailBody h1{font-size:18px;font-weight:850;margin:0 0 5px;line-height:1.3}
+.publicCaption{font-size:13px;line-height:1.5;margin:0 0 12px;color:#4f4753}
+.publicComments{border-top:1px solid #eee6ef;padding-top:11px}
+.publicComments h2{font-size:13px;margin:0 0 8px;font-weight:850}
+.publicComments p{margin:0 0 8px;font-size:12px;line-height:1.5}
+.publicComments p strong{margin-right:5px}
+.publicBackBottom{display:block;max-width:280px;padding:10px 14px;margin:0 auto;font-weight:800;font-size:12px;border-radius:12px;text-align:center;background:#f5eaf0;color:#805a7b!important}
+.publicCarousel{width:100%;aspect-ratio:1.2/1;overflow:hidden;position:relative;background:#f5eaf0;touch-action:pan-y}
+.publicCarouselSlides{display:flex;width:100%;height:100%;transition:transform .24s ease-out}
+.publicSlide{width:100%;height:100%;flex:0 0 100%;min-width:0}
+.publicSlide svg{display:block;width:100%;height:100%}
+.publicPrev,.publicNext{position:absolute;top:calc(50% - 22px);width:44px;height:44px;border:0;border-radius:50%;font-size:25px;color:#4f3e50;background:#fffD;display:grid;place-items:center}
+.publicPrev:disabled,.publicNext:disabled{opacity:0;pointer-events:none}
+.publicPrev{left:4px}.publicNext{right:4px}
+.publicCount{position:absolute;top:9px;right:10px;border-radius:20px;background:#2e2635ac;color:#fff;padding:4px 9px;font-size:11px;font-weight:800}
+.publicDots{position:absolute;bottom:4px;left:0;right:0;display:flex;justify-content:center;align-items:center}
+.publicDot,.publicDotSelected{height:30px;width:30px;border:0;background:transparent;display:grid;place-items:center;padding:11px}
+.publicDot::after,.publicDotSelected::after{content:"";height:7px;width:7px;border-radius:50%;background:#ffffff9f}
+.publicDotSelected::after{height:9px;width:9px;background:#fff}
+.publicVideoBox{background:#17141d}
+.publicVideoBox video{display:block;width:100%;aspect-ratio:9/16;max-height:62dvh;object-fit:contain;background:#111}
+.publicVideoBox small{font-size:10px;color:#d5c8db;display:block;padding:8px 10px}
+.publicShareGroup{display:inline-flex;align-items:center;flex-wrap:wrap;gap:2px}
+.publicShareGroup>button{white-space:nowrap}
+.publicShareGroup small{font-size:10px;color:#805a7b;padding:0 2px}
+@media(prefers-reduced-motion:reduce){.publicCarouselSlides{transition:none}}
+
+/* PAP-1800 · Public HTTPS shortcut only inside Community tab. */
+.publicCommunityShortcut{color:#805a7b!important;font-size:11px!important;font-weight:850;white-space:nowrap;text-decoration:none!important;padding:5px 7px;border-radius:8px;background:#f5eaf0}

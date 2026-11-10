@@ -6,6 +6,8 @@ import { useEffect, useRef, useState } from "react";
 import { AppGlyph } from "./AppGlyph";
 import { MediaArtwork } from "./MediaArtwork";
 import { PhotoCarousel } from "./PhotoCarousel";
+import { PublicShareAction } from "./PublicShareAction";
+import { isPublicFixture } from "./publicApproved";
 import { PINER_APPS,type PinerApp,type PinerAppKey } from "./catalog";
 import { APP_NAV,getTabHref,type NavIcon } from "./navigation";
 import { postsFor,type MediaPost,type MediaType,type Visibility } from "./media";
@@ -95,7 +97,8 @@ export function PostCard({post,onOpen,onRequestVisibility,scope="personal"}:{pos
   <div className={css.postBody}><strong>{post.title}</strong><p data-post-caption={post.id}>{post.caption}</p><CommentThread post={post} expanded={commentsOpen}/>
    <div className={css.postActions}><button onClick={()=>setLiked(v=>!v)} aria-pressed={liked} type="button">{liked?"♥":"♡"} <span>{liked?"Đã lưu":"Yêu thích"}{community?" · "+(post.reactions+(liked?1:0)):""}</span></button>
     <button type="button" onClick={()=>setCommentsOpen(v=>!v)} aria-expanded={commentsOpen}>▤ <span>{"Bình luận ("+post.comments.length+")"}</span></button>
-    {canManage&&<button type="button" className={css.visibilityAction} onClick={()=>onRequestVisibility(post)} aria-label={(community?"Thu hồi chia sẻ":"Chia sẻ")+" "+post.title}>{community?"↶":"↗"} <span>{community?"Thu hồi":"Chia sẻ"}</span></button>}</div>
+    {scope==="community"&&community&&isPublicFixture(post.id)&&<PublicShareAction id={post.id} title={post.title}/>}
+     {canManage&&<button type="button" className={css.visibilityAction} onClick={()=>onRequestVisibility(post)} aria-label={(community?"Thu hồi chia sẻ":"Chia sẻ")+" "+post.title}>{community?"↶":"↗"} <span>{community?"Thu hồi":"Chia sẻ"}</span></button>}</div>
 
   </div>
  </article>;
