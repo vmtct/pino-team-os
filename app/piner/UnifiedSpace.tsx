@@ -31,14 +31,17 @@ function dateSort(a:MediaPost,b:MediaPost){
 function Header({currentChild,select,space}:{currentChild:string;select:(id:"an"|"binh")=>void;space:PinerSpace}){
  const profile=getProfile(currentChild==="binh"?"binh":"an");
  return <header className={css.unifiedHeader} data-piner-shared="unified-header">
-       {space==="house"?<div className={css.unifiedSwitcher}>
-      <span className={css.unifiedProfileCircle} aria-hidden="true">{profile.avatar}</span>
-     <select id="piner-child-profile" aria-label="Chọn con đang xem" className={css.unifiedProfileSelect}
-       value={profile.id} onChange={event=>select(event.target.value as "an"|"binh")}>
-       {MANAGED_CHILDREN.map(child=><option value={child.id} key={child.id}>{child.display}</option>)}
-     </select>
-
-       </div>:<div className={css.mytimeIdentity}><span className={css.unifiedProfileCircle}>M</span><strong>MyTime · Tôi</strong></div>}
+       {space==="house"?<div className={css.unifiedSwitcher} data-child-switcher="house">
+       <span className={css.unifiedProfileCircle} aria-hidden="true">{profile.avatar}</span>
+       <div className={css.unifiedSwitcherText}>
+        <label htmlFor="piner-child-profile">Đang xem</label>
+        <select id="piner-child-profile" aria-label="Chọn con đang xem" className={css.unifiedProfileSelect}
+         value={profile.id} onChange={event=>select(event.target.value as "an"|"binh")}>
+         {MANAGED_CHILDREN.map(child=><option value={child.id} key={child.id}>{child.display}</option>)}
+        </select>
+       </div>
+       <span className={css.unifiedSwitcherChevron} aria-hidden="true">⌄</span>
+      </div>:<div className={css.mytimeIdentity}><span className={css.unifiedProfileCircle}>M</span><strong>MyTime · Tôi</strong></div>}
     <Link href="/piner" aria-label="Logo PINO · Danh sách ứng dụng" className={css.unifiedLogo}>
      <strong>PINO</strong><small>SPACE</small>
    </Link>
@@ -110,7 +113,7 @@ export function PinerUnified({tab,space="house"}:{tab:UnifiedTab;space?:PinerSpa
  const all:MediaPost[]=loaded?[...POSTS].filter(p=>isInSpace(p,space)).map(p=>({...p,visibility:overrides[p.id]??p.visibility})).sort(dateSort):[];
  const sharedPreviewPost=sharedPreviewId?all.find(p=>p.id===sharedPreviewId&&p.visibility==="community"&&canManagePost(p)):undefined;
  const own=all.filter(p=>p.ownerId===(space==="mytime"?"mai":activeId));
- const visible=tab==="community"?all.filter(p=>p.visibility==="community"):own;
+ const visible=tab==="community"?all.filter(p=>p.visibility==="community"):tab==="home"?[...own,...all.filter(p=>p.ownerId==="pino-piano")].sort(dateSort):own;
  const restoreFocus=()=>requestAnimationFrame(()=>{
   if(focusReturn.current?.isConnected)focusReturn.current.focus();
   else document.querySelector<HTMLAnchorElement>('[data-piner-shared="bottom-nav"] a[aria-current="page"]')?.focus();

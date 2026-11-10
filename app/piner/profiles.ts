@@ -1,15 +1,16 @@
 "use client";
 // PAP-1772 · Entirely fictional guardian & learner fixtures; no actual identity or student records.
 import { useEffect, useState } from "react";
-export type ProfileId = "an" | "binh" | "mai";
+export type ProfileId = "an" | "binh" | "mai" | "pino-piano";
 export type PinerProfile = {
  id: ProfileId; display: string; short: string; alias: string;
- avatar: string; program: string; kind: "child" | "adult";
+ avatar: string; program: string; kind: "child" | "adult" | "system";
 };
 export const PROFILES: readonly PinerProfile[] = [
- {id:"an",display:"Bé An",short:"An",alias:"Piner An",avatar:"A",program:"Hội Họa · Piano",kind:"child"},
- {id:"binh",display:"Bé Bình",short:"Bình",alias:"Piner Bình",avatar:"B",program:"Hội Họa · Piano",kind:"child"},
- {id:"mai",display:"Chị Mai",short:"Mai",alias:"Piner Mai",avatar:"M",program:"MyTime · Acrylic & Piano",kind:"adult"}
+ {id:"an",display:"Bé An",short:"An",alias:"Minh An",avatar:"A",program:"Hội Họa · Piano",kind:"child"},
+ {id:"binh",display:"Bé Bình",short:"Bình",alias:"Gia Bình",avatar:"B",program:"Hội Họa · Piano",kind:"child"},
+ {id:"mai",display:"Chị Mai",short:"Mai",alias:"Thanh Mai",avatar:"M",program:"MyTime · Acrylic & Piano",kind:"adult"},
+ {id:"pino-piano",display:"PINO Piano",short:"Piano",alias:"PINO Piano",avatar:"♪",program:"Hệ thống · Thông báo & sự kiện",kind:"system"}
 ] as const;
 export const MANAGED_CHILDREN = PROFILES.filter(profile=>profile.kind==="child");
 export const PROFILE_STORAGE_KEY = "piner-pap1772-selected-child";

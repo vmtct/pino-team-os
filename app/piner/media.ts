@@ -5,11 +5,14 @@ export type MediaType="photo"|"reel";
 export type Visibility="private"|"community";
 export type MediaComment={id:string;author:string;body:string;role:"teacher"|"parent"};
 export type MediaPost={
- id:string;app:PinerAppKey;ownerId:ProfileId;type:MediaType;visual:"flower"|"landscape"|"ceramic"|"abstract"|"keys"|"studio"|"music"|"concert";
+ id:string;app:PinerAppKey;ownerId:ProfileId;systemKind?:"news"|"event";type:MediaType;visual:"flower"|"landscape"|"ceramic"|"abstract"|"keys"|"studio"|"music"|"concert";
  title:string;date:string;caption:string;comments:readonly MediaComment[];visibility:Visibility;
  duration?:string;reactions:number;
 };
 export const POSTS:readonly MediaPost[]=[
+ // PAP-1817 · Synthetic dedicated system posts; never attribute child media to PINO Piano.
+ {id:"sys-event",app:"piano",ownerId:"pino-piano",systemKind:"event",type:"photo",visual:"concert",title:"PINO Piano · Ngày hội giai điệu",date:"10/11",caption:"Lịch biểu diễn cuối tuần tại PINO House. Cùng đón xem những giai điệu từ các lớp Piano!",comments:[],visibility:"community",reactions:5},
+ {id:"sys-news",app:"piano",ownerId:"pino-piano",systemKind:"news",type:"photo",visual:"music",title:"Tin từ PINO Piano",date:"08/11",caption:"Tuần này các bạn sẽ có thêm thử thách nhịp điệu mới trong hành trình học Piano.",comments:[],visibility:"community",reactions:3},
  {id:"a1",app:"hoi-hoa",ownerId:"an",type:"photo",visual:"flower",title:"Vườn hoa ngày nắng",date:"09/11",caption:"Hôm nay con thử phối ba sắc độ hồng trong cùng một bức tranh.",comments:[{"id":"a1-teacher","author":"Cô Trang","body":"Con phối màu có chủ đích hơn và đã tự tin chọn bố cục. Tuần tới mình cùng thử chiều sâu nhé!","role":"teacher"}],visibility:"private",reactions:0},
  {id:"a2",app:"hoi-hoa",ownerId:"an",type:"reel",visual:"abstract",title:"Từ nét đầu tiên đến tác phẩm",date:"06/11",caption:"Một đoạn time-lapse minh họa quá trình sáng tạo.",comments:[{"id":"a2-teacher","author":"Cô Trang","body":"Con đã kiên nhẫn với các lớp màu và chủ động thử kỹ thuật mới.","role":"teacher"},{"id":"a2-parent-1","author":"PH PINO","body":"Thật nhiều màu sắc đẹp!","role":"parent"},{"id":"a2-parent-2","author":"PH PINO","body":"Ý tưởng thú vị quá!","role":"parent"}],visibility:"community",duration:"0:36",reactions:12},
  {id:"a3",app:"hoi-hoa",ownerId:"binh",type:"photo",visual:"landscape",title:"Chiều trên ngọn đồi",date:"02/11",caption:"Bức tranh phong cảnh với đường chân trời và vùng sáng.",comments:[{"id":"a3-teacher","author":"Cô Trang","body":"Con biết chia mảng chính phụ và sử dụng màu ấm lạnh rõ hơn.","role":"teacher"}],visibility:"private",reactions:0},

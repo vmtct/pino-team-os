@@ -83,9 +83,10 @@ export function PostCard({post,onOpen,onRequestVisibility,scope="personal",canMa
  const [commentsOpen,setCommentsOpen]=useState(false);const [liked,setLiked]=useState(false);
  const community=post.visibility==="community";
  const canManage=mayManage??isManagedChild(post.ownerId);
- const author=scope==="community"?getProfile(post.ownerId).alias:(post.app==="piano"?"PINO Piano":"PINO Hội Họa");
+ const author=getProfile(post.ownerId).alias;
+ const badge=post.systemKind==="event"?"Sự kiện":post.systemKind==="news"?"Tin từ PINO":community?"Công khai":"Riêng tư";
  return <article className={css.postCard} data-post={post.id} data-post-owner={post.ownerId} data-post-scope={scope}>
-  <div className={css.postHead}><span className={css.postAvatar}><PinoIcon name={post.app==="piano"?"piano":"art"}/></span><div className={css.postMeta}>{scope==="community"&&isPublicFixture(post.id)?<Link href={publicProfileHref(post.ownerId)} className={css.guestAuthorLink}>{author}</Link>:<strong>{author}</strong>}<small>{post.date} · {post.app==="piano"?"Piano":"Hội Họa"}</small></div>{scope==="community"&&community&&canManage?<button type="button" className={css.guestHideAction} data-hide-post={post.id} onClick={()=>onRequestVisibility(post)} aria-label={"Ẩn "+post.title}><PinoIcon name="hide"/> <span>Ẩn</span></button>:<span className={community?css.sharedBadge:css.privateBadge}>{community?"Công khai":"Riêng tư"}</span>}</div>
+  <div className={css.postHead}><span className={css.postAvatar}><PinoIcon name={post.app==="piano"?"piano":"art"}/></span><div className={css.postMeta}>{scope==="community"&&isPublicFixture(post.id)?<Link href={publicProfileHref(post.ownerId)} className={css.guestAuthorLink}>{author}</Link>:<strong>{author}</strong>}<small>{post.date} · {post.app==="piano"?"Piano":"Hội Họa"}</small></div>{scope==="community"&&community&&canManage?<button type="button" className={css.guestHideAction} data-hide-post={post.id} onClick={()=>onRequestVisibility(post)} aria-label={"Ẩn "+post.title}><PinoIcon name="hide"/> <span>Ẩn</span></button>:<span className={community?css.sharedBadge:css.privateBadge}>{badge}</span>}</div>
   {post.type==="photo"?<PhotoCarousel post={post}/>:
    <button type="button" className={css.posterButton} onClick={()=>onOpen(post)} aria-label={"Phát video "+post.title}>
     <MediaArtwork post={post}/><span className={css.reelOverlay}><span><PinoIcon name="circlePlay"/></span><small>{post.duration}</small></span>

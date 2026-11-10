@@ -551,3 +551,20 @@
 .fullSharedUnavailable strong{font-size:18px}
 .fullSharedUnavailable p{margin:0;font-size:12px;line-height:1.5;color:var(--muted)}
 .fullSharedUnavailable button{min-height:44px;border:0;border-radius:11px;background:var(--tone);color:#fff;font-size:12px;font-weight:800}
+
+/* PAP-1817 · author identity, lighter navigation, compact child switcher. */
+.unifiedNavInner small{font-weight:600;letter-spacing:.005em}
+.unifiedNavActive small{font-weight:650}
+.postMeta strong,.guestAuthorLink{font-weight:650}
+.guestProfileTop h1{font-weight:700}
+.mytimeIdentity strong{font-weight:650}
+.postMeta small{font-weight:450}
+.unifiedSwitcher{height:44px;min-width:156px;max-width:min(198px,calc(100vw - 115px));display:flex;align-items:center;gap:7px;padding:3px 8px 3px 5px;border:1px solid var(--line);background:linear-gradient(130deg,var(--surface),var(--tint));border-radius:14px;box-shadow:0 2px 8px #3c29400b}
+.unifiedSwitcher:focus-within{outline:2px solid var(--tone);outline-offset:2px}
+.unifiedSwitcher .unifiedProfileCircle{width:33px;height:33px;flex:0 0 33px;font-weight:650;border-radius:11px;background:var(--surface);font-size:14px}
+.unifiedSwitcherText{display:flex;min-width:0;flex:1;flex-direction:column;gap:0;justify-content:center}
+.unifiedSwitcherText label{font-size:9px;font-weight:550;line-height:1.1;color:var(--muted);letter-spacing:.02em;pointer-events:none}
+.unifiedSwitcher .unifiedProfileSelect{width:100%;min-width:0;height:26px;min-height:26px;padding:0;font-size:12px;line-height:1.25;font-weight:650;cursor:pointer;appearance:none;background:transparent;border:0;outline:0}
+.unifiedSwitcherChevron{color:var(--tone);pointer-events:none;font-size:19px;font-weight:500;line-height:1;margin-top:4px}
+.unifiedSwitcher select:focus-visible{outline:none}
+@media(max-width:340px){.unifiedSwitcher{min-width:145px;padding-right:5px;gap:5px}.unifiedSwitcher .unifiedProfileCircle{width:29px;height:29px;flex-basis:29px}.unifiedSwitcher .unifiedProfileSelect{font-size:11px}}

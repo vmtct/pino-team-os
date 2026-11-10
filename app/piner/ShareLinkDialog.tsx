@@ -54,9 +54,6 @@ export function ShareLinkDialog({post,href,onClose}:{post:MediaPost;href:string;
     type="text" readOnly value={url} onFocus={e=>e.currentTarget.select()}
     aria-label={"Đường dẫn trực tiếp bài "+post.title}/>
    <div className={css.shareResultActions}>
-    <a data-open-shared-post={post.id} href={href} aria-label={"Xem toàn màn hình "+post.title}>
-     <PinoIcon name="link"/> Xem toàn màn hình
-    </a>
     <button type="button" onClick={copy} data-copy-shared-post={post.id}>
      <PinoIcon name="share"/> Sao chép link
     </button>
