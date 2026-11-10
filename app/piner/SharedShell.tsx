@@ -90,13 +90,11 @@ export function PostCard({post,onOpen,onRequestVisibility,scope="personal",canMa
    <button type="button" className={css.posterButton} onClick={()=>onOpen(post)} aria-label={"Phát video "+post.title}>
     <MediaArtwork post={post}/><span className={css.reelOverlay}><span><PinoIcon name="circlePlay"/></span><small>{post.duration}</small></span>
    </button>}
-  <div className={css.postBody}><strong>{post.title}</strong><p data-post-caption={post.id}>{post.caption}</p><CommentThread post={post} expanded={commentsOpen}/>
-   <div className={css.postActions}><button onClick={()=>setLiked(v=>!v)} aria-pressed={liked} type="button" aria-label={"Yêu thích "+post.title}><PinoIcon name="heart"/> <span>{community?post.reactions+(liked?1:0):(liked?"Đã thích":"Thích")}</span></button>
+  <div className={css.postActions} data-action-row={post.id}><button onClick={()=>setLiked(v=>!v)} aria-pressed={liked} type="button" aria-label={"Yêu thích "+post.title}><PinoIcon name="heart"/> <span>{community?post.reactions+(liked?1:0):(liked?"Đã thích":"Thích")}</span></button>
     <button type="button" onClick={()=>setCommentsOpen(v=>!v)} aria-expanded={commentsOpen} aria-label={"Xem bình luận "+post.title}><PinoIcon name="comment"/> <span>{post.comments.length}</span></button>
     {scope==="community"&&community&&isPublicFixture(post.id)&&<PublicShareAction id={post.id} title={post.title}/>}
      {canManage&&scope!=="community"&&<button type="button" className={css.visibilityAction} onClick={()=>onRequestVisibility(post)} aria-label={(community?"Ẩn":"Chia sẻ")+" "+post.title}><PinoIcon name={community?"hide":"share"}/> <span>{community?"Ẩn":"Chia sẻ"}</span></button>}</div>
-
-  </div>
+  <div className={css.postBody}><strong>{post.title}</strong><p data-post-caption={post.id}>{post.caption}</p><CommentThread post={post} expanded={commentsOpen}/></div>
  </article>;
 }
 function GridView({posts,onOpen}:{posts:readonly MediaPost[];onOpen:(post:MediaPost)=>void}){

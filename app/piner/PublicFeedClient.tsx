@@ -41,10 +41,7 @@ function GuestFeedCard({post,onPlay,onLogin}:{post:PublicPost;onPlay:(post:Publi
     <MediaArtwork post={post}/><span className={css.reelOverlay}>
       <span><PinoIcon name="circlePlay"/></span><small>{post.duration}</small></span>
    </button>}
-  <div className={css.postBody}>
-   <strong>{post.title}</strong><p data-post-caption={post.id}>{post.caption}</p>
-   <GuestComments post={post} expanded={expanded}/>
-   <div className={css.postActions}>
+  <div className={css.postActions} data-action-row={post.id}>
     <button type="button" aria-label={"Đăng nhập để yêu thích "+post.title} onClick={onLogin}>
       <PinoIcon name="heart"/> <span>{post.reactions}</span>
     </button>
@@ -52,7 +49,10 @@ function GuestFeedCard({post,onPlay,onLogin}:{post:PublicPost;onPlay:(post:Publi
       <PinoIcon name="comment"/> <span>{post.comments.length}</span>
     </button>
     <PublicShareAction id={post.id} title={post.title}/>
-   </div>
+  </div>
+  <div className={css.postBody}>
+   <strong>{post.title}</strong><p data-post-caption={post.id}>{post.caption}</p>
+   <GuestComments post={post} expanded={expanded}/>
    {expanded&&<button type="button" className={css.guestWriteComment} onClick={onLogin}
      aria-label={"Đăng nhập để bình luận "+post.title}>Viết bình luận… <span>Đăng nhập</span></button>}
   </div>

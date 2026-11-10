@@ -496,3 +496,21 @@
 .visibilityButtons{display:flex;justify-content:flex-start;gap:10px;align-items:center;margin-top:12px}
 .visibilityCancel,.visibilityConfirm,.visibilityRevoke{min-height:44px;min-width:84px;flex:0 0 auto;padding:9px 14px;border-radius:10px;font-size:12px}
 @media(max-width:350px){.postActions{gap:2px 9px}.publicShareGroup>button,.publicShareGroup>a{font-size:10px;gap:5px}.visibilityDialog{padding:13px}}
+
+/* PAP-1812 · media-first action row, comments below copy; no horizontal separator lines. */
+.postCard>.postActions{
+ margin:0;
+ padding:0 5px;
+ border:0;
+ min-height:44px;
+ justify-content:flex-start;
+ align-items:center;
+ background:var(--canvas);
+}
+.postCard>.postBody{padding-top:0}
+.postCard>.postBody>p{margin:3px 0 8px}
+.unifiedFeed>.postCard+.postCard{border-top:0;padding-top:0}
+.unifiedHomeContent .postCard{box-shadow:none}
+.unifiedHeader,.unifiedNav,.header,.bottomNav,
+.publicHeader,.publicFooter,.publicBack,.publicComments,
+.reelViewerCaption{border-top:0;border-bottom:0}
