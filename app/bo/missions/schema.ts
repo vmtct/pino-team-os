@@ -81,7 +81,8 @@ function project(p: MissionAssignment, execution: BoMissionExecution | null): Mo
     executionVersion: p.status !== "ASSIGNED" ? null : execution!.executionVersion,
     context: p.contextLabel, assignedAt: p.assignedAt, center: p.centerId, mission: p.missionId,
     contextKey: p.contextKey, cancelledAt: p.cancelledAt, cancelledReason: p.cancelledReason,
-    createdAt: null, createdBy: null, updatedAt: formatMissionAuditTime(p.updatedAt), updatedBy: null };
+    // PAP-1792 S0-R3: explicit Founder-approved missing-source glyph; null renders "Trống" in shared TDD.
+    createdAt: "—", createdBy: "—", updatedAt: formatMissionAuditTime(p.updatedAt), updatedBy: "—" };
 }
 export const assignmentProvider: SurfaceProvider<F> = {
   pagination: "local-ui",
