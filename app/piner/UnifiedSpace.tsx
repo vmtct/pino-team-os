@@ -123,12 +123,12 @@ export function PinerUnified({tab}:{tab:UnifiedTab}){
  return <div className={css.unifiedBackdrop}>
    <div className={css.unifiedShell} data-piner-shared="unified-shell" data-unified-tab={tab}>
      <Header currentChild={activeId} select={select}/>
-     <main className={css.unifiedContent} data-piner-slot="content" data-hydrated={loaded?"true":"false"}>
+     <main className={tab==="home"?css.unifiedContent+" "+css.unifiedHomeContent:css.unifiedContent} data-piner-slot="content" data-hydrated={loaded?"true":"false"}>
        <div className={css.unifiedContentInner}>
-         <div className={css.unifiedPageHeading}>
+         {tab!=="home"&&<div className={css.unifiedPageHeading}>
            <h1>{title}</h1>
            {tab!=="community"&&<span>{profile.display}</span>}
-         </div>
+         </div>}
          {status&&<p className={css.visibilityStatus} role="status">{status}</p>}
          {!loaded?<div className={css.unifiedLoading} role="status">Đang mở hành trình...</div>:tab==="grid"?
            <MediaGrid posts={visible} onOpen={setPreview}/>:
