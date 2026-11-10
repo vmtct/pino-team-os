@@ -3260,7 +3260,8 @@ html:where([data-bo-ui-authority="v25"]),
   border: 1px solid transparent;
   overflow-wrap: anywhere;
 }
-:where(html[data-bo-ui-authority="v25"]) button.v24-prop-value {
+:where(html[data-bo-ui-authority="v25"]) button.v24-prop-value,
+:where(html[data-bo-ui-authority="v25"]) button.v24-prop-value.writable {
   width: 100%;
   cursor: pointer;
   background: transparent;

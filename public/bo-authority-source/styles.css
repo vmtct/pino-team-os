@@ -3275,7 +3275,8 @@ tbody td:nth-child(2) {
   border: 1px solid transparent;
   overflow-wrap: anywhere;
 }
-button.v24-prop-value {
+button.v24-prop-value,
+button.v24-prop-value.writable {
   width: 100%;
   cursor: pointer;
   background: transparent;
