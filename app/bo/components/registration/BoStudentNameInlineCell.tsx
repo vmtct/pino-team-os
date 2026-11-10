@@ -96,7 +96,7 @@ export function BoStudentNameInlineCell({
   return <div className="v24-prop-item" data-student-detail-field="displayName">
     <div className="v24-prop-key"><span className="v24-field-glyph">Aa</span>Học viên</div>
     {canEdit
-      ? <button type="button" className="v24-prop-value writable" data-detail-edit="displayName" aria-label="Sửa Học viên" disabled={saving}
+      ? <button type="button" className="v24-prop-value" data-detail-edit="displayName" aria-label="Sửa Học viên" disabled={saving}
           onClick={event => { setError(""); setAnchor(event.currentTarget); }}>
           <span>{name}</span><span className="v24-edit-glyph" aria-hidden="true">✎</span>
         </button>
