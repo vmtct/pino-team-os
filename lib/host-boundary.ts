@@ -24,6 +24,22 @@ export type HostBoundaryDecision =
 
 export function decideHostBoundary(host: string, pathname: string, method = "GET"): HostBoundaryDecision {
   const hostname = normalizeHostname(host);
+  // PAP-1496 / PAP-1491 SPEC-UNLOCK: admit only Subscription-owned
+  // Specialty requests at BO Staging. The BFF and Core retain actor/Center
+  // ACL, Subscription status, CAS, idempotency and prerequisite enforcement.
+  // Deny writers, malformed descendants, wrong hosts and Production.
+  if (pathname.startsWith("/api/bo/subscriptions/") &&
+      /\/(?:specialties|specialty-grants)(?:\/|$)/i.test(pathname)) {
+    const id = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+    const base = "^/api/bo/subscriptions/" + id;
+    const list = new RegExp(base + "/specialties$", "i").test(pathname);
+    const grant = new RegExp(base + "/specialty-grants$", "i").test(pathname);
+    const completion = new RegExp(base + "/specialty-grants/" + id + "/completion$", "i").test(pathname);
+    const allowed = hostname === BO_STAGING_HOSTNAME &&
+      ((method === "GET" && list) || (method === "POST" && grant) ||
+       (method === "PATCH" && completion));
+    return { action: allowed ? "next" : "not_found" };
+  }
   // PAP-1526: fence the entire namespace; admit only this exact Center GET.
   if(pathname===billTableRoot||pathname.startsWith(billTableRoot+"/"))
     return {action:hostname===BO_STAGING_HOSTNAME&&method==="GET"&&billTableCenter(pathname)!==null?"next":"not_found"};
