@@ -105,3 +105,17 @@ test("PAP-1810 authenticates selected Center and keeps BFF scope on reads, 401/4
     await assert.rejects(()=>loadAvatarContext(center,signal));
   }finally{globalThis.fetch=oldFetch;}
 });
+
+test("PAP-1810 exact Founder retirement excludes Avatar from legacy admission only",()=>{
+  const manifest=JSON.parse(readFileSync(new URL("../config/tdd-admission.json",import.meta.url),"utf8")) as {modules:{file:string;profile:string}[]};
+  assert.ok(!manifest.modules.some(m=>m.file==="app/bo/pinoria-avatars/page.tsx"));
+  assert.ok(manifest.modules.some(m=>m.file==="app/ho/staff/page.tsx" && m.profile==="TDD_DEFAULT"));
+  assert.ok(manifest.modules.some(m=>m.file==="app/bo/missions/page.tsx" && m.profile==="TDD_DEFAULT"));
+});
+test("PAP-1810 Core effective directory permission must be present, not BO shell alone",async()=>{
+  const old=globalThis.fetch;
+  try{
+    globalThis.fetch=async()=>Response.json({data:{surface:"BO",entitled:true,userId:"actor",permissionKeys:["team.bo.access","pinoria.self.create"]}});
+    await assert.rejects(()=>loadAvatarContext(center,new AbortController().signal),{status:403});
+  }finally{globalThis.fetch=old;}
+});

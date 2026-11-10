@@ -88,7 +88,7 @@ export async function loadAvatarContext(centerId: string, signal: AbortSignal): 
   if(r.surface!=="BO"||r.entitled!==true||typeof r.userId!=="string"||!r.userId.trim()||
     !Array.isArray(r.permissionKeys)||r.permissionKeys.some(p=>typeof p!=="string"))denied(403);
   const allowed=new Set(r.permissionKeys as string[]);
-  if(!allowed.has("team.bo.access"))denied(403);
+  if(!allowed.has("team.bo.access") || !allowed.has("pinoria.avatar.directory.view"))denied(403);
   return allowed;
 }
 export function avatarFilterParams(rules: readonly BoRule[]): URLSearchParams {
