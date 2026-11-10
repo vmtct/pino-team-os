@@ -6,9 +6,9 @@ import { boNavigation } from "../app/bo/navigation";
 import { BO_LEGACY_QUERY_MODULES } from "./bo-url-contract";
 
 const shell = readFileSync(new URL("../app/bo/components/registration/BoRegistrationWorkspace.tsx", import.meta.url), "utf8");
-const self = readFileSync(new URL("../app/bo/pinoria-avatars/SelfDirectoryTdd.tsx", import.meta.url), "utf8");
+const self = readFileSync(new URL("../app/bo/pinoria-avatars/AvatarDirectoryDsa.tsx", import.meta.url), "utf8");
 
-test("Pinoria Self stays a dedicated BO TDD route, never a legacy query module", () => {
+test("Pinoria Avatar stays a dedicated BO DSA route, never a legacy query module", () => {
   const entry = boNavigation.find(group => group.label === "Pinoria")?.items.find(item => item.label === "Self Directory");
   assert.equal(entry?.href, "/bo/pinoria-avatars");
   assert.ok(!(BO_LEGACY_QUERY_MODULES as readonly string[]).includes("pinoria-avatars"));
@@ -20,6 +20,6 @@ test("BO staging shared shell exposes canonical route-only nav without generic d
   assert.match(shell, /const navModules = selfNav && !Object\.hasOwn\(source\.modules, "pinoria-avatars"\)/);
   assert.match(shell, /navModules\)/);
   assert.match(shell, /selfNav && key === "pinoria-avatars" \? \(selfNav\.href \?\? "\/bo\/pinoria-avatars"\)/);
-  assert.match(self, /source=\{selfDirectoryNavSource\}/);
-  assert.match(self, /"pinoria-avatars": \{ label: "Self Directory", group: "PINORIA"/);
+  assert.match(self, /<ScopedAvatarDirectory/);
+  assert.doesNotMatch(self, /createBoTddAdapter|TddRegistry|SurfaceWorkspace/);
 });
