@@ -26,8 +26,8 @@ export const selfFields = [
     options: ["ACTIVE", "INACTIVE", "ARCHIVED", "MIXED"] },
   { key: "rowKey", label: "Mã dòng", type: "text", icon: "#", width: 220, permission: SELF_DIRECTORY_PERMISSION, readOnly: true, capabilities: read },
   { key: "personId", label: "Person ID", type: "text", icon: "#", width: 200, permission: SELF_DIRECTORY_PERMISSION, readOnly: true, capabilities: read },
-  { key: "pinoriaSelfId", label: "Self ID", type: "text", icon: "#", width: 200, permission: SELF_DIRECTORY_PERMISSION, readOnly: true, capabilities: read },
-  { key: "selfStatus", label: "Self lifecycle", type: "text", icon: "Aa", width: 140, permission: SELF_DIRECTORY_PERMISSION, readOnly: true, capabilities: read },
+  { key: "pinoriaSelfId", label: "Avatar ID", type: "text", icon: "#", width: 200, permission: SELF_DIRECTORY_PERMISSION, readOnly: true, capabilities: read },
+  { key: "selfStatus", label: "Vòng đời Avatar", type: "text", icon: "Aa", width: 140, permission: SELF_DIRECTORY_PERMISSION, readOnly: true, capabilities: read },
   { key: "staffMemberId", label: "Staff ID", type: "text", icon: "#", width: 190, permission: SELF_DIRECTORY_PERMISSION, readOnly: true, capabilities: read },
   { key: "studentProfileId", label: "Learner ID", type: "text", icon: "#", width: 190, permission: SELF_DIRECTORY_PERMISSION, readOnly: true, capabilities: read },
   { key: "loadoutVersion", label: "Loadout version", type: "number", icon: "#", width: 130, permission: SELF_DIRECTORY_PERMISSION, readOnly: true, capabilities: read },
@@ -42,12 +42,12 @@ export const selfQuery: TableQuery<SelfFields> = {
 };
 const sections = [
   { id: "identity", label: "Định danh", fields: ["name", "nickname", "roles", "subjectLabel", "rowKey", "personId", "staffMemberId", "studentProfileId"] },
-  { id: "self", label: "Pinoria Self", fields: ["avatarLabel", "loadoutSummary", "pinoriaSelfId", "selfStatus", "loadoutVersion", "equippedCount"] },
+  { id: "self", label: "Pinoria Avatar", fields: ["avatarLabel", "loadoutSummary", "pinoriaSelfId", "selfStatus", "loadoutVersion", "equippedCount"] },
   { id: "system", label: "Thông tin hệ thống", fields: ["createdAt", "createdBy", "updatedAt", "updatedBy"], collapsed: true },
 ] as const;
 export const selfDefinition = {
   version: 1, classification: "TDD_DEFAULT", surface: "BO", key: "pinoria-avatars",
-  label: "Pinoria Self", group: "PINORIA", fields: selfFields,
+  label: "Pinoria Avatar", group: "PINORIA", fields: selfFields,
   capabilities: { read: SELF_DIRECTORY_PERMISSION },
   table: {
     identity: { field: "name", pinned: "left", hideable: false, reorderable: false },

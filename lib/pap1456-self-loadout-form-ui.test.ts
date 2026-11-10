@@ -28,7 +28,7 @@ test("PAP-1456 preserves approved 9:16 Core-only preview and DS responsive grid"
   assert.match(preview, /className="pds-property-grid"/);
   assert.match(preview, /width=\{WIDTH\} height=\{HEIGHT\}/);
   assert.match(preview, /className="pds-property-text"/);
-  assert.match(editor, /<section aria-label="Pinoria Self Loadout">/);
+  assert.match(editor, /<section aria-label="Pinoria Avatar Loadout">/);
   assert.doesNotMatch(preview, /localStorage|sessionStorage|mockItem|fabricated/i);
   assert.match(preview, /<figure className="pds-property-section"/);
   assert.match(editor, /<h3 className="pds-property-heading">Trang bị Self<\/h3>/);

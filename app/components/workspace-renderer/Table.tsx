@@ -67,6 +67,8 @@ export function TddTable<F extends readonly FieldSchema[]>(props: TddTableProps<
   return <TableContents key={renderScope(schema, props.context, "table")} {...props as unknown as TddTableProps<readonly FieldSchema[]>} schema={schema} />;
 }
 function TableContents({ schema, context, rows, query, onQueryChange, onOpen, status, onRetry, total, viewTransport, writes }: TddTableProps<readonly FieldSchema[]>) {
+  // PAP-1801 / PNR-AVATAR-CRUD: Avatar-only existing Table adaptation; no new TDD engine.
+  const avatarOpenColumn = schema.key === "pinoria-avatars";
   const [settings, setSettings] = useState<string | null>(null), [filterOpen, setFilterOpen] = useState(false);
   const [draft, setDraft] = useState<{ source: typeof query; state: BoTableState } | null>(null), [message, setMessage] = useState("");
   const [localViews, setLocalViews] = useState<BoSavedView[]>([]), [active, setActive] = useState<string | null>(null);
@@ -155,7 +157,7 @@ function TableContents({ schema, context, rows, query, onQueryChange, onOpen, st
       if (redo) { setUndo([...undo, current]); setFuture(future.slice(0, -1)); } else { setFuture([...future, current]); setUndo(undo.slice(0, -1)); }
     } catch { setMessage("Không thể khôi phục cấu hình không hợp lệ."); }
   };
-  return <div data-tdd-shell="table" data-tdd-freeze-controls="" data-tdd-surface={schema.surface} onKeyDown={event => {
+  return <div data-tdd-shell="table" data-tdd-freeze-controls="" data-tdd-surface={schema.surface} data-tdd-avatar-open={avatarOpenColumn ? "" : undefined} onKeyDown={event => {
     if (event.target instanceof Element && event.target.closest("input,textarea,select")) return;
     if (event.key === "/" && policy.search.length) { event.preventDefault(); event.currentTarget.querySelector<HTMLInputElement>("#search")?.focus(); }
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z" && schema.table.interaction.undo === "local-ui-only") { event.preventDefault(); event.stopPropagation(); restore(event.shiftKey); }
@@ -168,7 +170,7 @@ function TableContents({ schema, context, rows, query, onQueryChange, onOpen, st
         if (!field || !version.trim()) { setMessage("Tải lại phiên bản bản ghi trước khi chỉnh sửa."); return; }
         setEdit({ record, field, anchor, version });
       }); } : undefined} policy={renderedPolicy} serverTotal={schema.table.pagination.mode === "server" ? total : undefined}
-      onSettings={setSettings} filterOpen={filterOpen} setFilterOpen={setFilterOpen} minimal freezeEnabled
+      onSettings={setSettings} avatarOpenColumn={avatarOpenColumn} filterOpen={filterOpen} setFilterOpen={setFilterOpen} minimal freezeEnabled
       views={views} changeViews={changeViews} activeView={active} applyView={view => { if (view && !schema.table.views.actions.includes("apply")) return; update({}, view?.state ?? initial); setActive(view?.id ?? null); }}
       reset={() => update(initial)} undo={() => restore(false)} canUndo={undo.length > 0}
       builtInViews={schema.table.views.builtIn.map(view => <button type="button" className={"view-tab " + (active === view.id ? "active" : "")} key={view.id} onClick={() => { try { toLegacyTableState(schema, view.state, context); onQueryChange(view.state); setActive(view.id); } catch { setMessage("Không có quyền áp dụng Quick View."); } }}>{view.label}</button>)} />

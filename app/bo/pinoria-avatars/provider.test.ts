@@ -28,6 +28,7 @@ test("PAP-982 Core cursor pages stay bound to selected CENTER and preserve Perso
   assert.equal(first.records[0].row.avatarLabel,"Chưa có Avatar");
   assert.equal(first.records[0].row.subjectLabel,"Đang hoạt động");
   assert.equal(first.records[0].row.loadoutSummary,null);
+  for (const key of ["createdAt","createdBy","updatedAt","updatedBy"] as const) assert.equal(first.records[0].row[key],"—");
   const second=await provider.list({...selfQuery,page:2,pageSize:8},{surface:"BO",centerId:center},fetcher,signal());
   assert.equal(second.records.length,1);assert.equal(second.total,9);
   assert.equal(second.records[0].row.personId,null);assert.equal(second.records[0].row.avatarStatus,"IDENTITY_UNLINKED");
@@ -52,11 +53,11 @@ test("PAP-1456 Self Table localizes labels and shows true Core Loadout count wit
   assert.equal(result.records[0].row.avatarLabel,"Sẵn sàng");
   assert.equal(result.records[0].row.loadoutSummary,"4/8");
   assert.equal(result.records[0].row.ownedCount,6,"ownedCount is not equippedCount");
-  assert.equal(result.records[0].row.name,"Learner Staff · Mây");
+  assert.equal(result.records[0].row.name,"Learner Staff");
   assert.equal(result.records[0].row.createdAt,"10/11/2026 · 02:30");
   assert.equal(result.records[0].row.updatedAt,"10/11/2026 · 07:15");
-  assert.equal(result.records[0].row.createdBy,null);
-  assert.equal(result.records[0].row.updatedBy,null);
+  assert.equal(result.records[0].row.createdBy,"—");
+  assert.equal(result.records[0].row.updatedBy,"—");
   assert.deepEqual(selfQuery.visible,["name","roles","avatarLabel","ownedCount","loadoutSummary"]);
   assert.deepEqual(selfQuery.order.slice(5,9),["createdAt","createdBy","updatedAt","updatedBy"]);
   assert.ok(selfQuery.order.includes("subjectLabel"));

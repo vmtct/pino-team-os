@@ -97,10 +97,10 @@ export function SelfWardrobeDetail({ row, centerId, activeTab, canView, canManag
     }))}
     sections={[
       { id: "identity", label: "Định danh", fields: ["name", "roles", "subjectStatus", "rowKey", "personId", "staffMemberId", "studentProfileId"] },
-      { id: "self", label: "Pinoria Self", fields: ["avatarStatus", "pinoriaSelfId", "selfStatus", "loadoutVersion", "equippedCount"] },
+      { id: "self", label: "Pinoria Avatar", fields: ["avatarStatus", "pinoriaSelfId", "selfStatus", "loadoutVersion", "equippedCount"] },
     ]}/>;
   if (activeTab !== "wardrobe") return null;
-  if (!selfId) return <p role="status">Person này chưa có Pinoria Self; không thể quản lý Tủ đồ.</p>;
+  if (!selfId) return <p role="status">Person này chưa có Pinoria Avatar; không thể quản lý Tủ đồ.</p>;
   if (!canView) return <p role="alert">Bạn chưa được cấp quyền xem Item của Self.</p>;
   return <section className="grid-card" aria-label="Tủ đồ của Self">
     <div className="view-tabs" role="group" aria-label="Bộ sưu tập Item">
@@ -137,7 +137,7 @@ export function SelfWardrobeDetail({ row, centerId, activeTab, canView, canManag
         </article>;
       }) : <p role="status">Chưa có Item phù hợp.</p>}
     </div>}
-    {command && <DrawerFrame title={command.mode === "grant" ? "Cấp Item" : "Thu hồi Item"} path="Pinoria Self · Tủ đồ" open onClose={() => setCommand(null)}>
+    {command && <DrawerFrame title={command.mode === "grant" ? "Cấp Item" : "Thu hồi Item"} path="Pinoria Avatar · Tủ đồ" open onClose={() => setCommand(null)}>
       <form id="self-item-confirm-form" onSubmit={event => { void submit(event); }} className="grid-card">
         <h3>{command.mode === "grant" ? "Cấp Item" : "Thu hồi Item"}</h3>
         <p>{command.item.displayName}</p>

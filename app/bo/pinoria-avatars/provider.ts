@@ -21,8 +21,8 @@ type Row = ModuleRow<SelfFields>;
 type Payload = { items: unknown[]; nextCursor: string | null };
 function invalid(): never { throw new BoApiError(502,"Core Avatar Directory trả về dữ liệu không hợp lệ.",null); }
 // PAP-1779 / PNR-AVATAR-CRUD: timestamp truth from Core, VN display only.
-function auditDate(value: unknown): string | null {
-  if (value === null) return null;
+function auditDate(value: unknown): string {
+  if (value === null) return "—";
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value)
     || Number.isNaN(Date.parse(value))) invalid();
   const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Ho_Chi_Minh", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(new Date(value));
@@ -52,9 +52,9 @@ function project(value: unknown): Row {
      || (r.subjectTypes.includes("STAFF") !== (r.staffMemberId !== null))
      || (r.subjectTypes.includes("LEARNER") !== (r.studentProfileId !== null))) invalid();
   return {
-    id: r.rowKey.replace(":", "_"), name: r.nickname ? `${r.displayName} · ${r.nickname}` : r.displayName, nickname: (r.nickname ?? null) as string | null,
-    createdAt: auditDate(r.createdAt), createdBy: r.createdBy as string | null,
-    updatedAt: auditDate(r.updatedAt), updatedBy: r.updatedBy as string | null,
+    id: r.rowKey.replace(":", "_"), name: r.displayName, nickname: (r.nickname ?? null) as string | null,
+    createdAt: auditDate(r.createdAt), createdBy: (r.createdBy ?? "—") as string,
+    updatedAt: auditDate(r.updatedAt), updatedBy: (r.updatedBy ?? "—") as string,
     ownedCount: r.ownedCount as number | null,
     roles: r.subjectTypes.join(" + "), rowKey: r.rowKey,
     avatarLabel: avatarLabels[String(r.avatarStatus)], subjectLabel: subjectLabels[String(r.subjectStatus)],

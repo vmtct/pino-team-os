@@ -167,7 +167,7 @@ export function SelfLoadoutDetail({row,centerId,activeTab,canView,canManage,canV
   if(activeTab!=="loadout")return null;
   if(!selfId)return <p role="status">Person chưa có Self; không thể chỉnh Loadout.</p>;
   if(!canView)return <p role="alert">Bạn chưa được cấp quyền xem Loadout.</p>;
-  return <section aria-label="Pinoria Self Loadout">
+  return <section aria-label="Pinoria Avatar Loadout">
     <SelfLoadoutEditorLayout preview={<SelfLoadoutPreview key={selfId+":"+(loadout?.version??"loading")+":"+(selfSet?.version??"pending")} loadout={selfSet && !selfSet.setItemId?loadout:null}
       activeSet={selfSet?.setItemId?{...selfSet,setItemId:selfSet.setItemId}:null} setMemberSrc={setMemberSrc} mediaSrc={mediaSrc}/> }>
     <h3 className="pds-property-heading">Trang bị Self</h3>

@@ -17,6 +17,7 @@ import { useBoCenterSelection } from "../components/registration/BoCenterSelecti
 import type { DirectoryCenterSource } from "./centers";
 
 import { SelfDirectoryProperties } from "./SharedProperties";
+import styles from "./AvatarTable.module.css";
 
 type F = typeof selfFields;
 type Bound = { centerId: string; adapter: AuthenticatedSurfaceAdapter<F>; navigation: AdapterNavigation<F> };
@@ -26,7 +27,7 @@ const selfDirectoryNavSource = {
   ...readApi,
   modules: {
     ...readApi.modules,
-    "pinoria-avatars": { label: "Self Directory", group: "PINORIA", fields: [] },
+    "pinoria-avatars": { label: "Pinoria Avatar", group: "PINORIA", fields: [] },
   },
 };
 export function SelfDirectoryTdd(){
@@ -34,12 +35,12 @@ export function SelfDirectoryTdd(){
   const center=useBoCenterSelection();
   const selected=(!center || center.loading || center.error) ? "" : center.selected;
   const source=center?.source ?? "centers";
-  const content=<section aria-label="Danh bạ Pinoria Self">
+  const content=<section className={styles.avatarTable} aria-label="Danh bạ Pinoria Avatar">
     {!center ? <p role="alert">Không tìm thấy Center context của BO.</p> :
       center.loading ? <p role="status">Đang xác thực cơ sở được cấp quyền…</p> :
       center.error ? <p role="alert">{center.error}</p> :
       selected ? <ScopedSelfDirectory key={selected + ":" + source} selected={selected} centerSource={source}/> :
-      <p role="status">Chọn trung tâm tại góc trên trái để xem Pinoria Self.</p>}
+      <p role="status">Chọn trung tâm tại góc trên trái để xem Pinoria Avatar.</p>}
   </section>;
   return <BoRegistrationWorkspace source={selfDirectoryNavSource} moduleKey="pinoria-avatars" currentUser={{displayName:null}} content={content}/>;
 }
@@ -62,7 +63,7 @@ function ScopedSelfDirectory({selected,centerSource}: {selected: string; centerS
       if(ctl.signal.aborted){adapter.dispose();return;}
       setReady({centerId:selected,adapter,navigation:browserTddNavigation("BO","pinoria-avatars",selfQuery)});
     }).catch(e=>{
-      if(!ctl.signal.aborted)setFailure({centerId:selected,retry,message:e instanceof Error?e.message:"Không thể tải Self Directory."});
+      if(!ctl.signal.aborted)setFailure({centerId:selected,retry,message:e instanceof Error?e.message:"Không thể tải danh bạ Avatar."});
     });
     return ()=>{ctl.abort();instance?.dispose();};
   },[selected,centerSource,retry]);

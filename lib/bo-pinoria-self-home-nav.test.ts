@@ -21,5 +21,5 @@ test("BO staging shared shell exposes canonical route-only nav without generic d
   assert.match(shell, /navModules\)/);
   assert.match(shell, /selfNav && key === "pinoria-avatars" \? \(selfNav\.href \?\? "\/bo\/pinoria-avatars"\)/);
   assert.match(self, /source=\{selfDirectoryNavSource\}/);
-  assert.match(self, /"pinoria-avatars": \{ label: "Self Directory", group: "PINORIA"/);
+  assert.match(self, /"pinoria-avatars": \{ label: "Pinoria Avatar", group: "PINORIA"/);
 });
