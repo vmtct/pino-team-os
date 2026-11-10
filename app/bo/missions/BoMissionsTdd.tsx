@@ -259,7 +259,7 @@ function ScopedMissionAssignment({centerId,centerSource,writeLease,setWriteLease
             <p>Không duyệt lần hoàn tất này? Mở lại để học viên tiếp tục thực hiện. Nhật ký và lịch sử cũ được giữ nguyên.</p>
             <p><strong>{target.missionNameSnapshot}</strong> · C1 COMPLETED v{reopenVersion}</p>
             <label className="v25-form-field" htmlFor="pap1210-reopen-reason"><span>Lý do không duyệt *</span>
-            <textarea id="pap1210-reopen-reason" rows={3} maxLength={500}
+            <textarea id="pap1210-reopen-reason" className="edit-input" rows={3} maxLength={500}
               required aria-required="true"
               placeholder="Nêu nội dung cần chỉnh sửa hoặc bổ sung"
               value={reopenReason} disabled={pending || uncertain}
