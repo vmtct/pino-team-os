@@ -514,3 +514,40 @@
 .unifiedHeader,.unifiedNav,.header,.bottomNav,
 .publicHeader,.publicFooter,.publicBack,.publicComments,
 .reelViewerCaption{border-top:0;border-bottom:0}
+
+/* PAP-1813 · share confirmation, direct session link, fullscreen photo and Reel. */
+.shareResultDialog{width:100%;max-height:calc(100dvh - 24px);overflow-y:auto;background:var(--canvas);border-radius:18px;padding:17px;box-shadow:0 15px 45px #170d2159}
+.shareResultHeader{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+.shareResultSuccess{width:40px;height:40px;display:grid;place-items:center;border-radius:13px;background:var(--tint);color:var(--tone)}
+.shareResultSuccess svg{width:20px;height:20px;fill:currentColor}
+.shareResultDialog h2{margin:0 0 3px;font-size:19px;line-height:1.3;font-weight:850}
+.shareResultTitle{margin:0 0 16px;font-size:12px;color:var(--muted)}
+.shareResultDialog label{display:block;margin-bottom:7px;color:var(--ink);font-size:12px;font-weight:800}
+.shareResultDialog input{display:block;width:100%;min-height:44px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);font-size:12px;padding:10px}
+.shareResultActions{display:flex;align-items:stretch;flex-wrap:wrap;gap:9px;margin-top:13px}
+.shareResultActions>a,.shareResultActions>button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:44px;border-radius:10px;border:1px solid var(--tone);background:var(--tone);color:#fff!important;font-size:12px;font-weight:800;padding:9px 12px;text-decoration:none}
+.shareResultActions>button{background:var(--tint);color:var(--tone)!important}
+.shareResultActions svg{width:16px;height:16px;fill:currentColor}
+.shareResultStatus{font-size:11px;font-weight:750;color:var(--tone);margin:9px 0 0}
+.shareResultCaution{font-size:11px;line-height:1.4;color:var(--muted);margin:14px 0 0}
+.fullSharedBackdrop{position:absolute;inset:0;z-index:75;background:var(--canvas);color:var(--ink);display:flex;align-items:stretch;justify-content:center}
+.fullSharedViewer{width:100%;height:100%;display:flex;flex-direction:column;min-height:0;background:var(--canvas)}
+.fullSharedHeader{flex:0 0 50px;height:50px;padding:0 10px 0 15px;display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--canvas);border:0}
+.fullSharedHeader>span{display:inline-flex;gap:8px;align-items:center;font-size:12px;font-weight:850;color:var(--tone)}
+.fullSharedHeader>span svg{width:19px;height:19px;fill:currentColor}
+.fullSharedHeader>button{width:44px;height:44px;border:0;border-radius:10px;display:grid;place-items:center;background:var(--tint);color:var(--tone)}
+.fullSharedHeader>button svg{width:18px;height:18px;fill:currentColor}
+.fullSharedMedia{flex:1 1 auto;min-height:0;display:flex;align-items:center;justify-content:center;background:#17121c;overflow:hidden}
+.fullSharedMedia>.photoCarousel{width:100%;max-height:100%;aspect-ratio:1.2/1;border-radius:0}
+.fullSharedMedia>.photoCarousel svg{display:block;width:100%;height:100%}
+.fullSharedMedia>video{display:block;width:100%;height:100%;object-fit:contain;background:#111}
+.fullSharedInfo{flex:0 0 auto;min-height:120px;max-height:36dvh;overflow:auto;padding:12px 15px 18px;background:var(--canvas)}
+.fullSharedOwner{display:block;font-size:11px;color:var(--tone);margin:0 0 3px}
+.fullSharedInfo h1{font-size:18px;font-weight:850;line-height:1.3;margin:0}
+.fullSharedInfo>p{font-size:12px;line-height:1.45;margin:5px 0 9px;color:var(--muted)}
+.fullSharedInfo>.postComments{margin:7px 0 10px}
+.fullSharedInfo>small{font-size:10px;line-height:1.4;color:var(--muted)}
+.fullSharedUnavailable{align-self:center;width:min(92%,365px);background:var(--surface);border-radius:16px;padding:22px;display:flex;flex-direction:column;gap:12px}
+.fullSharedUnavailable strong{font-size:18px}
+.fullSharedUnavailable p{margin:0;font-size:12px;line-height:1.5;color:var(--muted)}
+.fullSharedUnavailable button{min-height:44px;border:0;border-radius:11px;background:var(--tone);color:#fff;font-size:12px;font-weight:800}

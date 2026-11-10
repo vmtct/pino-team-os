@@ -6,6 +6,8 @@ import { useEffect, useRef, useState } from "react";
 import { Glyph, PostCard, PreviewDialog } from "./SharedShell";
 import { MediaArtwork } from "./MediaArtwork";
 import { VisibilityDialog } from "./VisibilityDialog";
+import { ShareLinkDialog } from "./ShareLinkDialog";
+import { SessionPostFullscreen,UnavailableSessionPost } from "./SessionPostFullscreen";
 import { ReelViewer } from "./ReelViewer";
 import { publicCommunityHref, isPublicFixture } from "./publicApproved";
 import { POSTS, type MediaPost, type Visibility } from "./media";
@@ -76,6 +78,8 @@ export function PinerUnified({tab,space="house"}:{tab:UnifiedTab;space?:PinerSpa
  const [visibilityReady,setVisibilityReady]=useState(false);
  const [preview,setPreview]=useState<MediaPost|null>(null);
  const [shareIntent,setShareIntent]=useState<MediaPost|null>(null);
+ const [shareSuccess,setShareSuccess]=useState<MediaPost|null>(null);
+ const [sharedPreviewId,setSharedPreviewId]=useState<string|null>(null);
  const [status,setStatus]=useState("");
  const focusReturn=useRef<HTMLElement|null>(null);
  const previewReturn=useRef<HTMLElement|null>(null);
@@ -99,8 +103,12 @@ export function PinerUnified({tab,space="house"}:{tab:UnifiedTab;space?:PinerSpa
   setOverrides(restore);
   setVisibilityReady(true);
  },[]);
+ useEffect(()=>{
+  setSharedPreviewId(new URLSearchParams(window.location.search).get("post"));
+ },[space]);
  const loaded=profileReady&&visibilityReady;
  const all:MediaPost[]=loaded?[...POSTS].filter(p=>isInSpace(p,space)).map(p=>({...p,visibility:overrides[p.id]??p.visibility})).sort(dateSort):[];
+ const sharedPreviewPost=sharedPreviewId?all.find(p=>p.id===sharedPreviewId&&p.visibility==="community"&&canManagePost(p)):undefined;
  const own=all.filter(p=>p.ownerId===(space==="mytime"?"mai":activeId));
  const visible=tab==="community"?all.filter(p=>p.visibility==="community"):own;
  const restoreFocus=()=>requestAnimationFrame(()=>{
@@ -118,6 +126,13 @@ export function PinerUnified({tab,space="house"}:{tab:UnifiedTab;space?:PinerSpa
      else document.querySelector<HTMLAnchorElement>('[data-piner-shared="bottom-nav"] a[aria-current="page"]')?.focus();
    });
  };
+ const closeSharedPreview=()=>{
+  const target=new URL(window.location.href);
+  target.searchParams.delete("post");
+  window.history.replaceState(null,"",target.pathname+target.search+target.hash);
+  setSharedPreviewId(null);
+  requestAnimationFrame(()=>document.querySelector<HTMLAnchorElement>('[data-piner-shared="bottom-nav"] a[aria-current="page"]')?.focus());
+ };
  const requestVisibility=(post:MediaPost)=>{
   // In real Core work this must be enforced by verified guardian ACL; this is UI fixture only.
   if(!canManagePost(post))return;
@@ -134,8 +149,13 @@ export function PinerUnified({tab,space="house"}:{tab:UnifiedTab;space?:PinerSpa
    sessionStorage.setItem("piner-pap1765-visibility-"+shareIntent.app,JSON.stringify(appIds));
   }catch{/* In-memory mock remains usable. */}
   setShareIntent(null);setPreview(null);
-  setStatus(next==="community"?"Đã chia sẻ trong phiên demo. Bản Public local chưa đồng bộ thay đổi chia sẻ.":(isPublicFixture(shareIntent.id)?"Đã thu hồi trong phiên demo. Bản Public local vẫn là dữ liệu mẫu tĩnh.":"Đã thu hồi chia sẻ trong phiên demo."));
-  restoreFocus();
+  if(next==="community"){
+   setShareSuccess({...shareIntent,visibility:next});
+   setStatus("");
+  }else{
+   setStatus(isPublicFixture(shareIntent.id)?"Đã thu hồi trong phiên demo. Bản Public local vẫn là dữ liệu mẫu tĩnh.":"Đã thu hồi chia sẻ trong phiên demo.");
+   restoreFocus();
+  }
  };
    const title=TABS.find(item=>item.id===tab)?.label??"Bảng tin";
  return <div className={css.unifiedBackdrop}>
@@ -166,6 +186,11 @@ export function PinerUnified({tab,space="house"}:{tab:UnifiedTab;space?:PinerSpa
          onRequestVisibility={requestVisibility}/>)}
      {shareIntent&&<VisibilityDialog post={shareIntent} onCancel={()=>{setShareIntent(null);restoreFocus();}}
        onConfirm={confirmVisibility}/>}
+     {shareSuccess&&<ShareLinkDialog post={shareSuccess} href={"/piner/"+space+"?post="+encodeURIComponent(shareSuccess.id)}
+       onClose={()=>{setShareSuccess(null);restoreFocus();}}/>}
+     {loaded&&sharedPreviewId&&(sharedPreviewPost?
+       <SessionPostFullscreen post={sharedPreviewPost} onClose={closeSharedPreview}/>:
+       <UnavailableSessionPost onClose={closeSharedPreview}/>)}
    </div>
  </div>;
 }
