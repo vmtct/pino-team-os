@@ -43,3 +43,10 @@ test("PAP-1818 scoped PINO DataGrid opens shared Drawer; History and reason use 
  assert.match(css,/\.missionHistory/);assert.match(css,/\.reopenReason/);
  assert.match(ui,/className="v25-form-field"/);
 });
+test("PAP-1818 Reopen textarea uses admitted scoped PINO DS form tokens, not raw browser defaults",()=>{
+ const css=readFileSync("app/bo/missions/MissionDetailEnhancements.module.css","utf8");
+ assert.match(css,/\.reopenReason textarea\s*\{[^}]*padding:\s*11px 13px\s*;[^}]*border-radius:\s*10px\s*;/);
+ assert.match(css,/\.reopenReason textarea:focus-visible\s*\{[^}]*outline:\s*2px solid var\(--ds-primary/);
+ assert.match(css,/\.reopenReason textarea:disabled\s*\{/);
+ assert.doesNotMatch(css,/^\s*textarea\s*\{/m);
+});
