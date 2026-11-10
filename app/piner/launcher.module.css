@@ -64,16 +64,9 @@
 .reelOverlay>span{font-size:23px}.reelOverlay small{font-size:11px}
 .postBody{padding:13px}
 .postBody>strong{font-size:15px;display:block}.postBody>p{margin:5px 0 13px;color:var(--muted);font-size:12px;line-height:1.55}
-.teacherComment{display:flex;align-items:flex-start;gap:9px;background:var(--tint);border-left:3px solid var(--tone);border-radius:6px 12px 12px 6px;padding:10px}
-.teacherIcon{height:26px;width:26px;flex:0 0 26px;border-radius:50%;display:grid;place-items:center;background:var(--surface);color:var(--tone);font-size:16px}
-.teacherComment strong{font-size:11px;color:var(--tone);font-weight:800}
-.teacherComment p{color:var(--ink);font-size:12px;margin:4px 0 0;line-height:1.5}
 .postActions{display:flex;align-items:center;gap:16px;border-top:1px solid var(--line);margin-top:12px;padding-top:9px}
 .postActions button{padding:5px 2px;min-height:44px;display:inline-flex;align-items:center;gap:6px;background:none;border:0;color:var(--tone);font-size:20px}
 .postActions button span{font-size:12px;font-weight:700}
-.replyList{border-top:1px solid var(--line);padding:9px 0 5px}
-.replyList p{font-size:12px;margin:8px 0;color:var(--ink)}.replyList strong{color:var(--tone)}
-.replyList small{font-size:10px;color:var(--muted);display:block;margin-top:9px}
 .filterRow{display:flex;gap:7px;margin-bottom:13px}
 .filter,.filterActive{min-height:44px;padding:0 17px;border-radius:99px;font-size:13px;font-weight:750;border:1px solid var(--line);background:var(--surface);color:var(--muted)}
 .filterActive{color:var(--tone);border-color:var(--tone);background:var(--tint)}
@@ -276,3 +269,11 @@
 .reelViewerCaption p{font-size:13px;line-height:1.45;margin:5px 0 8px;color:#f1ebf1}
 .reelViewerCaption small{display:block;font-size:10px;line-height:1.35;color:#c0b5c4}
 .reelViewerPlayback{display:block;font-size:10px;margin-top:5px;color:#d5c2d3}
+
+/* PAP-1799 · caption independent; all teacher/parent comments use identical forum rows. */
+.postComments{display:flex;flex-direction:column;gap:7px;margin:6px 0 2px;border:0;background:transparent}
+.postComment{display:flex;align-items:flex-start;gap:8px;padding:0;color:var(--ink);background:transparent}
+.postCommentAvatar{width:24px;height:24px;flex:0 0 24px;border-radius:50%;display:grid;place-items:center;background:#efedf1;color:#6b5c73;font-size:11px;font-weight:800}
+.postComment p{flex:1;min-width:0;margin:2px 0 0;font-size:12px;line-height:1.5;color:var(--ink)}
+.postComment strong{font-weight:800;color:var(--ink);margin-right:4px}
+.moreCommentsHint{font-size:11px;color:var(--muted);padding-left:32px}

@@ -70,7 +70,17 @@ function BottomNav({app,active}:{app:PinerApp;active:string}){
   </Link>)}
  </nav>;
 }
-function TeacherComment({post}:{post:MediaPost}){return <div className={css.teacherComment}><span className={css.teacherIcon}>✎</span><div><strong>{post.teacher}</strong><p>{post.comment}</p></div></div>}
+function CommentThread({post,expanded=false}:{post:MediaPost;expanded?:boolean}){
+ const comments=expanded?post.comments:post.comments.slice(0,1);
+ return <div className={css.postComments} data-comment-thread={post.id} data-expanded={expanded?"true":"false"}>
+   {comments.map(item=><div className={css.postComment} key={item.id}
+     data-comment-role={item.role} data-comment-author={item.author}>
+     <span className={css.postCommentAvatar} aria-hidden="true">{item.author.slice(0,1)}</span>
+     <p><strong>{item.author}</strong> {item.body}</p>
+   </div>)}
+   {!expanded&&post.comments.length>1&&<small className={css.moreCommentsHint}>Còn {post.comments.length-1} bình luận</small>}
+ </div>;
+}
 export function PostCard({post,onOpen,onRequestVisibility,scope="personal"}:{post:MediaPost;onOpen:(post:MediaPost)=>void;onRequestVisibility:(post:MediaPost)=>void;scope?:"personal"|"community"}){
  const [commentsOpen,setCommentsOpen]=useState(false);const [liked,setLiked]=useState(false);
  const community=post.visibility==="community";
@@ -82,11 +92,11 @@ export function PostCard({post,onOpen,onRequestVisibility,scope="personal"}:{pos
    <button type="button" className={css.posterButton} onClick={()=>onOpen(post)} aria-label={"Phát video "+post.title}>
     <MediaArtwork post={post}/><span className={css.reelOverlay}><span>▶</span><small>Phát video · Reel minh họa</small></span>
    </button>}
-  <div className={css.postBody}><strong>{post.title}</strong><p>{post.caption}</p><TeacherComment post={post}/>
+  <div className={css.postBody}><strong>{post.title}</strong><p data-post-caption={post.id}>{post.caption}</p><CommentThread post={post} expanded={commentsOpen}/>
    <div className={css.postActions}><button onClick={()=>setLiked(v=>!v)} aria-pressed={liked} type="button">{liked?"♥":"♡"} <span>{liked?"Đã lưu":"Yêu thích"}{community?" · "+(post.reactions+(liked?1:0)):""}</span></button>
-    <button type="button" onClick={()=>setCommentsOpen(v=>!v)}>▤ <span>{community?"Bình luận ("+post.responses.length+")":"Nhận xét"}</span></button>
+    <button type="button" onClick={()=>setCommentsOpen(v=>!v)} aria-expanded={commentsOpen}>▤ <span>{"Bình luận ("+post.comments.length+")"}</span></button>
     {canManage&&<button type="button" className={css.visibilityAction} onClick={()=>onRequestVisibility(post)} aria-label={(community?"Thu hồi chia sẻ":"Chia sẻ")+" "+post.title}>{community?"↶":"↗"} <span>{community?"Thu hồi":"Chia sẻ"}</span></button>}</div>
-   {commentsOpen&&<div className={css.replyList}>{community?post.responses.map((comment,i)=><p key={i}><strong>PH PINO</strong> {comment.replace("PH PINO · ","")}</p>):<p>Nhận xét riêng chỉ dành cho gia đình và giáo viên có quyền truy cập.</p>}<small>Minh họa — không có chức năng gửi bình luận hoặc lưu dữ liệu thật.</small></div>}
+
   </div>
  </article>;
 }
@@ -112,7 +122,7 @@ export function PreviewDialog({post,onClose,onRequestVisibility}:{post:MediaPost
  <header><strong>{post.title}</strong><button autoFocus type="button" onClick={onClose} aria-label="Đóng">✕</button></header>
  <div className={css.modalMedia}><MediaArtwork post={post}/>{post.type==="reel"&&<span className={css.modalVideo}>▶ Video minh họa — chưa có video thật</span>}</div>
  {post.visibility==="community"&&<p className={css.modalAuthor}>Tác giả: <strong>{getProfile(post.ownerId).alias}</strong></p>}
- <p>{post.caption}</p><TeacherComment post={post}/>
+ <p data-post-caption={post.id}>{post.caption}</p><CommentThread post={post} expanded/>
  {isManagedChild(post.ownerId)&&<button type="button" className={css.modalShareAction} onClick={()=>onRequestVisibility(post)} aria-label={(post.visibility==="private"?"Chia sẻ":"Thu hồi chia sẻ")+" "+post.title}>
    {post.visibility==="private"?"↗ Chia sẻ với phụ huynh PINO":"↶ Thu hồi chia sẻ"}
  </button>}
