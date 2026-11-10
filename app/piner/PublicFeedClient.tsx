@@ -10,6 +10,7 @@ import {PublicShareAction} from "./PublicShareAction";
 import {publicProfileHref,publicCommunityHref} from "./publicApproved";
 import type {PinerSpace} from "./spaces";
 import css from "./launcher.module.css";
+import {PinoIcon} from "./PinoIcon";
 
 type Props={posts:PublicPost[];mode:"community"|"profile";selectedPostId?:string;space:PinerSpace};
 function guestLogin(){return "/piner/public/login?returnTo="+encodeURIComponent(window.location.pathname+window.location.search)}
@@ -28,7 +29,7 @@ function GuestFeedCard({post,onPlay,onLogin}:{post:PublicPost;onPlay:(post:Publi
  return <article className={css.postCard} data-post={post.id} data-post-owner={post.ownerId} data-post-scope="public" id={"public-post-"+post.id}>
   <div className={css.postHead}>
    <Link className={css.postAvatar+" "+css.guestAvatarLink} href={publicProfileHref(post.ownerId)}
-    aria-label={"Xem hồ sơ "+post.alias}>{post.app==="piano"?"♫":"✿"}</Link>
+    aria-label={"Xem hồ sơ "+post.alias}><PinoIcon name={post.app==="piano"?"piano":"art"}/></Link>
    <div className={css.postMeta}>
     <Link className={css.guestAuthorLink} href={publicProfileHref(post.ownerId)}>{post.alias}</Link>
     <small>{post.date} · {post.app==="piano"?"Piano":"Hội Họa"}</small>
@@ -38,17 +39,17 @@ function GuestFeedCard({post,onPlay,onLogin}:{post:PublicPost;onPlay:(post:Publi
   {post.type==="photo"?<PublicMedia post={post}/>:
    <button type="button" className={css.posterButton} onClick={()=>onPlay(post)} aria-label={"Phát video "+post.title}>
     <MediaArtwork post={post}/><span className={css.reelOverlay}>
-      <span>▶</span><small>{post.duration} · Reel minh họa</small></span>
+      <span><PinoIcon name="circlePlay"/></span><small>{post.duration}</small></span>
    </button>}
   <div className={css.postBody}>
    <strong>{post.title}</strong><p data-post-caption={post.id}>{post.caption}</p>
    <GuestComments post={post} expanded={expanded}/>
    <div className={css.postActions}>
     <button type="button" aria-label={"Đăng nhập để yêu thích "+post.title} onClick={onLogin}>
-      ♡ <span>Yêu thích · {post.reactions}</span>
+      <PinoIcon name="heart"/> <span>{post.reactions}</span>
     </button>
     <button type="button" aria-expanded={expanded} aria-label={"Xem bình luận "+post.title} onClick={()=>setExpanded(v=>!v)}>
-      ▤ <span>Bình luận ({post.comments.length})</span>
+      <PinoIcon name="comment"/> <span>{post.comments.length}</span>
     </button>
     <PublicShareAction id={post.id} title={post.title}/>
    </div>
@@ -67,8 +68,8 @@ function GuestReel({post,onClose}:{post:PublicPost;onClose:()=>void}){
  },[onClose]);
  return <div className={css.reelViewerBackdrop} data-reel-viewer={post.id}>
   <section role="dialog" aria-modal="true" aria-label={"Video toàn màn hình · "+post.title} className={css.reelViewer}>
-   <div className={css.reelViewerTop}><span>PINER REELS</span>
-    <button ref={closeRef} type="button" onClick={onClose} aria-label="Đóng video">✕</button>
+   <div className={css.reelViewerTop}><span><PinoIcon name="video"/> Reels</span>
+    <button ref={closeRef} type="button" onClick={onClose} aria-label="Đóng video"><PinoIcon name="close"/></button>
    </div>
    <div className={css.reelViewerStage}><video
      controls playsInline muted autoPlay loop src={post.videoSrc??undefined}

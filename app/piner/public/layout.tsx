@@ -6,11 +6,12 @@ import type {ReactNode} from "react";
 import {publicCommunityHref} from "../publicApproved";
 import {pathFor,type PinerSpace} from "../spaces";
 import css from "../launcher.module.css";
+import {PinoIcon} from "../PinoIcon";
 const tabs=[
- {id:"home",label:"Bảng tin",glyph:"⌂"},
- {id:"grid",label:"Bộ sưu tập",glyph:"▦"},
- {id:"reels",label:"Reels",glyph:"▷"},
- {id:"community",label:"Cộng đồng",glyph:"♧"}
+ {id:"home",label:"Bảng tin",glyph:"home"},
+ {id:"grid",label:"Bộ sưu tập",glyph:"grid"},
+ {id:"reels",label:"Reels",glyph:"video"},
+ {id:"community",label:"Cộng đồng",glyph:"community"}
 ] as const;
 function guestSpace(pathname:string):PinerSpace{
  if(pathname.startsWith("/piner/public/mytime")||pathname.startsWith("/piner/public/profile/mai")||
@@ -35,7 +36,7 @@ export default function PublicLayout({children}:{children:ReactNode}){
       href={item.id==="community"?current:"/piner/public/login?returnTo="+encodeURIComponent(pathFor(space,item.id))}
       data-tab={item.id} aria-current={item.id==="community"?"page":undefined}
       className={item.id==="community"?css.unifiedNavActive:css.unifiedNavItem}>
-      <span aria-hidden="true" className={css.guestNavGlyph}>{item.glyph}</span><small>{item.label}</small>
+      <span aria-hidden="true" className={css.guestNavGlyph}><PinoIcon name={item.glyph}/></span><small>{item.label}</small>
     </Link>)}</div>
    </nav>
   </div>

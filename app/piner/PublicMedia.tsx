@@ -4,6 +4,7 @@ import {useRef,useState} from "react";
 import type {PublicPost} from "./publicTypes";
 import {MediaArtwork} from "./MediaArtwork";
 import css from "./launcher.module.css";
+import {PinoIcon} from "./PinoIcon";
 
 export function PublicMedia({post}:{post:PublicPost}){
  const [index,setIndex]=useState(0);
@@ -26,9 +27,9 @@ export function PublicMedia({post}:{post:PublicPost}){
    </div>
    {post.frames.length>1&&<><span className={css.publicCount}>{index+1}/{post.frames.length}</span>
      <button type="button" className={css.publicPrev} onClick={()=>next(-1)}
-       disabled={index===0} aria-label="Ảnh trước">‹</button>
+       disabled={index===0} aria-label="Ảnh trước"><PinoIcon name="right" className={css.pinoFaPrev}/></button>
      <button type="button" className={css.publicNext} onClick={()=>next(1)}
-       disabled={index===post.frames.length-1} aria-label="Ảnh tiếp">›</button>
+       disabled={index===post.frames.length-1} aria-label="Ảnh tiếp"><PinoIcon name="right"/></button>
      <div className={css.publicDots}>{post.frames.map((_,i)=><button type="button" key={i}
       aria-label={"Đến ảnh "+(i+1)} aria-current={i===index?"true":undefined}
       onClick={()=>setIndex(i)} className={i===index?css.publicDotSelected:css.publicDot}/>)}</div>

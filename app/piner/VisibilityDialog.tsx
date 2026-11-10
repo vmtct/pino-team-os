@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { MediaPost } from "./media";
 import css from "./launcher.module.css";
+import {PinoIcon} from "./PinoIcon";
 import {getProfile} from "./profiles";
 
 export function VisibilityDialog({ post, onCancel, onConfirm }: {
@@ -32,8 +33,8 @@ export function VisibilityDialog({ post, onCancel, onConfirm }: {
         else if(!event.shiftKey && document.activeElement===items[items.length-1]){event.preventDefault();items[0].focus();}
       }}>
       <div className={css.visibilityDialogHead}>
-        <span className={css.visibilityDialogIcon} aria-hidden="true">{isShare ? "↗" : "↶"}</span>
-        <button type="button" onClick={onCancel} className={css.visibilityClose} aria-label="Đóng" autoFocus>✕</button>
+        <span className={css.visibilityDialogIcon} aria-hidden="true"><PinoIcon name={isShare?"share":"hide"}/></span>
+        <button type="button" onClick={onCancel} className={css.visibilityClose} aria-label="Đóng" autoFocus><PinoIcon name="close"/></button>
       </div>
       <h2>{isShare ? "Chia sẻ khoảnh khắc này?" : "Ẩn khỏi Cộng đồng?"}</h2>
       <p className={css.visibilitySubtitle}><strong>{post.title}</strong></p>

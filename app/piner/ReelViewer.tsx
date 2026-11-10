@@ -4,6 +4,7 @@ import { useEffect,useRef,useState } from "react";
 import { getProfile } from "./profiles";
 import { syntheticReelSrc,type MediaPost } from "./media";
 import css from "./launcher.module.css";
+import {PinoIcon} from "./PinoIcon";
 
 export function ReelViewer({post,onClose}:{post:MediaPost;onClose:()=>void}){
  const dialog=useRef<HTMLElement>(null);
@@ -33,7 +34,7 @@ export function ReelViewer({post,onClose}:{post:MediaPost;onClose:()=>void}){
     aria-label={"Video toàn màn hình · "+post.title}>
    <div className={css.reelViewerTop}>
      <span>PINER REELS</span>
-     <button ref={close} type="button" onClick={onClose} aria-label="Đóng video">✕</button>
+     <button ref={close} type="button" onClick={onClose} aria-label="Đóng video"><PinoIcon name="close"/></button>
    </div>
    <div className={css.reelViewerStage}>
      {!hasError?<video ref={video} src={syntheticReelSrc(post)}

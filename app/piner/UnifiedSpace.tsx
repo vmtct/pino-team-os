@@ -11,6 +11,7 @@ import { publicCommunityHref, isPublicFixture } from "./publicApproved";
 import { POSTS, type MediaPost, type Visibility } from "./media";
 import { MANAGED_CHILDREN, useActiveProfile, isManagedChild, getProfile } from "./profiles";
 import css from "./launcher.module.css";
+import {PinoIcon} from "./PinoIcon";
 import {SPACES,isInSpace,pathFor,type PinerSpace} from "./spaces";
 
 export type UnifiedTab = "home" | "grid" | "reels" | "community";
@@ -54,7 +55,7 @@ function MediaGrid({posts,onOpen}:{posts:MediaPost[];onOpen:(post:MediaPost)=>vo
  return posts.length===0?<div className={css.emptyMedia}><strong>Chưa có tác phẩm nào</strong><p>Những bức tranh và giai điệu sẽ được lưu tại đây.</p></div>:
  <div data-gallery-view="grid" className={css.unifiedGallery}>{posts.map(post=><button key={post.id}
    type="button" onClick={()=>onOpen(post)} aria-label={"Xem "+post.title} className={css.galleryTile}>
-   <MediaArtwork post={post}/>{post.type==="reel"&&<span>▶ {post.duration}</span>}
+   <MediaArtwork post={post}/>{post.type==="reel"&&<span><PinoIcon name="play"/> {post.duration}</span>}
  </button>)}</div>;
 }
 function MediaReels({posts,onOpen}:{posts:MediaPost[];onOpen:(post:MediaPost)=>void}){
@@ -62,7 +63,7 @@ function MediaReels({posts,onOpen}:{posts:MediaPost[];onOpen:(post:MediaPost)=>v
  return reels.length===0?<div className={css.emptyMedia}><strong>Chưa có Reel nào</strong><p>Các khoảnh khắc vẽ tranh và biểu diễn sẽ xuất hiện tại đây.</p></div>:
  <div data-reels-view="reels" className={css.unifiedReels}>{reels.map(post=><button
    type="button" className={css.reelTile} key={post.id} onClick={()=>onOpen(post)} aria-label={"Xem "+post.title}>
-   <MediaArtwork post={post}/><span className={css.playDisc}>▶</span>
+   <MediaArtwork post={post}/><span className={css.playDisc}><PinoIcon name="circlePlay"/></span>
    <span className={css.reelCaption}><strong>{post.title}</strong><small>{post.duration} · {post.app==="piano"?"Piano":"Hội Họa"}</small></span>
  </button>)}</div>;
 }
@@ -144,7 +145,7 @@ export function PinerUnified({tab,space="house"}:{tab:UnifiedTab;space?:PinerSpa
        <div className={css.unifiedContentInner}>
          {tab!=="home"&&<div className={css.unifiedPageHeading}>
                        <h1>{title}</h1>
-            {tab==="community"?<a href={publicCommunityHref(space)} className={css.publicCommunityShortcut}>↗ Xem công khai</a>:<span>{profile.display}</span>}
+            {tab==="community"?<a href={publicCommunityHref(space)} className={css.publicCommunityShortcut}><PinoIcon name="globe"/> <span>Công khai</span></a>:<span>{profile.display}</span>}
          </div>}
          {status&&<p className={css.visibilityStatus} role="status">{status}</p>}
          {!loaded?<div className={css.unifiedLoading} role="status">Đang mở hành trình...</div>:tab==="grid"?

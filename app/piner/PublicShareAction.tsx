@@ -2,6 +2,7 @@
 import {useState} from "react";
 import {publicPostHref} from "./publicApproved";
 import css from "./launcher.module.css";
+import {PinoIcon} from "./PinoIcon";
 // PAP-1800 · UX copy/share only for server-allowlisted fixture posts.
 // Until real Core publishing+revocation, this MUST NOT claim a newly local-shared post is public.
 export function PublicShareAction({id,title}:{id:string;title:string}){
@@ -20,7 +21,7 @@ export function PublicShareAction({id,title}:{id:string;title:string}){
   }catch(e){if((e as Error)?.name!=="AbortError")setStatus("Không thể chia sẻ trên trình duyệt này");}
  };
  return <span className={css.publicShareGroup} data-public-share={id}>
-  <button type="button" onClick={share} aria-label={"Chia sẻ liên kết công khai "+title}>↗ <span>Chia sẻ</span></button>
+  <button type="button" onClick={share} aria-label={"Chia sẻ liên kết công khai "+title}><PinoIcon name="share"/> <span>Chia sẻ</span></button>
   {status&&<small role="status">{status}</small>}
  </span>;
 }

@@ -4,6 +4,7 @@ import { useRef,useState } from "react";
 import { MediaArtwork } from "./MediaArtwork";
 import { PHOTO_CAROUSELS,type MediaPost } from "./media";
 import css from "./launcher.module.css";
+import {PinoIcon} from "./PinoIcon";
 
 export function PhotoCarousel({post}:{post:MediaPost}){
  const frames=PHOTO_CAROUSELS[post.id]??[post.visual];
@@ -35,9 +36,9 @@ export function PhotoCarousel({post}:{post:MediaPost}){
    {frames.length>1&&<>
      <span className={css.photoCounter} aria-live="polite">{index+1} / {frames.length}</span>
      <button type="button" className={css.photoPrevious}
-       aria-label={"Ảnh trước · "+post.title} disabled={index===0} onClick={()=>move(-1)}>‹</button>
+       aria-label={"Ảnh trước · "+post.title} disabled={index===0} onClick={()=>move(-1)}><PinoIcon name="right" className={css.pinoFaPrev}/></button>
      <button type="button" className={css.photoNext}
-       aria-label={"Ảnh tiếp theo · "+post.title} disabled={index===frames.length-1} onClick={()=>move(1)}>›</button>
+       aria-label={"Ảnh tiếp theo · "+post.title} disabled={index===frames.length-1} onClick={()=>move(1)}><PinoIcon name="right"/></button>
      <div className={css.photoDots} role="group" aria-label="Chọn ảnh">
        {frames.map((_,position)=><button type="button" key={position}
          className={position===index?css.photoDotActive:css.photoDot}

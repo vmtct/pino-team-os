@@ -4,6 +4,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { AppGlyph } from "./AppGlyph";
+import {PinoIcon} from "./PinoIcon";
 import { MediaArtwork } from "./MediaArtwork";
 import { PhotoCarousel } from "./PhotoCarousel";
 import { PublicShareAction } from "./PublicShareAction";
@@ -15,13 +16,8 @@ import { VisibilityDialog } from "./VisibilityDialog";
 import { MANAGED_CHILDREN,getProfile,isManagedChild,useActiveProfile } from "./profiles";
 import css from "./launcher.module.css";
 
-export function Glyph({name}:{name:NavIcon}){
- const root={width:22,height:22,viewBox:"0 0 24 24",fill:"none",stroke:"currentColor",strokeWidth:1.8,strokeLinecap:"round" as const,strokeLinejoin:"round" as const,"aria-hidden":true as const};
- if(name==="home")return <svg {...root}><path d="m3 10 9-7 9 7v10h-7v-6H9v6H3Z"/></svg>;
- if(name==="grid")return <svg {...root}><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>;
- if(name==="video")return <svg {...root}><rect x="3" y="3" width="18" height="18" rx="4"/><path d="m10 8 6 4-6 4z"/></svg>;
- return <svg {...root}><path d="M4 21v-3a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v3"/><circle cx="12" cy="7" r="4"/><path d="M2 8h2m16 0h2"/></svg>;
-}
+const LEGACY_FA_ICONS={home:"home",art:"art",music:"piano",star:"sparkles",palette:"mytime",video:"video",community:"community",grid:"grid"} as const;
+export function Glyph({name}:{name:NavIcon}){return <PinoIcon name={LEGACY_FA_ICONS[name]}/>;}
 export function PhoneFrame({theme,children}:{theme:PinerAppKey|"home";children:React.ReactNode}){
  return <div className={css.backdrop}><div className={css.phone} data-piner-shared="phone-frame" data-piner-theme={theme}>{children}</div></div>;
 }
@@ -89,16 +85,16 @@ export function PostCard({post,onOpen,onRequestVisibility,scope="personal",canMa
  const canManage=mayManage??isManagedChild(post.ownerId);
  const author=scope==="community"?getProfile(post.ownerId).alias:(post.app==="piano"?"PINO Piano":"PINO Hội Họa");
  return <article className={css.postCard} data-post={post.id} data-post-owner={post.ownerId} data-post-scope={scope}>
-  <div className={css.postHead}><span className={css.postAvatar}>{post.app==="piano"?"♫":"✿"}</span><div className={css.postMeta}>{scope==="community"&&isPublicFixture(post.id)?<Link href={publicProfileHref(post.ownerId)} className={css.guestAuthorLink}>{author}</Link>:<strong>{author}</strong>}<small>{post.date} · {scope==="community"?(post.ownerId==="mai"?"MyTime · Học viên trưởng thành":"Cộng đồng phụ huynh PINO"):"Hành trình riêng"}</small></div>{scope==="community"&&community&&canManage?<button type="button" className={css.guestHideAction} data-hide-post={post.id} onClick={()=>onRequestVisibility(post)} aria-label={"Ẩn "+post.title}>✕ <span>Ẩn</span></button>:<span className={community?css.sharedBadge:css.privateBadge}>{community?"Công khai":"Riêng tư"}</span>}</div>
+  <div className={css.postHead}><span className={css.postAvatar}><PinoIcon name={post.app==="piano"?"piano":"art"}/></span><div className={css.postMeta}>{scope==="community"&&isPublicFixture(post.id)?<Link href={publicProfileHref(post.ownerId)} className={css.guestAuthorLink}>{author}</Link>:<strong>{author}</strong>}<small>{post.date} · {post.app==="piano"?"Piano":"Hội Họa"}</small></div>{scope==="community"&&community&&canManage?<button type="button" className={css.guestHideAction} data-hide-post={post.id} onClick={()=>onRequestVisibility(post)} aria-label={"Ẩn "+post.title}><PinoIcon name="hide"/> <span>Ẩn</span></button>:<span className={community?css.sharedBadge:css.privateBadge}>{community?"Công khai":"Riêng tư"}</span>}</div>
   {post.type==="photo"?<PhotoCarousel post={post}/>:
    <button type="button" className={css.posterButton} onClick={()=>onOpen(post)} aria-label={"Phát video "+post.title}>
-    <MediaArtwork post={post}/><span className={css.reelOverlay}><span>▶</span><small>Phát video · Reel minh họa</small></span>
+    <MediaArtwork post={post}/><span className={css.reelOverlay}><span><PinoIcon name="circlePlay"/></span><small>{post.duration}</small></span>
    </button>}
   <div className={css.postBody}><strong>{post.title}</strong><p data-post-caption={post.id}>{post.caption}</p><CommentThread post={post} expanded={commentsOpen}/>
-   <div className={css.postActions}><button onClick={()=>setLiked(v=>!v)} aria-pressed={liked} type="button">{liked?"♥":"♡"} <span>{liked?"Đã lưu":"Yêu thích"}{community?" · "+(post.reactions+(liked?1:0)):""}</span></button>
-    <button type="button" onClick={()=>setCommentsOpen(v=>!v)} aria-expanded={commentsOpen}>▤ <span>{"Bình luận ("+post.comments.length+")"}</span></button>
+   <div className={css.postActions}><button onClick={()=>setLiked(v=>!v)} aria-pressed={liked} type="button" aria-label={"Yêu thích "+post.title}><PinoIcon name="heart"/> <span>{community?post.reactions+(liked?1:0):(liked?"Đã thích":"Thích")}</span></button>
+    <button type="button" onClick={()=>setCommentsOpen(v=>!v)} aria-expanded={commentsOpen} aria-label={"Xem bình luận "+post.title}><PinoIcon name="comment"/> <span>{post.comments.length}</span></button>
     {scope==="community"&&community&&isPublicFixture(post.id)&&<PublicShareAction id={post.id} title={post.title}/>}
-     {canManage&&scope!=="community"&&<button type="button" className={css.visibilityAction} onClick={()=>onRequestVisibility(post)} aria-label={(community?"Ẩn":"Chia sẻ")+" "+post.title}>{community?"↶":"↗"} <span>{community?"Ẩn":"Chia sẻ"}</span></button>}</div>
+     {canManage&&scope!=="community"&&<button type="button" className={css.visibilityAction} onClick={()=>onRequestVisibility(post)} aria-label={(community?"Ẩn":"Chia sẻ")+" "+post.title}><PinoIcon name={community?"hide":"share"}/> <span>{community?"Ẩn":"Chia sẻ"}</span></button>}</div>
 
   </div>
  </article>;

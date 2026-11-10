@@ -412,3 +412,57 @@
 .unifiedShell[data-piner-space="mytime"] .guestHideAction{color:var(--tone);background:var(--tint)}
 .unifiedShell[data-piner-space="mytime"] .publicCommunityShortcut{color:var(--tone)!important;background:var(--tint)}
 @media(max-width:345px){.launcherSpaceTile{min-height:156px}.launcherTileArtwork{min-height:156px;width:35%;flex-basis:35%}.launcherTileText{padding-left:12px}.launcherTileText strong{font-size:21px}.launcherHouseGlyph,.launcherMytimeGlyph{font-size:64px}.launcherMain{padding-top:13px}.launcherWelcome h1{font-size:21px}}
+
+/* PAP-1806 · Flat canvas-matched surfaces and Font Awesome Free SVG UI pass. */
+.visuallyHidden{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+.launcherMain{padding:13px 12px 20px}
+.launcherTiles{gap:12px}
+.launcherSpaceTile{min-height:148px;border-radius:17px;background:var(--canvas);box-shadow:none}
+.launcherTileArtwork{min-height:148px;width:35%;flex-basis:35%}
+.launcherTileArtwork::before{width:86px;height:86px;left:-48px;bottom:-38px}
+.launcherTileArtwork::after{width:64px;height:64px;right:-29px;top:-29px}
+.launcherHeroIcon{width:62px;height:62px;position:relative;z-index:1;color:var(--card-tone);fill:currentColor}
+.launcherTileText{padding:12px 18px}
+.launcherTileText strong{font-size:24px;margin:0 0 5px;font-weight:900}
+.launcherTileText>span{font-size:12px;font-weight:600;color:var(--muted)}
+.launcherTileArrow{width:12px;height:16px;top:17px;right:15px;fill:currentColor}
+.launcherHeaderLabel{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px}
+.launcherHeaderLabel svg{width:16px;height:16px;color:var(--tone)}
+.unifiedFeed{gap:9px}
+.postCard{background:var(--canvas);border:0;border-radius:0;box-shadow:none;overflow:visible;position:relative}
+.postHead,.postBody{background:var(--canvas)}
+.postHead{padding:7px 4px 9px;min-height:54px}
+.postBody{padding:12px 5px 6px}
+.postAvatar svg{width:18px;height:18px;display:block;fill:currentColor}
+.postMeta small{font-size:11px;color:var(--muted)}
+.postActions{gap:5px}
+.postActions button{min-height:44px;gap:7px}
+.postActions button svg{width:18px;height:18px;fill:currentColor;display:block;flex:0 0 18px}
+.postActions button span{font-size:11px;font-weight:800}
+.postActions button[aria-pressed="true"] svg{color:var(--tone)}
+.postCard .posterButton,.postCard .photoCarousel,.postCard .publicCarousel{border-radius:14px;overflow:hidden}
+.postCard .photoCarousel button svg,.postCard .publicCarousel button svg{width:14px;height:19px;display:inline-block;fill:currentColor}
+.pinoFaPrev{transform:rotate(180deg)}
+.postCard .reelOverlay svg{height:25px;width:25px;display:block;color:#fff}
+.postCard .reelOverlay small{font-size:11px}
+.unifiedFeed>.postCard+.postCard{border-top:1px solid var(--line);padding-top:10px}
+.guestHideAction{min-height:44px;min-width:70px;gap:6px}
+.guestHideAction svg{width:15px;height:15px;display:block;fill:currentColor}
+.unifiedNavInner svg{display:block;width:19px;height:19px;fill:currentColor;flex:0 0 19px}
+.guestNavGlyph{display:inline-flex;align-items:center;justify-content:center;height:20px}
+.guestNavGlyph svg{width:19px;height:19px;display:block;fill:currentColor}
+.publicShareGroup small{color:var(--tone)}
+.reelViewerTop svg,.visibilityClose svg{width:16px;height:16px;display:block;fill:currentColor}
+.visibilityDialogIcon svg{width:22px;height:22px;fill:currentColor}
+.playDisc svg{height:25px;width:25px;display:block;fill:currentColor}
+.reelViewerCaption svg{width:16px;height:16px;fill:currentColor}
+.publicCommunityShortcut{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.publicCommunityShortcut svg{width:13px;height:13px;fill:currentColor}
+@media(max-width:340px){
+ .launcherSpaceTile{min-height:137px}
+ .launcherTileArtwork{min-height:137px}
+ .launcherHeroIcon{width:52px;height:52px}
+ .launcherTileText{padding:10px 13px}
+ .launcherTileText strong{font-size:21px}
+ .launcherTileArrow{right:10px;top:12px}
+}
