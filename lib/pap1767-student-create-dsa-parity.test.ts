@@ -15,6 +15,7 @@ test("PAP-1767 Student CREATE uses the exact BoQuickView view shell, common Prop
   assert.match(source, /<PropertySections variant="drawer"/);
   assert.doesNotMatch(source, /<DrawerFrame|<aside|className="drawer-scrim|<div className="property-row"/);
   assert.doesNotMatch(source, /TddRegistry|TddRenderer|createBoTddAdapter/);
+  assert.doesNotMatch(source, /os-create-select/, "Student Create must not reuse Parent-only unregistered CSS");
 });
 
 test("PAP-1767 retains Core Intake, Parent selection freshness and uncertain-state idempotency", async () => {

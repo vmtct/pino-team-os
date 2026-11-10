@@ -134,7 +134,7 @@ export function BoStudentCreate({ onClose, onCreated }: { onClose: () => void; o
     parentQuery: {
       id: "student-create-parent-query", value: parentQuery,
       onChange: v => { setParentQuery(v); setSelectedParentId(null); setParentResults({ state: "loading" }); setError(""); },
-      control: <input id="student-create-parent-query" className="property-control os-create-select"
+      control: <input id="student-create-parent-query" className="edit-input"
         aria-label="Tìm theo tên, SĐT hoặc email" type="search" placeholder="Tên, SĐT hoặc email"
         value={parentQuery} disabled={locked}
         onChange={e => { setParentQuery(e.target.value); setSelectedParentId(null); setParentResults({ state: "loading" }); setError(""); }} />,
@@ -163,7 +163,7 @@ export function BoStudentCreate({ onClose, onCreated }: { onClose: () => void; o
     },
     contactType: {
       id: "student-create-contact-type", value: contactType, onChange: v => setContactType(v as typeof contactType),
-      control: <select id="student-create-contact-type" className="property-control os-create-select"
+      control: <select id="student-create-contact-type" className="edit-input"
         aria-label="Loại liên hệ" value={contactType} disabled={locked}
         onChange={e => { setContactType(e.target.value as typeof contactType); setContactValue(""); }}>
         <option value="PHONE">Số điện thoại</option><option value="EMAIL">Email</option>
@@ -171,7 +171,7 @@ export function BoStudentCreate({ onClose, onCreated }: { onClose: () => void; o
     },
     contactValue: {
       id: "student-create-contact-value", value: contactValue, required: true, onChange: setContactValue,
-      control: <input id="student-create-contact-value" className="property-control os-create-select"
+      control: <input id="student-create-contact-value" className="edit-input"
         type={contactType === "PHONE" ? "tel" : "email"}
         aria-label={contactType === "PHONE" ? "Số điện thoại phụ huynh" : "Email phụ huynh"}
         value={contactValue} disabled={locked} required
