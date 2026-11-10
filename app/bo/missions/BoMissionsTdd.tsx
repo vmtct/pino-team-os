@@ -220,14 +220,17 @@ function ScopedMissionAssignment({centerId,centerSource,writeLease,setWriteLease
           businessLoaders={businessLoaders} actionBindings={actions}
           detailHistory={(row, context) => context.surface === "BO" && row.center === context.centerId &&
             context.authorize("student.mission_assignment.view")
-              ? <BoMissionHistory key={context.centerId + ":" + row.id} id={row.id} centerId={context.centerId} context={context} />
+              ? <div className={styles.missionHistory}>
+                  <BoMissionHistory key={context.centerId + ":" + row.id} id={row.id}
+                    centerId={context.centerId} context={context} />
+                </div>
               : <p role="status">Không có quyền xem lịch sử tại Center này.</p>} />
         {selectedDiary ? <DrawerFrame title={"Nhật Ký · " + formatMissionAuditTime(selectedDiary.registeredAt)}
           path="Nhiệm vụ / Nhật Ký" onClose={() => setSelectedDiary(null)}
           footer={<button className="secondary-btn" type="button" onClick={() => setSelectedDiary(null)}>Đóng</button>}>
-          <section className={"v24-prop-section " + styles.diaryDrawer} aria-label="Chi tiết Nhật Ký">
+          <section className={styles.diaryDrawer} aria-label="Chi tiết Nhật Ký">
             <h3>Thông tin Nhật Ký</h3>
-            <div className="v24-prop-grid">{([
+            <div className={styles.diaryDrawerGrid}>{([
               ["Ngày ghi",formatMissionAuditTime(selectedDiary.registeredAt)],
               ["Giáo viên",selectedDiary.teacherLegalFullName ?? "—"],
               ["Ghi chú",selectedDiary.notes?.trim() || "—"],
@@ -241,7 +244,10 @@ function ScopedMissionAssignment({centerId,centerSource,writeLease,setWriteLease
             ] as readonly (readonly [string,string])[]).map(([label,value]) =>
               <div className="v24-prop-item" key={label}>
                 <div className="v24-prop-key">{label}</div>
-                <div className={"v24-prop-value readonly " + (label === "Ghi chú" ? styles.longValue : "")}>{value}</div>
+                <div className="v24-prop-value readonly">{label === "Ghi chú"
+                  ? <span className={styles.noteLines}>{value.split(String.fromCharCode(10)).map((line,index) =>
+                      <span key={index}>{line || " "}</span>)}</span>
+                  : value}</div>
               </div>)}</div>
           </section>
         </DrawerFrame> : null}
@@ -249,15 +255,15 @@ function ScopedMissionAssignment({centerId,centerSource,writeLease,setWriteLease
           registry:ready.adapter.registry,schema:ready.adapter.schema,context:ready.adapter.context,
           mode:"edit",recordId:target.id,title:"Mở lại nhiệm vụ",
           onClose:close,actionBindings:actions,
-          content:<section className={"v24-prop-section " + styles.reopenReason} aria-label="Lý do mở lại nhiệm vụ">
+          content:<section className={styles.reopenReason} aria-label="Lý do mở lại nhiệm vụ">
             <p>Không duyệt lần hoàn tất này? Mở lại để học viên tiếp tục thực hiện. Nhật ký và lịch sử cũ được giữ nguyên.</p>
             <p><strong>{target.missionNameSnapshot}</strong> · C1 COMPLETED v{reopenVersion}</p>
-            <label htmlFor="pap1210-reopen-reason">Lý do không duyệt *</label>
+            <label className="v25-form-field" htmlFor="pap1210-reopen-reason"><span>Lý do không duyệt *</span>
             <textarea id="pap1210-reopen-reason" rows={3} maxLength={500}
               required aria-required="true"
               placeholder="Nêu nội dung cần chỉnh sửa hoặc bổ sung"
               value={reopenReason} disabled={pending || uncertain}
-              onChange={e=>setReopenReason(e.target.value)} />
+              onChange={e=>setReopenReason(e.target.value)} /></label>
             {formError?<p role="alert">{formError}</p>:null}
           </section>,
         } }} /> : null}
@@ -278,7 +284,9 @@ function missionLinkedDiaryContent(
     row.registeredAt ? <time dateTime={row.registeredAt}>{formatMissionAuditTime(row.registeredAt)}</time> : "—" },
   { key:"teacherLegalFullName", header:"Giáo viên", render:(row:LinkedMissionDiary)=>row.teacherLegalFullName??"—" },
   { key:"notes", header:"Ghi chú", render:(row:LinkedMissionDiary)=>
-    <span className={styles.diaryNotePreview}>{row.notes?.trim()||"—"}</span> },
+    <span className={styles.diaryNotePreview}>{row.notes?.trim()
+      ? row.notes.trim().length > 100 ? row.notes.trim().slice(0, 100) + "…" : row.notes.trim()
+      : "—"}</span> },
   { key:"status", header:"Trạng thái", render:(row:LinkedMissionDiary)=>row.status==="CLOSED"?"Đã đóng":"Đã ghi" },
   { key:"teachingContextKey", header:"Bối cảnh dạy", render:(row:LinkedMissionDiary)=>row.teachingContextKey||"—" },
   { key:"diaryId", header:"Diary ID", render:(row:LinkedMissionDiary)=>row.diaryId },

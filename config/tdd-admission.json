@@ -552,7 +552,8 @@
         "lib/bo-mission-assignment-write-facade.ts",
         "lib/bo-mission-assignment-command.ts",
         "lib/bo-mission-assignment-options.ts",
-        "lib/mission-history.ts"
+        "lib/mission-history.ts",
+        "app/bo/missions/MissionDetailEnhancements.module.css"
       ],
       "externalReferences": [
         {
@@ -606,7 +607,23 @@
         "lib/pap1210-bo-mission-command.test.ts",
         "lib/pap1210-bo-mission-options.test.ts",
         "lib/pap1210-bo-mission-form.test.ts",
-        "lib/pap1188-mission-history.test.ts"
+        "lib/pap1188-mission-history.test.ts",
+        "lib/pap1818-diary-enhancements.test.ts"
+      ],
+      "businessStyles": [
+        {
+          "file": "app/bo/missions/MissionDetailEnhancements.module.css",
+          "owner": "PAP-1818",
+          "consumer": "app/bo/missions/BoMissionsTdd.tsx",
+          "classes": [
+            "diaryNotePreview",
+            "diaryDrawer",
+            "diaryDrawerGrid",
+            "noteLines",
+            "reopenReason",
+            "missionHistory"
+          ]
+        }
       ]
     },
     {

@@ -6,7 +6,6 @@ import { readBoMissionCompletionHistory } from "@/lib/bo-mission-completion-clie
 import { projectMissionC1History } from "@/lib/bo-mission-audit-projection";
 import { BoApiError } from "@/lib/bo-api-error";
 import { HistoryState } from "@/app/components/workspace-renderer/History";
-import styles from "./MissionDetailEnhancements.module.css";
 /** Independent read failure handling: generic Core 409 must retain its status,
  * and failed Assignment audit must not suppress valid C1 events. */
 type ReadResult<T> = { status: "loading" } | { status: "ready"; value: T } | { status: "error"; error: unknown };
@@ -35,7 +34,7 @@ export function BoMissionHistory({
   if (context.surface !== "BO" || context.centerId !== centerId ||
       !context.authorize("student.mission_assignment.view"))
     return <p role="status">Không có quyền xem lịch sử Nhiệm vụ tại Center này.</p>;
-  return <section aria-label="Lịch sử Nhiệm vụ" data-pap1792-dual-history className={styles.missionHistory}>
+  return <section aria-label="Lịch sử Nhiệm vụ" data-pap1792-dual-history>
     <p className="settings-hint">Hai nguồn lịch sử độc lập. Chỉ hiển thị tên người thực hiện khi Core cung cấp danh tính đã xác minh.</p>
     <section className="v24-prop-section" aria-label="Lịch sử Hoàn thành C1">
       <h3>Lịch sử Hoàn thành · C1</h3>

@@ -39,6 +39,7 @@ test("PAP-1818 scoped PINO DataGrid opens shared Drawer; History and reason use 
  assert.match(ui,/formatMissionAuditTime\(row.registeredAt\)/);
  assert.match(ui,/teacherLegalFullName/);
  assert.match(ui,/styles.reopenReason/);
- assert.match(history,/styles.missionHistory/);
- assert.match(css,/\.missionHistory/);assert.match(css,/\.reopenReason textarea:focus-visible/);
+ assert.match(ui,/styles.missionHistory/);
+ assert.match(css,/\.missionHistory/);assert.match(css,/\.reopenReason/);
+ assert.match(ui,/className="v25-form-field"/);
 });
