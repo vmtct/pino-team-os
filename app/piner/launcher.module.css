@@ -579,3 +579,29 @@
 @keyframes pinerChildOptionsIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
 @media(max-width:340px){.childOptions{width:min(282px,calc(100vw - 20px))}}
 @media(prefers-reduced-motion:reduce){.childOptions{animation:none}.childTriggerChevron{transition:none}}
+
+/* PAP-1824 / PNR-APP-HUB: approved Piner APP homepage with existing R2 images. */
+.launcherMockShell{--canvas:#fffaf5;--ink:#263140;--muted:#667075;background:#fffaf5 url("https://app.pinohouse.art/piner_mobile_shell_background.png") center center/cover no-repeat}
+.launcherMockMain{display:flex;flex:1;flex-direction:column;min-width:0;min-height:0;padding:env(safe-area-inset-top) 15px calc(20px + env(safe-area-inset-bottom));overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-width:none}
+.launcherMockMain::-webkit-scrollbar{display:none}
+.launcherMockBrand{display:flex;flex:0 0 clamp(174px,27.5dvh,245px);flex-direction:column;align-items:center;justify-content:center;gap:0;min-height:0;padding-top:clamp(6px,1.5dvh,20px)}
+.launcherCanonicalSigil{display:block;width:clamp(32px,4.8dvh,43px);height:clamp(32px,4.8dvh,43px);object-fit:contain;flex:0 0 auto;margin:0 auto -6px;filter:drop-shadow(0 2px 4px #71472e16)}
+.launcherPinerWordmark{display:block;width:clamp(195px,59%,248px);height:auto;max-height:112px;object-fit:contain;flex:0 1 auto;margin:0 auto}
+.launcherMockCards{display:flex;flex-direction:column;gap:clamp(13px,2dvh,20px);width:100%;min-width:0}
+.launcherMockCard{position:relative;isolation:isolate;display:block;width:100%;min-width:0;aspect-ratio:1.73;max-height:244px;min-height:166px;overflow:hidden;border-radius:clamp(20px,5vw,27px);border:0;background-color:#faf5ef;background-repeat:no-repeat;background-position:center;background-size:cover;box-shadow:0 9px 26px #765e4811;color:#263140!important;transition:transform .18s ease,box-shadow .18s ease}
+.launcherMockCard::before{content:"";position:absolute;inset:0;z-index:0;background:linear-gradient(90deg,rgba(255,252,245,.98) 0%,rgba(255,252,245,.91) 21%,rgba(255,252,245,.70) 41%,rgba(255,252,245,.06) 77%);pointer-events:none}
+.launcherMockJourney{background-image:url("https://app.pinohouse.art/piner_journey_background.png");background-position:52% center}
+.launcherMockMytime{background-image:url("https://app.pinohouse.art/piner_mytime_background.png");background-position:58% center}
+.launcherMockMytime::before{background:linear-gradient(90deg,rgba(240,252,249,.98) 0%,rgba(240,252,249,.92) 19%,rgba(240,252,249,.64) 40%,rgba(240,252,249,.04) 76%)}
+.launcherMockCardContent{position:relative;z-index:1;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;height:100%;max-width:65%;padding:clamp(12px,3.4vw,23px) 0 clamp(10px,2vw,20px) clamp(16px,5.5vw,27px)}
+.launcherMockTitle{display:block;font-family:ui-rounded,"Arial Rounded MT Bold","Trebuchet MS",Arial,sans-serif;font-size:clamp(28px,7.9vw,39px);font-weight:800;line-height:.98;letter-spacing:-.052em;color:#263140;white-space:nowrap}
+.launcherMockBy{display:block;font-size:.55em;line-height:1.22;letter-spacing:-.035em;font-weight:700;margin:3px 0 0}
+.launcherMockDescription{display:block;margin-top:clamp(9px,2vw,15px);font-size:clamp(12px,3.55vw,16px);line-height:1.33;letter-spacing:-.016em;font-weight:450;color:#606972}
+.launcherMockArrow{display:grid;place-items:center;margin-top:clamp(12px,2.4vw,20px);width:clamp(40px,10vw,48px);height:clamp(40px,10vw,48px);border-radius:999px;background:#ffffffdf;box-shadow:0 3px 12px #8a695416;color:#263140;flex:0 0 auto}
+.launcherMockArrow svg{display:block;width:21px;height:21px;fill:currentColor}
+.launcherMockCard:focus-visible{outline:3px solid #426c87;outline-offset:3px}
+.launcherMockCard:active{transform:scale(.985)}
+@media(hover:hover){.launcherMockCard:hover{transform:translateY(-2px);box-shadow:0 12px 29px #765e4822}}
+@media(max-width:345px){.launcherMockMain{padding-inline:11px}.launcherMockBrand{flex-basis:clamp(158px,25dvh,182px)}.launcherMockCard{min-height:157px}.launcherMockTitle{font-size:27px}.launcherMockDescription{font-size:12px}.launcherMockCardContent{padding-left:17px}}
+@media(max-height:665px){.launcherMockBrand{flex-basis:145px}.launcherMockCards{gap:11px}.launcherMockCard{aspect-ratio:1.9;min-height:151px}.launcherMockArrow{margin-top:9px}}
+@media(prefers-reduced-motion:reduce){.launcherMockCard{transition:none}}

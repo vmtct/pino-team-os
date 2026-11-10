@@ -1,37 +1,37 @@
-// PAP-1806 · Icon-first two-app launcher; shared PINO mobile shell, theme token only.
+// PAP-1824 · PNR-APP-HUB · Founder mobile mockup / existing R2 assets only.
 import Link from "next/link";
 import {PinoIcon} from "./PinoIcon";
 import {SPACES} from "./spaces";
 import css from "./launcher.module.css";
+const R2="https://app.pinohouse.art/";
+const PINO_LOGO="https://assets.pinohouse.art/site/core/Pino%20Sigil.png";
 export function SpaceLauncher(){
  return <div className={css.unifiedBackdrop}>
-  <div className={css.unifiedShell} data-piner-shared="unified-shell" data-piner-launcher="two-apps">
-   <header className={css.unifiedHeader} data-piner-shared="unified-header">
-    <span className={css.launcherHeaderLabel}><PinoIcon name="grid"/> Ứng dụng</span>
-    <Link href="/piner" className={css.unifiedLogo} aria-label="Logo PINO Space">
-     <strong>PINO</strong><small>SPACE</small>
-    </Link>
-   </header>
-   <main className={css.launcherMain}>
-    <h1 className={css.visuallyHidden}>Piner Space · Chọn ứng dụng</h1>
-    <nav className={css.launcherTiles} aria-label="Chọn ứng dụng Piner Space">
-     <Link href={SPACES.house.href} className={css.launcherSpaceTile} data-launch-app="house" data-theme="house">
-      <span className={css.launcherTileArtwork} aria-hidden="true">
-       <PinoIcon name="house" className={css.launcherHeroIcon}/>
+  <div className={[css.unifiedShell,css.launcherMockShell].join(" ")} data-piner-shared="unified-shell" data-piner-launcher="two-apps">
+   <main className={css.launcherMockMain}>
+    <h1 className={css.visuallyHidden}>Piner APP · Chọn chương trình</h1>
+    <div className={css.launcherMockBrand} data-pino-canonical-logo="true">
+     <img src={PINO_LOGO} className={css.launcherCanonicalSigil}
+       alt="Biểu tượng PINO chính thức" width="48" height="48" loading="eager" decoding="async"/>
+     <img src={R2+"piner_app_logo_no_yellow_transparent.png"} className={css.launcherPinerWordmark}
+       alt="Piner APP" width="220" height="106" loading="eager" decoding="async"/>
+    </div>
+    <nav className={css.launcherMockCards} aria-label="Chọn chương trình Piner APP">
+     <Link href={SPACES.house.href} className={[css.launcherMockCard,css.launcherMockJourney].join(" ")}
+      data-launch-app="house" data-theme="house" aria-label="Mở PINO Journey">
+      <span className={css.launcherMockCardContent}>
+       <strong className={css.launcherMockTitle}>PINO<br/>Journey</strong>
+       <span className={css.launcherMockDescription}>Hành trình sáng tạo<br/>của con</span>
+       <span className={css.launcherMockArrow} aria-hidden="true"><PinoIcon name="right"/></span>
       </span>
-      <span className={css.launcherTileText}>
-       <strong>PINO House</strong><span>Gia đình</span>
-      </span>
-      <PinoIcon name="right" className={css.launcherTileArrow}/>
      </Link>
-     <Link href={SPACES.mytime.href} className={css.launcherSpaceTile} data-launch-app="mytime" data-theme="mytime">
-      <span className={css.launcherTileArtwork} aria-hidden="true">
-       <PinoIcon name="mytime" className={css.launcherHeroIcon}/>
+     <Link href={SPACES.mytime.href} className={[css.launcherMockCard,css.launcherMockMytime].join(" ")}
+      data-launch-app="mytime" data-theme="mytime" aria-label="Mở MyTime by PINO">
+      <span className={css.launcherMockCardContent}>
+       <strong className={css.launcherMockTitle}>MyTime<span className={css.launcherMockBy}>by PINO</span></strong>
+       <span className={css.launcherMockDescription}>Không gian sáng tạo<br/>của riêng bạn</span>
+       <span className={css.launcherMockArrow} aria-hidden="true"><PinoIcon name="right"/></span>
       </span>
-      <span className={css.launcherTileText}>
-       <strong>MyTime</strong><span>Của tôi</span>
-      </span>
-      <PinoIcon name="right" className={css.launcherTileArrow}/>
      </Link>
     </nav>
    </main>
