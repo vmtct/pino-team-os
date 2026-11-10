@@ -1,6 +1,7 @@
 "use client";
 import { lazy, Suspense, useEffect, useState, type KeyboardEvent } from "react";
 import { PropertySections } from "@/app/components/workspace-renderer/Properties";
+import { BoTypedEditor } from "./BoTypedEditor";
 import type { BoDataGridColumn } from "../data-grid/BoDataGrid";
 const BoDataGrid = lazy(async () => ({ default: (await import("../data-grid/BoDataGrid")).BoDataGrid })) as unknown as typeof import("../data-grid/BoDataGrid").BoDataGrid;
 import type { BoModule, BoRecord } from "@/lib/bo-registration";
@@ -39,14 +40,29 @@ function valid(value: unknown, expectedId: string): value is Detail {
    contacts.every(x=>x&&idPattern.test(x.id)&&["PHONE","EMAIL"].includes(x.type)&&typeof x.maskedValue==="string"&&/[•*]/.test(x.maskedValue)&&typeof x.primary==="boolean"&&typeof x.verified==="boolean") &&
    audit.every(x=>x&&idPattern.test(x.id)&&typeof x.at==="string"&&typeof x.action==="string"&&typeof x.outcome==="string"&&typeof x.actorType==="string");
 }
-export function BoParentReadTabs({ module, record, fullDetail = false }: { module: BoModule; record: BoRecord; fullDetail?: boolean }) {
+export function BoParentReadTabs({ module, record, fullDetail = false, canEditName = false, onSaveName }: {
+  module: BoModule; record: BoRecord; fullDetail?: boolean;
+  canEditName?: boolean; onSaveName?: (value: string) => Promise<void>;
+}) {
   const [tab,setTab]=useState<ParentTab>("overview");
+  // PAP-1814: native BO DSA name-only popover. Drawer remains read-only.
+  const [edit,setEdit]=useState<{anchor: HTMLElement} | null>(null);
+  const [busy,setBusy]=useState(false);
+  const [saveError,setSaveError]=useState("");
+  const closeEditor=()=>{if(!busy){setEdit(null);setSaveError("");}};
+  async function saveName(value: string) {
+    if(busy||!canEditName||!onSaveName)return;
+    setBusy(true);setSaveError("");
+    try { await onSaveName(value);setEdit(null); }
+    catch (cause) { setSaveError(cause instanceof Error ? cause.message : "Không thể lưu tên Phụ huynh."); }
+    finally { setBusy(false); }
+  }
   const [detail,setDetail]=useState<Detail|null>(null);
   const [status,setStatus]=useState<"loading"|"ready"|"error"|"permission">("loading");
   const [retry,setRetry]=useState(0);
   useEffect(()=>{
     const controller=new AbortController();
-    setStatus("loading");setDetail(null);
+    queueMicrotask(()=>{if(!controller.signal.aborted){setStatus("loading");setDetail(null);}});
     (async()=>{
       const r=await fetch("/api/bo/identity/parents/"+encodeURIComponent(record.id)+"/detail",{
         method:"GET",credentials:"same-origin",cache:"no-store",redirect:"error",signal:controller.signal
@@ -66,7 +82,9 @@ export function BoParentReadTabs({ module, record, fullDetail = false }: { modul
     setTab(tabs[next].id);event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus();
   }
   const overview = <PropertySections variant={fullDetail ? "detail" : "drawer"} fields={module.fields} record={record}
-    sections={[{id:"overview",label:"Thông tin chính",fields:module.fields.map(field=>field.key)}]} />;
+    sections={[{id:"overview",label:"Thông tin chính",fields:module.fields.map(field=>field.key)}]}
+    canEdit={field=>fullDetail && canEditName && !busy && field.key==="name" && typeof record.version==="number"}
+    onEdit={(field,anchor)=>{if(field.key==="name")setEdit({anchor});}} />;
   const navigation = <div className="detail-tabs" role="tablist" aria-label="Parent">{tabs.map((item,index)=><button type="button" role="tab"
       key={item.id} id={"parent-tab-"+item.id} aria-selected={item.id===tab} aria-controls="parent-tab-panel"
       tabIndex={item.id===tab?0:-1} className={"detail-tab"+(item.id===tab?" selected":"")}
@@ -86,7 +104,14 @@ export function BoParentReadTabs({ module, record, fullDetail = false }: { modul
          <div role="status" className="v24-audit-empty">Không có quyền xem lịch sử Audit.</div>}
       </Suspense>
     </section>;
-  return fullDetail
+  return <>{fullDetail
     ? <>{navigation}<div id="detail-body" className="detail-main v25-full-width"><div className="detail-panel v24-main-panel">{panel}</div></div></>
-    : <section aria-label="Parents & Guardians">{navigation}{panel}</section>;
+    : <section aria-label="Parents & Guardians">{navigation}{panel}</section>}
+    {edit && onSaveName && <BoTypedEditor closeOnSave={false}
+      field={{key:"name",label:"Phụ huynh",type:"text",icon:"Aa",w:235,readonly:false}}
+      value={record.name} anchor={edit.anchor} onClose={closeEditor}
+      onSave={value=>{if(typeof value==="string")void saveName(value);}}/>}
+    {busy&&<p role="status">Đang lưu tên Phụ huynh…</p>}
+    {saveError&&<p role="alert" className="edit-error">{saveError}</p>}
+  </>;
 }

@@ -4,16 +4,15 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { BoActionButton } from "@pino/design-system/react";
 import { DrawerFrame } from "@/app/components/workspace-renderer/DrawerFrame";
 import { PropertySections } from "@/app/components/workspace-renderer/Properties";
-import { toLegacyModule } from "@/lib/workspace-schema";
+import { parentNativeFields } from "./parent-native-model";
 import type { BoRecord } from "@/lib/bo-registration";
-import { parentDefinition, parentSchema } from "./schema";
+
 import { BoApiError } from "@/lib/bo-api-error";
 import { createStandaloneParent, inferParentContactType, type BoParentStandaloneCreateInput, type BoParentStandaloneCreateResult } from "@/lib/bo-parent-create-client";
 
 type Attempt = { body: BoParentStandaloneCreateInput; key: string; centerId: string };
-// PAP-1724: exact same registered schema as the View Drawer.
-// Schema is registered at runtime; widening the generic metadata view is safe.
-const drawerFields = toLegacyModule(parentSchema as unknown as Parameters<typeof toLegacyModule>[0]).fields;
+// PAP-1814: native Create and View share the exact PINO DSA field manifest.
+const drawerFields = parentNativeFields;
 function failureMessage(error: unknown) {
   return error instanceof Error && error.message ? error.message : "Không thể tạo phụ huynh.";
 }
@@ -91,7 +90,7 @@ export function ParentCreateDrawer({
       <BoActionButton variant="primary" type="submit" form="parent-create-form" disabled={busy}>{busy ? "Đang tạo…" : locked ? "Thử lại cùng yêu cầu" : "Tạo Parent"}</BoActionButton>
     </>}>
     <form id="parent-create-form" onSubmit={event => void submit(event)}>
-      <PropertySections variant="drawer" fields={drawerFields} sections={parentDefinition.drawer.sections}
+      <PropertySections variant="drawer" fields={drawerFields} sections={[{id:"profile",label:"Thông tin chính",fields:["name","maskedContact","studentCount","centers","attention"]}]}
         record={draft} createFields={{
           name: { id: "parent-create-name", label: "Họ và tên *", value: name, required: true,
             maxLength: 120, autoComplete: "name", inputRef: nameInputRef, disabled: locked,

@@ -12,7 +12,8 @@ import { BoCenterSelectionProvider, useBoCenterSelection } from "./BoCenterSelec
 import { TddHostMenu } from "@/app/components/workspace-adapters/SurfaceWorkspace";
 import { boCenterModuleScope, boScopedModuleHref, scopedBoReadFetcher } from "./BoGlobalCenterPolicy";
 
-const ParentTdd = dynamic(() => import("../../parents/ParentTdd").then(module => module.ParentTdd), { ssr: false });
+// PAP-1814 / SCH-PARENTS-GUARDIANS: Parent route now uses native PINO BO DSA.
+const ParentDirectoryDsa = dynamic(() => import("../../parents/ParentDirectoryDsa").then(module => module.ParentDirectoryDsa), { ssr: false });
 const MissionsTdd = dynamic(() => import("../../missions/BoMissionsTdd").then(module => module.BoMissionsTdd), { ssr: false });
 const RuntimeContext = createContext<Pick<BoShellContext, "displayName" | "email"> | null>(null);
 // PAP-1545 / PAP-1316: Access audit is a Core GLOBAL collection. Keep the
@@ -116,11 +117,11 @@ export function BoRuntimeEntry({ moduleKey, options }: { moduleKey: string; opti
   const currentUser = useContext(RuntimeContext);
   if (moduleKey === "missions") return <MissionsTdd />;
   if (!currentUser) return <BoOperationalView view="overview" />;
-  // PAP-1543 / Epic PAP-1316: default Parents must never reach the legacy
-  // unscoped directory. The Parent TDD adapter requires a Core-attested Center.
+  // PAP-1814 / Epic PAP-1384: native DSA Parent owns its Core-attested Center scope.
+  // Never fall through to the unscoped legacy Directory.
   if (moduleKey === "parents") return <BoRegistrationWorkspace currentUser={currentUser}
     source={unifiedBoWorkspaceSource} moduleKey="parents" options={options}
-    content={<ParentTdd />} />;
+    content={<ParentDirectoryDsa />} />;
   if (moduleKey === "staffs") return <BoStaffsEntry currentUser={currentUser} options={options} />;
   if (moduleKey === "audits") return <BoRegistrationWorkspace currentUser={currentUser}
     source={globalAuditWorkspaceSource} moduleKey="audits" options={options} />;
