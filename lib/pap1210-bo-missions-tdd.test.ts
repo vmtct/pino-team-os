@@ -29,6 +29,10 @@ test("PAP-1434: module views preserve status filters and leave All to the TDD en
   assert.deepEqual(assignmentDefinition.table.views.builtIn, [
     { id: "assigned", label: "Đang giao", state: { ...assignmentQuery,
       filters: { logic: "AND", rules: [{ field: "status", op: "eq", value: "Đang giao" }] } } },
+    { id: "in-progress", label: "Đang thực hiện", state: { ...assignmentQuery,
+      filters: { logic: "AND", rules: [{ field: "executionStatus", op: "eq", value: "Đang thực hiện" }] } } },
+    { id: "completed", label: "Hoàn tất", state: { ...assignmentQuery,
+      filters: { logic: "AND", rules: [{ field: "executionStatus", op: "eq", value: "Hoàn tất" }] } } },
     { id: "cancelled", label: "Đã hủy", state: { ...assignmentQuery,
       filters: { logic: "AND", rules: [{ field: "status", op: "eq", value: "Đã hủy" }] } } },
   ]);
@@ -120,13 +124,22 @@ test("PAP-1210: parser rejects wrong Center, identities, statuses, versions and 
 
 test("PAP-1210: provider reads exact scoped list/detail, preserves empty and errors", async () => {
   const paths: string[] = [];
-  const fetcher: typeof fetch = async input => { paths.push(String(input)); return Response.json({ data: String(input).includes("/" + id + "?") ? row : [row] }); };
+  const fetcher: typeof fetch = async input => {
+    const path = String(input); paths.push(path);
+    if (path.includes("/execution?")) return Response.json({ data: {
+      assignmentId: id, centerId: center, assignmentStatus: "ASSIGNED", executionStatus: "IN_PROGRESS",
+      executionVersion: 0, updatedAt: null, updatedByUserId: null,
+    } });
+    return Response.json({ data: path.includes("/" + id + "?") ? row : [row] });
+  };
   const result = await assignmentProvider.list(assignmentQuery, { surface: "BO", centerId: center }, fetcher, signal());
   assert.equal(result.total, 1); assert.equal(result.records[0]?.centerId, center); assert.equal(result.records[0]?.version, "1");
   assert.equal(result.records[0]?.row.status, "Đang giao");
   assert.equal((await assignmentProvider.detail(id, { surface: "BO", centerId: center }, fetcher, signal()))?.row.id, id);
   assert.equal(paths[0], "/api/bo/learning/mission-assignments?centerId=" + center + "&limit=100&offset=0");
-  assert.equal(paths[1], "/api/bo/learning/mission-assignments/" + id + "?centerId=" + center);
+  assert.equal(paths[1], "/api/bo/learning/mission-assignments/" + id + "/execution?centerId=" + center);
+  assert.equal(paths[2], "/api/bo/learning/mission-assignments/" + id + "?centerId=" + center);
+  assert.equal(paths[3], "/api/bo/learning/mission-assignments/" + id + "/execution?centerId=" + center);
   assert.deepEqual(await readMissionAssignments(reply([]), center, signal()), []);
   assert.equal(await readMissionAssignment(reply(null, 404), center, id, signal()), null);
   for (const status of [401, 403, 409, 503]) await assert.rejects(readMissionAssignments(reply(null, status), center, signal()), e => e instanceof BoApiError && e.status === status);
@@ -165,6 +178,11 @@ test("PAP-1210: actual authenticated adapter fails closed on missing permission 
     const url = new URL(String(input));
     if (url.pathname.endsWith("/context")) return Response.json({ data: { surface: "BO", entitled: true, userId: other, permissionKeys: ["team.bo.access", ...(permitted ? ["student.mission_assignment.view"] : [])] } });
     if (url.pathname.endsWith("/centers")) return Response.json({ data: [{ id: center }] });
+    if (url.pathname.endsWith("/execution")) return Response.json({ data: {
+      assignmentId: id, centerId: wrongCenter ? other : center,
+      assignmentStatus: "ASSIGNED", executionStatus: "IN_PROGRESS",
+      executionVersion: 0, updatedAt: null, updatedByUserId: null,
+    } });
     return Response.json({ data: [{ ...row, centerId: wrongCenter ? other : center }] });
   };
   const options = { registry: new TddRegistry(), definition: assignmentDefinition, provider: assignmentProvider, centerId: center, origin: "https://bo.staging.pinohouse.art", fetcher };
