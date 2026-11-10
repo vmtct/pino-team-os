@@ -20,7 +20,7 @@ export function PublicShareAction({id,title}:{id:string;title:string}){
   }catch(e){if((e as Error)?.name!=="AbortError")setStatus("Không thể chia sẻ trên trình duyệt này");}
  };
  return <span className={css.publicShareGroup} data-public-share={id}>
-  <button type="button" onClick={share} aria-label={"Chia sẻ liên kết công khai "+title}>↗ <span>Gửi link</span></button>
+  <button type="button" onClick={share} aria-label={"Chia sẻ liên kết công khai "+title}>↗ <span>Chia sẻ</span></button>
   {status&&<small role="status">{status}</small>}
  </span>;
 }

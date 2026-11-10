@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { MediaPost } from "./media";
 import css from "./launcher.module.css";
+import {getProfile} from "./profiles";
 
 export function VisibilityDialog({ post, onCancel, onConfirm }: {
   post: MediaPost;
@@ -10,6 +11,8 @@ export function VisibilityDialog({ post, onCancel, onConfirm }: {
   onConfirm: () => void;
 }) {
   const isShare = post.visibility === "private";
+  const isMyTime = getProfile(post.ownerId).kind === "adult";
+  const audience = isMyTime?"Cộng đồng MyTime":"Cộng đồng phụ huynh PINO";
   const [consented, setConsented] = useState(false);
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") onCancel(); };
@@ -20,7 +23,7 @@ export function VisibilityDialog({ post, onCancel, onConfirm }: {
   return <div className={css.modalBackdrop} role="presentation"
     onMouseDown={event => { if (event.target === event.currentTarget) onCancel(); }}>
     <section className={css.visibilityDialog} role="dialog" aria-modal="true"
-      aria-label={isShare ? "Chia sẻ bài đăng" : "Thu hồi chia sẻ"}
+      aria-label={isShare ? "Chia sẻ bài đăng" : "Ẩn bài đăng"}
       onKeyDown={(event) => {
         if(event.key !== "Tab")return;
         const items=Array.from(event.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled)'));
@@ -32,20 +35,20 @@ export function VisibilityDialog({ post, onCancel, onConfirm }: {
         <span className={css.visibilityDialogIcon} aria-hidden="true">{isShare ? "↗" : "↶"}</span>
         <button type="button" onClick={onCancel} className={css.visibilityClose} aria-label="Đóng" autoFocus>✕</button>
       </div>
-      <h2>{isShare ? "Chia sẻ khoảnh khắc này?" : "Thu hồi chia sẻ?"}</h2>
+      <h2>{isShare ? "Chia sẻ khoảnh khắc này?" : "Ẩn khỏi Cộng đồng?"}</h2>
       <p className={css.visibilitySubtitle}><strong>{post.title}</strong></p>
       {isShare ? <>
         <p className={css.visibilityDescription}>Bài đang ở chế độ <strong>Riêng tư</strong>.
-          Bạn có thể chọn chia sẻ với cộng đồng phụ huynh PINO.</p>
+          Bạn có thể chọn chia sẻ với {audience}.</p>
         <div className={css.audienceOption} aria-label="Phạm vi chia sẻ">
           <span className={css.audienceIcon} aria-hidden="true">♧</span>
-          <div><strong>Cộng đồng phụ huynh PINO</strong>
+          <div><strong>{audience}</strong>
             <small>Chỉ hiển thị trong mục Cộng đồng của ứng dụng này.</small></div>
           <span className={css.audienceCheck} aria-hidden="true">✓</span>
         </div>
         <label className={css.consentCheck}>
           <input type="checkbox" checked={consented} onChange={event => setConsented(event.target.checked)} />
-          <span>Tôi xác nhận có quyền chia sẻ nội dung này với cộng đồng phụ huynh PINO.</span>
+          <span>{isMyTime?"Tôi xác nhận đây là thành quả của mình và đồng ý chia sẻ với Cộng đồng MyTime.":"Tôi xác nhận có quyền chia sẻ nội dung này với cộng đồng phụ huynh PINO."}</span>
         </label>
         <p className={css.visibilityCaution}>Chỉ là thao tác mô phỏng trên trình duyệt; chưa xác minh phụ huynh,
           chưa ghi nhận đồng ý pháp lý hoặc gửi dữ liệu đến máy chủ.</p>
@@ -60,7 +63,7 @@ export function VisibilityDialog({ post, onCancel, onConfirm }: {
         <button type="button" data-confirm-visibility
           className={isShare ? css.visibilityConfirm : css.visibilityRevoke}
           disabled={isShare && !consented} onClick={onConfirm}>
-          {isShare ? "Xác nhận chia sẻ" : "Thu hồi chia sẻ"}
+          {isShare ? "Xác nhận chia sẻ" : "Ẩn bài đăng"}
         </button>
       </div>
     </section>

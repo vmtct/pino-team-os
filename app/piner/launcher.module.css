@@ -376,3 +376,39 @@
 .unifiedShell [data-public-mode] .postCard:focus-within{scroll-margin-top:8px}
 .unifiedShell [data-public-mode] .postCard{scroll-margin-top:8px}
 @media(max-width:340px){.guestHeaderCommunity{font-size:12px}.guestHeaderLogin{padding:0 8px}.guestProfileTop{gap:7px}.guestProfileAvatar{flex-basis:45px;width:45px;height:45px}.guestFollow{padding:0 8px}}
+
+/* PAP-1805 · Two PINO app contexts share exact unified 430px shell; themes only tokens. */
+.unifiedShell[data-piner-space="house"]{--tone:#805a7b;--tint:#f5eaf0;--canvas:#fbf9fb;--line:#e8e0e9;--ink:#33303c;--muted:#77717d;--surface:#fff}
+.unifiedShell[data-piner-space="mytime"]{--tone:#456b67;--tint:#e5f1ed;--canvas:#f7fbf9;--line:#dcebe6;--ink:#293e3c;--muted:#718783;--surface:#fff}
+.mytimeIdentity{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:850;min-height:44px}
+.mytimeIdentity strong{color:var(--ink);white-space:nowrap}
+.guestHideAction{border:1px solid var(--line);background:var(--tint);color:var(--tone);border-radius:10px;min-height:36px;min-width:54px;padding:5px 10px;display:flex;align-items:center;justify-content:center;gap:4px;font-size:12px;font-weight:850}
+.guestHideAction span{font-size:12px}
+.launcherHeaderLabel{font-size:13px;font-weight:750;color:var(--ink)}
+.launcherMain{flex:1;overflow:auto;padding:20px 13px 22px;min-height:0;display:flex;flex-direction:column}
+.launcherWelcome{padding:2px 4px 14px}
+.launcherWelcome h1{font-size:23px;line-height:1.25;letter-spacing:-.04em;font-weight:950;margin:0}
+.launcherWelcome p{margin:5px 0 0;font-size:12px;color:var(--muted)}
+.launcherTiles{display:flex;flex-direction:column;gap:13px}
+.launcherSpaceTile{position:relative;min-height:174px;display:flex;align-items:stretch;border-radius:22px;border:1px solid var(--line);overflow:hidden;background:var(--surface);box-shadow:0 4px 17px #6345570d;color:var(--ink)!important}
+.launcherSpaceTile[data-theme="house"]{--card-tone:#805a7b;--card-wash:#f5eaf0}
+.launcherSpaceTile[data-theme="mytime"]{--card-tone:#456b67;--card-wash:#e5f1ed}
+.launcherTileArtwork{width:37%;flex:0 0 37%;min-height:174px;background:var(--card-wash);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+.launcherTileArtwork::before,.launcherTileArtwork::after{content:"";position:absolute;border-radius:50%;background:#ffffff82}
+.launcherTileArtwork::before{width:126px;height:126px;left:-69px;bottom:-55px}
+.launcherTileArtwork::after{width:86px;height:86px;right:-35px;top:-32px}
+.launcherHouseGlyph,.launcherMytimeGlyph{font-size:76px;line-height:1;color:var(--card-tone);position:relative;z-index:1;transform:rotate(-13deg)}
+.launcherMytimeGlyph{font-size:84px;transform:rotate(7deg)}
+.launcherHouseRipple,.launcherMytimeRipple{position:absolute;right:14px;bottom:14px;color:var(--card-tone);opacity:.7;font-size:28px;z-index:2}
+.launcherTileText{display:flex;flex:1;flex-direction:column;justify-content:center;padding:14px 7px 14px 15px;min-width:0}
+.launcherTileText small{font-size:9px;letter-spacing:.13em;color:var(--card-tone);font-weight:950}
+.launcherTileText strong{display:block;margin:7px 0 6px;color:var(--ink);font-size:24px;line-height:1.15;letter-spacing:-.04em;font-weight:950;white-space:normal}
+.launcherTileText span{font-size:12px;line-height:1.45;color:var(--muted)}
+.launcherTileArrow{position:absolute;right:10px;top:10px;color:var(--card-tone);font-size:24px;font-weight:800}
+.launcherSpaceTile:focus-visible{outline:3px solid var(--card-tone);outline-offset:3px}
+.launcherFoot{height:34px;flex:0 0 34px;display:flex;justify-content:center;align-items:center;gap:7px;color:var(--muted);font-size:9px;font-weight:900;letter-spacing:.1em}
+.launcherFoot span{opacity:.45}
+.unifiedShell[data-piner-space="mytime"] .sharedBadge{background:var(--tint);color:var(--tone)}
+.unifiedShell[data-piner-space="mytime"] .guestHideAction{color:var(--tone);background:var(--tint)}
+.unifiedShell[data-piner-space="mytime"] .publicCommunityShortcut{color:var(--tone)!important;background:var(--tint)}
+@media(max-width:345px){.launcherSpaceTile{min-height:156px}.launcherTileArtwork{min-height:156px;width:35%;flex-basis:35%}.launcherTileText{padding-left:12px}.launcherTileText strong{font-size:21px}.launcherHouseGlyph,.launcherMytimeGlyph{font-size:64px}.launcherMain{padding-top:13px}.launcherWelcome h1{font-size:21px}}

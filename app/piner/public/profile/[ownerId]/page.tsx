@@ -3,6 +3,7 @@ import {notFound} from "next/navigation";
 import type {Metadata} from "next";
 import {publicPosts} from "../../post/publicCatalog";
 import {PublicFeedClient} from "../../../PublicFeedClient";
+import {postSpace} from "../../../spaces";
 export const dynamicParams=false;
 export function generateStaticParams(){
  return [...new Set(publicPosts().map(p=>p.ownerId))].map(ownerId=>({ownerId}));
@@ -17,5 +18,5 @@ export default async function PublicProfile({params}:Props){
  const {ownerId}=await params;
  const posts=publicPosts().filter(p=>p.ownerId===ownerId);
  if(!posts.length)notFound();
- return <PublicFeedClient mode="profile" posts={posts}/>;
+ return <PublicFeedClient mode="profile" posts={posts} space={postSpace(posts[0])}/>;
 }

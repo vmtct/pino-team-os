@@ -8,9 +8,10 @@ import {PublicMedia} from "./PublicMedia";
 import {MediaArtwork} from "./MediaArtwork";
 import {PublicShareAction} from "./PublicShareAction";
 import {publicProfileHref,publicCommunityHref} from "./publicApproved";
+import type {PinerSpace} from "./spaces";
 import css from "./launcher.module.css";
 
-type Props={posts:PublicPost[];mode:"community"|"profile";selectedPostId?:string};
+type Props={posts:PublicPost[];mode:"community"|"profile";selectedPostId?:string;space:PinerSpace};
 function guestLogin(){return "/piner/public/login?returnTo="+encodeURIComponent(window.location.pathname+window.location.search)}
 function GuestComments({post,expanded}:{post:PublicPost;expanded:boolean}){
  const replies=expanded?post.comments:post.comments.slice(0,1);
@@ -79,7 +80,7 @@ function GuestReel({post,onClose}:{post:PublicPost;onClose:()=>void}){
   </section>
  </div>;
 }
-export function PublicFeedClient({posts,mode,selectedPostId}:Props){
+export function PublicFeedClient({posts,mode,selectedPostId,space}:Props){
  const [reel,setReel]=useState<PublicPost|null>(null);
  const [ready,setReady]=useState(false);
  const main=useRef<HTMLElement|null>(null);
@@ -113,19 +114,19 @@ export function PublicFeedClient({posts,mode,selectedPostId}:Props){
  const alias=posts[0]?.alias??"Piner";
  const owner=posts[0]?.ownerId??"an";
  return <>
-  <div className={css.unifiedContentInner} data-public-mode={mode} data-hydrated={ready?"true":"false"}>
+  <div className={css.unifiedContentInner} data-public-mode={mode} data-public-space={space} data-hydrated={ready?"true":"false"}>
    {mode==="community"?
     <div className={css.unifiedPageHeading}>
-     <h1>Cộng đồng PINO</h1><span>{posts.length} bài chia sẻ</span>
+     <h1>{space==="house"?"Cộng đồng PINO House":"Cộng đồng MyTime"}</h1><span>{posts.length} bài chia sẻ</span>
     </div>:
     <div className={css.guestProfileIntro} data-public-profile={owner}>
-      <Link href={publicCommunityHref()} className={css.guestBack}>‹ Về Cộng đồng</Link>
+      <Link href={publicCommunityHref(space)} className={css.guestBack}>‹ Về Cộng đồng</Link>
       <div className={css.guestProfileTop}>
        <span className={css.guestProfileAvatar} aria-hidden="true">{alias.slice(-2, -1)}</span>
        <div><h1>{alias}</h1><p>{posts.length} bài được chia sẻ công khai</p></div>
        <button type="button" onClick={login} className={css.guestFollow}>Theo dõi</button>
       </div>
-      <p className={css.guestProfileHint}>Bộ sưu tập cộng đồng của {alias} · Ảnh và Reel</p>
+      <p className={css.guestProfileHint}>{space==="mytime"?"Thành quả sáng tạo của chính mình":"Hành trình sáng tạo của con"} · Ảnh và Reel</p>
     </div>}
    <div className={css.unifiedFeed} data-feed-scope={mode==="community"?"public-community":"public-profile"}>
     {posts.map(post=><GuestFeedCard key={post.id} post={post} onPlay={openReel} onLogin={login}/>)}

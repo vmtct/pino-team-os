@@ -83,13 +83,13 @@ function CommentThread({post,expanded=false}:{post:MediaPost;expanded?:boolean})
    {!expanded&&post.comments.length>1&&<small className={css.moreCommentsHint}>Còn {post.comments.length-1} bình luận</small>}
  </div>;
 }
-export function PostCard({post,onOpen,onRequestVisibility,scope="personal"}:{post:MediaPost;onOpen:(post:MediaPost)=>void;onRequestVisibility:(post:MediaPost)=>void;scope?:"personal"|"community"}){
+export function PostCard({post,onOpen,onRequestVisibility,scope="personal",canManage:mayManage}:{post:MediaPost;onOpen:(post:MediaPost)=>void;onRequestVisibility:(post:MediaPost)=>void;scope?:"personal"|"community";canManage?:boolean}){
  const [commentsOpen,setCommentsOpen]=useState(false);const [liked,setLiked]=useState(false);
  const community=post.visibility==="community";
- const canManage=isManagedChild(post.ownerId);
+ const canManage=mayManage??isManagedChild(post.ownerId);
  const author=scope==="community"?getProfile(post.ownerId).alias:(post.app==="piano"?"PINO Piano":"PINO Hội Họa");
  return <article className={css.postCard} data-post={post.id} data-post-owner={post.ownerId} data-post-scope={scope}>
-  <div className={css.postHead}><span className={css.postAvatar}>{post.app==="piano"?"♫":"✿"}</span><div className={css.postMeta}>{scope==="community"&&isPublicFixture(post.id)?<Link href={publicProfileHref(post.ownerId)} className={css.guestAuthorLink}>{author}</Link>:<strong>{author}</strong>}<small>{post.date} · {scope==="community"?(post.ownerId==="mai"?"MyTime · Học viên trưởng thành":"Cộng đồng phụ huynh PINO"):"Hành trình riêng"}</small></div><span className={community?css.sharedBadge:css.privateBadge}>{community?"Đã chia sẻ":"Riêng tư"}</span></div>
+  <div className={css.postHead}><span className={css.postAvatar}>{post.app==="piano"?"♫":"✿"}</span><div className={css.postMeta}>{scope==="community"&&isPublicFixture(post.id)?<Link href={publicProfileHref(post.ownerId)} className={css.guestAuthorLink}>{author}</Link>:<strong>{author}</strong>}<small>{post.date} · {scope==="community"?(post.ownerId==="mai"?"MyTime · Học viên trưởng thành":"Cộng đồng phụ huynh PINO"):"Hành trình riêng"}</small></div>{scope==="community"&&community&&canManage?<button type="button" className={css.guestHideAction} data-hide-post={post.id} onClick={()=>onRequestVisibility(post)} aria-label={"Ẩn "+post.title}>✕ <span>Ẩn</span></button>:<span className={community?css.sharedBadge:css.privateBadge}>{community?"Công khai":"Riêng tư"}</span>}</div>
   {post.type==="photo"?<PhotoCarousel post={post}/>:
    <button type="button" className={css.posterButton} onClick={()=>onOpen(post)} aria-label={"Phát video "+post.title}>
     <MediaArtwork post={post}/><span className={css.reelOverlay}><span>▶</span><small>Phát video · Reel minh họa</small></span>
@@ -98,7 +98,7 @@ export function PostCard({post,onOpen,onRequestVisibility,scope="personal"}:{pos
    <div className={css.postActions}><button onClick={()=>setLiked(v=>!v)} aria-pressed={liked} type="button">{liked?"♥":"♡"} <span>{liked?"Đã lưu":"Yêu thích"}{community?" · "+(post.reactions+(liked?1:0)):""}</span></button>
     <button type="button" onClick={()=>setCommentsOpen(v=>!v)} aria-expanded={commentsOpen}>▤ <span>{"Bình luận ("+post.comments.length+")"}</span></button>
     {scope==="community"&&community&&isPublicFixture(post.id)&&<PublicShareAction id={post.id} title={post.title}/>}
-     {canManage&&<button type="button" className={css.visibilityAction} onClick={()=>onRequestVisibility(post)} aria-label={(community?"Thu hồi chia sẻ":"Chia sẻ")+" "+post.title}>{community?"↶":"↗"} <span>{community?"Thu hồi":"Chia sẻ"}</span></button>}</div>
+     {canManage&&scope!=="community"&&<button type="button" className={css.visibilityAction} onClick={()=>onRequestVisibility(post)} aria-label={(community?"Ẩn":"Chia sẻ")+" "+post.title}>{community?"↶":"↗"} <span>{community?"Ẩn":"Chia sẻ"}</span></button>}</div>
 
   </div>
  </article>;

@@ -11,38 +11,39 @@ import { publicCommunityHref, isPublicFixture } from "./publicApproved";
 import { POSTS, type MediaPost, type Visibility } from "./media";
 import { MANAGED_CHILDREN, useActiveProfile, isManagedChild, getProfile } from "./profiles";
 import css from "./launcher.module.css";
+import {SPACES,isInSpace,pathFor,type PinerSpace} from "./spaces";
 
 export type UnifiedTab = "home" | "grid" | "reels" | "community";
 const TABS = [
- {id:"home",label:"Bảng tin",icon:"home",href:"/piner"},
- {id:"grid",label:"Bộ sưu tập",icon:"grid",href:"/piner/grid"},
- {id:"reels",label:"Reels",icon:"video",href:"/piner/reels"},
- {id:"community",label:"Cộng đồng",icon:"community",href:"/piner/community"}
+ {id:"home",label:"Bảng tin",icon:"home"},
+ {id:"grid",label:"Bộ sưu tập",icon:"grid"},
+ {id:"reels",label:"Reels",icon:"video"},
+ {id:"community",label:"Cộng đồng",icon:"community"}
 ] as const;
 
 function dateSort(a:MediaPost,b:MediaPost){
  const toNumber=(date:string)=>{const [day,month]=date.split("/").map(Number);return (month||0)*32+(day||0);};
  return toNumber(b.date)-toNumber(a.date);
 }
-function Header({currentChild,select}:{currentChild:string;select:(id:"an"|"binh")=>void}){
+function Header({currentChild,select,space}:{currentChild:string;select:(id:"an"|"binh")=>void;space:PinerSpace}){
  const profile=getProfile(currentChild==="binh"?"binh":"an");
  return <header className={css.unifiedHeader} data-piner-shared="unified-header">
-   <div className={css.unifiedSwitcher}>
-     <span className={css.unifiedProfileCircle} aria-hidden="true">{profile.avatar}</span>
+       {space==="house"?<div className={css.unifiedSwitcher}>
+      <span className={css.unifiedProfileCircle} aria-hidden="true">{profile.avatar}</span>
      <select id="piner-child-profile" aria-label="Chọn con đang xem" className={css.unifiedProfileSelect}
        value={profile.id} onChange={event=>select(event.target.value as "an"|"binh")}>
        {MANAGED_CHILDREN.map(child=><option value={child.id} key={child.id}>{child.display}</option>)}
      </select>
 
-   </div>
-   <Link href="/piner" aria-label="Logo PINO · Bảng tin" className={css.unifiedLogo}>
+       </div>:<div className={css.mytimeIdentity}><span className={css.unifiedProfileCircle}>M</span><strong>MyTime · Tôi</strong></div>}
+    <Link href="/piner" aria-label="Logo PINO · Danh sách ứng dụng" className={css.unifiedLogo}>
      <strong>PINO</strong><small>SPACE</small>
    </Link>
  </header>;
 }
-function Footer({tab}:{tab:UnifiedTab}){
+function Footer({tab,space}:{tab:UnifiedTab;space:PinerSpace}){
  return <nav aria-label="Điều hướng Piner Space" data-piner-shared="bottom-nav" className={css.unifiedNav}>
-   <div className={css.unifiedNavInner}>{TABS.map(item=><Link href={item.href} key={item.id}
+   <div className={css.unifiedNavInner}>{TABS.map(item=><Link href={pathFor(space,item.id)} key={item.id}
        data-tab={item.id} aria-current={item.id===tab?"page":undefined}
        className={item.id===tab?css.unifiedNavActive:css.unifiedNavItem}>
        <Glyph name={item.icon}/><small>{item.label}</small>
@@ -66,8 +67,10 @@ function MediaReels({posts,onOpen}:{posts:MediaPost[];onOpen:(post:MediaPost)=>v
  </button>)}</div>;
 }
 
-export function PinerUnified({tab}:{tab:UnifiedTab}){
- const {profile,activeId,select,hydrated:profileReady}=useActiveProfile();
+export function PinerUnified({tab,space="house"}:{tab:UnifiedTab;space?:PinerSpace}){
+ const {profile:childProfile,activeId,select,hydrated:profileReady}=useActiveProfile();
+ const profile=space==="mytime"?getProfile("mai"):childProfile;
+ const canManagePost=(p:MediaPost)=>space==="mytime"?p.ownerId==="mai":isManagedChild(p.ownerId);
  const [overrides,setOverrides]=useState<Record<string,Visibility>>({});
  const [visibilityReady,setVisibilityReady]=useState(false);
  const [preview,setPreview]=useState<MediaPost|null>(null);
@@ -96,8 +99,8 @@ export function PinerUnified({tab}:{tab:UnifiedTab}){
   setVisibilityReady(true);
  },[]);
  const loaded=profileReady&&visibilityReady;
- const all:MediaPost[]=loaded?[...POSTS].map(p=>({...p,visibility:overrides[p.id]??p.visibility})).sort(dateSort):[];
- const own=all.filter(p=>p.ownerId===activeId);
+ const all:MediaPost[]=loaded?[...POSTS].filter(p=>isInSpace(p,space)).map(p=>({...p,visibility:overrides[p.id]??p.visibility})).sort(dateSort):[];
+ const own=all.filter(p=>p.ownerId===(space==="mytime"?"mai":activeId));
  const visible=tab==="community"?all.filter(p=>p.visibility==="community"):own;
  const restoreFocus=()=>requestAnimationFrame(()=>{
   if(focusReturn.current?.isConnected)focusReturn.current.focus();
@@ -116,12 +119,12 @@ export function PinerUnified({tab}:{tab:UnifiedTab}){
  };
  const requestVisibility=(post:MediaPost)=>{
   // In real Core work this must be enforced by verified guardian ACL; this is UI fixture only.
-  if(!isManagedChild(post.ownerId))return;
+  if(!canManagePost(post))return;
   focusReturn.current=document.activeElement instanceof HTMLElement?document.activeElement:null;
   setPreview(null);setShareIntent(post);setStatus("");
  };
  const confirmVisibility=()=>{
-  if(!shareIntent||!isManagedChild(shareIntent.ownerId))return;
+  if(!shareIntent||!canManagePost(shareIntent))return;
   const next:Visibility=shareIntent.visibility==="private"?"community":"private";
   const update={...overrides,[shareIntent.id]:next};
   setOverrides(update);
@@ -133,29 +136,29 @@ export function PinerUnified({tab}:{tab:UnifiedTab}){
   setStatus(next==="community"?"Đã chia sẻ trong phiên demo. Bản Public local chưa đồng bộ thay đổi chia sẻ.":(isPublicFixture(shareIntent.id)?"Đã thu hồi trong phiên demo. Bản Public local vẫn là dữ liệu mẫu tĩnh.":"Đã thu hồi chia sẻ trong phiên demo."));
   restoreFocus();
  };
- const title=TABS.find(item=>item.id===tab)?.label??"Bảng tin";
+   const title=TABS.find(item=>item.id===tab)?.label??"Bảng tin";
  return <div className={css.unifiedBackdrop}>
-   <div className={css.unifiedShell} data-piner-shared="unified-shell" data-unified-tab={tab}>
-     <Header currentChild={activeId} select={select}/>
+   <div className={css.unifiedShell} data-piner-shared="unified-shell" data-unified-tab={tab} data-piner-space={space}>
+           <Header currentChild={activeId} select={select} space={space}/>
      <main className={tab==="home"?css.unifiedContent+" "+css.unifiedHomeContent:css.unifiedContent} data-piner-slot="content" data-hydrated={loaded?"true":"false"}>
        <div className={css.unifiedContentInner}>
          {tab!=="home"&&<div className={css.unifiedPageHeading}>
-           <h1>{title}</h1>
-           {tab==="community"?<a href={publicCommunityHref()} className={css.publicCommunityShortcut}>↗ Xem công khai</a>:<span>{profile.display}</span>}
+                       <h1>{title}</h1>
+            {tab==="community"?<a href={publicCommunityHref(space)} className={css.publicCommunityShortcut}>↗ Xem công khai</a>:<span>{profile.display}</span>}
          </div>}
          {status&&<p className={css.visibilityStatus} role="status">{status}</p>}
          {!loaded?<div className={css.unifiedLoading} role="status">Đang mở hành trình...</div>:tab==="grid"?
            <MediaGrid posts={visible} onOpen={openPreview}/>:
            tab==="reels"?<MediaReels posts={visible} onOpen={openPreview}/>:
            <div className={css.unifiedFeed} data-feed-scope={tab==="community"?"community":"personal"}>
-             {visible.map(post=><PostCard key={post.id} post={post} scope={tab==="community"?"community":"personal"}
-               onOpen={openPreview} onRequestVisibility={requestVisibility}/>)}
+                           {visible.map(post=><PostCard key={post.id} post={post} scope={tab==="community"?"community":"personal"}
+                canManage={canManagePost(post)} onOpen={openPreview} onRequestVisibility={requestVisibility}/>)}
            </div>}
          {loaded&&visible.length===0&&tab==="home"&&
            <div className={css.emptyMedia}><strong>Chưa có bài đăng</strong><p>Hành trình sáng tạo sẽ xuất hiện tại đây.</p></div>}
        </div>
      </main>
-     <Footer tab={tab}/>
+           <Footer tab={tab} space={space}/>
      {preview&&(preview.type==="reel"
        ?<ReelViewer post={all.find(p=>p.id===preview.id)??preview} onClose={closePreview}/>
        :<PreviewDialog post={all.find(p=>p.id===preview.id)??preview} onClose={closePreview}
