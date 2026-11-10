@@ -4,7 +4,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBolt, faChevronRight, faDesktop, faGear, faShieldHalved, faStar, faTabletScreenButton, faTv, faUsers, faVolumeHigh, faWandMagicSparkles, faWifi } from "@fortawesome/free-solid-svg-icons";
 import StationDesktopFrame from "./StationV4Frame";
 import { Initials } from "./OpsInitials";
-import { TvLauncher } from "@/app/tv/TvLauncher";
+import { StationLogicalTv } from "./StationLogicalTv";
 import {unavailableOpsReadModel,type OpsReadModel} from "@/lib/tos-ops-v4-view-model";
 import ops from "./ops.module.css";
 import desk from "./station.module.css";
@@ -13,7 +13,7 @@ type Tab="overview"|"pinoria"|"students"|"devices"|"tv";
 const statusText=(value:string)=>value==="ARRIVED"?"Đang ở PINO":value==="LEFT"?"Đã về":value==="EXPECTED"?"Chưa đến":"Chưa xác minh";
 const statusKind=(value:string)=>value==="ARRIVED"?"ok":value==="LEFT"?"left":"waiting";
 
-export function TosVNextStation({onHome,desktop,centerName,model=unavailableOpsReadModel(),initialTab="overview"}:{onHome:()=>void;desktop:boolean;centerName:string;model?:OpsReadModel;initialTab?:Tab}){
+export function TosVNextStation({onHome,desktop,centerName,centerId,authorizedCenterIds,model=unavailableOpsReadModel(),initialTab="overview"}:{onHome:()=>void;desktop:boolean;centerName:string;centerId:string|null;authorizedCenterIds:readonly string[];model?:OpsReadModel;initialTab?:Tab}){
  const state=model,guests=model.guests,assetNames=model.assetNames,outfits=model.outfits;
  const [tab,setTab]=useState<Tab>(initialTab);
  const [studentId,setStudentId]=useState<string|null>(model.guests[0]?.id??null);
@@ -34,7 +34,7 @@ export function TosVNextStation({onHome,desktop,centerName,model=unavailableOpsR
       <div className={desk.metricCard}><FontAwesomeIcon icon={faUsers}/><strong>{model.loaded?arrived.length:"—"}</strong><span>Học viên tại PINO</span></div>
       <div className={desk.metricCard}><FontAwesomeIcon icon={faStar}/><strong>{model.loaded?wishes:"—"}</strong><span>Wish đang chờ</span></div>
       <div className={desk.metricCard}><FontAwesomeIcon icon={faGear}/><strong>{model.loaded?deviceAlerts:"—"}</strong><span>Thiết bị cần kiểm tra</span></div>
-      <div className={desk.metricCard}><FontAwesomeIcon icon={faTv}/><strong>{state.tvPlaying===null?"—":state.tvPlaying?"ON":"OFF"}</strong><span>Trạng thái TV</span></div>
+      <div className={desk.metricCard}><FontAwesomeIcon icon={faTv}/><strong>—</strong><span>TV logic · chưa có dữ liệu</span></div>
     </div>
     <div className={desk.dashboardGrid}>
       <div className={desk.dashboardMain}>
@@ -102,9 +102,7 @@ export function TosVNextStation({onHome,desktop,centerName,model=unavailableOpsR
     </section>
     <div className={ops.callout} data-tos-ops="callout">Không điều khiển thiết bị, không khởi động lại phần cứng hay thay đổi network thật.</div>
   </>}
-  {tab==="tv"&&<section className={ops.panel} data-tos-ops="panel" data-tos-station-tv-launcher="true">
-    <div className={ops.panelTitle} data-tos-ops="panelTitle"><h3>Mở TV tại trạm</h3><span>Danh sách màn hình theo quyền Staff</span></div>
-    <TvLauncher station />
-  </section>}
+  {tab==="tv"&&<StationLogicalTv centerId={centerId} centerName={centerName}
+    authorizedCenterIds={authorizedCenterIds} />}
  </StationDesktopFrame>;
 }
