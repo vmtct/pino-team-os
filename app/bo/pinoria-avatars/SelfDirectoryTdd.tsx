@@ -17,7 +17,6 @@ import { useBoCenterSelection } from "../components/registration/BoCenterSelecti
 import type { DirectoryCenterSource } from "./centers";
 
 import { SelfDirectoryProperties } from "./SharedProperties";
-import styles from "./AvatarTable.module.css";
 
 type F = typeof selfFields;
 type Bound = { centerId: string; adapter: AuthenticatedSurfaceAdapter<F>; navigation: AdapterNavigation<F> };
@@ -35,7 +34,7 @@ export function SelfDirectoryTdd(){
   const center=useBoCenterSelection();
   const selected=(!center || center.loading || center.error) ? "" : center.selected;
   const source=center?.source ?? "centers";
-  const content=<section className={styles.avatarTable} aria-label="Danh bạ Pinoria Avatar">
+  const content=<section aria-label="Danh bạ Pinoria Avatar">
     {!center ? <p role="alert">Không tìm thấy Center context của BO.</p> :
       center.loading ? <p role="status">Đang xác thực cơ sở được cấp quyền…</p> :
       center.error ? <p role="alert">{center.error}</p> :

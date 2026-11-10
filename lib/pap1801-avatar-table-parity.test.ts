@@ -62,7 +62,7 @@ test("PAP-1437 generic table retains no opener even when rows are actionable", (
 });
 
 test("PAP-1801 56px geometry and adapter switch do not revive a global TDD opener", () => {
-  const css = readFileSync("app/bo/pinoria-avatars/AvatarTable.module.css","utf8");
+  const css = readFileSync("app/components/workspace-renderer/tdd-table-geometry.css","utf8");
   const table = readFileSync("app/components/workspace-renderer/Table.tsx","utf8");
   const nav = readFileSync("lib/pino-nav-locale.ts","utf8");
   assert.match(css, /\[data-tdd-avatar-open\].*#typed-table[^\n]*quick-open-th/);
