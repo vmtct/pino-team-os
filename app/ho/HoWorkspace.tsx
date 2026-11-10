@@ -8,8 +8,8 @@ import type { TddStage } from "@/app/components/workspace-renderer/Renderer";
 import type { FieldSchema } from "@/lib/workspace-schema";
 import type { SurfaceWorkspaceProps } from "@/app/components/workspace-adapters/SurfaceWorkspace";
 const source: BoWorkspaceSource = {
- modules:hoModules, surface:"ho",readOnly:true,
- routeForModule:key=>hoRoutes[key as HoModule] ?? hoRoutes.centers,
+ modules:{...hoModules,languageMappings:{label:"Language Mapping",group:"System",fields:[]}}, surface:"ho",readOnly:true,
+ routeForModule:key=>key==="languageMappings"?"/ho/language-mappings":hoRoutes[key as HoModule] ?? hoRoutes.centers,
  scopeLabel:()=>"",
  async load(key,fetcher) {
   const timed:typeof fetch=(url,init)=>fetcher(url,{...init,signal:init?.signal ? AbortSignal.any([init.signal,AbortSignal.timeout(15000)]):AbortSignal.timeout(15000)});
@@ -30,7 +30,7 @@ const source: BoWorkspaceSource = {
   return record;
  },
 };
-export function HoWorkspace<F extends readonly FieldSchema[] = readonly FieldSchema[]>({module,content,tdd,tddAdapter}:{module:HoModule;content?:ReactNode;tdd?:TddStage<F>;tddAdapter?:SurfaceWorkspaceProps<F>}) {
+export function HoWorkspace<F extends readonly FieldSchema[] = readonly FieldSchema[]>({module,content,tdd,tddAdapter}:{module:HoModule|"languageMappings";content?:ReactNode;tdd?:TddStage<F>;tddAdapter?:SurfaceWorkspaceProps<F>}) {
  const [displayName, setDisplayName] = useState<string | null>(null);
  useEffect(() => {
    const controller = new AbortController();

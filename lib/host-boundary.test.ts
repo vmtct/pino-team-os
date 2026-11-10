@@ -78,10 +78,10 @@ test("PAP-1353 exact Self Item paths/verbs are BO Staging only", () => {
       assert.deepEqual(decideHostBoundary(bo, path, verb), { action: "not_found" }, path + " " + verb);
   }
 });
-test("PAP-982 scoped Self Directory is GET-only and Staging-BO-only at host ingress", () => {
+test("PAP-1625 Self Directory GET and Create Self POST are exact Staging-BO-only", () => {
   const route="/api/bo/pinoria/avatars";
-  assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art",route,"GET"), {action:"next"});
-  for(const method of ["HEAD","POST","PUT","PATCH","DELETE"]) assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art",route,method),{action:"not_found"},method);
+  for(const method of ["GET","POST"]) assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art",route,method), {action:"next"});
+  for(const method of ["HEAD","PUT","PATCH","DELETE"]) assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art",route,method),{action:"not_found"},method);
   for(const host of ["bo.pinohouse.art","ho.staging.pinohouse.art","tos.staging.pinohouse.art"]) assert.deepEqual(decideHostBoundary(host,route),{action:"not_found"},host);
   for(const path of [route+"/extra",route+"/PERSON:abc",route+"%2f",route.slice(0,-1)]) assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art",path),{action:"not_found"},path);
 });
@@ -440,4 +440,37 @@ test("PAP-1479 Student name-only PATCH is BO-Staging-only and never a wildcard",
     assert.deepEqual(decideHostBoundary(bo, invalid, "PATCH"), { action: "not_found" }, invalid);
   // Existing lifecycle read remains a separate, read-only route.
   assert.deepEqual(decideHostBoundary(bo, path + "/lifecycle", "GET"), { action: "next" });
+});
+
+
+// PAP-1486 / Epic PAP-1097 PNR-WARD — regression for real G4 404 on
+// POST /set/starter. The BFF itself already handled the route, but
+// global host boundary silently denied Starter and Set member media.
+test("PAP-1486 admits exact Self Set Starter/Apply/Clear and member media only on BO Staging", () => {
+  const bo="bo.staging.pinohouse.art",self="01a18140-10b8-70d3-ad6b-3e747a0cddea";
+  const root="/api/bo/pinoria/selfs/"+self+"/set";
+  const reads=[root,root+"/media/0",root+"/media/7"];
+  const commands=[root+"/starter",root+"/apply",root+"/clear"];
+  for(const path of reads){
+    assert.deepEqual(decideHostBoundary(bo,path,"GET"),{action:"next"},path);
+    for(const verb of ["POST","PATCH","PUT","DELETE","HEAD","OPTIONS"])
+      assert.deepEqual(decideHostBoundary(bo,path,verb),{action:"not_found"},path+" "+verb);
+  }
+  for(const path of commands){
+    assert.deepEqual(decideHostBoundary(bo,path,"POST"),{action:"next"},path);
+    for(const verb of ["GET","PATCH","PUT","DELETE","HEAD","OPTIONS"])
+      assert.deepEqual(decideHostBoundary(bo,path,verb),{action:"not_found"},path+" "+verb);
+  }
+  for(const host of ["bo.pinohouse.art","tos.staging.pinohouse.art","ho.staging.pinohouse.art","join.pinohouse.art"]){
+    for(const path of [...reads,...commands])
+      assert.deepEqual(decideHostBoundary(host,path,commands.includes(path)?"POST":"GET"),{action:"not_found"},host+path);
+  }
+  for(const path of [
+    root+"/media/8",root+"/media/-1",root+"/media/00",root+"/media/x",
+    root+"/starter/extra",root+"/starter/",root+"/apply/extra",root+"/erase",
+    root+"/clear/extra",root+"/media/0/raw",
+    root.replace(self,"01a18140-10b8-60d3-ad6b-3e747a0cddea")+"/starter",
+    root.replace(self,"forged")+"/starter"
+  ])for(const method of ["GET","POST"])
+    assert.deepEqual(decideHostBoundary(bo,path,method),{action:"not_found"},path+" "+method);
 });

@@ -1,4 +1,5 @@
 "use client";
+import { LocalizedModuleTitle } from "@/lib/pino-nav-locale-context";
 import {useEffect,useRef,useState,type FormEvent} from "react";
 import {boApi} from "@/lib/bo-api";
 import {periodApi,money,validPeriodInput,type PayPeriod,type PeriodStaff,type PeriodStaffPage,
@@ -99,7 +100,7 @@ export default function PayrollPeriodsView(){
  const shown=staffRows.filter(x=>(staffNames[x.staffMemberId]??x.staffMemberId)
   .toLocaleLowerCase("vi").includes(staffSearch.toLocaleLowerCase("vi")));
  return <main className={styles.page}>
-  <header className={styles.heading}><small>Back Office · Workforce · Payroll</small><h1>Kỳ lương</h1>
+  <header className={styles.heading}><small>Back Office · Workforce · Payroll</small><h1><LocalizedModuleTitle label="Payroll Periods" moduleKey="workforce/payroll" /></h1>
    <p>Kỳ là bảng tổng hợp. Chốt và thanh toán độc lập theo từng nhân viên, không chốt toàn kỳ.</p></header>
   <div className={styles.toolbar}><label>Cơ sở <select value={centerId} onChange={e=>setCenterId(e.target.value)}>
    {centers.map(c=><option key={c.id} value={c.id}>{c.displayName}</option>)}</select></label>

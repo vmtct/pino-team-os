@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import {createRequire} from "node:module";
+const requirePinoDs=createRequire(import.meta.url);
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { TddActionHost, TddRenderer } from "../app/components/workspace-renderer/Renderer";
@@ -73,7 +75,7 @@ test("PAP-1247: shared host renders DS variants, native disabled semantics and a
 });
 
 test("PAP-1247: DS owns host geometry, focus/disabled styling and BO/HO CSS loading", () => {
-  const css = readFileSync("node_modules/@pino/design-system/dist/0.3.0/components.css", "utf8");
+  const css = readFileSync(requirePinoDs.resolve("@pino/design-system/components.css"), "utf8");
   const rule = (selector: string) => css.slice(css.indexOf(selector + "{"), css.indexOf("}", css.indexOf(selector + "{")) + 1);
   assert.match(rule(".pds-bo-action-group"), /flex-wrap:wrap/);
   assert.match(rule(".pds-bo-action-group"), /gap:8px/);

@@ -1,4 +1,5 @@
 "use client";
+import { LocalizedModuleTitle } from "@/lib/pino-nav-locale-context";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -83,7 +84,7 @@ export function AccessAuditView() {
   return <section className={styles.page}>
     <header className={styles.heading}>
       <span>PINO TEAM · SYSTEM</span>
-      <h1>Audit</h1>
+      <h1><LocalizedModuleTitle label="Audit" moduleKey="system/audit" /></h1>
       <p>Privileged Access administration history · canonical newest-first server projection.</p>
     </header>
 

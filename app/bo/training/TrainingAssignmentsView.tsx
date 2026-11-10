@@ -1,4 +1,5 @@
 "use client";
+import { LocalizedModuleTitle } from "@/lib/pino-nav-locale-context";
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -77,7 +78,7 @@ export function TrainingAssignmentsView() {
   return <section className={styles.page}>
     <header className={styles.heading}>
       <span>PINO TEAM · WORKFORCE</span>
-      <h1>Training assignments</h1>
+      <h1><LocalizedModuleTitle label="Training" moduleKey="training" /></h1>
       <p>Grid-first assignment/sign-off browse. Module authoring remains a separate workflow; Core remains the only Training mutation authority.</p>
       <div><Link className={styles.secondaryButton} href="/bo/training/builder">Open Training Builder</Link></div>
     </header>

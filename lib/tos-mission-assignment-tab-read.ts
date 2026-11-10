@@ -67,7 +67,7 @@ export async function readMissionAssignmentTab(
   }));
   const populated = groups.filter(group => group.cards.length > 0);
   if (!isCurrent()) return fail();
-  return { state: populated.length ? "READY" : "EMPTY", groups: populated };
+  return { state: populated.length ? "READY" : "EMPTY", groups };
 }
 
 /** Effect lifetime owns publication; late successes AND failures are ignored after cleanup. */

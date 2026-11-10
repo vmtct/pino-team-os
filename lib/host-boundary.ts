@@ -31,10 +31,25 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   // BO host, role, query and deep link. Deny before generic BO/preview fallthrough.
   if (/^\/bo\/tvs(?:\/|$)/i.test(pathname)) return { action: "not_found" };
   // PAP-1418 / PNR-TV: exact Founder HO read paths only; never BO/other hosts.
-  if(pathname.startsWith("/api/ho/pinoria/tv-health") || pathname.startsWith("/api/ho/pinoria/tv-config"))
+  if(pathname.startsWith("/api/ho/pinoria/tv-health") || pathname.startsWith("/api/ho/pinoria/tv-config") || pathname.startsWith("/api/ho/pinoria/tv-policies"))
     return {action:hostname===HO_STAGING_HOSTNAME&&isHoTvReadRequest(pathname,method)?"next":"not_found"};
   if (pathname === HO_BILLS_API || pathname.startsWith(HO_BILLS_API + "/"))
     return {action:hostname === HO_STAGING_HOSTNAME && isHoBillsRequest(pathname,method) ? "next" : "not_found"};
+  // PAP-1495 / Epic PAP-1491 SPEC-UNLOCK: exact HO V2 Specialty GET BFF ingress.
+  // Fail closed for BO/TOS/production hosts, writers and unsupported descendants.
+  const specialtyBase="/api/ho/learning/specialties";
+  if(pathname===specialtyBase||pathname.startsWith(specialtyBase+"/")){
+    const detail=/^\/api\/ho\/learning\/specialties\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pathname);
+    const options=pathname===specialtyBase+'/path-options';
+    const create=pathname===specialtyBase&&method==='POST';
+    // PAP-1495 S5: exact Founder DRAFT command endpoint, never other writers/descendants.
+    const graph=/^\/api\/ho\/learning\/specialties\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/commands$/i.test(pathname);
+    // PAP-1732 / SPEC-UNLOCK: redacted Founder History is read-only; exact v7 ID + /history only.
+    const history=/^\/api\/ho\/learning\/specialties\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/history$/i.test(pathname);
+    return {action:hostname===HO_STAGING_HOSTNAME&&
+      ((method==="GET"&&(pathname===specialtyBase||detail||options||history))||create||
+       (method==="POST"&&graph)||(method==="PUT"&&detail))?"next":"not_found"};
+  }
   // PAP-1407 / PAP-220 — exact Center-only Staff Registration ingress.
   // E2E found middleware 404 before the BFF/Core; never widen the generic BO/HO host fence.
   const staffQueueBase = "/api/bo/workforce/staff-center-registration-requests";
@@ -67,6 +82,15 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   }
   // PAP-1356: global fail-closed fence so unknown hosts cannot fall through.
   const loadoutId = "[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
+  const setRoot = new RegExp("^/api/bo/pinoria/selfs/" + loadoutId + "/set$").test(pathname);
+  // PAP-1486 / Epic PAP-1097 PNR-WARD: exact Starter command and authorized
+  // member media must pass the host fence before the BO BFF/Core ACL re-check.
+  // Never allow arbitrary Set descendants, foreign hosts or alternate verbs.
+  const setCommand = new RegExp("^/api/bo/pinoria/selfs/" + loadoutId + "/set/(apply|clear|starter)$").test(pathname);
+  const setMemberMedia = new RegExp("^/api/bo/pinoria/selfs/" + loadoutId + "/set/media/[0-7]$").test(pathname);
+  if (setRoot || setCommand || setMemberMedia) return hostname === BO_STAGING_HOSTNAME &&
+    (setCommand ? method === "POST" : method === "GET") ? { action: "next" } : { action: "not_found" };
+  if (/^\/api\/bo\/pinoria\/selfs\/[^/]+\/set(?:\/|$)/.test(pathname)) return { action: "not_found" };
   const loadoutRoute = new RegExp("^/api/bo/pinoria/selfs/" + loadoutId + "/loadout(?:/media/(AURA_GROUND|AURA_BACK|BACK|OUTFIT|HAIR|FACE|HEADWEAR|PATH_MARK))?$").exec(pathname);
   if (loadoutRoute) return hostname === BO_STAGING_HOSTNAME && (loadoutRoute[1] ? method === "GET" : (method === "GET" || method === "POST"))
     ? { action: "next" } : { action: "not_found" };
@@ -95,6 +119,15 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   const assignmentDiaryRead = /^\/api\/bo\/learning\/mission-assignments\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/diaries\/?$/i.test(pathname);
   // PAP-1210: exact Staging-only Center Assignment audit read.
   const assignmentHistoryRead = /^\/api\/bo\/learning\/mission-assignments\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/history\/?$/i.test(pathname);
+  // PAP-1676 / PAP-1210: admit only the three independent Completion endpoints.
+  // Host fence precedes the BO BFF, which rechecks auth/Center and Core CAS/audit.
+  const assignmentCompletion = /^\/api\/bo\/learning\/mission-assignments\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/(execution|completion-history|reopen)$/i.exec(pathname);
+  if (assignmentCompletion) {
+    const operation = assignmentCompletion[1]!.toLowerCase();
+    const allowed = hostname === BO_STAGING_HOSTNAME &&
+      (operation === "reopen" ? method === "POST" : method === "GET");
+    return { action: allowed ? "next" : "not_found" };
+  }
   if (assignmentRead || assignmentChange || assignmentCancel || assignmentDiaryRead || assignmentHistoryRead) {
     const readAllowed = assignmentRead && isBoHostname(hostname) && method === "GET";
     const diaryReadAllowed = assignmentDiaryRead && hostname === BO_STAGING_HOSTNAME && method === "GET";
@@ -105,6 +138,8 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
 
   if (hostname === HO_STAGING_HOSTNAME) {
     const p = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
+    // PAP-1594: Founder-only Path directory GET; all non-GET verbs remain hidden.
+    if (p === "/api/ho/learning/paths") return { action: method === "GET" ? "next" : "not_found" };
     // PAP-1221: HO Staging-only Diary GLOBAL read, exact collection/UUID detail.
     // BFF HO pilot gate + Core Founder learning.diary.global.view remain mandatory.
     if (/^\/api\/ho\/learning\/path-diaries(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/mission-links)?)?$/i.test(p))
@@ -221,14 +256,17 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
       return hostname === BO_STAGING_HOSTNAME && (selfItemRead ? method === "GET" : method === "POST")
         ? { action: "next" } : { action: "not_found" };
     }
-    // PAP-982 S3: exact Staging-only directory read; BFF and Core reauthorize the actor and Center.
-    // All write/HEAD methods, child paths, HO/TOS and Production stay denied at the host edge.
+    // PAP-1625 FG2: exact Staging-only Directory GET + Create Self POST.
+    // Child paths/other verbs/HO/TOS/Production remain denied; Core reauthorizes Center.
     if (pathname.replace(/\/$/, "") === "/api/bo/pinoria/avatars") {
-      return hostname === BO_STAGING_HOSTNAME && method === "GET" ? { action: "next" } : { action: "not_found" };
+      return hostname === BO_STAGING_HOSTNAME && (method === "GET" || method === "POST")
+        ? { action: "next" } : { action: "not_found" };
     }
     // PAP-1035: Worker-first admission must match the already-authenticated
     // BO read facade. This is a staging-only GET/HEAD fence, never a write bypass.
     if (hostname === BO_STAGING_HOSTNAME && (method === "GET" || method === "HEAD") && (isBoStagingS3ReadPath(pathname) || isBoStagingRunningClassEnrollmentReadPath(pathname))) return { action: "next" };
+    // PAP-1598: one exact authenticated presentation asset; no prototype JS/HTML or API admission.
+    if (hostname === BO_HOSTNAME && pathname === "/bo-skeleton/styles.css" && (method === "GET" || method === "HEAD")) return { action: "next" };
     if (pathname === "/") return { action: "redirect", pathname: "/bo" };
     if ((hostname === BO_STAGING_HOSTNAME && method === "GET" && pathname.replace(/\/$/, "") === "/api/bo/school/enrollments") || ((method === "GET" || method === "HEAD") && ["/team-legacy-global.css", "/bo-legacy-foundation.css"].includes(pathname)) || isBoLocalAuthPath(pathname) || isApprovedBoPath(pathname) || isFrameworkAsset(pathname) || (hostname === BO_STAGING_HOSTNAME && isBoStagingStylesheet(pathname))) return { action: "next" };
     return { action: "not_found" };

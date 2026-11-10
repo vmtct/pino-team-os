@@ -6,7 +6,7 @@ import {type ClassroomV4ViewModel} from "@/lib/tos-classroom-v4-view-model";
 import {AppButton} from "../tos-ds";
 import ClassroomV4Presentation from "./ClassroomV4Presentation";
 type ReadState={key:string;model:ClassroomV4ViewModel|null;status:number|null;busy:boolean};
-export function TosVNextClassroom({centerId,localDate,profileLabel,onDetailChange}:{centerId:string;localDate:string;profileLabel?:string|null;onDetailChange:(open:boolean)=>void}){
+export function TosVNextClassroom({centerId,localDate,profileLabel,onDetailChange,readOnly=false}:{centerId:string;localDate:string;profileLabel?:string|null;onDetailChange:(open:boolean)=>void;readOnly?:boolean}){
  const [refresh,setRefresh]=useState(0);
  const key=JSON.stringify([centerId,localDate,refresh]);
  const [read,setRead]=useState<ReadState>({key:"",model:null,status:null,busy:true});
@@ -20,5 +20,5 @@ export function TosVNextClassroom({centerId,localDate,profileLabel,onDetailChang
  if(read.key!==key||read.busy)return <p role="status">Đang tải lớp học…</p>;
  if(!read.model)return <section aria-label="Trạng thái lớp học"><p role="alert">{classroomReadErrorMessage(read.status)}</p><AppButton variant="secondary" onClick={()=>setRefresh(x=>x+1)}>Tải lại</AppButton></section>;
  if(read.model.classes.length===0)return <p>Không có lớp được phân công/được phép xem hôm nay.</p>;
- return <ClassroomV4Presentation key={key} model={read.model} onDetailChange={onDetailChange}/>;
+ return <ClassroomV4Presentation key={key} model={read.model} onDetailChange={onDetailChange} readOnly={readOnly}/>;
 }

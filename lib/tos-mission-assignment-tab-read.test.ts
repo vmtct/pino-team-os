@@ -157,17 +157,26 @@ test("an in-flight Assignment success or denial cannot publish after leaving the
   }
 });
 
-test("existing Mission tab is keyed by full scope; cards keep DS classes and disabled, explained actions", () => {
-  const source = readFileSync("app/components/tos-vnext/ClassroomV4Presentation.tsx", "utf8");
-  const component = source.split("function MissionAssignmentTab")[1]!.split("export default function")[0]!;
-  assert.doesNotMatch(component, /currentDiaries|DiaryMission|ScopedEligibleMissions|openGuide|changeMission|plsText|missionBadge/);
-  for (const name of ["missionBatch", "missionBatchHead", "missionCompactRow", "missionCompactActions",
-    "missionPrimaryCta", "missionNextCta", "missionSwapCta"]) assert.ok(component.includes("styles." + name));
-  assert.match(source, /key=\{JSON.stringify\(\[model.centerId,model.today,current.runningClassId,current.id\]\)\}/);
-  const cardButtons = [...component.matchAll(/<button\b[^>]*>/g)].map(match => match[0]).filter(tag => tag.includes("aria-label="));
-  assert.equal(cardButtons.length, 4);
-  for (const button of cardButtons) { assert.match(button, /\bdisabled\b/); assert.match(button, /aria-describedby=/); assert.doesNotMatch(button, /onClick/); }
-  assert.match(component, /role="status"/); assert.match(component, /role="alert"/);
-  assert.match(component, /read.state==="UNAVAILABLE"\|\|attempt>0/); // Retry remains mounted to retain focus.
-  assert.match(readFileSync("lib/tos-mission-assignment-api.ts", "utf8"), /tosMissionAssignmentApi = createTosMissionAssignmentApiTransport\(false\)/);
+test("PAP-1488: existing tab mounts approved Assignment card and shared sheet without Diary writer", () => {
+  const parent=readFileSync("app/components/tos-vnext/ClassroomV4Presentation.tsx","utf8");
+  const component=readFileSync("app/components/tos-vnext/MissionAssignmentTab.tsx","utf8");
+  assert.match(parent,/import MissionAssignmentTab from "\.\/MissionAssignmentTab"/);
+  assert.match(parent,/readOnly=\{readOnly\}/);
+  assert.match(parent,/key=\{JSON.stringify\(\[model.centerId,model.today,current.runningClassId,current.id\]\)\}/);
+  for (const name of ["missionBatch","missionBatchHead","missionCompactRow","missionCompactActions",
+    "missionPrimaryCta","missionNextCta","missionSwapCta","scrim","sheet","missionChoice",
+    "assignFooter"]) assert.ok(component.includes("styles."+name),name);
+  assert.match(component,/createTosMissionAssignmentVerified/);
+  assert.match(component,/replaceTosMissionAssignmentVerified/);
+  assert.match(component,/disabled=\{!canWrite\}/);
+  assert.match(component,/disabled=\{readOnly\|\|busy\|\|!!editor.old\}/);
+  assert.doesNotMatch(component,/currentDiaries|DiaryMission|saveDiaryDraft|\.diaries\b/);
+  assert.match(readFileSync("lib/tos-mission-assignment-api.ts","utf8"),
+    /tosMissionAssignmentApi = createTosMissionAssignmentApiTransport\(false\)/);
+});
+
+test("PAP-1488: empty assigned list retains verified candidate for first Create, never fabricates Mission",async()=>{
+  const result=await readMissionAssignmentTab(scope,dependencies(day(),[]));
+  assert.equal(result.state,"EMPTY");
+  assert.deepEqual(result.groups,[{studentId:student,studentName:"Core learner",cards:[]}]);
 });

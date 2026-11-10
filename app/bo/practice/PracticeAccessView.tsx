@@ -1,4 +1,5 @@
 "use client";
+import { LocalizedModuleTitle } from "@/lib/pino-nav-locale-context";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { boApi, BoApiError } from "@/lib/bo-api";
@@ -109,7 +110,7 @@ export function PracticeAccessView() {
   return <main className={bo.page}>
     <header className={bo.heading}>
       <span>Back Office · Piano Practice</span>
-      <h1>Learner repertoire access</h1>
+      <h1><LocalizedModuleTitle label="Practice" moduleKey="practice" /></h1>
       <p>Master control cấp hoặc thu explicit access. Không set bài đang học và không sửa Subscription.</p>
     </header>
     {notice ? <div className={bo.successCard}><span>Access updated</span><strong>{notice}</strong></div> : null}

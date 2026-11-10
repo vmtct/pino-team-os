@@ -1,4 +1,5 @@
 "use client";
+import { LocalizedModuleTitle } from "@/lib/pino-nav-locale-context";
 
 import {useEffect,useMemo,useRef,useState} from "react";
 import {pinoriaAssetUrl} from "@/app/pinoria-tv/layered-character";
@@ -51,7 +52,7 @@ export function WardLearnerManager(){
  const webm=liveSet?.webmAssetKey??null;
 
  return <main className={styles.shell}>
- <header className={styles.topbar}><div><p className={styles.eyebrow}>PNR-WARD · F2 LEARNER</p><h1>Learner Wardrobe</h1></div><span className={styles.slotBadge}>8 CHARACTER · 8 ACCESSORIES (API PENDING)</span></header>
+ <header className={styles.topbar}><div><p className={styles.eyebrow}>PNR-WARD · F2 LEARNER</p><h1><LocalizedModuleTitle label="Loadouts" moduleKey="pinoria-ward/learners" /></h1></div><span className={styles.slotBadge}>8 CHARACTER · 8 ACCESSORIES (API PENDING)</span></header>
  <nav className={styles.wardNav}><a href="/bo/pinoria-ward/learners">Loadouts</a></nav>
  {error?<div role="alert" className={styles.advancedBox}>{error}</div>:null}{message?<div role="status" className={styles.statusStrip}>{message}</div>:null}
  <div className={styles.wardWorkspace}>

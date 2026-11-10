@@ -1,4 +1,5 @@
 "use client";
+import { LocalizedModuleTitle } from "@/lib/pino-nav-locale-context";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -144,7 +145,7 @@ export function AiDataInboxView(){
   return <section className={styles.page}>
     <header className={styles.heading}>
       <span>PINO TEAM · SYSTEM</span>
-      <h1>AI Data Inbox</h1>
+      <h1><LocalizedModuleTitle label="AI Data Inbox" moduleKey="system/ai-data" /></h1>
       <p>GPT can prepare create-only Change Sets here, but cannot apply them. Production writes cross the Founder authority boundary only after review of the exact plan hash.</p>
     </header>
 

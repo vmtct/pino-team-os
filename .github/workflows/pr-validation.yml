@@ -74,6 +74,16 @@ jobs:
           node --import tsx --test lib/bo-css-authority.test.ts lib/ho-css-authority.test.ts lib/bo-registration-styles.test.ts lib/bo-skeleton.test.ts
           node --test scripts/pap1029-parent-full-detail-layout.test.mjs
           echo "BROWSER_E2E=NOT_RUN_FOUNDER_POLICY"
+      - name: Fail-closed browser control geometry + negative CSS (PAP-1461)
+        run: node scripts/pap1461-visual-ci.mjs
+      - name: Retain PAP-1461 G3 control evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pap1461-g3-control-geometry
+          path: test-results/pap1461/
+          if-no-files-found: warn
+          retention-days: 7
       - name: Release confidence smoke and recovery regression tests
         run: node --test scripts/release-confidence-smoke.test.mjs scripts/release-confidence-guard.test.mjs
       - name: Build

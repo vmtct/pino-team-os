@@ -1,20 +1,38 @@
 "use client";
 import { BoValue } from "../../bo/components/registration/BoValue";
 import type { BoField, BoRecord } from "@/lib/bo-registration";
-import { useRef, type CSSProperties, type ReactNode, type PointerEvent as ReactPointerEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useRef, type CSSProperties, type ReactNode, type Ref, type PointerEvent as ReactPointerEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
 
 /** Presentation seam receives only the renderer's authorized record projection. */
 export type OverviewProperties = {
   readonly fields: readonly BoField[]; readonly record: BoRecord;
-  readonly sections: readonly { readonly id: string; readonly label: string; readonly fields: readonly string[] }[];
+  readonly sections: readonly { readonly id: string; readonly label: string; readonly fields: readonly string[]; readonly collapsed?: boolean }[];
 };
 
+/** PAP-1728: CREATE reuses the View Drawer field/section renderer; the caller
+ * can enable only server-contract fields. All existing View callers remain unchanged. */
+export type CreateDrawerField = {
+  readonly id: string;
+  readonly value: string;
+  readonly onChange: (value: string) => void;
+  readonly required?: boolean;
+  readonly disabled?: boolean;
+  readonly autoComplete?: string;
+  readonly maxLength?: number;
+  readonly inputRef?: Ref<HTMLInputElement>;
+  readonly label?: string;
+  /** PAP-1738: opt-in complex CREATE input (e.g. searchable Person combobox).
+   * The shared renderer still owns the exact View row, label and section DOM.
+   * Existing Parent text inputs and normal View/Detail stay unchanged. */
+  readonly control?: ReactNode;
+};
 /** Drawer uses property rows, never the viewport-driven Full Detail grid. */
-export function PropertySections({ fields, record, sections, variant, canEdit, onEdit, legacyStyles = false, sectionActions, labelWidth = 160, onLabelWidthChange }: {
+export function PropertySections({ fields, record, sections, variant, canEdit, onEdit, legacyStyles = false, sectionActions, labelWidth = 160, onLabelWidthChange, createFields }: {
   readonly fields: readonly BoField[]; readonly record: BoRecord;
-  readonly sections: readonly { readonly id: string; readonly label: string; readonly fields: readonly string[] }[];
+  readonly sections: readonly { readonly id: string; readonly label: string; readonly fields: readonly string[]; readonly collapsed?: boolean }[];
   readonly variant: "drawer" | "detail"; readonly legacyStyles?: boolean;
   readonly sectionActions?: (sectionId: string) => ReactNode;
+  readonly createFields?: Readonly<Record<string, CreateDrawerField>>;
   readonly canEdit?: (field: BoField) => boolean;
   readonly onEdit?: (field: BoField, anchor: HTMLButtonElement) => void;
   readonly labelWidth?: number;
@@ -49,17 +67,29 @@ export function PropertySections({ fields, record, sections, variant, canEdit, o
   };
   const visibleSections = sections.filter(section => section.fields.some(key => fields.some(f => f.key === key)));
   if (!visibleSections.length) return <p role="status">Không có thuộc tính được phép xem.</p>;
-  return <>{visibleSections.map(section => <section key={section.id} className={variant === "drawer" ? "property-section" : "v24-prop-section"} data-tdd-properties={variant} data-tdd-detail-resize={variant === "detail" ? "" : undefined}
+  return <>{visibleSections.map(section => {
+    // PAP-1743: metadata-driven native disclosure; one shared typed row renderer.
+    const Shell = variant === "drawer" && section.collapsed ? "details" : "section";
+    return <Shell key={section.id} className={variant === "drawer" ? "property-section" : "v24-prop-section"} data-tdd-create={createFields ? "" : undefined} data-tdd-properties={variant} data-tdd-detail-resize={variant === "detail" ? "" : undefined}
+    data-tdd-collapsed={Shell === "details" ? "" : undefined}
     style={variant === "detail" ? { "--tdd-detail-label-width": String(labelWidth) + "px" } as CSSProperties : undefined}>
-    {variant === "drawer" ? <h3>{section.label}</h3> : <div className="v24-section-heading"><div style={{ display: "inline-flex", alignItems: "center", gap: 8 }}><h4>{section.label}</h4>{sectionActions?.(section.id)}</div><span className="v24-lock" aria-label="Chỉ đọc">⌁</span></div>}
+    {variant === "drawer" ? section.collapsed ? <summary>{section.label}</summary> : <h3>{section.label}</h3> : <div className="v24-section-heading"><div style={{ display: "inline-flex", alignItems: "center", gap: 8 }}><h4>{section.label}</h4>{sectionActions?.(section.id)}</div><span className="v24-lock" aria-label="Chỉ đọc">⌁</span></div>}
     <div className={variant === "detail" ? "v24-prop-grid" : undefined}>{section.fields.map((key, index) => {
       const field = fields.find(f => f.key === key); if (!field) return null;
       const editable = Boolean(onEdit && canEdit?.(field));
-      return variant === "drawer" ? <div className="property-row" key={key}>
-        <div className="property-label"><small>{field.icon}</small>{field.label}</div>
-        <button type="button" className="property-control" data-prop={key} disabled={!legacyStyles && !editable} aria-disabled={!editable} tabIndex={editable ? 0 : -1} aria-label={(editable ? "Sửa " : "Chỉ đọc ") + field.label} onClick={e => editable && onEdit?.(field, e.currentTarget)}>
+      const creator = variant === "drawer" ? createFields?.[key] : undefined;
+      return variant === "drawer" ? <div className="property-row" key={key} data-tdd-field={key}>
+        {creator ? <label className="property-label" htmlFor={creator.id}><small>{field.icon}</small>{creator.label ?? field.label}</label>
+          : <div className="property-label"><small>{field.icon}</small>{field.label}</div>}
+        {creator ? (creator.control !== undefined
+          ? <div className="property-control" data-prop={key} data-tdd-custom-create-control="">{creator.control}</div>
+          : <input type="text" id={creator.id} className="property-control os-create-select" data-prop={key}
+              aria-required={creator.required || undefined} required={creator.required} maxLength={creator.maxLength}
+              autoComplete={creator.autoComplete} ref={creator.inputRef} value={creator.value} disabled={creator.disabled}
+              onChange={e => creator.onChange(e.target.value)} />)
+        : <button type="button" className="property-control" data-prop={key} disabled={!legacyStyles && !editable} aria-disabled={!editable} tabIndex={editable ? 0 : -1} aria-label={(editable ? "Sửa " : "Chỉ đọc ") + field.label} onClick={e => editable && onEdit?.(field, e.currentTarget)}>
           {key === "id" && !record.id ? <span className="empty-val">Chưa tạo</span> : <BoValue field={field} value={record[key]} />}{editable ? <span className="pencil" aria-hidden="true">✎</span> : null}
-        </button>
+        </button>}
       </div> : <div className="v24-prop-item" key={key}>
         <div className="v24-prop-key"><span className="v24-field-glyph">{field.icon}</span>{field.label}
           {index === 0 && section === visibleSections[0] && onLabelWidthChange ? <div
@@ -79,5 +109,6 @@ export function PropertySections({ fields, record, sections, variant, canEdit, o
         </div>}
       </div>;
     })}</div>
-  </section>)}</>;
+  </Shell>;
+  })}</>;
 }

@@ -23,6 +23,13 @@ test("Six distinct A1 HO routes and read-only DS fields",()=>{
   assert.equal(decideHostBoundary("pino-team-os-staging.minhtri-van42.workers.dev",hoA1Routes[k],"GET").action,"not_found");
  }
 });
+test("PAP-1207 HO Mission S1 has one approved VN Learning navigation entry",()=>{
+ assert.equal(hoA1Modules.missions.label,"Nhiệm vụ");
+ assert.equal(hoA1Modules.missions.group,"Learning");
+ assert.equal(hoA1Routes.missions,"/ho/learning/missions");
+ assert.equal(HO_A1_KEYS.filter(key=>hoA1Routes[key]===hoA1Routes.missions).length,1);
+});
+
 test("HO only allows exact canonical A1 GETs and rejects all mutation paths",()=>{
  for(const p of reads){
   assert.equal(hoAccessReadAllowed(p),true,p);

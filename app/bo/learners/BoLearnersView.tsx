@@ -1,4 +1,5 @@
 "use client";
+import { LocalizedModuleTitle } from "@/lib/pino-nav-locale-context";
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -159,14 +160,17 @@ function CenterScopedLearnersView({ activeCenter }: { activeCenter: string }) {
     { key: "attention", header: "Attention", sortable: true, minWidth: 150, render: (student) => { const attention = studentAttention(student); return <BoDataGridStatus value={attention.label} tone={attention.tone} />; } },
   ], [activeCenter, canEditName]);
 
+  // PAP-1496 / SPEC-UNLOCK: direct Student Full Detail has its own Center-scoped
+  // Core lifecycle read. An unrelated list/scope catalog failure must not
+  // prevent that authorized detail reader from resolving its own 403/404.
+  if (fullDetailId) return <StudentFullDetail key={`${fullDetailId}:${activeCenter}`} studentId={fullDetailId} />;
+
   if (catalog.state === "loading") return <BoDataGridState kind="loading" message="Đang tải canonical scope catalog cho Student detail…" />;
   if (catalog.state === "error") return <BoDataGridState kind="error" message={catalog.message} />;
-
-  if (fullDetailId) return <StudentFullDetail key={`${fullDetailId}:${activeCenter}`} studentId={fullDetailId} />;
   return <main className={styles.page}>
     <header className={styles.heading}>
       <div>
-        <h1>Học viên</h1>
+        <h1><LocalizedModuleTitle label="Students" moduleKey="learners" /></h1>
       </div>
       <div className={styles.headingActions}><button type="button" className={styles.primaryButton} onClick={() => { if (selectedId) selectStudent(null); setShowCreate(true); }}>＋ Tạo mới</button></div>
     </header>

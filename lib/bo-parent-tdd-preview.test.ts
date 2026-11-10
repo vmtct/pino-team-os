@@ -42,7 +42,7 @@ test("PAP-1543 / PAP-1316: canonical BO Parents never renders the unscoped direc
   assert.match(provider, /new URLSearchParams\(\{ centerId, limit:/);
   assert.match(provider, /No unscoped\/legacy fallback/);
   assert.match(tdd, /ready\?\.centerId === selected/);
-  assert.match(tdd, /<SurfaceWorkspace key=\{selected\}/);
+  assert.match(tdd, /<SurfaceWorkspace key=\{selected \+ ":" \+ retry\}/);
 
   // Old generic Subscription writer remains intentionally blocked.
   assert.match(runtime, /if \(moduleKey === "subscriptions"\) return <BoRegistrationWorkspace/);

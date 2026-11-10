@@ -1,4 +1,5 @@
 "use client";
+import { LocalizedModuleTitle } from "@/lib/pino-nav-locale-context";
 
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { LayeredCharacter, type PinoriaCharacterConfig } from "@/app/pinoria-tv/layered-character";
@@ -97,7 +98,7 @@ export function EffectCatalogView() {
     <header className={styles.topbar}>
       <div>
         <p className={styles.eyebrow}>PINORIA · BACK OFFICE</p>
-        <h1>Effect Catalog</h1>
+        <h1><LocalizedModuleTitle label="Effects" moduleKey="pinoria-effects" /></h1>
         <span>Code-defined mutations · read only</span>
       </div>
       <div className={styles.readOnlyBadge}>READ ONLY</div>

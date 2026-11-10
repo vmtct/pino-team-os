@@ -1,4 +1,5 @@
 "use client";
+import { LocalizedModuleTitle } from "@/lib/pino-nav-locale-context";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
@@ -233,7 +234,7 @@ export function SalesLeadPipelineView() {
       <header className={styles.heading}>
         <div>
           <span>Sales · PLT-LEAD F1</span>
-          <h1>Lead pipeline</h1>
+          <h1><LocalizedModuleTitle label="Leads" moduleKey="sales/leads" /></h1>
           <p>Queue trên canonical Acquisition Lead/Intent. PAP chỉ trình bày và gửi command; Core giữ lifecycle và authorization.</p>
         </div>
         <div className={styles.permission}>acquisition.lead.manage</div>
