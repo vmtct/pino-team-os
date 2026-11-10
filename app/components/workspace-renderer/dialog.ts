@@ -1,4 +1,17 @@
 type Focusable = { focus(): void };
+/** PAP-1821 / PLT-ATTR: keep ownership of the ORIGINAL key event after React
+ * synchronously unmounts the popover before the outer document listener runs.
+ * Reading the live DOM alone can falsely classify this Escape as a Drawer key.
+ */
+export function editorOwnsDialogKey(event: Pick<KeyboardEvent, "target" | "composedPath">): boolean {
+  const selector = ".edit-popover:not(.hidden)";
+  const target = event.target as Element | null;
+  if (typeof target?.closest === "function" && target.closest(selector)) return true;
+  return event.composedPath().some(node => {
+    const element = node as Element;
+    return typeof element?.matches === "function" && element.matches(selector);
+  });
+}
 /** Pure event policy shared by the existing DOM lifecycle and focused contract tests. */
 export function handleDialogKey(event: { readonly key: string; readonly shiftKey: boolean; preventDefault(): void }, state: {
   readonly editorOpen: boolean; readonly first?: Focusable; readonly last?: Focusable;
