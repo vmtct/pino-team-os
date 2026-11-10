@@ -7,7 +7,7 @@ import { AppGlyph } from "./AppGlyph";
 import { MediaArtwork } from "./MediaArtwork";
 import { PhotoCarousel } from "./PhotoCarousel";
 import { PublicShareAction } from "./PublicShareAction";
-import { isPublicFixture } from "./publicApproved";
+import { isPublicFixture,publicProfileHref } from "./publicApproved";
 import { PINER_APPS,type PinerApp,type PinerAppKey } from "./catalog";
 import { APP_NAV,getTabHref,type NavIcon } from "./navigation";
 import { postsFor,type MediaPost,type MediaType,type Visibility } from "./media";
@@ -89,7 +89,7 @@ export function PostCard({post,onOpen,onRequestVisibility,scope="personal"}:{pos
  const canManage=isManagedChild(post.ownerId);
  const author=scope==="community"?getProfile(post.ownerId).alias:(post.app==="piano"?"PINO Piano":"PINO Hội Họa");
  return <article className={css.postCard} data-post={post.id} data-post-owner={post.ownerId} data-post-scope={scope}>
-  <div className={css.postHead}><span className={css.postAvatar}>{post.app==="piano"?"♫":"✿"}</span><div className={css.postMeta}><strong>{author}</strong><small>{post.date} · {scope==="community"?(post.ownerId==="mai"?"MyTime · Học viên trưởng thành":"Cộng đồng phụ huynh PINO"):"Hành trình riêng"}</small></div><span className={community?css.sharedBadge:css.privateBadge}>{community?"Đã chia sẻ":"Riêng tư"}</span></div>
+  <div className={css.postHead}><span className={css.postAvatar}>{post.app==="piano"?"♫":"✿"}</span><div className={css.postMeta}>{scope==="community"&&isPublicFixture(post.id)?<Link href={publicProfileHref(post.ownerId)} className={css.guestAuthorLink}>{author}</Link>:<strong>{author}</strong>}<small>{post.date} · {scope==="community"?(post.ownerId==="mai"?"MyTime · Học viên trưởng thành":"Cộng đồng phụ huynh PINO"):"Hành trình riêng"}</small></div><span className={community?css.sharedBadge:css.privateBadge}>{community?"Đã chia sẻ":"Riêng tư"}</span></div>
   {post.type==="photo"?<PhotoCarousel post={post}/>:
    <button type="button" className={css.posterButton} onClick={()=>onOpen(post)} aria-label={"Phát video "+post.title}>
     <MediaArtwork post={post}/><span className={css.reelOverlay}><span>▶</span><small>Phát video · Reel minh họa</small></span>

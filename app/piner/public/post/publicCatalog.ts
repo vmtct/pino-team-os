@@ -6,7 +6,7 @@ import type {PublicPost} from "../../publicTypes";
 import {isPublicFixture} from "../../publicApproved";
 const ALIASES:Record<string,string>={an:"Piner An",binh:"Piner Bình",mai:"Piner Mai"};
 function sanitize(p:(typeof POSTS)[number]):PublicPost{
- return {id:p.id,app:p.app,type:p.type,visual:p.visual,title:p.title,caption:p.caption,
+ return {id:p.id,ownerId:p.ownerId,reactions:p.reactions,duration:p.duration,app:p.app,type:p.type,visual:p.visual,title:p.title,caption:p.caption,
    date:p.date,alias:ALIASES[p.ownerId]||"Piner",
    comments:p.comments.map(c=>({id:c.id,author:c.author,body:c.body})),
    frames:[...(PHOTO_CAROUSELS[p.id]??[p.visual])],

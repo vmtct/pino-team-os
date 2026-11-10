@@ -339,3 +339,40 @@
 
 /* PAP-1800 · Public HTTPS shortcut only inside Community tab. */
 .publicCommunityShortcut{color:#805a7b!important;font-size:11px!important;font-weight:850;white-space:nowrap;text-decoration:none!important;padding:5px 7px;border-radius:8px;background:#f5eaf0}
+
+/* PAP-1803 · Guest variant of the same Piner Community Card + compact Mobile Only shell. */
+.guestHeaderCommunity{min-height:44px;display:flex;align-items:center;font-size:13px;font-weight:850;white-space:nowrap;color:var(--ink)!important}
+.guestHeaderLogin{min-height:40px;display:flex;align-items:center;padding:0 10px;font-size:11px;font-weight:850;color:var(--tone)!important;background:var(--tint);border-radius:12px;white-space:nowrap;margin-left:auto}
+.guestNavGlyph{font-size:24px;line-height:20px;height:20px;display:block;font-weight:500;text-align:center}
+.guestProfileIntro{padding:4px 1px 13px;position:relative}
+.guestBack{display:inline-flex;align-items:center;min-height:38px;font-size:12px;font-weight:800;color:var(--tone)!important}
+.guestProfileTop{display:flex;align-items:center;gap:10px;min-width:0;margin-top:4px}
+.guestProfileAvatar{flex:0 0 52px;width:52px;height:52px;border-radius:50%;background:var(--tint);color:var(--tone);display:grid;place-items:center;font-weight:900;font-size:22px;border:1px solid var(--line)}
+.guestProfileTop>div{flex:1;min-width:0}
+.guestProfileTop h1{font-size:19px;font-weight:900;margin:0;line-height:1.3;white-space:normal;overflow-wrap:anywhere}
+.guestProfileTop p{margin:4px 0 0;font-size:11px;color:var(--muted)}
+.guestFollow{background:var(--tone);color:#fff;border:0;border-radius:12px;padding:0 11px;height:40px;white-space:nowrap;font-size:11px;font-weight:800}
+.guestProfileHint{font-size:11px;color:var(--muted);margin:9px 0 1px}
+.guestAvatarLink{text-decoration:none}
+.guestAuthorLink{font-size:13px;font-weight:850;display:inline-flex;align-items:center;min-height:23px;color:var(--ink)!important}
+.guestWriteComment{border:1px solid var(--line);border-radius:10px;display:flex;justify-content:space-between;align-items:center;background:var(--surface);color:var(--muted);font-size:12px;min-height:40px;padding:5px 12px;width:100%;margin:10px 0 0}
+.guestWriteComment span{color:var(--tone);font-weight:800;font-size:11px}
+.guestLoginCard{background:var(--surface);border:1px solid var(--line);border-radius:19px;padding:23px 18px 18px;box-shadow:0 4px 17px #6345570d;margin-top:32px;display:flex;flex-direction:column;gap:11px}
+.guestLoginIcon{height:60px;width:60px;border-radius:50%;display:grid;place-items:center;background:var(--tint);color:var(--tone);font-size:30px;margin:0 auto 6px}
+.guestLoginCard h1{font-size:23px;text-align:center;margin:0;font-weight:900}
+.guestLoginCard p{font-size:13px;color:var(--muted);text-align:center;margin:0 0 10px;line-height:1.5}
+.guestLoginCard label{font-size:12px;font-weight:800;color:var(--ink)}
+.guestLoginCard input{min-height:44px;border:1px solid var(--line);border-radius:10px;background:#fff;padding:10px 12px;font-size:13px;color:var(--ink);width:100%;outline-offset:2px}
+.guestLoginCard>button{height:44px;border-radius:12px;border:0;background:var(--tone);color:#fff;font-size:13px;font-weight:850;margin-top:4px}
+.guestLoginCard>button:disabled{opacity:.48;cursor:not-allowed}
+.guestLoginCard small{font-size:11px;color:var(--muted);line-height:1.45;text-align:center}
+.guestLoginBack{min-height:44px;display:flex;align-items:center;justify-content:center;color:var(--tone)!important;font-weight:800;font-size:12px}
+.unifiedShell [data-public-mode] .postActions button{min-height:44px}
+.unifiedShell [data-public-mode] .publicShareGroup{display:inline-flex;align-items:center;gap:4px;flex:1 1 auto;min-width:0}
+.unifiedShell [data-public-mode] .publicShareGroup>button{font-size:18px!important}
+.unifiedShell [data-public-mode] .publicShareGroup small{font-size:10px}
+.unifiedShell [data-public-mode] .publicCarousel{width:100%;aspect-ratio:1.2/1}
+.unifiedShell [data-public-mode] .publicSlide svg{width:100%;height:100%}
+.unifiedShell [data-public-mode] .postCard:focus-within{scroll-margin-top:8px}
+.unifiedShell [data-public-mode] .postCard{scroll-margin-top:8px}
+@media(max-width:340px){.guestHeaderCommunity{font-size:12px}.guestHeaderLogin{padding:0 8px}.guestProfileTop{gap:7px}.guestProfileAvatar{flex-basis:45px;width:45px;height:45px}.guestFollow{padding:0 8px}}

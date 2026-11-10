@@ -6,7 +6,7 @@ import css from "./launcher.module.css";
 // Until real Core publishing+revocation, this MUST NOT claim a newly local-shared post is public.
 export function PublicShareAction({id,title}:{id:string;title:string}){
  const [status,setStatus]=useState("");
- const open=()=>publicPostHref(id);
+ const open=()=>new URL(publicPostHref(id),window.location.origin).toString();
  const share=async()=>{
   const url=open();
   try{

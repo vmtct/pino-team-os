@@ -130,7 +130,7 @@ export function PinerUnified({tab}:{tab:UnifiedTab}){
    sessionStorage.setItem("piner-pap1765-visibility-"+shareIntent.app,JSON.stringify(appIds));
   }catch{/* In-memory mock remains usable. */}
   setShareIntent(null);setPreview(null);
-  setStatus(next==="community"?"Đã chia sẻ trong phiên demo. Bản public HTTPS chưa đồng bộ chia sẻ mới.":(isPublicFixture(shareIntent.id)?"Đã thu hồi trong phiên demo. Bản public HTTPS là dữ liệu mẫu tĩnh, chưa đồng bộ thu hồi.":"Đã thu hồi chia sẻ trong phiên demo."));
+  setStatus(next==="community"?"Đã chia sẻ trong phiên demo. Bản Public local chưa đồng bộ thay đổi chia sẻ.":(isPublicFixture(shareIntent.id)?"Đã thu hồi trong phiên demo. Bản Public local vẫn là dữ liệu mẫu tĩnh.":"Đã thu hồi chia sẻ trong phiên demo."));
   restoreFocus();
  };
  const title=TABS.find(item=>item.id===tab)?.label??"Bảng tin";
@@ -141,7 +141,7 @@ export function PinerUnified({tab}:{tab:UnifiedTab}){
        <div className={css.unifiedContentInner}>
          {tab!=="home"&&<div className={css.unifiedPageHeading}>
            <h1>{title}</h1>
-           {tab==="community"?<a href={publicCommunityHref()} target="_blank" rel="noopener noreferrer" className={css.publicCommunityShortcut}>↗ Xem công khai</a>:<span>{profile.display}</span>}
+           {tab==="community"?<a href={publicCommunityHref()} className={css.publicCommunityShortcut}>↗ Xem công khai</a>:<span>{profile.display}</span>}
          </div>}
          {status&&<p className={css.visibilityStatus} role="status">{status}</p>}
          {!loaded?<div className={css.unifiedLoading} role="status">Đang mở hành trình...</div>:tab==="grid"?
