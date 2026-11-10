@@ -66,9 +66,9 @@ test("PAP-1792 S0-R3 Manager BO source keeps createdBy and updatedBy redacted ab
     : Response.json({data:[source]});
   const result=await assignmentProvider.list(assignmentQuery,{surface:"BO",centerId:center},fetcher,new AbortController().signal);
   const fields=result.records[0]?.row as Record<string,unknown>;
-  assert.equal(fields.createdAt,null);
-  assert.equal(fields.createdBy,null);
-  assert.equal(fields.updatedBy,null);
+  assert.equal(fields.createdAt,"—", "No verified Core createdAt must render literal em dash");
+  assert.equal(fields.createdBy,"—", "No verified Core createdBy must render literal em dash");
+  assert.equal(fields.updatedBy,"—", "No verified Core updatedBy must render literal em dash");
   assert.equal(fields.updatedAt,"09/11/2026 · 18:00");
   assert.equal(fields.assignedAt,source.assignedAt);
 });
