@@ -101,3 +101,27 @@
   outline: 2px solid var(--ds-primary, #6151c4);
   outline-offset: 2px;
 }
+
+/* PAP-1810 / PNR-AVATAR-CRUD — Avatar-only native BO DSA utility opener.
+   Default BO tables preserve PAP-1437 no-separate-opener behavior. */
+[data-native-avatar] #typed-table :is(th.quick-open-th, td.first-quick-cell) {
+  width: 56px !important; min-width: 56px !important; max-width: 56px !important;
+  box-sizing: border-box !important;
+}
+[data-native-avatar] #typed-table :is(th,td):nth-child(2) { left: 56px !important; }
+[data-native-avatar] #typed-table td.first-quick-cell .row-open {
+  opacity: 1;
+}
+[data-native-avatar] #typed-table [data-avatar-person-lines] {
+  display: flex; flex-direction: column; min-width: 0; max-width: 100%;
+  gap: 2px; line-height: 1.25;
+}
+[data-native-avatar] #typed-table [data-avatar-person-primary],
+[data-native-avatar] #typed-table [data-avatar-person-lines] small {
+  display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+[data-native-avatar] #typed-table [data-avatar-person-primary] { font-weight: 650; }
+[data-native-avatar] #typed-table [data-avatar-person-lines] small { font-size: 11px; color: var(--bo-palette-neutral-34); }
+@media (max-width: 760px) {
+  [data-native-avatar] { --tdd-identity-width: 208px; }
+}

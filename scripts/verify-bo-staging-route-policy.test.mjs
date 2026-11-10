@@ -42,14 +42,14 @@ test("PAP-901 current canonical routes use one admitted BO workspace with requir
 });
 
 test("PAP-982 admitted TDD route requires exact schema, binding, tests and explicit policy",()=>fixture(({root,read,write})=>{
-  const entry=JSON.parse(fs.readFileSync(path.join(repo,"config/tdd-admission.json"),"utf8")).modules.find(e=>e.key==="pinoria-avatars");
+  const entry=JSON.parse(fs.readFileSync(path.join(repo,"config/tdd-admission.json"),"utf8")).modules.find(e=>e.key==="bills");
   for(const file of [...entry.files,...entry.tests])write(file,fs.readFileSync(path.join(repo,file),"utf8"));
   write("config/tdd-admission.json",JSON.stringify({modules:[entry]}));
-  assert.match(verifyBoStagingRoutePolicy(root).issues.join("\\n"),/pinoria-avatars.*exactly one staging decision/);
-  write(policy,read(policy).replace('  "/bo/payroll-periods",','  "/bo/payroll-periods",\n  "/bo/pinoria-avatars",'));
+  assert.match(verifyBoStagingRoutePolicy(root).issues.join("\\n"),/bills.*exactly one staging decision/);
+  write(policy,read(policy).replace('  "/bo/payroll-periods",','  "/bo/payroll-periods",\n  "/bo/bills",'));
   assert.deepEqual(verifyBoStagingRoutePolicy(root).issues,[]);
   write("config/tdd-admission.json",JSON.stringify({modules:[]}));
-  assert.match(verifyBoStagingRoutePolicy(root).issues.join("\\n"),/pinoria-avatars.*canonical BoModuleFactory page/);
+  assert.match(verifyBoStagingRoutePolicy(root).issues.join("\\n"),/bills.*canonical BoModuleFactory page/);
   write("config/tdd-admission.json",JSON.stringify({modules:[entry]}));
   fs.unlinkSync(path.join(root,entry.schema.file));
   assert.match(verifyBoStagingRoutePolicy(root).issues.join("\\n"),/Invalid exact BO TDD route admission|TDD entry/);
@@ -118,4 +118,39 @@ test("PAP-1030 retired BO deep-link smoke must run on canonical BO staging host"
   assert.match(source, /bo_host='https:\/\/bo\.staging\.pinohouse\.art'/);
   write(cd, source.replace("bo_host='https://bo.staging.pinohouse.art'", "bo_host='https://pino-team-os-staging.minhtri-van42.workers.dev'"));
   assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"), /retired BO route smoke must target canonical BO staging host/);
+}));
+
+test("PAP-1810 native BO Avatar is canonical under exact Founder migration, not Factory/TDD",()=>fixture(({root,read,write})=>{
+  const files=[
+    "app/bo/pinoria-avatars/page.tsx",
+    "app/bo/pinoria-avatars/AvatarDirectoryDsa.tsx",
+    "app/bo/pinoria-avatars/avatar-dsa-data.ts",
+    "app/bo/pinoria-avatars/avatar-dsa-model.ts",
+    "app/bo/pinoria-avatars/CreateSelfDrawer.tsx",
+    "app/bo/pinoria-avatars/SelfWardrobeDetail.tsx",
+    "app/bo/pinoria-avatars/SelfLoadoutDetail.tsx",
+    "lib/pap1810-avatar-native-dsa.test.ts",
+  ];
+  for(const file of files)write(file,fs.readFileSync(path.join(repo,file),"utf8"));
+  assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),
+    /pinoria-avatars.*exactly one staging decision/);
+  write(policy,read(policy).replace('  "/bo/payroll-periods",',
+    '  "/bo/payroll-periods",\n  "/bo/pinoria-avatars",'));
+  assert.deepEqual(verifyBoStagingRoutePolicy(root).issues,[]);
+  const data=files[2],good=read(data);
+  write(data,good.replace("pinoria.avatar.directory.view","unrestricted.read"));
+  assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),
+    /pinoria-avatars.*canonical BoModuleFactory page/);
+  write(data,good);
+  const page=files[0],original=read(page);
+  write(page,original.replace("<AvatarDirectoryDsa />","<SelfDirectoryTdd />"));
+  assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),
+    /pinoria-avatars.*canonical BoModuleFactory page/);
+  write(page,original);
+  write("app/bo/new-unregistered/page.tsx",
+    'export default function Page(){return <AvatarDirectoryDsa/>}');
+  write(policy,read(policy).replace('  "/bo/payroll-periods",',
+    '  "/bo/payroll-periods",\n  "/bo/new-unregistered",'));
+  assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),
+    /new-unregistered.*canonical BoModuleFactory page/);
 }));

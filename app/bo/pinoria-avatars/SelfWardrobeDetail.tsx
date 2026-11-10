@@ -1,13 +1,15 @@
 "use client";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { DrawerFrame } from "@pino/design-system/react";
+import { avatarFields } from "./avatar-dsa-model";
+import type { AvatarRow } from "./avatar-dsa-data";
 import type { ModuleRow } from "@/lib/workspace-schema";
-import { selfFields, type SelfFields } from "./schema";
+import type { SelfFields } from "./schema";
 import { SelfDirectoryProperties } from "./SharedProperties";
 import styles from "./SelfWardrobeDetail.module.css";
 /** PAP-1300 / PAP-1490: DS cards with the approved feature-owned responsive grid. */
 
-type Row = ModuleRow<SelfFields>;
+type Row = AvatarRow | ModuleRow<SelfFields>;
 type ItemType = "WEARABLE" | "ACCESSORY";
 type Ownership = { status: string; revision: number; provenance: string; firstGrantedAt: string; revokedAt: string | null; updatedAt: string };
 type OwnedItem = { itemId: string; key: string; displayName: string; type: ItemType; slot: string | null; itemStatus: string; ownership: Ownership };
@@ -27,7 +29,7 @@ function checkedCollection<T>(value: unknown, selfId: string): Collection<T> {
 }
 async function getCollection<T>(selfId: string, centerId: string, kind: "items" | "catalog", signal: AbortSignal): Promise<Collection<T>> {
   const response = await fetch("/api/bo/pinoria/selfs/" + selfId + "/" + kind + "?centerId=" + encodeURIComponent(centerId), { signal, credentials: "include", cache: "no-store" });
-  if (!response.ok) throw Error(response.status === 403 ? "Không có quyền xem Item của Self tại cơ sở này." : "Không tải được " + kind + " từ Core (" + response.status + ").");
+  if (!response.ok) throw Error(response.status === 403 ? "Không có quyền xem Item của Avatar tại cơ sở này." : "Không tải được " + kind + " từ Core (" + response.status + ").");
   return checkedCollection<T>(await response.json(), selfId);
 }
 export function SelfWardrobeDetail({ row, centerId, activeTab, canView, canManage, onSaved }: {
@@ -91,18 +93,15 @@ export function SelfWardrobeDetail({ row, centerId, activeTab, canView, canManag
   }
   if (activeTab === "overview") return <SelfDirectoryProperties
     record={{ ...Object.fromEntries(Object.entries(row).map(([key, value]) => [key, Array.isArray(value) ? [...value] : value])), id: row.id, name: String(row.name ?? "") }}
-    fields={selfFields.filter(field => Object.hasOwn(row, field.key)).map(field => ({
-      key: field.key, label: field.label, icon: field.icon, type: field.type,
-      w: field.width, readonly: true,
-    }))}
+    fields={avatarFields.filter(field => Object.hasOwn(row, field.key))}
     sections={[
       { id: "identity", label: "Định danh", fields: ["name", "roles", "subjectStatus", "rowKey", "personId", "staffMemberId", "studentProfileId"] },
-      { id: "self", label: "Pinoria Self", fields: ["avatarStatus", "pinoriaSelfId", "selfStatus", "loadoutVersion", "equippedCount"] },
+      { id: "self", label: "Pinoria Avatar", fields: ["avatarStatus", "pinoriaSelfId", "selfStatus", "loadoutVersion", "equippedCount"] },
     ]}/>;
   if (activeTab !== "wardrobe") return null;
-  if (!selfId) return <p role="status">Person này chưa có Pinoria Self; không thể quản lý Tủ đồ.</p>;
-  if (!canView) return <p role="alert">Bạn chưa được cấp quyền xem Item của Self.</p>;
-  return <section className="grid-card" aria-label="Tủ đồ của Self">
+  if (!selfId) return <p role="status">Person này chưa có Pinoria Avatar; không thể quản lý Tủ đồ.</p>;
+  if (!canView) return <p role="alert">Bạn chưa được cấp quyền xem Item của Avatar.</p>;
+  return <section className="grid-card" aria-label="Tủ đồ của Avatar">
     <div className="view-tabs" role="group" aria-label="Bộ sưu tập Item">
       <button type="button" aria-pressed={collection === "owned"} className="view-tab" onClick={() => setCollection("owned")}>Đã sở hữu ({owned?.items.filter(item => item.ownership.status === "ACTIVE").length ?? 0})</button>
       <button type="button" aria-pressed={collection === "catalog"} className="view-tab" onClick={() => setCollection("catalog")}>Thư Viện Đồ Pinoria</button>
@@ -137,7 +136,7 @@ export function SelfWardrobeDetail({ row, centerId, activeTab, canView, canManag
         </article>;
       }) : <p role="status">Chưa có Item phù hợp.</p>}
     </div>}
-    {command && <DrawerFrame title={command.mode === "grant" ? "Cấp Item" : "Thu hồi Item"} path="Pinoria Self · Tủ đồ" open onClose={() => setCommand(null)}>
+    {command && <DrawerFrame title={command.mode === "grant" ? "Cấp Item" : "Thu hồi Item"} path="Pinoria Avatar · Tủ đồ" open onClose={() => setCommand(null)}>
       <form id="self-item-confirm-form" onSubmit={event => { void submit(event); }} className="grid-card">
         <h3>{command.mode === "grant" ? "Cấp Item" : "Thu hồi Item"}</h3>
         <p>{command.item.displayName}</p>

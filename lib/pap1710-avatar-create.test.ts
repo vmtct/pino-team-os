@@ -34,7 +34,7 @@ test("PAP-1710 search filters person names and role without changing actual iden
 });
 test("PAP-1710 canonical Dsa Drawer with one combobox and correct preserved Core POST",()=>{
  const c=readFileSync(new URL("../app/bo/pinoria-avatars/CreateSelfDrawer.tsx",import.meta.url),"utf8");
- const host=readFileSync(new URL("../app/bo/pinoria-avatars/SelfDirectoryTdd.tsx",import.meta.url),"utf8");
+ const host=readFileSync(new URL("../app/bo/pinoria-avatars/AvatarDirectoryDsa.tsx",import.meta.url),"utf8");
  assert.match(c,/import \{ DrawerFrame \} from "@\/app\/components\/workspace-renderer\/DrawerFrame"/);
  assert.match(c,/<DrawerFrame title="Tạo Avatar" path="Pinoria · Avatar"/);
  assert.match(c,/role="combobox"/);
@@ -51,11 +51,11 @@ test("PAP-1710 canonical Dsa Drawer with one combobox and correct preserved Core
  assert.match(c,/page<10/);
  assert.match(c,/ctl\.abort\(\)/);
  // PAP-1743: shared typed disclosure, no bespoke duplicate wrapper.
- assert.match(c,/<PropertySections variant="drawer" fields=\{auditFields\} record=\{draft\} sections=\{selfDefinition\.drawer\.sections\}\/>/);
+ assert.match(c,/<PropertySections variant="drawer" fields=\{auditFields\} record=\{draft\} sections=\{avatarSections\}\/>/);
  assert.doesNotMatch(c,/<details className="property-section pino-avatar-audit">/);
  assert.doesNotMatch(c,/id="ps-create-search"/);
  assert.doesNotMatch(c,/>Tìm Person<\/label>/);
- assert.match(host,/authorize\("pinoria.self.create"\)/);
+ assert.match(host,/grants\.has\("pinoria.self.create"\)/);
  assert.match(host,/＋ Tạo Avatar/);
  assert.match(host,/Đã tạo Avatar\./);
  assert.doesNotMatch(host,/＋ Tạo Self/);

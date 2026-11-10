@@ -5,9 +5,8 @@ import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 
 import { BoActionButton } from "@pino/design-system/react";
 import { DrawerFrame } from "@/app/components/workspace-renderer/DrawerFrame";
 import { PropertySections } from "@/app/components/workspace-renderer/Properties";
-import { toLegacyModule } from "@/lib/workspace-schema";
 import type { BoRecord } from "@/lib/bo-registration";
-import { selfDefinition, selfSchema } from "./schema";
+import { avatarFields, avatarSections } from "./avatar-dsa-model";
 import {
  candidateHasAvatar,isEligibleAvatarCandidate,matchingAvatarCandidates,
  type AvatarCandidate
@@ -131,7 +130,7 @@ export function CreateSelfDrawer({centerId,onClose,onCreated}:{centerId:string;o
   }catch(e){setError(e instanceof Error?e.message:"Không thể xác nhận thao tác.");}
   finally{setSaving(false);}
  }
- const drawerFields=toLegacyModule(selfSchema as unknown as Parameters<typeof toLegacyModule>[0]).fields;
+ const drawerFields=avatarFields;
  const drawerEditableFields=drawerFields.filter(field=>field.key==="name"||field.key==="nickname");
  const auditFields=drawerFields.filter(field=>["createdAt","createdBy","updatedAt","updatedBy"].includes(field.key));
  const draft:BoRecord={id:"",name:inputValue,nickname,createdAt:null,createdBy:null,updatedAt:null,updatedBy:null};
@@ -182,7 +181,7 @@ export function CreateSelfDrawer({centerId,onClose,onCreated}:{centerId:string;o
  </>;
  return <DrawerFrame title="Tạo Avatar" path="Pinoria · Avatar" onClose={close} footer={footer}>
   <div className={styles.body} data-jira="PAP-1734" data-avatar-schema="PAP-1734" data-avatar-mode="CREATE">
-   <PropertySections variant="drawer" fields={drawerEditableFields} record={draft} sections={selfDefinition.drawer.sections} createFields={{
+   <PropertySections variant="drawer" fields={drawerEditableFields} record={draft} sections={avatarSections} createFields={{
      name: {id:"ps-create-person",label:"Person *",required:true,value:inputValue,onChange:changeQuery,control:personPicker},
      nickname: {id:"ps-create-nickname",label:"Nickname Avatar (tùy chọn)",value:nickname,onChange:value=>{setNickname(value);setError("");},control:nicknameControl},
    }}/>
@@ -191,7 +190,7 @@ export function CreateSelfDrawer({centerId,onClose,onCreated}:{centerId:string;o
    </p>
    {duplicate?<p role="status" className="pino-avatar-duplicate">Person này đã có Avatar. Không thể tạo bản ghi trùng.</p>:null}
    <p className="pino-avatar-hint">Nickname không đổi tên Person. Avatar không tự nhận Starter Set hay Item.</p>
-   <PropertySections variant="drawer" fields={auditFields} record={draft} sections={selfDefinition.drawer.sections}/>
+   <PropertySections variant="drawer" fields={auditFields} record={draft} sections={avatarSections}/>
    {error?<p className="pino-avatar-error" role="alert">{error}</p>:null}
   </div>
  </DrawerFrame>;

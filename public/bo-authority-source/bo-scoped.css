@@ -4414,6 +4414,30 @@ html:where([data-bo-ui-authority="v25"]),
   outline-offset: 2px;
 }
 
+/* PAP-1810 / PNR-AVATAR-CRUD — Avatar-only native BO DSA utility opener.
+   Default BO tables preserve PAP-1437 no-separate-opener behavior. */
+:where(html[data-bo-ui-authority="v25"]) [data-native-avatar] #typed-table :is(th.quick-open-th, td.first-quick-cell) {
+  width: 56px !important; min-width: 56px !important; max-width: 56px !important;
+  box-sizing: border-box !important;
+}
+:where(html[data-bo-ui-authority="v25"]) [data-native-avatar] #typed-table :is(th,td):nth-child(2) { left: 56px !important; }
+:where(html[data-bo-ui-authority="v25"]) [data-native-avatar] #typed-table td.first-quick-cell .row-open {
+  opacity: 1;
+}
+:where(html[data-bo-ui-authority="v25"]) [data-native-avatar] #typed-table [data-avatar-person-lines] {
+  display: flex; flex-direction: column; min-width: 0; max-width: 100%;
+  gap: 2px; line-height: 1.25;
+}
+:where(html[data-bo-ui-authority="v25"]) [data-native-avatar] #typed-table [data-avatar-person-primary],
+:where(html[data-bo-ui-authority="v25"]) [data-native-avatar] #typed-table [data-avatar-person-lines] small {
+  display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+:where(html[data-bo-ui-authority="v25"]) [data-native-avatar] #typed-table [data-avatar-person-primary] { font-weight: 650; }
+:where(html[data-bo-ui-authority="v25"]) [data-native-avatar] #typed-table [data-avatar-person-lines] small { font-size: 11px; color: var(--bo-palette-neutral-34); }
+@media (max-width: 760px) {
+  :where(html[data-bo-ui-authority="v25"]) [data-native-avatar] { --tdd-identity-width: 208px; }
+}
+
 /* PAP-1722 · SCH-PARENTS-GUARDIANS FSG2: BO-only canonical Create Drawer.
    Compiled into the single BO authority stylesheet, never the HO shared CSS. */
 :where(html[data-bo-ui-authority="v25"]) #drawer-content > #parent-create-form > .property-section { margin: 0; }
