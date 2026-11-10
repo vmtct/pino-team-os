@@ -6,7 +6,7 @@ import {PinoIcon} from "./PinoIcon";
 import css from "./launcher.module.css";
 
 export function ShareLinkDialog({post,href,onClose}:{post:MediaPost;href:string;onClose:()=>void}){
- const [url,setUrl]=useState("");
+ const [url,setUrl]=useState(()=>typeof window!=="undefined"?new URL(href,window.location.origin).toString():"");
  const [result,setResult]=useState("");
  const closeButton=useRef<HTMLButtonElement>(null);
  useEffect(()=>{
