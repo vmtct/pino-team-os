@@ -62,3 +62,15 @@ test("S4 forbidden or unavailable and missing record never leak private fields",
   const notFound=renderToStaticMarkup(createElement(TvPolicyRecord,{...props,policy:null,pane:"detail"}));
   assert.match(notFound,/Không tìm thấy bản ghi/);
 });
+
+
+test("PAP-1794 DSA inline Full Detail uses whole writable property cell and readonly audit rows", () => {
+  const html=renderToStaticMarkup(createElement(TvPolicyRecord,{...props,centers:[{id:"019b1126-0001-7000-8000-000000000001",name:"Cần Thơ"}],pane:"detail"}));
+  for(const key of ["name","visibilityScope","centerIds"]){
+    assert.match(html,new RegExp("class=\"v24-prop-value writable\" data-prop=\""+key+"\" data-detail-edit=\""+key+"\""));
+  }
+  assert.equal((html.match(/class="v24-prop-value writable"/g)||[]).length,3);
+  assert.equal((html.match(/class="v24-prop-value readonly"/g)||[]).length,13);
+  assert.equal((html.match(/class="v24-edit-glyph"/g)||[]).length,3);
+  assert.doesNotMatch(html,/✎ Sửa|class="inline-custom-editor"/);
+});

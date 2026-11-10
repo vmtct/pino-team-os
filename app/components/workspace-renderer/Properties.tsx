@@ -102,7 +102,7 @@ export function PropertySections({ fields, record, sections, variant, canEdit, o
             onKeyDown={keyboardResize}
           /> : null}
         </div>
-        {editable ? <button type="button" className="v24-prop-value" data-prop={key} aria-label={"Sửa " + field.label} onClick={event => onEdit?.(field, event.currentTarget)}>
+        {editable ? <button type="button" className="v24-prop-value writable" data-prop={key} data-detail-edit={key} aria-label={"Sửa " + field.label} onClick={event => onEdit?.(field, event.currentTarget)}>
           <BoValue field={field} value={record[key]} full /><span className="v24-edit-glyph" aria-hidden="true">✎</span>
         </button> : <div className="v24-prop-value readonly" aria-label={"Chỉ đọc " + field.label}>
           <BoValue field={field} value={record[key]} full /><span className="v24-lock" aria-hidden="true">⌁</span>
