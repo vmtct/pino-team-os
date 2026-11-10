@@ -58,8 +58,8 @@ void test("PAP-1496 UI reuses shared Drawer/Detail and never invokes legacy Stud
  const facade=readFileSync(new URL("api/bo/[...path]/route.ts",new URL("../app/",import.meta.url)),"utf8");
  assert.match(component,/BoQuickView/);
  assert.match(component,/DetailFrame/);
- assert.match(component,/createSubscriptionSpecialtyGrant/);
- assert.match(component,/updateSubscriptionSpecialtyCompletion/);
+ assert.match(component,/subscriptionSpecialtyClient[.]create/);
+ assert.match(component,/subscriptionSpecialtyClient[.]complete/);
  assert.doesNotMatch(component,/createSpecialtyPurchase|completeSpecialtyAllocation|student-specialty-grants/);
  assert.match(detail,/moduleKey === "subscriptions"[\s\S]*"Chuyên đề"/);
  assert.match(facade,/isBoSubscriptionSpecialtyPath/);

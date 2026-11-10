@@ -5,7 +5,7 @@
  * The shared PINO BO DrawerFrame / DetailFrame are retained as renderer owners.
  */
 import {useCallback,useEffect,useMemo,useRef,useState} from "react";
-import {boApi,BoApiError} from "@/lib/bo-api";
+import {subscriptionSpecialtyClient,BoApiError} from "@/lib/bo-subscription-specialty-client";
 import type {BoSubscriptionSpecialtyRead,BoSubscriptionSpecialtyCatalogItem,BoSubscriptionSpecialtyGrant} from "@/lib/bo-subscription-specialty-model";
 import type {BoModule,BoRecord} from "@/lib/bo-registration";
 import {BoQuickView} from "@/app/bo/components/registration/BoQuickView";
@@ -72,7 +72,7 @@ export function BoSubscriptionSpecialtyTab({subscriptionId,centerId,centerReady}
   const token=++nextRequest.current;
   setLoad({state:"loading"});
   try{
-   const data=await boApi.subscriptionSpecialties(subscriptionId,centerId);
+   const data=await subscriptionSpecialtyClient.read(subscriptionId,centerId);
    if(token!==nextRequest.current)return;
    if(data.subject.id!==subscriptionId||data.subject.centerId!==centerId)
     throw new Error("Core trả về Subscription khác phạm vi Center được chọn.");
@@ -99,10 +99,10 @@ export function BoSubscriptionSpecialtyTab({subscriptionId,centerId,centerReady}
   try{
    if(command.kind==="grant"){
     if(!command.grant)throw new Error("Thiếu dữ liệu cấp chuyên đề.");
-    await boApi.createSubscriptionSpecialtyGrant(subscriptionId,centerId,command.grant,command.key);
+    await subscriptionSpecialtyClient.create(subscriptionId,centerId,command.grant,command.key);
    }else{
     if(!command.completion)throw new Error("Thiếu dữ liệu hoàn thành.");
-    await boApi.updateSubscriptionSpecialtyCompletion(subscriptionId,command.completion.grantId,centerId,
+    await subscriptionSpecialtyClient.complete(subscriptionId,command.completion.grantId,centerId,
       {completed:command.completion.completed,expectedVersion:command.completion.expectedVersion},command.key);
    }
    setPendingCommand(null);

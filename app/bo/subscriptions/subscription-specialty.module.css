@@ -1,27 +1,18 @@
-/* PAP-1496 / PAP-1491 SPEC-UNLOCK: structural layout only; colors/typography from PINO DS. */
-.root{width:100%;min-width:0;display:block}
-.heading{display:flex;gap:16px;justify-content:space-between;align-items:start;flex-wrap:wrap;margin-bottom:18px}
-.heading h2{margin:0 0 4px;font-size:1.15rem}
-.heading p{margin:0;font-size:.875rem}
+/* PAP-1496 / PAP-1491 SPEC-UNLOCK — layout-only CSS module.
+   PINO Design System owns typography, color, controls, detail and drawer shell. */
+.root{display:block;width:100%;min-width:0}
+.heading{display:flex;gap:16px}
 .stack{display:grid;gap:20px;min-width:0}
-.stack>section{min-width:0}
-.grant{padding:16px 0;display:grid;gap:12px;min-width:0}
-.grantHead{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px}
-.grantHead>div{display:grid;gap:4px;min-width:0}
-.grantHead strong,.grantHead span{overflow-wrap:anywhere}
-.grantHead span{font-size:.875rem}
-.checkbox{display:inline-flex;gap:8px;align-items:center;cursor:pointer}
-.checkbox input{inline-size:18px;block-size:18px}
-.audit{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px 16px;font-size:.875rem}
-.audit span{min-width:0;overflow-wrap:anywhere}
-.actions{display:flex;gap:12px;align-items:end;flex-wrap:wrap}
-.actions label{display:grid;gap:7px;min-width:min(100%,210px)}
-.actions input,.actions select{min-width:0;max-width:100%;min-height:40px}
-.actions button{min-height:40px}
-.error,.notice,.disabled{padding:12px 0;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-.full{position:fixed;inset:0;z-index:1000;overflow:auto;background:var(--pino-surface,var(--surface,#fff))}
+.grant{display:grid;gap:12px;min-width:0}
+.grantHead{display:flex;gap:12px}
+.checkbox{display:flex;gap:8px}
+.audit{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.actions{display:flex;gap:12px}
+.error{display:flex;gap:12px}
+.notice{display:block}
+.disabled{display:block}
+.full{display:block;width:100%;min-width:0}
 @media(max-width:600px){
  .audit{grid-template-columns:minmax(0,1fr)}
- .actions{align-items:stretch}
- .actions label,.actions button{width:100%;min-width:0}
+ .actions{display:grid;grid-template-columns:minmax(0,1fr)}
 }
