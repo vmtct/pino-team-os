@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { BoQuickView } from "./BoQuickView";
+import { PropertySections, type CreateDrawerField } from "@/app/components/workspace-renderer/Properties";
+import type { BoField, BoModule, BoRecord, BoValue } from "@/lib/bo-registration";
 import { boApi, BoApiError, type BoStudentIntakeCreateInput } from "@/lib/bo-api";
 import type { BoParentSearchResult } from "@/lib/bo-model";
-import { useBoDialog } from "./useBoDialog";
 
 type ParentResults =
   | { state: "loading" }
@@ -15,13 +17,8 @@ function message(cause: unknown) {
   return cause instanceof Error && cause.message ? cause.message : "Không thể tạo học viên. Hãy thử lại.";
 }
 
-function Property({ label, icon, children }: { label: string; icon: string; children: ReactNode }) {
-  return <div className="property-row"><div className="property-label"><small aria-hidden="true">{icon}</small>{label}</div><div className="property-control">{children}</div></div>;
-}
-
 /** Student Intake uses the same BO drawer/property primitives and the existing canonical command. */
 export function BoStudentCreate({ onClose, onCreated }: { onClose: () => void; onCreated: (studentId: string) => void }) {
-  const panel = useRef<HTMLElement>(null);
   const busyRef = useRef(false);
   const attemptRef = useRef<Attempt | null>(null);
   const [studentName, setStudentName] = useState("");
@@ -57,15 +54,14 @@ export function BoStudentCreate({ onClose, onCreated }: { onClose: () => void; o
 
   const selectedParent = parentResults.state === "ready" ? parentResults.data.find(item => item.parent.id === selectedParentId) : null;
   function closeIfSafe() { if (!busyRef.current && !uncertainAttempt) onClose(); }
-  useBoDialog(true, closeIfSafe, panel);
   function resetAttempt() { attemptRef.current = null; setAttempt(null); setCanResetAttempt(false); setError(""); }
   function switchMode(next: "EXISTING" | "NEW") {
     if (locked) return;
     setParentMode(next); setSelectedParentId(null); setError("");
   }
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function submit(event?: FormEvent<HTMLFormElement>) {
+    event?.preventDefault();
     if (busyRef.current) return;
     const selectedParentReady = parentResults.state === "ready" && selectedParentId !== null && parentResults.data.some(item => item.parent.id === selectedParentId);
     if (!attemptRef.current && parentMode === "EXISTING" && !selectedParentReady) {
@@ -102,37 +98,115 @@ export function BoStudentCreate({ onClose, onCreated }: { onClose: () => void; o
     } finally { busyRef.current = false; setBusy(false); }
   }
 
-  return <><div className="drawer-scrim visible" id="drawer-scrim" onClick={closeIfSafe} aria-hidden="true" />
-    <aside ref={panel} id="drawer" className="drawer open" role="dialog" aria-modal="true" aria-labelledby="drawer-title">
-      <div className="drawer-top"><div className="drawer-header-copy"><span id="drawer-path" className="drawer-path">Students</span><h2 id="drawer-title" className="drawer-record-title">Tạo học viên</h2></div><button id="drawer-close" className="drawer-close" type="button" aria-label="Đóng" disabled={busy || uncertainAttempt} onClick={closeIfSafe}>×</button></div>
-      <div id="drawer-content" className="drawer-content">
-        <form id="student-create-form" onSubmit={event => void submit(event)}>
-          <section className="property-section"><h3>Học viên</h3>
-            <Property label="Học viên" icon="Aa"><input className="edit-input" aria-label="Tên học viên" required disabled={locked} value={studentName} onChange={event => { setStudentName(event.target.value); setError(""); }} placeholder="Tên học viên" /></Property>
-            <Property label="Ngày sinh" icon="▦"><input className="edit-input" aria-label="Ngày sinh" type="date" disabled={locked} value={birthDate} onChange={event => setBirthDate(event.target.value)} /></Property>
-            <Property label="Quan hệ" icon="▣"><select className="edit-input" aria-label="Quan hệ" disabled={locked} value={relationshipType} onChange={event => setRelationshipType(event.target.value as typeof relationshipType)}><option value="PARENT">Cha/Mẹ</option><option value="GUARDIAN">Người giám hộ</option><option value="OTHER">Khác</option></select></Property>
-          </section>
-          <section className="property-section"><h3>Phụ huynh / người giám hộ</h3>
-            <div className="option-list" aria-label="Cách liên kết phụ huynh"><button type="button" className="option-item" aria-pressed={parentMode === "EXISTING"} disabled={locked} onClick={() => switchMode("EXISTING")}>Chọn phụ huynh hiện có</button><button type="button" className="option-item" aria-pressed={parentMode === "NEW"} disabled={locked} onClick={() => switchMode("NEW")}>Tạo phụ huynh mới</button></div>
-            {parentMode === "EXISTING" ? <>
-              <Property label="Tìm phụ huynh" icon="⌕"><input className="edit-input" aria-label="Tìm theo tên, SĐT hoặc email" type="search" disabled={locked} value={parentQuery} onChange={event => { setParentQuery(event.target.value); setSelectedParentId(null); setParentResults({ state: "loading" }); setError(""); }} placeholder="Tên, SĐT hoặc email" /></Property>
-              <Property label="Kết quả" icon="↗"><div className="option-list" aria-live="polite">
-                {parentResults.state === "loading" ? <span>Đang tìm phụ huynh…</span> : null}
-                {parentResults.state === "error" ? <span className="edit-error" role="alert">{parentResults.message}</span> : null}
-                {parentResults.state === "ready" && !parentResults.data.length ? <span>Không tìm thấy Parent phù hợp.</span> : null}
-                {parentResults.state === "ready" ? parentResults.data.map(item => <button type="button" className="option-item" key={item.parent.id} aria-pressed={item.parent.id === selectedParentId} disabled={locked} onClick={() => { setSelectedParentId(item.parent.id); setError(""); }}><span className="option-check" aria-hidden="true">{item.parent.id === selectedParentId ? "✓" : "＋"}</span>{item.parent.displayName || "Parent chưa đặt tên"}<small>{item.contacts.map(contact => `${contact.identifierType === "PHONE" ? "SĐT" : "Email"} · ${contact.normalizedValue}`).join(" · ") || "Chưa có contact active"}</small></button>) : null}
-              </div></Property>
-              {selectedParent ? <p className="settings-hint">Đã chọn: {selectedParent.parent.displayName || selectedParent.parent.id}</p> : null}
-            </> : <>
-              <Property label="Tên phụ huynh" icon="Aa"><input className="edit-input" aria-label="Tên phụ huynh / người giám hộ" disabled={locked} value={guardianName} onChange={event => setGuardianName(event.target.value)} placeholder="Tên phụ huynh" /></Property>
-              <Property label="Liên hệ" icon="▣"><select className="edit-input" aria-label="Loại liên hệ" disabled={locked} value={contactType} onChange={event => { setContactType(event.target.value as typeof contactType); setContactValue(""); }}><option value="PHONE">Số điện thoại</option><option value="EMAIL">Email</option></select></Property>
-              <Property label={contactType === "PHONE" ? "Số điện thoại" : "Email"} icon="Aa"><input className="edit-input" aria-label={contactType === "PHONE" ? "Số điện thoại phụ huynh" : "Email phụ huynh"} type={contactType === "PHONE" ? "tel" : "email"} required disabled={locked} value={contactValue} onChange={event => { setContactValue(event.target.value); setError(""); }} placeholder={contactType === "PHONE" ? "Số điện thoại" : "Email"} /></Property>
-            </>}
-          </section>
-          {error ? <div className="edit-error" role="alert">{error}{uncertainAttempt ? <p>Kết quả chưa xác định. Hãy thử lại cùng yêu cầu để đối soát an toàn.</p> : null}</div> : null}
-        </form>
-      </div>
-      <div id="drawer-footer" className="drawer-footer"><div className="lab-bottom">{locked && error && canResetAttempt ? <button type="button" className="secondary-btn" disabled={busy} onClick={resetAttempt}>Sửa dữ liệu</button> : null}<button type="button" className="secondary-btn" disabled={busy || uncertainAttempt} onClick={closeIfSafe}>Hủy</button><button type="submit" form="student-create-form" className="primary-btn" id="create-save" disabled={busy}>{busy ? "Đang tạo…" : locked ? "Thử lại cùng yêu cầu" : "＋ Tạo học viên"}</button></div></div>
-    </aside>
-  </>;
+  const parentFieldKeys = parentMode === "EXISTING"
+    ? ["parentMode", "parentQuery", "selectedParentId"]
+    : ["parentMode", "guardianName", "contactType", "contactValue"];
+  const schema: BoField[] = [
+    { key: "name", label: "Học viên", type: "text", icon: "Aa", w: 180 },
+    { key: "birthDate", label: "Ngày sinh", type: "date", icon: "▦", w: 140 },
+    { key: "relationshipType", label: "Quan hệ", type: "select", icon: "▣", w: 130 },
+    { key: "parentMode", label: "Liên kết phụ huynh", type: "select", icon: "▣", w: 160 },
+    { key: "parentQuery", label: "Tìm phụ huynh", type: "text", icon: "⌕", w: 160 },
+    { key: "selectedParentId", label: "Kết quả", type: "relation", icon: "↗", w: 180 },
+    { key: "guardianName", label: "Tên phụ huynh", type: "text", icon: "Aa", w: 180 },
+    { key: "contactType", label: "Liên hệ", type: "select", icon: "▣", w: 130 },
+    { key: "contactValue", label: "Số điện thoại / Email", type: "text", icon: "Aa", w: 180 },
+  ];
+  const studentKeys = ["name", "birthDate", "relationshipType"];
+  const studentFields = schema.filter(field => studentKeys.includes(field.key));
+  const parentFields = schema.filter(field => parentFieldKeys.includes(field.key));
+  const relationshipLabels = { PARENT: "Cha/Mẹ", GUARDIAN: "Người giám hộ", OTHER: "Khác" } as const;
+  const record: BoRecord = {
+    id: "", name: studentName, birthDate, relationshipType: relationshipLabels[relationshipType],
+    parentMode, parentQuery, selectedParentId: selectedParent?.parent.displayName ?? null,
+    guardianName, contactType, contactValue,
+  };
+  const createFields: Record<string, CreateDrawerField> = {
+    parentMode: {
+      id: "student-create-parent-mode", value: parentMode, onChange: v => switchMode(v as typeof parentMode),
+      control: <div id="student-create-parent-mode" className="option-list" aria-label="Cách liên kết phụ huynh">
+        <button type="button" className="option-item" aria-pressed={parentMode === "EXISTING"}
+          disabled={locked} onClick={() => switchMode("EXISTING")}>Chọn phụ huynh hiện có</button>
+        <button type="button" className="option-item" aria-pressed={parentMode === "NEW"}
+          disabled={locked} onClick={() => switchMode("NEW")}>Tạo phụ huynh mới</button>
+      </div>,
+    },
+    parentQuery: {
+      id: "student-create-parent-query", value: parentQuery,
+      onChange: v => { setParentQuery(v); setSelectedParentId(null); setParentResults({ state: "loading" }); setError(""); },
+      control: <input id="student-create-parent-query" className="property-control os-create-select"
+        aria-label="Tìm theo tên, SĐT hoặc email" type="search" placeholder="Tên, SĐT hoặc email"
+        value={parentQuery} disabled={locked}
+        onChange={e => { setParentQuery(e.target.value); setSelectedParentId(null); setParentResults({ state: "loading" }); setError(""); }} />,
+    },
+    selectedParentId: {
+      id: "student-create-parent-result", value: selectedParentId ?? "", onChange: setSelectedParentId,
+      control: <div id="student-create-parent-result" className="option-list" aria-label="Kết quả tìm phụ huynh" aria-live="polite">
+        {parentResults.state === "loading" ? <span>Đang tìm phụ huynh…</span> : null}
+        {parentResults.state === "error" ? <span className="edit-error" role="alert">{parentResults.message}</span> : null}
+        {parentResults.state === "ready" && !parentResults.data.length ? <span>Không tìm thấy Parent phù hợp.</span> : null}
+        {parentResults.state === "ready" ? parentResults.data.map(item =>
+          <button type="button" className="option-item" key={item.parent.id}
+            aria-pressed={item.parent.id === selectedParentId} disabled={locked}
+            onClick={() => { setSelectedParentId(item.parent.id); setError(""); }}>
+            <span className="option-check" aria-hidden="true">{item.parent.id === selectedParentId ? "✓" : "＋"}</span>
+            {item.parent.displayName || "Parent chưa đặt tên"}
+            <small>{item.contacts.map(contact =>
+              (contact.identifierType === "PHONE" ? "SĐT" : "Email") + " · " + contact.normalizedValue
+            ).join(" · ") || "Chưa có contact active"}</small>
+          </button>) : null}
+      </div>,
+    },
+    guardianName: {
+      id: "student-create-guardian-name", value: guardianName, disabled: locked,
+      onChange: setGuardianName,
+    },
+    contactType: {
+      id: "student-create-contact-type", value: contactType, onChange: v => setContactType(v as typeof contactType),
+      control: <select id="student-create-contact-type" className="property-control os-create-select"
+        aria-label="Loại liên hệ" value={contactType} disabled={locked}
+        onChange={e => { setContactType(e.target.value as typeof contactType); setContactValue(""); }}>
+        <option value="PHONE">Số điện thoại</option><option value="EMAIL">Email</option>
+      </select>,
+    },
+    contactValue: {
+      id: "student-create-contact-value", value: contactValue, required: true, onChange: setContactValue,
+      control: <input id="student-create-contact-value" className="property-control os-create-select"
+        type={contactType === "PHONE" ? "tel" : "email"}
+        aria-label={contactType === "PHONE" ? "Số điện thoại phụ huynh" : "Email phụ huynh"}
+        value={contactValue} disabled={locked} required
+        onChange={e => { setContactValue(e.target.value); setError(""); }}
+        placeholder={contactType === "PHONE" ? "Số điện thoại" : "Email"} />,
+    },
+  };
+  const studentModule: BoModule = { label: "học viên", group: "School", fields: studentFields };
+  return <BoQuickView moduleKey="students" module={studentModule} record={null}
+    onClose={closeIfSafe}
+    create={{
+      draft: record, fields: studentFields, busy, error, title: "Tạo học viên", path: "Students",
+      editable: field => !locked && studentKeys.includes(field.key),
+      editorField: field => field.key === "relationshipType"
+        ? { ...field, readonly: false, options: Object.values(relationshipLabels) }
+        : { ...field, readonly: false },
+      onChange: (key: string, value: BoValue) => {
+        if (key === "name") setStudentName(String(value ?? ""));
+        if (key === "birthDate") setBirthDate(String(value ?? ""));
+        if (key === "relationshipType") {
+          const match = (Object.keys(relationshipLabels) as (keyof typeof relationshipLabels)[])
+            .find(k => relationshipLabels[k] === value);
+          if (match) setRelationshipType(match);
+        }
+        setError("");
+      },
+      onCreate: () => submit(),
+    }}
+    extraSection={<>
+      <PropertySections variant="drawer" fields={parentFields} record={record}
+        sections={[{ id: "guardian", label: "Phụ huynh / người giám hộ", fields: parentFieldKeys }]}
+        createFields={createFields} />
+      {selectedParent ? <p className="settings-hint">Đã chọn: {selectedParent.parent.displayName || selectedParent.parent.id}</p> : null}
+      {uncertainAttempt ? <p className="settings-hint" role="status">Kết quả chưa xác định. Thử lại cùng yêu cầu để đối soát an toàn.</p> : null}
+      {locked && error && canResetAttempt ? <button type="button" className="secondary-btn"
+        disabled={busy} onClick={resetAttempt}>Sửa dữ liệu</button> : null}
+    </>} />;
 }
