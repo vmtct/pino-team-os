@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { AppGlyph } from "./AppGlyph";
 import { MediaArtwork } from "./MediaArtwork";
+import { PhotoCarousel } from "./PhotoCarousel";
 import { PINER_APPS,type PinerApp,type PinerAppKey } from "./catalog";
 import { APP_NAV,getTabHref,type NavIcon } from "./navigation";
 import { postsFor,type MediaPost,type MediaType,type Visibility } from "./media";
@@ -77,9 +78,10 @@ export function PostCard({post,onOpen,onRequestVisibility,scope="personal"}:{pos
  const author=scope==="community"?getProfile(post.ownerId).alias:(post.app==="piano"?"PINO Piano":"PINO Hội Họa");
  return <article className={css.postCard} data-post={post.id} data-post-owner={post.ownerId} data-post-scope={scope}>
   <div className={css.postHead}><span className={css.postAvatar}>{post.app==="piano"?"♫":"✿"}</span><div className={css.postMeta}><strong>{author}</strong><small>{post.date} · {scope==="community"?(post.ownerId==="mai"?"MyTime · Học viên trưởng thành":"Cộng đồng phụ huynh PINO"):"Hành trình riêng"}</small></div><span className={community?css.sharedBadge:css.privateBadge}>{community?"Đã chia sẻ":"Riêng tư"}</span></div>
-  <button type="button" className={css.posterButton} onClick={()=>onOpen(post)} aria-label={"Xem "+post.title}>
-   <MediaArtwork post={post}/>{post.type==="reel"&&<span className={css.reelOverlay}><span>▶</span><small>{post.duration} · Reel minh họa</small></span>}
-  </button>
+  {post.type==="photo"?<PhotoCarousel post={post}/>:
+   <button type="button" className={css.posterButton} onClick={()=>onOpen(post)} aria-label={"Phát video "+post.title}>
+    <MediaArtwork post={post}/><span className={css.reelOverlay}><span>▶</span><small>Phát video · Reel minh họa</small></span>
+   </button>}
   <div className={css.postBody}><strong>{post.title}</strong><p>{post.caption}</p><TeacherComment post={post}/>
    <div className={css.postActions}><button onClick={()=>setLiked(v=>!v)} aria-pressed={liked} type="button">{liked?"♥":"♡"} <span>{liked?"Đã lưu":"Yêu thích"}{community?" · "+(post.reactions+(liked?1:0)):""}</span></button>
     <button type="button" onClick={()=>setCommentsOpen(v=>!v)}>▤ <span>{community?"Bình luận ("+post.responses.length+")":"Nhận xét"}</span></button>

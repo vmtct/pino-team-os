@@ -21,3 +21,16 @@ export const POSTS:readonly MediaPost[]=[
  {id:"p5",app:"piano",ownerId:"mai",type:"reel",visual:"concert",title:"Giai điệu MyTime cuối tuần",date:"24/10",caption:"Một đoạn Piano được học viên MyTime trưởng thành chọn chia sẻ.",teacher:"Nhận xét giáo viên MyTime Piano",comment:"Người chơi giữ được sự mềm mại và biểu cảm riêng trong giai điệu.",visibility:"community",duration:"0:31",reactions:7,responses:["PH PINO · Nghe ấm áp quá!"]}
 ];
 export const postsFor=(app:PinerAppKey)=>POSTS.filter(p=>p.app===app);
+
+/* PAP-1797 · Fictional carousel frames and actual synthetic MP4 clips for local UX only.
+ * Every frame is generated SVG; videos are generated motion graphics, not student footage. */
+export const PHOTO_CAROUSELS: Readonly<Record<string,readonly MediaPost["visual"][]>>={
+ a1:["flower","ceramic","abstract"],
+ a3:["landscape","flower","ceramic"],
+ a4:["ceramic","abstract","flower"],
+ a5:["ceramic","flower","landscape"],
+ p2:["keys","studio","music"],
+ p4:["studio","keys","concert"],
+};
+export const syntheticReelSrc=(post:MediaPost):string=>
+ post.app==="piano"?"/piner/media/piano-demo.mp4":"/piner/media/art-demo.mp4";

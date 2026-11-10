@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { Glyph, PostCard, PreviewDialog } from "./SharedShell";
 import { MediaArtwork } from "./MediaArtwork";
 import { VisibilityDialog } from "./VisibilityDialog";
+import { ReelViewer } from "./ReelViewer";
 import { POSTS, type MediaPost, type Visibility } from "./media";
 import { MANAGED_CHILDREN, useActiveProfile, isManagedChild, getProfile } from "./profiles";
 import css from "./launcher.module.css";
@@ -31,7 +32,7 @@ function Header({currentChild,select}:{currentChild:string;select:(id:"an"|"binh
        value={profile.id} onChange={event=>select(event.target.value as "an"|"binh")}>
        {MANAGED_CHILDREN.map(child=><option value={child.id} key={child.id}>{child.display}</option>)}
      </select>
-     <span className={css.unifiedDropdownArrow} aria-hidden="true">⌄</span>
+
    </div>
    <Link href="/piner" aria-label="Logo PINO · Bảng tin" className={css.unifiedLogo}>
      <strong>PINO</strong><small>SPACE</small>
@@ -72,6 +73,7 @@ export function PinerUnified({tab}:{tab:UnifiedTab}){
  const [shareIntent,setShareIntent]=useState<MediaPost|null>(null);
  const [status,setStatus]=useState("");
  const focusReturn=useRef<HTMLElement|null>(null);
+ const previewReturn=useRef<HTMLElement|null>(null);
 
  // Read the preceding PAP-1765 mock state without changing the source of ownership.
  useEffect(()=>{
@@ -100,6 +102,17 @@ export function PinerUnified({tab}:{tab:UnifiedTab}){
   if(focusReturn.current?.isConnected)focusReturn.current.focus();
   else document.querySelector<HTMLAnchorElement>('[data-piner-shared="bottom-nav"] a[aria-current="page"]')?.focus();
  });
+ const openPreview=(post:MediaPost)=>{
+   previewReturn.current=document.activeElement instanceof HTMLElement?document.activeElement:null;
+   setPreview(post);
+ };
+ const closePreview=()=>{
+   setPreview(null);
+   requestAnimationFrame(()=>{
+     if(previewReturn.current?.isConnected)previewReturn.current.focus();
+     else document.querySelector<HTMLAnchorElement>('[data-piner-shared="bottom-nav"] a[aria-current="page"]')?.focus();
+   });
+ };
  const requestVisibility=(post:MediaPost)=>{
   // In real Core work this must be enforced by verified guardian ACL; this is UI fixture only.
   if(!isManagedChild(post.ownerId))return;
@@ -131,19 +144,21 @@ export function PinerUnified({tab}:{tab:UnifiedTab}){
          </div>}
          {status&&<p className={css.visibilityStatus} role="status">{status}</p>}
          {!loaded?<div className={css.unifiedLoading} role="status">Đang mở hành trình...</div>:tab==="grid"?
-           <MediaGrid posts={visible} onOpen={setPreview}/>:
-           tab==="reels"?<MediaReels posts={visible} onOpen={setPreview}/>:
+           <MediaGrid posts={visible} onOpen={openPreview}/>:
+           tab==="reels"?<MediaReels posts={visible} onOpen={openPreview}/>:
            <div className={css.unifiedFeed} data-feed-scope={tab==="community"?"community":"personal"}>
              {visible.map(post=><PostCard key={post.id} post={post} scope={tab==="community"?"community":"personal"}
-               onOpen={setPreview} onRequestVisibility={requestVisibility}/>)}
+               onOpen={openPreview} onRequestVisibility={requestVisibility}/>)}
            </div>}
          {loaded&&visible.length===0&&tab==="home"&&
            <div className={css.emptyMedia}><strong>Chưa có bài đăng</strong><p>Hành trình sáng tạo sẽ xuất hiện tại đây.</p></div>}
        </div>
      </main>
      <Footer tab={tab}/>
-     {preview&&<PreviewDialog post={all.find(p=>p.id===preview.id)??preview} onClose={()=>setPreview(null)}
-       onRequestVisibility={requestVisibility}/>}
+     {preview&&(preview.type==="reel"
+       ?<ReelViewer post={all.find(p=>p.id===preview.id)??preview} onClose={closePreview}/>
+       :<PreviewDialog post={all.find(p=>p.id===preview.id)??preview} onClose={closePreview}
+         onRequestVisibility={requestVisibility}/>)}
      {shareIntent&&<VisibilityDialog post={shareIntent} onCancel={()=>{setShareIntent(null);restoreFocus();}}
        onConfirm={confirmVisibility}/>}
    </div>

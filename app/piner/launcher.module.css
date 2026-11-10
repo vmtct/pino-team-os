@@ -212,8 +212,8 @@
  background:var(--surface);border-bottom:1px solid var(--line);z-index:3}
 .unifiedSwitcher{display:flex;align-items:center;gap:4px;height:44px;max-width:190px;position:relative}
 .unifiedProfileCircle{flex:0 0 28px;width:28px;height:28px;display:grid;place-items:center;border-radius:50%;background:var(--tint);color:var(--tone);font-size:13px;font-weight:800;pointer-events:none}
-.unifiedProfileSelect{min-height:44px;width:105px;padding:0 19px 0 4px;appearance:none;-webkit-appearance:none;background:transparent;border:0;color:var(--ink);font-size:13px;font-weight:800;cursor:pointer}
-.unifiedDropdownArrow{font-size:21px;position:absolute;right:0;top:8px;color:var(--tone);line-height:24px;pointer-events:none}
+.unifiedProfileSelect{min-height:44px;width:105px;padding:0 4px;appearance:none;-webkit-appearance:none;background:transparent;border:0;color:var(--ink);font-size:13px;font-weight:800;cursor:pointer}
+
 .unifiedLogo{height:44px;min-width:66px;display:flex;align-items:flex-end;justify-content:center;flex-direction:column;line-height:1.05;letter-spacing:.05em;color:var(--tone)!important}
 .unifiedLogo strong{font-size:21px;letter-spacing:-.08em;font-weight:950;line-height:1}
 .unifiedLogo small{font-size:8px;font-weight:850;letter-spacing:.32em;margin-right:1px;margin-top:2px}
@@ -246,3 +246,33 @@
  .unifiedNavInner small{font-size:9px}
 }
 @media(prefers-reduced-motion:reduce){.unifiedShell *{scroll-behavior:auto!important;transition:none!important}}
+
+/* PAP-1797 · Instagram-like in-feed photo carousel (image tap itself is intentionally inert). */
+.photoCarousel{position:relative;width:100%;aspect-ratio:1.2/1;overflow:hidden;background:var(--tint);touch-action:pan-y;outline-offset:-3px}
+.photoStrip{width:100%;height:100%;display:flex;transition:transform .24s ease-out;will-change:transform}
+.photoSlide{width:100%;height:100%;flex:0 0 100%;min-width:0}
+.photoSlide svg{display:block;width:100%;height:100%}
+.photoCounter{position:absolute;right:10px;top:10px;padding:5px 9px;min-width:40px;border-radius:999px;background:#2e2635a8;color:#fff;font-size:11px;font-weight:750;text-align:center}
+.photoPrevious,.photoNext{position:absolute;top:calc(50% - 22px);height:44px;width:44px;border:0;border-radius:50%;display:grid;place-items:center;background:#fffc;color:var(--ink);font-size:28px;line-height:1;box-shadow:0 1px 8px #30253626}
+.photoPrevious{left:5px}.photoNext{right:5px}
+.photoPrevious:disabled,.photoNext:disabled{opacity:0;pointer-events:none}
+.photoDots{position:absolute;bottom:7px;left:0;right:0;display:flex;align-items:center;justify-content:center;gap:2px}
+.photoDot,.photoDotActive{width:30px;height:30px;border:0;padding:11px;display:grid;place-items:center;background:transparent}
+.photoDot:after,.photoDotActive:after{content:"";display:block;width:7px;height:7px;border-radius:50%;background:#ffffff9e;box-shadow:0 1px 4px #34263470}
+.photoDotActive:after{background:#fff;width:9px;height:9px}
+@media(prefers-reduced-motion:reduce){.photoStrip{transition:none}}
+/* PAP-1797 · Full mobile-viewport playable Reel + caption fixed under media, no backend assets. */
+.reelViewerBackdrop{position:absolute;inset:0;z-index:55;background:#111019;color:#fff}
+.reelViewer{height:100%;width:100%;display:flex;flex-direction:column;position:relative;background:#111019}
+.reelViewerTop{flex:0 0 50px;height:50px;padding:0 12px 0 18px;display:flex;align-items:center;justify-content:space-between;gap:10px;background:#15121e}
+.reelViewerTop span{font-size:11px;letter-spacing:.14em;font-weight:850;color:#e9d9eb}
+.reelViewerTop button{width:44px;height:44px;border:0;border-radius:50%;background:#ffffff24;color:#fff;font-size:22px;display:grid;place-items:center}
+.reelViewerStage{flex:1;min-height:0;display:flex;justify-content:center;align-items:center;overflow:hidden;background:#101016}
+.reelViewerStage video{display:block;width:100%;height:100%;object-fit:contain;background:#101016}
+.reelViewerError{padding:24px;font-size:14px;color:#fff;text-align:center}
+.reelViewerCaption{flex:0 0 auto;min-height:148px;max-height:34%;overflow:auto;padding:14px 18px calc(14px + env(safe-area-inset-bottom));border-top:1px solid #ffffff2b;background:#18151e}
+.reelViewerCaption>strong{display:block;font-size:12px;letter-spacing:.01em;color:#f6d8eb}
+.reelViewerCaption h2{font-size:17px;font-weight:800;line-height:1.25;margin:4px 0}
+.reelViewerCaption p{font-size:13px;line-height:1.45;margin:5px 0 8px;color:#f1ebf1}
+.reelViewerCaption small{display:block;font-size:10px;line-height:1.35;color:#c0b5c4}
+.reelViewerPlayback{display:block;font-size:10px;margin-top:5px;color:#d5c2d3}
