@@ -308,7 +308,7 @@ export function BoSubscriptionsView({embedded = false}: {embedded?:boolean} = {}
       moduleKey="subscriptions"
       onEnrollmentChanged={() => setHistoryRevision(v => v + 1)}
       initialTab={historyTab}
-      onTabChanged={(next)=>{if(next!=="Detail"&&next!=="Enrollment"&&next!=="Lịch Sử")return;
+      onTabChanged={(next)=>{if(next!=="Detail"&&next!=="Enrollment"&&next!=="Chuyên đề"&&next!=="Lịch Sử")return;
         const tab=next as SubscriptionDetailTab;
         const url=subscriptionDetailUrl(window.location.href,historyDetail.id,tab);
         window.history.pushState(null,"",url);setHistoryTab(tab);

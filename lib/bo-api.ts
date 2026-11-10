@@ -91,6 +91,7 @@ import type { BoDutyExceptionReview, BoDutyExceptionRecord } from "./bo-workforc
 import type { BoPracticeAuthoringContext, BoPracticeCreateCommand, BoPracticeRepertoireAccessContext, BoPracticeRepertoireAccessProjection, BoPracticeRepertoireGrantCommand, BoPracticeRepertoireAccessGrant, BoPracticeResourceDetail, BoPracticeResourceVersion } from "./bo-practice-model";
 import type { StaffQualification, TrainingAssignmentBrowsePage, TrainingAssignmentBrowseSort, TrainingAssignmentDetail, TrainingDraftInput, TrainingModule, TrainingModuleVersion } from "./training-model";
 import { BoApiError } from "./bo-api-error";
+import type {BoSubscriptionSpecialtyRead,BoSubscriptionSpecialtyGrant} from "./bo-subscription-specialty-model";
 import { auditQueryString, type BoSubjectAuditQuery, type BoSubjectAuditPage } from "./bo-subject-history";
 import { recoverInvalidStaffPasswordSession } from "./staff-session-recovery";
 import { uploadPracticeMedia } from "./bo-practice-media-client";
@@ -447,6 +448,9 @@ export const boApi = {
   renewSubscription: (subscriptionId: string, body: { serviceStartsOn?: string; contractualEndsOn: string; weeklyCommitment: number; purchasedUnits: number; commercialReference?: string }, idempotencyKey: string) => write<unknown>(`subscriptions/${encodeURIComponent(subscriptionId)}/renew`, body, idempotencyKey),
   // PAP-1035 — canonical Core membership API. No client-side placement truth.
   subscriptionById: (subscriptionId:string) => readOne<import("./bo-model").BoLearnerSubscription>(`subscriptions/${encodeURIComponent(subscriptionId)}`),
+  subscriptionSpecialties: (subscriptionId:string,centerId:string) => readOne<BoSubscriptionSpecialtyRead>(`subscriptions/${encodeURIComponent(subscriptionId)}/specialties?centerId=${encodeURIComponent(centerId)}`),
+  createSubscriptionSpecialtyGrant: (subscriptionId:string,centerId:string,body:{specialtyId:string;effectiveFrom:string;expectedVersion:0},idempotencyKey:string) => command<BoSubscriptionSpecialtyGrant>("POST",`subscriptions/${encodeURIComponent(subscriptionId)}/specialty-grants?centerId=${encodeURIComponent(centerId)}`,body,idempotencyKey),
+  updateSubscriptionSpecialtyCompletion: (subscriptionId:string,grantId:string,centerId:string,body:{completed:boolean;expectedVersion:number},idempotencyKey:string) => command<BoSubscriptionSpecialtyGrant>("PATCH",`subscriptions/${encodeURIComponent(subscriptionId)}/specialty-grants/${encodeURIComponent(grantId)}/completion?centerId=${encodeURIComponent(centerId)}`,body,idempotencyKey),
   subscriptionEnrollments: (subscriptionId:string) => readOne<import("./bo-enrollment-contract").BoEnrollmentRecord[]>(`subscriptions/${encodeURIComponent(subscriptionId)}/enrollments`),
   subscriptionPlacement: (subscriptionId:string, targetLocalDate:string) => readOne<import("./bo-enrollment-contract").BoEnrollmentPlacementState>(`subscriptions/${encodeURIComponent(subscriptionId)}/placement?targetLocalDate=${encodeURIComponent(targetLocalDate)}`),
   enrollmentCapacity: (input:{runningClassId:string;targetLocalDate:string;subscriptionId?:string;plannedEntryLocalTime?:string|null;plannedDurationMinutes?:number|null}) => {

@@ -27,6 +27,10 @@ const BoWorkforcePlannerTab = lazy(async () => {
 });
 // PAP-1496 / SPEC-UNLOCK: one canonical Student Full Detail on /bo,
 // not the deliberately retired /bo/learners Staging route.
+const BoSubscriptionSpecialtyTab = lazy(async () => {
+  const {BoSubscriptionSpecialtyTab} = await import("@/app/bo/subscriptions/BoSubscriptionSpecialtyTab");
+  return {default:BoSubscriptionSpecialtyTab};
+});
 const BoStudentSpecialtyTab = lazy(async () => {
   const { StudentSpecialtyTab } = await import("@/app/bo/learners/StudentSpecialtyTab");
   return { default: StudentSpecialtyTab };
@@ -65,7 +69,7 @@ export function BoFullDetail({
     : moduleKey === "staffs"
     ? ["Detail", "Thu nhập", "Lịch Sử"]
     : moduleKey === "subscriptions"
-    ? ["Detail", "Enrollment", "Lịch Sử"]
+    ? ["Detail", "Enrollment", "Chuyên đề", "Lịch Sử"]
     : moduleKey === "students" && enableStudentSubscriptions
     ? ["Detail", "Subscription", "Chuyên đề", "Lịch Sử"]
     : ["Detail", "Lịch Sử"];
@@ -131,6 +135,10 @@ export function BoFullDetail({
                 ? <BoRunningClassEnrollment runningClassId={record.id} className={record.name} pathName={typeof record.path === "string" ? record.path : "—"} centerTimeZone={typeof record.centerTimeZone === "string" ? record.centerTimeZone : null} />
               : activeTab === "Enrollment" && moduleKey === "subscriptions"
                 ? <Suspense fallback={<div role="status" className="v24-audit-empty">Đang tải Enrollment…</div>}><BoSubscriptionEnrollmentTab subscriptionId={record.id} onChanged={onEnrollmentChanged} /></Suspense>
+              : activeTab === "Chuyên đề" && moduleKey === "subscriptions"
+                ? <Suspense fallback={<div role="status" className="v24-audit-empty">Đang tải Chuyên đề…</div>}>
+                    <BoSubscriptionSpecialtyTab key={record.id + ":" + centerId} subscriptionId={record.id} centerId={centerId} centerReady={centerReady}/>
+                  </Suspense>
               : subjectType
                   ? <BoRegistrationHistory key={record.id} subjectType={subjectType} subjectId={record.id} />
                   : <div className="v24-audit-empty" role="status">Lịch sử chưa khả dụng.</div>}
