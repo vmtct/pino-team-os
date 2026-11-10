@@ -8,7 +8,7 @@ import { isFieldValue } from "@/lib/workspace-schema";
 const center = "01a0b29a-3acd-7a18-a0f2-cf6016548ab5";
 const parentId = "01a1be6d-b06c-7868-be08-bbed0d3a9a8f";
 const sample = {
-  id: parentId, displayName: "Parent QA", maskedContact: "q•••@example.invalid",
+  id: parentId, displayName: "Parent QA", version: 1, maskedContact: "q•••@example.invalid",
   linkedStudentCount: 0, centers: ["Cần Thơ"], updatedAt: "2026-11-09T03:50:22Z", attention: null,
 };
 const api = (row: Record<string, unknown>): typeof fetch => async () => new Response(JSON.stringify({

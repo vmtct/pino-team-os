@@ -81,7 +81,7 @@ export function ParentTdd() {
     {selected ? error ? <p role="alert">{error} <button type="button" onClick={() => setRetry(n => n + 1)}>Thử lại</button></p> :
       current ? <>
         {created?.centerId === selected ? <p role="status" className="settings-hint">Đã tạo phụ huynh {created.parentUserId}. Hồ sơ đã thuộc cơ sở này và hiển thị trong danh sách với 0 học viên.</p> : null}
-        <SurfaceWorkspace key={selected + ":" + retry} adapter={current.adapter} navigation={current.navigation} initialQuery={parentQuery} businessLoaders={loaders}
+        <SurfaceWorkspace key={selected + ":" + retry} adapter={current.adapter} navigation={current.navigation} initialQuery={parentQuery} businessLoaders={loaders} drawerReadOnly
           tableHeaderActions={current.adapter.context.authorize("identity.parent.create") ?
             <button type="button" className="primary-btn" onClick={() => setCreateForCenter(selected)}>+ Parent</button> : undefined} />
         {createForCenter === selected ? <ParentCreateDrawer centerId={selected} centerName={center?.centers.find(c => c.id === selected)?.displayName} onClose={() => setCreateForCenter(null)}
