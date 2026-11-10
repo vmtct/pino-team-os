@@ -9,7 +9,7 @@ import { VisibilityDialog } from "./VisibilityDialog";
 import { ShareLinkDialog } from "./ShareLinkDialog";
 import { SessionPostFullscreen,UnavailableSessionPost } from "./SessionPostFullscreen";
 import { ReelViewer } from "./ReelViewer";
-import { publicCommunityHref, isPublicFixture } from "./publicApproved";
+import { isPublicFixture } from "./publicApproved";
 import { POSTS, type MediaPost, type Visibility } from "./media";
 import { useActiveProfile, isManagedChild, getProfile } from "./profiles";
 import { ChildSwitcher } from "./ChildSwitcher";
@@ -190,9 +190,9 @@ export function PinerUnified({tab,space="house"}:{tab:UnifiedTab;space?:PinerSpa
            <Header currentChild={activeId} select={select} space={space} collapsed={chromeCollapsed}/>
      <main className={tab==="home"?css.unifiedContent+" "+css.unifiedHomeContent:css.unifiedContent} data-piner-slot="content" data-hydrated={loaded?"true":"false"} ref={contentRef}>
        <div className={css.unifiedContentInner}>
-         {tab!=="home"&&<div className={css.unifiedPageHeading}>
+         {tab!=="home"&&tab!=="community"&&<div className={css.unifiedPageHeading}>
                        <h1>{title}</h1>
-            {tab==="community"?<a href={publicCommunityHref(space)} className={css.publicCommunityShortcut}><PinoIcon name="globe"/> <span>Công khai</span></a>:<span>{profile.display}</span>}
+            <span>{profile.display}</span>
          </div>}
          {status&&<p className={css.visibilityStatus} role="status">{status}</p>}
          {!loaded?<div className={css.unifiedLoading} role="status">Đang mở hành trình...</div>:tab==="grid"?

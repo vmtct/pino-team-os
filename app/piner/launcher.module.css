@@ -631,14 +631,14 @@
  display:inline-flex;align-items:center;justify-content:flex-start;gap:5px;flex:0 1 auto;
 }
 .unifiedCanonicalBrand img:first-child{width:29px;height:29px;flex:0 0 29px;object-fit:contain}
-.unifiedCanonicalBrand img:last-child{width:98px;height:44px;max-width:100%;object-fit:contain}
+.unifiedCanonicalBrand img:last-child{width:auto;height:29px;max-width:100%;object-fit:contain}
 .unifiedShell[data-piner-space] .unifiedHeader>.unifiedSwitcher{margin-left:auto;max-width:190px;flex:0 1 auto}
 .unifiedHeader>.unifiedSwitcher .childOptions{left:auto;right:0}
 .unifiedShell[data-piner-space] .unifiedHeader>.mytimeIdentity{margin-left:auto}
 @media(max-width:345px){
  .unifiedCanonicalBrand{gap:3px;max-width:112px}
  .unifiedCanonicalBrand img:first-child{width:24px;height:24px;flex-basis:24px}
- .unifiedCanonicalBrand img:last-child{width:84px;height:39px}
+ .unifiedCanonicalBrand img:last-child{width:auto;height:24px}
  .unifiedShell[data-piner-space] .unifiedHeader{gap:5px;padding-inline:9px}
 }
 @media(prefers-reduced-motion:reduce){

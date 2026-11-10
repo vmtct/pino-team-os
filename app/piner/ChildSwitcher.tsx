@@ -49,7 +49,7 @@ export function ChildSwitcher({currentChild,onSelect}:{currentChild:ChildId;onSe
     aria-label="Chọn con đang xem" aria-haspopup="listbox" aria-controls={open?"piner-child-options":undefined}
     aria-expanded={open} onClick={()=>setOpen(value=>!value)}
     onKeyDown={event=>{if(event.key==="ArrowDown"||event.key==="ArrowUp"){event.preventDefault();setOpen(true);}}}>
-    <span>{child.display}</span><span className={css.childTriggerChevron} aria-hidden="true">⌄</span>
+    <span>{child.alias}</span><span className={css.childTriggerChevron} aria-hidden="true">⌄</span>
    </button>
    {open&&<div id="piner-child-options" role="listbox" aria-label="Chọn hồ sơ học viên" className={css.childOptions} data-child-options-menu="open">
     <div className={css.childOptionsTitle} aria-hidden="true">Chọn hồ sơ</div>
@@ -59,7 +59,7 @@ export function ChildSwitcher({currentChild,onSelect}:{currentChild:ChildId;onSe
       className={css.childOption} aria-selected={item.id===currentChild} data-child-option={item.id}
       onClick={()=>choose(item.id as ChildId)}>
       <span className={css.childOptionAvatar} aria-hidden="true">{item.avatar}</span>
-      <span className={css.childOptionLabel}><strong>{item.display}</strong><small>{item.program}</small></span>
+      <span className={css.childOptionLabel}><strong>{item.alias}</strong><small>{item.program}</small></span>
       {item.id===currentChild&&<span className={css.childOptionCheck} aria-hidden="true">✓</span>}
     </button>)}
    </div>}
