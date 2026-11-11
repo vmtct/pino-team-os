@@ -20,8 +20,8 @@ export function SpaceLauncher(){
      <Link href={SPACES.house.href} className={[css.launcherMockCard,css.launcherMockJourney].join(" ")}
       data-launch-app="house" data-theme="house" aria-label="Mở PINO Afterschool">
       <span className={css.launcherMockCardContent}>
-       <strong className={css.launcherMockTitle}>PINO<br/>Afterschool</strong>
-       <span className={css.launcherMockDescription}>Hết giờ học, đến giờ con khám phá.</span>
+       <strong className={css.launcherMockTitle}><span className={css.launcherMockPinoName}>PINO</span><br/>Afterschool</strong>
+       <span className={css.launcherMockDescription}>Hết giờ học,<br/>Đến giờ con khám phá.</span>
        <span className={css.launcherMockArrow} aria-hidden="true"><PinoIcon name="right"/></span>
       </span>
      </Link>
