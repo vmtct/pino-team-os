@@ -1,9 +1,11 @@
-/** PAP-650 / PNR-TV · PAP-1419 S4 URL contract + shared Drawer/Detail regression. */
+/** PAP-650 / PNR-TV · PAP-1419 S4 navigation, PAP-1385 async DSA persistence. */
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import type { BoRecord } from "./bo-registration";
+import { readFileSync } from "node:fs";
+import type { BoField, BoRecord } from "./bo-registration";
+import { PropertySections } from "../app/components/workspace-renderer/Properties";
 import { readTvPolicyLocation, tvPolicyLocationUrl, tvPolicyS4State } from "./ho-tv-policy-navigation";
 import { TvPolicyRecord } from "../app/ho/pinoria/tv-policies/TvPolicyRecord";
 
@@ -41,11 +43,14 @@ test("V3.2 one shared DrawerFrame + all 13 approved read-only values + full deta
   assert.doesNotMatch(html,/data-prop="displaysCount"/);
   assert.doesNotMatch(html,/Lưu và phát hành|heartbeat|Mở TV|Cấp quyền/);
 });
-test("S4 shared DetailFrame Overview first, History last; History never invented", () => {
+test("S4 shared DetailFrame Overview first, History last; unverified Core never renders fake editor", () => {
   const overview = renderToStaticMarkup(createElement(TvPolicyRecord,{...props,pane:"detail"}));
   assert.match(overview,/data-tdd-shell="detail"/);
   assert.match(overview,/id="back-to-list"/);
-  assert.equal((overview.match(/class="v24-prop-item"/g)||[]).length,16);
+  assert.equal((overview.match(/class="v24-prop-item"/g)||[]).length,13);
+  assert.match(overview,/data-pnr-tv-core-verified="false"/);
+  assert.match(overview,/Đang xác minh cấu hình TV từ Core/);
+  assert.doesNotMatch(overview,/data-detail-edit=|data-pnr-tv-write-verified/);
   assert.ok(overview.indexOf("Tổng quan") < overview.indexOf("Lịch sử"));
   assert.match(overview,/aria-label="Chỉ đọc Created Time"/);
   const history = renderToStaticMarkup(createElement(TvPolicyRecord,{...props,pane:"detail",tab:"history"}));
@@ -53,7 +58,7 @@ test("S4 shared DetailFrame Overview first, History last; History never invented
   assert.match(history,/Chưa có dữ liệu lịch sử Policy đã xác minh từ Core/);
   assert.doesNotMatch(history,/data-prop="createdAt"/);
 });
-test("S4 forbidden or unavailable and missing record never leak private fields", () => {
+test("S4 forbidden, unavailable and missing record never leak private fields", () => {
   for (const state of ["denied","unavailable","loading"] as const) {
     const html=renderToStaticMarkup(createElement(TvPolicyRecord,{...props,policy:null,state,pane:"drawer"}));
     assert.doesNotMatch(html,/data-prop="name"|Ambient Welcome/);
@@ -62,15 +67,36 @@ test("S4 forbidden or unavailable and missing record never leak private fields",
   const notFound=renderToStaticMarkup(createElement(TvPolicyRecord,{...props,policy:null,pane:"detail"}));
   assert.match(notFound,/Không tìm thấy bản ghi/);
 });
-
-
-test("PAP-1794 DSA inline Full Detail uses whole writable property cell and readonly audit rows", () => {
-  const html=renderToStaticMarkup(createElement(TvPolicyRecord,{...props,centers:[{id:"019b1126-0001-7000-8000-000000000001",name:"Cần Thơ"}],pane:"detail"}));
-  for(const key of ["name","visibilityScope","centerIds"]){
-    assert.match(html,new RegExp("class=\"v24-prop-value writable\" data-prop=\""+key+"\" data-detail-edit=\""+key+"\""));
+test("PAP-1794 native DSA property trigger and readonly audit remain canonical after Core verification", () => {
+  // The live HO editor deliberately renders NO edit buttons on the server.
+  // Verify the reused canonical renderer against a trusted, post-GET projection here;
+  // authenticated live UI behavior remains a separate Playwright G3/G4 gate.
+  const fields: BoField[] = [
+    {key:"name",label:"Tên TV",type:"text",icon:"Aa",w:220},
+    {key:"visibilityScope",label:"Scope hiển thị",type:"select",icon:"",w:155,options:["DEFAULT","CENTER"]},
+    {key:"centerIds",label:"Center hiển thị",type:"multiselect",icon:"",w:240,options:["Cần Thơ"]},
+    {key:"createdAt",label:"Created Time",type:"text",icon:"",w:200},
+  ];
+  const record:BoRecord = {id:"tvp1-default",name:"Ambient Welcome",visibilityScope:"CENTER",centerIds:["Cần Thơ"],createdAt:"—"};
+  const html=renderToStaticMarkup(createElement(PropertySections,{
+    variant:"detail",fields,record,
+    sections:[{id:"v",label:"Hiển thị TV",fields:fields.map(f=>f.key)}],
+    canEdit:(field:BoField)=>field.key!=="createdAt",
+    onEdit:()=>{},
+  }));
+  for (const key of ["name","visibilityScope","centerIds"]) {
+    assert.match(html,new RegExp('class="v24-prop-value writable" data-prop="'+key+'" data-detail-edit="'+key+'"'));
   }
   assert.equal((html.match(/class="v24-prop-value writable"/g)||[]).length,3);
-  assert.equal((html.match(/class="v24-prop-value readonly"/g)||[]).length,13);
   assert.equal((html.match(/class="v24-edit-glyph"/g)||[]).length,3);
+  assert.equal((html.match(/class="v24-prop-value readonly"/g)||[]).length,1);
   assert.doesNotMatch(html,/✎ Sửa|class="inline-custom-editor"/);
+  const source = readFileSync(new URL("../app/ho/pinoria/tv-policies/TvPolicyVisibilityEditor.tsx",import.meta.url),"utf8");
+  assert.match(source,/PropertySections variant="detail"/);
+  assert.match(source,/canEdit=\{editable\}/);
+  assert.match(source,/onEdit=\{\(field, anchor\)/);
+  assert.match(source,/BoTypedEditor/);
+  assert.match(source,/closeOnSave=\{false\}/);
+  assert.match(source,/readTvVisibility/);
+  assert.match(source,/saveTvVisibility/);
 });
