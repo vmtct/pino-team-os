@@ -2,7 +2,7 @@
 /** PAP-1488 / PAP-1676: approved TOS Classroom Nhiệm Vụ tab,
  * Core Assignment IDs (not Diary child records). Approved card and sheet CSS only.
  */
-import {useEffect,useRef,useState} from "react";
+import {useCallback,useEffect,useRef,useState} from "react";
 import {FontAwesomeIcon,faBookOpen,faCheck,faPlus,faRotate,faXmark} from "./classroom-icons";
 import styles from "./classroom.module.css";
 import {AppModalRoot,createSlotKeys} from "../tos-ds";
@@ -18,11 +18,13 @@ import {
 } from "@/lib/tos-mission-assignment-command-runtime";
 
 const slot=createSlotKeys(styles);
+type MissionCreateRequest={id:number;studentId:string};
 type Editor={studentId:string;old:TosMissionAssignmentCard|null};
 type Choices={phase:"loading"|"ready"|"error";items:readonly TosEligibleMissionChoice[]};
 export default function MissionAssignmentTab({
-  scope,readOnly=false,
-}:{scope:MissionTabScope;readOnly?:boolean}){
+  scope,readOnly=false,visible=true,createRequest=null,onCreateRequestConsumed,
+}:{scope:MissionTabScope;readOnly?:boolean;visible?:boolean;
+  createRequest?:MissionCreateRequest|null;onCreateRequestConsumed?:(requestId:number)=>void}){
   const [read,setRead]=useState<MissionTabReadState>({state:"LOADING",groups:[]});
   const [attempt,setAttempt]=useState(0);
   const [editor,setEditor]=useState<Editor|null>(null);
@@ -30,6 +32,7 @@ export default function MissionAssignmentTab({
   const [chosen,setChosen]=useState("");
   const [busy,setBusy]=useState(false);
   const submitting=useRef(false);
+  const consumedCreateRequest=useRef<number|null>(null);
   const [error,setError]=useState("");
   const {centerId,localDate,runningClassId,teachingContextKey}=scope;
   const groups=read.state==="READY"||read.state==="EMPTY"?read.groups:[];
@@ -51,11 +54,19 @@ export default function MissionAssignmentTab({
     return()=>{active=false};
     // The page/occurrence is fixed by the parent key; changing editor is a new read.
   },[editor,centerId,localDate,runningClassId,teachingContextKey]);
-  const open=(studentId:string,old:TosMissionAssignmentCard|null=null)=>{
+  const open=useCallback((studentId:string,old:TosMissionAssignmentCard|null=null)=>{
     if(!canWrite||submitting.current)return;
     if(!groups.some(g=>g.studentId===studentId))return;
     setChoices({phase:"loading",items:[]});setChosen("");setError("");setEditor({studentId,old});
-  };
+  },[canWrite,groups]);
+  // PAP-1850: Student-tab action reuses this editor; consume only after Core roster read.
+  useEffect(()=>{
+    if(!createRequest||consumedCreateRequest.current===createRequest.id||!canWrite||
+      !groups.some(g=>g.studentId===createRequest.studentId))return;
+    consumedCreateRequest.current=createRequest.id;
+    open(createRequest.studentId);
+    onCreateRequestConsumed?.(createRequest.id);
+  },[createRequest,canWrite,groups,open,onCreateRequestConsumed]);
   const close=()=>{if(!submitting.current){setEditor(null);setError("")}};
   const submit=async()=>{
     if(!editor||submitting.current||readOnly||choices.phase!=="ready"||
@@ -91,23 +102,22 @@ export default function MissionAssignmentTab({
     }finally{submitting.current=false;setBusy(false)}
   };
   const studentName=editor?groups.find(g=>g.studentId===editor.studentId)?.studentName:"";
-  return <section role="tabpanel" id="tos-classroom-panel-missions"
+  return <><section hidden={!visible} role="tabpanel" id="tos-classroom-panel-missions"
     aria-labelledby="tos-classroom-tab-missions" aria-busy={read.state==="LOADING"}>
     <div className={styles.sectionHead} data-tos-slot={slot(styles.sectionHead)}>
       <div><h2>Nhiệm vụ hôm nay ({count})</h2></div>
       <button type="button" aria-label="Thêm Nhiệm Vụ" disabled={!canWrite}
         onClick={()=>{if(groups.length===1)open(groups[0]!.studentId);
           else if(groups.length>1)open(groups[0]!.studentId)}}>
-        <FontAwesomeIcon icon={faPlus}/> + Thêm
+        <FontAwesomeIcon icon={faPlus}/> Thêm
       </button>
     </div>
     {read.state==="LOADING"&&<p role="status" className={styles.empty}
       data-tos-slot={slot(styles.empty)}>Đang tải nhiệm vụ đã giao…</p>}
     {read.state==="UNAVAILABLE"&&<p role="alert" className={styles.empty}
       data-tos-slot={slot(styles.empty)}>{missionTabReadMessage(read.error)}</p>}
-    {(read.state==="UNAVAILABLE"||attempt>0)&&<button type="button"
-      aria-disabled={read.state==="LOADING"}
-      onClick={()=>{if(read.state!=="LOADING")setAttempt(x=>x+1)}}>Thử lại</button>}
+    {read.state==="UNAVAILABLE"&&<button type="button" className={styles.missionReadRetry}
+      onClick={()=>setAttempt(x=>x+1)}>Tải lại nhiệm vụ</button>}
     {read.state==="EMPTY"&&<p role="status" className={styles.empty}
       data-tos-slot={slot(styles.empty)}>Chưa có nhiệm vụ được giao.</p>}
     {groups.filter(g=>g.cards.length>0).map(group=><section className={styles.missionBatch}
@@ -138,7 +148,7 @@ export default function MissionAssignmentTab({
             data-tos-slot={slot(styles.missionNextCta)}
             aria-label={"Thêm nhiệm vụ sau "+card.missionCodeSnapshot}
             disabled={!canWrite} onClick={()=>open(group.studentId)}>
-            <FontAwesomeIcon icon={faPlus}/> + Thêm
+            <FontAwesomeIcon icon={faPlus}/> Thêm
           </button>
           <button type="button" className={styles.missionSwapCta}
             data-tos-slot={slot(styles.missionSwapCta)}
@@ -149,6 +159,16 @@ export default function MissionAssignmentTab({
         </div>
       </article>)}
     </section>)}
+    </section>
+    {!visible&&createRequest&&read.state==="UNAVAILABLE"&&<div role="alert"
+      className={styles.missionReadError}>
+      <p>{missionTabReadMessage(read.error)}</p>
+      <button type="button" className={styles.missionReadRetry}
+        onClick={()=>setAttempt(x=>x+1)}>Tải lại nhiệm vụ</button>
+    </div>}
+    {!visible&&createRequest&&(read.state==="READY"||read.state==="EMPTY")&&
+      !groups.some(g=>g.studentId===createRequest.studentId)&&<p role="alert"
+      className={styles.missionReadError}>Học viên chưa đủ điều kiện giao nhiệm vụ tại lớp này.</p>}
     {editor&&<AppModalRoot className={styles.scrim} data-tos-slot={slot(styles.scrim)}
       onClose={close}>
       <section className={styles.sheet} data-tos-slot={slot(styles.sheet)}
@@ -199,5 +219,5 @@ export default function MissionAssignmentTab({
         </div>
       </section>
     </AppModalRoot>}
-  </section>;
+  </>;
 }
