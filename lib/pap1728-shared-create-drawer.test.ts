@@ -31,7 +31,9 @@ test("PAP-1728 Create and View use the identical typed Drawer property renderer"
   assert.equal(count(view, /class="property-row"/g), visibleDrawerFields.length);
   assert.equal(count(create, /class="property-row"/g), visibleDrawerFields.length);
   assert.equal(count(create, /<input\b/g), 2, "only two approved inputs");
-  assert.equal(count(create, /<button\b/g), visibleDrawerFields.length - 2, "other visible properties stay read-only");
+  assert.equal(count(create, /class="v24-prop-value readonly"/g), visibleDrawerFields.length - 2, "other visible properties remain readonly DSA cells");
+  assert.equal(count(create, /<button\b/g), 0, "readonly property cells are no longer disabled buttons");
+  assert.equal(count(view, /class="v24-prop-value readonly"/g), visibleDrawerFields.length, "View readonly cells retain DSA form");
   assert.match(create, /data-tdd-create=""/);
   assert.doesNotMatch(view, /data-tdd-create=/);
   assert.match(create, /data-prop="studentCount"/);

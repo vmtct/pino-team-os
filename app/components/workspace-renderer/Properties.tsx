@@ -27,7 +27,7 @@ export type CreateDrawerField = {
   readonly control?: ReactNode;
 };
 /** Drawer uses property rows, never the viewport-driven Full Detail grid. */
-export function PropertySections({ fields, record, sections, variant, canEdit, onEdit, legacyStyles = false, sectionActions, labelWidth = 160, onLabelWidthChange, createFields }: {
+export function PropertySections({ fields, record, sections, variant, canEdit, onEdit, sectionActions, labelWidth = 160, onLabelWidthChange, createFields }: {
   readonly fields: readonly BoField[]; readonly record: BoRecord;
   readonly sections: readonly { readonly id: string; readonly label: string; readonly fields: readonly string[]; readonly collapsed?: boolean }[];
   readonly variant: "drawer" | "detail"; readonly legacyStyles?: boolean;
@@ -87,9 +87,13 @@ export function PropertySections({ fields, record, sections, variant, canEdit, o
               aria-required={creator.required || undefined} required={creator.required} maxLength={creator.maxLength}
               autoComplete={creator.autoComplete} ref={creator.inputRef} value={creator.value} disabled={creator.disabled}
               onChange={e => creator.onChange(e.target.value)} />)
-        : <button type="button" className="property-control" data-prop={key} disabled={!legacyStyles && !editable} aria-disabled={!editable} tabIndex={editable ? 0 : -1} aria-label={(editable ? "Sửa " : "Chỉ đọc ") + field.label} onClick={e => editable && onEdit?.(field, e.currentTarget)}>
-          {key === "id" && !record.id ? <span className="empty-val">Chưa tạo</span> : <BoValue field={field} value={record[key]} />}{editable ? <span className="pencil" aria-hidden="true">✎</span> : null}
-        </button>}
+        : editable ? <button type="button" className="v24-prop-value writable" data-prop={key} data-detail-edit={key}
+            aria-label={"Sửa " + field.label} onClick={event => onEdit?.(field, event.currentTarget)}>
+            <BoValue field={field} value={record[key]} full /><span className="v24-edit-glyph" aria-hidden="true">✎</span>
+          </button> : <div className="v24-prop-value readonly" aria-label={"Chỉ đọc " + field.label} data-prop={key}>
+            {key === "id" && !record.id ? <span className="empty-val">Chưa tạo</span> : <BoValue field={field} value={record[key]} full />}
+            <span className="v24-lock" aria-hidden="true">⌁</span>
+          </div>}
       </div> : <div className="v24-prop-item" key={key}>
         <div className="v24-prop-key"><span className="v24-field-glyph">{field.icon}</span>{field.label}
           {index === 0 && section === visibleSections[0] && onLabelWidthChange ? <div
