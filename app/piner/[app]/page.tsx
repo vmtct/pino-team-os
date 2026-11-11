@@ -8,7 +8,7 @@ export const dynamicParams=false;
 export function generateStaticParams(){return ["house","mytime","grid","reels","community","hoi-hoa","piano"].map(app=>({app}));}
 export async function generateMetadata({params}:Props):Promise<Metadata>{
  const {app}=await params;
- return {title:(app==="mytime"?"MyTime":"PINO House")+" · Piner Space"};
+ return {title:(app==="mytime"?"MyTime by PINO":"PINO Afterschool")+" · Piner Space",description:app==="mytime"?"Hết những bận rộn, đến giờ mình tận hưởng.":"Hết giờ học, đến giờ con khám phá."};
 }
 export default async function SpaceRoot({params}:Props){
  const {app}=await params;

@@ -118,7 +118,7 @@ export function PublicFeedClient({posts,mode,selectedPostId,space}:Props){
   <div className={css.unifiedContentInner} data-public-mode={mode} data-public-space={space} data-hydrated={ready?"true":"false"}>
    {mode==="community"?
     <div className={css.unifiedPageHeading}>
-     <h1>{space==="house"?"Cộng đồng PINO House":"Cộng đồng MyTime"}</h1><span>{posts.length} bài chia sẻ</span>
+     <h1>{space==="house"?"Cộng đồng PINO Afterschool":"Cộng đồng MyTime by PINO"}</h1><span>{posts.length} bài chia sẻ</span>
     </div>:
     <div className={css.guestProfileIntro} data-public-profile={owner}>
       <Link href={publicCommunityHref(space)} className={css.guestBack}>‹ Về Cộng đồng</Link>
@@ -127,7 +127,7 @@ export function PublicFeedClient({posts,mode,selectedPostId,space}:Props){
        <div><h1>{alias}</h1><p>{posts.length} bài được chia sẻ công khai</p></div>
        <button type="button" onClick={login} className={css.guestFollow}>Theo dõi</button>
       </div>
-      <p className={css.guestProfileHint}>{space==="mytime"?"Thành quả sáng tạo của chính mình":"Hành trình sáng tạo của con"} · Ảnh và Reel</p>
+      <p className={css.guestProfileHint}>{space==="mytime"?"Hết những bận rộn, đến giờ mình tận hưởng.":"Hết giờ học, đến giờ con khám phá."} · Ảnh và Reel</p>
     </div>}
    <div className={css.unifiedFeed} data-feed-scope={mode==="community"?"public-community":"public-profile"}>
     {posts.map(post=><GuestFeedCard key={post.id} post={post} onPlay={openReel} onLogin={login}/>)}

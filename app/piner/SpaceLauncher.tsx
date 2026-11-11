@@ -18,10 +18,10 @@ export function SpaceLauncher(){
     </div>
     <nav className={css.launcherMockCards} aria-label="Chọn chương trình Piner APP">
      <Link href={SPACES.house.href} className={[css.launcherMockCard,css.launcherMockJourney].join(" ")}
-      data-launch-app="house" data-theme="house" aria-label="Mở PINO Journey">
+      data-launch-app="house" data-theme="house" aria-label="Mở PINO Afterschool">
       <span className={css.launcherMockCardContent}>
-       <strong className={css.launcherMockTitle}>PINO<br/>Journey</strong>
-       <span className={css.launcherMockDescription}>Hành trình sáng tạo<br/>của con</span>
+       <strong className={css.launcherMockTitle}>PINO<br/>Afterschool</strong>
+       <span className={css.launcherMockDescription}>Hết giờ học, đến giờ con khám phá.</span>
        <span className={css.launcherMockArrow} aria-hidden="true"><PinoIcon name="right"/></span>
       </span>
      </Link>
@@ -29,7 +29,7 @@ export function SpaceLauncher(){
       data-launch-app="mytime" data-theme="mytime" aria-label="Mở MyTime by PINO">
       <span className={css.launcherMockCardContent}>
        <strong className={css.launcherMockTitle}>MyTime<span className={css.launcherMockBy}>by PINO</span></strong>
-       <span className={css.launcherMockDescription}>Không gian sáng tạo<br/>của riêng bạn</span>
+       <span className={css.launcherMockDescription}>Hết những bận rộn, đến giờ mình tận hưởng.</span>
        <span className={css.launcherMockArrow} aria-hidden="true"><PinoIcon name="right"/></span>
       </span>
      </Link>

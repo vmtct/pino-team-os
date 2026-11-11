@@ -23,7 +23,7 @@ export default function PublicLayout({children}:{children:ReactNode}){
  return <div className={css.unifiedBackdrop}>
   <div className={css.unifiedShell} data-piner-shared="unified-shell" data-piner-space={space} data-public-guest="true">
    <header className={css.unifiedHeader} data-piner-shared="unified-header">
-    <Link href={current} className={css.guestHeaderCommunity}>{space==="mytime"?"MyTime":"PINO House"}</Link>
+    <Link href={current} className={css.guestHeaderCommunity}>{space==="mytime"?"MyTime by PINO":"PINO Afterschool"}</Link>
     <Link href={"/piner/public/login?returnTo="+encodeURIComponent(path)}
       className={css.guestHeaderLogin}>Đăng nhập</Link>
     <Link href="/piner" aria-label="Logo PINO Space · Ứng dụng" className={css.unifiedLogo}>

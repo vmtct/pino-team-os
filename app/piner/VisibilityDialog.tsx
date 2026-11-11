@@ -41,7 +41,7 @@ export function VisibilityDialog({post,onCancel,onConfirm}:{
      <div className={css.audienceOption} aria-label="Phạm vi chia sẻ công khai">
       <span className={css.audienceIcon} aria-hidden="true"><PinoIcon name="globe"/></span>
       <div><strong>Cộng đồng công khai</strong>
-       <small>{isMyTime?"MyTime":"PINO House"} · Xem được không cần đăng nhập</small>
+       <small>{isMyTime?"MyTime by PINO":"PINO Afterschool"} · Xem được không cần đăng nhập</small>
       </div>
      </div>
      <label className={css.consentCheck}>

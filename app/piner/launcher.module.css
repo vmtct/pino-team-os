@@ -814,3 +814,19 @@
 /* PAP-1872: keep portrait dots above caption. */
 .communityCarousel[data-media-aspect='9:16'] .communityCarouselSwipeHint,
 .communityCarousel[data-media-aspect='4:5'] .communityCarouselSwipeHint{display:none}
+
+/* PAP-1877 · Founder-approved Afterschool/MyTime two-program copy; keep legacy R2 names. */
+.launcherMockCard[data-launch-app="house"] .launcherMockTitle{
+ font-size:clamp(20px,6.2vw,28px);letter-spacing:-.055em;
+}
+.launcherMockCard[data-launch-app="house"] .launcherMockCardContent{max-width:70%}
+.launcherMockCard .launcherMockDescription{font-size:clamp(11.5px,3vw,14px);line-height:1.34;font-weight:540;max-width:100%;text-wrap:pretty;overflow-wrap:normal}
+@media(max-width:345px){
+ .launcherMockCard .launcherMockDescription{font-size:11.5px;line-height:1.26;margin-top:7px}
+ .launcherMockCard .launcherMockArrow{width:38px;height:38px;margin-top:7px}
+ .launcherMockCard .launcherMockCardContent{padding-block:10px}
+}
+@media(max-height:665px){
+ .launcherMockCard .launcherMockDescription{font-size:11px;line-height:1.25;margin-top:6px}
+ .launcherMockCard .launcherMockArrow{width:38px;height:38px;margin-top:6px}
+}
