@@ -47,7 +47,7 @@ test("PAP-1869 filter popup remains native, source owned dismiss and no layout c
  assert.match(source,/filterSurfaceRef.current\?\.contains\(target\)/);
  assert.match(source,/filterButtonRef.current\?\.focus/);
  assert.doesNotMatch(source,/<select[^>]*id="filter-toggle"/);
- assert.match(file("app/components/workspace-renderer/tdd-table-geometry.css"),/\[data-tdd-filter-surface\] \{ display: contents; \}/);
+ assert.doesNotMatch(file("app/components/workspace-renderer/tdd-table-geometry.css"),/\[data-tdd-filter-surface\]/, "Preserve canonical BO/HO CSS declarations; dismiss wrapper is not a CSS fork.");
 });
 test("PAP-1869 typed built-in views retain source Center authorization and unique selection",()=>{
  const source=file("app/components/workspace-renderer/Table.tsx");

@@ -156,6 +156,3 @@
 [data-native-avatar] .toolbar {
   display: flex !important;
 }
-
-/* PAP-1869 / PAP-1867: transparent DOM owner for keyboard/outside popover dismissal. */
-[data-tdd-filter-surface] { display: contents; }
