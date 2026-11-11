@@ -100,3 +100,13 @@ test("PAP-1794 native DSA property trigger and readonly audit remain canonical a
   assert.match(source,/readTvVisibility/);
   assert.match(source,/saveTvVisibility/);
 });
+
+test("PAP-1794 HO TV async DSA focus restoration maintains the native anchor", () => {
+  const source = readFileSync(new URL("../app/ho/pinoria/tv-policies/TvPolicyVisibilityEditor.tsx", import.meta.url), "utf8");
+  assert.match(source, /state === "ready" && !!current &&\s*\(field\.key/);
+  assert.doesNotMatch(source, /!!current && !busy/);
+  assert.match(source, /window\.requestAnimationFrame/);
+  assert.match(source, /returnFocus\(field\.key, editor\?\.anchor\)/);
+  assert.match(source, /onEdit=\{\(field, anchor\) => \{ if \(busy\) return;/);
+  assert.match(source, /aria-busy=\{busy\}/);
+});
