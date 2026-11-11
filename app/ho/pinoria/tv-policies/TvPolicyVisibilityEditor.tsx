@@ -80,11 +80,32 @@ export function TvPolicyVisibilityEditor({
     id: current.id, name: current.name, visibilityScope: current.scope,
     centerIds: current.assignedCenterIds.map(id => labels.get(id) ?? id),
   } : { id: policy.id, name: "—", visibilityScope: "—", centerIds: [] };
+  // Keep the original DSA trigger mounted during async CAS/readback so the
+  // shared editor can restore focus to the same real button after unmount.
   const editable = (field: BoField) =>
-    state === "ready" && !!current && !busy &&
+    state === "ready" && !!current &&
     (field.key !== "centerIds" || current.scope === "CENTER");
 
-  const close = () => { if (!saving.current) { setEditor(null); setError(""); } };
+  const returnFocus = (fieldKey: string, anchor?: HTMLButtonElement) => {
+    window.requestAnimationFrame(() => {
+      const active = document.activeElement;
+      // Do not steal focus from a new intentional target.
+      if (active && active !== document.body && active !== document.documentElement &&
+          active !== anchor && active.isConnected) return;
+      const replacement = document.querySelector<HTMLButtonElement>(
+        '[data-pnr-tv-visibility-editor] button.v24-prop-value.writable[data-detail-edit="' + fieldKey + '"]',
+      );
+      (anchor?.isConnected ? anchor : replacement)?.focus();
+    });
+  };
+  const close = () => {
+    if (!saving.current) {
+      const previous = editor;
+      setEditor(null);
+      setError("");
+      if (previous) returnFocus(previous.field.key, previous.anchor);
+    }
+  };
   async function commit(field: BoField, value: BoValue) {
     if (saving.current || !current || !selectedCenterId || state !== "ready") return;
     let next: TvVisibilityDraft = {
@@ -112,13 +133,14 @@ export function TvPolicyVisibilityEditor({
         setMessage(verified === current ? "Không có thay đổi để lưu; đã đọc cấu hình từ Core." :
           "Đã lưu và xác minh readback từ Core · revision " + verified.revision + ".");
         setEditor(null);
+        returnFocus(field.key, editor?.anchor);
       }
     } catch (cause) {
       if (attempt.signal.aborted) return;
       if (cause instanceof TvVisibilityClientError && cause.code === "CONFLICT") {
         try {
           const refreshed = await readTvVisibility(policy.id, selectedCenterId, centers, fetch, attempt.signal);
-          if (!attempt.signal.aborted) { setCurrent(refreshed); setEditor(null); }
+          if (!attempt.signal.aborted) { setCurrent(refreshed); setEditor(null); returnFocus(field.key, editor?.anchor); }
         } catch { if (!attempt.signal.aborted) { setState("unavailable"); setCurrent(null); setEditor(null); } }
         if (!attempt.signal.aborted) setError(statusMessage(cause));
       } else if (cause instanceof TvVisibilityClientError && cause.code === "INVALID") {
@@ -132,7 +154,7 @@ export function TvPolicyVisibilityEditor({
       saving.current = false; setBusy(false);
     }
   }
-  return <section data-pnr-tv-visibility-editor=""
+  return <section data-pnr-tv-visibility-editor="" aria-busy={busy}
     data-pnr-tv-core-verified={state === "ready" ? "true" : "false"}
     data-pnr-tv-persisted={state === "ready" && (current?.revision ?? 0) > 0 ? "true" : "false"}
     aria-label="Hiển thị TV trên TOS — dữ liệu Core">
@@ -141,7 +163,7 @@ export function TvPolicyVisibilityEditor({
           {" "}<button type="button" onClick={() => setRetry(n => n + 1)}>Thử lại</button></p>
       : current ? <>
         <PropertySections variant="detail" fields={fields} record={record} sections={sections}
-          canEdit={editable} onEdit={(field, anchor) => { setError(""); setEditor({field, anchor}); }} />
+          canEdit={editable} onEdit={(field, anchor) => { if (busy) return; setError(""); setEditor({field, anchor}); }} />
         {editor ? <BoTypedEditor key={editor.field.key + ":" + current.revision}
           field={editor.field} value={record[editor.field.key]} anchor={editor.anchor}
           closeOnSave={false} onSave={value => { void commit(editor.field, value); }} onClose={close} /> : null}
