@@ -6,6 +6,7 @@ import { useCallback,useContext,useEffect,useMemo,useRef,useState } from "react"
 import { HoWorkspace } from "@/app/ho/HoWorkspace";
 import { TddHostMenu } from "@/app/components/workspace-adapters/SurfaceWorkspace";
 import { BoQuickView } from "@/app/bo/components/registration/BoQuickView";
+import { HoAttributeFullDetail } from "./HoAttributeFullDetail";
 import { BoDataTable } from "@/app/bo/components/registration/BoDataTable";
 import { BoTableSettings } from "@/app/bo/components/registration/BoTableSettings";
 import { boApi } from "@/lib/bo-api";
@@ -59,7 +60,7 @@ function CustomAttributesFsg3(){
  const replayKey=useRef("");
  const [centers,setCenters]=useState<CenterOption[]>([]);
  const [value,setValue]=useState<AttributeDraft>(draft);
- const [open,setOpen]=useState<"create"|"view"|null>(null);
+ const [open,setOpen]=useState<"create"|"view"|"detail"|null>(null);
  const [selected,setSelected]=useState<AttributeDefinition|null>(null);
  const [busy,setBusy]=useState(false),[error,setError]=useState(""),[status,setStatus]=useState("");
  const [table,setTable]=useState<BoTableState>(emptyTable);
@@ -347,7 +348,7 @@ function CustomAttributesFsg3(){
     onCreate:create,busy,error
    }}/>:null}
   {open==="view"&&selected?<BoQuickView module={attributeModule}
-   record={asRecord(selected,centers)} hideDetailAction onClose={close}/>:null}
+   record={asRecord(selected,centers)} onDetail={()=>setOpen("detail")} onClose={close}/>:null}
  </section>;
 }
 export default function HoCustomAttributesPage(){
