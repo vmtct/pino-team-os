@@ -13,9 +13,9 @@ test("PAP-1875 typed Detail frame never projects internal record ID as header su
  assert.match(tdd,/renderScope\(schema, props\.context, props\.record\.id\)/,"Keep internal identity for adapter navigation");
  assert.match(tdd,/subject\.id !== record\.id/,"Keep History ID proof");
  const html=renderToStaticMarkup(createElement(DetailFrame,{
-   title:"[QA TOS] Hoàn thiện A3",onBack:()=>{},children:createElement("p",null,"Nhiệm vụ"),
+   title:"[QA TOS] Hoàn thiện A3",onBack:()=>{},
    tabs:[{id:"overview",label:"Tổng quan"},{id:"history",label:"Lịch sử"}],selected:"overview",
- }));
+ }, createElement("p",null,"Nhiệm vụ")));
  assert.match(html,/\[QA TOS\] Hoàn thiện A3/);
  assert.doesNotMatch(html,/id="detail-subtitle"/);
  assert.match(html,/role="tablist"/);
