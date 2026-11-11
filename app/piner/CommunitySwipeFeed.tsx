@@ -2,6 +2,7 @@
 // PAP-1870 · PNR-APP-HUB · TikTok-style local Community prototype, synthetic content only.
 import {useEffect,useRef,useState,type RefObject,type KeyboardEvent as ReactKeyboardEvent} from "react";
 import {MediaArtwork} from "./MediaArtwork";
+import {CommunityPhotoCarousel} from "./CommunityPhotoCarousel";
 import {PublicShareAction} from "./PublicShareAction";
 import {isPublicFixture,publicProfileHref} from "./publicApproved";
 import {syntheticReelSrc,type MediaPost} from "./media";
@@ -59,10 +60,7 @@ function CommunitySlide({post,index,total,active,canManage,onOpen,onRequestVisib
  return <article data-community-slide={post.id} data-post={post.id} data-post-owner={post.ownerId}
    data-post-scope="community" data-active-slide={active?"true":"false"}
    className={css.swipeSlide} aria-label={author+": "+post.title} aria-roledescription="Bài đăng cộng đồng">
-   {post.type==="reel"?<VideoStage post={post} active={active}/>:
-     <div className={css.swipeMedia} data-community-media="photo">
-       <div className={css.swipeArtwork}><MediaArtwork post={post}/></div>
-     </div>}
+   {post.type==="reel"?<VideoStage post={post} active={active}/>:<CommunityPhotoCarousel post={post}/>}
    <div className={css.swipeShade} aria-hidden="true"/>
    <div className={css.swipeTop}>
      <span className={css.swipeEyebrow}>PINO <span>·</span> {post.app==="piano"?"PIANO":"ART"}</span>

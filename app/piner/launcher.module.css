@@ -760,3 +760,57 @@
  .swipePlaybackToggle{top:103px}
 }
 @media(prefers-reduced-motion:reduce){.swipeHint{animation:none}}
+
+/* PAP-1872 / PNR-APP-HUB · mixed-ratio horizontal carousel INSIDE vertical Community slide. */
+.communityCarousel{position:absolute;inset:0;z-index:0;overflow:hidden;background:#161521;touch-action:pan-y;color:#fff}
+.communityCarouselAmbient{position:absolute;inset:-16%;filter:blur(35px) saturate(.8);opacity:.68;transform:scale(1.07);pointer-events:none}
+.communityCarouselAmbient svg{width:100%;height:100%;object-fit:cover}
+.communityCarousel:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,#130e1838,transparent 30%,transparent 72%,#130e1852);pointer-events:none}
+.communityCarouselCenter{
+ position:absolute;z-index:1;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+ gap:9px;padding:58px 10px 120px;pointer-events:none;transform:translateY(-12px)
+}
+.communityCarouselKicker{font-size:10px;line-height:1.25;letter-spacing:.12em;font-weight:800;text-transform:uppercase;
+ color:#fff;text-shadow:0 2px 7px #120c19;white-space:nowrap}
+.communityCarouselFrame{
+ position:relative;flex:0 0 auto;max-width:calc(100% - 30px);
+ overflow:hidden;border-radius:3px;box-shadow:0 13px 45px #110b1873;pointer-events:none;
+}
+.communityCarouselIllustration{display:block;width:100%;height:100%;object-fit:fill}
+.communityCarouselFrame svg{display:block;width:100%;height:100%}
+.communityCarouselDimensions{font-size:10px;line-height:1.2;color:#f8f2f7e8;text-shadow:0 1px 6px #0e0a13;letter-spacing:.01em}
+.communityCarouselPagination{display:flex;justify-content:center;align-items:center;gap:7px;pointer-events:auto;min-height:24px}
+.communityCarouselDot,.communityCarouselDotActive{width:16px;height:16px;min-width:16px;display:grid;place-items:center;
+ border:0;border-radius:50%;background:transparent;padding:0;cursor:pointer}
+.communityCarouselDot:after,.communityCarouselDotActive:after{content:"";display:block;width:6px;height:6px;
+ border-radius:50%;background:#fffa;box-shadow:0 1px 5px #1d10216b}
+.communityCarouselDotActive:after{width:17px;height:6px;border-radius:8px;background:#fff}
+.communityCarouselDotActive{width:22px}
+.communityCarouselSwipeHint{font-size:10px;letter-spacing:.06em;color:#f7eff4d8;text-shadow:0 2px 8px #0009;white-space:nowrap}
+.communityCarouselPrev,.communityCarouselNext{
+ position:absolute;z-index:3;top:49%;transform:translateY(-50%);
+ width:44px;height:44px;display:grid;place-items:center;
+ background:#1c132e72;border:1px solid #fff5;backdrop-filter:blur(8px);border-radius:50%;
+ color:#fff;cursor:pointer;box-shadow:0 3px 14px #0005;
+}
+.communityCarouselPrev{left:8px}
+.communityCarouselNext{right:82px}
+.communityCarouselPrev svg,.communityCarouselNext svg{display:block;width:18px;height:18px;fill:currentColor}
+.communityCarouselPrev:disabled,.communityCarouselNext:disabled{opacity:.28;cursor:default}
+.communityCarouselCount{position:absolute;z-index:2;top:calc(112px + env(safe-area-inset-top));left:18px;
+ background:#1f162c9c;border:1px solid #fff5;border-radius:18px;color:#fff;
+ font-size:11px;letter-spacing:.035em;font-weight:800;padding:5px 9px;text-shadow:0 1px 4px #0008}
+@media(max-width:345px){
+ .communityCarouselCenter{padding:58px 7px 123px;gap:5px;transform:translateY(-18px)}
+ .communityCarouselPrev{left:4px}
+ .communityCarouselNext{right:71px}
+ .communityCarouselDimensions{font-size:9px}
+}
+@media(max-height:700px){
+ .communityCarouselCenter{gap:5px;padding-bottom:122px;transform:translateY(-28px)}
+ .communityCarouselSwipeHint{display:none}
+ .communityCarouselCount{top:104px}
+}
+/* PAP-1872: keep portrait dots above caption. */
+.communityCarousel[data-media-aspect='9:16'] .communityCarouselSwipeHint,
+.communityCarousel[data-media-aspect='4:5'] .communityCarouselSwipeHint{display:none}
