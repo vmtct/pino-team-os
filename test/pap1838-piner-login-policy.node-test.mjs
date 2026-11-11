@@ -2,6 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { isAllowedPath } from "../lib/piner-staging-route-policy.mjs";
 import {
   safePinerReturnTo, normalizePinerPhone, maskPinerPhone,
   challengeDeadline, pinerAuthError, OTP_LIFETIME_MS, RESEND_COOLDOWN_MS,
@@ -56,4 +57,19 @@ test("PAP-1838 BFF-only source has no mock auth success, password or client-side
   assert.match(component, /router\.replace\(destination\)/);
   assert.doesNotMatch(component, /localStorage|sessionStorage|document\.cookie|Math\.random\(\)/);
   assert.doesNotMatch(page, /type="password"|mock"/);
+});
+
+test("PAP-1838 Staging Worker exposes only the scoped Piner login entrypoint", () => {
+  for (const pathname of [
+    "/piner-space", "/piner-space/", "/piner-prototype", "/piner/prototype",
+    "/piner/public/login", "/piner/public/login/",
+    "/_next/static/chunks/login.js", "/cdn-cgi/image/width=640/example.png",
+  ]) {
+    assert.equal(isAllowedPath(pathname), pathname !== "/piner/prototype", "allowed " + pathname);
+  }
+  for (const pathname of [
+    "/piner", "/piner/public", "/piner/public/post/123",
+    "/piner/public/login-evil", "/piner/public/login.evil", "/piner-space-evil",
+    "/api/admin", "/api/piner/auth/session", "/founder", "/", "", null,
+  ]) assert.equal(isAllowedPath(pathname), false, "deny " + pathname);
 });
