@@ -9,12 +9,9 @@ import {
   type TvVisibilityCenter, type TvVisibilityDraft, type TvLiveVisibility,
 } from "@/lib/ho-tv-visibility-client";
 
+import { projectHoTvPolicyDetail } from "@/lib/ho-tv-policy-detail-projection";
 export type { TvVisibilityCenter };
-const sections = [{
-  id: "tv-logical-visibility",
-  label: "Hiển thị trên TOS",
-  fields: ["name", "visibilityScope", "centerIds"],
-}];
+
 type Editor = { field: BoField; anchor: HTMLButtonElement };
 type State = "loading" | "ready" | "denied" | "unavailable";
 function statusMessage(err: unknown): string {
@@ -32,8 +29,8 @@ function statusMessage(err: unknown): string {
   return "Không thể kết nối Core. Cần tải lại để xác minh trạng thái trước khi chỉnh sửa.";
 }
 export function TvPolicyVisibilityEditor({
-  policy, centers,
-}: { policy: BoRecord; centers: readonly TvVisibilityCenter[] }) {
+  policy, centers, onVerified,
+}: { policy: BoRecord; centers: readonly TvVisibilityCenter[]; onVerified?: (value: TvLiveVisibility) => void }) {
   const selectedCenterId = selectedTvCenter(policy.id, centers);
   const [state, setState] = useState<State>("loading");
   const [current, setCurrent] = useState<TvLiveVisibility | null>(null);
@@ -67,24 +64,20 @@ export function TvPolicyVisibilityEditor({
   }, [policy.id, selectedCenterId, centers, retry]);
 
   const options = centers.map(c => ({ id: c.id, label: c.name + " · " + c.id.slice(-6) }));
-  const labels = new Map(options.map(o => [o.id, o.label]));
   const ids = new Map(options.map(o => [o.label, o.id]));
-  const fields: BoField[] = [
-    { key: "name", label: "Tên TV", type: "text", icon: "Aa", w: 220 },
-    { key: "visibilityScope", label: "Scope hiển thị", type: "select", icon: "", w: 155,
-      options: ["DEFAULT", "CENTER"] },
-    { key: "centerIds", label: "Center hiển thị", type: "multiselect", icon: "", w: 240,
-      options: options.map(o => o.label) },
-  ];
-  const record: BoRecord = current ? {
-    id: current.id, name: current.name, visibilityScope: current.scope,
-    centerIds: current.assignedCenterIds.map(id => labels.get(id) ?? id),
-  } : { id: policy.id, name: "—", visibilityScope: "—", centerIds: [] };
+  // One source-driven record projection; never render a parallel readonly copy.
+  const projected = current ? projectHoTvPolicyDetail(policy, current, centers) : null;
+  const fields = projected?.fields ?? [];
+  const record = projected?.record ?? policy;
+  const sections = projected?.sections ?? [];
+  useEffect(() => {
+    if (current && state === "ready") onVerified?.(current);
+  }, [current, state, onVerified]);
   // Keep the original DSA trigger mounted during async CAS/readback so the
   // shared editor can restore focus to the same real button after unmount.
   const editable = (field: BoField) =>
-    state === "ready" && !!current &&
-    (field.key !== "centerIds" || current.scope === "CENTER");
+    state === "ready" && !!current && field.readonly !== true &&
+    (field.key !== "center" || current.scope === "CENTER");
 
   const returnFocus = (fieldKey: string, anchor?: HTMLButtonElement) => {
     window.requestAnimationFrame(() => {
@@ -113,10 +106,10 @@ export function TvPolicyVisibilityEditor({
     };
     if (field.key === "name" && typeof value === "string") {
       next = { ...next, name: value.trim() };
-    } else if (field.key === "visibilityScope" && (value === "DEFAULT" || value === "CENTER")) {
+    } else if (field.key === "scope" && (value === "DEFAULT" || value === "CENTER")) {
       next = { ...next, scope: value,
         assignedCenterIds: value === "DEFAULT" ? [] : [...current.assignedCenterIds] };
-    } else if (field.key === "centerIds" && current.scope === "CENTER" && Array.isArray(value)) {
+    } else if (field.key === "center" && current.scope === "CENTER" && Array.isArray(value)) {
       const selected = value.map(label => ids.get(String(label)));
       if (selected.some(id => !id)) { setError(statusMessage(new TvVisibilityClientError("INVALID"))); return; }
       next = { ...next, assignedCenterIds: selected as string[] };
@@ -156,6 +149,7 @@ export function TvPolicyVisibilityEditor({
   }
   return <section data-pnr-tv-visibility-editor="" aria-busy={busy}
     data-pnr-tv-core-verified={state === "ready" ? "true" : "false"}
+    data-dsa-field-single-authority-p0={projected ? "true" : "false"}
     data-pnr-tv-persisted={state === "ready" && (current?.revision ?? 0) > 0 ? "true" : "false"}
     aria-label="Hiển thị TV trên TOS — dữ liệu Core">
     {state === "loading" ? <p role="status">Đang xác minh cấu hình TV từ Core…</p>

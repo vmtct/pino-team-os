@@ -47,12 +47,12 @@ test("S4 shared DetailFrame Overview first, History last; unverified Core never 
   const overview = renderToStaticMarkup(createElement(TvPolicyRecord,{...props,pane:"detail"}));
   assert.match(overview,/data-tdd-shell="detail"/);
   assert.match(overview,/id="back-to-list"/);
-  assert.equal((overview.match(/class="v24-prop-item"/g)||[]).length,13);
+  assert.equal((overview.match(/class="v24-prop-item"/g)||[]).length,0);
   assert.match(overview,/data-pnr-tv-core-verified="false"/);
   assert.match(overview,/Đang xác minh cấu hình TV từ Core/);
   assert.doesNotMatch(overview,/data-detail-edit=|data-pnr-tv-write-verified/);
   assert.ok(overview.indexOf("Tổng quan") < overview.indexOf("Lịch sử"));
-  assert.match(overview,/aria-label="Chỉ đọc Created Time"/);
+  assert.doesNotMatch(overview,/Stale Directory Center|data-prop="name"/);
   const history = renderToStaticMarkup(createElement(TvPolicyRecord,{...props,pane:"detail",tab:"history"}));
   assert.match(history,/data-pnr-tv-history="unavailable"/);
   assert.match(history,/Chưa có dữ liệu lịch sử Policy đã xác minh từ Core/);
@@ -73,18 +73,18 @@ test("PAP-1794 native DSA property trigger and readonly audit remain canonical a
   // authenticated live UI behavior remains a separate Playwright G3/G4 gate.
   const fields: BoField[] = [
     {key:"name",label:"Tên TV",type:"text",icon:"Aa",w:220},
-    {key:"visibilityScope",label:"Scope hiển thị",type:"select",icon:"",w:155,options:["DEFAULT","CENTER"]},
-    {key:"centerIds",label:"Center hiển thị",type:"multiselect",icon:"",w:240,options:["Cần Thơ"]},
+    {key:"scope",label:"Scope hiển thị",type:"select",icon:"",w:155,options:["DEFAULT","CENTER"]},
+    {key:"center",label:"Center hiển thị",type:"multiselect",icon:"",w:240,options:["Cần Thơ"]},
     {key:"createdAt",label:"Created Time",type:"text",icon:"",w:200},
   ];
-  const record:BoRecord = {id:"tvp1-default",name:"Ambient Welcome",visibilityScope:"CENTER",centerIds:["Cần Thơ"],createdAt:"—"};
+  const record:BoRecord = {id:"tvp1-default",name:"Ambient Welcome",scope:"CENTER",center:["Cần Thơ"],createdAt:"—"};
   const html=renderToStaticMarkup(createElement(PropertySections,{
     variant:"detail",fields,record,
     sections:[{id:"v",label:"Hiển thị TV",fields:fields.map(f=>f.key)}],
     canEdit:(field:BoField)=>field.key!=="createdAt",
     onEdit:()=>{},
   }));
-  for (const key of ["name","visibilityScope","centerIds"]) {
+  for (const key of ["name","scope","center"]) {
     assert.match(html,new RegExp('class="v24-prop-value writable" data-prop="'+key+'" data-detail-edit="'+key+'"'));
   }
   assert.equal((html.match(/class="v24-prop-value writable"/g)||[]).length,3);
@@ -103,7 +103,7 @@ test("PAP-1794 native DSA property trigger and readonly audit remain canonical a
 
 test("PAP-1794 HO TV async DSA focus restoration maintains the native anchor", () => {
   const source = readFileSync(new URL("../app/ho/pinoria/tv-policies/TvPolicyVisibilityEditor.tsx", import.meta.url), "utf8");
-  assert.match(source, /state === "ready" && !!current &&\s*\(field\.key/);
+  assert.match(source, /state === "ready" && !!current && field\.readonly !== true &&/);
   assert.doesNotMatch(source, /!!current && !busy/);
   assert.match(source, /window\.requestAnimationFrame/);
   assert.match(source, /returnFocus\(field\.key, editor\?\.anchor\)/);
