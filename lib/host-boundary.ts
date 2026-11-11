@@ -24,6 +24,13 @@ export type HostBoundaryDecision =
 
 export function decideHostBoundary(host: string, pathname: string, method = "GET"): HostBoundaryDecision {
   const hostname = normalizeHostname(host);
+  // PAP-1334 / PAP-1491: one read-only BO Staging Subscription Center Detail.
+  // BFF requires one selected Center; Core rechecks immutable owner/ACL.
+  // Never open the legacy by-ID reader/writer or other hosts.
+  if (pathname.startsWith("/api/bo/subscriptions/") && pathname.includes("/center-detail")) {
+    const exact = /^\/api\/bo\/subscriptions\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/center-detail$/i.test(pathname);
+    return {action:hostname===BO_STAGING_HOSTNAME&&method==="GET"&&exact?"next":"not_found"};
+  }
   // PAP-1496 / PAP-1491 SPEC-UNLOCK: admit only Subscription-owned
   // Specialty requests at BO Staging. The BFF and Core retain actor/Center
   // ACL, Subscription status, CAS, idempotency and prerequisite enforcement.
