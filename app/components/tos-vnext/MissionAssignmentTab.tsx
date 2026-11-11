@@ -102,7 +102,7 @@ export default function MissionAssignmentTab({
     }finally{submitting.current=false;setBusy(false)}
   };
   const studentName=editor?groups.find(g=>g.studentId===editor.studentId)?.studentName:"";
-  return <><section hidden={!visible} role="tabpanel" id="tos-classroom-panel-missions"
+  return <><section hidden={!visible} role={visible?"tabpanel":undefined} id="tos-classroom-panel-missions"
     aria-labelledby="tos-classroom-tab-missions" aria-busy={read.state==="LOADING"}>
     <div className={styles.sectionHead} data-tos-slot={slot(styles.sectionHead)}>
       <div><h2>Nhiệm vụ hôm nay ({count})</h2></div>
