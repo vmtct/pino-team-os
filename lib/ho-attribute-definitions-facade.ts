@@ -6,6 +6,7 @@ import { BoShellGateError } from "./bo-shell-gate";
 import { HO_STAGING_HOSTNAME, normalizeHostname } from "./host-boundary";
 import { teamCredential, TeamAuthError } from "./team-auth";
 import { callFounderCoreWithStaffPassword, type PinoCoreBinding } from "./founder-core";
+import { validateAttributeDirectoryParams } from "./pap1841-attribute-directory-query";
 
 export interface HoAttributeEnv extends HoEnv { PINO_CORE?: PinoCoreBinding }
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -27,7 +28,7 @@ export async function hoAttributeDefinitions(request:Request,env:HoAttributeEnv)
   if(method!=="GET"&&method!=="POST")return respond(405,"PLATFORM_METHOD_NOT_ALLOWED");
   if(method==="POST"&&(id||url.search))return respond(404,"PLATFORM_NOT_FOUND");
   if(id&&!uuid.test(id))return respond(404,"ATTRIBUTE_NOT_FOUND");
-  if(method==="GET"&&url.search&&[...url.searchParams.keys()].some(k=>k!=="limit"&&k!=="offset"))
+  if(method==="GET"&&!id&&!validateAttributeDirectoryParams(url.searchParams))
     return respond(400,"ATTRIBUTE_QUERY_INVALID");
   if(method==="GET"&&id&&url.search)return respond(400,"ATTRIBUTE_QUERY_INVALID");
   let body:unknown;
