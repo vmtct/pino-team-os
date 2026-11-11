@@ -44,9 +44,11 @@ test("PAP-1543 / PAP-1316: canonical BO Parents never renders the unscoped direc
   assert.match(native, /loadNativeParentDirectory\(centerId,ctl.signal\)/);
   assert.doesNotMatch(native, /TddRegistry|SurfaceWorkspace|createBoTddAdapter|TddRenderer|ParentTdd/);
 
-  // Old generic Subscription writer remains intentionally blocked.
+  // PAP-1853 / PAP-1491 is keeping: Founder approved the Center-owned
+  // native read-only Subscription DSA. The unscoped legacy writer must stay blocked.
   assert.match(runtime, /if \(moduleKey === "subscriptions"\) return <BoRegistrationWorkspace/);
-  assert.match(runtime, /data-testid="bo-subscription-center-contract-pending"/);
+  assert.match(runtime, /content=\{<SubscriptionDirectoryDsa \/>\}/);
+  assert.doesNotMatch(runtime, /data-testid="bo-subscription-center-contract-pending"/);
   assert.doesNotMatch(runtime, /<BoSubscriptionsView embedded \/>/);
   assert.doesNotMatch(page, /\.\.\.query/);
 });

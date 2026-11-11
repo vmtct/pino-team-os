@@ -15,10 +15,10 @@ export function subscriptionCenterDetailUrl(subscriptionId:string,centerId:strin
 }
 
 export async function readSubscriptionCenterDetail(
-  subscriptionId:string,selectedCenterId:string,
+  subscriptionId:string,selectedCenterId:string,signal?:AbortSignal,
 ):Promise<BoLearnerSubscription> {
   const response=await fetch(subscriptionCenterDetailUrl(subscriptionId,selectedCenterId),{
-    method:"GET",cache:"no-store",
+    method:"GET",cache:"no-store",signal,
   });
   const raw=await response.text();
   let reply:Reply<BoLearnerSubscription>;

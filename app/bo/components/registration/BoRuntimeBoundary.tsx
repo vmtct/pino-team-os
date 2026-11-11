@@ -14,6 +14,9 @@ import { boCenterModuleScope, boScopedModuleHref, scopedBoReadFetcher } from "./
 
 // PAP-1814 / SCH-PARENTS-GUARDIANS: Parent route now uses native PINO BO DSA.
 const ParentDirectoryDsa = dynamic(() => import("../../parents/ParentDirectoryDsa").then(module => module.ParentDirectoryDsa), { ssr: false });
+// PAP-1334 / PAP-1491: new Center-owned Subscription Table/Drawer/Detail,
+// not the retired legacy global Learner/Sale/Enrollment workspace.
+const SubscriptionDirectoryDsa = dynamic(() => import("../../subscriptions/SubscriptionDirectoryDsa").then(module => module.SubscriptionDirectoryDsa), { ssr: false });
 const MissionsTdd = dynamic(() => import("../../missions/BoMissionsTdd").then(module => module.BoMissionsTdd), { ssr: false });
 const RuntimeContext = createContext<Pick<BoShellContext, "displayName" | "email"> | null>(null);
 // PAP-1545 / PAP-1316: Access audit is a Core GLOBAL collection. Keep the
@@ -125,15 +128,12 @@ export function BoRuntimeEntry({ moduleKey, options }: { moduleKey: string; opti
   if (moduleKey === "staffs") return <BoStaffsEntry currentUser={currentUser} options={options} />;
   if (moduleKey === "audits") return <BoRegistrationWorkspace currentUser={currentUser}
     source={globalAuditWorkspaceSource} moduleKey="audits" options={options} />;
-  // PAP-1334 / Epic PAP-1316: legacy Subscription writer is NOT Center-admitted.
-  // PAP-1100 v1.9 replaces this with independent Center-owned Sales, not Renewal.
-  // Keep shell navigation, but mount no embedded legacy reader/writer and provide
-  // real content so BoWorkspace does not fetch an unscoped generic directory.
+  // PAP-1334 / PAP-1491: real Center-scoped native read-only Subscription
+  // Table/Drawer/Detail. Do NOT mount old unscoped Learners/Sale/Renew/Enrollment
+  // component: PAP-1350 must first land an independently authorized Center writer.
   if (moduleKey === "subscriptions") return <BoRegistrationWorkspace currentUser={currentUser}
     source={unifiedBoWorkspaceSource} moduleKey="subscriptions" options={options}
-    content={<section role="status" aria-label="Quản lý gói học" data-testid="bo-subscription-center-contract-pending">
-      Quản lý gói học tạm thời chưa khả dụng.
-    </section>} />;
+    content={<SubscriptionDirectoryDsa />} />;
   // Stage 1 of the shared BO context: Parent TDD plus legacy Visits and Timekeeping
   // whose Core adapters already enforce explicit centerId and verify response identity.
   if (boCenterModuleScope(moduleKey) === "CENTER") return <CenterReadWorkspace moduleKey={moduleKey} options={options} currentUser={currentUser} />;
