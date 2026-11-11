@@ -244,10 +244,6 @@ function CustomAttributesFsg3(){
   }catch(e){setError(e instanceof Error?e.message:"Không thể lưu thuộc tính.");}
   finally{setBusy(false);}
  };
- const first=(page-1)*table.pageSize;
- const last=first+items.length;
- const totalPages=total===null?1:Math.max(1,Math.ceil(total/table.pageSize));
- const nextDisabled=total===null||page>=totalPages||(page*table.pageSize)>10000;
  return <section id="list-screen" data-plt-attr-stage="fsg3-server-table" data-tdd-shell="table">
   <div className="page-heading"><div className="page-heading-left">
    {menu("menu-btn")}<h1><LocalizedModuleTitle label="Custom Attributes" moduleKey="customAttributes"/></h1>
@@ -298,26 +294,6 @@ function CustomAttributesFsg3(){
    activeView={null} applyView={()=>{}} reset={reset} undo={()=>{}} canUndo={false}
    showChrome={false} serverTotal={total??0} totalKnown={loadState==="ready"}
    policy={TABLE_POLICY} freezeEnabled={false} />
-  <footer className="table-footer" data-plt-attr-server-pagination="">
-   <span id="result-count" className="result-label">
-    {loadState==="ready"&&total!==null?items.length+" / "+total+" bản ghi":"Đang chờ dữ liệu Core"}
-   </span>
-   <div className="pagination">
-    <label>Hiển thị <select id="page-size" aria-label="Dòng mỗi trang" value={table.pageSize}
-     onChange={e=>updateTable({pageSize:Number(e.target.value)})}>
-     {pageSizes.map(n=><option key={n} value={n}>{n} dòng</option>)}
-    </select></label>
-    <span id="page-range" className="page-counter">
-     {loadState==="ready"&&total!==null
-      ?(items.length?first+1+"–"+last:"0")+" / "+total
-      :"—"}
-    </span>
-    <button type="button" id="prev-page" className="pager" aria-label="Trang trước"
-     disabled={loadState!=="ready"||page<=1} onClick={()=>setServerPage(page-1)}>‹</button>
-    <button type="button" id="next-page" className="pager" aria-label="Trang sau"
-     disabled={loadState!=="ready"||nextDisabled} onClick={()=>setServerPage(page+1)}>›</button>
-   </div>
-  </footer>
   {settings?<BoTableSettings screen={settings} setScreen={setSettings}
    onClose={()=>{setSettings(null);requestAnimationFrame(()=>columnToggle.current?.focus());}}
    fields={attributeModule.fields} rows={records} value={table} update={updateTable}

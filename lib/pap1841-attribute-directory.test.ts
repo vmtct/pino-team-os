@@ -52,3 +52,14 @@ test("PAP-1841: HO FSG3 reuses canonical BoDataTable, settings and BoQuickView; 
  const facade=readFileSync("lib/ho-attribute-definitions-facade.ts","utf8");
  assert.match(facade,/validateAttributeDirectoryParams/);
 });
+
+test("PAP-1841 G3 regression: exactly one canonical BoDataTable pagination footer, no duplicate IDs",()=>{
+ const page=readFileSync("app/ho/system/custom-attributes/page.tsx","utf8");
+ const table=readFileSync("app/bo/components/registration/BoDataTable.tsx","utf8");
+ assert.match(table,/<footer className="table-footer"/);
+ assert.ok(page.includes("<BoDataTable module="),"HO must reuse canonical shared BoDataTable");
+ assert.doesNotMatch(page,/<footer className="table-footer"/,
+  "HO must not render a second footer in addition to the canonical shared BoDataTable footer");
+ assert.doesNotMatch(page, /id="page-size"/,
+  "HO must not create a second page-size selector with a duplicate id");
+});
