@@ -52,7 +52,7 @@ export function SubscriptionDirectoryDsa(){
     }
     previousCenter.current=selected;
   },[selected]);
-  return <section aria-label="Gói học theo cơ sở" data-pap1334-native-subscriptions="read-only">
+  return <section id="subscription-center-read-only-root" data-bo-runtime-surface="subscription-center-read-only" aria-label="Gói học theo cơ sở" data-pap1334-native-subscriptions="read-only">
     {!center?<p role="alert">Không tìm thấy Center context.</p>:
       center.loading?<p role="status">Đang xác thực danh sách cơ sở…</p>:
       center.error?<p role="alert">{center.error}</p>:

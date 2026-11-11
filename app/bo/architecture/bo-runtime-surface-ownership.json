@@ -18,13 +18,17 @@
   },
   "specialized": {
     "subscriptions": {
-      "component": "app/bo/subscriptions/BoSubscriptionsView.tsx",
-      "marker": "subscriptions-core",
+      "component": "app/bo/subscriptions/SubscriptionDirectoryDsa.tsx",
+      "marker": "subscription-center-read-only",
       "canonicalUrl": "/bo?module=subscriptions",
       "legacyAlias": "/bo/subscriptions",
-      "uiAnchor": "subscription-create-student-search",
-      "deliveryState": "suspended",
-      "suspensionIssue": "PAP-1334"
+      "uiAnchor": "subscription-center-read-only-root",
+      "deliveryState": "center-read-only",
+      "legacyComponent": "app/bo/subscriptions/BoSubscriptionsView.tsx",
+      "legacyMarker": "subscriptions-core",
+      "legacyUiAnchor": "subscription-create-student-search",
+      "approvalIssue": "PAP-1334",
+      "guardKeeperIssue": "PAP-1853"
     }
   }
 }

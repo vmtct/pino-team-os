@@ -22,28 +22,64 @@ test("future source module must declare ownership before CI",()=>{
  const r=verifyBoRuntimeSurfaceOwnership(undefined,{"public/bo-authority-source/school-adapters.js":s.replace("  subscriptions:{","  futurePilot:{label:'New',fields:[]},\n  subscriptions:{")});
  assert.equal(r.ok,false);assert.match(r.issues.join(","),/futurePilot/);
 });
-test("PAP-1334 suspended Subscription runtime and missing DOM marker fail closed",()=>{
- const e=get(entry),u=get(ui);
- assert.notEqual(e.replace('data-testid="bo-subscription-center-contract-pending"',"marker-removed"),e);
- assert.equal(verifyBoRuntimeSurfaceOwnership(undefined,{[entry]:e.replace('data-testid="bo-subscription-center-contract-pending"',"marker-removed")}).ok,false);
- assert.equal(verifyBoRuntimeSurfaceOwnership(undefined,{[ui]:u.replace('data-bo-runtime-surface="subscriptions-core"','data-bo-runtime-surface="generic"')}).ok,false);
+test("PAP-1853 Center-scoped native Subscription DSA is the sole admitted BO runtime owner",()=>{
+ const m=JSON.parse(get(manifest)),e=get(entry);
+ assert.equal(m.specialized.subscriptions.component,"app/bo/subscriptions/SubscriptionDirectoryDsa.tsx");
+ assert.equal(m.specialized.subscriptions.deliveryState,"center-read-only");
+ assert.equal(m.specialized.subscriptions.approvalIssue,"PAP-1334");
+ assert.equal(m.specialized.subscriptions.guardKeeperIssue,"PAP-1853");
+ assert.equal(verifyBoRuntimeSurfaceOwnership().ok,true);
+ assert.match(e,/content=\{<SubscriptionDirectoryDsa \/>}/);
+ assert.doesNotMatch(e,/<BoSubscriptionsView embedded \/>/);
 });
 
-test("PAP-1334 suspended Subscription cannot silently remount legacy reader or widen exception",()=>{
- const e=get(entry),m=JSON.parse(get(manifest));
- assert.equal(verifyBoRuntimeSurfaceOwnership().ok,true);
- const again=e.replace('content={<section role="status"','content={<BoSubscriptionsView embedded /><section role="status"');
- assert.notEqual(again,e);
- assert.ok(verifyBoRuntimeSurfaceOwnership(undefined,{[entry]:again}).issues.some(x=>x.includes("must fail-close")));
- for(const replacement of ["PAP-9999",null]){
-   const corrupted=structuredClone(m);
-   corrupted.specialized.subscriptions.suspensionIssue=replacement;
-   assert.ok(verifyBoRuntimeSurfaceOwnership(undefined,{[manifest]:JSON.stringify(corrupted)}).issues.some(x=>x.includes("Unsupported specialized suspension")));
+test("PAP-1853 fail closed if native UI marker, Center adapter, or attestation is removed",()=>{
+ const native="app/bo/subscriptions/SubscriptionDirectoryDsa.tsx";
+ const adapter="lib/pap1334-native-subscription-read.ts";
+ const original=get(native),client=get(adapter);
+ for(const needle of ['data-bo-runtime-surface="subscription-center-read-only"',
+  'data-pap1334-native-subscriptions="read-only"',"assertCenterDetail(","loadCenterSubscriptionDirectory(",
+  "readSubscriptionCenterDetail(","BoDataTable","BoQuickView","DetailFrame"]){
+  assert.ok(original.includes(needle),needle);
+  const out=verifyBoRuntimeSurfaceOwnership(undefined,{[native]:original.replaceAll(needle,"REMOVED")});
+  assert.equal(out.ok,false,needle);
  }
- const notSuspended=structuredClone(m);
- delete notSuspended.specialized.subscriptions.deliveryState;
- delete notSuspended.specialized.subscriptions.suspensionIssue;
- assert.ok(verifyBoRuntimeSurfaceOwnership(undefined,{[manifest]:JSON.stringify(notSuspended)}).issues.some(x=>x.includes("orphaned")));
+ for(const needle of ['"/api/bo/subscriptions/center-directory?"',"item.centerId!==centerId","row.centerId!==centerId"]){
+  assert.ok(client.includes(needle),needle);
+  assert.equal(verifyBoRuntimeSurfaceOwnership(undefined,{[adapter]:client.replace(needle,"REMOVED")}).ok,false,needle);
+ }
+});
+
+test("PAP-1853 old Subscription writer cannot remount or spoof approved read-only admission",()=>{
+ const entrySource=get(entry),native="app/bo/subscriptions/SubscriptionDirectoryDsa.tsx",old="app/bo/subscriptions/BoSubscriptionsView.tsx";
+ const variants=[
+  entrySource.replace('content={<SubscriptionDirectoryDsa />}','content={<BoSubscriptionsView embedded />}'),
+  entrySource.replace('content={<SubscriptionDirectoryDsa />}','content={<section role="status">hold</section>}'),
+  entrySource+'<BoSubscriptionsView embedded />',
+ ];
+ for(const altered of variants){
+  assert.notEqual(altered,entrySource);
+  const v=verifyBoRuntimeSurfaceOwnership(undefined,{[entry]:altered});
+  assert.ok(v.issues.some(x=>x.includes("only Center-authenticated")),JSON.stringify(v.issues));
+ }
+ const content=get(native),legacy=get(old);
+ assert.ok(verifyBoRuntimeSurfaceOwnership(undefined,{[native]:content+'\\n<SubscriptionCreateDrawer />'}).issues.some(x=>x.includes("unsafe legacy")));
+ assert.ok(verifyBoRuntimeSurfaceOwnership(undefined,{[old]:legacy.replace('data-bo-runtime-surface="subscriptions-core"','archive-removed')}).issues.some(x=>x.includes("historical")));
+});
+
+test("PAP-1853 exact Founder approval and keeper are necessary for native runtime ownership",()=>{
+ const original=JSON.parse(get(manifest));
+ for(const [field,value] of [["approvalIssue","PAP-9999"],["guardKeeperIssue",null],
+  ["deliveryState","suspended"],["component","app/bo/subscriptions/BoSubscriptionsView.tsx"],
+  ["legacyComponent","app/bo/subscriptions/SubscriptionDirectoryDsa.tsx"]]){
+  const x=structuredClone(original);x.specialized.subscriptions[field]=value;
+  const out=verifyBoRuntimeSurfaceOwnership(undefined,{[manifest]:JSON.stringify(x)});
+  assert.equal(out.ok,false,field);
+ }
+ const withoutState=structuredClone(original);
+ delete withoutState.specialized.subscriptions.deliveryState;
+ const invalid=verifyBoRuntimeSurfaceOwnership(undefined,{[manifest]:JSON.stringify(withoutState)});
+ assert.ok(invalid.issues.some(x=>x.includes("requires explicit")),JSON.stringify(invalid.issues));
 });
 test("staging legacy alias cannot point to another module or bypass canonical shell",()=>{
  const src=get(middleware);
