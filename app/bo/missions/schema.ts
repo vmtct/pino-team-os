@@ -16,6 +16,7 @@ export const assignmentFields = [
   { key: "executionStatus", label: "Tiến độ", type: "text", icon: "Aa", width: 150, permission, readOnly: true, capabilities: read },
   { key: "executionVersion", label: "Phiên bản tiến độ", type: "number", icon: "#", width: 150, permission, readOnly: true, capabilities: read },
   { key: "context", label: "Bối cảnh", type: "text", icon: "Aa", width: 200, permission, readOnly: true, capabilities: read },
+  { key: "center", label: "Cơ sở (nội bộ)", type: "text", icon: "Aa", width: 180, permission, readOnly: true, capabilities: { display: false, search: false, filter: false, sort: false, group: false, inlineEdit: false } },
   { key: "assignedAt", label: "Ngày giao (UTC)", type: "text", icon: "Aa", width: 200, permission, readOnly: true, capabilities: read },
   { key: "cancelledAt", label: "Ngày hủy (UTC)", type: "text", icon: "Aa", width: 200, permission, readOnly: true, capabilities: read },
   { key: "cancelledReason", label: "Lý do hủy", type: "text", icon: "Aa", width: 200, permission, readOnly: true, capabilities: read },
@@ -28,7 +29,7 @@ export const assignmentFields = [
 type F = typeof assignmentFields;
 export const assignmentQuery: TableQuery<F> = {
   search: "", filters: { logic: "AND", rules: [] }, sort: { field: "assignedAt", direction: "desc" }, group: null,
-  order: assignmentFields.map(f => f.key), visible: ["name", "code", "student", "status", "executionStatus", "context", "assignedAt"], page: 1, pageSize: 15,
+  order: assignmentFields.filter(f => f.capabilities.display).map(f => f.key), visible: ["name", "code", "student", "status", "executionStatus", "context", "assignedAt"], page: 1, pageSize: 15,
 };
 export const assignmentDefinition = {
   version: 1, classification: "TDD_DEFAULT", surface: "BO", key: "missions", label: "Nhiệm vụ", group: "SCHOOL",
@@ -41,7 +42,7 @@ export const assignmentDefinition = {
   ],
   table: {
     identity: { field: "name", pinned: "left", hideable: false, reorderable: false },
-    columns: assignmentFields.map(f => ({ field: f.key, visible: assignmentQuery.visible.includes(f.key) })),
+    columns: assignmentFields.filter(f => f.capabilities.display).map(f => ({ field: f.key, visible: assignmentQuery.visible.includes(f.key) })),
     search: { fields: ["name", "code", "student", "context"], normalization: "vi-diacritic-insensitive" },
     filters: { fields: ["status", "executionStatus", "student", "code"], mode: "flat", logic: "AND" },
     sort: { fields: ["name", "code", "student", "status", "executionStatus", "assignedAt"], mode: "single", nulls: "last", tieBreak: "record-id" },
@@ -77,7 +78,7 @@ function project(p: MissionAssignment, execution: BoMissionExecution | null, nam
     executionStatus: p.status !== "ASSIGNED" ? null :
       execution!.executionStatus === "COMPLETED" ? "Hoàn tất" : "Đang thực hiện",
     executionVersion: p.status !== "ASSIGNED" ? null : execution!.executionVersion,
-    context: p.contextLabel, assignedAt: p.assignedAt, cancelledAt: p.cancelledAt, cancelledReason: p.cancelledReason,
+    context: p.contextLabel, assignedAt: p.assignedAt, center: p.centerId, cancelledAt: p.cancelledAt, cancelledReason: p.cancelledReason,
     // PAP-1792 S0-R3: explicit Founder-approved missing-source glyph; null renders "Trống" in shared TDD.
     createdAt: "—", createdBy: "—", updatedAt: formatMissionAuditTime(p.updatedAt), updatedBy: "—" };
 }

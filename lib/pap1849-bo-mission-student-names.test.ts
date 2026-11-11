@@ -56,5 +56,8 @@ test("PAP-1849 BO Mission DSA exposes Student label and never raw internal ID fi
   assert.equal(assignmentFields.find(f => f.key === "student")?.label, "Student");
   assert.equal(assignmentFields.some(f => /(?:Student|Center|Mission) ID|Context Key/.test(f.label)), false);
   assert.deepEqual(assignmentQuery.visible.includes("student"), true);
+  const internalCenter = assignmentFields.find(f => f.key === "center");
+  assert.equal(internalCenter?.capabilities.display, false);
+  assert.equal(assignmentQuery.order.includes("center"), false);
   assert.equal(assignmentProvider.mutation, undefined);
 });
