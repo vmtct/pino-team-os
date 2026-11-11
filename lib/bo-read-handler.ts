@@ -29,6 +29,7 @@ const SUBSCRIPTION_PROJECTED_COMPLETION_READ = /^subscriptions\/[0-9a-f-]{36}\/p
 // PAP-1035: Enrollment read routes explicitly admitted after FC E2E found
 // BFF 404 before Core. No wildcard write/read admission.
 const S3_SUBSCRIPTION_READ = /^subscriptions\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/(?:enrollments|placement))?$/;
+const PAP1334_CENTER_DETAIL_READ = /^subscriptions\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/center-detail$/;
 const S3_ENROLLMENT_RECORD_READ = /^enrollments\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const S3_ENROLLMENT_CAPACITY_READ = "enrollments/capacity";
 const S3_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -107,6 +108,7 @@ export function isOperationalReadPath(path: string): boolean {
   return path === "audit/subject"
     || path === "subscriptions"
     || S3_SUBSCRIPTION_READ.test(path)
+    || PAP1334_CENTER_DETAIL_READ.test(path)
     || S3_ENROLLMENT_RECORD_READ.test(path)
     || path === S3_ENROLLMENT_CAPACITY_READ
     || path === "billing/product-plans"
@@ -309,7 +311,16 @@ function readCorePath(path: string, url: URL): string {
   return path;
 }
 
-function readQueryResource(path: string, url: URL): BoAccessRequest["resource"] | undefined {
+export function readQueryResource(path: string, url: URL): BoAccessRequest["resource"] | undefined {
+  // PAP-1334 / PAP-1491: one explicit selected Center, never a browser
+  // permission claim. Core verifies Subscription ownership and effective ACL.
+  if (PAP1334_CENTER_DETAIL_READ.test(path)) {
+    const keys=[...url.searchParams.keys()];
+    const centers=url.searchParams.getAll("centerId");
+    if(keys.length!==1||keys[0]!=="centerId"||centers.length!==1||
+       !S3_UUID.test(centers[0]!)) throw new RangeError("Selected Subscription Center required");
+    return {centerId:centers[0]!};
+  }
   // PAP-1536 / Epic PAP-220: validate an optional Center before
   // fail-closed 503 in the caller above. Core still uses a global reader
   // that ignores Center and has no canonical Staff membership filter.
