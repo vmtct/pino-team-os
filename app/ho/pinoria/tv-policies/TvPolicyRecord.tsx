@@ -1,6 +1,6 @@
 "use client";
-/** PAP-650 / PNR-TV · PAP-1419 S4: same Core-authorized Policy across shared TDD shells.
- * No business-tab, device, Viewer, config writer, synthetic history or new ACL.
+/** PAP-650 / PNR-TV · PAP-1385: Core-authorized Policy with Founder visibility DSA.
+ * Existing Drawer remains read-only; no Viewer, device, fake History or ACL expansion.
  */
 import { useContext } from "react";
 import type { BoRecord } from "@/lib/bo-registration";
@@ -10,7 +10,7 @@ import { PropertySections } from "@/app/components/workspace-renderer/Properties
 import { RecordState } from "@/app/components/workspace-renderer/Record";
 import { TddHostMenu } from "@/app/components/workspace-adapters/SurfaceWorkspace";
 import { tvPolicyModule } from "@/lib/ho-tv-policy-directory";
-import { TvPolicyVisibilityPreview, type TvVisibilityCenter } from "./TvPolicyVisibilityPreview";
+import { TvPolicyVisibilityEditor, type TvVisibilityCenter } from "./TvPolicyVisibilityEditor";
 import type { TvPolicyPane, TvPolicyLocation } from "@/lib/ho-tv-policy-navigation";
 import { tvPolicyS4State } from "@/lib/ho-tv-policy-navigation";
 
@@ -58,7 +58,7 @@ export function TvPolicyRecord({ policy, centers, state, pane, tab, onClose, onD
     returnFocus={returnFocus}
     tabs={[{ id: "overview", label: "Tổng quan" }, { id: "history", label: "Lịch sử" }]}
     selected={tab} onSelect={next => onTabChange(next === "history" ? "history" : "overview")}>
-    {validated !== "ready" ? content : tab === "overview" ? <>{content}{policy ? <TvPolicyVisibilityPreview key={policy.id} policy={policy} centers={centers}/> : null}</>
+    {validated !== "ready" ? content : tab === "overview" ? <>{content}{policy ? <TvPolicyVisibilityEditor key={policy.id} policy={policy} centers={centers}/> : null}</>
       : <section className="v24-prop-section" data-pnr-tv-history="unavailable">
         <div className="v24-section-heading"><h4>Lịch sử</h4></div>
         <p role="status">Chưa có dữ liệu lịch sử Policy đã xác minh từ Core. Không hiển thị sự kiện giả hoặc suy diễn người thực hiện.</p>
