@@ -1,0 +1,50 @@
+/* PAP-1838 / PNR-IDENTITY — PINO DS mobile login inside approved Piner shell. */
+.card{
+  --login-ink:var(--ink,#37323b);--login-tone:var(--tone,#845a72);
+  width:min(100%,390px);margin:clamp(10px,3vw,26px) auto 32px;
+  padding:clamp(18px,5vw,28px);background:var(--surface,#fff);
+  border:1px solid var(--line,#e9dfe6);border-radius:23px;
+  box-shadow:0 12px 32px #47314114;color:var(--login-ink);
+  display:flex;flex-direction:column;gap:11px;
+}
+.card *{box-sizing:border-box}
+.brand{display:flex;align-items:center;gap:9px;margin:0 0 8px;font-size:13px;font-weight:850;letter-spacing:.08em;color:var(--login-tone)}
+.brand span{border-left:1px solid var(--line,#e9dfe6);padding-left:10px;color:var(--login-ink);font-weight:750;letter-spacing:0}
+.eyebrow{display:block;font-size:10px;font-weight:850;letter-spacing:.13em;color:var(--login-tone)}
+.card h1{font-size:clamp(22px,6vw,27px);letter-spacing:-.035em;line-height:1.18;font-weight:850;margin:0}
+.intro{font-size:13px;line-height:1.6;color:var(--muted,#807784);margin:0 0 5px}
+.form{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+.form label{font-size:13px;font-weight:750}
+.form input{
+  min-height:48px;width:100%;padding:11px 13px;font:inherit;font-size:16px;
+  background:#fff;border:1px solid #d7cbd7;border-radius:12px;color:#37323b;
+  outline:none;transition:border-color .15s ease,box-shadow .15s ease;
+}
+.form input:focus-visible{border-color:var(--login-tone);box-shadow:0 0 0 3px #b06b9833}
+.form input:disabled{opacity:.65;cursor:not-allowed}
+.form input::placeholder{color:#aba2ab}
+.hint,.footnote{font-size:11px;line-height:1.5;color:var(--muted,#807784)}
+.primary{
+  min-height:48px;display:block;width:100%;border:0;border-radius:12px;
+  background:var(--login-tone);color:#fff;font-size:14px;font-weight:750;
+  margin-top:5px;padding:10px 14px;cursor:pointer;
+}
+.primary:hover:not(:disabled){filter:brightness(.95)}
+.primary:disabled{opacity:.55;cursor:not-allowed}
+.linkButton,.textButton{background:transparent;border:0;padding:6px;color:var(--login-tone);font-size:12px;font-weight:750;cursor:pointer}
+.linkButton:disabled,.textButton:disabled{opacity:.55;cursor:not-allowed}
+.phoneHint{margin:0 0 3px;font-size:12px;line-height:1.5;color:var(--muted,#807784)}
+.phoneHint strong{white-space:nowrap;color:var(--login-ink)}
+.otpActions{display:flex;gap:8px;justify-content:space-between;align-items:center;flex-wrap:wrap}
+.otpActions>span{font-size:11px;color:var(--muted,#807784)}
+.error,.notice{
+  margin:6px 0 2px;padding:10px 12px;border-radius:12px;
+  font-size:12px;line-height:1.5
+}
+.error{background:#fff0ef;border:1px solid #efd1ce;color:#8e3e39}
+.notice{background:var(--tint,#f5e9f0);color:var(--login-tone)}
+.footnote{margin:10px 0 1px;border-top:1px solid var(--line,#e9dfe6);padding-top:13px}
+.back{display:inline-block;align-self:center;font-size:12px;color:var(--login-tone);font-weight:750;margin-top:4px;text-decoration:none}
+.card :is(a,button):focus-visible{outline:2px solid #247e9d;outline-offset:3px}
+@media(max-width:345px){.card{border-radius:16px;padding:16px}.otpActions{align-items:flex-start;flex-direction:column;gap:3px}}
+@media(prefers-reduced-motion:reduce){.form input{transition:none}}
