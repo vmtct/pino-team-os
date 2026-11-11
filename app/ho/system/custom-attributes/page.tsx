@@ -71,7 +71,7 @@ function CustomAttributesFsg3(){
  const [loadState,setLoadState]=useState("loading");
  const [hydrated,setHydrated]=useState(false);
  const [settings,setSettings]=useState<string|null>(null);
- const columnToggle=useRef<HTMLButtonElement>(null);
+ const [filterOpen,setFilterOpen]=useState(false);
  useEffect(()=>{
   const frame=requestAnimationFrame(()=>{
   const q=new URLSearchParams(window.location.search);
@@ -90,7 +90,7 @@ function CustomAttributesFsg3(){
   const rawStatus=q.get("status")??"";
   const rawScope=q.get("scope")??"";
   const rawCenter=q.get("centerId")??"";
-  setTable({...emptyTable(),sort:activeSort,desc:order==="desc",pageSize:size,visible:[...visible]});
+  setTable({...emptyTable(),sort:activeSort,desc:order==="desc",pageSize:size,visible:[...visible],search:clean});
   setPage(savedPage);setSearchInput(clean);setSearchTerm(clean);
   setFilter({
    entityType:ENTITY_TYPES.some(x=>x===rawType)?rawType:"",
@@ -172,12 +172,47 @@ function CustomAttributesFsg3(){
   return()=>controller.abort();
  },[hydrated,query,page,table.pageSize,refresh]);
  const records=useMemo(()=>items.map(item=>asRecord(item,centers)),[items,centers]);
+ const filterRules=useMemo<BoTableState["rules"]>(()=>{
+  const rules:BoTableState["rules"]=[];
+  const add=(field:string,value:string)=>{if(value)rules.push({field,op:"eq",value,second:""});};
+  add("entityType",filter.entityType);
+  add("lifecycleState",filter.status);
+  add("scope",filter.scope);
+  add("center",filter.centerId?(centers.find(c=>c.id===filter.centerId)?.label??"Trung tâm"):"");
+  return rules;
+ },[filter,centers]);
+ const tableWithServerFilters=useMemo(()=>({...table,search:searchInput,rules:filterRules}),[table,searchInput,filterRules]);
+ useEffect(()=>{
+  if(!filterOpen)return;
+  const onKey=(event:KeyboardEvent)=>{
+   if(event.key!=="Escape")return;
+   event.preventDefault();setFilterOpen(false);
+   document.getElementById("filter-toggle")?.focus({preventScroll:true});
+  };
+  const onOutside=(event:PointerEvent)=>{
+   if(event.target instanceof Element&&!event.target.closest("#rules-panel,#filter-toggle"))setFilterOpen(false);
+  };
+  document.addEventListener("keydown",onKey);
+  document.addEventListener("pointerdown",onOutside);
+  return()=>{document.removeEventListener("keydown",onKey);document.removeEventListener("pointerdown",onOutside);};
+ },[filterOpen]);
  const setServerPage=useCallback((next:number)=>{
   if(Number.isSafeInteger(next)&&next>=1&&((next-1)*table.pageSize)<=10000)setPage(next);
  },[table.pageSize]);
  const updateTable=useCallback((patch:Partial<BoTableState>)=>{
   if(patch.sort!==undefined&&!sortKeys.includes(patch.sort))return;
   if(patch.pageSize!==undefined&&!pageSizes.some(s=>s===patch.pageSize))return;
+  if(patch.search!==undefined)setSearchInput(patch.search.slice(0,120));
+  if(patch.rules!==undefined){
+   const active=new Set(patch.rules.map(rule=>rule.field));
+   setFilter(prev=>({
+    entityType:active.has("entityType")?prev.entityType:"",
+    status:active.has("lifecycleState")?prev.status:"",
+    scope:active.has("scope")?prev.scope:"",
+    centerId:active.has("center")?prev.centerId:""
+   }));
+   setPage(1);
+  }
   setTable(prev=>{
    const next={...prev,...patch};
    next.visible=[...new Set(["displayName",...next.visible.filter(key=>fields.includes(key))])];
@@ -191,7 +226,7 @@ function CustomAttributesFsg3(){
  const setFilterKey=(key:keyof Filters,v:string)=>{setFilter(old=>({...old,[key]:v}));setPage(1);};
  const reset=()=>{
   setTable(emptyTable());setFilter(emptyFilters());setPage(1);
-  setSearchInput("");setSearchTerm("");setStatus("");
+  setSearchInput("");setSearchTerm("");setStatus("");setFilterOpen(false);
  };
  const openView=(record:BoRecord)=>{
   opener.current=document.activeElement instanceof HTMLElement?document.activeElement:null;
@@ -249,53 +284,58 @@ function CustomAttributesFsg3(){
    {menu("menu-btn")}<h1><LocalizedModuleTitle label="Custom Attributes" moduleKey="customAttributes"/></h1>
   </div><button ref={launch} type="button" className="primary-btn" onClick={launchCreate}>＋ Tạo thuộc tính</button></div>
   {status?<p role="status" className="settings-hint">{status}</p>:null}
-  <div className="grid-card" data-plt-attr-directory-toolbar="">
-   <div className="view-tabs"><strong>Thuộc tính</strong><div className="tabs-right">
-    <span id="table-count" className="table-meta" aria-live="polite">
-     {loadState==="ready"&&total!==null?total+" bản ghi từ Core":loadState==="loading"?"Đang tải…":"Không có dữ liệu xác thực"}
-    </span>
-   </div></div>
-   <div className="toolbar" style={{flexWrap:"wrap",gap:8}} role="search" aria-label="Tìm và lọc thuộc tính">
-    <label className="search-field"><span aria-hidden="true">⌕</span>
-     <input id="search" type="search" aria-label="Tìm theo tên hoặc mã thuộc tính"
-      placeholder="Tìm tên hoặc mã thuộc tính…" maxLength={120} value={searchInput}
-      onChange={event=>setSearchInput(event.target.value)}/></label>
-    <label className="settings-line">Module
-     <select data-filter="entityType" aria-label="Lọc Module" value={filter.entityType}
-      onChange={e=>setFilterKey("entityType",e.target.value)}>
-      <option value="">Tất cả</option>{ENTITY_TYPES.map(v=><option key={v} value={v}>{v}</option>)}
-     </select></label>
-    <label className="settings-line">Vòng đời
-     <select data-filter="status" aria-label="Lọc vòng đời" value={filter.status}
-      onChange={e=>setFilterKey("status",e.target.value)}>
-      <option value="">Tất cả</option>{ATTRIBUTE_STATUSES.map(v=><option key={v} value={v}>{v}</option>)}
-     </select></label>
-    <label className="settings-line">Phạm vi
-     <select data-filter="scope" aria-label="Lọc phạm vi" value={filter.scope}
-      onChange={e=>setFilterKey("scope",e.target.value)}>
-      <option value="">Tất cả</option><option value="GLOBAL">GLOBAL</option><option value="CENTER">CENTER</option>
-     </select></label>
-    <label className="settings-line" title="Center được chọn bao gồm cả thuộc tính GLOBAL">Trung tâm
-     <select data-filter="centerId" aria-label="Lọc trung tâm" value={filter.centerId}
-      onChange={e=>setFilterKey("centerId",e.target.value)}>
-      <option value="">Tất cả</option>{centers.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}
-     </select></label>
-    <button ref={columnToggle} type="button" id="visible-columns" className="toolbar-button tdd-setting-icon"
-     aria-label="Hiển thị thuộc tính" title="Hiển thị thuộc tính" aria-haspopup="dialog"
-     onClick={()=>setSettings("properties")}>▦</button>
-    <button type="button" id="reset-all" className="toolbar-button tdd-setting-icon"
-     aria-label="Đặt lại tìm kiếm và bộ lọc" title="Đặt lại" onClick={reset}>↺</button>
-   </div>
-  </div>
-  <BoDataTable module={attributeModule} rows={records} loadState={loadState} value={table}
+  <BoDataTable module={attributeModule} rows={records} loadState={loadState} value={tableWithServerFilters}
    update={updateTable} page={page} setPage={setServerPage} onOpen={openView}
-   selected={selected?.id} onSettings={()=>setSettings("properties")}
-   filterOpen={false} setFilterOpen={()=>{}} views={[]} changeViews={()=>{}}
-   activeView={null} applyView={()=>{}} reset={reset} undo={()=>{}} canUndo={false}
-   showChrome={false} serverTotal={total??0} totalKnown={loadState==="ready"}
+   selected={selected?.id} onSettings={setSettings}
+   filterOpen={filterOpen} setFilterOpen={setFilterOpen}
+   filterContent={
+    <div id="rules-panel" className="rules-panel" role="region" aria-label="Bộ lọc thuộc tính">
+     <div className="rules-combine"><span>Khớp tất cả điều kiện (AND) · Core</span></div>
+     <div className="rule-row" data-filter-row="entityType">
+      <label htmlFor="attr-filter-module">Module</label>
+      <select id="attr-filter-module" className="rule-value-input" data-filter="entityType"
+       aria-label="Lọc Module" value={filter.entityType}
+       onChange={e=>setFilterKey("entityType",e.target.value)}>
+       <option value="">Tất cả</option>{ENTITY_TYPES.map(v=><option key={v} value={v}>{v}</option>)}
+      </select>
+     </div>
+     <div className="rule-row" data-filter-row="status">
+      <label htmlFor="attr-filter-status">Vòng đời</label>
+      <select id="attr-filter-status" className="rule-value-input" data-filter="status"
+       aria-label="Lọc vòng đời" value={filter.status}
+       onChange={e=>setFilterKey("status",e.target.value)}>
+       <option value="">Tất cả</option>{ATTRIBUTE_STATUSES.map(v=><option key={v} value={v}>{v}</option>)}
+      </select>
+     </div>
+     <div className="rule-row" data-filter-row="scope">
+      <label htmlFor="attr-filter-scope">Phạm vi</label>
+      <select id="attr-filter-scope" className="rule-value-input" data-filter="scope"
+       aria-label="Lọc phạm vi" value={filter.scope}
+       onChange={e=>setFilterKey("scope",e.target.value)}>
+       <option value="">Tất cả</option><option value="GLOBAL">GLOBAL</option><option value="CENTER">CENTER</option>
+      </select>
+     </div>
+     <div className="rule-row" data-filter-row="centerId">
+      <label htmlFor="attr-filter-center">Trung tâm</label>
+      <select id="attr-filter-center" className="rule-value-input" data-filter="centerId"
+       title="Center được chọn bao gồm thuộc tính GLOBAL" aria-label="Lọc trung tâm" value={filter.centerId}
+       onChange={e=>setFilterKey("centerId",e.target.value)}>
+       <option value="">Tất cả</option>{centers.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}
+      </select>
+     </div>
+     <div className="rules-actions">
+      <button id="clear-rules" className="rule-clear" type="button" onClick={()=>{
+       setFilter(emptyFilters());setPage(1);
+      }}>Xóa bộ lọc</button>
+     </div>
+    </div>
+   }
+   views={[]} changeViews={()=>{}} activeView={null} applyView={()=>{}}
+   reset={reset} undo={()=>{}} canUndo={false} showChrome={true}
+   serverTotal={total??0} totalKnown={loadState==="ready"}
    policy={TABLE_POLICY} freezeEnabled={false} />
   {settings?<BoTableSettings screen={settings} setScreen={setSettings}
-   onClose={()=>{setSettings(null);requestAnimationFrame(()=>columnToggle.current?.focus());}}
+   onClose={()=>{setSettings(null);requestAnimationFrame(()=>document.getElementById("visible-columns")?.focus({preventScroll:true}));}}
    fields={attributeModule.fields} rows={records} value={table} update={updateTable}
    views={[]} setViews={()=>{}} applyView={()=>{}} policy={TABLE_POLICY}/>:null}
   {open==="create"?<BoQuickView module={attributeModule} record={null} onClose={close}
