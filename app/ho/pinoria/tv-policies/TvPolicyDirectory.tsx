@@ -1,5 +1,5 @@
 "use client";
-import { useContext, useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { LocalizedModuleTitle } from "@/lib/pino-nav-locale-context";
 import { BoDataTable } from "@/app/bo/components/registration/BoDataTable";
 import { BoTableSettings } from "@/app/bo/components/registration/BoTableSettings";
@@ -133,9 +133,9 @@ export function TvPolicyDirectory() {
       : tvPolicyUnavailableMessage;
   const rows = presentHoTvPolicyRows(read?.rows ?? []);
   // IDs are derived from the complete authorized Core Policy Directory, never URL or labels.
-  const centerChoices = read?.status === "ready" ? read.rows
+  const centerChoices = useMemo(() => read?.status === "ready" ? read.rows
     .filter(row=>row.scope==="CENTER" && row.id.startsWith("tvp1-center-") && typeof row.center==="string")
-    .map(row=>({id:row.id.slice("tvp1-center-".length),name:String(row.center)})) : [];
+    .map(row=>({id:row.id.slice("tvp1-center-".length),name:String(row.center)})) : [], [read]);
   const selected = rows.find(row => row.id === location.policyId) ?? null;
   const recordState = read === null ? "loading" : read.status;
 
