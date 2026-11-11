@@ -49,7 +49,7 @@ const date=(v:string)=>{
  return s.replace(",", " ·");
 };
 const center=(id:string|null,centers:CenterOption[])=>id===null?"—":
- centers.find(c=>c.id===id)?.label??id;
+ centers.find(c=>c.id===id)?.label??"—";
 export function asRecord(item:AttributeDefinition,centers:CenterOption[]):BoRecord{
  return {id:item.id,name:item.displayName,displayName:item.displayName,attributeKey:item.attributeKey,
   entityType:item.entityType,valueType:item.valueType,scope:item.scope,
