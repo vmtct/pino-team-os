@@ -142,13 +142,13 @@ for (const surface of ["BO", "HO"] as const) {
     await page.getByRole("textbox", { name: "Tên Quick View", exact: true }).fill("SYNTHETIC Freeze");
     await page.getByRole("button", { name: "Lưu Quick View", exact: true }).click();
     await page.getByRole("button", { name: "Đóng cài đặt", exact: true }).click();
-    await page.getByRole("button", { name: "Count baseline", exact: true }).click();
+    await page.getByRole("tab", { name: "Count baseline", exact: true }).click();
     await expect.poll(() => requested(page)).toBe("count");
-    await page.getByRole("button", { name: /SYNTHETIC Freeze/ }).click();
+    await page.getByRole("tab", { name: /SYNTHETIC Freeze/ }).click();
     await expect.poll(() => requested(page)).toBe("note");
-    await page.getByRole("button", { name: /Tất cả/ }).click();
+    await page.getByRole("tab", { name: /Tất cả/ }).click();
     await expect.poll(() => requested(page)).toBeNull();
-    await page.getByRole("button", { name: /SYNTHETIC Freeze/ }).click();
+    await page.getByRole("tab", { name: /SYNTHETIC Freeze/ }).click();
     await expect.poll(() => requested(page)).toBe("note");
   });
   test(surface + " Freeze resize clips effective prefix without mutating requested state", async ({ page }) => {

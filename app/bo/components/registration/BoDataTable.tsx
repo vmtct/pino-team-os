@@ -16,6 +16,31 @@ export function BoDataTable({ module, rows, loadState, value, update, page, setP
   const total = serverTotal ?? found.length, pages = Math.max(1, Math.ceil(total / value.pageSize)), current = Math.min(page, pages), offset = (current - 1) * value.pageSize, visible = serverTotal !== undefined ? found : found.slice(offset, offset + value.pageSize);
   const identity = policy?.identity ?? "name";
   const scrollRef = useRef<HTMLDivElement>(null);
+  const filterButtonRef = useRef<HTMLButtonElement>(null);
+  const filterSurfaceRef = useRef<HTMLDivElement>(null);
+  // PAP-1869 / PAP-1867 — canonical DSA filter surface: Escape/outside dismiss.
+  useEffect(() => {
+    if (!filterOpen) return;
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      event.preventDefault();
+      event.stopPropagation();
+      setFilterOpen(false);
+      filterButtonRef.current?.focus({ preventScroll: true });
+    };
+    const onOutside = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (filterButtonRef.current?.contains(target) || filterSurfaceRef.current?.contains(target)) return;
+      setFilterOpen(false);
+    };
+    document.addEventListener("keydown", onEscape);
+    document.addEventListener("pointerdown", onOutside);
+    return () => {
+      document.removeEventListener("keydown", onEscape);
+      document.removeEventListener("pointerdown", onOutside);
+    };
+  }, [filterOpen, setFilterOpen]);
   const [freezeMenu, setFreezeMenu] = useState<{ key: string; x: number; y: number } | null>(null);
   const freezeTrigger = useRef<HTMLElement | null>(null);
   const [freezeNotice, setFreezeNotice] = useState("");
@@ -105,11 +130,11 @@ export function BoDataTable({ module, rows, loadState, value, update, page, setP
     </tr>;
   }
   return <div className="grid-card" data-native-avatar={nativeAvatarOpener ? "" : undefined}>{showChrome ? <><div className="view-tabs"><BoViewTabs builtIn={builtInViews} actions={policy?.viewActions} minimal={minimal} views={views} changeViews={changeViews} active={activeView} apply={applyView} onAdd={() => onSettings("views")} /><div className="tabs-right">{totalKnown ? <span id="table-count" className="table-meta">{total} bản ghi</span> : null}</div></div>
-    <div className="toolbar"><label className="search-field"><span>⌕</span><input id="search" type="search" aria-label="Tìm bất kỳ giá trị nào" placeholder="Tìm bất kỳ giá trị nào..." disabled={policy?.search.length === 0} value={value.search} onChange={e => update({ search: e.target.value })} /></label><button id="filter-toggle" type="button" className="toolbar-button tdd-setting-icon" data-tdd-setting="filters" aria-label="Bộ lọc" title="Bộ lọc" aria-expanded={filterOpen} onClick={() => setFilterOpen(!filterOpen)}><FontAwesomeIcon icon={faFilter} aria-hidden="true" />{value.rules.length ? <b id="rules-count" className="filter-count" aria-hidden="true">{value.rules.length}</b> : null}</button>
+    <div className="toolbar"><label className="search-field"><span>⌕</span><input id="search" type="search" aria-label="Tìm bất kỳ giá trị nào" placeholder="Tìm bất kỳ giá trị nào..." disabled={policy?.search.length === 0} value={value.search} onChange={e => update({ search: e.target.value })} /></label><button id="filter-toggle" ref={filterButtonRef} type="button" className="toolbar-button tdd-setting-icon" data-tdd-setting="filters" aria-label="Bộ lọc" title="Bộ lọc" aria-expanded={filterOpen} onClick={() => setFilterOpen(!filterOpen)}><FontAwesomeIcon icon={faFilter} aria-hidden="true" />{value.rules.length ? <b id="rules-count" className="filter-count" aria-hidden="true">{value.rules.length}</b> : null}</button>
       <button id="visible-columns" type="button" className="toolbar-button tdd-setting-icon" data-tdd-setting="properties" aria-label="Hiển thị thuộc tính" title="Hiển thị thuộc tính" onClick={() => onSettings("properties")}><FontAwesomeIcon icon={faTableColumns} aria-hidden="true" /></button>
       <button id="reset-all" type="button" className="toolbar-button tdd-setting-icon" data-tdd-setting="reset" aria-label="Đặt lại" title="Đặt lại" onClick={reset}><FontAwesomeIcon icon={faRotateLeft} aria-hidden="true" /></button>
       {!policy || policy.group.length > 0 ? <button id="group-shortcut" type="button" className="toolbar-button tdd-setting-icon" data-tdd-setting="group" aria-label="Nhóm" title="Nhóm" onClick={() => onSettings("group")}><FontAwesomeIcon icon={faLayerGroup} aria-hidden="true" /></button> : null}<div className="toolbar-spacer" /><button id="undo-v22" type="button" className="toolbar-button" disabled={!canUndo} aria-label="Hoàn tác" title="Hoàn tác (Ctrl+Z)" onClick={undo}>↶</button></div>
-    {filterOpen ? <>{filterContent ?? <BoFilters fields={policy ? module.fields.filter(f => policy.filter.includes(f.key)) : module.fields} value={value} update={update} />}{!policy || policy.viewActions.includes("add") ? <div className="rules-actions"><button type="button" id="save-view" className="save-view-btn" onClick={() => onSettings("views")}>＋ Lưu thành Quick View</button></div> : null}</> : null}
+    {filterOpen ? <div ref={filterSurfaceRef} data-tdd-filter-surface="">{filterContent ?? <BoFilters fields={policy ? module.fields.filter(f => policy.filter.includes(f.key)) : module.fields} value={value} update={update} />}{!policy || policy.viewActions.includes("add") ? <div className="rules-actions"><button type="button" id="save-view" className="save-view-btn" onClick={() => onSettings("views")}>＋ Lưu thành Quick View</button></div> : null}</div> : null}
     <div id="active-chips" className={"filter-chips " + (value.rules.length ? "active" : "")}>{value.rules.map((rule, i) => <button type="button" className="chip" key={i} onClick={() => update({ rules: value.rules.filter((_, n) => n !== i) })}>{module.fields.find(f => f.key === rule.field)?.label} {opLabels[rule.op]} {rule.value} ×</button>)}</div>
     </> : null}
     <div className="table-scroll" data-tdd-freeze-viewport={freezeEnabled ? "" : undefined} id="table-scroll" ref={scrollRef}><table id="typed-table"><caption>{module.label}</caption><thead id="table-head"><tr>{nativeAvatarOpener ? <th scope="col" className="quick-open-th">Mở</th> : null}{fields.map((f, index) => <th key={f.key} data-column={f.key} data-tdd-legacy-sticky-release={index === 1 && f.key !== identity ? "" : undefined} data-tdd-identity-column={f.key === identity ? "" : undefined} tabIndex={0} aria-label={"Tùy chọn cột " + f.label + " (Shift+F10)"}

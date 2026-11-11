@@ -13,7 +13,9 @@ async function open(page: Page) { await opener(page).focus(); await opener(page)
 async function detail(page: Page) { await open(page); await page.getByRole("button", { name: /Full Detail/ }).click(); await expect(page.getByRole("tab", { name: "Tổng quan" })).toBeVisible(); }
 async function tabIssues(page: Page) {
   return page.evaluate(() => {
-    const selected = [...document.querySelectorAll('[role="tab"][aria-selected="true"]')];
+    // PAP-1869: Drawer/Detail tabs and the underlying Table Quick View tabs are separate ARIA tablists.
+    // Validate the active Detail tablist here; the Table tablist has its own P0 contract.
+    const selected = [...document.querySelectorAll('[data-tdd-shell="detail"] [role="tab"][aria-selected="true"]')];
     if (selected.length !== 1) return ["selection"];
     const tab = selected[0], panel = document.getElementById(tab.getAttribute("aria-controls") ?? "");
     if (!panel || panel.getAttribute("role") !== "tabpanel") return ["panel"];
