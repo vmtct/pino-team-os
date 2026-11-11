@@ -1,10 +1,45 @@
 import { TddRegistry, type FieldSchema, type ModuleRow, type TableQuery } from "@/lib/workspace-schema";
 import type { SurfaceDefinition, SurfaceProvider } from "@/lib/workspace-adapters/contracts";
-import { readMissionAssignment, readMissionAssignments, type MissionAssignment } from "@/lib/bo-mission-assignments";
+import { assignmentUuid, readMissionAssignment, readMissionAssignments, type MissionAssignment } from "@/lib/bo-mission-assignments";
 import { readMissionHistory } from "@/lib/mission-history";
 import { readBoMissionExecution, type BoMissionExecution } from "@/lib/bo-mission-completion-client";
 import { formatMissionAuditTime } from "@/lib/bo-mission-audit-projection";
-import { readAuthorizedMissionStudentNames } from "@/lib/bo-mission-student-names";
+
+
+/** PAP-1849: source-verified BO student name. Never expose an ID as a display fallback. */
+export async function readAuthorizedMissionStudentNames(
+  fetcher: typeof fetch, centerId: string, signal: AbortSignal,
+): Promise<ReadonlyMap<string,string>> {
+  if (!assignmentUuid.test(centerId)) throw Error("Cơ sở chưa được xác thực.");
+  const names = new Map<string,string>(), seen = new Set<string>();
+  let beforeStudentId: string | null = null;
+  for (let page = 0; page < 100; page++) {
+    const params = new URLSearchParams({ limit: "100", centerId });
+    if (beforeStudentId) params.set("beforeStudentId", beforeStudentId);
+    const response = await fetcher("/api/bo/learners?" + params,
+      { method: "GET", credentials: "same-origin", cache: "no-store", redirect: "error", signal });
+    signal.throwIfAborted();
+    if (!response.ok) throw Error("Không thể đọc tên học viên trong cơ sở hiện tại.");
+    const envelope: unknown = await response.json();
+    signal.throwIfAborted();
+    if (!envelope || typeof envelope !== "object" || !("data" in envelope) ||
+        !Array.isArray(envelope.data) || envelope.data.length > 100) throw Error("Nguồn học viên không hợp lệ.");
+    const rows: unknown[] = envelope.data;
+    for (const value of rows) {
+      if (!value || typeof value !== "object" || Array.isArray(value)) throw Error("Bản ghi học viên không hợp lệ.");
+      const row = value as Record<string, unknown>;
+      if (typeof row.id !== "string" || !assignmentUuid.test(row.id) || seen.has(row.id))
+        throw Error("Danh bạ học viên trùng hoặc sai ID.");
+      seen.add(row.id);
+      if (typeof row.displayName === "string" && row.displayName.trim()) names.set(row.id, row.displayName.trim());
+    }
+    if (rows.length < 100) return names;
+    const last = rows.at(-1) as { id: string };
+    if (!last.id || last.id === beforeStudentId) throw Error("Phân trang học viên không tiến.");
+    beforeStudentId = last.id;
+  }
+  throw Error("Vượt giới hạn phân trang học viên.");
+}
 
 const read = { display: true, search: true, filter: true, sort: true, group: true, inlineEdit: false } as const;
 const permission = "student.mission_assignment.view";

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readAuthorizedMissionStudentNames } from "./bo-mission-student-names";
-import { assignmentFields, assignmentProvider, assignmentQuery } from "../app/bo/missions/schema";
+
+import { assignmentFields, assignmentProvider, assignmentQuery, readAuthorizedMissionStudentNames } from "../app/bo/missions/schema";
 
 const center = "01900000-0000-7000-8000-000000000001";
 const student = "01900000-0000-7000-8000-000000000002";
