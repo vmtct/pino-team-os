@@ -2,17 +2,10 @@
 // No Production worker, keeper, or canonical UI source changes.
 import openNextWorker from "./.open-next/worker.js";
 import { handlePinerAuth, isPinerAuthPath } from "./lib/piner-auth-bff.mjs";
+import { isAllowedPath } from "./lib/piner-staging-route-policy.mjs";
 export { PinerOtpRateGuard } from "./lib/piner-auth-bff.mjs";
 
-const ALLOWED_PREFIXES = [
-  "/piner-space",
-  "/piner-prototype",
-  "/_next/",
-  "/cdn-cgi/image/",
-];
-function isAllowedPath(pathname) {
-  return ALLOWED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(prefix));
-}
+
 function withNoIndex(response) {
   const staged = new Response(response.body, response);
   staged.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
