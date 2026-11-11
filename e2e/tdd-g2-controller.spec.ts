@@ -33,7 +33,8 @@ for (const surface of ["BO", "HO"] as const) {
     const full = page.getByRole("button", { name: /Full Detail/ }); await expect(full).toBeEnabled(); await full.focus();
     await page.keyboard.press("Tab"); await expect(page.getByRole("button", { name: "Đóng", exact: true })).toBeFocused();
     await page.keyboard.press("Shift+Tab"); await expect(full).toBeFocused();
-    await expect(page.getByRole("button", { name: "Chỉ đọc Tên", exact: true })).toBeDisabled();
+    await expect(page.locator('[data-tdd-properties="drawer"] div.v24-prop-value.readonly[aria-label="Chỉ đọc Tên"]')).toBeVisible();
+    await expect(page.getByRole("button", { name: "Chỉ đọc Tên", exact: true })).toHaveCount(0);
     await expect(page.locator("body")).not.toContainText("PRIVATE_MUST_NOT_RENDER");
   });
   test(`${surface} tab keys, ARIA, history and browser navigation`, async ({ page }) => {
