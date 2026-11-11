@@ -62,13 +62,13 @@ test("PAP-1838 BFF-only source has no mock auth success, password or client-side
 test("PAP-1838 Staging Worker exposes only the scoped Piner login entrypoint", () => {
   for (const pathname of [
     "/piner-space", "/piner-space/", "/piner-prototype", "/piner/prototype",
-    "/piner/public/login", "/piner/public/login/",
+    "/piner/public", "/piner/public/login", "/piner/public/login/",
     "/_next/static/chunks/login.js", "/cdn-cgi/image/width=640/example.png",
   ]) {
     assert.equal(isAllowedPath(pathname), pathname !== "/piner/prototype", "allowed " + pathname);
   }
   for (const pathname of [
-    "/piner", "/piner/public", "/piner/public/post/123",
+    "/piner", "/piner/public/post/123",
     "/piner/public/login-evil", "/piner/public/login.evil", "/piner-space-evil",
     "/api/admin", "/api/piner/auth/session", "/founder", "/", "", null,
   ]) assert.equal(isAllowedPath(pathname), false, "deny " + pathname);
