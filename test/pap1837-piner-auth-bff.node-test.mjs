@@ -6,6 +6,7 @@ const HOST="https://piner-space-staging.test";
 const PHONE="+84901234567"; // synthetic only
 const UUID="0199f733-678a-7000-8000-000000000000";
 const TOKEN="synthetic_core_bearer_token_long_enough";
+const SERVICE_KEY="synthetic-pap1845-32-byte-service-secret-only-in-tests";
 const DAY=86_400_000;
 const reply=(data,status=200)=>new Response(JSON.stringify({data}),{status,headers:{"Content-Type":"application/json"}});
 function req(path,method="GET",body=null,options={}){
@@ -37,7 +38,8 @@ function fixture({enabled=true,seal=true,rate=true,upstream=true,days=30}={}){
  const expiry=new Date(Date.now()+days*DAY).toISOString();
  const core={async fetch(request){
   const path=new URL(request.url).pathname;
-  calls.push({path,method:request.method,auth:request.headers.get("authorization"),origin:new URL(request.url).origin});
+  calls.push({path,method:request.method,auth:request.headers.get("authorization"),origin:new URL(request.url).origin,
+    privateIngressAuthorized:request.headers.get("x-piner-core-service-key")===SERVICE_KEY});
   if(path==="/v1/piner-auth/challenges"&&request.method==="POST"){
    if(!upstream)return reply({},404);
    const body=await request.json();assert.equal(body.identifierType,"PHONE");assert.equal(body.identifierValue,PHONE);
@@ -63,6 +65,7 @@ function fixture({enabled=true,seal=true,rate=true,upstream=true,days=30}={}){
   return reply({},404);
  }};
  const env={PINER_AUTH_STAGING_ENABLED:enabled?"true":"false",PINO_MEMBER_CORE:core,
+  PINER_AUTH_CORE_SERVICE_KEY:SERVICE_KEY,
   ...(seal?{PINER_SESSION_SEAL_KEY:Buffer.alloc(32,7).toString("base64url")}:{}),
   ...(rate?{PINER_AUTH_RATE_GUARD:limiter()}:{})};
  return {env,calls,get revoked(){return revoked}};
@@ -94,6 +97,7 @@ test("OTP request normalizes synthetic VN phone; protected Core staging only, co
  assert.equal(data.challengeId,UUID);
  assert.match(r.headers.get("set-cookie"),/__Host-piner_device=.*Secure; HttpOnly/);
  assert.equal(f.calls[0].origin,"https://core-staging.internal");
+ assert.equal(f.calls[0].privateIngressAuthorized,true);
  const next=await handlePinerAuth(post("/otp/request",{phone:PHONE}),f.env);
  assert.equal(next.status,429);assert.equal(f.calls.length,1);
  assert.equal(f.env.PINER_AUTH_RATE_GUARD.keys.some(k=>k.includes(PHONE)||k.includes("198.51.100.42")),false);
@@ -157,4 +161,10 @@ test("other paths do not open auth, and unsafe methods return 405",async()=>{
  assert.equal(await handlePinerAuth(req("/api/piner/private"),f.env),null);
  assert.equal((await handlePinerAuth(get("/otp/request"),f.env)).status,405);
  assert.equal(f.calls.length,0);
+});
+
+test("PAP-1845: missing BFF private Core key fails closed before OTP egress",async()=>{
+ const f=fixture();delete f.env.PINER_AUTH_CORE_SERVICE_KEY;
+ const result=await handlePinerAuth(post("/otp/request",{phone:PHONE}),f.env);
+ assert.equal(result.status,503);assert.equal(f.calls.length,0);
 });
