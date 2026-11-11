@@ -9,6 +9,15 @@
     "directory": ".open-next/assets",
     "run_worker_first": true
   },
+  "vars": { "PINER_AUTH_STAGING_ENABLED": "false" },
+  "services": [{ "binding": "PINO_MEMBER_CORE", "service": "pino-core-staging" }],
+  "durable_objects": {
+    "bindings": [{ "name": "PINER_AUTH_RATE_GUARD", "class_name": "PinerOtpRateGuard" }]
+  },
+  "migrations": [{
+    "tag": "pap1837-piner-auth-rate-v1",
+    "new_sqlite_classes": ["PinerOtpRateGuard"]
+  }],
   "observability": { "enabled": true },
   "workers_dev": true
 }

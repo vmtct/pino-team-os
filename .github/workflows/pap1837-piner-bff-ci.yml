@@ -1,0 +1,74 @@
+name: "PAP-1837 Piner Staging BFF isolated CI (NO DEPLOY)"
+on:
+  push:
+    branches:
+      - feat/pap1837-piner-staging-bff-20261111
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: pap1837-piner-staging-only-no-deploy
+  cancel-in-progress: true
+jobs:
+  auth-unit:
+    name: PAP-1837 synthetic auth and fail-closed guards
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Verify exact source syntax
+        run: |
+          node --check piner-staging-worker.mjs
+          node --check lib/piner-auth-bff.mjs
+          node --check test/pap1837-piner-auth-bff.node-test.mjs
+      - name: Synthetic OTP/session tests — never contact real Zalo
+        run: node --test test/pap1837-piner-auth-bff.node-test.mjs
+      - name: Stage-only boundary configuration
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from "node:fs";
+          const config = JSON.parse(readFileSync("wrangler.piner-staging.jsonc", "utf8"));
+          if (config.name !== "piner-space-staging" ||
+              config.vars?.PINER_AUTH_STAGING_ENABLED !== "false" ||
+              config.services?.length !== 1 ||
+              config.services[0].binding !== "PINO_MEMBER_CORE" ||
+              config.services[0].service !== "pino-core-staging" ||
+              config.durable_objects?.bindings?.[0]?.class_name !== "PinerOtpRateGuard" ||
+              !config.migrations?.[0]?.new_sqlite_classes?.includes("PinerOtpRateGuard"))
+            throw new Error("PAP-1837 staging binding/flag boundary drift");
+          const files = ["lib/piner-auth-bff.mjs", "piner-staging-worker.mjs",
+                         "wrangler.piner-staging.jsonc",
+                         "test/pap1837-piner-auth-bff.node-test.mjs"];
+          const joined = files.map(f => readFileSync(f, "utf8")).join("\n");
+          if (joined.includes("0944982555") || joined.includes("+84944982555"))
+            throw new Error("PAP-1837 real OTP test phone found in source");
+          console.log("PAP-1837 disabled-by-default Core Staging only: PASS");
+          NODE
+
+  build:
+    name: PAP-1837 source lint, TS and isolated Next build (NO DEPLOY)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Install dependencies only (no deployment)
+        run: npm ci --no-audit --no-fund
+      - name: Scoped lint
+        run: npx eslint piner-staging-worker.mjs lib/piner-auth-bff.mjs test/pap1837-piner-auth-bff.node-test.mjs
+      - name: TypeScript
+        run: npx tsc --noEmit
+      - name: Next build
+        run: npm run build
+      - name: OpenNext artifact build (never wrangler deploy)
+        run: npx opennextjs-cloudflare build
