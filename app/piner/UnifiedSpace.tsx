@@ -15,6 +15,7 @@ import { useActiveProfile, isManagedChild, getProfile } from "./profiles";
 import { ChildSwitcher } from "./ChildSwitcher";
 import css from "./launcher.module.css";
 import {PinoIcon} from "./PinoIcon";
+import {CommunitySwipeFeed} from "./CommunitySwipeFeed";
 import {SPACES,isInSpace,pathFor,type PinerSpace} from "./spaces";
 
 export type UnifiedTab = "home" | "grid" | "reels" | "community";
@@ -198,8 +199,9 @@ export function PinerUnified({tab,space="house"}:{tab:UnifiedTab;space?:PinerSpa
          {!loaded?<div className={css.unifiedLoading} role="status">Đang mở hành trình...</div>:tab==="grid"?
            <MediaGrid posts={visible} onOpen={openPreview}/>:
            tab==="reels"?<MediaReels posts={visible} onOpen={openPreview}/>:
-           <div className={css.unifiedFeed} data-feed-scope={tab==="community"?"community":"personal"}>
-                           {visible.map(post=><PostCard key={post.id} post={post} scope={tab==="community"?"community":"personal"}
+           tab==="community"?<CommunitySwipeFeed posts={visible} viewportRef={contentRef} canManage={canManagePost} onOpen={openPreview} onRequestVisibility={requestVisibility}/>:
+           <div className={css.unifiedFeed} data-feed-scope="personal">
+                           {visible.map(post=><PostCard key={post.id} post={post} scope="personal"
                 canManage={canManagePost(post)} onOpen={openPreview} onRequestVisibility={requestVisibility}/>)}
            </div>}
          {loaded&&visible.length===0&&tab==="home"&&
