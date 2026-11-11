@@ -4,21 +4,19 @@ import { readMissionAssignment, readMissionAssignments, type MissionAssignment }
 import { readMissionHistory } from "@/lib/mission-history";
 import { readBoMissionExecution, type BoMissionExecution } from "@/lib/bo-mission-completion-client";
 import { formatMissionAuditTime } from "@/lib/bo-mission-audit-projection";
+import { readAuthorizedMissionStudentNames } from "@/lib/bo-mission-student-names";
 
 const read = { display: true, search: true, filter: true, sort: true, group: true, inlineEdit: false } as const;
 const permission = "student.mission_assignment.view";
 export const assignmentFields = [
   { key: "name", label: "Nhiệm vụ", type: "text", icon: "Aa", width: 235, permission, readOnly: true, capabilities: read },
   { key: "code", label: "Mã Mission", type: "text", icon: "#", width: 160, permission, readOnly: true, capabilities: read },
-  { key: "student", label: "Student ID", type: "text", icon: "#", width: 280, permission, readOnly: true, capabilities: read },
+  { key: "student", label: "Student", type: "text", icon: "Aa", width: 280, permission, readOnly: true, capabilities: read },
   { key: "status", label: "Trạng thái", type: "text", icon: "Aa", width: 135, permission, readOnly: true, capabilities: read },
   { key: "executionStatus", label: "Tiến độ", type: "text", icon: "Aa", width: 150, permission, readOnly: true, capabilities: read },
   { key: "executionVersion", label: "Phiên bản tiến độ", type: "number", icon: "#", width: 150, permission, readOnly: true, capabilities: read },
   { key: "context", label: "Bối cảnh", type: "text", icon: "Aa", width: 200, permission, readOnly: true, capabilities: read },
   { key: "assignedAt", label: "Ngày giao (UTC)", type: "text", icon: "Aa", width: 200, permission, readOnly: true, capabilities: read },
-  { key: "center", label: "Center ID", type: "text", icon: "#", width: 280, permission, readOnly: true, capabilities: read },
-  { key: "mission", label: "Mission ID", type: "text", icon: "#", width: 280, permission, readOnly: true, capabilities: read },
-  { key: "contextKey", label: "Context Key", type: "text", icon: "#", width: 160, permission, readOnly: true, capabilities: read },
   { key: "cancelledAt", label: "Ngày hủy (UTC)", type: "text", icon: "Aa", width: 200, permission, readOnly: true, capabilities: read },
   { key: "cancelledReason", label: "Lý do hủy", type: "text", icon: "Aa", width: 200, permission, readOnly: true, capabilities: read },
   // PAP-1792 S0-R3: explicitly Founder-approved optional audit columns (PAP-1798 source pending).
@@ -60,7 +58,7 @@ export const assignmentDefinition = {
   },
   drawer: { density: "one-column", sections: [{ id: "summary", label: "Nhiệm vụ được giao", fields: ["student", "name", "code", "status", "executionStatus", "assignedAt", "context", "createdAt", "createdBy", "updatedAt", "updatedBy"] }], actions: [] },
   detail: {
-    overview: { sections: [{ id: "assignment", label: "Nhiệm vụ được giao", fields: ["student", "name", "code", "status", "executionStatus", "executionVersion", "assignedAt", "context", "contextKey", "center", "mission", "cancelledAt", "cancelledReason", "createdAt", "createdBy", "updatedAt", "updatedBy"] }] },
+    overview: { sections: [{ id: "assignment", label: "Nhiệm vụ được giao", fields: ["student", "name", "code", "status", "executionStatus", "executionVersion", "assignedAt", "context", "cancelledAt", "cancelledReason", "createdAt", "createdBy", "updatedAt", "updatedBy"] }] },
     businessTabs: [
       { id: "results", label: "Kết quả", kind: "relation-grid", relatedModule: "student-mission-results", source: { adapter: "mission-results-unavailable", permission } },
       { id: "diary", label: "Nhật Ký", kind: "relation-grid", relatedModule: "assignment-diaries", source: { adapter: "assignment-linked-diaries", permission } },
@@ -69,18 +67,17 @@ export const assignmentDefinition = {
   },
 } as const satisfies SurfaceDefinition<F>;
 /** PAP-1792 / PAP-1676: independent C1 execution is never Assignment lifecycle. */
-function project(p: MissionAssignment, execution: BoMissionExecution | null): ModuleRow<F> {
+function project(p: MissionAssignment, execution: BoMissionExecution | null, names: ReadonlyMap<string,string>): ModuleRow<F> {
   if (p.status === "ASSIGNED" &&
       (!execution || execution.centerId !== p.centerId || execution.assignmentId !== p.id ||
        execution.assignmentStatus !== p.status))
     throw Error("C1 execution/Assignment provenance mismatch");
-  return { id: p.id, name: p.missionNameSnapshot, code: p.missionCodeSnapshot, student: p.studentId,
+  return { id: p.id, name: p.missionNameSnapshot, code: p.missionCodeSnapshot, student: names.get(p.studentId) ?? "—",
     status: p.status === "ASSIGNED" ? "Đang giao" : "Đã hủy",
     executionStatus: p.status !== "ASSIGNED" ? null :
       execution!.executionStatus === "COMPLETED" ? "Hoàn tất" : "Đang thực hiện",
     executionVersion: p.status !== "ASSIGNED" ? null : execution!.executionVersion,
-    context: p.contextLabel, assignedAt: p.assignedAt, center: p.centerId, mission: p.missionId,
-    contextKey: p.contextKey, cancelledAt: p.cancelledAt, cancelledReason: p.cancelledReason,
+    context: p.contextLabel, assignedAt: p.assignedAt, cancelledAt: p.cancelledAt, cancelledReason: p.cancelledReason,
     // PAP-1792 S0-R3: explicit Founder-approved missing-source glyph; null renders "Trống" in shared TDD.
     createdAt: "—", createdBy: "—", updatedAt: formatMissionAuditTime(p.updatedAt), updatedBy: "—" };
 }
@@ -89,6 +86,10 @@ export const assignmentProvider: SurfaceProvider<F> = {
   async list(_query, scope, fetcher, signal) {
     if (scope.surface !== "BO") throw Error("BO Center scope required");
     const rows = await readMissionAssignments(fetcher, scope.centerId, signal);
+    // The authorized, Center-scoped directory can be unavailable independently.
+    // Fall back to an explicit missing-name glyph; never print studentId.
+    const names = await readAuthorizedMissionStudentNames(fetcher, scope.centerId, signal)
+      .catch(() => { signal.throwIfAborted(); return new Map<string,string>(); });
     // FE-first: at most four concurrent Center-authenticated C1 reads.
     // Unavailable Core truth must fail closed; never synthesize progression.
     const records: { row: ModuleRow<F>; centerId: string; version: string }[] = new Array(rows.length);
@@ -100,7 +101,7 @@ export const assignmentProvider: SurfaceProvider<F> = {
         const p = rows[i]!;
         const execution = p.status === "ASSIGNED"
           ? await readBoMissionExecution(fetcher, scope.centerId, p.id, signal) : null;
-        records[i] = { row: project(p, execution), centerId: p.centerId, version: String(p.version) };
+        records[i] = { row: project(p, execution, names), centerId: p.centerId, version: String(p.version) };
       }
     }));
     return { records, total: rows.length };
@@ -109,9 +110,11 @@ export const assignmentProvider: SurfaceProvider<F> = {
     if (scope.surface !== "BO") throw Error("BO Center scope required");
     const p = await readMissionAssignment(fetcher, scope.centerId, id, signal);
     if (!p) return null;
+    const names = await readAuthorizedMissionStudentNames(fetcher, scope.centerId, signal)
+      .catch(() => { signal.throwIfAborted(); return new Map<string,string>(); });
     const execution = p.status === "ASSIGNED"
       ? await readBoMissionExecution(fetcher, scope.centerId, p.id, signal) : null;
-    return { row: project(p, execution), centerId: p.centerId, version: String(p.version) };
+    return { row: project(p, execution, names), centerId: p.centerId, version: String(p.version) };
   },
   history: { subjectType: "student_mission_assignment", bind: (fetcher, scope) => ({
     kind: "provider", source: { adapter: "core-center-mission-assignment-history", permission },

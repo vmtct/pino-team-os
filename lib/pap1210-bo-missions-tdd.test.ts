@@ -126,6 +126,7 @@ test("PAP-1210: provider reads exact scoped list/detail, preserves empty and err
   const paths: string[] = [];
   const fetcher: typeof fetch = async input => {
     const path = String(input); paths.push(path);
+    if (path.startsWith("/api/bo/learners?")) return Response.json({ data: [{ id: other, displayName: "Nguyễn An", status: "ACTIVE" }] });
     if (path.includes("/execution?")) return Response.json({ data: {
       assignmentId: id, centerId: center, assignmentStatus: "ASSIGNED", executionStatus: "IN_PROGRESS",
       executionVersion: 0, updatedAt: null, updatedByUserId: null,
@@ -136,10 +137,13 @@ test("PAP-1210: provider reads exact scoped list/detail, preserves empty and err
   assert.equal(result.total, 1); assert.equal(result.records[0]?.centerId, center); assert.equal(result.records[0]?.version, "1");
   assert.equal(result.records[0]?.row.status, "Đang giao");
   assert.equal((await assignmentProvider.detail(id, { surface: "BO", centerId: center }, fetcher, signal()))?.row.id, id);
+  assert.equal(result.records[0]?.row.student, "Nguyễn An");
   assert.equal(paths[0], "/api/bo/learning/mission-assignments?centerId=" + center + "&limit=100&offset=0");
-  assert.equal(paths[1], "/api/bo/learning/mission-assignments/" + id + "/execution?centerId=" + center);
-  assert.equal(paths[2], "/api/bo/learning/mission-assignments/" + id + "?centerId=" + center);
-  assert.equal(paths[3], "/api/bo/learning/mission-assignments/" + id + "/execution?centerId=" + center);
+  assert.equal(paths[1], "/api/bo/learners?limit=100&centerId=" + center);
+  assert.equal(paths[2], "/api/bo/learning/mission-assignments/" + id + "/execution?centerId=" + center);
+  assert.equal(paths[3], "/api/bo/learning/mission-assignments/" + id + "?centerId=" + center);
+  assert.equal(paths[4], "/api/bo/learners?limit=100&centerId=" + center);
+  assert.equal(paths[5], "/api/bo/learning/mission-assignments/" + id + "/execution?centerId=" + center);
   assert.deepEqual(await readMissionAssignments(reply([]), center, signal()), []);
   assert.equal(await readMissionAssignment(reply(null, 404), center, id, signal()), null);
   for (const status of [401, 403, 409, 503]) await assert.rejects(readMissionAssignments(reply(null, status), center, signal()), e => e instanceof BoApiError && e.status === status);
