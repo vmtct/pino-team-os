@@ -12,6 +12,7 @@ import {
 } from "@/lib/tos-mission-assignment-tab-read";
 import type {TosMissionAssignmentCard} from "@/lib/tos-mission-assignment-card-model";
 import type {TosEligibleMissionChoice} from "@/lib/tos-mission-assignment-choices";
+import {readTosNewMissionGuard} from "@/lib/tos-mission-completion-read";
 import {
   getTosMissionCommandChoices,createTosMissionAssignmentVerified,
   replaceTosMissionAssignmentVerified,
@@ -21,6 +22,7 @@ const slot=createSlotKeys(styles);
 type MissionCreateRequest={id:number;studentId:string};
 type Editor={studentId:string;old:TosMissionAssignmentCard|null};
 type Choices={phase:"loading"|"ready"|"error";items:readonly TosEligibleMissionChoice[]};
+type CreateGate="loading"|"clear"|"unfinished"|"unavailable";
 export default function MissionAssignmentTab({
   scope,readOnly=false,visible=true,createRequest=null,onCreateRequestConsumed,
 }:{scope:MissionTabScope;readOnly?:boolean;visible?:boolean;
@@ -30,6 +32,7 @@ export default function MissionAssignmentTab({
   const [editor,setEditor]=useState<Editor|null>(null);
   const [choices,setChoices]=useState<Choices>({phase:"loading",items:[]});
   const [chosen,setChosen]=useState("");
+  const [createGate,setCreateGate]=useState<CreateGate>("loading");
   const [busy,setBusy]=useState(false);
   const submitting=useRef(false);
   const consumedCreateRequest=useRef<number|null>(null);
@@ -47,12 +50,32 @@ export default function MissionAssignmentTab({
   useEffect(()=>{
     if(!editor)return;
     let active=true;
-    void getTosMissionCommandChoices({centerId,localDate,runningClassId,teachingContextKey,studentId:editor.studentId}).then(
-      items=>{if(active)setChoices({phase:"ready",items})},
-      ()=>{if(active)setChoices({phase:"error",items:[]})},
-    );
-    return()=>{active=false};
-    // The page/occurrence is fixed by the parent key; changing editor is a new read.
+    const controller=new AbortController();
+    // PAP-1851: do NOT request or show eligible Mission choices on new Create until
+    // every current-context Assignment has independent Core C1 completion proof.
+    setChoices({phase:"loading",items:[]});
+    setCreateGate(editor.old?"clear":"loading");
+    const load=async()=>{
+      if(!editor.old){
+        const state=await readTosNewMissionGuard(
+          {centerId,localDate,runningClassId,teachingContextKey,studentId:editor.studentId},
+          undefined,controller.signal,
+        );
+        if(!active)return;
+        if(state==="UNFINISHED"){setCreateGate("unfinished");return;}
+        setCreateGate("clear");
+      }
+      const items=await getTosMissionCommandChoices(
+        {centerId,localDate,runningClassId,teachingContextKey,studentId:editor.studentId},
+      );
+      if(active)setChoices({phase:"ready",items});
+    };
+    void load().catch(()=>{
+      if(!active)return;
+      if(editor.old)setChoices({phase:"error",items:[]});
+      else setCreateGate("unavailable");
+    });
+    return()=>{active=false;controller.abort()};
   },[editor,centerId,localDate,runningClassId,teachingContextKey]);
   const open=useCallback((studentId:string,old:TosMissionAssignmentCard|null=null)=>{
     if(!canWrite||submitting.current)return;
@@ -69,7 +92,7 @@ export default function MissionAssignmentTab({
   },[createRequest,canWrite,groups,open,onCreateRequestConsumed]);
   const close=()=>{if(!submitting.current){setEditor(null);setError("")}};
   const submit=async()=>{
-    if(!editor||submitting.current||readOnly||choices.phase!=="ready"||
+    if(!editor||submitting.current||readOnly||(!editor.old&&createGate!=="clear")||choices.phase!=="ready"||
        !choices.items.some(x=>x.missionId===chosen))return;
     submitting.current=true;setBusy(true);setError("");
     try{
@@ -190,6 +213,18 @@ export default function MissionAssignmentTab({
         {editor.old&&<p className={styles.smallMuted} data-tos-slot={slot(styles.smallMuted)}>
           Thay {editor.old.missionCodeSnapshot} · {editor.old.missionNameSnapshot} của {studentName}.
         </p>}
+        {!editor.old&&createGate==="loading"&&<p role="status">
+          Đang kiểm tra nhiệm vụ chưa hoàn thành…
+        </p>}
+        {!editor.old&&createGate==="unfinished"&&<div role="status"
+          className={styles.missionReadError}>
+          <strong>Còn nhiệm vụ chưa hoàn thành</strong>
+        </div>}
+        {!editor.old&&createGate==="unavailable"&&<p role="alert"
+          className={styles.missionReadError}>
+          Chưa xác minh được trạng thái nhiệm vụ. Vui lòng đóng và mở lại.
+        </p>}
+        {(!!editor.old||createGate==="clear")&&<>
         {choices.phase==="loading"&&<p role="status">Đang tải Mission đủ điều kiện…</p>}
         {choices.phase==="error"&&<p role="alert">
           Chưa tải được Mission đủ điều kiện từ Core. Vui lòng đóng và thử lại.
@@ -216,7 +251,7 @@ export default function MissionAssignmentTab({
             <FontAwesomeIcon icon={editor.old?faRotate:faCheck}/>
             {busy?"Đang xác minh…":editor.old?"Đổi Nhiệm Vụ":"Tạo Nhiệm Vụ"}
           </button>
-        </div>
+        </div></>}
       </section>
     </AppModalRoot>}
   </>;
