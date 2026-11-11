@@ -31,8 +31,8 @@ test("PAP-1831: Drawer inline editable is the DSA v24 button with single integra
 });
 test("PAP-1831: readonly Drawer uses exact DSA div and lock, never inert button", () => {
   const html = render();
-  assert.match(html, /<div class="v24-prop-value readonly" aria-label="Chỉ đọc Phạm vi">/);
-  assert.match(html, /<div class="v24-prop-value readonly" aria-label="Chỉ đọc Trung tâm">/);
+  assert.match(html, /<div class="v24-prop-value readonly" aria-label="Chỉ đọc Phạm vi" data-prop="scope">/);
+  assert.match(html, /<div class="v24-prop-value readonly" aria-label="Chỉ đọc Trung tâm" data-prop="centerId">/);
   assert.match(html, /<span class="v24-lock" aria-hidden="true">⌁<\/span>/);
   assert.equal((html.match(/class="v24-prop-value readonly"/g) || []).length, 2);
 });
