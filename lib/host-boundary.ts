@@ -1,4 +1,5 @@
 import {isHoTvReadRequest} from "./ho-tv-read-contract";
+import {isHoTvVisibilityRequest} from "./ho-tv-visibility-contract";
 import {billMethodAllowed} from "./bo-bills-paths";
 import {billTableCenter,billTableRoot} from "./bo-bill-table-contract";
 import {tosV4StagingHost} from "./tos-v4-staging-host";
@@ -53,7 +54,11 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   // PAP-1460 / Epic PAP-1316: Founder removed BO TV management from every
   // BO host, role, query and deep link. Deny before generic BO/preview fallthrough.
   if (/^\/bo\/tvs(?:\/|$)/i.test(pathname)) return { action: "not_found" };
-  // PAP-1418 / PNR-TV: exact Founder HO read paths only; never BO/other hosts.
+  // PAP-1385 / PNR-TV: only logical visibility GET/PATCH, Founder HO Staging.
+  // The private BFF and Core still enforce Founder, selected-Center, CAS and audit.
+  if(pathname.startsWith("/api/ho/pinoria/tv-policies/visibility"))
+    return {action:hostname===HO_STAGING_HOSTNAME&&isHoTvVisibilityRequest(pathname,method)?"next":"not_found"};
+  // PAP-1418 / PNR-TV: all other TV paths remain exact read-only.
   if(pathname.startsWith("/api/ho/pinoria/tv-health") || pathname.startsWith("/api/ho/pinoria/tv-config") || pathname.startsWith("/api/ho/pinoria/tv-policies"))
     return {action:hostname===HO_STAGING_HOSTNAME&&isHoTvReadRequest(pathname,method)?"next":"not_found"};
   if (pathname === HO_BILLS_API || pathname.startsWith(HO_BILLS_API + "/"))
