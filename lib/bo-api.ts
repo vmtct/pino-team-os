@@ -447,9 +447,6 @@ export const boApi = {
   renewSubscription: (subscriptionId: string, body: { serviceStartsOn?: string; contractualEndsOn: string; weeklyCommitment: number; purchasedUnits: number; commercialReference?: string }, idempotencyKey: string) => write<unknown>(`subscriptions/${encodeURIComponent(subscriptionId)}/renew`, body, idempotencyKey),
   // PAP-1035 — canonical Core membership API. No client-side placement truth.
   subscriptionById: (subscriptionId:string) => readOne<import("./bo-model").BoLearnerSubscription>(`subscriptions/${encodeURIComponent(subscriptionId)}`),
-  // PAP-1334 / PAP-1491: canonical Center-bound read, never fallback to
-  // the unscoped legacy by-ID endpoint on 400/403/404.
-  subscriptionCenterDetail: (subscriptionId:string,selectedCenterId:string) => readOne<import("./bo-model").BoLearnerSubscription>(`subscriptions/${encodeURIComponent(subscriptionId)}/center-detail?centerId=${encodeURIComponent(selectedCenterId)}`),
   subscriptionEnrollments: (subscriptionId:string) => readOne<import("./bo-enrollment-contract").BoEnrollmentRecord[]>(`subscriptions/${encodeURIComponent(subscriptionId)}/enrollments`),
   subscriptionPlacement: (subscriptionId:string, targetLocalDate:string) => readOne<import("./bo-enrollment-contract").BoEnrollmentPlacementState>(`subscriptions/${encodeURIComponent(subscriptionId)}/placement?targetLocalDate=${encodeURIComponent(targetLocalDate)}`),
   enrollmentCapacity: (input:{runningClassId:string;targetLocalDate:string;subscriptionId?:string;plannedEntryLocalTime?:string|null;plannedDurationMinutes?:number|null}) => {
