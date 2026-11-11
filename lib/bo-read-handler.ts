@@ -32,6 +32,8 @@ const S3_SUBSCRIPTION_READ = /^subscriptions\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4
 const PAP1334_CENTER_DETAIL_READ = /^subscriptions\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/center-detail$/;
 // PAP-1334 / PAP-1491: exact immutable owning-Center Subscription directory.
 const PAP1334_OWNER_DIRECTORY_READ = "subscriptions/center-directory";
+// PAP-1871 / PAP-1350 — exact Center+Student eligible-payer GET, never Parent directory fallback.
+const PAP1871_ELIGIBLE_PAYER_READ = "billing/sales/eligible-payers";
 const S3_ENROLLMENT_RECORD_READ = /^enrollments\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const S3_ENROLLMENT_CAPACITY_READ = "enrollments/capacity";
 const S3_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -115,6 +117,7 @@ export function isOperationalReadPath(path: string): boolean {
     || S3_ENROLLMENT_RECORD_READ.test(path)
     || path === S3_ENROLLMENT_CAPACITY_READ
     || path === "billing/product-plans"
+    || path === PAP1871_ELIGIBLE_PAYER_READ
     || BILLING_BILL_READ.test(path)
     || path === "specialty/catalog"
     || SPECIALTY_STUDENT_READ.test(path)
@@ -209,7 +212,24 @@ export function isOperationalReadPath(path: string): boolean {
     || /^sessions\/[0-9a-f-]{36}\/learning-owner$/.test(path);
 }
 
-function readCorePath(path: string, url: URL): string {
+/** PAP-1871: one immutable Center claim and one Student; never infer scope or echo arbitrary query fields. */
+function eligiblePayerQuery(url:URL):{centerId:string;studentProfileId:string}{
+  const params=url.searchParams;
+  const keys=[...params.keys()];
+  if(keys.length!==2||keys.some(key=>key!=="centerId"&&key!=="studentProfileId"))
+    throw new RangeError("Exactly Center and Student are required");
+  const centers=params.getAll("centerId"),students=params.getAll("studentProfileId");
+  if(centers.length!==1||students.length!==1||!S3_UUID.test(centers[0]!)||!S3_UUID.test(students[0]!))
+    throw new RangeError("Invalid Sale payer Center or Student");
+  return {centerId:centers[0]!,studentProfileId:students[0]!};
+}
+
+export function readCorePath(path: string, url: URL): string {
+  if(path===PAP1871_ELIGIBLE_PAYER_READ){
+    const {centerId,studentProfileId}=eligiblePayerQuery(url);
+    const params=new URLSearchParams({centerId,studentProfileId});
+    return path+"?"+params.toString();
+  }
   if (MISSION_ASSIGNMENT_READ.test(path)) {
     const params = url.searchParams;
     const collection = path === "learning/mission-assignments";
@@ -315,6 +335,11 @@ function readCorePath(path: string, url: URL): string {
 }
 
 export function readQueryResource(path: string, url: URL): BoAccessRequest["resource"] | undefined {
+  if(path===PAP1871_ELIGIBLE_PAYER_READ){
+    // One selector; Core independently authorizes billing.manage, Student view and affiliation.
+    const {centerId}=eligiblePayerQuery(url);
+    return {centerId};
+  }
   // PAP-1334: exact Center claim is only a selector. Core checks immutable ownership and effective ACL.
   if (path === PAP1334_OWNER_DIRECTORY_READ) {
     const centers = url.searchParams.getAll("centerId");
