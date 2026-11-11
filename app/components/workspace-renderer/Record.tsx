@@ -101,7 +101,7 @@ function DetailRecord<F extends readonly FieldSchema[]>({ schema, context, recor
     canEdit={field => Boolean(writes?.version.trim()) && allowsField(schema, context, field.key, "inlineEdit")}
     onEdit={writes ? (field, anchor) => setEdit({ field, anchor }) : undefined}
     labelWidth={labelWidth} onLabelWidthChange={changeLabelWidth} />}{overviewAfter}</> : null;
-  return <><DetailFrame title={projection?.title ?? "Chi tiết"} subtitle={projection?.record.id} mobileMenu={mobileMenu} onBack={onBack} returnFocus={returnFocus} actions={projection ? headerActions : null}
+  return <><DetailFrame title={projection?.title ?? "Chi tiết"} mobileMenu={mobileMenu} onBack={onBack} returnFocus={returnFocus} actions={projection ? headerActions : null}
     tabs={tabs.map(t => ({ id: t.id, label: t.label }))} selected={active?.id} onSelect={id => { setSelected(id); onTabChange?.(id); }}>
     {projection && renderApprovedExtension && hasApprovedExtension
       ? <>
