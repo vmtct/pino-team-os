@@ -147,6 +147,32 @@ test("PAP-1859 mutable DEFAULT does not rekey origin Center or remove Center cho
   assert.equal(result.rows[1]?.originCenterId,c1);
   assert.equal(result.rows[1]?.originCenterName,"Cần Thơ");
 });
+test("PAP-1859 Founder may return DEFAULT→CENTER before assigning a Center; Directory remains readable",async()=>{
+  // Real Core PATCH contract: scope CENTER with zero assigned Centers is a
+  // legitimate intermediate saved state. The UI must show Trống and keep the
+  // immutable Policy origin so Founder can open Center picker to finish setup.
+  const emptyCenter={...centerRow,visibility:{name:"Pending Center Choice",
+    scope:"CENTER",assignedCenterIds:[],assignedCenterNames:[],revision:39}};
+  const result=await loadHoTvPolicyDirectory(reply({policies:[defaultRow,emptyCenter],
+    total:2,limit:50,offset:0,nextOffset:null}));
+  assert.equal(result.status,"ready");
+  assert.equal(result.rows[1]?.name,"Pending Center Choice");
+  assert.equal(result.rows[1]?.scope,"CENTER");
+  assert.deepEqual(result.rows[1]?.center,[]);
+  assert.deepEqual(result.rows[1]?.visibilityAssignedCenterIds,[]);
+  assert.equal(result.rows[1]?.visibilityRevision,39);
+  assert.equal(result.rows[1]?.originCenterId,c1);
+  assert.equal(result.rows[1]?.originCenterName,"Cần Thơ");
+  const table=renderToStaticMarkup(createElement(BoDataTable,{
+    module:tvPolicyModule,rows:[result.rows[1]!],loadState:"ready",
+    value:defaultTable(tvPolicyModule.fields),update:()=>{},page:1,setPage:()=>{},
+    onOpen:()=>{},onSettings:()=>{},filterOpen:false,setFilterOpen:()=>{},
+    views:[],changeViews:()=>{},activeView:null,applyView:()=>{},
+    reset:()=>{},undo:()=>{},canUndo:false,openEnabled:true,showChrome:false,
+  }));
+  assert.match(table,/Pending Center Choice/);
+  assert.match(table,/Trống/);
+});
 test("PAP-1859 fails closed on stale/missing/tampered Core visibility even if Registry is valid",async()=>{
   const malformed=[
     {...centerRow,visibility:undefined},
