@@ -10,22 +10,27 @@ import {
 } from "@/lib/pnr-tv-logical-visibility";
 import styles from "./StationLogicalTv.module.css";
 
-export function StationLogicalTv({tvs=[],centerId,centerName,authorizedCenterIds}:{
+export function StationLogicalTv({tvs=[],centerId,centerName,authorizedCenterIds,readStatus="unverified"}:{
   tvs?: readonly LogicalTvListItem[];
   centerId: string | null;
   centerName: string;
   authorizedCenterIds: readonly string[];
+  readStatus?:"unverified"|"loading"|"ready"|"error";
 }){
   const authorized=Boolean(centerId && authorizedCenterIds.includes(centerId));
   const rows=visibleLogicalTvs(tvs,centerId,authorizedCenterIds);
-  return <div data-pnr-tv-model="logical" data-pnr-tv-source={tvs.length?"projection":"awaiting-core"} className={styles.layout}>
+  return <div data-pnr-tv-model="logical" data-pnr-tv-source={readStatus==="ready"?"core-authorized":readStatus==="loading"?"loading":"awaiting-core"} className={styles.layout}>
     <section className={styles.panel}>
       <div className={styles.heading}><h3>TV tại Center</h3><span>Danh sách TV logic</span></div>
       {!authorized?<div className={styles.empty} role="status">
         Chưa xác minh Center được cấp quyền. Không hiển thị TV.
+      </div>:readStatus==="loading"?<div className={styles.empty} role="status">
+        Đang tải danh sách TV được Core xác thực cho Center…
+      </div>:readStatus==="error"?<div className={styles.empty} role="alert">
+        Không thể xác minh danh sách TV tại Center này. Vui lòng kiểm tra quyền truy cập.
       </div>:rows.length===0?<div className={styles.empty} role="status">
         <strong>Chưa có TV khả dụng tại Center này</strong>
-        <span>Danh sách TV logic từ Core chưa được cung cấp hoặc Center chưa được gán TV.</span>
+        <span>Core chưa trả về TV được cấp quyền tại Center này.</span>
       </div>:<div className={styles.list}>{rows.map(row=><article key={row.tvId}
         className={styles.card} data-pnr-tv-logical-id={row.tvId}>
         <span className={styles.icon} aria-hidden="true"><FontAwesomeIcon icon={faTv}/></span>

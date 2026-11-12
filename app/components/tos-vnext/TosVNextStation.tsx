@@ -1,10 +1,12 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBolt, faChevronRight, faDesktop, faGear, faShieldHalved, faStar, faTabletScreenButton, faTv, faUsers, faVolumeHigh, faWandMagicSparkles, faWifi } from "@fortawesome/free-solid-svg-icons";
 import StationDesktopFrame from "./StationV4Frame";
 import { Initials } from "./OpsInitials";
 import { StationLogicalTv } from "./StationLogicalTv";
+import { readStaffStationTvs } from "@/lib/pnr-tv-station-read";
+import type { LogicalTvListItem } from "@/lib/pnr-tv-logical-visibility";
 import {unavailableOpsReadModel,type OpsReadModel} from "@/lib/tos-ops-v4-view-model";
 import ops from "./ops.module.css";
 import desk from "./station.module.css";
@@ -18,6 +20,9 @@ export function TosVNextStation({onHome,desktop,centerName,centerId,authorizedCe
  const [tab,setTab]=useState<Tab>(initialTab);
  const [studentId,setStudentId]=useState<string|null>(model.guests[0]?.id??null);
  const [query,setQuery]=useState("");
+ const [tvRead,setTvRead]=useState<{
+   centerId:string|null;status:"loading"|"ready"|"error";rows:readonly LogicalTvListItem[];
+ }>({centerId:null,status:"loading",rows:[]});
  const notice="";
  const [deviceMode,setDeviceMode]=useState<"all"|"attention">("all");
  const student=guests.find(g=>g.id===studentId);
@@ -25,7 +30,23 @@ export function TosVNextStation({onHome,desktop,centerName,centerId,authorizedCe
  const deviceAlerts=assetNames.filter(n=>state.equipment[n]!=="Sẵn sàng").length;
  const wishes=guests.filter(g=>Object.prototype.hasOwnProperty.call(state.wishes,g.id)&&!state.wishes[g.id]).length;
  const filtered=guests.filter(g=>(g.name+" "+g.className+" "+g.room).toLocaleLowerCase("vi").includes(query.toLocaleLowerCase("vi")));
- const navigate=(tab:Tab)=>{setTab(tab);};
+ // PAP-1753 / PAP-650: only authenticated Staff Center and Core's read ACL.
+ // A result from a previous Center must never remain visible.
+ const tvCenterAuthorized=Boolean(centerId&&authorizedCenterIds.includes(centerId));
+ useEffect(()=>{
+  if(tab!=="tv"||!desktop||!centerId||!tvCenterAuthorized)return;
+  const controller=new AbortController();
+  void readStaffStationTvs(centerId,authorizedCenterIds,{signal:controller.signal})
+   .then(rows=>{if(!controller.signal.aborted)setTvRead({centerId,status:"ready",rows});})
+   .catch(()=>{if(!controller.signal.aborted)setTvRead({centerId,status:"error",rows:[]});});
+  return()=>controller.abort();
+ },[tab,desktop,centerId,tvCenterAuthorized]);
+ const currentTvRead=tvRead.centerId===centerId?tvRead:
+  {status:"loading" as const,rows:[] as readonly LogicalTvListItem[]};
+ const navigate=(next:Tab)=>{
+  if(next==="tv")setTvRead({centerId:null,status:"loading",rows:[]});
+  setTab(next);
+ };
  if(!desktop)return <StationDesktopFrame centerName={centerName} tab={tab} onTab={navigate} onHome={onHome} query={query} onQuery={setQuery} onReset={()=>{}} notice=""><p>Trạm TOS chỉ dùng trên máy tính</p></StationDesktopFrame>;
  return <StationDesktopFrame centerName={centerName} tab={tab} onTab={navigate} onHome={onHome} query={query} onQuery={setQuery}
   onReset={()=>{}} notice={notice}>
@@ -103,6 +124,7 @@ export function TosVNextStation({onHome,desktop,centerName,centerId,authorizedCe
     <div className={ops.callout} data-tos-ops="callout">Không điều khiển thiết bị, không khởi động lại phần cứng hay thay đổi network thật.</div>
   </>}
   {tab==="tv"&&<StationLogicalTv centerId={centerId} centerName={centerName}
-    authorizedCenterIds={authorizedCenterIds} />}
+    authorizedCenterIds={authorizedCenterIds} tvs={currentTvRead.rows}
+    readStatus={currentTvRead.status} />}
  </StationDesktopFrame>;
 }
