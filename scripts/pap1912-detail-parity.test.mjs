@@ -64,3 +64,10 @@ test("PAP-1912 actual TOS runtime paths (tos-v4 and staff) reject future unregis
   const failures=audit(ROOT,{overrides:{[file]:newSource}});
   assert.ok(failures.some(e=>e.includes(file)&&e.includes("unregistered DetailFrame")));
 });
+test("PAP-1912 ACL live runner uses a real second Center, not a malformed sentinel UUID",()=>{
+  const source=read("scripts/pap1912-detail-live-cdp.mjs");
+  assert.match(source,/const foreignCenter=c\.data\?\.find\(x=>x\.id!==center\.id\)/);
+  assert.match(source,/if\(!foreignCenter\)return \{ok:false,reason:"NO_REAL_FOREIGN_CENTER"\}/);
+  assert.match(source,/foreign:await get\(prefix\+"\?centerId="\+encodeURIComponent\(foreignCenter\.id\)\)/);
+  assert.doesNotMatch(source,/00000000-0000-4000-8000-000000000001/);
+});
