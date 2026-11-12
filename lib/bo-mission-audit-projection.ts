@@ -1,16 +1,11 @@
 import type { HistoryResult, HistoryEvent } from "./workspace-schema";
 import type { BoMissionCompletionEvent } from "./bo-mission-completion-client";
 import { assignmentUuid } from "./bo-mission-assignments";
+import { formatPinoDateTime } from "./pino-datetime";
 
 /** PAP-1792 / Epic PAP-1676: Core owns actor identity and audit provenance. */
 export function formatMissionAuditTime(value: string | null | undefined): string {
-  if (!value || Number.isNaN(new Date(value).valueOf())) return "—";
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Asia/Ho_Chi_Minh", day: "2-digit", month: "2-digit", year: "numeric",
-    hour: "2-digit", minute: "2-digit", hour12: false,
-  }).formatToParts(new Date(value));
-  const part = (type: string) => parts.find(x => x.type === type)?.value || "00";
-  return `${part("day")}/${part("month")}/${part("year")} · ${part("hour")}:${part("minute")}`;
+  return formatPinoDateTime(value);
 }
 const label = (v: "IN_PROGRESS" | "COMPLETED") => v === "COMPLETED" ? "Hoàn tất" : "Đang thực hiện";
 

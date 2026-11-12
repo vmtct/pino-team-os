@@ -52,8 +52,8 @@ export const assignmentFields = [
   { key: "executionVersion", label: "Phiên bản tiến độ", type: "number", icon: "#", width: 150, permission, readOnly: true, capabilities: read },
   { key: "context", label: "Bối cảnh", type: "text", icon: "Aa", width: 200, permission, readOnly: true, capabilities: read },
   { key: "center", label: "Cơ sở (nội bộ)", type: "text", icon: "Aa", width: 180, permission, readOnly: true, capabilities: { display: false, search: false, filter: false, sort: false, group: false, inlineEdit: false } },
-  { key: "assignedAt", label: "Ngày giao (UTC)", type: "text", icon: "Aa", width: 200, permission, readOnly: true, capabilities: read },
-  { key: "cancelledAt", label: "Ngày hủy (UTC)", type: "text", icon: "Aa", width: 200, permission, readOnly: true, capabilities: read },
+  { key: "assignedAt", label: "Ngày giao", type: "datetime", icon: "▦", width: 200, permission, readOnly: true, capabilities: read },
+  { key: "cancelledAt", label: "Ngày hủy", type: "datetime", icon: "▦", width: 200, permission, readOnly: true, capabilities: read },
   { key: "cancelledReason", label: "Lý do hủy", type: "text", icon: "Aa", width: 200, permission, readOnly: true, capabilities: read },
   // PAP-1792 S0-R3: explicitly Founder-approved optional audit columns (PAP-1798 source pending).
   { key: "createdAt", label: "Created Time", type: "text", icon: "Aa", width: 175, permission, readOnly: true, capabilities: { display:true, search:false, filter:false, sort:false, group:false, inlineEdit:false } },

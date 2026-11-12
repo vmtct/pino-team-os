@@ -1,25 +1,16 @@
 import { display, empty, type BoField, type BoValue as Value } from "@/lib/bo-registration";
+import { formatPinoDateTime } from "@/lib/pino-datetime";
 const currency = (v: Value) => Number(v).toLocaleString("vi-VN") + " ₫";
 const date = (v: Value) => { const d = new Date(String(v).slice(0, 10) + "T12:00:00Z"); return Number.isFinite(d.getTime()) ? d.toLocaleDateString("vi-VN", { timeZone: "UTC", day: "2-digit", month: "2-digit", year: "numeric" }) : display(v); };
-// PAP-1737 / SCH-PARENTS-GUARDIANS: typed datetime means an instant; render it in Vietnam local time.
-const vnDateTime = new Intl.DateTimeFormat("vi-VN", {
-  timeZone: "Asia/Ho_Chi_Minh", day: "2-digit", month: "2-digit", year: "numeric",
-  hour: "2-digit", minute: "2-digit", hourCycle: "h23",
-});
-const datetime = (v: Value) => {
-  const instant = new Date(String(v));
-  if (!Number.isFinite(instant.getTime())) return display(v);
-  const parts: Record<string, string> = {};
-  for (const part of vnDateTime.formatToParts(instant)) parts[part.type] = part.value;
-  return `${parts.day}/${parts.month}/${parts.year} · ${parts.hour}:${parts.minute}`;
-};
+// PAP-1895 / PAP-1820: canonical PINO DS formatter, never browser-locale or raw ISO.
+const datetime = (v: Value) => formatPinoDateTime(v);
 const palette = ["gray", "brown", "orange", "yellow", "green", "blue", "purple", "pink", "red"];
 export function BoPill({ text, color }: { text: string; color?: string }) {
   const hash = [...text].reduce((sum, ch) => ((sum * 31 + ch.charCodeAt(0)) >>> 0), 7);
   return <span className={`datatag ${color ?? "tag-" + palette[hash % palette.length]}`}>{text}</span>;
 }
 export function BoValue({ field, value, full = false }: { field: BoField; value: Value; full?: boolean }) {
-  if (empty(value)) return <span className="empty-val">Trống</span>;
+  if (empty(value)) return <span className="empty-val">{field.type === "datetime" ? "—" : "Trống"}</span>;
   switch (field.type) {
     case "currency": return currency(value);
     case "formula": return <span className="formula">{currency(value)}</span>;
