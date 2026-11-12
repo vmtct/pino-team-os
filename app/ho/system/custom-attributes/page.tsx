@@ -282,7 +282,8 @@ function CustomAttributesFsg3(){
  };
  // PAP-1883 / PAP-1665 PLT-ATTR FSG4: state-to-surface route for native DSA Full Detail.
  if(open==="detail"&&selected)return <HoAttributeFullDetail key={selected.id} id={selected.id}
-  centers={centers} mobileMenu={menu("menu-btn")} onBack={close}/>;
+  centers={centers} mobileMenu={menu("menu-btn")} onBack={close}
+  onUpdated={next=>{setSelected(next);setRefresh(n=>n+1);}}/>;
  return <section id="list-screen" data-plt-attr-stage="fsg3-server-table" data-tdd-shell="table">
   <div className="page-heading"><div className="page-heading-left">
    {menu("menu-btn")}<h1><LocalizedModuleTitle label="Custom Attributes" moduleKey="customAttributes"/></h1>

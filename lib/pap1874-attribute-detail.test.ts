@@ -31,13 +31,15 @@ test("PAP-1874: strict pagination rejected before identity and Core transport",a
  assert.equal((await hoAttributeDefinitions(make(history,"POST"),env)).status,404);
  assert.equal((await hoAttributeDefinitions(make(history,"GET","ho.pinohouse.art"),env)).status,404);
 });
-test("PAP-1874: Full Detail reuses PINO DSA 14-field native shell and has zero edit handlers",()=>{
+test("PAP-1874/FSG5: Full Detail retains 14-field native shell and only DRAFT editable metadata",()=>{
  const file=readFileSync("app/ho/system/custom-attributes/HoAttributeFullDetail.tsx","utf8");
  const page=readFileSync("app/ho/system/custom-attributes/page.tsx","utf8");
  assert.match(file,/<DetailFrame/);assert.match(file,/<PropertySections/);
  assert.match(file,/variant="detail"/);assert.match(file,/Tổng quan/);assert.match(file,/Lịch sử/);
  assert.match(file,/propertyKeys\.slice\(0,10\)/);assert.match(file,/propertyKeys\.slice\(10\)/);
- assert.doesNotMatch(file,/onEdit=|BoTypedEditor|onSave=|method:"PATCH"|method:"PUT"/);
+ assert.match(file,/BoTypedEditor/); // PAP-1905 separately gated native DSA editor
+ assert.ok(file.includes('detail?.status==="DRAFT"')); // FSG5 edit only on DRAFT
+ assert.doesNotMatch(file,/method:"PUT"/);
  assert.match(page,/onDetail=\{\(\)=>setOpen\("detail"\)\}/);
  assert.doesNotMatch(page,/hideDetailAction/);
 });

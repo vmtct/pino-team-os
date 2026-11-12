@@ -16,6 +16,28 @@ const allowed = new Set(["displayName","attributeKey","entityType","valueType","
 const respond = (status:number,code:string) => Response.json({error:{code}},{
   status,headers:{"cache-control":"no-store","x-content-type-options":"nosniff"}
 });
+/** PAP-1905 / Epic PAP-1665: strict Founder-only one-field metadata CAS payload. */
+export function validHoDefinitionMetadataPatch(raw:unknown):boolean{
+ if(!raw||typeof raw!=="object"||Array.isArray(raw))return false;
+ const o=raw as Record<string,unknown>,keys=Object.keys(o);
+ const fields=["displayName","required","visibility","options"];
+ const chosen=fields.filter(k=>Object.prototype.hasOwnProperty.call(o,k));
+ if(keys.length!==3||chosen.length!==1||keys.some(k=>!["selectedCenterId","expectedRevision",...fields].includes(k)))return false;
+ if(typeof o.selectedCenterId!=="string"||!uuid.test(o.selectedCenterId))return false;
+ if(!Number.isSafeInteger(o.expectedRevision)||(o.expectedRevision as number)<1)return false;
+ switch(chosen[0]){
+  case "displayName":return typeof o.displayName==="string"&&o.displayName.length>0&&o.displayName.length<=120&&
+   o.displayName.trim()===o.displayName&&!/[\x00-\x1f\x7f]/.test(o.displayName);
+  case "required":return typeof o.required==="boolean";
+  case "visibility":return Array.isArray(o.visibility)&&o.visibility.length>0&&o.visibility.length<=3&&
+   o.visibility.every(x=>typeof x==="string"&&["BO","HO","TOS"].includes(x))&&
+   new Set(o.visibility).size===o.visibility.length;
+  case "options":return Array.isArray(o.options)&&o.options.length>0&&o.options.length<=50&&
+   o.options.every(x=>typeof x==="string"&&x.length>0&&x.length<=120&&x.trim()===x)&&
+   new Set(o.options.map(x=>x.normalize("NFKC").toLowerCase())).size===o.options.length;
+  default:return false;
+ }
+}
 export async function hoAttributeDefinitions(request:Request,env:HoAttributeEnv):Promise<Response> {
   const url=new URL(request.url);
   if(env.APP_ENV!=="staging"||url.protocol!=="https:"||url.port||
@@ -26,7 +48,8 @@ export async function hoAttributeDefinitions(request:Request,env:HoAttributeEnv)
   const id=route[1];
   const history=route[2]==="/history";
   const method=request.method.toUpperCase();
-  if(method!=="GET"&&method!=="POST")return respond(405,"PLATFORM_METHOD_NOT_ALLOWED");
+  if(method!=="GET"&&method!=="POST"&&method!=="PATCH")return respond(405,"PLATFORM_METHOD_NOT_ALLOWED");
+  if(method==="PATCH"&&(!id||history||url.search))return respond(id&&url.search?400:404,"ATTRIBUTE_PATCH_ROUTE_INVALID");
   if(method==="POST"&&(id||url.search))return respond(404,"PLATFORM_NOT_FOUND");
   if(id&&!uuid.test(id))return respond(404,"ATTRIBUTE_NOT_FOUND");
   if(method==="GET"&&!id&&!validateAttributeDirectoryParams(url.searchParams))
@@ -43,18 +66,21 @@ export async function hoAttributeDefinitions(request:Request,env:HoAttributeEnv)
   }
   let body:unknown;
   let replayKey:string|undefined;
-  if(method==="POST"){
+  if(method==="POST"||method==="PATCH"){
     if(request.headers.get("origin")!=="https://"+HO_STAGING_HOSTNAME||
       !/^application\/json(?:;|$)/i.test(request.headers.get("content-type")??""))
       return respond(403,"HO_REQUEST_DENIED");
-    replayKey=request.headers.get("idempotency-key")??undefined;
-    if(!replayKey||!keyPattern.test(replayKey))return respond(400,"ATTRIBUTE_IDEMPOTENCY_REQUIRED");
+    if(method==="POST"){
+      replayKey=request.headers.get("idempotency-key")??undefined;
+      if(!replayKey||!keyPattern.test(replayKey))return respond(400,"ATTRIBUTE_IDEMPOTENCY_REQUIRED");
+    }
     let raw:string;
     try{raw=await request.text();}catch{return respond(400,"ATTRIBUTE_BODY_INVALID");}
     if(new TextEncoder().encode(raw).length>12288)return respond(413,"ATTRIBUTE_BODY_TOO_LARGE");
     try{body=JSON.parse(raw) as unknown;}catch{return respond(400,"ATTRIBUTE_BODY_INVALID");}
-    if(!body||typeof body!=="object"||Array.isArray(body)||
-      Object.keys(body).some(k=>!allowed.has(k)))
+    if(method==="PATCH"?!validHoDefinitionMetadataPatch(body):
+      (!body||typeof body!=="object"||Array.isArray(body)||
+      Object.keys(body).some(k=>!allowed.has(k))))
       return respond(400,"ATTRIBUTE_BODY_INVALID");
   }
   try{
