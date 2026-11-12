@@ -63,9 +63,45 @@ function policyRow(input: unknown): BoRecord {
   } else return invalid();
   if (p.resolution === "UNCONFIGURED" && p.active !== null) return invalid();
   if (p.resolution !== "UNCONFIGURED" && p.active === null) return invalid();
+  // PAP-1859: Core's Founder/Center-authorized persisted visibility is the
+  // canonical editable business projection. Registry fields describe origin,
+  // NOT a second, stale copy of Name/Scope/assigned Centers.
+  const v = record(p.visibility);
+  if (typeof v.name !== "string" || !v.name.trim() || v.name.length > 200 ||
+      (v.scope !== "DEFAULT" && v.scope !== "CENTER") ||
+      !Number.isSafeInteger(v.revision) || typeof v.revision !== "number" ||
+      v.revision < 0 || !Array.isArray(v.assignedCenterIds) ||
+      !Array.isArray(v.assignedCenterNames) ||
+      v.assignedCenterIds.length !== v.assignedCenterNames.length ||
+      v.assignedCenterIds.length > 50 || new Set(v.assignedCenterIds).size !== v.assignedCenterIds.length ||
+      v.assignedCenterIds.some(id => typeof id !== "string" || !canonical.test(id)) ||
+      v.assignedCenterNames.some(name => typeof name !== "string" ||
+        !name.trim() || name.length > 200) ||
+      (v.scope === "DEFAULT" ? v.assignedCenterIds.length !== 0 : v.assignedCenterIds.length === 0))
+    return invalid();
+  // Revision zero means a verified implicit Policy slot, not fabricated
+  // persisted data. In that case Registry + Visibility MUST agree.
+  if (v.revision === 0 &&
+      (v.name !== p.name || v.scope !== p.scope ||
+       (isDefault ? v.assignedCenterIds.length !== 0 :
+        v.assignedCenterIds.length !== 1 ||
+        v.assignedCenterIds[0] !== p.centerId ||
+        v.assignedCenterNames[0] !== p.center)))
+    return invalid();
+  const assigned = v.assignedCenterIds as string[];
+  const names = v.assignedCenterNames as string[];
+  if (assigned.some((id,index) => id === p.centerId && names[index] !== p.center))
+    return invalid();
   return {
-    id: String(p.id), name: p.name, typeName: p.typeName as string,
-    scope: p.scope as string, center: p.center as string | null,
+    id: String(p.id), name: v.name, typeName: p.typeName as string,
+    scope: v.scope,
+    center: v.scope === "DEFAULT" ? ["Tất cả Center"] :
+      assigned.map((id,index) => names[index]! + " · " + id.slice(-6)),
+    // Identity for Center chooser is immutable, never derived from mutable Scope.
+    originCenterId: p.centerId as string | null,
+    originCenterName: p.center as string | null,
+    visibilityRevision: v.revision,
+    visibilityAssignedCenterIds: assigned,
     resolution: p.resolution as string, inherited: p.inherited as string | null,
     active: p.active as number | null, latest: p.latest as number | null,
     displaysCount: null, aspectRatio: "16:9",
@@ -108,6 +144,14 @@ export async function loadHoTvPolicyDirectory(
       const next = data.nextOffset;
       if (next === null) {
         if (rows.length !== expectedTotal || !ids.has("tvp1-default")) return invalid();
+        const activeNames = new Map(rows
+          .filter(row => typeof row.originCenterId === "string" &&
+            typeof row.originCenterName === "string")
+          .map(row => [row.originCenterId as string, row.originCenterName as string]));
+        for (const row of rows) {
+          const assigned = row.visibilityAssignedCenterIds as string[];
+          if (assigned.some(id => !activeNames.has(id))) return invalid();
+        }
         return {status: "ready", rows, total: expectedTotal};
       }
       if (!Number.isSafeInteger(next) || typeof next !== "number" ||
