@@ -184,6 +184,7 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "student-visits"
     || STUDENT_VISIT_DETAIL_READ.test(path)
     || path === "identity/parents"
+    || path === "identity/parents/center-search"
     || path === "identity/parents/directory"
     || /^identity\/parents\/[0-9a-f-]{36}\/detail$/.test(path)
     || path === "practice/authoring-context"
@@ -335,6 +336,18 @@ export function readCorePath(path: string, url: URL): string {
 }
 
 export function readQueryResource(path: string, url: URL): BoAccessRequest["resource"] | undefined {
+  // PAP-1908: only one explicit authorized Center; never infer GLOBAL from missing Center.
+  if (path === "identity/parents/center-search") {
+    const params = url.searchParams;
+    if ([...params.keys()].some(key => !["centerId", "query", "limit"].includes(key)) ||
+        params.getAll("centerId").length !== 1 ||
+        params.getAll("query").length > 1 ||
+        params.getAll("limit").length > 1) throw new RangeError("Invalid Student Intake Parent search Center");
+    const centerId = params.get("centerId")!;
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(centerId))
+      throw new RangeError("One canonical selected Center is required");
+    return { centerId };
+  }
   if(path===PAP1871_ELIGIBLE_PAYER_READ){
     // One selector; Core independently authorizes billing.manage, Student view and affiliation.
     const {centerId}=eligiblePayerQuery(url);
@@ -427,6 +440,15 @@ export function readQueryResource(path: string, url: URL): BoAccessRequest["reso
 }
 
 export function readQueryBody(path: string, url: URL): Record<string, unknown> | undefined {
+  if (path === "identity/parents/center-search") {
+    // BFF does not trust caller-supplied actor/scope; Core separately checks both permissions.
+    readQueryResource(path, url); // rejects unknown, duplicate or malformed Center and filters.
+    const query = url.searchParams.get("query") ?? "";
+    const rawLimit = url.searchParams.get("limit") ?? "20";
+    if (query.length > 160 || !/^(?:[1-9]|1[0-9]|2[0-5])$/.test(rawLimit))
+      throw new RangeError("Invalid Student Intake Parent search bounds");
+    return { query, limit: Number(rawLimit) };
+  }
   // PAP-1334: only forward the selected Center and bounded filters. Never call the legacy affiliation directory.
   if (path === PAP1334_OWNER_DIRECTORY_READ) {
     const params = url.searchParams;
