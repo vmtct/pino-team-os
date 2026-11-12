@@ -113,7 +113,7 @@ function project(p: MissionAssignment, execution: BoMissionExecution | null, nam
     executionStatus: p.status !== "ASSIGNED" ? null :
       execution!.executionStatus === "COMPLETED" ? "Hoàn tất" : "Đang thực hiện",
     executionVersion: p.status !== "ASSIGNED" ? null : execution!.executionVersion,
-    context: p.contextLabel, assignedAt: p.assignedAt, center: p.centerId, cancelledAt: p.cancelledAt ?? "—", cancelledReason: p.cancelledReason,
+    context: p.contextLabel, assignedAt: p.assignedAt, center: p.centerId, cancelledAt: p.cancelledAt, cancelledReason: p.cancelledReason,
     // PAP-1792 S0-R3: explicit Founder-approved missing-source glyph; null renders "Trống" in shared TDD.
     createdAt: "—", createdBy: "—", updatedAt: formatMissionAuditTime(p.updatedAt), updatedBy: "—" };
 }

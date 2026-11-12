@@ -57,6 +57,10 @@ test("PAP-1894 Core null cancellation shows an honest dash, never invented midni
     return Response.json({data:[pending]});
   };
   const assigned=await assignmentProvider.list(assignmentQuery,{surface:"BO",centerId:center},assignedFetcher,signal());
-  assert.equal(assigned.records[0]?.row.cancelledAt,"—");
-  assert.equal(format("cancelledAt",String(assigned.records[0]?.row.cancelledAt)),"—");
+  assert.equal(assigned.records[0]?.row.cancelledAt,null,"Keep typed Core null for fail-closed TDD adapter");
+  assert.match(renderToStaticMarkup(createElement(BoValue,{
+    field:{key:field("cancelledAt").key,label:field("cancelledAt").label,
+      type:"datetime",icon:"▦",w:field("cancelledAt").width} satisfies BoField,
+    value:null,
+  })),/>—</,"Only render the missing-value glyph in the UI");
 });
