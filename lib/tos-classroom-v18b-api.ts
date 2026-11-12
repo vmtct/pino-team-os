@@ -129,6 +129,9 @@ export function createV18bApiTransport(canWrite:boolean,transport:typeof fetch=(
     return data;
    });
   },
+  diariesForOccurrence:(scope:{centerId:string;runningClassId:string;pathKey:string;localDate:string})=>
+   get<{centerId:string;localDate:string;teachingContextKey:string;diaries:V18bPathDiary[]}>(
+    "/learning/path-diaries?"+new URLSearchParams(scope).toString()),
   diary:(diaryId:string,centerId:string)=>get<V18bPathDiary>(
    "/learning/path-diaries/"+requireValue(diaryId,"DIARY")+"?centerId="+requireValue(centerId,"CENTER")),
   evidence:(diaryId:string,centerId:string)=>get<unknown>(
