@@ -77,7 +77,7 @@ function policyRow(input: unknown): BoRecord {
       v.assignedCenterIds.some(id => typeof id !== "string" || !canonical.test(id)) ||
       v.assignedCenterNames.some(name => typeof name !== "string" ||
         !name.trim() || name.length > 200) ||
-      (v.scope === "DEFAULT" ? v.assignedCenterIds.length !== 0 : v.assignedCenterIds.length === 0))
+      (v.scope === "DEFAULT" && v.assignedCenterIds.length !== 0))
     return invalid();
   // Revision zero means a verified implicit Policy slot, not fabricated
   // persisted data. In that case Registry + Visibility MUST agree.
