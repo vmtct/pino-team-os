@@ -1,6 +1,7 @@
 "use client";
-/** PAP-1334 / PAP-1491 SPEC-UNLOCK — authenticated, read-only native PINO DSA.
- * The unscoped legacy Subscription workspace and every writer remain retired.
+/** PAP-1334 / PAP-1882 / PAP-1491 SPEC-UNLOCK — authenticated native PINO DSA.
+ * Table/Drawer/Detail remain read-only; separately admitted Center-bound independent Sale drawer.
+ * Legacy unscoped Subscription writer, Renewal and placement-gated registration stay retired.
  */
 import "@pino/design-system/bo-tokens.css";
 import "@pino/design-system/components.css";
@@ -13,6 +14,9 @@ import {BoApplicationShellContext} from "@/app/bo/shell/BoApplicationShellContex
 import {DetailFrame} from "@/app/components/workspace-renderer/DetailFrame";
 import {PropertySections} from "@/app/components/workspace-renderer/Properties";
 import {defaultTable,type BoRecord,type BoTableState} from "@/lib/bo-registration";
+import {boApi} from "@/lib/bo-api";
+import type {BoPathProgram} from "@/lib/bo-model";
+import {SubscriptionCreateDrawer} from "./SubscriptionCreateDrawer";
 import type {OwnedSubscriptionItem} from "@/lib/pap1334-native-subscription-read";
 import {readSubscriptionCenterDetail} from "@/lib/bo-subscription-center-detail-client";
 import {assertCenterDetail,loadCenterSubscriptionDirectory,nativeSubscriptionModule,
@@ -83,6 +87,9 @@ function ScopedSubscriptions({centerId,centerName,menu}:{
   const detailController=useRef<AbortController|null>(null);
   const invoker=useRef<HTMLElement|null>(null);
   const [notice,setNotice]=useState("");
+  const [creating,setCreating]=useState(false);
+  const [createBusy,setCreateBusy]=useState(false);
+  const [createPaths,setCreatePaths]=useState<BoPathProgram[]|null>(null);
 
   const changeTable=useCallback((patch:Partial<BoTableState>)=>{
     setTable(current=>({...current,...patch}));setPage(1);setActiveView(null);
@@ -161,6 +168,21 @@ function ScopedSubscriptions({centerId,centerName,menu}:{
     void verify(item,true);
   };
   const selected=detail??drawer;
+  const openCreate=async()=>{
+    if(status!=="ready"||creating||createBusy||busy||detail||drawer)return;
+    invoker.current=document.activeElement instanceof HTMLElement?document.activeElement:null;
+    setCreateBusy(true);setError("");
+    try{
+      const scope=await boApi.scopeCatalog();
+      if(!Array.isArray(scope.paths)||!scope.paths.length)throw new Error("Không có danh mục Path được cấp quyền.");
+      setCreatePaths(scope.paths);setCreating(true);
+    }catch(cause){setError(failure(cause));}
+    finally{setCreateBusy(false);}
+  };
+  const closeCreate=()=>{
+    setCreating(false);setCreatePaths(null);
+    requestAnimationFrame(()=>invoker.current?.focus({preventScroll:true}));
+  };
 
   return <>
     {detail ? <DetailFrame title={detail.row.name} subtitle={String(detail.row.path||"Gói học")}
@@ -171,7 +193,9 @@ function ScopedSubscriptions({centerId,centerName,menu}:{
       <section id="list-screen">
         <div className="page-heading">
           <div className="page-heading-left">{menu}<h1>Gói học</h1></div>
-          <div className="heading-actions"><span role="status">Chỉ xem · {centerName||"Cơ sở đã chọn"}</span></div>
+          <div className="heading-actions"><span role="status">Danh sách · {centerName||"Cơ sở đã chọn"}</span>
+            <button type="button" className="primary-btn" disabled={status!=="ready"||Boolean(busy)||createBusy||creating} onClick={()=>void openCreate()}>＋ Tạo mới</button>
+          </div>
         </div>
         {error?<p role="alert">{error} <button type="button" className="secondary-btn"
           onClick={()=>{detailController.current?.abort();setDrawer(null);setRevision(n=>n+1);}}>
@@ -190,6 +214,9 @@ function ScopedSubscriptions({centerId,centerName,menu}:{
     {drawer&&!detail?<BoQuickView module={nativeSubscriptionModule} moduleKey="subscriptions"
       record={drawer.row} onClose={close}
       onDetail={()=>{setDetail(drawer);setDrawer(null);}}/>:null}
+    {creating&&createPaths?<SubscriptionCreateDrawer paths={createPaths}
+      onChanged={()=>{setRevision(n=>n+1);setNotice("Đã tạo Subscription độc lập, đang cập nhật danh sách theo cơ sở.");}}
+      onClose={closeCreate} />:null}
     {settings?<BoTableSettings screen={settings} setScreen={setSettings}
       onClose={()=>setSettings(null)} fields={nativeSubscriptionModule.fields}
       rows={rows} value={table} update={changeTable} views={views} setViews={setViews}

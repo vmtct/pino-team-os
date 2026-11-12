@@ -11,3 +11,15 @@
 .error{padding:9px 12px;color:var(--bo-v23-color-danger,#a84242);font-size:12px}
 .footerHint{font-size:10px;color:var(--bo-v23-color-muted,#777681)}
 @media(max-width:540px){.footerHint{display:none}}
+
+/* PAP-1882 / PAP-1491 — native PINO DSA field controls; no duplicate drawer shell. */
+.inlineControl{display:flex;align-items:center;gap:8px;min-width:0}
+.inlineControl input{flex:1;min-width:0}
+.inlineControl button{flex:none;white-space:nowrap;font-size:11px}
+.discountControls{display:grid;grid-template-columns:1fr 1fr;gap:8px;min-width:0}
+.discountControls label{display:flex;flex-direction:column;gap:3px;min-width:0;color:var(--bo-v23-color-muted,#777681);font-size:10px}
+.discountControls input{width:100%;min-width:0}
+.quote{display:flex;flex-wrap:wrap;align-items:center;gap:7px;padding:12px 14px;margin:10px 0;background:var(--bo-v23-color-canvas,#f7f7fb);border:1px solid var(--bo-v23-color-border,#dedce3);border-radius:8px;font-size:12px}
+.quote small{flex-basis:100%;font-size:10px;color:var(--bo-v23-color-muted,#777681)}
+.success{padding:12px 14px;margin:8px 0;color:var(--bo-v23-color-text,#26242b);background:var(--bo-v23-color-canvas,#f7f7fb);border:1px solid var(--bo-v23-color-border,#dedce3);border-radius:8px}
+@media(max-width:540px){.inlineControl{flex-wrap:wrap}.inlineControl input{flex-basis:100%}.discountControls{grid-template-columns:1fr 1fr}}
