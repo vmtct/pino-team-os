@@ -28,7 +28,16 @@
       "legacyMarker": "subscriptions-core",
       "legacyUiAnchor": "subscription-create-student-search",
       "approvalIssue": "PAP-1334",
-      "guardKeeperIssue": "PAP-1853"
+      "guardKeeperIssue": "PAP-1853",
+    "saleAdmission": {
+      "task": "PAP-1882",
+      "epic": "PAP-1491",
+      "businessTask": "PAP-1350",
+      "payerReaderTask": "PAP-1871",
+      "mode": "center-bound-active-sale",
+      "createComponent": "app/bo/subscriptions/SubscriptionCreateDrawer.tsx",
+      "saleHelper": "lib/pap1882-independent-sale.ts"
+    }
     }
   }
 }

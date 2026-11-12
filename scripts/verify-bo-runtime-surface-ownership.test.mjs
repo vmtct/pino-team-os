@@ -67,6 +67,48 @@ test("PAP-1853 old Subscription writer cannot remount or spoof approved read-onl
  assert.ok(verifyBoRuntimeSurfaceOwnership(undefined,{[old]:legacy.replace('data-bo-runtime-surface="subscriptions-core"','archive-removed')}).issues.some(x=>x.includes("historical")));
 });
 
+test("PAP-1882 sale admission is exact-task-only and cannot silently widen or remount legacy",()=>{
+ const m=JSON.parse(get(manifest)),native="app/bo/subscriptions/SubscriptionDirectoryDsa.tsx";
+ assert.equal(m.specialized.subscriptions.saleAdmission.task,"PAP-1882");
+ assert.equal(m.specialized.subscriptions.saleAdmission.businessTask,"PAP-1350");
+ assert.equal(verifyBoRuntimeSurfaceOwnership().ok,true);
+ for(const mutate of [
+   x=>{delete x.specialized.subscriptions.saleAdmission;},
+   x=>{x.specialized.subscriptions.saleAdmission.task="PAP-UNKNOWN";},
+   x=>{x.specialized.subscriptions.saleAdmission.mode="unscoped-sale";},
+   x=>{x.specialized.subscriptions.saleAdmission.createComponent="app/bo/subscriptions/BoSubscriptionsView.tsx";},
+   x=>{x.specialized.subscriptions.saleAdmission.payerReaderTask="PAP-UNKNOWN";},
+ ]){
+   const altered=structuredClone(m);mutate(altered);
+   const out=verifyBoRuntimeSurfaceOwnership(undefined,{[manifest]:JSON.stringify(altered)});
+   assert.equal(out.ok,false,JSON.stringify(out.issues));
+ }
+ const ui=get(native);
+ const poisoned=[
+   ui.replace('import {SubscriptionCreateDrawer} from "./SubscriptionCreateDrawer";','import {BoSubscriptionsView} from "./BoSubscriptionsView";'),
+   ui+'\n<SubscriptionCreateDrawer />',
+   ui+'\nboApi.createBillingSale({})',
+   ui+'\nrenewSubscription(id)',
+ ];
+ for(const text of poisoned)assert.equal(verifyBoRuntimeSurfaceOwnership(undefined,{[native]:text}).ok,false);
+});
+test("PAP-1882 disallows removing exact Center/Student/Payer readback proof",()=>{
+ const createPath="app/bo/subscriptions/SubscriptionCreateDrawer.tsx";
+ const helperPath="lib/pap1882-independent-sale.ts";
+ const create=get(createPath),helper=get(helperPath);
+ for(const needle of ["payerScope?.centerId===centerId",
+    "payerScope.studentId===selected.id","eligibleSalePayers(centerId,selected.id,ctl.signal)",
+    "boApi.createBillingSale(attempt.body,attempt.key)","readSubscriptionCenterDetail(sale.subscriptionId,attempt.centerId)","assertIndependentSaleReadback("]){
+   assert.ok(create.includes(needle),needle);
+   const out=verifyBoRuntimeSurfaceOwnership(undefined,{[createPath]:create.replace(needle,"REMOVED")});
+   assert.equal(out.ok,false,needle);
+ }
+ for(const needle of ["/api/bo/billing/sales/eligible-payers?","actual.centerId !== expected.centerId",
+    'actual.lifecycle !== "ACTIVE"']){
+   assert.ok(helper.includes(needle),needle);
+   assert.equal(verifyBoRuntimeSurfaceOwnership(undefined,{[helperPath]:helper.replace(needle,"REMOVED")}).ok,false,needle);
+ }
+});
 test("PAP-1853 exact Founder approval and keeper are necessary for native runtime ownership",()=>{
  const original=JSON.parse(get(manifest));
  for(const [field,value] of [["approvalIssue","PAP-9999"],["guardKeeperIssue",null],
