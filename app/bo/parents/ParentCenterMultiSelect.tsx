@@ -4,7 +4,7 @@
  * The F3 ACL debt is PAP-1922 (Epic PAP-9 PLT-ACCESS), Founder-explicit LOCKED.
  */
 import {useState} from "react";
-import styles from "./parent-center-multiselect.module.css";
+
 import {planParentDirectCenters,safeParentCenterLabels,validateParentCenterRead,
   type ParentCenterVerified} from "./parent-center-multiselect-model";
 
@@ -49,18 +49,18 @@ export function ParentCenterMultiSelect({
     finally {setBusy(false);}
   };
   return <section aria-label="Cơ sở liên kết" data-parent-center-multiselect="PAP-1768-F1"
-    className={styles.root}>
-    <h3 className={styles.title}>Cơ sở</h3>
-    {source ? <fieldset className={styles.options} disabled={!editable||busy} aria-label="Chọn cơ sở cho Phụ huynh">
-      {source.centers.map(option=><label className={styles.option} key={option.centerId}>
+    className="v24-prop-section">
+    <h3>Cơ sở</h3>
+    {source ? <fieldset disabled={!editable||busy} aria-label="Chọn cơ sở cho Phụ huynh">
+      {source.centers.map(option=><label key={option.centerId}>
         <input type="checkbox" checked={option.inherited||selection.includes(option.centerId)}
           disabled={!editable||busy||option.inherited}
           onChange={()=>toggle(option.centerId)}/>
         <span>{option.centerName}</span>
-        {option.inherited&&<span className={styles.inherited}> · Kế thừa từ học viên</span>}
+        {option.inherited&&<span> · Kế thừa từ học viên</span>}
       </label>)}
-    </fieldset> : <ul className={styles.chips} aria-label="Cơ sở hiện có">
-      {names.length ? names.map(name=><li className={styles.chip} key={name}>{name}</li>) : <li className={styles.chip}>Chưa có cơ sở</li>}
+    </fieldset> : <ul aria-label="Cơ sở hiện có">
+      {names.length ? names.map(name=><li key={name}>{name}</li>) : <li>Chưa có cơ sở</li>}
     </ul>}
     {editable&&changed&&<button type="button" disabled={busy} onClick={()=>void save()}>
       {busy?"Đang lưu…":"Lưu cơ sở"}</button>}
