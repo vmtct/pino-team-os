@@ -8,6 +8,7 @@ import {isPublicFixture,publicProfileHref} from "./publicApproved";
 import {syntheticReelSrc,type MediaPost} from "./media";
 import {getProfile} from "./profiles";
 import {PinoIcon} from "./PinoIcon";
+import {PinerLineIcon} from "./PinerLineIcon";
 import css from "./launcher.module.css";
 
 type Props={
@@ -35,10 +36,8 @@ function VideoStage({post,active}:{post:MediaPost;active:boolean}){
     <button className={css.swipePlaybackToggle} type="button"
       onClick={()=>setPausedByViewer(v=>!v)} aria-label={pausedByViewer?"Tiếp tục phát video":"Tạm dừng video"}
       aria-pressed={pausedByViewer}>
-      <PinoIcon name={pausedByViewer?"circlePlay":"video"}/>
-      <span>{pausedByViewer?"Phát":"Tạm dừng"}</span>
+      <PinerLineIcon name={pausedByViewer?"play":"pause"}/>
     </button>
-    <span className={css.swipeDuration}>{post.duration||"Video"} · Video mẫu</span>
  </div>;
 }
 
@@ -62,38 +61,32 @@ function CommunitySlide({post,index,total,active,canManage,onOpen,onRequestVisib
    className={css.swipeSlide} aria-label={author+": "+post.title} aria-roledescription="Bài đăng cộng đồng">
    {post.type==="reel"?<VideoStage post={post} active={active}/>:<CommunityPhotoCarousel post={post}/>}
    <div className={css.swipeShade} aria-hidden="true"/>
-   <div className={css.swipeTop}>
-     <span className={css.swipeEyebrow}>PINO <span>·</span> {post.app==="piano"?"PIANO":"ART"}</span>
-     <span data-community-index={index+1} className={css.swipeIndex}>{String(index+1).padStart(2,"0")} / {String(total).padStart(2,"0")}</span>
-   </div>
    <div className={css.swipeActionRail} aria-label={"Tương tác với "+post.title}>
-     <div className={css.swipeAuthorAvatar} aria-hidden="true"><PinoIcon name={post.ownerId==="pino-piano"?"piano":"profile"}/></div>
      <button type="button" className={liked?css.swipeActionSelected:css.swipeAction}
        aria-label={"Yêu thích "+post.title} aria-pressed={liked}
-       onClick={()=>setLiked(v=>!v)}><PinoIcon name="heart"/><small>{post.reactions+(liked?1:0)}</small></button>
+       onClick={()=>setLiked(v=>!v)}><PinerLineIcon name="heart"/><small>{post.reactions+(liked?1:0)}</small></button>
      <button type="button" className={css.swipeAction} aria-label={"Xem bình luận "+post.title}
        aria-expanded={commentsOpen} onClick={()=>setCommentsOpen(true)}>
-       <PinoIcon name="comment"/><small>{post.comments.length}</small>
+       <PinerLineIcon name="comment"/><small>{post.comments.length}</small>
      </button>
-     {publicSample?<div className={css.swipeShare}><PublicShareAction id={post.id} title={post.title}/></div>:
+     {publicSample?<div className={css.swipeShare}><PublicShareAction id={post.id} title={post.title} lineIcons/></div>:
        <button type="button" disabled className={css.swipeAction}
          aria-label={"Chưa có liên kết công khai cho "+post.title} title="Chưa có liên kết công khai">
-         <PinoIcon name="share"/><small>Chưa có link</small>
+         <PinerLineIcon name="share"/><small>Chưa có link</small>
        </button>}
      {canManage&&<button type="button" className={css.swipeAction} data-hide-post={post.id}
        onClick={()=>onRequestVisibility(post)} aria-label={"Ẩn "+post.title}>
-       <PinoIcon name="hide"/><small>Ẩn</small>
+       <PinerLineIcon name="hide"/><small>Ẩn</small>
      </button>}
    </div>
    <div className={css.swipeCaption}>
       {publicSample?<a href={publicProfileHref(post.ownerId)} className={css.swipeAuthor}>@{author}</a>:
         <strong className={css.swipeAuthor}>@{author}</strong>}
       <button type="button" className={css.swipeTitle} onClick={()=>onOpen(post)}
-        aria-label={"Xem chi tiết "+post.title}>{post.title} <PinoIcon name="right"/></button>
+        aria-label={"Xem chi tiết "+post.title}>{post.title} <PinerLineIcon name="chevron"/></button>
       <p data-post-caption={post.id}>{post.caption}</p>
-      <span className={css.swipeMeta}>{post.date} · {post.type==="reel"?"Reel":"Ảnh"} · Nội dung mẫu đã chia sẻ</span>
+      <span className={css.swipeMeta}>{post.date} · {post.type==="reel"?"Reel":"Ảnh"}{post.duration?" · "+post.duration:""} · {post.app==="piano"?"Piano":"Hội họa"} <span data-community-index={index+1}>{String(index+1).padStart(2,"0")}/{String(total).padStart(2,"0")}</span></span>
    </div>
-   {index===0&&total>1&&<span aria-hidden="true" className={css.swipeHint}>↑ Vuốt để khám phá</span>}
    {commentsOpen&&<div className={css.swipeCommentScrim} onClick={()=>setCommentsOpen(false)}>
      <section role="dialog" aria-modal="true" aria-label={"Bình luận "+post.title}
        className={css.swipeComments} onClick={e=>e.stopPropagation()}>

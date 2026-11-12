@@ -4,9 +4,10 @@
 import {useState} from "react";
 import {publicPostHref} from "./publicApproved";
 import {PinoIcon} from "./PinoIcon";
+import {PinerLineIcon} from "./PinerLineIcon";
 import css from "./launcher.module.css";
 
-export function PublicShareAction({id,title}:{id:string;title:string}){
+export function PublicShareAction({id,title,lineIcons=false}:{id:string;title:string;lineIcons?:boolean}){
  const [status,setStatus]=useState("");
  const localHref=publicPostHref(id);
  const share=async()=>{
@@ -23,10 +24,10 @@ export function PublicShareAction({id,title}:{id:string;title:string}){
  };
  return <span className={css.publicShareGroup} data-public-share={id}>
    <button type="button" onClick={share} aria-label={"Chia sẻ liên kết công khai "+title}>
-    <PinoIcon name="share"/><span>Chia sẻ</span>
+    {lineIcons?<PinerLineIcon name="share"/>:<PinoIcon name="share"/>}<span>Chia sẻ</span>
    </button>
    <a href={localHref} data-public-permalink={id} aria-label={"Xem trực tiếp bài đăng "+title}>
-    <PinoIcon name="link"/><span>Xem bài</span>
+    {lineIcons?<PinerLineIcon name="link"/>:<PinoIcon name="link"/>}<span>Xem bài</span>
    </a>
    {status&&<small role="status">{status}</small>}
  </span>;

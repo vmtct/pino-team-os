@@ -15,6 +15,7 @@ import { useActiveProfile, isManagedChild, getProfile } from "./profiles";
 import { ChildSwitcher } from "./ChildSwitcher";
 import css from "./launcher.module.css";
 import {PinoIcon} from "./PinoIcon";
+import {PinerLineIcon} from "./PinerLineIcon";
 import {CommunitySwipeFeed} from "./CommunitySwipeFeed";
 import {SPACES,isInSpace,pathFor,type PinerSpace} from "./spaces";
 
@@ -41,14 +42,15 @@ function Header({currentChild,select,space,collapsed}:{currentChild:string;selec
     {space==="house"?<ChildSwitcher currentChild={profile.id as "an"|"binh"} onSelect={select}/>:<div className={css.mytimeIdentity}><span className={css.unifiedProfileCircle}>M</span><strong>MyTime · Tôi</strong></div>}
  </header>;
 }
-function Footer({tab,space,collapsed}:{tab:UnifiedTab;space:PinerSpace;collapsed:boolean}){
- return <nav aria-label="Điều hướng Piner Space" data-piner-shared="bottom-nav" aria-hidden={collapsed} inert={collapsed} className={css.unifiedNav}>
-   <div className={css.unifiedNavInner}>{TABS.map(item=><Link href={pathFor(space,item.id)} key={item.id}
-       data-tab={item.id} aria-current={item.id===tab?"page":undefined}
-       className={item.id===tab?css.unifiedNavActive:css.unifiedNavItem}>
-       <Glyph name={item.icon}/><small>{item.label}</small>
-     </Link>)}</div>
- </nav>;
+function Footer({tab,space,collapsed,onExpand}:{tab:UnifiedTab;space:PinerSpace;collapsed:boolean;onExpand:()=>void}){
+  return <nav aria-label="Điều hướng Piner Space" data-piner-shared="bottom-nav" data-island-scale={collapsed?"0.7":"1"}
+    onPointerDownCapture={onExpand} onFocusCapture={onExpand} className={css.unifiedNav}>
+    <div className={css.unifiedNavInner}>{TABS.map(item=><Link href={pathFor(space,item.id)} key={item.id}
+        data-tab={item.id} aria-label={item.label} title={item.label} aria-current={item.id===tab?"page":undefined}
+        className={item.id===tab?css.unifiedNavActive:css.unifiedNavItem}>
+        <PinerLineIcon name={item.id==="reels"?"reels":item.id}/>
+      </Link>)}</div>
+  </nav>;
 }
 function MediaGrid({posts,onOpen}:{posts:MediaPost[];onOpen:(post:MediaPost)=>void}){
  return posts.length===0?<div className={css.emptyMedia}><strong>Chưa có tác phẩm nào</strong><p>Những bức tranh và giai điệu sẽ được lưu tại đây.</p></div>:
@@ -83,7 +85,8 @@ export function PinerUnified({tab,space="house"}:{tab:UnifiedTab;space?:PinerSpa
  const focusReturn=useRef<HTMLElement|null>(null);
  const previewReturn=useRef<HTMLElement|null>(null);
 
- // PAP-1827 · Bind scroll direction only to the signed-in app content viewport.
+   // PAP-1901 · Scroll direction drives a 100%/70% island (never inert); Community top header stays unmounted.
+  // PAP-1827 · Bind scroll direction only to the signed-in app content viewport.
  useEffect(()=>{
   const viewport=contentRef.current;
   if(!viewport)return;
@@ -187,8 +190,8 @@ export function PinerUnified({tab,space="house"}:{tab:UnifiedTab;space?:PinerSpa
  };
    const title=TABS.find(item=>item.id===tab)?.label??"Bảng tin";
  return <div className={css.unifiedBackdrop}>
-   <div className={css.unifiedShell} data-piner-shared="unified-shell" data-unified-tab={tab} data-piner-space={space} data-chrome-collapsed={chromeCollapsed?"true":"false"}>
-           <Header currentChild={activeId} select={select} space={space} collapsed={chromeCollapsed}/>
+   <div className={css.unifiedShell} data-piner-shared="unified-shell" data-unified-tab={tab} data-piner-space={space} data-chrome-collapsed={chromeCollapsed?"true":"false"} data-shorts-header-hidden={tab==="community"?"true":"false"}>
+                       {tab!=="community"&&<Header currentChild={activeId} select={select} space={space} collapsed={chromeCollapsed}/>}
      <main className={tab==="home"?css.unifiedContent+" "+css.unifiedHomeContent:css.unifiedContent} data-piner-slot="content" data-hydrated={loaded?"true":"false"} ref={contentRef}>
        <div className={css.unifiedContentInner}>
          {tab!=="home"&&tab!=="community"&&<div className={css.unifiedPageHeading}>
@@ -208,7 +211,7 @@ export function PinerUnified({tab,space="house"}:{tab:UnifiedTab;space?:PinerSpa
            <div className={css.emptyMedia}><strong>Chưa có bài đăng</strong><p>Hành trình sáng tạo sẽ xuất hiện tại đây.</p></div>}
        </div>
      </main>
-           <Footer tab={tab} space={space} collapsed={chromeCollapsed}/>
+                       <Footer tab={tab} space={space} collapsed={chromeCollapsed} onExpand={()=>setChromeCollapsed(false)}/>
      {preview&&(preview.type==="reel"
        ?<ReelViewer post={all.find(p=>p.id===preview.id)??preview} onClose={closePreview}/>
        :<PreviewDialog post={all.find(p=>p.id===preview.id)??preview} onClose={closePreview}
