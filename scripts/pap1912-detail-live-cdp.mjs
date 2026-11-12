@@ -104,12 +104,17 @@ try{
     const c=await fetch("/api/bo/centers",{credentials:"include"}).then(r=>r.json());
     const center=c.data?.find(x=>x.displayName==="Cần Thơ");
     if(!center)return {ok:false,reason:"NO_SELECTED_CENTER"};
+    // PAP-1912: use a real, authorized other Center from the current account.
+    // A made-up UUID can be rejected by Core as malformed (HTTP 400), which
+    // does not prove that cross-Center Subscription data is protected.
+    const foreignCenter=c.data?.find(x=>x.id!==center.id);
+    if(!foreignCenter)return {ok:false,reason:"NO_REAL_FOREIGN_CENTER"};
     const r=await fetch("/api/bo/subscriptions/center-directory?"+new URLSearchParams({centerId:center.id,limit:"50"}),{credentials:"include"});
     const d=await r.json();const id=d.data?.items?.[0]?.id;if(!id)return {ok:false,reason:"NO_AUTHORIZED_ROW"};
     const get=async url=>(await fetch(url,{credentials:"include",cache:"no-store"})).status;
     const prefix="/api/bo/subscriptions/"+encodeURIComponent(id)+"/center-detail";
     return {ok:true,own:await get(prefix+"?centerId="+encodeURIComponent(center.id)),
-      foreign:await get(prefix+"?centerId=00000000-0000-4000-8000-000000000001"),
+      foreign:await get(prefix+"?centerId="+encodeURIComponent(foreignCenter.id)),
       noCenter:await get(prefix)};
   });
   assert(acl.ok&&acl.own===200&&[403,404].includes(acl.foreign)&&acl.noCenter===400,"SELECTED_CENTER_ACL_FAIL_CLOSED");
