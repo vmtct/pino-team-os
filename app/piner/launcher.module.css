@@ -811,7 +811,9 @@
 }
 .communityCarouselPrev{left:8px}
 .communityCarouselNext{right:82px}
-.communityCarouselPrev svg,.communityCarouselNext svg{display:block;width:18px;height:18px;fill:currentColor}
+/* PAP-1909 / PNR-APP-HUB: both carousel chevrons share the Shorts thin-line SVG. */
+.communityCarouselPrev svg,.communityCarouselNext svg{display:block;width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.communityCarouselPrev svg{transform:rotate(180deg)}
 .communityCarouselPrev:disabled,.communityCarouselNext:disabled{opacity:.28;cursor:default}
 .communityCarouselCount{position:absolute;z-index:2;top:calc(112px + env(safe-area-inset-top));left:18px;
  background:#1f162c9c;border:1px solid #fff5;border-radius:18px;color:#fff;
