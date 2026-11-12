@@ -171,7 +171,7 @@ export default function ClassroomV4Presentation({model,initialView,onDetailChang
      <p className={styles.previousLessonNote} data-tos-slot={tosSlotKeys(styles.previousLessonNote)}><strong>{previous.closedBy||previous.registeredBy||"Giáo viên"}:</strong> {previous.notes.trim()||"Chưa có nhận xét."}</p>
     </div>:<div className={styles.previousLessonEmpty} data-tos-slot={tosSlotKeys(styles.previousLessonEmpty)} data-previous-lesson={s.id}>{model.diaryReadState==="LOADED"?"Chưa có Nhật ký của buổi học trước.":"Chưa tải được Nhật ký của buổi học trước."}</div>}
    <div className={styles.personActions} data-tos-slot={tosSlotKeys(styles.personActions)}><button onClick={()=>openStudent(s.id)}>Hồ sơ & lịch sử</button><button type="button" disabled={readOnly}
-     aria-label={"Thêm nhiệm vụ cho "+s.name}
+     className={styles.missionAddAction} aria-label={"Thêm nhiệm vụ cho "+s.name}
      onClick={()=>{missionCreateSequence.current+=1;setMissionCreateRequest({id:missionCreateSequence.current,studentId:s.id})}}>+ Nhiệm vụ</button></div></div></article>;
  };
  const rows=diaryStateFilter==="all"?currentDiaries:currentDiaries.filter(d=>d.status===diaryStateFilter);

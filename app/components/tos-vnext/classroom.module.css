@@ -698,3 +698,17 @@
 .phone .missionReadError p{margin:0 0 var(--tos-space-2)}
 .phone .missionReadRetry{display:inline-flex;align-items:center;justify-content:center;min-height:var(--tos-hit-min);padding:var(--tos-space-2) var(--tos-space-3);border:1px solid var(--tos-color-border);border-radius:var(--tos-radius-small);background:var(--tos-color-surface);color:var(--tos-color-warning-text);font-size:var(--tos-text-caption);font-weight:var(--tos-weight-strong);cursor:pointer}
 .phone .missionReadRetry:focus-visible{outline:2px solid var(--tos-color-warm);outline-offset:2px}
+/* PAP-1926: the assignment editor ends above Classroom's fixed navigation. */
+.phone .missionEditorScrim {
+  --mission-nav-clearance: calc(80px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: var(--mission-nav-clearance);
+}
+.phone .missionEditorScrim .sheet {
+  max-height: calc(100dvh - var(--mission-nav-clearance) - var(--tos-space-3));
+}
+.phone button.missionAddAction,
+.phone .missionCompactActions button.missionNextCta {
+  background: var(--tos-color-surface);
+  color: var(--tos-color-warning-text);
+  border-color: var(--tos-color-border);
+}

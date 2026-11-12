@@ -129,7 +129,7 @@ export default function MissionAssignmentTab({
     aria-labelledby="tos-classroom-tab-missions" aria-busy={read.state==="LOADING"}>
     <div className={styles.sectionHead} data-tos-slot={slot(styles.sectionHead)}>
       <div><h2>Nhiệm vụ hôm nay ({count})</h2></div>
-      <button type="button" aria-label="Thêm Nhiệm Vụ" disabled={!canWrite}
+      <button type="button" className={styles.missionAddAction} aria-label="Thêm Nhiệm Vụ" disabled={!canWrite}
         onClick={()=>{if(groups.length===1)open(groups[0]!.studentId);
           else if(groups.length>1)open(groups[0]!.studentId)}}>
         <FontAwesomeIcon icon={faPlus}/> Thêm
@@ -192,7 +192,7 @@ export default function MissionAssignmentTab({
     {!visible&&createRequest&&(read.state==="READY"||read.state==="EMPTY")&&
       !groups.some(g=>g.studentId===createRequest.studentId)&&<p role="alert"
       className={styles.missionReadError}>Học viên chưa đủ điều kiện giao nhiệm vụ tại lớp này.</p>}
-    {editor&&<AppModalRoot className={styles.scrim} data-tos-slot={slot(styles.scrim)}
+    {editor&&<AppModalRoot className={styles.scrim+" "+styles.missionEditorScrim} data-tos-slot={slot(styles.scrim)}
       onClose={close}>
       <section className={styles.sheet} data-tos-slot={slot(styles.sheet)}
         role="dialog" aria-modal="true" aria-label={editor.old?"Đổi nhiệm vụ":"Thêm Nhiệm Vụ"}>
