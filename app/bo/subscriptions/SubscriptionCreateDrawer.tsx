@@ -232,18 +232,22 @@ export function SubscriptionCreateDrawer({initialStudentId,paths,onChanged,onClo
       }
     }catch(cause){setError(errorMessage(cause));return;}
     inFlight.current=true;setBusy(true);setUncertain(false);setError("");
+    let saleCommitted=false;
     try{
       // No deferActivation: Core's PAP-1350 Sale activates the independent subscription atomically.
       const sale=await boApi.createBillingSale(attempt.body,attempt.key);
+      saleCommitted=true;
       const verified=await readSubscriptionCenterDetail(sale.subscriptionId,attempt.centerId);
+      // PAP-1897: Core Sale 201 already atomically returns Bill+Item receipt.
+      // A separate GET /billing/bills/:id requires broader finance ACL and may 403
+      // AFTER the Sale is committed; do not turn success into a false failure.
       assertIndependentSaleReadback(attempt.body,sale,verified);
-      const confirmedBill=await boApi.billingBill(sale.bill.bill.id);
-      if(!confirmedBill.items.some(line=>line.subscriptionId===sale.subscriptionId&&line.studentProfileId===selected.id))
-        throw Error("Core chưa xác nhận Bill của Sale; thử lại cùng yêu cầu.");
       setSuccess(true);onChanged();
     }catch(cause){
       // A network/5xx/readback uncertainty must replay the EXACT body and key, not create a second Bill.
-      const definitive=cause instanceof BoApiError&&cause.structuredResponse&&[400,401,403,404,422].includes(cause.status);
+      // A 201-acknowledged Sale must never discard its original replay key,
+      // even if the later independent Center-attested readback fails.
+      const definitive=!saleCommitted&&cause instanceof BoApiError&&cause.structuredResponse&&[400,401,403,404,422].includes(cause.status);
       if(definitive){attempted.current=null;setUncertain(false);}
       else setUncertain(true);
       setError(errorMessage(cause));

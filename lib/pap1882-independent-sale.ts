@@ -68,7 +68,10 @@ export function assertIndependentSaleReadback(
   sale: { subscriptionId:string; bill:{bill:{id:string};items:readonly {subscriptionId:string;studentProfileId:string}[]} },
   actual: { id:string; studentProfileId:string; centerId?:string; pathProgramId:string; lifecycle:string },
 ): void {
-  if (actual.id !== sale.subscriptionId || actual.studentProfileId !== expected.studentProfileId ||
+  if (!UUID.test(sale.subscriptionId) || !sale.bill || !sale.bill.bill ||
+      !UUID.test(sale.bill.bill.id) || !Array.isArray(sale.bill.items) ||
+      sale.bill.items.length !== 1 ||
+      actual.id !== sale.subscriptionId || actual.studentProfileId !== expected.studentProfileId ||
       actual.centerId !== expected.centerId || actual.pathProgramId !== expected.pathProgramId ||
       actual.lifecycle !== "ACTIVE" ||
       !sale.bill.items.some(item=>item.subscriptionId===sale.subscriptionId&&item.studentProfileId===expected.studentProfileId))
