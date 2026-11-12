@@ -5,6 +5,8 @@ import type {IconDefinition} from "./classroom-icons";
 import styles from "./classroom.module.css";
 import MissionAssignmentTab from "./MissionAssignmentTab";
 import DiaryCapturePanel from "./DiaryCapturePanel";
+import {saveExistingClassroomDiary} from "@/lib/tos-classroom-diary-editor";
+import {isDiaryStagingWriterHost} from "@/lib/tos-diary-stage-admission";
 import {createSlotKeys} from "../tos-ds";
 const tosSlotKeys=createSlotKeys(styles);
 import {AppNavShell,AppModalRoot,AppToast} from "../tos-ds";
@@ -26,7 +28,12 @@ export default function ClassroomV4Presentation({model,initialView,onDetailChang
  const classes=model.classes,catalog=model.missions,staff=model.staffLabel;
  const mission=(id:string)=>catalog.find(item=>item.id===id);
  const blocked=()=>notify("Chức năng chưa khả dụng. Chưa gửi hoặc lưu dữ liệu.");
- const data=model.data;
+ const [diaryEdits,setDiaryEdits]=useState<Record<string,Diary>>({});
+ const data=useMemo(()=>({...model.data,diaries:model.data.diaries.map(d=>diaryEdits[d.id]??d)}),[model.data,diaryEdits]);
+ const [diaryWriting,setDiaryWriting]=useState(false);
+ const diaryWriteLock=useRef(false);
+ const [diaryHostAdmitted,setDiaryHostAdmitted]=useState(false);
+ useEffect(()=>{setDiaryHostAdmitted(isDiaryStagingWriterHost(process.env.NEXT_PUBLIC_PINO_DIARY_STAGING_WRITE==="true",window.location.hostname));},[]);
  const [session,setSession]=useState(initialView?.classId??"");const [tab,setTab]=useState<Tab>(initialView?.tab??"students");
  const [missionCreateRequest,setMissionCreateRequest]=useState<{id:number;studentId:string}|null>(null);
  const missionCreateSequence=useRef(0);
@@ -60,6 +67,7 @@ export default function ClassroomV4Presentation({model,initialView,onDetailChang
  const currentOpening=current?data.openings[current.id]:undefined;
  const bypassActive=!!current&&!currentOpening;
  const skipConfirmed=bypassActive&&confirmedSkipClassId===current.id;
+ const canWriteExistingDiary=diaryHostAdmitted&&skipConfirmed&&!readOnly;
  const proofClass=classes.find(c=>c.id===proofClassId);
  const proofOpening=proofClassId?data.openings[proofClassId]:undefined;
  const people=current?(data.participants[current.id]||[]).map(id=>data.students.find(s=>s.id===id)).filter((x):x is Student=>!!x):[];
@@ -87,7 +95,7 @@ export default function ClassroomV4Presentation({model,initialView,onDetailChang
  const selectableInPath=eligible.filter(m=>m.subject===current?.subject&&m.path===current?.path);
  const selectableOutsidePath=eligible.filter(m=>m.path!==current?.path||m.subject!==current?.subject);
  const switchCatalogFilter=()=>{if(catalogFilter==="path"){setCatalogFilter("all");setChosenMission("");}else{setCatalogFilter("path");setChosenMission(selectableInPath[0]?.id||"")}setMissionSearch("")};
- const closeOverlay=()=>{if(discardConfirm){setDiscardConfirm(false);return}if(overlay==="historyDetail"){setOverlay("student");return}if(overlay==="diary"&&isDiaryDirty){setDiscardConfirm(true);return}setOverlay("");setDiscardConfirm(false);setReplacingDiaryId("");setReplacingMissionId("");setAppendDiaryId("");setAppendOpen(false);setDraftPhotos([]);setDraftNote("")};
+ const closeOverlay=()=>{if(diaryWriteLock.current)return;if(discardConfirm){setDiscardConfirm(false);return}if(overlay==="historyDetail"){setOverlay("student");return}if(overlay==="diary"&&isDiaryDirty){setDiscardConfirm(true);return}setOverlay("");setDiscardConfirm(false);setReplacingDiaryId("");setReplacingMissionId("");setAppendDiaryId("");setAppendOpen(false);setDraftPhotos([]);setDraftNote("")};
  const discardDiaryEdits=()=>{setDiscardConfirm(false);setOverlay("");setFormErrors([]);setDiaryInitialSnapshot("")};
  useEffect(()=>{if(!overlay)return;const focused=document.activeElement instanceof HTMLElement?document.activeElement:null;requestAnimationFrame(()=>sheetRef.current?.querySelector<HTMLButtonElement>("header button")?.focus());return()=>{if(focused?.isConnected)focused.focus()}},[overlay]);
  useEffect(()=>{if(discardConfirm)requestAnimationFrame(()=>document.querySelector<HTMLButtonElement>('[aria-label="Bỏ thay đổi Nhật ký?"] button')?.focus())},[discardConfirm]);
@@ -121,11 +129,19 @@ export default function ClassroomV4Presentation({model,initialView,onDetailChang
   setSelectedDiary(d.id);setStudentId(d.studentId);setMissionResults(results);setInterest(initialInterest);setDifficulty(d.difficulty||"");setFormErrors([]);setNotes(d.notes);setEvidence(initialEvidence);
   setDiaryInitialSnapshot(diaryFormSignature(results,initialInterest,d.notes,d.difficulty||"",initialEvidence));setDiscardConfirm(false);setOverlay("diary");
  };
- const saveDiaryDraft=blocked;
- const closeDiary=()=>{
-  const d=data.diaries.find(x=>x.id===selectedDiary);if(!d)return;
-  const errors=validateClassroomDraft({missionIds:d.missions.map(m=>m.id),results:missionResults,interest,notes,difficulty,hasImage:evidence.some(e=>e.kind==="image"&&!!e.preview),uploading});
-  setFormErrors(errors);if(!errors.length)blocked();
+ const writeExistingDiary=async(kind:"draft"|"close")=>{
+  const d=data.diaries.find(x=>x.id===selectedDiary);
+  if(!d||d.status!=="REGISTERED"||d.teachingContextKey!==current?.id||!canWriteExistingDiary||diaryWriteLock.current)return;
+  const errors=kind==="close"?validateClassroomDraft({missionIds:d.missions.map(m=>m.id),results:missionResults,interest,notes,difficulty,hasImage:evidence.some(e=>e.kind==="image"&&!!e.preview),uploading}):[];
+  setFormErrors(errors);if(errors.length)return;
+  diaryWriteLock.current=true;setDiaryWriting(true);
+  try{
+   const saved=await saveExistingClassroomDiary({centerId:model.centerId,runningClassId:current.runningClassId,
+    diary:d,kind,notes,interest,difficulty,evidence});
+   setDiaryEdits(previous=>({...previous,[d.id]:saved}));
+   setDiaryInitialSnapshot(diaryFormSignature(missionResults,interest,notes,difficulty,evidence));
+  }catch{setFormErrors(["Core chưa xác nhận thao tác. Vui lòng kiểm tra và thử lại."]);}
+  finally{diaryWriteLock.current=false;setDiaryWriting(false);}
  };
  const addEvidence=async(files:FileList|null)=>{if(!files)return;const list=Array.from(files).slice(0,20);if(files.length>20)notify("Biểu mẫu xử lý tối đa 20 tệp mỗi lần.");setUploading(true);const next:Evidence[]=[];for(const file of list){if(!file.type.startsWith("image/")&&!file.type.startsWith("video/")){notify("Chỉ nhận ảnh hoặc video.");continue}if(file.type.startsWith("video/")){next.push({name:file.name,kind:"video"});continue}if(file.size>5_000_000){notify("Ảnh cần dưới 5 MB.");continue}try{const media=await new Promise<Evidence>((resolve,reject)=>{const img=new Image();const url=URL.createObjectURL(file);img.onload=()=>{try{const scale=Math.min(1,840/Math.max(img.naturalWidth,img.naturalHeight));const canvas=document.createElement("canvas");canvas.width=Math.max(1,Math.round(img.naturalWidth*scale));canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));const context=canvas.getContext("2d");if(!context)throw Error("canvas");context.drawImage(img,0,0,canvas.width,canvas.height);resolve({name:file.name,kind:"image",preview:canvas.toDataURL("image/jpeg",0.62)})}catch(err){reject(err)}finally{URL.revokeObjectURL(url)}};img.onerror=()=>{URL.revokeObjectURL(url);reject(Error("image"))};img.src=url});next.push(media)}catch{notify("Không xử lý được ảnh: "+file.name)}}if(next.length){setEvidence(prev=>[...prev,...next]);setFormErrors(v=>v.filter(x=>!x.includes("ảnh bằng chứng")))}setUploading(false);};
  const handleSupplementPhotos=async(files:FileList|null)=>{
@@ -253,7 +269,7 @@ export default function ClassroomV4Presentation({model,initialView,onDetailChang
        <h3>1. Kết quả từng Mission ({d.missions.length})</h3>
        <div className={styles.multiMissionResults} data-tos-slot={tosSlotKeys(styles.multiMissionResults)} data-diary-result tabIndex={-1}>{d.missions.map((entry,index)=><section className={styles.missionOutcome} data-tos-slot={tosSlotKeys(styles.missionOutcome)} key={entry.id} data-diary-mission-result={entry.id}>
          <div className={styles.missionOutcomeHead} data-tos-slot={tosSlotKeys(styles.missionOutcomeHead)}><span>Nhiệm vụ {index+1}</span><strong>{entry.id} · {entry.name}</strong></div>
-         <div className={styles.resultChoice} data-tos-slot={tosSlotKeys(styles.resultChoice)}><label className={styles.missionConfirmCheckbox} data-tos-slot={tosSlotKeys(styles.missionConfirmCheckbox)}><input type="checkbox" checked={missionResults[entry.id]===true} onChange={event=>setMissionResults(previous=>({...previous,[entry.id]:event.target.checked?true:null}))}/><span>Nhiệm vụ hoàn tất</span></label></div>
+         <div className={styles.resultChoice} data-tos-slot={tosSlotKeys(styles.resultChoice)}><label className={styles.missionConfirmCheckbox} data-tos-slot={tosSlotKeys(styles.missionConfirmCheckbox)}><input type="checkbox" disabled title="Xác nhận hoàn tất qua luồng C1" checked={missionResults[entry.id]===true} onChange={event=>setMissionResults(previous=>({...previous,[entry.id]:event.target.checked?true:null}))}/><span>Nhiệm vụ hoàn tất</span></label></div>
        </section>)}</div>
        <h3>2. Trải nghiệm chung của Diary</h3>
        <fieldset className={styles.interestFieldset} data-tos-slot={tosSlotKeys(styles.interestFieldset)} data-diary-interest tabIndex={-1}><legend>Mức độ hứng thú <span aria-hidden="true">*</span></legend><p>Đánh giá tương tác chung trong ca học này, không phải mức độ hoàn thành từng nhiệm vụ.</p><div className={styles.interestRadioList} data-tos-slot={tosSlotKeys(styles.interestRadioList)}>{interactionOptions.map(option=><label key={option.value} className={interest===option.value?styles.interestRadioSelected:styles.interestRadio} data-tos-slot={tosSlotKeys(interest===option.value?styles.interestRadioSelected:styles.interestRadio)}><input type="radio" name="diary-interest" value={option.value} aria-label={"Mức "+option.value+" - "+option.label} checked={interest===option.value} onChange={()=>{setInterest(option.value);setFormErrors(errs=>errs.filter(x=>!x.includes("mức hứng thú")&&!x.includes("khó khăn")))}}/><span className={styles.interestRadioNumber} data-tos-slot={tosSlotKeys(styles.interestRadioNumber)}>{option.value}</span><span className={styles.interestRadioCopy}>{option.short}</span></label>)}</div><p className={styles.interestMeaning} aria-live="polite">{interest===null?"Chọn mức đánh giá từ 1 đến 4.":"Mức "+interest+": "+interactionOptions.find(option=>option.value===interest)?.label}</p></fieldset>
@@ -264,8 +280,8 @@ export default function ClassroomV4Presentation({model,initialView,onDetailChang
        <div className={styles.diarySubmitFooter} data-tos-slot={tosSlotKeys(styles.diarySubmitFooter)}>
         {formErrors.length>0&&<div className={styles.validationErrors} data-tos-slot={tosSlotKeys(styles.validationErrors)} role="alert" data-diary-errors tabIndex={-1}><strong>Vui lòng bổ sung trước khi kết thúc:</strong>{formErrors.map(e=><p key={e}>• {e}</p>)}</div>}
         <div className={styles.diarySaveActions} data-tos-slot={tosSlotKeys(styles.diarySaveActions)}>
-         <button disabled title="Chức năng chưa khả dụng; chưa gửi dữ liệu" type="button" className={styles.saveDraftCta} data-tos-slot={tosSlotKeys(styles.saveDraftCta)} onClick={saveDiaryDraft} aria-label="Lưu nháp Diary"><FontAwesomeIcon icon={faClipboardList}/> Lưu nháp</button>
-         <button disabled title="Chức năng chưa khả dụng; chưa gửi dữ liệu" type="button" className={styles.primaryButtonWide} data-tos-slot={tosSlotKeys(styles.primaryButtonWide)} onClick={closeDiary}><FontAwesomeIcon icon={faCheck}/> {uploading?"Đang xử lý ảnh...":"Kết thúc Diary"}</button>
+         <button disabled={!canWriteExistingDiary||diaryWriting||uploading} type="button" className={styles.saveDraftCta} data-tos-slot={tosSlotKeys(styles.saveDraftCta)} onClick={()=>void writeExistingDiary("draft")} aria-label="Lưu nháp Diary"><FontAwesomeIcon icon={faClipboardList}/> Lưu nháp</button>
+         <button disabled={!canWriteExistingDiary||diaryWriting||uploading} type="button" className={styles.primaryButtonWide} data-tos-slot={tosSlotKeys(styles.primaryButtonWide)} onClick={()=>void writeExistingDiary("close")}><FontAwesomeIcon icon={faCheck}/> {uploading?"Đang xử lý ảnh...":"Kết thúc Diary"}</button>
         </div>
         <small className={styles.draftSaveHint} data-tos-slot={tosSlotKeys(styles.draftSaveHint)}>Lưu nháp không đóng Diary. Kết thúc Diary không bắt buộc mọi Nhiệm vụ hoàn tất; cần mức tương tác, ghi chú và ảnh.</small>
        </div>
