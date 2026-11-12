@@ -135,8 +135,15 @@ function ScopedSubscriptions({centerId,centerName,menu}:{
       const route=readSubscriptionDetailRoute(window.location.search);
       const nextTab=pushUrl?"Detail":route.id===item.id?route.tab:"Detail";
       setDetailTab(nextTab);
-      setDetail(null);setDrawer({id:item.id,row});setNotice("");
-      if(pushUrl)window.history.pushState(null,"",scopedHref(item.id,nextTab));
+      // PAP-1907: a direct immutable record URL must restore Full Detail, not Quick View.
+      // Only a Table row click opens the Drawer. Both flows require the Center attestation above.
+      if(pushUrl){
+        setDetail(null);setDrawer({id:item.id,row});
+        window.history.pushState(null,"",scopedHref(item.id,nextTab));
+      }else{
+        setDrawer(null);setDetail({id:item.id,row});
+      }
+      setNotice("");
     }catch(cause){
       if(!ctl.signal.aborted){setError(failure(cause));setDrawer(null);setDetail(null);}
     }finally{if(!ctl.signal.aborted)setBusy(null);}
