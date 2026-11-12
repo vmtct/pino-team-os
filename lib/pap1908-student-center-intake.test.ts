@@ -4,7 +4,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { handleBoOperationalReadRequest, type BoReadEnv } from "./bo-read-handler";
 import { handleBoWriteRequest, type BoWriteEnv } from "./bo-write-handler";
-import { boApi, BoApiError, type BoStudentIntakeCreateInput } from "./bo-api";
+import { BoApiError, type BoStudentIntakeCreateInput } from "./bo-api";
+import { studentIntakeCenterApi } from "./bo-student-intake-center-client";
 import type { BoAccessCoreBinding, BoAccessRequest } from "./bo-core";
 const center = "0198d050-56c1-7ac5-b9ab-b0e45d912345";
 const otherCenter = "0198d050-56c1-7ac5-b9ab-b0e45d954321";
@@ -97,11 +98,11 @@ test("PAP-1908 BO client uses Center-only GET/POST; legacy global RPC retained",
   globalThis.fetch = async (input, init) => { seen.push({ path: String(input), init });
     return Response.json({ data: String(input).includes("center-search") ? [] : result }, { status: String(input).includes("center-search") ? 200 : 201 }); };
   try {
-    assert.deepEqual(await boApi.parentsInCenter(center, "Mai", 20), []);
-    assert.deepEqual(await boApi.createStudentIntakeInCenter(center, data, "replay-key"), result);
+    assert.deepEqual(await studentIntakeCenterApi.parentsInCenter(center, "Mai", 20), []);
+    assert.deepEqual(await studentIntakeCenterApi.createStudentIntakeInCenter(center, data, "replay-key"), result);
     const before = seen.length;
-    assert.throws(() => boApi.parentsInCenter("", "Mai"), (e: unknown) => e instanceof BoApiError && e.status === 400);
-    await assert.rejects(boApi.createStudentIntakeInCenter(otherCenter + "/x", data, "bad"), (e: unknown) => e instanceof BoApiError && e.status === 400);
+    assert.throws(() => studentIntakeCenterApi.parentsInCenter("", "Mai"), (e: unknown) => e instanceof BoApiError && e.status === 400);
+    await assert.rejects(studentIntakeCenterApi.createStudentIntakeInCenter(otherCenter + "/x", data, "bad"), (e: unknown) => e instanceof BoApiError && e.status === 400);
     assert.equal(seen.length, before);
   } finally { globalThis.fetch = original; }
   assert.equal(seen[0]!.path, "/api/bo/identity/parents/center-search?centerId=" + center + "&limit=20&query=Mai");

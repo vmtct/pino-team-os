@@ -389,12 +389,6 @@ export const boApi = {
   registrations: (sessionId: string) => read<BoRegistration>(`sessions/${encodeURIComponent(sessionId)}/registrations`),
   learners: (query = "", limit = 200, beforeStudentId?: string) => read<BoLearnerDirectoryItem>(`learners?limit=${encodeURIComponent(String(limit))}${beforeStudentId ? `&beforeStudentId=${encodeURIComponent(beforeStudentId)}` : ""}${query ? `&query=${encodeURIComponent(query)}` : ""}`),
   parents: (query = "", limit = 20) => read<BoParentSearchResult>(`identity/parents?limit=${encodeURIComponent(String(limit))}${query ? `&query=${encodeURIComponent(query)}` : ""}`),
-  // PAP-1908 / SCH-STUDENT-MGMT: selected Center is a resource, never a role grant.
-  parentsInCenter: (centerId: string, query = "", limit = 20) => {
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(centerId) ||
-        !Number.isSafeInteger(limit) || limit < 1 || limit > 25) throw new BoApiError(400, "Chọn một cơ sở hợp lệ để tìm phụ huynh.", null, true);
-    return read<BoParentSearchResult>(`identity/parents/center-search?centerId=${encodeURIComponent(centerId)}&limit=${limit}&query=${encodeURIComponent(query)}`);
-  },
   acquisitionIntents: (status?: BoAcquisitionIntentStatus, limit = 100) => read<BoAcquisitionIntent>(`acquisition/intents?limit=${encodeURIComponent(String(limit))}${status ? `&status=${encodeURIComponent(status)}` : ""}`),
   acquisitionIntent: (intentId: string) => readOne<BoAcquisitionIntent>(`acquisition/intents/${encodeURIComponent(intentId)}`),
   createAcquisitionIntent: (body: BoAcquisitionCreateInput, idempotencyKey: string) => write<{ leadId: string; intentId: string; status: "SUBMITTED"; nextStep: "MANUAL_CONTACT" }>("acquisition/intents", body, idempotencyKey),
@@ -410,20 +404,6 @@ export const boApi = {
     const canonicalId = (value: unknown) => typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(value);
     if (!result || !canonicalId(result.studentProfileId) || !canonicalId(result.parentUserId) || !canonicalId(result.guardianRelationshipId) || typeof result.parentReused !== "boolean") {
       throw new BoApiError(502, "Student intake returned an invalid response.", null, false);
-    }
-    return result;
-  },
-  // PAP-1908: Core independently reauthorizes student.intake.create_center at this Center.
-  createStudentIntakeInCenter: async (centerId: string, body: BoStudentIntakeCreateInput, idempotencyKey: string) => {
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(centerId)) {
-      throw new BoApiError(400, "Chọn một cơ sở được cấp quyền trước khi tạo học viên.", null, true);
-    }
-    const result = await write<{ studentProfileId: string; parentUserId: string; guardianRelationshipId: string; parentReused: boolean }>(
-      `student-intakes/center?centerId=${encodeURIComponent(centerId)}`, body, idempotencyKey,
-    );
-    const canonicalId = (value: unknown) => typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(value);
-    if (!result || !canonicalId(result.studentProfileId) || !canonicalId(result.parentUserId) || !canonicalId(result.guardianRelationshipId) || typeof result.parentReused !== "boolean") {
-      throw new BoApiError(502, "Student Center intake returned an invalid response.", null, false);
     }
     return result;
   },

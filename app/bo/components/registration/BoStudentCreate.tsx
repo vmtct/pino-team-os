@@ -5,7 +5,8 @@ import { BoQuickView } from "./BoQuickView";
 import { useBoCenterSelection } from "./BoCenterSelection";
 import { PropertySections, type CreateDrawerField } from "@/app/components/workspace-renderer/Properties";
 import type { BoField, BoModule, BoRecord, BoValue } from "@/lib/bo-registration";
-import { boApi, BoApiError, type BoStudentIntakeCreateInput } from "@/lib/bo-api";
+import { BoApiError, type BoStudentIntakeCreateInput } from "@/lib/bo-api";
+import { studentIntakeCenterApi } from "@/lib/bo-student-intake-center-client";
 import type { BoParentSearchResult } from "@/lib/bo-model";
 
 type ParentResults =
@@ -61,7 +62,7 @@ function BoStudentCreateScoped({ centerId, onClose, onCreated }: {
     let active = true;
     const timer = window.setTimeout(() => {
       setParentResults({ state: "loading" });
-      void boApi.parentsInCenter(centerId, parentQuery, 20).then(data => {
+      void studentIntakeCenterApi.parentsInCenter(centerId, parentQuery, 20).then(data => {
         if (!active) return;
         setParentResults({ state: "ready", centerId, data });
         setSelectedParentId(current => current && data.some(item => item.parent.id === current) ? current : null);
@@ -119,7 +120,7 @@ function BoStudentCreateScoped({ centerId, onClose, onCreated }: {
     setAttempt(currentAttempt);
     busyRef.current = true; setBusy(true); setError(""); setCanResetAttempt(false);
     try {
-      const result = await boApi.createStudentIntakeInCenter(currentAttempt.centerId, currentAttempt.body, currentAttempt.idempotencyKey);
+      const result = await studentIntakeCenterApi.createStudentIntakeInCenter(currentAttempt.centerId, currentAttempt.body, currentAttempt.idempotencyKey);
       if (mountedRef.current) onCreated(result.studentProfileId);
     } catch (cause) {
       if (mountedRef.current) {
