@@ -65,11 +65,11 @@ test("PAP-1646 rejects extra envelope fields, unpublished metadata or private De
 test("PAP-1646 rejects invalid revision, aspect, type, scope, inheritance and non-object data", () => {
   for(const f of [
     (r:Record<string,unknown>)=>{r.appliedRevision=0;},
-    r=>{r.appliedRevision="3";},
-    r=>{r.aspectRatio="9:16";},
-    r=>{r.type="Kiosk";},
-    r=>{r.scope="GLOBAL";},
-    r=>{r.inherited="true";},
+    (r: Record<string, unknown>) =>{r.appliedRevision="3";},
+    (r: Record<string, unknown>) =>{r.aspectRatio="9:16";},
+    (r: Record<string, unknown>) =>{r.type="Kiosk";},
+    (r: Record<string, unknown>) =>{r.scope="GLOBAL";},
+    (r: Record<string, unknown>) =>{r.inherited="true";},
   ]) assert.equal(parsePublishedTvPolicyProjection(mutation(f),baseContext),null);
   for(const value of [null,undefined,[],{},200,{data:null},{data:{}}]) {
     assert.equal(parsePublishedTvPolicyProjection(value,baseContext),null);
@@ -78,9 +78,9 @@ test("PAP-1646 rejects invalid revision, aspect, type, scope, inheritance and no
 test("PAP-1646 rejects unknown config and privacy field shapes", () => {
   for(const change of [
     (config:Record<string,unknown>)=>{config.private="leak";},
-    c=>{c.schemaVersion=2;},
-    c=>{c.visibleContext={name:true};},
-    c=>{c.events={};},
+    (c: Record<string, unknown>) =>{c.schemaVersion=2;},
+    (c: Record<string, unknown>) =>{c.visibleContext={name:true};},
+    (c: Record<string, unknown>) =>{c.events={};},
   ]) {
     const data=valid();change(data.data.configuration as Record<string,unknown>);
     assert.equal(parsePublishedTvPolicyProjection(data,baseContext),null);
@@ -89,10 +89,10 @@ test("PAP-1646 rejects unknown config and privacy field shapes", () => {
 test("PAP-1646 refuses unauthorized, malformed or oversized event rule values", () => {
   for(const ruleChange of [
     (r:Record<string,unknown>)=>{r.priority=-1;},
-    r=>{r.maxAgeSeconds=0;},
-    r=>{r.enabled="true";},
-    r=>{r.suppressInQuietMode=1;},
-    r=>{r.privateStudentName="danger";},
+    (r: Record<string, unknown>) =>{r.maxAgeSeconds=0;},
+    (r: Record<string, unknown>) =>{r.enabled="true";},
+    (r: Record<string, unknown>) =>{r.suppressInQuietMode=1;},
+    (r: Record<string, unknown>) =>{r.privateStudentName="danger";},
   ]) {
     const data=valid();
     const config=data.data.configuration as Record<string,unknown>;
