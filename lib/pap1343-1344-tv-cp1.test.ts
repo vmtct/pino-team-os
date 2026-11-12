@@ -12,9 +12,9 @@ test("PAP-1753 supersedes PAP-1344 physical Station launcher with authorized log
   });
   assert.match(html,/data-tos-vnext-station="desktop"/);
   assert.match(html,/data-pnr-tv-model="logical"/);
-  assert.match(html,/data-pnr-tv-source="awaiting-core"/);
+  assert.match(html,/data-pnr-tv-source="loading"/);
   assert.match(html,/TV tại Center/);
-  assert.match(html,/Chưa có TV khả dụng tại Center này/);
+  assert.match(html,/Đang tải danh sách TV được Core xác thực cho Center/);
   assert.doesNotMatch(html,/data-tos-station-tv-launcher|data-tv-launcher="station"/);
   assert.doesNotMatch(html,/data-pnr-tv-logical-id|data-pnr-tv-model="physical"/);
   // The previous physical TV launcher is still available for unrelated legacy
