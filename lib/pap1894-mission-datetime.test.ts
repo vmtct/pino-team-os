@@ -5,6 +5,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { assignmentFields, assignmentProvider, assignmentQuery } from "../app/bo/missions/schema";
 import { BoValue } from "../app/bo/components/registration/BoValue";
+import type { BoField } from "./bo-registration";
 
 const center="01900000-0000-7000-8000-000000000001";
 const id="01900000-0000-7000-8000-000000000002";
@@ -16,8 +17,11 @@ const row={id,centerId:center,studentId:actor,missionId:id,missionCodeSnapshot:"
   status:"CANCELLED" as const, assignedAt,assignedByUserId:actor,
   updatedAt:cancelledAt,updatedByUserId:actor,cancelledAt,cancelledReason:"Thay nhiệm vụ",version:2};
 const field=(key:"assignedAt"|"cancelledAt")=>assignmentFields.find(f=>f.key===key)!;
-const format=(key:"assignedAt"|"cancelledAt",value:string)=>renderToStaticMarkup(
-  createElement(BoValue,{field:field(key),value}));
+const format=(key:"assignedAt"|"cancelledAt",value:string)=>{
+  const f=field(key);
+  const viewField={key:f.key,label:f.label,type:f.type,icon:f.icon,w:f.width,readonly:f.readOnly} satisfies BoField;
+  return renderToStaticMarkup(createElement(BoValue,{field:viewField,value}));
+};
 const signal=()=>new AbortController().signal;
 
 test("PAP-1894 BO Table/Drawer/Detail use typed PINO datetime metadata without UTC copy",()=>{
