@@ -12,7 +12,7 @@ const timestamp = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:
 const fail = (status = 502): never => { throw new BoApiError(status, "Core Parent projection không hợp lệ.", null); };
 export const nativeParentUuid = (value: string) => UUID.test(value);
 
-export type NativeParentRow = BoRecord & { version: number | null };
+export type NativeParentRow = BoRecord & { version: number | null; centerNames: string[] };
 export type NativeParentContext = ReadonlySet<string>;
 function object(raw: unknown): Record<string, unknown> {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) fail();
@@ -50,6 +50,7 @@ export function projectNativeParent(raw: unknown): NativeParentRow {
     maskedContact: row.maskedContact as string | null,
     studentCount: Number(row.linkedStudentCount),
     centers: (row.centers as string[]).join(", "),
+    centerNames: [...(row.centers as string[])],
     createdAt: clock(row.createdAt), createdBy: actor(row.createdBy),
     updatedAt: clock(row.updatedAt), updatedBy: actor(row.updatedBy),
     attention: row.attention as string | null,

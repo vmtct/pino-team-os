@@ -1,6 +1,7 @@
 "use client";
 import { lazy, Suspense, useEffect, useState, type KeyboardEvent } from "react";
 import { PropertySections } from "@/app/components/workspace-renderer/Properties";
+import { ParentCenterMultiSelect } from "@/app/bo/parents/ParentCenterMultiSelect";
 import { BoTypedEditor } from "./BoTypedEditor";
 import type { BoDataGridColumn } from "../data-grid/BoDataGrid";
 const BoDataGrid = lazy(async () => ({ default: (await import("../data-grid/BoDataGrid")).BoDataGrid })) as unknown as typeof import("../data-grid/BoDataGrid").BoDataGrid;
@@ -40,9 +41,10 @@ function valid(value: unknown, expectedId: string): value is Detail {
    contacts.every(x=>x&&idPattern.test(x.id)&&["PHONE","EMAIL"].includes(x.type)&&typeof x.maskedValue==="string"&&/[•*]/.test(x.maskedValue)&&typeof x.primary==="boolean"&&typeof x.verified==="boolean") &&
    audit.every(x=>x&&idPattern.test(x.id)&&typeof x.at==="string"&&typeof x.action==="string"&&typeof x.outcome==="string"&&typeof x.actorType==="string");
 }
-export function BoParentReadTabs({ module, record, fullDetail = false, canEditName = false, onSaveName }: {
+export function BoParentReadTabs({ module, record, fullDetail = false, canEditName = false, onSaveName, centerNames }: {
   module: BoModule; record: BoRecord; fullDetail?: boolean;
   canEditName?: boolean; onSaveName?: (value: string) => Promise<void>;
+  centerNames?: readonly string[];
 }) {
   const [tab,setTab]=useState<ParentTab>("overview");
   // PAP-1814: native BO DSA name-only popover. Drawer remains read-only.
@@ -81,10 +83,16 @@ export function BoParentReadTabs({ module, record, fullDetail = false, canEditNa
     const next=event.key==="Home"?0:event.key==="End"?tabs.length-1:(index+(event.key==="ArrowRight"?1:-1)+tabs.length)%tabs.length;
     setTab(tabs[next].id);event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus();
   }
-  const overview = <PropertySections variant={fullDetail ? "detail" : "drawer"} fields={module.fields} record={record}
-    sections={[{id:"overview",label:"Thông tin chính",fields:module.fields.map(field=>field.key)}]}
-    canEdit={field=>fullDetail && canEditName && !busy && field.key==="name" && typeof record.version==="number"}
-    onEdit={(field,anchor)=>{if(field.key==="name")setEdit({anchor});}} />;
+  // PAP-1768: exactly one Center field authority in Full Detail; fallback labels are read-only
+  // until the Core source verifies direct/inherited provenance and the actor has an effective grant.
+  const overviewFields=fullDetail&&centerNames ? module.fields.filter(field=>field.key!=="centers") : module.fields;
+  const overview = <>
+    <PropertySections variant={fullDetail ? "detail" : "drawer"} fields={overviewFields} record={record}
+      sections={[{id:"overview",label:"Thông tin chính",fields:overviewFields.map(field=>field.key)}]}
+      canEdit={field=>fullDetail && canEditName && !busy && field.key==="name" && typeof record.version==="number"}
+      onEdit={(field,anchor)=>{if(field.key==="name")setEdit({anchor});}} />
+    {fullDetail&&centerNames&&<ParentCenterMultiSelect fallbackCenterNames={centerNames}/>}
+  </>;
   const navigation = <div className="detail-tabs" role="tablist" aria-label="Parent">{tabs.map((item,index)=><button type="button" role="tab"
       key={item.id} id={"parent-tab-"+item.id} aria-selected={item.id===tab} aria-controls="parent-tab-panel"
       tabIndex={item.id===tab?0:-1} className={"detail-tab"+(item.id===tab?" selected":"")}
