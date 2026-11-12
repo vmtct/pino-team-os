@@ -589,13 +589,14 @@
 .launcherPinerWordmark{display:block;width:clamp(136.5px,41.3%,173.6px);height:auto;max-height:78.4px;object-fit:contain;flex:0 1 auto;margin:0 auto}
 .launcherMockCards{display:flex;flex-direction:column;gap:clamp(13px,2dvh,20px);width:100%;min-width:0}
 .launcherMockCard{position:relative;isolation:isolate;display:block;width:100%;min-width:0;aspect-ratio:1.73;max-height:244px;min-height:166px;overflow:hidden;border-radius:clamp(20px,5vw,27px);border:0;background-color:#faf5ef;background-repeat:no-repeat;background-position:center;background-size:cover;box-shadow:0 9px 26px #765e4811;color:#263140!important;transition:transform .18s ease,box-shadow .18s ease}
-.launcherMockCard::before{content:"";position:absolute;inset:0;z-index:1;background:linear-gradient(90deg,#fffcf5 0%,#fffcf5 6%,rgba(255,252,245,0) 33%);pointer-events:none}
+/* PAP-1891: overlay occupies only left 33% of card; its own first 30% stays solid. */
+.launcherMockCard::before{content:"";position:absolute;top:0;bottom:0;left:0;width:33%;z-index:1;background:linear-gradient(90deg,#fffcf5 0%,#fffcf5 30%,rgba(255,252,245,0) 100%);pointer-events:none}
 .launcherMockCard::after{content:"";position:absolute;inset:0 -10% 0 10%;z-index:0;background-repeat:no-repeat;background-position:center;background-size:cover;pointer-events:none}
 .launcherMockJourney{background-color:#fffcf5}
 .launcherMockJourney::after{background-image:url("https://app.pinohouse.art/piner_journey_background.png");background-position:52% center}
 .launcherMockMytime{background-color:#f0fcf9}
 .launcherMockMytime::after{background-image:url("https://app.pinohouse.art/piner_mytime_background.png");background-position:58% center}
-.launcherMockMytime::before{background:linear-gradient(90deg,#f0fcf9 0%,#f0fcf9 6%,rgba(240,252,249,0) 33%)}
+.launcherMockMytime::before{background:linear-gradient(90deg,#f0fcf9 0%,#f0fcf9 30%,rgba(240,252,249,0) 100%)}
 .launcherMockCardContent{position:relative;z-index:2;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;height:100%;max-width:65%;padding:clamp(12px,3.4vw,23px) 0 clamp(10px,2vw,20px) clamp(16px,5.5vw,27px)}
 .launcherMockTitle{display:block;font-family:ui-rounded,"Arial Rounded MT Bold","Trebuchet MS",Arial,sans-serif;font-size:clamp(28px,7.9vw,39px);font-weight:800;line-height:.98;letter-spacing:-.052em;color:#263140;white-space:nowrap}
 .launcherMockBy{display:block;font-size:.55em;line-height:1.22;letter-spacing:-.035em;font-weight:700;margin:3px 0 0}
