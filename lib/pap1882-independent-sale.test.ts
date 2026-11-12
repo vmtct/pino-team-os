@@ -77,6 +77,8 @@ test("PAP-1882 Create shares DS frame/property rows; feature-scoped Center reade
   assert.match(drawer,/studentCenterApi\.learnerLifecycle\(/);
   assert.match(drawer,/eligibleSalePayers\(/);
   assert.match(drawer,/boApi\.createBillingSale\(/);
+  assert.match(drawer,/readSubscriptionCenterDetail\(sale\.subscriptionId,attempt\.centerId\)/);
+  assert.doesNotMatch(drawer,/boApi\.subscriptionById\(/);
   assert.match(drawer,/assertIndependentSaleReadback\(/);
   assert.match(drawer,/id="pap1882-sale-form"/);
   assert.doesNotMatch(drawer,/placeBulkEnrollments|activateSubscription|finalizeRegistration|renewSubscription/);

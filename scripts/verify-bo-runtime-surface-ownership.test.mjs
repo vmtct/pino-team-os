@@ -98,7 +98,7 @@ test("PAP-1882 disallows removing exact Center/Student/Payer readback proof",()=
  const create=get(createPath),helper=get(helperPath);
  for(const needle of ["payerScope?.centerId===centerId",
     "payerScope.studentId===selected.id","eligibleSalePayers(centerId,selected.id,ctl.signal)",
-    "boApi.createBillingSale(attempt.body,attempt.key)","assertIndependentSaleReadback("]){
+    "boApi.createBillingSale(attempt.body,attempt.key)","readSubscriptionCenterDetail(sale.subscriptionId,attempt.centerId)","assertIndependentSaleReadback("]){
    assert.ok(create.includes(needle),needle);
    const out=verifyBoRuntimeSurfaceOwnership(undefined,{[createPath]:create.replace(needle,"REMOVED")});
    assert.equal(out.ok,false,needle);

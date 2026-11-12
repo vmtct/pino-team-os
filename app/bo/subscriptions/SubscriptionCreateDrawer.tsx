@@ -9,6 +9,7 @@ import { PropertySections, type CreateDrawerField } from "@/app/components/works
 import { useBoCenterSelection } from "@/app/bo/components/registration/BoCenterSelection";
 import { boApi, BoApiError } from "@/lib/bo-api";
 import { studentCenterApi } from "@/lib/bo-student-center-api";
+import { readSubscriptionCenterDetail } from "@/lib/bo-subscription-center-detail-client";
 import type { BoLearnerDirectoryItem, BoPathProgram, BoProductPlan } from "@/lib/bo-model";
 import type { BoField, BoRecord } from "@/lib/bo-registration";
 import { nativeSubscriptionModule } from "@/lib/pap1334-native-subscription-read";
@@ -234,7 +235,7 @@ export function SubscriptionCreateDrawer({initialStudentId,paths,onChanged,onClo
     try{
       // No deferActivation: Core's PAP-1350 Sale activates the independent subscription atomically.
       const sale=await boApi.createBillingSale(attempt.body,attempt.key);
-      const verified=await boApi.subscriptionById(sale.subscriptionId);
+      const verified=await readSubscriptionCenterDetail(sale.subscriptionId,attempt.centerId);
       assertIndependentSaleReadback(attempt.body,sale,verified);
       const confirmedBill=await boApi.billingBill(sale.bill.bill.id);
       if(!confirmedBill.items.some(line=>line.subscriptionId===sale.subscriptionId&&line.studentProfileId===selected.id))

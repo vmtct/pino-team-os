@@ -102,11 +102,12 @@ export function verifyBoRuntimeSurfaceOwnership(root=ROOT,overrides={}) {
         const create=read(createPath),helper=read(helperPath);
         const requiredCreate=["useBoCenterSelection()","studentCenterApi.learners(",
           "studentCenterApi.learnerLifecycle(","eligibleSalePayers(centerId,selected.id,ctl.signal)",
-          "boApi.createBillingSale(attempt.body,attempt.key)","buildIndependentSaleBody(",
+          "boApi.createBillingSale(attempt.body,attempt.key)","readSubscriptionCenterDetail(sale.subscriptionId,attempt.centerId)",
+          "buildIndependentSaleBody(",
           "assertIndependentSaleReadback(","payerScope?.centerId===centerId",
           "payerScope.studentId===selected.id",'data-pap1882-sale="independent"',
           "<DrawerFrame","<PropertySections"];
-        const forbiddenCreate=["placeBulkEnrollments(","activateSubscription(",
+        const forbiddenCreate=["boApi.subscriptionById(","placeBulkEnrollments(","activateSubscription(",
           "renewSubscription(","createSubscription(","deferActivation: true"];
         const requiredHelper=["/api/bo/billing/sales/eligible-payers?",
           "validSaleCenter(","assertIndependentSaleReadback(","actual.centerId !== expected.centerId",
