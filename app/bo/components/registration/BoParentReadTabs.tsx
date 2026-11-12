@@ -86,20 +86,17 @@ export function BoParentReadTabs({ module, record, fullDetail = false, canEditNa
   // PAP-1768: exactly one Center field authority in Full Detail; fallback labels are read-only
   // until the Core source verifies direct/inherited provenance and the actor has an effective grant.
   const overviewFields=fullDetail&&centerNames ? module.fields.filter(field=>field.key!=="centers") : module.fields;
-  const overview = <>
-    <PropertySections variant={fullDetail ? "detail" : "drawer"} fields={overviewFields} record={record}
-      sections={[{id:"overview",label:"Thông tin chính",fields:overviewFields.map(field=>field.key)}]}
-      canEdit={field=>fullDetail && canEditName && !busy && field.key==="name" && typeof record.version==="number"}
-      onEdit={(field,anchor)=>{if(field.key==="name")setEdit({anchor});}} />
-    {fullDetail&&centerNames&&<ParentCenterMultiSelect fallbackCenterNames={centerNames}/>}
-  </>;
+  const overview = <PropertySections variant={fullDetail ? "detail" : "drawer"} fields={overviewFields} record={record}
+    sections={[{id:"overview",label:"Thông tin chính",fields:overviewFields.map(field=>field.key)}]}
+    canEdit={field=>fullDetail && canEditName && !busy && field.key==="name" && typeof record.version==="number"}
+    onEdit={(field,anchor)=>{if(field.key==="name")setEdit({anchor});}} />;
   const navigation = <div className="detail-tabs" role="tablist" aria-label="Parent">{tabs.map((item,index)=><button type="button" role="tab"
       key={item.id} id={"parent-tab-"+item.id} aria-selected={item.id===tab} aria-controls="parent-tab-panel"
       tabIndex={item.id===tab?0:-1} className={"detail-tab"+(item.id===tab?" selected":"")}
       onClick={()=>setTab(item.id)} onKeyDown={event=>keydown(event,index)}>{item.label}</button>)}</div>;
   const panel = <section id="parent-tab-panel" role="tabpanel" aria-labelledby={"parent-tab-"+tab} className="v24-prop-section">
       <Suspense fallback={<div role="status">Đang tải bảng…</div>}>
-      {tab==="overview"?overview:status!=="ready"||!detail?
+      {tab==="overview"?<>{overview}{fullDetail&&centerNames&&<ParentCenterMultiSelect fallbackCenterNames={centerNames}/>}</>:status!=="ready"||!detail?
        <div className="v24-audit-empty" role="status">{status==="loading"?"Đang tải dữ liệu Core…":
          status==="permission"?"Không có quyền xem dữ liệu Parent này.":
          <>Không thể tải dữ liệu. <button type="button" onClick={()=>setRetry(n=>n+1)}>Thử lại</button></>}</div>:
