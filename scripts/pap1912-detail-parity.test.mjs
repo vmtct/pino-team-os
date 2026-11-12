@@ -58,3 +58,9 @@ test("PAP-1912 live-G4 is not silently marked PASS without opt-in",async()=>{
   assert.notEqual(r.status,0);
   assert.match((r.stdout||"")+(r.stderr||""),/PAP1912_LIVE_G4_NOT_AUTHORIZED/);
 });
+test("PAP-1912 actual TOS runtime paths (tos-v4 and staff) reject future unregistered DetailFrame",()=>{
+  const file="app/tos-v4/page.tsx";
+  const newSource=read(file)+"\nconst PAP1912FutureTos=()=> <DetailFrame title=\"Test\" tabs={tabs} selected=\"info\" onSelect={()=>{}}>Test</DetailFrame>;";
+  const failures=audit(ROOT,{overrides:{[file]:newSource}});
+  assert.ok(failures.some(e=>e.includes(file)&&e.includes("unregistered DetailFrame")));
+});

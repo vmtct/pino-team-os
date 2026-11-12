@@ -144,7 +144,7 @@ export function audit(root=ROOT,{overrides={},manifest}={}){
   const legacy=config.grandfatheredLegacyContent??[];
   if(!legacy.every(e=>/^PAP-\d+$/.test(e.jira)&&e.component&&e.reason&&e.maxUses===1))
     errors.push("legacy exceptions require exact one-use Jira + rationale");
-  const allFiles=["app/bo","app/ho","app/tos","app/components/workspace-renderer"].flatMap(d=>files(root,d));
+  const allFiles=["app/bo","app/ho","app/tos","app/tos-v4","app/staff","app/components/workspace-renderer","app/components/tos-ds","app/components/tos-shell"].flatMap(d=>files(root,d));
   if(!allFiles.includes("app/components/workspace-renderer/DetailFrame.tsx"))errors.push("shared DetailFrame missing");
   else errors.push(...checkSharedFrame(src(root,"app/components/workspace-renderer/DetailFrame.tsx",overrides)));
   const found=new Set();
