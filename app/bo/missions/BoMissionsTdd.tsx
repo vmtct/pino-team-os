@@ -232,9 +232,9 @@ function ScopedMissionAssignment({centerId,centerSource,writeLease,setWriteLease
               ["Ngày ghi",formatMissionAuditTime(selectedDiary.registeredAt)],
               ["Giáo viên",selectedDiary.teacherLegalFullName ?? "—"],
               ["Ghi chú",selectedDiary.notes?.trim() || "—"],
-              ["Học viên",selectedDiary.studentId],
-              ["Lớp",selectedDiary.runningClassId ?? "—"],
-              ["Bối cảnh dạy",selectedDiary.teachingContextKey || "—"],
+              ["Học viên","—"], // PAP-1875: Directory name not part of this linked Diary read.
+              ["Lớp","—"], // PAP-1875: class title unavailable, do not display UUID.
+              ["Ngày học",missionContextDay(selectedDiary.teachingContextKey)],
               ["Trạng thái",selectedDiary.status === "CLOSED" ? "Đã đóng" : "Đã ghi"],
               ["Created Time","—"],["Created By","—"],
               ["Last Modified Time",formatMissionAuditTime(selectedDiary.updatedAt)],
@@ -270,6 +270,18 @@ function ScopedMissionAssignment({centerId,centerSource,writeLease,setWriteLease
 }
 
 
+/** PAP-1875 / Epic PAP-1676: redact opaque context identifier, retain only an
+ * independently validated ISO local-date suffix when present.
+ */
+function missionContextDay(key: string): string {
+  const match = /(?:^|:)(\d{4})-(\d{2})-(\d{2})$/.exec(key);
+  if (!match) return "—";
+  const [year, month, day] = match.slice(1).map(Number);
+  const value = new Date(Date.UTC(year, month - 1, day));
+  if (value.getUTCFullYear() !== year || value.getUTCMonth() + 1 !== month ||
+      value.getUTCDate() !== day) return "—";
+  return String(day).padStart(2, "0") + "/" + String(month).padStart(2, "0") + "/" + year;
+}
 /** PAP-1818: content-only related Grid; onRowOpen is handled by parent shared DrawerFrame. */
 function missionLinkedDiaryContent(
  rows: readonly LinkedMissionDiary[], onRowOpen: (row: LinkedMissionDiary) => void,
@@ -286,8 +298,7 @@ function missionLinkedDiaryContent(
       ? row.notes.trim().length > 100 ? row.notes.trim().slice(0, 100) + "…" : row.notes.trim()
       : "—"}</span> },
   { key:"status", header:"Trạng thái", render:(row:LinkedMissionDiary)=>row.status==="CLOSED"?"Đã đóng":"Đã ghi" },
-  { key:"teachingContextKey", header:"Bối cảnh dạy", render:(row:LinkedMissionDiary)=>row.teachingContextKey||"—" },
-  { key:"diaryId", header:"Diary ID", render:(row:LinkedMissionDiary)=>row.diaryId },
+  { key:"teachingContextKey", header:"Ngày học", render:(row:LinkedMissionDiary)=>missionContextDay(row.teachingContextKey) },
  ];
  return <section className="v24-prop-section">
   <h3>Nhật Ký đã liên kết</h3>
