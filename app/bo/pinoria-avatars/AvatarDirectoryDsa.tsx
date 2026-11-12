@@ -8,6 +8,9 @@ import "@pino/design-system/components.css";
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { BoActionButton } from "@pino/design-system/react";
 import { BoDataTable } from "@/app/bo/components/registration/BoDataTable";
+import { BoTypedEditor } from "@/app/bo/components/registration/BoTypedEditor";
+import { BoApiError } from "@/lib/bo-api-error";
+import type { BoField, BoValue } from "@/lib/bo-registration";
 import { BoTableSettings, type BoSavedView } from "@/app/bo/components/registration/BoTableSettings";
 import { useBoCenterSelection } from "@/app/bo/components/registration/BoCenterSelection";
 import { BoApplicationShellContext } from "@/app/bo/shell/BoApplicationShellContext";
@@ -18,6 +21,7 @@ import { defaultTable, type BoRecord, type BoTableState } from "@/lib/bo-registr
 import { avatarModule, avatarSections } from "./avatar-dsa-model";
 import { loadAvatarContext, loadAvatarPage, validAvatarRowId, type AvatarRow, type AvatarPage } from "./avatar-dsa-data";
 import { CreateSelfDrawer } from "./CreateSelfDrawer";
+import { canEditNickname, nicknameInput, patchAvatarNickname, reloadAvatarAfterNickname } from "./avatar-nickname-client";
 import { SelfWardrobeDetail } from "./SelfWardrobeDetail";
 import { SelfLoadoutDetail } from "./SelfLoadoutDetail";
 
@@ -43,25 +47,70 @@ function AvatarDrawer({ record, onClose, onDetail }: {record: AvatarRow; onClose
   </DrawerFrame>;
 }
 type AvatarTab = "overview" | "wardrobe" | "loadout" | "history";
-function AvatarDetail({record,centerId,grants,onBack,onSaved}:{
-  record:AvatarRow;centerId:string;grants:ReadonlySet<string>;onBack:()=>void;onSaved:()=>void
+function AvatarDetail({record,centerId,grants,onBack,onSaved,onRecordLoaded,onStale}:{
+  record:AvatarRow;centerId:string;grants:ReadonlySet<string>;onBack:()=>void;onSaved:()=>void;
+  onRecordLoaded:(row:AvatarRow)=>void;onStale:(message:string)=>void;
 }) {
   const [tab,setTab]=useState<AvatarTab>("overview");
+  const [editor,setEditor]=useState<{field:BoField;anchor:HTMLButtonElement}|null>(null);
+  const [feedback,setFeedback]=useState("");
+  const [pending,setPending]=useState(false);
+  const busy=useRef(false);
+  const controller=useRef<AbortController|null>(null);
+  useEffect(()=>()=>{controller.current?.abort();},[]);
+  const closeEditor=useCallback(()=>{if(!busy.current)setEditor(null);},[]);
+  const saveNickname=useCallback(async(value:BoValue)=>{
+    if(busy.current)return;
+    if(!canEditNickname(record,grants)){setFeedback("Không đủ quyền hoặc thiếu phiên bản Avatar.");return;}
+    let nickname:string|null;
+    try{nickname=nicknameInput(value);}catch(cause){setFeedback(dateSafeError(cause));return;}
+    busy.current=true;setPending(true);setFeedback("Đang lưu và xác minh Nickname từ Core…");
+    const ctl=new AbortController();controller.current=ctl;
+    let patchAccepted=false;
+    try{
+      await patchAvatarNickname(centerId,record,nickname,ctl.signal);
+      patchAccepted=true;
+      const next=await reloadAvatarAfterNickname(centerId,record,ctl.signal);
+      onRecordLoaded(next);setEditor(null);setFeedback("Đã lưu Nickname và đọc lại từ Core.");
+    }catch(cause){
+      if(ctl.signal.aborted)return;
+      if(cause instanceof BoApiError && cause.status===409){
+        try{
+          const current=await reloadAvatarAfterNickname(centerId,record,ctl.signal);
+          onRecordLoaded(current);setEditor(null);setFeedback("Nickname đã thay đổi ở phiên khác. Đã tải lại dữ liệu mới; chưa ghi đè.");
+        }catch{onStale("Không thể xác minh Avatar sau xung đột. Đã đóng Detail để tránh dữ liệu cũ.");}
+      }else if(cause instanceof BoApiError && [401,403,404].includes(cause.status)){
+        onStale(cause.message);
+      }else{
+        // A network/5xx failure may occur after Core accepted the write.
+        // Only a proven pre-write 400 is safe to keep on screen; everything else fails closed.
+        if(!patchAccepted && cause instanceof BoApiError && cause.status===400)
+          setFeedback(cause.message);
+        else onStale("Không thể xác nhận trạng thái Avatar từ Core. Đã đóng Detail để tránh dữ liệu cũ.");
+      }
+    }finally{busy.current=false;setPending(false);controller.current=null;}
+  },[record,centerId,grants,onRecordLoaded,onStale]);
   const tabs: {id:AvatarTab;label:string}[] = [
     {id:"overview",label:"Tổng quan"}, {id:"wardrobe",label:"Tủ đồ"},
     {id:"loadout",label:"Loadout"}, {id:"history",label:"Lịch sử"}
   ];
-  return <DetailFrame title={record.name} subtitle={String(record.pinoriaSelfId ?? record.rowKey ?? "—")}
+  return <><DetailFrame title={record.name} subtitle="Pinoria Avatar"
     tabs={tabs} selected={tab} onSelect={v=>setTab(v as AvatarTab)} onBack={onBack}>
+    {feedback&&<p role="status" data-avatar-nickname-feedback="">{feedback}</p>}
     {tab==="overview" ? <PropertySections variant="detail" fields={avatarModule.fields}
-      record={record} sections={avatarSections}/> :
+      record={record} sections={avatarSections}
+      canEdit={field=>field.key==="nickname" && canEditNickname(record,grants)}
+      onEdit={(field,anchor)=>{if(!pending)setEditor({field:{...field,readonly:false},anchor});}}/> :
     tab==="wardrobe" ? <SelfWardrobeDetail row={record} centerId={centerId} activeTab="wardrobe"
       canView={grants.has("pinoria.self.item.view")} canManage={grants.has("pinoria.self.item.manage")} onSaved={onSaved}/> :
     tab==="loadout" ? <SelfLoadoutDetail row={record} centerId={centerId} activeTab="loadout"
       canView={grants.has("pinoria.self.loadout.view")} canManage={grants.has("pinoria.self.loadout.manage")}
       canViewItems={grants.has("pinoria.self.item.view")} onSaved={onSaved}/> :
       <p role="status" className="v24-audit-empty">Core chưa cung cấp lịch sử sự kiện sở hữu Avatar qua BO; không tạo lịch sử giả.</p>}
-  </DetailFrame>;
+  </DetailFrame>
+  {editor&&tab==="overview"&&<BoTypedEditor field={editor.field} value={record.nickname??""}
+    anchor={editor.anchor} onClose={closeEditor} closeOnSave={false}
+    onSave={value=>{void saveNickname(value);}}/>}</>;
 }
 
 export function AvatarDirectoryDsa() {
@@ -173,10 +222,19 @@ function ScopedAvatarDirectory({centerId,menu}:{centerId:string;menu?:React.Reac
     setDetail(drawer);setDrawer(null);window.history.replaceState(null,"",recordHref(drawer.id));
   };
   const refreshAfterWrite=()=>setRefresh(v=>v+1);
+  const acceptNicknameReadback=useCallback((next:AvatarRow)=>{
+    setDetail(previous=>previous?.id===next.id?next:null);
+    setDrawer(previous=>previous?.id===next.id?next:previous);
+    setRows(previous=>previous.map(row=>row.id===next.id?next:row));
+    setRefresh(v=>v+1);
+  },[]);
+  const failNicknameReadback=useCallback((message:string)=>{
+    setDetail(null);setDrawer(null);setError(message);setRefresh(v=>v+1);
+  },[]);
   const canCreate=grants.has("pinoria.self.create");
   return <>
     {detail ? <AvatarDetail record={detail} centerId={centerId} grants={grants} onBack={exitDetail}
-      onSaved={refreshAfterWrite}/> :
+      onSaved={refreshAfterWrite} onRecordLoaded={acceptNicknameReadback} onStale={failNicknameReadback}/> :
     <section id="list-screen" data-avatar-native-dsa="PAP-1810">
       <div className="page-heading">
         <div className="page-heading-left">{menu}<h1>Pinoria Avatar</h1></div>

@@ -1,4 +1,5 @@
 import {handleBoSelfCreateRequest, type BoSelfCreateEnv} from "@/lib/bo-self-create-handler";
+import {handleBoAvatarNicknameRequest, isBoAvatarNicknamePath, type BoAvatarNicknameEnv} from "@/lib/bo-avatar-nickname-handler";
 import {handleBoBillsRequest,isBoBillsPath} from "@/lib/bo-bills-handler";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { handleBoPublicViewRequest, type BoPublicViewEnv } from "@/lib/bo-public-view-handler";
@@ -24,7 +25,7 @@ import { handleReviewedEnrollmentActivation, REVIEWED_ENROLLMENT_ACTIVATION_PATH
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type BoEnv = BoSubscriptionSpecialtyEnv & BoSelfCreateEnv & BoSelfLoadoutEnv & BoSelfItemEnv & BoMissionWriteEnv & BoMissionCompletionEnv & BoPublicViewEnv & BoReadEnv & BoWriteEnv & BoWorkforcePlanningEnv & BoWorkforceTrainingEnv & BoWorkforceDutyExceptionEnv & BoPayrollReviewEnv & BoPayrollPeriodEnv & ReviewedEnrollmentEnv & BoPracticeMediaEnv & BoSyllabusMediaEnv & BoStaffPrivateEnv & BoWardSetMediaEnv & BoPinoriaWorldMediaEnv;
+type BoEnv = BoAvatarNicknameEnv & BoSubscriptionSpecialtyEnv & BoSelfCreateEnv & BoSelfLoadoutEnv & BoSelfItemEnv & BoMissionWriteEnv & BoMissionCompletionEnv & BoPublicViewEnv & BoReadEnv & BoWriteEnv & BoWorkforcePlanningEnv & BoWorkforceTrainingEnv & BoWorkforceDutyExceptionEnv & BoPayrollReviewEnv & BoPayrollPeriodEnv & ReviewedEnrollmentEnv & BoPracticeMediaEnv & BoSyllabusMediaEnv & BoStaffPrivateEnv & BoWardSetMediaEnv & BoPinoriaWorldMediaEnv;
 type RouteContext = { params: Promise<{ path: string[] }> };
 
 export async function GET(request: Request, context: RouteContext): Promise<Response> {
@@ -76,6 +77,7 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
   const { env } = await getCloudflareContext({ async: true }) as unknown as { env: BoEnv };
   const { path } = await context.params;
   const joined = path.join("/");
+  if (isBoAvatarNicknamePath(joined)) return handleBoAvatarNicknameRequest(request,env,joined);
   if (isBoSubscriptionSpecialtyPath(joined)) return handleBoSubscriptionSpecialtyRequest(request,env,joined);
   if (isBoBillsPath(joined)) return handleBoBillsRequest(request, env, joined);
   if (isBoSelfLoadoutPath(joined)) return handleBoSelfLoadoutRequest(request, env, joined);

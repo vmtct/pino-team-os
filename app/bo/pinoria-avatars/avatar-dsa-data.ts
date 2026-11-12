@@ -43,6 +43,8 @@ export function projectAvatarRow(value: unknown): AvatarRow {
   for (const key of ["personId","pinoriaSelfId","staffMemberId","studentProfileId"]) if (r[key] !== null && (typeof r[key] !== "string" || !uuid.test(r[key]))) invalid();
   if (r.selfStatus !== null && r.selfStatus !== "ACTIVE" && r.selfStatus !== "ARCHIVED") invalid();
   for (const key of ["loadoutVersion","equippedCount"]) if (r[key] !== null && (!Number.isSafeInteger(r[key]) || Number(r[key]) < 0)) invalid();
+  // PAP-1847: never invent the Core Self CAS version. Older rows remain read-only.
+  if (r.selfVersion !== undefined && r.selfVersion !== null && (!Number.isSafeInteger(r.selfVersion) || Number(r.selfVersion) < 1)) invalid();
   // PAP-1779 / PNR-AVATAR-CRUD: no client-side guessed audit, count or actor.
   for (const key of ["ownedCount","createdAt","createdBy","updatedAt","updatedBy"]) if (!Object.hasOwn(r,key)) invalid();
   if (r.ownedCount !== null && (!Number.isSafeInteger(r.ownedCount) || Number(r.ownedCount) < 0)) invalid();
@@ -62,6 +64,7 @@ export function projectAvatarRow(value: unknown): AvatarRow {
     loadoutSummary: r.equippedCount === null ? null : String(r.equippedCount)+"/"+MAX_SELF_SLOTS,
     avatarStatus: r.avatarStatus as string, subjectStatus: r.subjectStatus as string,
     personId: r.personId as string | null, pinoriaSelfId: r.pinoriaSelfId as string | null,
+    selfVersion: (r.selfVersion ?? null) as number | null,
     staffMemberId: r.staffMemberId as string | null, studentProfileId: r.studentProfileId as string | null,
     selfStatus: r.selfStatus as string | null, loadoutVersion: r.loadoutVersion as number | null, equippedCount: r.equippedCount as number | null,
   };
