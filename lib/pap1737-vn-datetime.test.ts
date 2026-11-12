@@ -24,5 +24,5 @@ test("PAP-1737 UTC date rollover is reflected in Vietnam civil date and 24h cloc
 
 test("PAP-1737 date-only and invalid datetime retain safe existing display", () => {
   assert.equal(render("date", "2026-11-09"), "09/11/2026");
-  assert.equal(render("datetime", "invalid-datetime"), "invalid-datetime");
+  assert.equal(render("datetime", "invalid-datetime"), "—");
 });

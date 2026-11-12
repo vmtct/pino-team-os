@@ -26,6 +26,11 @@ jobs:
           bun-version: 1.2.15
       - name: Install dependencies
         run: bun install --frozen-lockfile
+      - name: Enforce PINO_DATETIME_V1 BO/HO/TOS hard gate (PAP-1895)
+        run: |
+          node --test scripts/verify-pino-datetime-gate.test.mjs
+          node scripts/verify-pino-datetime-gate.mjs
+          node --import tsx --test lib/pino-datetime.test.ts lib/pap1737-vn-datetime.test.ts lib/pap1894-mission-datetime.test.ts
       - name: Verify registered TDD Engine contracts + DS CSS (PAP-1532)
         env:
           TDD_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
