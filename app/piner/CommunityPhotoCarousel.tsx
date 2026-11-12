@@ -3,7 +3,6 @@
 // The five illustrations are mock aspect-ratio canvases, NOT uploaded student photos.
 import {useRef,useState,type TouchEvent as ReactTouchEvent,type PointerEvent as ReactPointerEvent,type KeyboardEvent as ReactKeyboardEvent} from "react";
 import {MediaArtwork} from "./MediaArtwork";
-import {PinerLineIcon} from "./PinerLineIcon";
 import type {MediaPost} from "./media";
 import css from "./launcher.module.css";
 
@@ -109,10 +108,6 @@ export function CommunityPhotoCarousel({post}:{post:MediaPost}){
      </div>
      <span className={css.communityCarouselSwipeHint} aria-hidden="true">← Vuốt ngang xem ảnh →</span>
    </div>
-   <button type="button" className={css.communityCarouselPrev} onClick={()=>go(index-1)} disabled={index===0}
-     aria-label={"Ảnh trước · "+post.title}><PinerLineIcon name="chevron"/></button>
-   <button type="button" className={css.communityCarouselNext} onClick={()=>go(index+1)} disabled={index===RATIOS.length-1}
-     aria-label={"Ảnh tiếp theo · "+post.title}><PinerLineIcon name="chevron"/></button>
    <span className={css.communityCarouselCount} aria-live="polite">{index+1} / {RATIOS.length}</span>
  </div>;
 }

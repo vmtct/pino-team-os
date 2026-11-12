@@ -803,25 +803,11 @@
 .communityCarouselDotActive:after{width:17px;height:6px;border-radius:8px;background:#fff}
 .communityCarouselDotActive{width:22px}
 .communityCarouselSwipeHint{font-size:10px;letter-spacing:.06em;color:#f7eff4d8;text-shadow:0 2px 8px #0009;white-space:nowrap}
-.communityCarouselPrev,.communityCarouselNext{
- position:absolute;z-index:3;top:49%;transform:translateY(-50%);
- width:44px;height:44px;display:grid;place-items:center;
- background:#1c132e72;border:1px solid #fff5;backdrop-filter:blur(8px);border-radius:50%;
- color:#fff;cursor:pointer;box-shadow:0 3px 14px #0005;
-}
-.communityCarouselPrev{left:8px}
-.communityCarouselNext{right:82px}
-/* PAP-1909 / PNR-APP-HUB: both carousel chevrons share the Shorts thin-line SVG. */
-.communityCarouselPrev svg,.communityCarouselNext svg{display:block;width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
-.communityCarouselPrev svg{transform:rotate(180deg)}
-.communityCarouselPrev:disabled,.communityCarouselNext:disabled{opacity:.28;cursor:default}
 .communityCarouselCount{position:absolute;z-index:2;top:calc(112px + env(safe-area-inset-top));left:18px;
  background:#1f162c9c;border:1px solid #fff5;border-radius:18px;color:#fff;
  font-size:11px;letter-spacing:.035em;font-weight:800;padding:5px 9px;text-shadow:0 1px 4px #0008}
 @media(max-width:345px){
  .communityCarouselCenter{padding:58px 7px 123px;gap:5px;transform:translateY(-18px)}
- .communityCarouselPrev{left:4px}
- .communityCarouselNext{right:71px}
  .communityCarouselDimensions{font-size:9px}
 }
 @media(max-height:700px){
