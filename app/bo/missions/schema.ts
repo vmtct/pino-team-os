@@ -1,4 +1,4 @@
-import { TddRegistry, type FieldSchema, type ModuleRow, type TableQuery } from "@/lib/workspace-schema";
+import { TddRegistry, type AuthorizationContext, type FieldSchema, type ModuleRow, type TableQuery } from "@/lib/workspace-schema";
 import type { SurfaceDefinition, SurfaceProvider } from "@/lib/workspace-adapters/contracts";
 import { assignmentUuid, readMissionAssignment, readMissionAssignments, type MissionAssignment } from "@/lib/bo-mission-assignments";
 import { readMissionHistory } from "@/lib/mission-history";
@@ -43,6 +43,16 @@ export async function readAuthorizedMissionStudentNames(
 
 const read = { display: true, search: true, filter: true, sort: true, group: true, inlineEdit: false } as const;
 const permission = "student.mission_assignment.view";
+/** PAP-1924 / Epic PAP-1676: sanitized TDD business slots have no hidden
+ * record.center. Use the authorized selected-Center BO context instead;
+ * BO BFF and Core reauthorize each actual scoped GET.
+ */
+export function canReadMissionProjectedSlot(context: AuthorizationContext, assignmentId: string): boolean {
+  return context.surface === "BO" &&
+    assignmentUuid.test(context.centerId) &&
+    assignmentUuid.test(assignmentId) &&
+    context.authorize(permission);
+}
 export const assignmentFields = [
   { key: "name", label: "Nhiệm vụ", type: "text", icon: "Aa", width: 235, permission, readOnly: true, capabilities: read },
   { key: "code", label: "Mã Mission", type: "text", icon: "#", width: 160, permission, readOnly: true, capabilities: read },
