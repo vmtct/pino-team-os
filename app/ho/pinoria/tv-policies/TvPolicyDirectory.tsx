@@ -34,11 +34,15 @@ export function TvPolicyDirectory() {
   const returnFocusRecord = useRef<string | null>(null);
 
   useEffect(() => {
+    let firstSync = true;
     const sync = () => {
       const next = readTvPolicyLocation(window.location.search);
       setLocation(next);
-      if (next.policyId) { setRead(null); setRefresh(n => n + 1); }
-      else requestAnimationFrame(() => {
+      // PAP-1859: reread authorized Core Directory on every return from an
+      // edited Detail, including direct-link Back to Table. Never reuse stale rows.
+      if (next.policyId || !firstSync) { setRead(null); setRefresh(n => n + 1); }
+      firstSync = false;
+      if (!next.policyId) requestAnimationFrame(() => {
         window.scrollTo(0, returnScroll.current.y);
         const table = document.getElementById("table-scroll");
         if (table) table.scrollLeft = returnScroll.current.x;
@@ -109,6 +113,8 @@ export function TvPolicyDirectory() {
       window.history.back();
     } else {
       navigate(listLocation, false);
+      setRead(null);
+      setRefresh(n => n + 1);
       requestAnimationFrame(() => window.scrollTo(0, returnScroll.current.y));
     }
   }
@@ -134,8 +140,10 @@ export function TvPolicyDirectory() {
   const rows = presentHoTvPolicyRows(read?.rows ?? []);
   // IDs are derived from the complete authorized Core Policy Directory, never URL or labels.
   const centerChoices = useMemo(() => read?.status === "ready" ? read.rows
-    .filter(row=>row.scope==="CENTER" && row.id.startsWith("tvp1-center-") && typeof row.center==="string")
-    .map(row=>({id:row.id.slice("tvp1-center-".length),name:String(row.center)})) : [], [read]);
+    .filter(row=>row.id.startsWith("tvp1-center-") &&
+      typeof row.originCenterId==="string" && typeof row.originCenterName==="string" &&
+      row.originCenterId===row.id.slice("tvp1-center-".length))
+    .map(row=>({id:String(row.originCenterId),name:String(row.originCenterName)})) : [], [read]);
   const selected = rows.find(row => row.id === location.policyId) ?? null;
   const recordState = read === null ? "loading" : read.status;
 
