@@ -37,6 +37,10 @@ jobs:
         run: |
           bun run tdd:authority:test
           bun run tdd:authority:check
+      - name: Enforce global TDD Detail Parity P0 (PAP-1912)
+        run: |
+          node --test scripts/pap1912-detail-parity.test.mjs
+          node scripts/pap1912-detail-parity.mjs
       - name: Inventory BO/HO Engine and non-Engine routes (PAP-1532)
         run: |
           node --test scripts/report-tdd-coverage.test.mjs

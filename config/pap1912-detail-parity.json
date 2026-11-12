@@ -1,0 +1,108 @@
+{
+  "schema": "PAP1912_TDD_DETAIL_PARITY_P0_V1",
+  "governance": {
+    "jira": "PAP-1912",
+    "epic": "PAP-1491 — SPEC-UNLOCK",
+    "sop": "PAP-184",
+    "technicalStandard": "PAP-1088",
+    "e2eStandard": "PAP-1055"
+  },
+  "consumers": [
+    {
+      "file": "app/bo/components/BoFullDetail.tsx",
+      "uses": 1,
+      "mode": "href-tabs",
+      "jira": "PAP-1912"
+    },
+    {
+      "file": "app/bo/components/registration/BoFullDetail.tsx",
+      "uses": 2,
+      "mode": "tabbed-and-parent-compat",
+      "jira": "PAP-1912"
+    },
+    {
+      "file": "app/bo/parents/ParentDirectoryDsa.tsx",
+      "uses": 1,
+      "mode": "parent-compat",
+      "jira": "PAP-1384"
+    },
+    {
+      "file": "app/bo/pinoria-avatars/AvatarDirectoryDsa.tsx",
+      "uses": 1,
+      "mode": "tabbed",
+      "jira": "PAP-1705"
+    },
+    {
+      "file": "app/bo/subscriptions/BoSubscriptionSpecialtyTab.tsx",
+      "uses": 1,
+      "mode": "static-single-tab",
+      "jira": "PAP-1491"
+    },
+    {
+      "file": "app/bo/subscriptions/SubscriptionDirectoryDsa.tsx",
+      "uses": 1,
+      "mode": "center-attested-record-url",
+      "jira": "PAP-1907",
+      "tabs": [
+        [
+          "Detail",
+          "Thông tin"
+        ],
+        [
+          "Enrollment",
+          "Enrollment"
+        ],
+        [
+          "Chuyên đề",
+          "Chuyên đề"
+        ],
+        [
+          "Lịch Sử",
+          "Lịch Sử"
+        ]
+      ],
+      "g4": {
+        "surface": "BO",
+        "module": "subscriptions",
+        "authPort": 9335,
+        "route": "/bo?module=subscriptions",
+        "tableSelector": "table tbody tr",
+        "detailSelector": "#detail-screen"
+      }
+    },
+    {
+      "file": "app/ho/pinoria/tv-policies/TvPolicyRecord.tsx",
+      "uses": 1,
+      "mode": "tabbed",
+      "jira": "PAP-1912"
+    },
+    {
+      "file": "app/ho/system/custom-attributes/HoAttributeFullDetail.tsx",
+      "uses": 1,
+      "mode": "tabbed",
+      "jira": "PAP-1665"
+    },
+    {
+      "file": "app/components/workspace-renderer/Record.tsx",
+      "uses": 1,
+      "mode": "tabbed",
+      "jira": "PAP-1077"
+    }
+  ],
+  "grandfatheredLegacyContent": [
+    {
+      "file": "app/bo/components/registration/BoFullDetail.tsx",
+      "component": "BoParentReadTabs",
+      "jira": "PAP-1384",
+      "reason": "Existing Parent adapter retains its own tab shell; cannot be copied for new modules.",
+      "maxUses": 1
+    },
+    {
+      "file": "app/bo/parents/ParentDirectoryDsa.tsx",
+      "component": "BoParentReadTabs",
+      "jira": "PAP-1384",
+      "reason": "Existing Parent adapter exception; new or changed native business-tab Detail must use canonical tablist/panel.",
+      "maxUses": 1
+    }
+  ]
+}
