@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { canReadMissionProjectedSlot } from "./bo-mission-projected-scope";
+import { canReadMissionProjectedSlot } from "../app/bo/missions/schema";
 
 // PAP-1924 — BO Mission Diary/History false-deny from sanitized TDD projection.
 // Epic PAP-1676 — MISSION ASSIGNMENT is keeping this scoped feature-first repair.
@@ -36,10 +36,10 @@ test("PAP-1924 — effective selected-Center BO read is allowed; HO, absent gran
 
 test("PAP-1924 — source uses one read scope, retains Core/BFF checks and no grant bypass", () => {
   const src = readFileSync("app/bo/missions/BoMissionsTdd.tsx", "utf8");
-  const helper = readFileSync("lib/bo-mission-projected-scope.ts", "utf8");
+  const helper = readFileSync("app/bo/missions/schema.ts", "utf8");
   const reader = readFileSync("lib/bo-mission-assignments.ts", "utf8");
   assert.match(src, /const centerId = context\.surface === "BO" \? context\.centerId : null/);
-  assert.match(helper, /context\.authorize\("student\.mission_assignment\.view"\)/);
+  assert.match(helper, /context\.authorize\(permission\)/);
   assert.match(helper, /assignmentUuid\.test\(context\.centerId\)/);
   assert.match(helper, /assignmentUuid\.test\(assignmentId\)/);
   assert.match(reader, /\/api\/bo\/learning\/mission-assignments\//);
