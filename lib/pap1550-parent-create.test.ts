@@ -66,14 +66,14 @@ test("PAP-1550 keeps Core authority for deny; no browser-supplied grant", async 
   assert.equal(forwarded.length, 1);
 });
 
-test("PAP-1550 Parent UI respects TDD header action, named Center and no fake directory entry", () => {
-  const source = readFileSync(new URL("../app/bo/parents/ParentTdd.tsx", import.meta.url), "utf8");
+test("PAP-1550 Parent native UI respects Core-gated Create action, named Center and no fake directory entry", () => {
+  const source = readFileSync(new URL("../app/bo/parents/ParentDirectoryDsa.tsx", import.meta.url), "utf8");
   const drawer = readFileSync(new URL("../app/bo/parents/ParentCreateDrawer.tsx", import.meta.url), "utf8");
-  assert.match(source, /tableHeaderActions=\{current\.adapter\.context\.authorize\("identity\.parent\.create"\)/);
-  assert.match(source, /onClick=\{\(\) => setCreateForCenter\(selected\)\}>\+ Parent<\/button>/);
-  assert.match(source, /context\.authorize\("identity\.parent\.create"\)/);
-  assert.match(source, /<ParentCreateDrawer centerId=\{selected\}/);
-  assert.match(drawer, /UNLINKED_NOT_LISTED|chưa liên kết học viên/);
+  assert.match(source, /authorized&&grants\.has\("identity.parent.create"\)/);
+  assert.match(source, /onClick=\{\(\)=>setCreating\(true\)\}/);
+  assert.match(source, /grants\.has\("identity.parent.create"\)/);
+  assert.match(source, /<ParentCreateDrawer centerId=\{centerId\}/);
+  assert.match(readFileSync(new URL("./bo-parent-create-client.ts", import.meta.url), "utf8"), /directoryVisibility: "CENTER_VISIBLE"/);
   assert.match(drawer, /attemptRef\.current/);
   assert.doesNotMatch(drawer, /fetch\(["']http:/);
 });

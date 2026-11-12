@@ -17,7 +17,7 @@ export type BoParentStandaloneCreateResult = {
   parentUserId: string;
   version: 1;
   createdContactIdentifierIds: string[];
-  directoryVisibility: "UNLINKED_NOT_LISTED";
+  directoryVisibility: "CENTER_VISIBLE";
 };
 
 const CANONICAL_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -47,7 +47,7 @@ export async function createStandaloneParent(
   }
   const result = envelope.data as Partial<BoParentStandaloneCreateResult>;
   if (!result || !CANONICAL_ID.test(String(result.parentUserId)) || result.version !== 1 ||
-      result.directoryVisibility !== "UNLINKED_NOT_LISTED" ||
+      result.directoryVisibility !== "CENTER_VISIBLE" ||
       !Array.isArray(result.createdContactIdentifierIds) ||
       result.createdContactIdentifierIds.length !== body.contacts.length ||
       result.createdContactIdentifierIds.some(id => typeof id !== "string" || !CANONICAL_ID.test(id))) {

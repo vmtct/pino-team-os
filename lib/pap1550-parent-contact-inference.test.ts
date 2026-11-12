@@ -17,8 +17,10 @@ test("Parent Create infers PHONE or EMAIL from one approved contact field", () =
 test("S2 Drawer consumes PINO DS and matches approved i5 2-field manifest", () => {
   const source = readFileSync(new URL("../app/bo/parents/ParentCreateDrawer.tsx", import.meta.url), "utf8");
   assert.match(source, /<DrawerFrame title="Tạo phụ huynh" path="School · Parents & Guardians"/);
-  assert.match(source, /<label[^>]*>Họ và tên \*<\/label>/);
-  assert.match(source, /<label[^>]*>Điện thoại hoặc email \*<\/label>/);
+  assert.match(source, /<PropertySections variant="drawer"/);
+  assert.match(source, /fields=\{drawerFields\}/);
+  assert.match(source, /createFields=\{\{/);
+  assert.doesNotMatch(source, /<label className="property-row"/);
   assert.match(source, /identifierType: inferredType!/);
   assert.match(source, /inferParentContactType\(contactValue\)/);
   assert.match(source, /BoActionButton variant="primary"/);

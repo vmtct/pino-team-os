@@ -7,7 +7,7 @@ const center="0198d050-56c1-7ac5-b9ab-b0e45d912345";
 const parentId="0198d050-56c1-7ac5-b9ab-b0e45d954321";
 const contactId="0198d050-56c1-7ac5-b9ab-b0e45d966666";
 const body:BoParentStandaloneCreateInput={displayName:"Parent One",contacts:[{identifierType:"EMAIL",value:"parent@example.invalid",isPrimary:true}]};
-const result={parentUserId:parentId,version:1,createdContactIdentifierIds:[contactId],directoryVisibility:"UNLINKED_NOT_LISTED"};
+const result={parentUserId:parentId,version:1,createdContactIdentifierIds:[contactId],directoryVisibility:"CENTER_VISIBLE"};
 
 test("PAP-1550 client sends selected Center, key and only canonical Parent data",async()=>{
   const seen: Array<{url:string;init?:RequestInit}>=[];

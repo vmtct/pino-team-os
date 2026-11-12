@@ -1,8 +1,8 @@
 /** Compatibility-only BO ?module=subscriptions URL until the approved /bo/subscriptions/:id route is admitted. */
-export type SubscriptionDetailTab = "Detail" | "Enrollment" | "Lịch Sử";
+export type SubscriptionDetailTab = "Detail" | "Enrollment" | "Chuyên đề" | "Lịch Sử";
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const tabs:Record<string,SubscriptionDetailTab>={overview:"Detail",enrollment:"Enrollment",history:"Lịch Sử"};
-const slugs:Record<SubscriptionDetailTab,string>={Detail:"overview",Enrollment:"enrollment","Lịch Sử":"history"};
+const tabs:Record<string,SubscriptionDetailTab>={overview:"Detail",enrollment:"Enrollment",specialty:"Chuyên đề",history:"Lịch Sử"};
+const slugs:Record<SubscriptionDetailTab,string>={Detail:"overview",Enrollment:"enrollment","Chuyên đề":"specialty","Lịch Sử":"history"};
 export function readSubscriptionDetailRoute(search:string){
   const p=new URLSearchParams(search);
   const raw=p.get("record");

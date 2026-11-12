@@ -2,6 +2,7 @@ import { TddRegistry, type FieldSchema, type TableQuery } from "@/lib/workspace-
 import type { ApprovalVerifier } from "@/lib/workspace-schema/registry";
 import type { SurfaceDefinition, SurfaceProvider } from "@/lib/workspace-adapters/contracts";
 import { BoApiError } from "@/lib/bo-api-error";
+import { readSpecialtyHistory } from "@/lib/ho-specialty-v2-history-client";
 import type { ModuleRow } from "@/lib/workspace-schema";
 import { readSpecialtyV2List,readSpecialtyV2Detail,readSpecialtyV2PathOptions,type SpecialtyV2Summary,type SpecialtyV2Detail,type SpecialtyV2PathOption } from "@/lib/ho-specialty-v2-reader";
 
@@ -25,7 +26,7 @@ const specialtyBaseFields = [
 export const specialtyFields = Object.freeze(specialtyBaseFields.map(field => ({...field,permission,readOnly:true,capabilities:read}))) satisfies readonly FieldSchema[];
 type F = typeof specialtyFields;
 const keys = specialtyFields.map(field => field.key);
-const sections = [{id:"specialty",label:"Chuyên đề",fields:keys}];
+const sections = [{id:"specialty",label:"Thông tin chính",fields:keys}];
 export const specialtyQuery: TableQuery<F> = {
   search:"",filters:{logic:"AND",rules:[]},sort:{field:"name",direction:"asc"},group:null,
   order:["name","path","status","levelCount","prerequisiteView","tagView","missionCount","createdTime","createdBy","lastModifiedTime","lastModifiedBy","description"],
@@ -33,7 +34,7 @@ export const specialtyQuery: TableQuery<F> = {
 };
 export const specialtyDefinition = {
   version:1,classification:"TDD_DEFAULT",surface:"HO",key:"specialties",label:"Chuyên đề",group:"Learning",
-  fields:specialtyFields,capabilities:{read:permission},
+  fields:specialtyFields,capabilities:{read:permission,history:permission},
   table:{
     identity:{field:"name",pinned:"left",hideable:false,reorderable:false},
     columns:specialtyFields.map(field=>({field:field.key,visible:field.key!=="description"})),
@@ -122,6 +123,15 @@ export const specialtyProvider: SurfaceProvider<F> = {
     const prerequisites=s.prerequisiteIds.length?await readSpecialtyV2List(fetcher,signal):[];
     return {row:detailRow(s,paths,prerequisites),version:String(s.version)};
   },
+  /** PAP-1732 / S1L-A: existing TDD History renderer; verified Core event source only. */
+  history:{subjectType:"learning_specialty_v2",bind:(fetcher,scope)=>({
+    kind:"provider",source:{adapter:"ho.specialty-v2.lifecycle-history",permission},
+    load:(subject,context,cursor,signal)=>{
+      if(scope.surface!=="HO"||context.surface!=="HO"||subject.type!=="learning_specialty_v2")
+        return Promise.resolve({status:"denied" as const});
+      return readSpecialtyHistory(fetcher,subject,cursor,signal);
+    }
+  })},
 };
 
 /** PAP-1495: explicit route admission schema; runtime uses authenticated adapter. */

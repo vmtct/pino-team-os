@@ -1,4 +1,5 @@
 "use client";
+import { LocalizedModuleTitle } from "@/lib/pino-nav-locale-context";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -116,7 +117,7 @@ export function DutyExceptionsView() {
 
   return <main className={styles.page}>
     <header className={styles.header}>
-      <div><span>Back Office · Workforce</span><h1>Duty Exceptions</h1><p>Manager review cho checkout exception; source duties vẫn giữ nguyên authority.</p></div>
+      <div><span>Back Office · Workforce</span><h1><LocalizedModuleTitle label="Duty Exceptions" moduleKey="workforce/duty-exceptions" /></h1><p>Manager review cho checkout exception; source duties vẫn giữ nguyên authority.</p></div>
     </header>
     {notice ? <div className={styles.notice}>{notice}</div> : null}
 

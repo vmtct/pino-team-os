@@ -75,13 +75,18 @@ test("PAP-1207 S2 Create Drawer has one Path picker, four real options, no paper
   assert.match(html, /value="—"/);
   assert.match(html, /value="ACTIVE"[^>]*selected/);
 });
-test("PAP-1207 S2 Edit remains legacy until Founder S5, does not silently mutate hidden Core links", () => {
+test("PAP-1207 S5 Edit supersedes old S2 legacy exposure, retains approved fields and hides Core links", async () => {
+  const choices = await loadMissionPathChoices(source().fetcher);
   const html = renderToStaticMarkup(createElement(MissionCreateFields, {
     value: emptyMission, setValue: () => undefined, disabled: false, editing: true,
+    pathChoices: choices, pathState: "ready",
   }));
-  assert.match(html, /Khổ giấy/);
-  assert.match(html, /Prerequisite Mission ID/);
-  assert.match(html, /Path Program ID/);
+  assert.match(html, /<select[^>]*aria-label="Path"/);
+  for (const raw of ["Khổ giấy", "Prerequisite Mission ID", "Path Program ID", "Path Code Snapshot"])
+    assert.doesNotMatch(html, new RegExp(raw));
+  const status = html.match(/<span>Trạng thái<\/span>(.*?)<\/label>/)?.[1] ?? "";
+  assert.match(status, /<input[^>]*readOnly/);
+  assert.match(status, /disabled/);
   assert.doesNotMatch(html, /data-mission-create-audit/);
 });
 

@@ -1,4 +1,5 @@
 "use client";
+import { LocalizedModuleTitle } from "@/lib/pino-nav-locale-context";
 
 import { useEffect, useState } from "react";
 import bo from "../bo.module.css";
@@ -174,7 +175,7 @@ export function PinoriaActivitiesView() {
   return <div className={bo.page}>
     <header className={bo.heading}>
       <span>PINORIA · STAGING CONFIG</span>
-      <h1>Pinoria Activities</h1>
+      <h1><LocalizedModuleTitle label="Activity" moduleKey="pinoria-activities" /></h1>
       <p>Định nghĩa hoạt động trong BO. TOS chỉ đọc eligibility/action từ Core; handler hiện có Wish Draw, Egg Hatch và Companion Ritual.</p>
     </header>
     <section className={bo.metrics}>

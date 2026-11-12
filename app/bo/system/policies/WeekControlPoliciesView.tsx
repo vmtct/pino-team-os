@@ -1,4 +1,5 @@
 "use client";
+import { LocalizedModuleTitle } from "@/lib/pino-nav-locale-context";
 
 import { useEffect, useMemo, useState } from "react";
 import { boApi, type WorkforceWindowPolicyInspection, type WorkforcePolicyTarget, type WorkforceWindowPolicyKey, type WorkforceWindowPolicyValue } from "@/lib/bo-api";
@@ -57,7 +58,7 @@ export function WeekControlPoliciesView() {
 
   const canEdit = scope === "GLOBAL" ? Boolean(bootstrap?.canManageGlobalPolicy) : Boolean(center?.canManageCenterPolicy);
   return <section className={styles.page}>
-    <header className={styles.heading}><span>Back Office · System</span><h1>Policies</h1><p>Cấu hình cửa sổ đăng ký Staff và chốt xếp ca. CENTER override ưu tiên GLOBAL default.</p></header>
+    <header className={styles.heading}><span>Back Office · System</span><h1><LocalizedModuleTitle label="Policies" moduleKey="system/policies" /></h1><p>Cấu hình cửa sổ đăng ký Staff và chốt xếp ca. CENTER override ưu tiên GLOBAL default.</p></header>
     <section className={styles.panel}><div className={styles.plannerFilters}>
       {bootstrap?.canManageGlobalPolicy ? <label className={styles.field}>Scope<select value={scope} onChange={(event) => setScope(event.target.value as "GLOBAL" | "CENTER")}><option value="GLOBAL">GLOBAL default</option><option value="CENTER">CENTER override</option></select></label> : null}
       {scope === "CENTER" ? <label className={styles.field}>Center<select value={centerId} onChange={(event) => setCenterId(event.target.value)}>{bootstrap?.centers.map((item) => <option key={item.id} value={item.id}>{item.displayName}</option>)}</select></label> : null}

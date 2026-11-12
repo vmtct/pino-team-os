@@ -1,4 +1,5 @@
 "use client";
+import { LocalizedModuleTitle } from "@/lib/pino-nav-locale-context";
 import {useCallback,useEffect,useMemo,useState} from 'react';
 import {BoDataGrid,BoDataGridCanonicalId,BoDataGridSidePeek,BoDataGridStatus,type BoDataGridColumn} from '@/app/bo/components/data-grid';
 import {BoApiError} from '@/lib/bo-api';
@@ -45,7 +46,7 @@ export function MissionCatalogView(){
  function edit<K extends keyof BoMissionDraft>(key:K,value:BoMissionDraft[K]){setForm(old=>({...old,[key]:value}));}
  const totalLowerBound=(page-1)*PAGE_SIZE+rows.length+(hasMore?1:0);
  return <main className={styles.page}>
-  <header><span className={styles.eyebrow}>Back Office · Learning</span><h1>Mission Catalog</h1><p>Canonical Mission definitions. Registration and completion evidence are recorded separately in TOS Classroom Diary; editing this catalog never grants PLS.</p></header>
+  <header><span className={styles.eyebrow}>Back Office · Learning</span><h1><LocalizedModuleTitle label="Missions" moduleKey="missions" /></h1><p>Canonical Mission definitions. Registration and completion evidence are recorded separately in TOS Classroom Diary; editing this catalog never grants PLS.</p></header>
   {notice?<p role="status" className={styles.notice}>{notice}</p>:null}
   <BoDataGrid rows={rows} rowKey={r=>r.id} columns={columns} caption="Learning · Mission definitions"
    state={loading?'loading':error?'error':'ready'} stateMessage={error||undefined}

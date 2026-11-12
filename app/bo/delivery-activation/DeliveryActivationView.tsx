@@ -1,4 +1,5 @@
 "use client";
+import { LocalizedModuleTitle } from "@/lib/pino-nav-locale-context";
 
 import { useEffect, useMemo, useState } from "react";
 import { boApi, BoApiError } from "@/lib/bo-api";
@@ -252,7 +253,7 @@ export function DeliveryActivationView() {
   return (
     <div className={styles.page}>
       <header className={styles.heading}>
-        <span>PINO CORE · SLICE F3</span><h1>Delivery activation</h1>
+        <span>PINO CORE · SLICE F3</span><h1><LocalizedModuleTitle label="Activation" moduleKey="delivery-activation" /></h1>
         <p>Founder-authenticated production setup. Nothing is inferred from prototypes, marketing schedules, room layout, or subscription counts. Each operational value below becomes canonical only when you explicitly submit it.</p>
       </header>
 

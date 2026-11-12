@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import {build} from "esbuild";
 import {createServer} from "node:http";
 import {readFileSync} from "node:fs";
+import {createRequire} from "node:module";
+const requirePinoDs=createRequire(import.meta.url);
 import {resolve} from "node:path";
 import {chromium} from "@playwright/test";
 
@@ -21,7 +23,7 @@ test("PAP-1463 actual controlled drawer preserves unknown draft, focus and ident
       centers={[{id:"018e6b98-fcc3-7ef2-a1e1-63fbadc82130",name:"QA Center"}]} createOpen={open} onCreateClose={()=>setOpen(false)} onSaved={()=>setSaved(n=>n+1)}/></>;
    }createRoot(document.getElementById("root")!).render(<Harness/>);`,
  }});
- const css=readFileSync(resolve("node_modules/@pino/design-system/dist/0.3.0/components.css"),"utf8");
+ const css=readFileSync(requirePinoDs.resolve("@pino/design-system/components.css"), "utf8");
  const server=createServer((req,res)=>{
   if(req.url==="/bundle.js"){res.setHeader("content-type","text/javascript");res.end(bundle.outputFiles[0]!.text);}
   else if(req.url==="/ds.css"){res.setHeader("content-type","text/css");res.end(css);}

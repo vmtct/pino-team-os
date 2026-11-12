@@ -26,12 +26,21 @@ jobs:
           bun-version: 1.2.15
       - name: Install dependencies
         run: bun install --frozen-lockfile
+      - name: Enforce PINO_DATETIME_V1 BO/HO/TOS hard gate (PAP-1895)
+        run: |
+          node --test scripts/verify-pino-datetime-gate.test.mjs
+          node scripts/verify-pino-datetime-gate.mjs
+          node --import tsx --test lib/pino-datetime.test.ts lib/pap1737-vn-datetime.test.ts lib/pap1894-mission-datetime.test.ts
       - name: Verify registered TDD Engine contracts + DS CSS (PAP-1532)
         env:
           TDD_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
           bun run tdd:authority:test
           bun run tdd:authority:check
+      - name: Enforce global TDD Detail Parity P0 (PAP-1912)
+        run: |
+          node --test scripts/pap1912-detail-parity.test.mjs
+          node scripts/pap1912-detail-parity.mjs
       - name: Inventory BO/HO Engine and non-Engine routes (PAP-1532)
         run: |
           node --test scripts/report-tdd-coverage.test.mjs
@@ -74,6 +83,16 @@ jobs:
           node --import tsx --test lib/bo-css-authority.test.ts lib/ho-css-authority.test.ts lib/bo-registration-styles.test.ts lib/bo-skeleton.test.ts
           node --test scripts/pap1029-parent-full-detail-layout.test.mjs
           echo "BROWSER_E2E=NOT_RUN_FOUNDER_POLICY"
+      - name: Fail-closed browser control geometry + negative CSS (PAP-1461)
+        run: node scripts/pap1461-visual-ci.mjs
+      - name: Retain PAP-1461 G3 control evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pap1461-g3-control-geometry
+          path: test-results/pap1461/
+          if-no-files-found: warn
+          retention-days: 7
       - name: Release confidence smoke and recovery regression tests
         run: node --test scripts/release-confidence-smoke.test.mjs scripts/release-confidence-guard.test.mjs
       - name: Build

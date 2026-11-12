@@ -18,10 +18,12 @@ export const HO_PAGE_PATHS = {
   wardrobeSets: "/ho/pinoria/wardrobe-sets",
   effects: "/ho/pinoria/effects",
   tvPolicies: "/ho/pinoria/tv-policies",
+ customAttributes: "/ho/system/custom-attributes",
   users: "/ho/system/users",
   roles: "/ho/system/roles",
   audits: "/ho/system/audit",
   tddReference: "/ho/system/tdd-reference",
+  languageMappings: "/ho/language-mappings",
 } as const;
 export const HO_HOME_PATH = HO_PAGE_PATHS.centers;
 const approved = new Set<string>(["/ho",...Object.values(HO_PAGE_PATHS)]);

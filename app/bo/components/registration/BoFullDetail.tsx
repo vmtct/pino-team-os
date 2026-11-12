@@ -13,6 +13,8 @@ import { BoParentReadTabs } from "./BoParentReadTabs";
 import { BoPayrollPeriodDetail } from "./BoPayrollPeriodDetail";
 import { BoStaffIncomeReadTab } from "./BoStaffIncomeReadTab";
 import { BoWorkforceRegistrationEditor } from "./BoWorkforceRegistrationEditor";
+import { BoStudentNameInlineCell } from "./BoStudentNameInlineCell";
+import { useBoCenterSelection } from "./BoCenterSelection";
 const BoSubscriptionEnrollmentTab = lazy(async () => {
   // Node SSR of Detail must not eagerly import the DataGrid CSS module.
   // S3 Enrollment is loaded only when its tab is opened.
@@ -25,6 +27,10 @@ const BoWorkforcePlannerTab = lazy(async () => {
 });
 // PAP-1496 / SPEC-UNLOCK: one canonical Student Full Detail on /bo,
 // not the deliberately retired /bo/learners Staging route.
+const BoSubscriptionSpecialtyTab = lazy(async () => {
+  const {BoSubscriptionSpecialtyTab} = await import("@/app/bo/subscriptions/BoSubscriptionSpecialtyTab");
+  return {default:BoSubscriptionSpecialtyTab};
+});
 const BoStudentSpecialtyTab = lazy(async () => {
   const { StudentSpecialtyTab } = await import("@/app/bo/learners/StudentSpecialtyTab");
   return { default: StudentSpecialtyTab };
@@ -32,13 +38,14 @@ const BoStudentSpecialtyTab = lazy(async () => {
 import type { BoModule, BoRecord } from "@/lib/bo-registration";
 
 export function BoFullDetail({
-  module, moduleKey, record, onBack, onStudentNeutralized, mobileMenu, enableStudentSubscriptions = false, onEnrollmentChanged, onWorkforcePlanChanged, initialTab, onTabChanged,
+  module, moduleKey, record, onBack, onStudentNeutralized, onStudentRenamed, mobileMenu, enableStudentSubscriptions = false, onEnrollmentChanged, onWorkforcePlanChanged, initialTab, onTabChanged,
 }: {
   module: BoModule;
   moduleKey: string;
   record: BoRecord;
   onBack: () => void;
   onStudentNeutralized?: () => void;
+  onStudentRenamed?: (nextName: string) => void;
   mobileMenu: React.ReactNode;
   enableStudentSubscriptions?: boolean;
   onEnrollmentChanged?: () => void;
@@ -46,6 +53,9 @@ export function BoFullDetail({
   initialTab?: string;
   onTabChanged?: (tab: string) => void;
 }) {
+  const center = useBoCenterSelection();
+  const centerId = center?.selected ?? "";
+  const centerReady = Boolean(centerId) && !center?.loading && !center?.error && Boolean(center?.centers.some(item => item.id === centerId));
   const [tab, setTab] = useState(initialTab ?? "Detail");
   useEffect(() => { setTab(initialTab ?? "Detail"); }, [initialTab]);
   const [voidOpen, setVoidOpen] = useState(false);
@@ -59,7 +69,7 @@ export function BoFullDetail({
     : moduleKey === "staffs"
     ? ["Detail", "Thu nhập", "Lịch Sử"]
     : moduleKey === "subscriptions"
-    ? ["Detail", "Enrollment", "Lịch Sử"]
+    ? ["Detail", "Enrollment", "Chuyên đề", "Lịch Sử"]
     : moduleKey === "students" && enableStudentSubscriptions
     ? ["Detail", "Subscription", "Chuyên đề", "Lịch Sử"]
     : ["Detail", "Lịch Sử"];
@@ -103,6 +113,9 @@ export function BoFullDetail({
                 <div className="v24-prop-grid">
                   {module.fields.map(field => moduleKey === "workforce-shift-plans" && field.key === "registrationOpen"
                     ? <BoWorkforceRegistrationEditor key={field.key} record={record} onSaved={open => onWorkforcePlanChanged?.(open)} />
+                    : moduleKey === "students" && field.key === "name" && onStudentRenamed
+                      ? <BoStudentNameInlineCell key={record.id + ":" + centerId} studentId={record.id}
+                          displayName={record.name} centerId={centerId} centerReady={centerReady} onSaved={onStudentRenamed} />
                     : <div className="v24-prop-item" key={field.key}>
                     <div className="v24-prop-key"><span className="v24-field-glyph">{field.icon}</span>{field.label}</div>
                     <div className="v24-prop-value readonly" aria-label={"Chỉ đọc " + field.label}>
@@ -122,6 +135,10 @@ export function BoFullDetail({
                 ? <BoRunningClassEnrollment runningClassId={record.id} className={record.name} pathName={typeof record.path === "string" ? record.path : "—"} centerTimeZone={typeof record.centerTimeZone === "string" ? record.centerTimeZone : null} />
               : activeTab === "Enrollment" && moduleKey === "subscriptions"
                 ? <Suspense fallback={<div role="status" className="v24-audit-empty">Đang tải Enrollment…</div>}><BoSubscriptionEnrollmentTab subscriptionId={record.id} onChanged={onEnrollmentChanged} /></Suspense>
+              : activeTab === "Chuyên đề" && moduleKey === "subscriptions"
+                ? <Suspense fallback={<div role="status" className="v24-audit-empty">Đang tải Chuyên đề…</div>}>
+                    <BoSubscriptionSpecialtyTab key={record.id + ":" + centerId} subscriptionId={record.id} centerId={centerId} centerReady={centerReady}/>
+                  </Suspense>
               : subjectType
                   ? <BoRegistrationHistory key={record.id} subjectType={subjectType} subjectId={record.id} />
                   : <div className="v24-audit-empty" role="status">Lịch sử chưa khả dụng.</div>}

@@ -94,25 +94,35 @@ function assertActive(record: TosMissionAssignmentRecord, scope: TosMissionAssig
 export async function loadAssignmentsInOccurrence(
   api: CoreAssignmentApi, scope: TosMissionAssignmentScope,
 ): Promise<readonly TosMissionAssignmentRecord[]> {
-  // Core list is student+center-wide; filter exact teachingContextKey before UI.
-  const all = await api.list({ ...scope, status: "ASSIGNED", limit: 100, offset: 0 });
-  if (all.length === 100) {
-    return invalid("MISSION_ASSIGNMENT_PAGE_INCOMPLETE",
-      "Không thể hiển thị đầy đủ Nhiệm vụ; cần tải trang tiếp theo.", 409);
-  }
+  // PAP-1488: Core list is student+center-wide, ordered by assignedAt/id.
+  // Fetch every bounded page before projecting exact teachingContextKey to the UI.
+  // Never render a partial result when a later page fails or exceeds Core's
+  // maximum offset 10000; duplicate IDs also fail closed across page boundaries.
+  const result: TosMissionAssignmentRecord[] = [];
   const byId = new Set<string>();
-  return all.filter((record) => {
-    if (record.centerId !== scope.centerId || record.studentId !== scope.studentId) {
-      return invalid("MISSION_ASSIGNMENT_SOURCE_MISMATCH", "Dữ liệu Nhiệm vụ sai cơ sở.", 502);
+  for (let offset = 0; offset <= 10000; offset += 100) {
+    const page = await api.list({ ...scope, status: "ASSIGNED", limit: 100, offset });
+    if (!Array.isArray(page) || page.length > 100) {
+      return invalid("MISSION_ASSIGNMENT_PAGE_INCOMPLETE",
+        "Không thể hiển thị đầy đủ Nhiệm vụ; cần tải trang tiếp theo.", 409);
     }
-    if (byId.has(record.id)) return invalid("MISSION_ASSIGNMENT_DUPLICATE_ID", "Nhiệm vụ bị lặp ID.", 502);
-    byId.add(record.id);
-    // Records at another dated occurrence may exist for the same student;
-    // they must not render as today's Assignment.
-    if (record.contextKey !== scope.teachingContextKey) return false;
-    verify(record, scope, { status: "ASSIGNED" });
-    return true;
-  });
+    for (const record of page) {
+      if (record.centerId !== scope.centerId || record.studentId !== scope.studentId) {
+        return invalid("MISSION_ASSIGNMENT_SOURCE_MISMATCH", "Dữ liệu Nhiệm vụ sai cơ sở.", 502);
+      }
+      if (byId.has(record.id)) {
+        return invalid("MISSION_ASSIGNMENT_DUPLICATE_ID", "Nhiệm vụ bị lặp ID.", 502);
+      }
+      byId.add(record.id);
+      // Other dated occurrences may belong to the same student; never render them.
+      if (record.contextKey !== scope.teachingContextKey) continue;
+      verify(record, scope, { status: "ASSIGNED" });
+      result.push(record);
+    }
+    if (page.length < 100) return result;
+  }
+  return invalid("MISSION_ASSIGNMENT_PAGE_INCOMPLETE",
+    "Không thể hiển thị đầy đủ Nhiệm vụ; cần tải trang tiếp theo.", 409);
 }
 
 /** Create only Assignment. Never create Diary or a DiaryMission child. */

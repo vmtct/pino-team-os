@@ -1,21 +1,28 @@
 "use client";
 
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { BoActionButton } from "@pino/design-system/react";
 import { DrawerFrame } from "@/app/components/workspace-renderer/DrawerFrame";
+import { PropertySections } from "@/app/components/workspace-renderer/Properties";
+import { parentNativeCreateSections, parentNativeFields } from "./parent-native-model";
+import type { BoRecord } from "@/lib/bo-registration";
+
 import { BoApiError } from "@/lib/bo-api-error";
 import { createStandaloneParent, inferParentContactType, type BoParentStandaloneCreateInput, type BoParentStandaloneCreateResult } from "@/lib/bo-parent-create-client";
 
 type Attempt = { body: BoParentStandaloneCreateInput; key: string; centerId: string };
+// PAP-1814: native Create and View share the exact PINO DSA field manifest.
+const drawerFields = parentNativeFields;
 function failureMessage(error: unknown) {
   return error instanceof Error && error.message ? error.message : "Không thể tạo phụ huynh.";
 }
 
 /** PAP-1550: Create is a workflow inside the existing BO DS drawer frame, not a second shell. */
 export function ParentCreateDrawer({
-  centerId, onClose, onCreated,
-}: { centerId: string; onClose: () => void; onCreated: (result: BoParentStandaloneCreateResult) => void }) {
+  centerId, centerName, onClose, onCreated,
+}: { centerId: string; centerName?: string; onClose: () => void; onCreated: (result: BoParentStandaloneCreateResult) => void }) {
   const inFlight = useRef(false);
+  const nameInputRef = useRef<HTMLInputElement>(null);
   const attemptRef = useRef<Attempt | null>(null);
   const [name, setName] = useState("");
   const [contactValue, setContactValue] = useState("");
@@ -23,8 +30,19 @@ export function ParentCreateDrawer({
   const [error, setError] = useState("");
   const [locked, setLocked] = useState(false);
   const [canEdit, setCanEdit] = useState(false);
+  // PAP-1722: after DrawerFrame's shared focus trap initializes, restore the
+  // Founder-approved prototype's initial field focus. Keep shared dialog
+  // policy unchanged so the original invoker receives focus on close.
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => nameInputRef.current?.focus());
+    return () => cancelAnimationFrame(frame);
+  }, []);
   const uncertain = locked && !!error && !canEdit;
   const dirty = !!name.trim() || !!contactValue.trim();
+  const draft: BoRecord = {
+    id: "", name, maskedContact: null, studentCount: 0,
+    centers: centerName ?? "Cơ sở hiện tại", updatedAt: null, attention: null,
+  };
 
   function closeIfSafe() {
     if (inFlight.current || uncertain) return;
@@ -72,14 +90,15 @@ export function ParentCreateDrawer({
       <BoActionButton variant="primary" type="submit" form="parent-create-form" disabled={busy}>{busy ? "Đang tạo…" : locked ? "Thử lại cùng yêu cầu" : "Tạo Parent"}</BoActionButton>
     </>}>
     <form id="parent-create-form" onSubmit={event => void submit(event)}>
-      <section className="property-section">
-        <h3>Thông tin phụ huynh</h3>
-        <div className="property-row"><label className="property-label" htmlFor="parent-create-name">Họ và tên *</label>
-          <div className="property-control"><input id="parent-create-name" className="edit-input" autoComplete="name" maxLength={120} required disabled={locked} value={name} onChange={e => { setName(e.target.value); setError(""); }} /></div></div>
-        <div className="property-row"><label className="property-label" htmlFor="parent-create-contact">Điện thoại hoặc email *</label>
-          <div className="property-control"><input id="parent-create-contact" className="edit-input" type="text" autoComplete="off" maxLength={120} required disabled={locked} value={contactValue} onChange={e => { setContactValue(e.target.value); setError(""); }} /></div></div>
-      </section>
-      <p className="settings-hint">Phụ huynh chưa liên kết học viên sẽ không xuất hiện trong danh sách theo cơ sở.</p>
+      <PropertySections variant="drawer" fields={drawerFields} sections={parentNativeCreateSections}
+        record={draft} createFields={{
+          name: { id: "parent-create-name", label: "Họ và tên *", value: name, required: true,
+            maxLength: 120, autoComplete: "name", inputRef: nameInputRef, disabled: locked,
+            onChange: value => { setName(value); setError(""); } },
+          maskedContact: { id: "parent-create-contact", label: "Điện thoại hoặc email *", value: contactValue,
+            required: true, maxLength: 120, autoComplete: "off", disabled: locked,
+            onChange: value => { setContactValue(value); setError(""); } },
+        }} />
       {error ? <div role="alert" className="edit-error">{error}{uncertain ? <p>Chưa xác định kết quả. Thử lại cùng yêu cầu để đối soát.</p> : null}</div> : null}
     </form>
   </DrawerFrame>;

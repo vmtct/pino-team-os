@@ -29,6 +29,11 @@ const SUBSCRIPTION_PROJECTED_COMPLETION_READ = /^subscriptions\/[0-9a-f-]{36}\/p
 // PAP-1035: Enrollment read routes explicitly admitted after FC E2E found
 // BFF 404 before Core. No wildcard write/read admission.
 const S3_SUBSCRIPTION_READ = /^subscriptions\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/(?:enrollments|placement))?$/;
+const PAP1334_CENTER_DETAIL_READ = /^subscriptions\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/center-detail$/;
+// PAP-1334 / PAP-1491: exact immutable owning-Center Subscription directory.
+const PAP1334_OWNER_DIRECTORY_READ = "subscriptions/center-directory";
+// PAP-1871 / PAP-1350 — exact Center+Student eligible-payer GET, never Parent directory fallback.
+const PAP1871_ELIGIBLE_PAYER_READ = "billing/sales/eligible-payers";
 const S3_ENROLLMENT_RECORD_READ = /^enrollments\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const S3_ENROLLMENT_CAPACITY_READ = "enrollments/capacity";
 const S3_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -107,9 +112,12 @@ export function isOperationalReadPath(path: string): boolean {
   return path === "audit/subject"
     || path === "subscriptions"
     || S3_SUBSCRIPTION_READ.test(path)
+    || PAP1334_CENTER_DETAIL_READ.test(path)
+    || path === PAP1334_OWNER_DIRECTORY_READ
     || S3_ENROLLMENT_RECORD_READ.test(path)
     || path === S3_ENROLLMENT_CAPACITY_READ
     || path === "billing/product-plans"
+    || path === PAP1871_ELIGIBLE_PAYER_READ
     || BILLING_BILL_READ.test(path)
     || path === "specialty/catalog"
     || SPECIALTY_STUDENT_READ.test(path)
@@ -176,6 +184,7 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "student-visits"
     || STUDENT_VISIT_DETAIL_READ.test(path)
     || path === "identity/parents"
+    || path === "identity/parents/center-search"
     || path === "identity/parents/directory"
     || /^identity\/parents\/[0-9a-f-]{36}\/detail$/.test(path)
     || path === "practice/authoring-context"
@@ -204,7 +213,24 @@ export function isOperationalReadPath(path: string): boolean {
     || /^sessions\/[0-9a-f-]{36}\/learning-owner$/.test(path);
 }
 
-function readCorePath(path: string, url: URL): string {
+/** PAP-1871: one immutable Center claim and one Student; never infer scope or echo arbitrary query fields. */
+function eligiblePayerQuery(url:URL):{centerId:string;studentProfileId:string}{
+  const params=url.searchParams;
+  const keys=[...params.keys()];
+  if(keys.length!==2||keys.some(key=>key!=="centerId"&&key!=="studentProfileId"))
+    throw new RangeError("Exactly Center and Student are required");
+  const centers=params.getAll("centerId"),students=params.getAll("studentProfileId");
+  if(centers.length!==1||students.length!==1||!S3_UUID.test(centers[0]!)||!S3_UUID.test(students[0]!))
+    throw new RangeError("Invalid Sale payer Center or Student");
+  return {centerId:centers[0]!,studentProfileId:students[0]!};
+}
+
+export function readCorePath(path: string, url: URL): string {
+  if(path===PAP1871_ELIGIBLE_PAYER_READ){
+    const {centerId,studentProfileId}=eligiblePayerQuery(url);
+    const params=new URLSearchParams({centerId,studentProfileId});
+    return path+"?"+params.toString();
+  }
   if (MISSION_ASSIGNMENT_READ.test(path)) {
     const params = url.searchParams;
     const collection = path === "learning/mission-assignments";
@@ -309,7 +335,39 @@ function readCorePath(path: string, url: URL): string {
   return path;
 }
 
-function readQueryResource(path: string, url: URL): BoAccessRequest["resource"] | undefined {
+export function readQueryResource(path: string, url: URL): BoAccessRequest["resource"] | undefined {
+  // PAP-1908: only one explicit authorized Center; never infer GLOBAL from missing Center.
+  if (path === "identity/parents/center-search") {
+    const params = url.searchParams;
+    if ([...params.keys()].some(key => !["centerId", "query", "limit"].includes(key)) ||
+        params.getAll("centerId").length !== 1 ||
+        params.getAll("query").length > 1 ||
+        params.getAll("limit").length > 1) throw new RangeError("Invalid Student Intake Parent search Center");
+    const centerId = params.get("centerId")!;
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(centerId))
+      throw new RangeError("One canonical selected Center is required");
+    return { centerId };
+  }
+  if(path===PAP1871_ELIGIBLE_PAYER_READ){
+    // One selector; Core independently authorizes billing.manage, Student view and affiliation.
+    const {centerId}=eligiblePayerQuery(url);
+    return {centerId};
+  }
+  // PAP-1334: exact Center claim is only a selector. Core checks immutable ownership and effective ACL.
+  if (path === PAP1334_OWNER_DIRECTORY_READ) {
+    const centers = url.searchParams.getAll("centerId");
+    if (centers.length !== 1 || !S3_UUID.test(centers[0]!)) throw new RangeError("Selected Center required");
+    return {centerId:centers[0]!};
+  }
+  // PAP-1334 / PAP-1491: one explicit selected Center, never a browser
+  // permission claim. Core verifies Subscription ownership and effective ACL.
+  if (PAP1334_CENTER_DETAIL_READ.test(path)) {
+    const keys=[...url.searchParams.keys()];
+    const centers=url.searchParams.getAll("centerId");
+    if(keys.length!==1||keys[0]!=="centerId"||centers.length!==1||
+       !S3_UUID.test(centers[0]!)) throw new RangeError("Selected Subscription Center required");
+    return {centerId:centers[0]!};
+  }
   // PAP-1536 / Epic PAP-220: validate an optional Center before
   // fail-closed 503 in the caller above. Core still uses a global reader
   // that ignores Center and has no canonical Staff membership filter.
@@ -382,6 +440,60 @@ function readQueryResource(path: string, url: URL): BoAccessRequest["resource"] 
 }
 
 export function readQueryBody(path: string, url: URL): Record<string, unknown> | undefined {
+  if (path === "identity/parents/center-search") {
+    // BFF does not trust caller-supplied actor/scope; Core separately checks both permissions.
+    readQueryResource(path, url); // rejects unknown, duplicate or malformed Center and filters.
+    const query = url.searchParams.get("query") ?? "";
+    const rawLimit = url.searchParams.get("limit") ?? "20";
+    if (query.length > 160 || !/^(?:[1-9]|1[0-9]|2[0-5])$/.test(rawLimit))
+      throw new RangeError("Invalid Student Intake Parent search bounds");
+    return { query, limit: Number(rawLimit) };
+  }
+  // PAP-1334: only forward the selected Center and bounded filters. Never call the legacy affiliation directory.
+  if (path === PAP1334_OWNER_DIRECTORY_READ) {
+    const params = url.searchParams;
+    const allowed = new Set(["centerId","query","lifecycle","pathProgramId","limit","beforeCreatedAt","beforeSubscriptionId"]);
+    for (const key of params.keys()) if (!allowed.has(key) || params.getAll(key).length !== 1)
+      throw new RangeError("Invalid Center Subscription directory query");
+    const centerId = params.get("centerId");
+    if (!centerId || !S3_UUID.test(centerId)) throw new RangeError("Selected Subscription Center required");
+    const body:Record<string,unknown> = {centerId};
+    const query = params.get("query");
+    if (query !== null) {
+      if (query.length > 120 || [...query].some(c => c.charCodeAt(0) < 32 || c.charCodeAt(0) === 127))
+        throw new RangeError("Invalid Subscription search");
+      body.query = query;
+    }
+    const lifecycle = params.get("lifecycle");
+    if (lifecycle !== null) {
+      if (!["DRAFT","ACTIVE","COMPLETED","SUPERSEDED","CANCELLED"].includes(lifecycle))
+        throw new RangeError("Invalid Subscription lifecycle");
+      body.lifecycle = lifecycle;
+    }
+    const pathProgramId = params.get("pathProgramId");
+    if (pathProgramId !== null) {
+      if (!S3_UUID.test(pathProgramId)) throw new RangeError("Invalid Subscription path");
+      body.pathProgramId = pathProgramId;
+    }
+    const limit = params.get("limit");
+    if (limit !== null) {
+      if (!/^[1-9][0-9]*$/.test(limit) || !Number.isSafeInteger(Number(limit)) || Number(limit) > 100)
+        throw new RangeError("Invalid Subscription page size");
+      body.limit = Number(limit);
+    }
+    const beforeCreatedAt = params.get("beforeCreatedAt");
+    const beforeSubscriptionId = params.get("beforeSubscriptionId");
+    if ((beforeCreatedAt === null) !== (beforeSubscriptionId === null))
+      throw new RangeError("Incomplete Subscription cursor");
+    if (beforeCreatedAt !== null && beforeSubscriptionId !== null) {
+      if (beforeCreatedAt.length > 48 || !/^\d{4}-\d{2}-\d{2}T/.test(beforeCreatedAt) ||
+          !Number.isFinite(Date.parse(beforeCreatedAt)) || !S3_UUID.test(beforeSubscriptionId))
+        throw new RangeError("Invalid Subscription cursor");
+      body.beforeCreatedAt = beforeCreatedAt;
+      body.beforeSubscriptionId = beforeSubscriptionId;
+    }
+    return body;
+  }
   if (path === "pinoria/avatars") {
     const allowed = new Set(["centerId","limit","cursor","q","subjectType","avatarStatus","subjectStatus"]);
     for (const key of url.searchParams.keys()) {

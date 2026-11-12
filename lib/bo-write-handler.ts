@@ -59,7 +59,9 @@ const STUDENT_COMPANION_FEED_PATH = /^students\/[0-9a-f-]{36}\/pinoria\/companio
 const STUDENT_VISIT_CHECK_IN = "student-visits/check-in";
 const STUDENT_VISIT_COMMAND = /^student-visits\/[0-9a-f-]{36}\/(check-out|correct)$/;
 const STUDENT_INTAKE_PATH = "student-intakes";
+const STUDENT_INTAKE_CENTER_PATH = "student-intakes/center"; // PAP-1908 / SCH-STUDENT-MGMT
 const PARENT_CREATE_PATH = "identity/parents";
+const PARENT_NAME_PATCH = /^identity\/parents\/[0-9a-f-]{36}$/; // PAP-1763 / SCH-PARENTS-GUARDIANS
 // PAP-1181 / PAP-435: narrow Staging QA fixture transport. Core enforces Staging-only, actor+Center ACL and immutable proof.
 const STAGING_CENTER_AFFILIATION_FIXTURE_PATH = "staging-fixtures/center-affiliations";
 const STUDENT_INTAKE_VOID_PATH = /^student-intakes\/[0-9a-f-]{36}\/void$/;
@@ -159,16 +161,16 @@ export async function handleBoWriteRequest(
     }
     if (
       request.method !== "POST"
-      && !(request.method === "PATCH" && (CATALOG_PATH_UPDATE.test(path) || RUNNING_CLASS_PATCH.test(path) || STUDENT_PROFILE_PATCH.test(path) || WARD_CATALOG_WRITE.test(path) || WARD_SET_WRITE.test(path) || PINORIA_WORLD_WRITE.test(path)))
+      && !(request.method === "PATCH" && (CATALOG_PATH_UPDATE.test(path) || RUNNING_CLASS_PATCH.test(path) || STUDENT_PROFILE_PATCH.test(path) || PARENT_NAME_PATCH.test(path) || WARD_CATALOG_WRITE.test(path) || WARD_SET_WRITE.test(path) || PINORIA_WORLD_WRITE.test(path)))
       && !(request.method === "PUT" && (WARD_SET_WRITE.test(path) || WARD_LEARNER_WRITE.test(path) || PINORIA_ONBOARDING_SET_WRITE.test(path) || PINORIA_WORLD_WRITE.test(path) || MISSION_CATALOG_UPDATE.test(path)))
       && !(request.method === "DELETE" && (PINORIA_ONBOARDING_GRANT_WRITE.test(path) || PINORIA_WORLD_WRITE.test(path)))
     ) return json({ error: { code: "PLATFORM_METHOD_NOT_ALLOWED", message: "Method not allowed" } }, 405);
-    if (!isAllowedPostPath(path) && !(request.method === "PATCH" && (RUNNING_CLASS_PATCH.test(path) || STUDENT_PROFILE_PATCH.test(path)))) return json({ error: { code: "PLATFORM_NOT_FOUND", message: "BO operation not found" } }, 404);
+    if (!isAllowedPostPath(path) && !(request.method === "PATCH" && (RUNNING_CLASS_PATCH.test(path) || STUDENT_PROFILE_PATCH.test(path) || PARENT_NAME_PATCH.test(path)))) return json({ error: { code: "PLATFORM_NOT_FOUND", message: "BO operation not found" } }, 404);
 
     const credential = await teamCredential(request, env, "BO");
 
     const idempotencyKey = request.headers.get("idempotency-key")?.trim();
-    if (((TV_SPATIAL_CONFIG_POST.has(path) || TV_DIALOGUE_CONFIG_POST.has(path)) || TV_POLICY_POST.has(path) || path === MISSION_CATALOG_CREATE || MISSION_CATALOG_UPDATE.test(path) || path === PAP21_LEGACY_IMPORT_EXECUTE || path === BILLING_SALE_PATH || BILLING_TRANSACTION_PATH.test(path) || path === SPECIALTY_PURCHASE_CREATE_PATH || SPECIALTY_CLAIM_PATH.test(path) || SPECIALTY_COMPLETE_PATH.test(path) || SUBSCRIPTION_NEUTRALIZE_PATH.test(path) || path === STAFF_ONBOARDING_PATH || path === PARENT_CREATE_PATH || path === STUDENT_INTAKE_PATH || path === STAGING_CENTER_AFFILIATION_FIXTURE_PATH || path === STUDENT_VISIT_CHECK_IN || STUDENT_VISIT_COMMAND.test(path) || path === "delivery/calendar-exclusions" || STUDENT_INTAKE_VOID_PATH.test(path) || path === "delivery/terms" || path === "delivery/term-weeks" || TERM_WEEK_COMMAND.test(path) || TERM_NEUTRALIZE_COMMAND.test(path) || path === ACQUISITION_INTENT_CREATE || ACQUISITION_INTENT_COMMAND.test(path) || ACQUISITION_LEAD_ARCHIVE.test(path) || path === PANCAKE_SETTINGS_COMMAND || PANCAKE_CHANNEL_CONFIG.test(path) || STAFF_REGISTRATION_REVIEW_PATH.test(path) || STAFF_PASSWORD_RESET_PATH.test(path) || LEARNING_OWNER_PATH.test(path) || SESSION_SYLLABUS_BINDING_PATH.test(path) || STUDENT_COMPANION_FEED_PATH.test(path) || isPracticeWritePath(path) || isLearningSyllabusPostPath(path) || WEB_CMS_WRITE.test(path) || TIMEKEEPING_CORRECTION_PATH.test(path) || TIMEKEEPING_MISSED_CHECKOUT_PATH.test(path) || WORKFORCE_POLICY_VERSION.test(path) || WORKFORCE_POLICY_PUBLISH.test(path)) && !idempotencyKey) {
+    if (((TV_SPATIAL_CONFIG_POST.has(path) || TV_DIALOGUE_CONFIG_POST.has(path)) || TV_POLICY_POST.has(path) || path === MISSION_CATALOG_CREATE || MISSION_CATALOG_UPDATE.test(path) || path === PAP21_LEGACY_IMPORT_EXECUTE || path === BILLING_SALE_PATH || BILLING_TRANSACTION_PATH.test(path) || path === SPECIALTY_PURCHASE_CREATE_PATH || SPECIALTY_CLAIM_PATH.test(path) || SPECIALTY_COMPLETE_PATH.test(path) || SUBSCRIPTION_NEUTRALIZE_PATH.test(path) || path === STAFF_ONBOARDING_PATH || path === PARENT_CREATE_PATH || path === STUDENT_INTAKE_PATH || path === STUDENT_INTAKE_CENTER_PATH || path === STAGING_CENTER_AFFILIATION_FIXTURE_PATH || path === STUDENT_VISIT_CHECK_IN || STUDENT_VISIT_COMMAND.test(path) || path === "delivery/calendar-exclusions" || STUDENT_INTAKE_VOID_PATH.test(path) || path === "delivery/terms" || path === "delivery/term-weeks" || TERM_WEEK_COMMAND.test(path) || TERM_NEUTRALIZE_COMMAND.test(path) || path === ACQUISITION_INTENT_CREATE || ACQUISITION_INTENT_COMMAND.test(path) || ACQUISITION_LEAD_ARCHIVE.test(path) || path === PANCAKE_SETTINGS_COMMAND || PANCAKE_CHANNEL_CONFIG.test(path) || STAFF_REGISTRATION_REVIEW_PATH.test(path) || STAFF_PASSWORD_RESET_PATH.test(path) || LEARNING_OWNER_PATH.test(path) || SESSION_SYLLABUS_BINDING_PATH.test(path) || STUDENT_COMPANION_FEED_PATH.test(path) || isPracticeWritePath(path) || isLearningSyllabusPostPath(path) || WEB_CMS_WRITE.test(path) || TIMEKEEPING_CORRECTION_PATH.test(path) || TIMEKEEPING_MISSED_CHECKOUT_PATH.test(path) || WORKFORCE_POLICY_VERSION.test(path) || WORKFORCE_POLICY_PUBLISH.test(path)) && !idempotencyKey) {
       return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Idempotency-Key is required" } }, 400);
     }
 
@@ -206,6 +208,23 @@ export async function handleBoWriteRequest(
       }
       studentProfileResource = { centerId: ids[0]! };
     }
+    // PAP-1763: selected Center required on name-only Parent PATCH.
+    let parentNameResource: { centerId: string } | undefined;
+    if (request.method === "PATCH" && PARENT_NAME_PATCH.test(path)) {
+      const query = new URL(request.url).searchParams;
+      const ids = query.getAll("centerId");
+      if ([...query.keys()].length !== 1 || ids.length !== 1 ||
+          !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ids[0]!))
+        return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Exactly one selected Center is required" } }, 400);
+      if (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body).length !== 2 ||
+          Object.keys(body).some(key => key !== "displayName" && key !== "expectedVersion") ||
+          typeof (body as Record<string, unknown>).displayName !== "string" ||
+          !(body as {displayName: string}).displayName.trim() ||
+          !Number.isSafeInteger((body as Record<string, unknown>).expectedVersion) ||
+          Number((body as Record<string, unknown>).expectedVersion) < 1)
+        return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Parent name-only edit requires displayName and expectedVersion" } }, 400);
+      parentNameResource = { centerId: ids[0]! };
+    }
     // PAP-1550: never infer Parent Center from a body or an unscoped URL.
     let parentCreateResource: { centerId: string } | undefined;
     if (request.method === "POST" && path === PARENT_CREATE_PATH) {
@@ -232,6 +251,24 @@ export async function handleBoWriteRequest(
           })) return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Parent Create form is invalid" } }, 400);
       parentCreateResource = { centerId: ids[0]! };
     }
+    // PAP-1908: selected Center Intake uses Core's independent CENTER_ONLY permission.
+    // The legacy GLOBAL Founder student-intakes endpoint remains unchanged.
+    let studentIntakeCenterResource: { centerId: string } | undefined;
+    if (request.method === "POST" && path === STUDENT_INTAKE_CENTER_PATH) {
+      const query = new URL(request.url).searchParams;
+      const ids = query.getAll("centerId");
+      if ([...query.keys()].length !== 1 || ids.length !== 1 ||
+          !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ids[0]!)) {
+        return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Exactly one selected Center is required" } }, 400);
+      }
+      if (!body || typeof body !== "object" || Array.isArray(body) ||
+          Object.keys(body).some(key => !["displayName", "birthYear", "birthMonth", "birthDay",
+            "birthPrecision", "relationshipType", "effectiveFrom", "existingParentUserId",
+            "guardianDisplayName", "contactType", "contactValue"].includes(key))) {
+        return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Invalid Student Intake payload" } }, 400);
+      }
+      studentIntakeCenterResource = { centerId: ids[0]! };
+    }
     const coreRequest: BoAccessRequest = billingPlanConfig ? {
       method: "PATCH",
       path: `billing/product-plans/${billingPlanConfig[1]}`,
@@ -245,7 +282,9 @@ export async function handleBoWriteRequest(
       path,
       body,
       ...(studentProfileResource ? { resource: studentProfileResource } : {}),
+      ...(studentIntakeCenterResource ? { resource: studentIntakeCenterResource } : {}),
       ...(parentCreateResource ? { resource: parentCreateResource } : {}),
+      ...(parentNameResource ? { resource: parentNameResource } : {}),
       ...(idempotencyKey ? { idempotencyKey } : {}),
 
     };
@@ -330,7 +369,7 @@ export function isAllowedPostPath(path: string): boolean {
     || CALENDAR_EXCLUSION_COMMAND.test(path)
     || PARENT_PIN_PATH.test(path)
     || STUDENT_COMPANION_FEED_PATH.test(path)
-    || path === PARENT_CREATE_PATH || path === STUDENT_INTAKE_PATH
+    || path === PARENT_CREATE_PATH || path === STUDENT_INTAKE_PATH || path === STUDENT_INTAKE_CENTER_PATH
     || path === STAGING_CENTER_AFFILIATION_FIXTURE_PATH
     || path === STUDENT_VISIT_CHECK_IN
     || STUDENT_VISIT_COMMAND.test(path)

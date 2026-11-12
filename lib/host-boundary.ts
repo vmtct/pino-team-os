@@ -1,4 +1,5 @@
 import {isHoTvReadRequest} from "./ho-tv-read-contract";
+import {isHoTvVisibilityRequest} from "./ho-tv-visibility-contract";
 import {billMethodAllowed} from "./bo-bills-paths";
 import {billTableCenter,billTableRoot} from "./bo-bill-table-contract";
 import {tosV4StagingHost} from "./tos-v4-staging-host";
@@ -24,14 +25,51 @@ export type HostBoundaryDecision =
 
 export function decideHostBoundary(host: string, pathname: string, method = "GET"): HostBoundaryDecision {
   const hostname = normalizeHostname(host);
+  // PAP-1871 / PAP-1491: exact BO Staging GET only. Core still rechecks Center and payer ACL.
+  if(pathname.startsWith("/api/bo/billing/sales/eligible-payers"))
+    return {action:hostname===BO_STAGING_HOSTNAME&&method==="GET"&&
+      pathname==="/api/bo/billing/sales/eligible-payers"?"next":"not_found"};
+  // PAP-1334 / PAP-1491 SPEC-UNLOCK: immutable owner-directory read only.
+  // No generic Subscription writer or non-Staging admission; Core owns ACL.
+  if (pathname.startsWith("/api/bo/subscriptions/center-directory")) {
+    const exact=pathname==="/api/bo/subscriptions/center-directory";
+    return {action:exact&&hostname===BO_STAGING_HOSTNAME&&method==="GET"?"next":"not_found"};
+  }
+  // PAP-1334 / PAP-1491: one read-only BO Staging Subscription Center Detail.
+  // BFF requires one selected Center; Core rechecks immutable owner/ACL.
+  // Never open the legacy by-ID reader/writer or other hosts.
+  if (pathname.startsWith("/api/bo/subscriptions/") && pathname.includes("/center-detail")) {
+    const exact = /^\/api\/bo\/subscriptions\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/center-detail$/i.test(pathname);
+    return {action:hostname===BO_STAGING_HOSTNAME&&method==="GET"&&exact?"next":"not_found"};
+  }
+  // PAP-1496 / PAP-1491 SPEC-UNLOCK: admit only Subscription-owned
+  // Specialty requests at BO Staging. The BFF and Core retain actor/Center
+  // ACL, Subscription status, CAS, idempotency and prerequisite enforcement.
+  // Deny writers, malformed descendants, wrong hosts and Production.
+  if (pathname.startsWith("/api/bo/subscriptions/") &&
+      /\/(?:specialties|specialty-grants)(?:\/|$)/i.test(pathname)) {
+    const id = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+    const base = "^/api/bo/subscriptions/" + id;
+    const list = new RegExp(base + "/specialties$", "i").test(pathname);
+    const grant = new RegExp(base + "/specialty-grants$", "i").test(pathname);
+    const completion = new RegExp(base + "/specialty-grants/" + id + "/completion$", "i").test(pathname);
+    const allowed = hostname === BO_STAGING_HOSTNAME &&
+      ((method === "GET" && list) || (method === "POST" && grant) ||
+       (method === "PATCH" && completion));
+    return { action: allowed ? "next" : "not_found" };
+  }
   // PAP-1526: fence the entire namespace; admit only this exact Center GET.
   if(pathname===billTableRoot||pathname.startsWith(billTableRoot+"/"))
     return {action:hostname===BO_STAGING_HOSTNAME&&method==="GET"&&billTableCenter(pathname)!==null?"next":"not_found"};
   // PAP-1460 / Epic PAP-1316: Founder removed BO TV management from every
   // BO host, role, query and deep link. Deny before generic BO/preview fallthrough.
   if (/^\/bo\/tvs(?:\/|$)/i.test(pathname)) return { action: "not_found" };
-  // PAP-1418 / PNR-TV: exact Founder HO read paths only; never BO/other hosts.
-  if(pathname.startsWith("/api/ho/pinoria/tv-health") || pathname.startsWith("/api/ho/pinoria/tv-config"))
+  // PAP-1385 / PNR-TV: only logical visibility GET/PATCH, Founder HO Staging.
+  // The private BFF and Core still enforce Founder, selected-Center, CAS and audit.
+  if(pathname.startsWith("/api/ho/pinoria/tv-policies/visibility"))
+    return {action:hostname===HO_STAGING_HOSTNAME&&isHoTvVisibilityRequest(pathname,method)?"next":"not_found"};
+  // PAP-1418 / PNR-TV: all other TV paths remain exact read-only.
+  if(pathname.startsWith("/api/ho/pinoria/tv-health") || pathname.startsWith("/api/ho/pinoria/tv-config") || pathname.startsWith("/api/ho/pinoria/tv-policies"))
     return {action:hostname===HO_STAGING_HOSTNAME&&isHoTvReadRequest(pathname,method)?"next":"not_found"};
   if (pathname === HO_BILLS_API || pathname.startsWith(HO_BILLS_API + "/"))
     return {action:hostname === HO_STAGING_HOSTNAME && isHoBillsRequest(pathname,method) ? "next" : "not_found"};
@@ -44,9 +82,11 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
     const create=pathname===specialtyBase&&method==='POST';
     // PAP-1495 S5: exact Founder DRAFT command endpoint, never other writers/descendants.
     const graph=/^\/api\/ho\/learning\/specialties\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/commands$/i.test(pathname);
+    // PAP-1732 / SPEC-UNLOCK: redacted Founder History is read-only; exact v7 ID + /history only.
+    const history=/^\/api\/ho\/learning\/specialties\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/history$/i.test(pathname);
     return {action:hostname===HO_STAGING_HOSTNAME&&
-      ((method==="GET"&&(pathname===specialtyBase||detail||options))||create||
-       (method==="POST"&&graph))?"next":"not_found"};
+      ((method==="GET"&&(pathname===specialtyBase||detail||options||history))||create||
+       (method==="POST"&&graph)||(method==="PUT"&&detail))?"next":"not_found"};
   }
   // PAP-1407 / PAP-220 — exact Center-only Staff Registration ingress.
   // E2E found middleware 404 before the BFF/Core; never widen the generic BO/HO host fence.
@@ -71,6 +111,13 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
     return pathname === stagingAffiliationFixture && hostname === BO_STAGING_HOSTNAME && method === "POST"
       ? { action: "next" } : { action: "not_found" };
   }
+  // PAP-1814 / Epic PAP-1384 SCH-PARENTS-GUARDIANS:
+  // Exact native Parent name-only PATCH ingress, BO Staging only.
+  // Team BFF + Core still require current Center, identity.parent.edit, CAS/audit.
+  // Do not grant writes to descendants, malformed IDs, HO/TOS or Production.
+  const parentNameEdit = /^\/api\/bo\/identity\/parents\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(pathname);
+  if (parentNameEdit)
+    return hostname === BO_STAGING_HOSTNAME && method === "PATCH" ? { action: "next" } : { action: "not_found" };
   // PAP-1479 / SCH-STUDENT-MGMT: exact BO Staging-only Student name edit ingress.
   // Team BO facade enforces one Center query and two-field name/CAS body;
   // Core independently rechecks Manager CENTER grant, current affiliation and audit.
@@ -117,6 +164,15 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   const assignmentDiaryRead = /^\/api\/bo\/learning\/mission-assignments\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/diaries\/?$/i.test(pathname);
   // PAP-1210: exact Staging-only Center Assignment audit read.
   const assignmentHistoryRead = /^\/api\/bo\/learning\/mission-assignments\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/history\/?$/i.test(pathname);
+  // PAP-1676 / PAP-1210: admit only the three independent Completion endpoints.
+  // Host fence precedes the BO BFF, which rechecks auth/Center and Core CAS/audit.
+  const assignmentCompletion = /^\/api\/bo\/learning\/mission-assignments\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/(execution|completion-history|reopen)$/i.exec(pathname);
+  if (assignmentCompletion) {
+    const operation = assignmentCompletion[1]!.toLowerCase();
+    const allowed = hostname === BO_STAGING_HOSTNAME &&
+      (operation === "reopen" ? method === "POST" : method === "GET");
+    return { action: allowed ? "next" : "not_found" };
+  }
   if (assignmentRead || assignmentChange || assignmentCancel || assignmentDiaryRead || assignmentHistoryRead) {
     const readAllowed = assignmentRead && isBoHostname(hostname) && method === "GET";
     const diaryReadAllowed = assignmentDiaryRead && hostname === BO_STAGING_HOSTNAME && method === "GET";
@@ -127,6 +183,10 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
 
   if (hostname === HO_STAGING_HOSTNAME) {
     const p = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
+    // PAP-1669 / PLT-ATTR FSG2: exact HO Founder-only Custom Attributes routes.
+    const attributeBase = p === "/api/ho/custom-attributes/definitions";
+    const attributeDetail = /^\/api\/ho\/custom-attributes\/definitions\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}(?:\/history)?$/.test(p);
+    if (attributeBase || attributeDetail) return {action: (attributeBase ? method === "GET" || method === "POST" : method === "GET") ? "next" : "not_found"};
     // PAP-1594: Founder-only Path directory GET; all non-GET verbs remain hidden.
     if (p === "/api/ho/learning/paths") return { action: method === "GET" ? "next" : "not_found" };
     // PAP-1221: HO Staging-only Diary GLOBAL read, exact collection/UUID detail.
@@ -245,10 +305,11 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
       return hostname === BO_STAGING_HOSTNAME && (selfItemRead ? method === "GET" : method === "POST")
         ? { action: "next" } : { action: "not_found" };
     }
-    // PAP-982 S3: exact Staging-only directory read; BFF and Core reauthorize the actor and Center.
-    // All write/HEAD methods, child paths, HO/TOS and Production stay denied at the host edge.
+    // PAP-1625 FG2: exact Staging-only Directory GET + Create Self POST.
+    // Child paths/other verbs/HO/TOS/Production remain denied; Core reauthorizes Center.
     if (pathname.replace(/\/$/, "") === "/api/bo/pinoria/avatars") {
-      return hostname === BO_STAGING_HOSTNAME && method === "GET" ? { action: "next" } : { action: "not_found" };
+      return hostname === BO_STAGING_HOSTNAME && (method === "GET" || method === "POST")
+        ? { action: "next" } : { action: "not_found" };
     }
     // PAP-1035: Worker-first admission must match the already-authenticated
     // BO read facade. This is a staging-only GET/HEAD fence, never a write bypass.

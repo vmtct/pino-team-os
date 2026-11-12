@@ -1,4 +1,5 @@
 "use client";
+import { LocalizedModuleTitle } from "@/lib/pino-nav-locale-context";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BoDataGrid, BoDataGridCanonicalId, BoDataGridSidePeek, BoDataGridStatus, useBoDataGridUrlState, type BoDataGridColumn } from "@/app/bo/components/data-grid";
@@ -80,7 +81,7 @@ export function StudentVisitsView(){
     setSelectedId(row.id);setDetail(null);setNotice("");
   }
   return <main className={styles.page}>
-    <header><span className={styles.eyebrow}>Back Office · School</span><h1>Student Visits</h1><p>Physical Center presence ledger. Visit is not Session Attendance, Classroom Diary or a payment record.</p></header>
+    <header><span className={styles.eyebrow}>Back Office · School</span><h1><LocalizedModuleTitle label="Student Visits" moduleKey="student-visits" /></h1><p>Physical Center presence ledger. Visit is not Session Attendance, Classroom Diary or a payment record.</p></header>
     {page?<section className={styles.metrics} aria-label="Center Visit totals">
       <Metric label="Visits in Center" value={page.summary.totalVisits}/>
       <Metric label="Currently inside" value={page.summary.openVisits}/>

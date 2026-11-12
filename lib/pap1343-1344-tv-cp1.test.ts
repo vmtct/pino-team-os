@@ -3,19 +3,27 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { renderV4 } from "./test-support/v4-render";
 
-test("PAP-1344 Station TV uses existing desktop shell and shared authorized TV Launcher, not fake disabled preview",async()=>{
-  const html=await renderV4("TosVNextStation",{desktop:true,onHome:()=>{},centerName:"Cần Thơ",initialTab:"tv"});
+test("PAP-1753 supersedes PAP-1344 physical Station launcher with authorized logical-only FE",async()=>{
+  // PAP-650 / PNR-TV Founder-approved V3.2, FSG0 PAP-1651.
+  const centerId="019b1126-0001-7000-8000-000000000001";
+  const html=await renderV4("TosVNextStation",{
+    desktop:true,onHome:()=>{},centerName:"Cần Thơ",centerId,
+    authorizedCenterIds:[centerId],initialTab:"tv",
+  });
   assert.match(html,/data-tos-vnext-station="desktop"/);
-  assert.match(html,/data-tos-station-tv-launcher="true"/);
-  assert.match(html,/data-tv-launcher="station"/);
-  assert.match(html,/Đang tải danh sách TV/);
-  assert.doesNotMatch(html,/KHÔNG KẾT NỐI TV THẬT|CHƯA XÁC MINH DỮ LIỆU TV/);
-  const launcher=readFileSync("app/tv/TvLauncher.tsx","utf8");
-  assert.match(launcher,/\/api\/tos-learning\/tv\/displays/);
-  assert.match(launcher,/\/api\/tv\/\$\{tv\.id\}\/launch/);
-  assert.match(launcher,/credentials:"same-origin"/);
-  assert.match(launcher,/window\.location\.assign/);
-  assert.doesNotMatch(launcher,/019d9880-1025-7000-8000-000000000071/);
+  assert.match(html,/data-pnr-tv-model="logical"/);
+  assert.match(html,/data-pnr-tv-source="loading"/);
+  assert.match(html,/TV tại Center/);
+  assert.match(html,/Đang tải danh sách TV được Core xác thực cho Center/);
+  assert.doesNotMatch(html,/data-tos-station-tv-launcher|data-tv-launcher="station"/);
+  assert.doesNotMatch(html,/data-pnr-tv-logical-id|data-pnr-tv-model="physical"/);
+  // The previous physical TV launcher is still available for unrelated legacy
+  // consumers. Retirement in this Epic is limited to the Station UI mount.
+  const legacy=readFileSync("app/tv/TvLauncher.tsx","utf8");
+  assert.match(legacy,/\/api\/tos-learning\/tv\/displays/);
+  assert.match(legacy,/\/api\/tv\/\$\{tv\.id\}\/launch/);
+  assert.match(legacy,/credentials:"same-origin"/);
+  assert.doesNotMatch(legacy,/019d9880-1025-7000-8000-000000000071/);
 });
 test("PAP-1343 CP1 TV runtime has only ambient artwork/actors, no audience labels, metrics, footer",()=>{
   const tv=readFileSync("app/pinoria-tv/reception-tv.tsx","utf8");

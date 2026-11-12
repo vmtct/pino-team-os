@@ -1,11 +1,12 @@
 "use client";
 /** PAP-1356 / PAP-1456 / Epic PAP-1097: Core-owned 8-slot Loadout; DS UI and draft-safe save. */
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import type { AvatarRow } from "./avatar-dsa-data";
 import type { ModuleRow } from "@/lib/workspace-schema";
 import type { SelfFields } from "./schema";
 import { SelfLoadoutPreview, SelfLoadoutEditorLayout } from "@/app/components/pinoria/SelfLoadoutPreview";
 
-type Row = ModuleRow<SelfFields>;
+type Row = AvatarRow | ModuleRow<SelfFields>;
 const SLOTS = ["AURA_GROUND","AURA_BACK","BACK","OUTFIT","HAIR","FACE","HEADWEAR","PATH_MARK"] as const;
 type Slot = typeof SLOTS[number];
 type ItemSnapshot = { itemId:string; slot:Slot; displayName:string; assetKey:string; assetMimeType:string; positionX:number; positionY:number; scale:number; rotationDegrees:number|null };
@@ -165,12 +166,12 @@ export function SelfLoadoutDetail({row,centerId,activeTab,canView,canManage,canV
     finally{setSaving(false);}
   }
   if(activeTab!=="loadout")return null;
-  if(!selfId)return <p role="status">Person chưa có Self; không thể chỉnh Loadout.</p>;
+  if(!selfId)return <p role="status">Person chưa có Avatar; không thể chỉnh Loadout.</p>;
   if(!canView)return <p role="alert">Bạn chưa được cấp quyền xem Loadout.</p>;
-  return <section aria-label="Pinoria Self Loadout">
+  return <section aria-label="Pinoria Avatar Loadout">
     <SelfLoadoutEditorLayout preview={<SelfLoadoutPreview key={selfId+":"+(loadout?.version??"loading")+":"+(selfSet?.version??"pending")} loadout={selfSet && !selfSet.setItemId?loadout:null}
       activeSet={selfSet?.setItemId?{...selfSet,setItemId:selfSet.setItemId}:null} setMemberSrc={setMemberSrc} mediaSrc={mediaSrc}/> }>
-    <h3 className="pds-property-heading">Trang bị Self</h3>
+    <h3 className="pds-property-heading">Trang bị Avatar</h3>
     <p id="self-loadout-help" role="note" className="pds-property-text">Preview chỉ hiển thị trang bị đã lưu; lựa chọn bên dưới chưa được áp dụng cho đến khi lưu. Set được áp dụng riêng, không thay đổi tám ô trang bị đã lưu.</p>
     <div className="pds-property-row">
       <label className="pds-property-label" htmlFor="self-loadout-set">Set</label>

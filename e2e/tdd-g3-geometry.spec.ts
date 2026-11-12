@@ -30,7 +30,7 @@ async function measure(page: Page, stage: Stage): Promise<Geometry> {
     const locate = (selector: string) => document.querySelector<HTMLElement>(selector);
     const dim = (selector: string) => locate(selector)?.getBoundingClientRect().width ?? null;
     const visible = (node: Element | null) => !!node && getComputedStyle(node).display !== "none" && node.getBoundingClientRect().height > 0;
-    const props = [...document.querySelectorAll<HTMLElement>('[data-tdd-properties="drawer"] .property-control')].filter(visible);
+    const props = [...document.querySelectorAll<HTMLElement>('[data-tdd-properties="drawer"] :is(.property-control, .v24-prop-value)')].filter(visible);
     const tabs = locate('[role="tablist"]');
     const shell = locate('[data-tdd-shell="' + stage + '"]');
     const rect = shell?.getBoundingClientRect();
@@ -99,7 +99,7 @@ test("PAP-1073 negative: actual cramped two-column Drawer DOM fails despite corr
   await page.setContent(fixture("BO", "drawer"));
   const original = await measure(page, "drawer");
   expect(issues(original, "drawer")).toEqual([]);
-  await page.addStyleTag({ content: '[data-tdd-properties="drawer"]{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important} [data-tdd-properties="drawer"] .property-row{grid-template-columns:110px 92px!important} [data-tdd-properties="drawer"] .property-control{width:92px!important;min-width:0!important}' });
+  await page.addStyleTag({ content: '[data-tdd-properties="drawer"]{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important} [data-tdd-properties="drawer"] .property-row{grid-template-columns:110px 92px!important} [data-tdd-properties="drawer"] :is(.property-control,.v24-prop-value){width:92px!important;min-width:0!important}' });
   const broken = await measure(page, "drawer");
   expect(broken.drawerWidth).toBe(original.drawerWidth);
   expect(broken.minPropertyValueWidth).toBeLessThanOrEqual(93);

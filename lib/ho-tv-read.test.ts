@@ -104,3 +104,20 @@ test("HO gate blocks anonymous, non-Founder, foreign host, production and missin
   assert.equal((await handleHoTvRead(req(url+"?debug=true"),env())).status,400);
   assert.deepEqual(records,[]);
 });
+
+test("PAP-1419 private Founder Policy Directory GET forwards exact safe pagination only", async () => {
+  records.length = 0;
+  const path = prefix + "tv-policies/directory?limit=50&offset=0";
+  const ok = await handleHoTvRead(req(path), env());
+  assert.equal(ok.status, 200);
+  assert.equal(ok.headers.get("cache-control"), "no-store");
+  assert.deepEqual(records, [{path: "pinoria/tv-policies/directory", body: {limit: 50, offset: 0}, token: "valid"}]);
+  for (const query of ["?limit=51", "?offset=-1", "?debug=true", "?limit=25&limit=25"])
+    assert.equal((await handleHoTvRead(req(prefix + "tv-policies/directory" + query), env())).status, 400);
+  assert.equal((await handleHoTvRead(req(path, {token: "absent"}), env())).status, 401);
+  assert.equal((await handleHoTvRead(req(path), env({founder: false}))).status, 403);
+  assert.equal((await handleHoTvRead(req(path, {host: BO_STAGING_HOSTNAME}), env())).status, 404);
+  assert.equal((await handleHoTvRead(req(path, {method: "POST"}), env())).status, 404);
+  assert.equal((await handleHoTvRead(req(path), env({binding: false}))).status, 503);
+  assert.equal(records.length, 1, "denied requests must not reach Core");
+});

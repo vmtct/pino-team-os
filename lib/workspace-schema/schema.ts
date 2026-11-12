@@ -22,7 +22,7 @@ export type TddActionDescriptor = {
   /** Optional DS icon-only presentation; retains label for accessible name. */
   readonly icon?: "refresh";
 };
-export type Sections<K extends string> = readonly { readonly id: string; readonly label: string; readonly fields: readonly K[] }[];
+export type Sections<K extends string> = readonly { readonly id: string; readonly label: string; readonly fields: readonly K[]; /** PAP-1743: Drawer-only disclosure. */ readonly collapsed?: boolean }[];
 
 /** PAP-1256: only field-literal comparisons are permitted; no executable predicates. */
 export type TabVisibility<K extends string> = { readonly field: K; readonly op: "eq" | "neq"; readonly value: string };

@@ -2,6 +2,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { isFounderMigratedBoAvatarNativeDsaRoute } from "./verify-tdd-authority.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const POLICY = "app/bo/architecture/bo-staging-route-policy.ts";
@@ -63,14 +64,25 @@ function canonicalRoutes(root, issues) {
   visit(base);
   const tdd=tddRoutes(root,issues);
   for(const route of tdd)routes.add(route);
-  return {routes,tdd};
+  // PAP-1810 / PNR-AVATAR-CRUD: exact Founder-directed native BO DSA
+  // migration; only the validated existing Avatar route is admitted.
+  const native=new Set();
+  if(!tdd.has("/bo/pinoria-avatars") &&
+    isFounderMigratedBoAvatarNativeDsaRoute(root,{
+      file:"app/bo/pinoria-avatars/page.tsx",
+      route:"/bo/pinoria-avatars",key:"pinoria-avatars",surface:"BO",profile:"TDD_DEFAULT"
+    })) {
+    routes.add("/bo/pinoria-avatars");
+    native.add("/bo/pinoria-avatars");
+  }
+  return {routes,tdd,native};
 }
 
 export function verifyBoStagingRoutePolicy(root = ROOT) {
   const issues = [];
   const admitted = policyRoutes(read(root, POLICY), "boStagingAdmittedRoutes", issues);
   const deferred = policyRoutes(read(root, POLICY), "boStagingDeferredRoutes", issues);
-  const {routes:canonical,tdd} = canonicalRoutes(root,issues);
+  const {routes:canonical,tdd,native} = canonicalRoutes(root,issues);
   for (const route of canonical) {
     if (admitted.has(route) === deferred.has(route))
       issues.push(`${route}: canonical BO route needs exactly one staging decision (admitted or deferred)`);
@@ -108,6 +120,11 @@ export function verifyBoStagingRoutePolicy(root = ROOT) {
     issues.push("Workforce pages must retain production fallback and staging BO workspace");
   for (const route of admitted) {
     if (!canonical.has(route)) continue;
+    if(native.has(route)){
+      // Exact native DSA feature keeps the same BO shell, staging policy,
+      // real Core Center-scoped API and PINO DS; not the legacy Factory grid.
+      continue;
+    }
     if(tdd.has(route)){
       const file=read(root,"app/bo/"+route.slice("/bo/".length)+"/page.tsx");
       if(!/<[A-Za-z]*Tdd\b/.test(file)||/<\s*(table|BoDataGrid|BoDataGridSidePeek)(?=[\s/>])/.test(file))

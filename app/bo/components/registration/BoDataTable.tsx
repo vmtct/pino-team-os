@@ -10,12 +10,37 @@ import { BoFilters, type BoSavedView, type BoTableUpdate } from "./BoTableSettin
 import { display, opLabels, tableRows, type BoModule, type BoRecord, type BoTableState } from "@/lib/bo-registration";
 import type { TablePolicy } from "@/app/components/workspace-renderer/TablePolicy";
 import { registeredTableRows } from "@/app/components/workspace-renderer/tableRows";
-export function BoDataTable({ module, rows, loadState, value, update, page, setPage, onOpen, onPrimaryCellOpen, selected, onSettings, filterOpen, setFilterOpen, views, changeViews, activeView, applyView, reset, undo, canUndo, minimal = false, legacyStyles = false, showChrome = true, policy, serverTotal, onCellEdit, builtInViews, freezeEnabled = false }: { freezeEnabled?: boolean; policy?: TablePolicy; serverTotal?: number; onCellEdit?: (record: BoRecord, field: string, anchor: HTMLButtonElement) => void; builtInViews?: ReactNode; legacyStyles?: boolean; minimal?: boolean; showChrome?: boolean; module: BoModule; rows: BoRecord[]; loadState: string; value: BoTableState; update: BoTableUpdate; page: number; setPage: (p: number) => void; onOpen: (r: BoRecord) => void; onPrimaryCellOpen?: (r: BoRecord) => void; selected?: string; onSettings: (s: string) => void; filterOpen: boolean; setFilterOpen: (v: boolean) => void; views: BoSavedView[]; changeViews: (v: BoSavedView[]) => void; activeView: string | null; applyView: (v: BoSavedView | null) => void; reset: () => void; undo: () => void; canUndo: boolean }) {
+export function BoDataTable({ module, rows, loadState, value, update, page, setPage, onOpen, onPrimaryCellOpen, selected, onSettings, filterOpen, filterContent, setFilterOpen, views, changeViews, activeView, applyView, reset, undo, canUndo, minimal = false, legacyStyles = false, showChrome = true, policy, serverTotal, onCellEdit, builtInViews, freezeEnabled = false, totalKnown = true, openEnabled = true, nativeAvatarOpener = false }: { openEnabled?: boolean; nativeAvatarOpener?: boolean; totalKnown?: boolean; freezeEnabled?: boolean; policy?: TablePolicy; serverTotal?: number; onCellEdit?: (record: BoRecord, field: string, anchor: HTMLButtonElement) => void; builtInViews?: ReactNode; legacyStyles?: boolean; minimal?: boolean; showChrome?: boolean; module: BoModule; rows: BoRecord[]; loadState: string; value: BoTableState; update: BoTableUpdate; page: number; setPage: (p: number) => void; onOpen: (r: BoRecord) => void; onPrimaryCellOpen?: (r: BoRecord) => void; selected?: string; onSettings: (s: string) => void; filterOpen: boolean; filterContent?: ReactNode; setFilterOpen: (v: boolean) => void; views: BoSavedView[]; changeViews: (v: BoSavedView[]) => void; activeView: string | null; applyView: (v: BoSavedView | null) => void; reset: () => void; undo: () => void; canUndo: boolean }) {
   const fields = useMemo(() => value.order.filter(key => value.visible.includes(key)).map(key => module.fields.find(f => f.key === key)!), [value.order, value.visible, module.fields]);
   const found = serverTotal !== undefined ? rows : policy ? registeredTableRows(rows, module.fields, value, policy) : tableRows(rows, module.fields, value);
   const total = serverTotal ?? found.length, pages = Math.max(1, Math.ceil(total / value.pageSize)), current = Math.min(page, pages), offset = (current - 1) * value.pageSize, visible = serverTotal !== undefined ? found : found.slice(offset, offset + value.pageSize);
   const identity = policy?.identity ?? "name";
   const scrollRef = useRef<HTMLDivElement>(null);
+  const filterButtonRef = useRef<HTMLButtonElement>(null);
+  const filterSurfaceRef = useRef<HTMLDivElement>(null);
+  // PAP-1869 / PAP-1867 — canonical DSA filter surface: Escape/outside dismiss.
+  useEffect(() => {
+    if (!filterOpen) return;
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      event.preventDefault();
+      event.stopPropagation();
+      setFilterOpen(false);
+      filterButtonRef.current?.focus({ preventScroll: true });
+    };
+    const onOutside = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (filterButtonRef.current?.contains(target) || filterSurfaceRef.current?.contains(target)) return;
+      setFilterOpen(false);
+    };
+    document.addEventListener("keydown", onEscape);
+    document.addEventListener("pointerdown", onOutside);
+    return () => {
+      document.removeEventListener("keydown", onEscape);
+      document.removeEventListener("pointerdown", onOutside);
+    };
+  }, [filterOpen, setFilterOpen]);
   const [freezeMenu, setFreezeMenu] = useState<{ key: string; x: number; y: number } | null>(null);
   const freezeTrigger = useRef<HTMLElement | null>(null);
   const [freezeNotice, setFreezeNotice] = useState("");
@@ -30,7 +55,7 @@ export function BoDataTable({ module, rows, loadState, value, update, page, setP
       const widths: Record<string, number> = {};
       const headers = [...table.querySelectorAll<HTMLTableCellElement>("thead th[data-column]")];
       for (const header of headers) widths[header.dataset.column!] = header.getBoundingClientRect().width;
-      const opener = 0; // PAP-1437: no standalone Quick View arrow column.
+      const opener = nativeAvatarOpener ? 56 : 0; // PAP-1810 / PNR-AVATAR-CRUD, native DSA opt-in; PAP-1437 remains global default.
       const prefix = frozenPrefix(fields.map(f => f.key), frozenThrough, widths, opener, scroll!.clientWidth);
       const offsets = new Map(prefix.map(v => [v.key, v.left]));
       for (const cell of table.querySelectorAll<HTMLElement>("th[data-column],td[data-freeze-column]")) {
@@ -48,7 +73,7 @@ export function BoDataTable({ module, rows, loadState, value, update, page, setP
     for (const header of table.querySelectorAll("thead th")) resize?.observe(header);
     window.addEventListener("resize", measure);
     return () => { resize?.disconnect(); window.removeEventListener("resize", measure); };
-  }, [freezeEnabled, frozenThrough, fields, rows, loadState, value]);
+  }, [freezeEnabled, frozenThrough, fields, rows, loadState, value, nativeAvatarOpener]);
   useEffect(() => {
     if (!freezeMenu) return;
     const dismiss = (event: PointerEvent) => {
@@ -74,42 +99,45 @@ export function BoDataTable({ module, rows, loadState, value, update, page, setP
   const candidates = [...new Set([...found.map(r => display(r[value.group])), ...(module.fields.find(f => f.key === value.group)?.options ?? [])])].sort((a, b) => a.localeCompare(b, "vi"));
   if (value.groupDesc) candidates.reverse();
   function row(record: BoRecord) {
-    return <tr key={record.id} data-record={record.id} data-open={record.id}
-      tabIndex={0} aria-label={"Mở Quick View " + record.name}
+    return <tr key={record.id} data-record={record.id} data-open={openEnabled ? record.id : undefined}
+      tabIndex={openEnabled ? 0 : undefined} aria-label={openEnabled ? "Mở Quick View " + record.name : undefined}
       className={(selected === record.id ? "selected " : "") + "tdd-data-row"}
       onClick={event => {
+        if (!openEnabled) return;
         if (event.target instanceof Element && event.target.closest("button,a,input,select,textarea,[role=button]")) return;
         event.currentTarget.focus({ preventScroll: true });
         onOpen(record);
       }}
       onKeyDown={event => {
+        if (!openEnabled) return;
         if (event.target !== event.currentTarget || !["Enter", " "].includes(event.key)) return;
         event.preventDefault();
         onOpen(record);
       }}>
+      {nativeAvatarOpener ? <td className="first-quick-cell" data-native-avatar-open-cell=""><button type="button" className="row-open" aria-label={"Mở Quick View " + record.name} onClick={() => onOpen(record)}>↗</button></td> : null}
       {fields.map((f, index) => <td key={f.key} data-tdd-legacy-sticky-release={index === 1 && f.key !== identity ? "" : undefined} data-tdd-identity-column={f.key === identity ? "" : undefined} data-freeze-column={freezeEnabled ? f.key : undefined}
         className={legacyStyles ? undefined : "schema-column"}
         style={legacyStyles ? { width: f.w, minWidth: f.w } : { "--bo-column-width": f.w + "px" } as CSSProperties}>
-        <button type="button" className={"typed-cell" + (["id", "formula"].includes(f.type) ? " readonly" : "")}
-          data-edit={f.key} aria-label={onCellEdit && policy?.edit.includes(f.key) ? "Sửa " + f.label + ": " + display(record[f.key]) : "Mở Quick View " + record.name + " - " + f.label + ": " + display(record[f.key])}
-          title={onCellEdit && policy?.edit.includes(f.key) ? "Sửa " + f.label : "Mở Quick View"}
+        <button type="button" disabled={!openEnabled} className={"typed-cell" + (!openEnabled || ["id", "formula"].includes(f.type) ? " readonly" : "")}
+          data-edit={f.key} aria-label={!openEnabled ? f.label + ": " + display(record[f.key]) : onCellEdit && policy?.edit.includes(f.key) ? "Sửa " + f.label + ": " + display(record[f.key]) : "Mở Quick View " + record.name + " - " + f.label + ": " + display(record[f.key])}
+          title={!openEnabled ? "Chỉ xem" : onCellEdit && policy?.edit.includes(f.key) ? "Sửa " + f.label : "Mở Quick View"}
           onClick={onCellEdit && policy?.edit.includes(f.key)
             ? event => onCellEdit(record, f.key, event.currentTarget)
             : f.key === identity && onPrimaryCellOpen ? () => onPrimaryCellOpen(record) : () => onOpen(record)}>
-          <BoValue field={f} value={record[f.key]} />
+          {nativeAvatarOpener && f.key === identity ? <span data-avatar-person-lines=""><span data-avatar-person-primary="">{record.name}</span><small>Avatar: {typeof record.nickname === "string" && record.nickname.trim() ? record.nickname : "—"}</small></span> : <BoValue field={f} value={record[f.key]} />}
         </button>
       </td>)}
     </tr>;
   }
-  return <div className="grid-card">{showChrome ? <><div className="view-tabs"><BoViewTabs builtIn={builtInViews} actions={policy?.viewActions} minimal={minimal} views={views} changeViews={changeViews} active={activeView} apply={applyView} onAdd={() => onSettings("views")} /><div className="tabs-right"><span id="table-count" className="table-meta">{total} bản ghi</span></div></div>
-    <div className="toolbar"><label className="search-field"><span>⌕</span><input id="search" type="search" aria-label="Tìm bất kỳ giá trị nào" placeholder="Tìm bất kỳ giá trị nào..." disabled={policy?.search.length === 0} value={value.search} onChange={e => update({ search: e.target.value })} /></label><button id="filter-toggle" type="button" className="toolbar-button tdd-setting-icon" data-tdd-setting="filters" aria-label="Bộ lọc" title="Bộ lọc" aria-expanded={filterOpen} onClick={() => setFilterOpen(!filterOpen)}><FontAwesomeIcon icon={faFilter} aria-hidden="true" />{value.rules.length ? <b id="rules-count" className="filter-count" aria-hidden="true">{value.rules.length}</b> : null}</button>
+  return <div className="grid-card" data-native-avatar={nativeAvatarOpener ? "" : undefined}>{showChrome ? <><div className="view-tabs"><BoViewTabs builtIn={builtInViews} actions={policy?.viewActions} minimal={minimal} views={views} changeViews={changeViews} active={activeView} apply={applyView} onAdd={() => onSettings("views")} /><div className="tabs-right">{totalKnown ? <span id="table-count" className="table-meta">{total} bản ghi</span> : null}</div></div>
+    <div className="toolbar"><label className="search-field"><span>⌕</span><input id="search" type="search" aria-label="Tìm bất kỳ giá trị nào" placeholder="Tìm bất kỳ giá trị nào..." disabled={policy?.search.length === 0} value={value.search} onChange={e => update({ search: e.target.value })} /></label><button id="filter-toggle" ref={filterButtonRef} type="button" className="toolbar-button tdd-setting-icon" data-tdd-setting="filters" aria-label="Bộ lọc" title="Bộ lọc" aria-expanded={filterOpen} onClick={() => setFilterOpen(!filterOpen)}><FontAwesomeIcon icon={faFilter} aria-hidden="true" />{value.rules.length ? <b id="rules-count" className="filter-count" aria-hidden="true">{value.rules.length}</b> : null}</button>
       <button id="visible-columns" type="button" className="toolbar-button tdd-setting-icon" data-tdd-setting="properties" aria-label="Hiển thị thuộc tính" title="Hiển thị thuộc tính" onClick={() => onSettings("properties")}><FontAwesomeIcon icon={faTableColumns} aria-hidden="true" /></button>
       <button id="reset-all" type="button" className="toolbar-button tdd-setting-icon" data-tdd-setting="reset" aria-label="Đặt lại" title="Đặt lại" onClick={reset}><FontAwesomeIcon icon={faRotateLeft} aria-hidden="true" /></button>
-      <button id="group-shortcut" type="button" className="toolbar-button tdd-setting-icon" data-tdd-setting="group" aria-label="Nhóm" title="Nhóm" onClick={() => onSettings("group")}><FontAwesomeIcon icon={faLayerGroup} aria-hidden="true" /></button><div className="toolbar-spacer" /><button id="undo-v22" type="button" className="toolbar-button" disabled={!canUndo} aria-label="Hoàn tác" title="Hoàn tác (Ctrl+Z)" onClick={undo}>↶</button></div>
-    {filterOpen ? <><BoFilters fields={policy ? module.fields.filter(f => policy.filter.includes(f.key)) : module.fields} value={value} update={update} /><div className="rules-actions"><button type="button" id="save-view" className="save-view-btn" onClick={() => onSettings("views")}>＋ Lưu thành Quick View</button></div></> : null}
+      {!policy || policy.group.length > 0 ? <button id="group-shortcut" type="button" className="toolbar-button tdd-setting-icon" data-tdd-setting="group" aria-label="Nhóm" title="Nhóm" onClick={() => onSettings("group")}><FontAwesomeIcon icon={faLayerGroup} aria-hidden="true" /></button> : null}<div className="toolbar-spacer" /><button id="undo-v22" type="button" className="toolbar-button" disabled={!canUndo} aria-label="Hoàn tác" title="Hoàn tác (Ctrl+Z)" onClick={undo}>↶</button></div>
+    {filterOpen ? <div ref={filterSurfaceRef} data-tdd-filter-surface="">{filterContent ?? <BoFilters fields={policy ? module.fields.filter(f => policy.filter.includes(f.key)) : module.fields} value={value} update={update} />}{!policy || policy.viewActions.includes("add") ? <div className="rules-actions"><button type="button" id="save-view" className="save-view-btn" onClick={() => onSettings("views")}>＋ Lưu thành Quick View</button></div> : null}</div> : null}
     <div id="active-chips" className={"filter-chips " + (value.rules.length ? "active" : "")}>{value.rules.map((rule, i) => <button type="button" className="chip" key={i} onClick={() => update({ rules: value.rules.filter((_, n) => n !== i) })}>{module.fields.find(f => f.key === rule.field)?.label} {opLabels[rule.op]} {rule.value} ×</button>)}</div>
     </> : null}
-    <div className="table-scroll" data-tdd-freeze-viewport={freezeEnabled ? "" : undefined} id="table-scroll" ref={scrollRef}><table id="typed-table"><caption>{module.label}</caption><thead id="table-head"><tr>{fields.map((f, index) => <th key={f.key} data-column={f.key} data-tdd-legacy-sticky-release={index === 1 && f.key !== identity ? "" : undefined} data-tdd-identity-column={f.key === identity ? "" : undefined} tabIndex={0} aria-label={"Tùy chọn cột " + f.label + " (Shift+F10)"}
+    <div className="table-scroll" data-tdd-freeze-viewport={freezeEnabled ? "" : undefined} id="table-scroll" ref={scrollRef}><table id="typed-table"><caption>{module.label}</caption><thead id="table-head"><tr>{nativeAvatarOpener ? <th scope="col" className="quick-open-th">Mở</th> : null}{fields.map((f, index) => <th key={f.key} data-column={f.key} data-tdd-legacy-sticky-release={index === 1 && f.key !== identity ? "" : undefined} data-tdd-identity-column={f.key === identity ? "" : undefined} tabIndex={0} aria-label={"Tùy chọn cột " + f.label + " (Shift+F10)"}
       onContextMenu={event => { event.preventDefault(); openFreeze(f.key, event.currentTarget, { x: event.clientX, y: event.clientY }); }}
       onKeyDown={event => {
         if (event.key === "ContextMenu" || (event.key === "F10" && event.shiftKey)) {
@@ -117,9 +145,9 @@ export function BoDataTable({ module, rows, loadState, value, update, page, setP
           event.stopPropagation();
           openFreeze(f.key, event.currentTarget);
         }
-      }} className={(legacyStyles ? "" : "schema-column ") + (f.key === identity ? "" : "column-draggable")} draggable={f.key !== identity} onDragStart={e => e.dataTransfer.setData("text/plain", f.key)} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); const key = e.dataTransfer.getData("text/plain"); if (key === identity || f.key === identity || !value.order.includes(key) || key === f.key) return; const order = value.order.filter(k => k !== key); order.splice(order.indexOf(f.key), 0, key); update({ order }); }} style={legacyStyles ? { width: f.w, minWidth: f.w } : { "--bo-column-width": f.w + "px" } as CSSProperties}><button type="button" data-sort={f.key} disabled={policy && !policy.sort.includes(f.key)} title={"Sắp xếp theo " + f.label} onClick={() => update({ sort: f.key, desc: value.sort === f.key ? !value.desc : false })}>{f.label} <span className="column-type">{f.icon}</span> <span className="sort-icon">{value.sort === f.key ? value.desc ? "↓" : "↑" : "↕"}</span></button></th>)}</tr></thead><tbody id="table-body">{loadState !== "ready" ? <tr><td colSpan={fields.length}><div className="empty-table" role={loadState === "loading" ? "status" : "alert"}>{loadState === "loading" ? "Đang tải dữ liệu…" : loadState}</div></td></tr> : !found.length ? <tr><td colSpan={fields.length}><div className="empty-table"><strong>Không có bản ghi phù hợp</strong>Thử chỉnh điều kiện hoặc xóa bộ lọc.</div></td></tr> : value.group ? candidates.filter(group => !value.hiddenGroups.includes(group) && (!value.hideEmpty || visible.some(r => display(r[value.group]) === group))).map(group => <Fragment key={group}><tr className="group-heading-row"><td colSpan={fields.length}><button type="button" className="group-toggle" aria-expanded={!value.collapsed.includes(group)} onClick={() => update({ collapsed: value.collapsed.includes(group) ? value.collapsed.filter(g => g !== group) : [...value.collapsed, group] })}><span className="group-caret">{value.collapsed.includes(group) ? "▸" : "▾"}</span><span className="group-pill">{group}</span><small>{found.filter(r => display(r[value.group]) === group).length} bản ghi</small></button></td></tr>{!value.collapsed.includes(group) ? visible.filter(r => display(r[value.group]) === group).map(row) : null}</Fragment>) : visible.map(row)}</tbody></table></div>
+      }} className={(legacyStyles ? "" : "schema-column ") + (f.key === identity ? "" : "column-draggable")} draggable={f.key !== identity} onDragStart={e => e.dataTransfer.setData("text/plain", f.key)} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); const key = e.dataTransfer.getData("text/plain"); if (key === identity || f.key === identity || !value.order.includes(key) || key === f.key) return; const order = value.order.filter(k => k !== key); order.splice(order.indexOf(f.key), 0, key); update({ order }); }} style={legacyStyles ? { width: f.w, minWidth: f.w } : { "--bo-column-width": f.w + "px" } as CSSProperties}><button type="button" data-sort={f.key} disabled={policy && !policy.sort.includes(f.key)} title={"Sắp xếp theo " + f.label} onClick={() => update({ sort: f.key, desc: value.sort === f.key ? !value.desc : false })}>{f.label} <span className="column-type">{f.icon}</span> <span className="sort-icon">{value.sort === f.key ? value.desc ? "↓" : "↑" : "↕"}</span></button></th>)}</tr></thead><tbody id="table-body">{loadState !== "ready" ? <tr><td colSpan={fields.length + (nativeAvatarOpener ? 1 : 0)}><div className="empty-table" role={loadState === "loading" ? "status" : "alert"}>{loadState === "loading" ? "Đang tải dữ liệu…" : loadState}</div></td></tr> : !found.length ? <tr><td colSpan={fields.length + (nativeAvatarOpener ? 1 : 0)}><div className="empty-table"><strong>Không có bản ghi phù hợp</strong>Thử chỉnh điều kiện hoặc xóa bộ lọc.</div></td></tr> : value.group ? candidates.filter(group => !value.hiddenGroups.includes(group) && (!value.hideEmpty || visible.some(r => display(r[value.group]) === group))).map(group => <Fragment key={group}><tr className="group-heading-row"><td colSpan={fields.length + (nativeAvatarOpener ? 1 : 0)}><button type="button" className="group-toggle" aria-expanded={!value.collapsed.includes(group)} onClick={() => update({ collapsed: value.collapsed.includes(group) ? value.collapsed.filter(g => g !== group) : [...value.collapsed, group] })}><span className="group-caret">{value.collapsed.includes(group) ? "▸" : "▾"}</span><span className="group-pill">{group}</span><small>{found.filter(r => display(r[value.group]) === group).length} bản ghi</small></button></td></tr>{!value.collapsed.includes(group) ? visible.filter(r => display(r[value.group]) === group).map(row) : null}</Fragment>) : visible.map(row)}</tbody></table></div>
     {freezeNotice ? <p role="status" data-tdd-freeze-notice="" className="table-meta">{freezeNotice}</p> : null}
-    <footer className="table-footer"><div><span id="result-count" className="result-label">{total} / {serverTotal ?? rows.length} bản ghi</span><span className="footer-dot">·</span></div><div className="pagination"><label>Hiển thị <select id="page-size" value={value.pageSize} onChange={e => update({ pageSize: Number(e.target.value) })}>{[8, 15, 30].map(n => <option key={n} value={n}>{n} dòng</option>)}</select></label><span id="page-range" className="page-counter">{found.length ? offset + 1 + "–" + Math.min(total, offset + value.pageSize) + " / " + total : "0 / 0"}</span><button type="button" id="prev-page" className="pager" aria-label="Trang trước" disabled={current <= 1} onClick={() => setPage(current - 1)}>‹</button><button type="button" id="next-page" className="pager" aria-label="Trang sau" disabled={current >= pages} onClick={() => setPage(current + 1)}>›</button></div></footer>
+    {totalKnown ? <footer className="table-footer"><div><span id="result-count" className="result-label">{total} / {serverTotal ?? rows.length} bản ghi</span><span className="footer-dot">·</span></div><div className="pagination"><label>Hiển thị <select id="page-size" value={value.pageSize} onChange={e => update({ pageSize: Number(e.target.value) })}>{[8, 15, 30].map(n => <option key={n} value={n}>{n} dòng</option>)}</select></label><span id="page-range" className="page-counter">{found.length ? offset + 1 + "–" + Math.min(total, offset + value.pageSize) + " / " + total : "0 / 0"}</span><button type="button" id="prev-page" className="pager" aria-label="Trang trước" disabled={current <= 1} onClick={() => setPage(current - 1)}>‹</button><button type="button" id="next-page" className="pager" aria-label="Trang sau" disabled={current >= pages} onClick={() => setPage(current + 1)}>›</button></div></footer> : null}
     {freezeMenu ? createPortal(<div id="tdd-freeze-menu" className="view-context" role="menu" aria-label={"Tùy chọn cột " + (module.fields.find(f => f.key === freezeMenu.key)?.label ?? "")} data-tdd-column-menu="" data-tdd-freeze-menu={freezeEnabled ? "" : undefined} onKeyDown={event => {
       const items = [...event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)')];
       if (!items.length || !["ArrowDown", "ArrowUp", "Home", "End", "Tab"].includes(event.key)) return;

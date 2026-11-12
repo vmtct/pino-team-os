@@ -1,4 +1,5 @@
 "use client";
+import { LocalizedModuleTitle } from "@/lib/pino-nav-locale-context";
 
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { boApi, BoApiError } from "@/lib/bo-api";
@@ -10,6 +11,7 @@ import { TddHostMenu } from "@/app/components/workspace-adapters/SurfaceWorkspac
 import { subscriptionModule } from "@/app/bo/components/registration/BoStudentSubscriptionRelation";
 import type { BoRecord } from "@/lib/bo-registration";
 import { BillingWorkspace, type BillingReplayState } from "./BillingWorkspace";
+import { useBoCenterSelection } from "@/app/bo/components/registration/BoCenterSelection";
 import { SubscriptionCreateDrawer } from "./SubscriptionCreateDrawer";
 import { SpecialtyWorkspace } from "./SpecialtyWorkspace";
 import styles from "./bo-subscriptions.module.css";
@@ -23,6 +25,7 @@ const EMPTY_BILLING_REPLAY: BillingReplayState = { pending: null, busy: null, no
 export function BoSubscriptionsView({embedded = false}: {embedded?:boolean} = {}) {
   // Share the canonical BO/HO mobile menu owner; the default context is inert on standalone routes.
   const hostMenu = useContext(TddHostMenu);
+  const selectedCenter = useBoCenterSelection();
   const [directory, setDirectory] = useState<Load<BoLearnerDirectoryItem[]>>({ state: "loading" });
   const [catalog, setCatalog] = useState<Load<Catalog>>({ state: "loading" });
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -257,10 +260,10 @@ export function BoSubscriptionsView({embedded = false}: {embedded?:boolean} = {}
     <header className="page-heading">
       <div className="page-heading-left">
         {hostMenu("subscription-menu-btn")}
-        <h1>Subscriptions</h1>
+        <h1><LocalizedModuleTitle label="Subscriptions" moduleKey="subscriptions" /></h1>
       </div>
       <div className="heading-actions">
-        <button type="button" className="primary-btn" disabled={Boolean(billingReplay.busy || billingReplay.pending || commandState.busy || pendingAttempt)} onClick={() => setCreateOpen(true)}><span>＋</span> Tạo mới</button>
+        <button type="button" className="primary-btn" disabled={Boolean(!selectedCenter || selectedCenter.loading || selectedCenter.error || !selectedCenter.selected || billingReplay.busy || billingReplay.pending || commandState.busy || pendingAttempt)} onClick={() => setCreateOpen(true)}><span>＋</span> Tạo mới</button>
       </div>
     </header>
     {commandState.notice ? <div className={styles.notice}>{commandState.notice}</div> : null}
@@ -292,8 +295,6 @@ export function BoSubscriptionsView({embedded = false}: {embedded?:boolean} = {}
     {createOpen ? <SubscriptionCreateDrawer
       initialStudentId={requestedStudentIdRef.current}
       paths={catalog.state === "ready" ? catalog.data.paths : []}
-      classes={catalog.state === "ready" ? catalog.data.classes : []}
-      replayState={billingReplay} setReplayState={setBillingReplay}
       onChanged={() => {setHistoryRevision(n => n+1);}}
       onClose={() => setCreateOpen(false)}
     /> : null}
@@ -307,7 +308,7 @@ export function BoSubscriptionsView({embedded = false}: {embedded?:boolean} = {}
       moduleKey="subscriptions"
       onEnrollmentChanged={() => setHistoryRevision(v => v + 1)}
       initialTab={historyTab}
-      onTabChanged={(next)=>{if(next!=="Detail"&&next!=="Enrollment"&&next!=="Lịch Sử")return;
+      onTabChanged={(next)=>{if(next!=="Detail"&&next!=="Enrollment"&&next!=="Chuyên đề"&&next!=="Lịch Sử")return;
         const tab=next as SubscriptionDetailTab;
         const url=subscriptionDetailUrl(window.location.href,historyDetail.id,tab);
         window.history.pushState(null,"",url);setHistoryTab(tab);

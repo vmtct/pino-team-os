@@ -593,6 +593,12 @@
 [data-surface="ho"] :is(.id-code,.pagination select,.detail-subtitle,.drawer-path,.v24-field-glyph) { color:var(--ds-primary); }
 [data-surface="ho"] :is(.lab-menu,.detail-hero-back,.settings-trigger,.pager) { color:var(--ds-primary); border-color:var(--ds-primary-border); }
 [data-surface="ho"] .toolbar-button:where(:not([data-tdd-shell="table"] *)), [data-surface="ho"] .view-add:where(:not([data-tdd-shell="table"] *)) { display:none!important; }
+/* PAP-1419 / PNR-TV S3: the HO legacy shell hides Table controls globally.
+   Restore only the three approved PINO DS list actions within the Founder
+   Policy Directory; do not expose disabled Quick Views, grouping or S4 actions. */
+[data-surface="ho"] [data-pnr-tv-stage="s3-list"] .toolbar :is(#filter-toggle, #visible-columns, #reset-all) {
+  display: inline-flex !important;
+}
 [data-surface="ho"] :is(.view-rename-input,input:focus,select:focus) { border-color:var(--ds-primary-border); }
 
 [data-surface="ho"] .nav-link.active .nav-icon { color:var(--ds-on-primary); }
@@ -1169,5 +1175,60 @@
 :where(html[data-surface="ho"]) .toolbar .toolbar-button.tdd-setting-icon:focus-visible {
   outline: 2px solid var(--ds-primary, #6151c4);
   outline-offset: 2px;
+}
+
+/* PAP-1810 / PNR-AVATAR-CRUD — Avatar-only native BO DSA utility opener.
+   Default BO tables preserve PAP-1437 no-separate-opener behavior. */
+:where(html[data-surface="ho"]) [data-native-avatar] #typed-table :is(th.quick-open-th, td.first-quick-cell) {
+  width: 56px !important; min-width: 56px !important; max-width: 56px !important;
+  box-sizing: border-box !important;
+}
+:where(html[data-surface="ho"]) [data-native-avatar] #typed-table :is(th,td):nth-child(2) { left: 56px !important; }
+:where(html[data-surface="ho"]) [data-native-avatar] #typed-table td.first-quick-cell .row-open {
+  opacity: 1;
+}
+:where(html[data-surface="ho"]) [data-native-avatar] #typed-table [data-avatar-person-lines] {
+  display: flex; flex-direction: column; min-width: 0; max-width: 100%;
+  gap: 2px; line-height: 1.25;
+}
+:where(html[data-surface="ho"]) [data-native-avatar] #typed-table [data-avatar-person-primary],
+:where(html[data-surface="ho"]) [data-native-avatar] #typed-table [data-avatar-person-lines] small {
+  display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+:where(html[data-surface="ho"]) [data-native-avatar] #typed-table [data-avatar-person-primary] { font-weight: 650; }
+:where(html[data-surface="ho"]) [data-native-avatar] #typed-table [data-avatar-person-lines] small { font-size: 11px; color: var(--bo-palette-neutral-34); }
+@media (max-width: 760px) {
+  :where(html[data-surface="ho"]) [data-native-avatar] { --tdd-identity-width: 208px; }
+}
+
+/* PAP-1822 — native Avatar CSS parity proof; isolated to data-native-avatar.
+   Never re-enable TDD renderer or alter the global non-avatar table. */
+:where(html[data-surface="ho"]) [data-native-avatar] #typed-table {
+  table-layout: fixed !important;
+  width: max-content !important;
+  min-width: max-content !important;
+}
+:where(html[data-surface="ho"]) [data-native-avatar] #typed-table th[data-column],
+:where(html[data-surface="ho"]) [data-native-avatar] #typed-table td.schema-column {
+  box-sizing: border-box !important;
+  width: var(--bo-column-width, 225px) !important;
+  min-width: var(--bo-column-width, 225px) !important;
+  max-width: var(--bo-column-width, 225px) !important;
+}
+:where(html[data-surface="ho"]) [data-native-avatar] #typed-table :is(th,td)[data-tdd-identity-column] {
+  width: 240px !important; min-width: 240px !important; max-width: 240px !important;
+  position: sticky !important; left: 56px !important;
+}
+:where(html[data-surface="ho"]) [data-native-avatar] #typed-table :is(th,td)[data-tdd-legacy-sticky-release]:not([data-tdd-freeze-cell]) {
+  position: static !important; left: auto !important;
+}
+:where(html[data-surface="ho"]) [data-native-avatar] #filter-toggle,
+:where(html[data-surface="ho"]) [data-native-avatar] #visible-columns,
+:where(html[data-surface="ho"]) [data-native-avatar] #reset-all,
+:where(html[data-surface="ho"]) [data-native-avatar] #save-view {
+  display: inline-flex !important;
+}
+:where(html[data-surface="ho"]) [data-native-avatar] .toolbar {
+  display: flex !important;
 }
 

@@ -5,7 +5,6 @@ import {composeTabs} from "./workspace-schema/registry";
 import {selfSchema,verifySelfWardrobeApproval} from "../app/bo/pinoria-avatars/schema";
 import {decideHostBoundary} from "./host-boundary";
 
-const view=readFileSync(new URL("../app/bo/pinoria-avatars/SelfDirectoryTdd.tsx",import.meta.url),"utf8");
 const ui=readFileSync(new URL("../app/bo/pinoria-avatars/SelfLoadoutDetail.tsx",import.meta.url),"utf8");
 const preview=readFileSync(new URL("../app/components/pinoria/SelfLoadoutPreview.tsx",import.meta.url),"utf8");
 const route=readFileSync(new URL("../app/api/bo/[...path]/route.ts",import.meta.url),"utf8");
@@ -39,22 +38,27 @@ test("PAP-1356 Core gateway dispatch before generic Self Item catch-all",()=>{
   assert.equal((route.match(/if \(isBoSelfLoadoutPath\(joined\)\)/g)??[]).length,5);
   assert.ok(route.indexOf("if (isBoSelfLoadoutPath(joined))")<route.indexOf("if (isBoSelfItemPath(joined))"));
 });
-test("PAP-1356 typed TDD uses shared DS with owner-fenced business layout styles",()=>{
-  const entry=admission.modules.find((m:{key:string})=>m.key==="pinoria-avatars");
-  assert.ok(entry.files.includes("app/bo/pinoria-avatars/SelfLoadoutDetail.tsx"));
-  assert.ok(entry.externalReferences.some((x:{file:string;owner:string})=>x.file==="app/components/pinoria/SelfLoadoutPreview.tsx"&&x.owner==="PAP-1356"));
-  // PAP-1500: exactly scoped domain layout CSS, NOT a new shell stylesheet.
-  assert.deepEqual(entry.files.filter((p:string)=>p.endsWith(".css")),["app/bo/pinoria-avatars/SelfWardrobeDetail.module.css"]);
-  assert.ok(entry.externalReferences.some((x:{file:string;owner:string})=>x.file==="app/components/pinoria/SelfLoadoutPreview.module.css"&&x.owner==="PAP-1489"));
-  assert.deepEqual(entry.businessStyles.map((b:{file:string;owner:string;consumer:string;classes:string[]})=>b),[
-    {file:"app/bo/pinoria-avatars/SelfWardrobeDetail.module.css",owner:"PAP-1490",consumer:"app/bo/pinoria-avatars/SelfWardrobeDetail.tsx",classes:["items"]},
-    {file:"app/components/pinoria/SelfLoadoutPreview.module.css",owner:"PAP-1489",consumer:"app/components/pinoria/SelfLoadoutPreview.tsx",classes:["canvas"]},
-  ]);
-  assert.ok(entry.tests.includes("lib/pap1356-self-loadout-ui.test.ts"));
+test("PAP-1356/PAP-1810 native Avatar Loadout uses Core grants and owner-fenced PINO DS",()=>{
+  // PAP-1810 retired this route's TDD admission; verify live native DSA + Core grants instead.
+  assert.equal(admission.modules.some((m:{key:string})=>m.key==="pinoria-avatars"),false);
+  const nativePage=readFileSync(new URL("../app/bo/pinoria-avatars/page.tsx",import.meta.url),"utf8");
+  const native=readFileSync(new URL("../app/bo/pinoria-avatars/AvatarDirectoryDsa.tsx",import.meta.url),"utf8");
+  assert.match(nativePage,/<AvatarDirectoryDsa\s*\/>/);
+  assert.match(native,/<SelfLoadoutDetail/);
+  assert.match(native,/canView=\{grants\.has\("pinoria\.self\.loadout\.view"\)\}/);
+  assert.match(native,/canManage=\{grants\.has\("pinoria\.self\.loadout\.manage"\)\}/);
+  assert.match(native,/canViewItems=\{grants\.has\("pinoria\.self\.item\.view"\)\}/);
+  assert.match(native,/centerId=\{centerId\}/);
+  assert.doesNotMatch(nativePage+native,/SelfDirectoryTdd|createBoTddAdapter|SurfaceWorkspace/);
+  // PAP-1490/1489/1710 owner-fenced business CSS remains in its approved modules.
+  const wardrobeCss=readFileSync(new URL("../app/bo/pinoria-avatars/SelfWardrobeDetail.module.css",import.meta.url),"utf8");
+  const previewCss=readFileSync(new URL("../app/components/pinoria/SelfLoadoutPreview.module.css",import.meta.url),"utf8");
+  const createCss=readFileSync(new URL("../app/bo/pinoria-avatars/CreateAvatarDrawer.module.css",import.meta.url),"utf8");
+  assert.match(wardrobeCss,/\.items\s*\{/);
+  assert.match(previewCss,/\.canvas\s*\{/);
+  for(const name of ["body","picker","options","optionCopy"])
+    assert.match(createCss,new RegExp("\\."+name+"\\s*\\{"));
   assert.match(ui,/SelfLoadoutEditorLayout/);
-  assert.match(view,/activeTab === "loadout"/);
-  assert.match(view,/context\.authorize\("pinoria\.self\.loadout\.view"\)/);
-  assert.match(view,/context\.authorize\("pinoria\.self\.loadout\.manage"\)/);
   assert.match(preview,/className="pds-properties"/);
   assert.match(preview,/className="pds-property-grid"/);
   assert.doesNotMatch(ui,/\.module\.css|style=\{\{|className=\{/);

@@ -115,18 +115,48 @@ test("other dated occurrence is excluded; zero current assignments is truly EMPT
   assert.deepEqual(result, { state: "EMPTY", groups: [] });
 });
 
-test("scope mismatch, duplicate IDs and incomplete page reject without publishing cards", async () => {
+test("PAP-1488 scope mismatch, duplicate IDs and replayed full page reject without publishing cards", async () => {
   for (const [rows, code, status] of [
     [[record(), record({ id: ids.other, centerId: ids.other })],
       "MISSION_ASSIGNMENT_SOURCE_MISMATCH", 502],
     [[record(), record()], "MISSION_ASSIGNMENT_DUPLICATE_ID", 502],
     [Array.from({ length: 100 }, (_, i) => record({
       id: String(i).padStart(8, "0") + "-5555-4555-8555-555555555555",
-    })), "MISSION_ASSIGNMENT_PAGE_INCOMPLETE", 409],
+    })), "MISSION_ASSIGNMENT_DUPLICATE_ID", 502],
   ] as const) {
     await assert.rejects(readCards(day, day.occurrences[0]!, ids.student,
       api(async () => rows as TosMissionAssignmentRecord[])), denied(status, code));
   }
+});
+
+test("PAP-1488 exactly 100 source records render after an empty second page", async () => {
+  const offsets:number[]=[];
+  const first=Array.from({length:100},(_,i)=>record({
+    id:String(i).padStart(8,"0")+"-5555-4555-8555-555555555555",
+    missionId:String(20000+i).padStart(8,"0")+"-4444-4444-8444-444444444444",
+  }));
+  const view=await readCards(day,day.occurrences[0]!,ids.student,
+    api(async input=>{
+      offsets.push(input.offset??-1);
+      return input.offset===0?first:[];
+    }));
+  assert.deepEqual(offsets,[0,100]);
+  assert.equal(view.state,"READY");
+  if(view.state==="READY") assert.equal(view.groups[0]?.cards.length,100);
+});
+
+test("PAP-1488 offset exhaustion rejects cards without partial success", async () => {
+  const offsets:number[]=[];
+  await assert.rejects(readCards(day,day.occurrences[0]!,ids.student,
+    api(async input=>{
+      const offset=input.offset??-1;offsets.push(offset);
+      return Array.from({length:100},(_,i)=>record({
+        id:String(offset+i).padStart(8,"0")+"-5555-4555-8555-555555555555",
+      }));
+    })),denied(409,"MISSION_ASSIGNMENT_PAGE_INCOMPLETE"));
+  assert.equal(offsets.length,101);
+  assert.equal(offsets[0],0);
+  assert.equal(offsets.at(-1),10000);
 });
 
 test("optional eligible catalog enriches only, never replaces Core persisted snapshots", async () => {
