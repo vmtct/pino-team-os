@@ -142,7 +142,7 @@ function ScopedParents({centerId,centerName,menu}:{centerId:string;centerName?:s
   return <>
     {detail ? <DetailFrame title={detail.name} subtitle={detail.id} onBack={close}
       legacyContent={<BoParentReadTabs module={parentNativeModule} record={detail}
-        fullDetail canEditName={grants.has("identity.parent.edit")} onSaveName={saveName}/>}>
+        fullDetail centerNames={detail.centerNames} canEditName={grants.has("identity.parent.edit")} onSaveName={saveName}/>}>
         {null}
       </DetailFrame> :
     <section id="list-screen">
