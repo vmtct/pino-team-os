@@ -40,12 +40,13 @@ test("PAP-1434: module views preserve status filters and leave All to the TDD en
   validateModule(assignmentSchema);
 });
 
-test("PAP-1434: displayed assignment guidance uses concise Vietnamese without technical internals", () => {
+test("PAP-1916 — BO Mission Table is Title → Buttons → Table without an always-on preamble", () => {
   const ui = readFileSync("app/bo/missions/BoMissionsTdd.tsx", "utf8");
-  const guidance = ui.match(/readOnly: "([^"]+)"/)?.[1];
-  assert.equal(guidance, "Nhiệm vụ được giáo viên giao từ TOS. BO chỉ xem; Quản lý có thể mở lại khi nhiệm vụ đã hoàn tất.");
-  assert.doesNotMatch(guidance!, /\b(?:Core|ACTIVE|ID)\b/);
-  assert.match(ui, /<p role="note">\{assignmentUnavailable\.readOnly\}<\/p>/);
+  assert.doesNotMatch(ui, /Nhiệm vụ được giáo viên giao từ TOS/);
+  assert.doesNotMatch(ui, /assignmentUnavailable\.readOnly|<p role="note">/);
+  assert.match(ui, /<SurfaceWorkspace\b/);
+  // Conditional alerts and status receipts remain legitimate; only blanket introduction is retired.
+  assert.match(ui, /<p role="alert">|<p role="status">/);
 });
 
 test("PAP-1210: reload restores only authorized Center; Center change clears assignment identity", () => {

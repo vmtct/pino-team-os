@@ -54,8 +54,7 @@ export function HoDiariesTdd(){
    error?<p role="alert">{error} <button type="button" onClick={()=>{setError("");setReady(null);setRetry(n=>n+1)}}>Thử lại</button></p>:
    ready?<><SurfaceWorkspace key={center+":"+day} adapter={ready.adapter}
      navigation={ready.navigation} initialQuery={query}/>
-    <p role="note">Nguồn Core GLOBAL chỉ đọc. Học viên, Người Submit và Center hiển thị ID nguồn khi chưa có phép chiếu tên.
-     Nhiệm vụ và trạng thái hoàn tất chỉ có khi API độc lập xác nhận; không suy diễn.</p></>:
+   </>:
    <p role="status">Đang xác minh quyền HO và tải Nhật ký…</p>}
  </section>;
  return <HoWorkspace module="classroomDiaries" content={content}/>;
