@@ -21,7 +21,7 @@ test("PAP-1767 Student CREATE uses the exact BoQuickView view shell, common Prop
 test("PAP-1767 retains Core Intake, Parent selection freshness and uncertain-state idempotency", async () => {
   const source = await src();
   for (const token of [
-    "boApi.createStudentIntake(currentAttempt.body, currentAttempt.idempotencyKey)",
+    "studentIntakeCenterApi.createStudentIntakeInCenter(currentAttempt.centerId, currentAttempt.body, currentAttempt.idempotencyKey)",
     "attemptRef.current = currentAttempt", "crypto.randomUUID()", "existingParentUserId: selectedParentId!",
     "Chọn phụ huynh hiện có", "Tạo phụ huynh mới", "guardianDisplayName",
     "contactType", "contactValue", "canResetAttempt", "uncertainAttempt",
