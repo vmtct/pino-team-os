@@ -4,6 +4,7 @@ import {FontAwesomeIcon,faArrowLeft,faBookOpen,faCalendarDays,faCamera,faCheck,f
 import type {IconDefinition} from "./classroom-icons";
 import styles from "./classroom.module.css";
 import MissionAssignmentTab from "./MissionAssignmentTab";
+import {searchClassroomStudents,addClassroomStudent,type RosterCandidate} from "@/lib/tos-classroom-roster";
 import DiaryCapturePanel from "./DiaryCapturePanel";
 import {formatPinoDateTime} from "@/lib/pino-datetime";
 import {saveExistingClassroomDiary} from "@/lib/tos-classroom-diary-editor";
@@ -25,7 +26,7 @@ const icon=(subject:Domain):IconDefinition=>subject==="art"?faPalette:subject===
 // footer [Học viên, Nhiệm vụ, Nhật ký]; primary action read Assignments; capture NONE.
 // BO layout NONE; Core session.roster.view + Center/occurrence/CANDIDATE scope;
 // cross-domain links NONE; founder_layout_review APPROVED. PAP-945 owns the mount.
-export default function ClassroomV4Presentation({model,initialView,onDetailChange,readOnly=false}:{model:ClassroomV4ViewModel;initialView?:ClassroomV4InitialView;onDetailChange?:(open:boolean)=>void;readOnly?:boolean}){
+export default function ClassroomV4Presentation({model,initialView,onDetailChange,onRosterChanged,readOnly=false}:{model:ClassroomV4ViewModel;initialView?:ClassroomV4InitialView;onDetailChange?:(open:boolean)=>void;onRosterChanged?:(classId:string,studentId:string)=>Promise<void>;readOnly?:boolean}){
  const classes=model.classes,catalog=model.missions,staff=model.staffLabel;
  const mission=(id:string)=>catalog.find(item=>item.id===id);
  const blocked=()=>notify("Chức năng chưa khả dụng. Chưa gửi hoặc lưu dữ liệu.");
@@ -111,8 +112,34 @@ export default function ClassroomV4Presentation({model,initialView,onDetailChang
  const confirmOpen=blocked;
  const openStudent=(id:string)=>{setStudentId(id);setOverlay("student")};
  const openHistory=(d:Diary)=>{setStudentId(d.studentId);setSelectedDiary(d.id);setSelectedMissionId(d.missions[0]?.id||"");setOverlay("historyDetail")};
- const showAdd=()=>{setAddMode("existing");setLookup("");setNewName("");setNewAge("");setNewGender("Nữ");setOverlay("add")};
- const addExisting=(_id:string)=>blocked();
+ const showAdd=()=>{setPageLimit(50);setAddError(false);setAddMode("existing");setLookup("");setNewName("");setNewAge("");setNewGender("Nữ");setOverlay("add")};
+ const [candidatePage,setCandidatePage]=useState<{key:string;items:RosterCandidate[];more:boolean;error:boolean}|null>(null);
+ const [pageLimit,setPageLimit]=useState(50);
+ const [adding,setAdding]=useState(false);
+ const addLock=useRef(false);
+ const [addError,setAddError]=useState(false);
+ const searchKey=JSON.stringify([current?.id,lookup,pageLimit]);
+ useEffect(()=>{
+  if(overlay!=="add"||addMode!=="existing"||!current||readOnly)return;
+  const controller=new AbortController();
+  const timer=setTimeout(()=>{
+   void searchClassroomStudents(model.centerId,current.runningClassId,lookup,pageLimit,controller.signal)
+    .then(result=>{if(!controller.signal.aborted)setCandidatePage({key:searchKey,...result,error:false});})
+    .catch(()=>{if(!controller.signal.aborted)setCandidatePage({key:searchKey,items:[],more:false,error:true});});
+  },180);
+  return()=>{clearTimeout(timer);controller.abort();};
+ },[overlay,addMode,current,readOnly,model.centerId,lookup,pageLimit,searchKey]);
+ const displayedCandidates=candidatePage?.key===searchKey?candidatePage:null;
+ const addExisting=async(id:string)=>{
+  if(readOnly||!current||!onRosterChanged||addLock.current||people.some(p=>p.id===id))return;
+  addLock.current=true;setAdding(true);setAddError(false);
+  try{
+   await addClassroomStudent(model.centerId,current.runningClassId,model.today,id);
+   await onRosterChanged(current.id,id);
+   setOverlay("");
+  }catch{setAddError(true);}
+  finally{addLock.current=false;setAdding(false);}
+ };
  const addLead=blocked;
  const assign=(id?:string)=>{const sid=id||studentId;if(id)setStudentId(id);setReplacingDiaryId("");setReplacingMissionId("");setAppendDiaryId("");setMissionSearch("");const first=availableMission(sid).find(m=>m.path===current?.path&&m.subject===current?.subject)||availableMission(sid)[0];setChosenMission(first?.id||"");setCatalogFilter("all");setOverlay("assign")};
  const addMissionToDiary=(d:Diary)=>{
@@ -199,7 +226,7 @@ export default function ClassroomV4Presentation({model,initialView,onDetailChang
   {session&&current&&(currentOpening||bypassActive)&&<><header className={styles.sessionBar} data-tos-slot={tosSlotKeys(styles.sessionBar)} data-tos-vnext="classroom-detail-header" aria-label={"Lớp đang truy cập: "+current.name}><button type="button" className={styles.sessionBack} data-tos-slot={tosSlotKeys(styles.sessionBack)} onClick={toLauncher} aria-label="Trở về danh sách lớp"><FontAwesomeIcon icon={faArrowLeft}/></button><div className={styles.sessionIcon} data-tos-slot={tosSlotKeys(styles.sessionIcon)}><FontAwesomeIcon icon={icon(current.subject)}/></div><div className={styles.sessionInfo} data-tos-slot={tosSlotKeys(styles.sessionInfo)}><h1 className={styles.sessionTitle} data-tos-slot={tosSlotKeys(styles.sessionTitle)}>{current.name}</h1><span>{current.time} {current.room&&"· "+current.room}</span></div><button type="button" className={styles.sessionPhoto} data-tos-slot={tosSlotKeys(styles.sessionPhoto)} disabled={!currentOpening} onClick={()=>showProof(current.id)} aria-label={currentOpening?"Xem ảnh setup":"Chưa xác minh ảnh setup"}><FontAwesomeIcon icon={faCamera}/></button></header><div className={styles.content} data-tos-slot={tosSlotKeys(styles.content)}><p className={styles.sessionTeaching} data-tos-slot={tosSlotKeys(styles.sessionTeaching)}><FontAwesomeIcon icon={faUsers}/> Dạy chung: {current.staff.join(" · ")||"Chưa có thông tin"}<span>{currentOpening?"Mở bởi "+currentOpening.openedBy:skipConfirmed?"Không mở ca · Nhật ký kiểm tra qua Core":"Chưa xác minh mở lớp · Chỉ xem"}</span></p>{bypassActive&&<section className={styles.bypassInside} data-tos-slot={tosSlotKeys(styles.bypassInside)} role="status" aria-label="Đang truy cập bằng bypass"><div><strong><FontAwesomeIcon icon={faTriangleExclamation}/> {skipConfirmed?"Đã xác nhận vào lớp không mở ca":"Chưa xác nhận truy cập · Chỉ xem"}</strong><p>{skipConfirmed?
   "Không tạo mở ca, ảnh setup hay chấm công. Chỉ Nhật ký có thể ghi nếu Staff, roster, Mission và Staging admission hợp lệ; các thao tác khác vẫn khóa.":
   "Bạn chỉ đang xem dữ liệu được cấp quyền. Quay về danh sách và xác nhận “Vào lớp không mở ca” để dùng Nhật ký."}</p></div><button type="button" onClick={()=>askOpen(current)}>Mở lớp đúng quy trình</button></section>}
-    {tab==="students"&&<section role="tabpanel" id="tos-classroom-panel-students" aria-labelledby="tos-classroom-tab-students"><div className={styles.sectionHead} data-tos-slot={tosSlotKeys(styles.sectionHead)}><div><h2>Học viên trong buổi ({people.length})</h2></div><button onClick={showAdd}><FontAwesomeIcon icon={faUserPlus}/> + Thêm</button></div>{people.map(person)}{people.some(s=>model.conflictStudentIds.includes(s.id))&&<p role="alert">Danh sách có học viên xung đột. Cần kiểm tra trước khi ghi.</p>}</section>}
+    {tab==="students"&&<section role="tabpanel" id="tos-classroom-panel-students" aria-labelledby="tos-classroom-tab-students"><div className={styles.sectionHead} data-tos-slot={tosSlotKeys(styles.sectionHead)}><div><h2>Học viên trong buổi ({people.length})</h2></div><button disabled={readOnly} onClick={showAdd}><FontAwesomeIcon icon={faUserPlus}/> + Thêm</button></div>{people.map(person)}{people.some(s=>model.conflictStudentIds.includes(s.id))&&<p role="alert">Danh sách có học viên xung đột. Cần kiểm tra trước khi ghi.</p>}</section>}
     {(tab==="students"||tab==="missions")&&<MissionAssignmentTab
       key={JSON.stringify([model.centerId,model.today,current.runningClassId,current.id])}
       scope={{centerId:model.centerId,localDate:model.today,runningClassId:current.runningClassId,teachingContextKey:current.id}}
@@ -232,7 +259,15 @@ export default function ClassroomV4Presentation({model,initialView,onDetailChang
     <section className={styles.journeyTimeline} data-tos-slot={tosSlotKeys(styles.journeyTimeline)}><h3>Hành trình Mission xuyên các buổi</h3><p>Nhiều Mission trong một Diary; tiếp tục Mission ở buổi khác sẽ xuất hiện trong Diary của buổi đó.</p>{d.missions.map(entry=><div key={entry.id}><h4>{entry.id} · {entry.name}</h4>{missionJourney(s.id,entry.id).map(({diary:step,mission:result})=><div className={styles.journeyOccurrence} data-tos-slot={tosSlotKeys(styles.journeyOccurrence)} key={step.id}><span>{dateLabel(step.at)} · Path {step.path}</span><strong>{result.completed===true?"Đã hoàn thành"+(step.status==="REGISTERED"?" (nháp)":""):result.completed===false?"Chưa hoàn thành"+(step.status==="REGISTERED"?" (nháp)":""):"Đang học"}</strong>{step.id===d.id&&<small>Đang xem</small>}</div>)}</div>)}</section>
    </div>})()}
 
-   {overlay==="add"&&<><div className={styles.toggle} data-tos-slot={tosSlotKeys(styles.toggle)}><button className={addMode==="existing"?styles.activeToggle:""} data-tos-slot={tosSlotKeys(addMode==="existing"?styles.activeToggle:"")} onClick={()=>setAddMode("existing")}>Toàn bộ học viên</button><button className={addMode==="lead"?styles.activeToggle:""} data-tos-slot={tosSlotKeys(addMode==="lead"?styles.activeToggle:"")} onClick={()=>setAddMode("lead")}>Lead / trial vãng lai</button></div>{addMode==="existing"?<><p className={styles.smallMuted} data-tos-slot={tosSlotKeys(styles.smallMuted)}>Tìm trong toàn bộ học viên, không lọc theo trạng thái hoạt động hay Path. Học viên đã ở lớp vẫn được hiển thị để đối chiếu.</p><label className={styles.search} data-tos-slot={tosSlotKeys(styles.search)}><FontAwesomeIcon icon={faMagnifyingGlass}/><input aria-label="Tìm toàn bộ học viên" value={lookup} onChange={e=>setLookup(e.target.value)} placeholder="Tìm tên bất kỳ học viên..."/></label>{data.students.filter(s=>s.name.toLocaleLowerCase("vi").includes(lookup.toLocaleLowerCase("vi"))).map(s=><button type="button" className={styles.lookupResult} data-tos-slot={tosSlotKeys(styles.lookupResult)} key={s.id} disabled={people.some(p=>p.id===s.id)} onClick={()=>addExisting(s.id)}>{avatar(s)}<div><strong>{s.name} {genderBadge(s)} · {s.age} tuổi</strong><small>{s.domain==="art"?"Mỹ thuật":s.domain==="piano"?"Piano":"Chưa có chuyên môn"} · {s.lead?"Lead / trial · ":""}{learningHistory(s.id).length} Diary · {people.some(p=>p.id===s.id)?"Đã trong lớp":"Có thể thêm"}</small></div><span aria-hidden="true">{people.some(p=>p.id===s.id)?"✓":"＋"}</span></button>)}</>:<><p className={styles.smallMuted} data-tos-slot={tosSlotKeys(styles.smallMuted)}>Nhập thông tin để chuẩn bị. Chưa thể tạo hoặc thêm học viên khi thao tác chưa được mở.</p><label className={styles.field} data-tos-slot={tosSlotKeys(styles.field)}>Họ tên<input aria-label="Họ tên lead" value={newName} onChange={e=>setNewName(e.target.value)} placeholder="Tên học viên"/></label><div className={styles.fieldGrid} data-tos-slot={tosSlotKeys(styles.fieldGrid)}><label className={styles.field} data-tos-slot={tosSlotKeys(styles.field)}>Tuổi<input aria-label="Tuổi lead" type="number" min="1" max="18" value={newAge} onChange={e=>setNewAge(e.target.value)}/></label><label className={styles.field} data-tos-slot={tosSlotKeys(styles.field)}>Giới tính<select aria-label="Giới tính lead" value={newGender} onChange={e=>setNewGender(e.target.value as Gender)}>{(["Nữ","Nam","Khác / chưa cung cấp"] as Gender[]).map(g=><option key={g}>{g}</option>)}</select></label></div><button disabled title="Chức năng chưa khả dụng; chưa gửi dữ liệu" className={styles.primaryButtonWide} data-tos-slot={tosSlotKeys(styles.primaryButtonWide)} onClick={addLead}><FontAwesomeIcon icon={faUserPlus}/> Thêm lead vào buổi</button></>}</>}
+   {overlay==="add"&&<><div className={styles.toggle} data-tos-slot={tosSlotKeys(styles.toggle)}><button className={addMode==="existing"?styles.activeToggle:""} data-tos-slot={tosSlotKeys(addMode==="existing"?styles.activeToggle:"")} onClick={()=>setAddMode("existing")}>Toàn bộ học viên</button><button className={addMode==="lead"?styles.activeToggle:""} data-tos-slot={tosSlotKeys(addMode==="lead"?styles.activeToggle:"")} onClick={()=>setAddMode("lead")}>Lead / trial vãng lai</button></div>{addMode==="existing"?<><p className={styles.smallMuted} data-tos-slot={tosSlotKeys(styles.smallMuted)}>Tìm trong toàn bộ học viên, không lọc theo trạng thái hoạt động hay Path. Học viên đã ở lớp vẫn được hiển thị để đối chiếu.</p><label className={styles.search} data-tos-slot={tosSlotKeys(styles.search)}><FontAwesomeIcon icon={faMagnifyingGlass}/><input aria-label="Tìm toàn bộ học viên" value={lookup} onChange={e=>{setLookup(e.target.value);setPageLimit(50);}} placeholder="Tìm tên bất kỳ học viên..."/></label>{!displayedCandidates?<p role="status">Đang tải học viên…</p>:displayedCandidates.error?<p role="alert">Không tải được học viên.</p>:displayedCandidates.items.length===0?<p>Không tìm thấy học viên.</p>:displayedCandidates.items.map(s=>{
+     const enrolled=people.some(p=>p.id===s.id);
+     return <button type="button" className={styles.lookupResult} data-tos-slot={tosSlotKeys(styles.lookupResult)} key={s.id}
+      disabled={enrolled||!s.canAdd||adding} onClick={()=>void addExisting(s.id)}>
+      <div><strong>{s.name}</strong><small>{enrolled?"Đã trong lớp":s.canAdd?"Có thể thêm":"Không thể thêm"}</small></div>
+      <span aria-hidden="true">{enrolled?"✓":"+"}</span>
+     </button>;
+    })}{displayedCandidates?.more&&<button type="button" onClick={()=>setPageLimit(n=>n+50)}>Tải thêm</button>}
+    {addError&&<p role="alert">Chưa xác nhận thêm học viên. Vui lòng thử lại.</p>}</>:<><p className={styles.smallMuted} data-tos-slot={tosSlotKeys(styles.smallMuted)}>Nhập thông tin để chuẩn bị. Chưa thể tạo hoặc thêm học viên khi thao tác chưa được mở.</p><label className={styles.field} data-tos-slot={tosSlotKeys(styles.field)}>Họ tên<input aria-label="Họ tên lead" value={newName} onChange={e=>setNewName(e.target.value)} placeholder="Tên học viên"/></label><div className={styles.fieldGrid} data-tos-slot={tosSlotKeys(styles.fieldGrid)}><label className={styles.field} data-tos-slot={tosSlotKeys(styles.field)}>Tuổi<input aria-label="Tuổi lead" type="number" min="1" max="18" value={newAge} onChange={e=>setNewAge(e.target.value)}/></label><label className={styles.field} data-tos-slot={tosSlotKeys(styles.field)}>Giới tính<select aria-label="Giới tính lead" value={newGender} onChange={e=>setNewGender(e.target.value as Gender)}>{(["Nữ","Nam","Khác / chưa cung cấp"] as Gender[]).map(g=><option key={g}>{g}</option>)}</select></label></div><button disabled title="Chức năng chưa khả dụng; chưa gửi dữ liệu" className={styles.primaryButtonWide} data-tos-slot={tosSlotKeys(styles.primaryButtonWide)} onClick={addLead}><FontAwesomeIcon icon={faUserPlus}/> Thêm lead vào buổi</button></>}</>}
    {overlay==="assign"&&<>
     {replacingDiaryId&&(()=>{const old=data.diaries.find(x=>x.id===replacingDiaryId);const entry=old?.missions.find(m=>m.id===replacingMissionId);return old&&entry?<div className={styles.replacementSummary} data-tos-slot={tosSlotKeys(styles.replacementSummary)} role="status"><strong><FontAwesomeIcon icon={faRotate}/> Đổi {entry.id} trong Diary Path {old.path}</strong><p>{entry.name} · {data.students.find(s=>s.id===old.studentId)?.name}</p><small>Diary ID không đổi · chỉ chọn Mission cùng Path.</small></div>:null})()}
     <label className={styles.field} data-tos-slot={tosSlotKeys(styles.field)}>Học viên
