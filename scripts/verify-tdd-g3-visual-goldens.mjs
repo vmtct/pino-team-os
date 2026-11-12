@@ -19,7 +19,7 @@ const sha256=x=>createHash("sha256").update(x).digest("hex");
 const errors=[];
 const results=[];
 const ratioLimit=0.01;
-const approvedSuccessorRuns=[41071808375,41253524859,41852649875];
+const approvedSuccessorRuns=[41071808375,41253524859,41852649875,43133601626];
 // PAP-1073 approval #21890 explicitly supersedes only these four earlier Table
 // successor paths (the historical manifests and pinned bytes stay immutable).
 const founderApprovedSupersededPaths = new Set([
