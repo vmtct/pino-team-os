@@ -3,6 +3,7 @@ import "@pino/design-system/bo-tokens.css";
 import "@pino/design-system/components.css";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { readMissionAssignment, readMissionLinkedDiaries, type MissionAssignment, type LinkedMissionDiary } from "@/lib/bo-mission-assignments";
+import { canReadMissionProjectedSlot } from "@/lib/bo-mission-projected-scope";
 import { readBoMissionExecution, reopenBoMissionCompletion, type BoMissionExecution } from "@/lib/bo-mission-completion-client";
 import { createBoTddAdapter, type AuthenticatedSurfaceAdapter } from "@/lib/workspace-adapters";
 import { browserTddNavigation, type AdapterNavigation } from "@/lib/workspace-adapters/navigation";
@@ -32,8 +33,9 @@ const missionBusinessLoaders = (onOpenDiary: (row: LinkedMissionDiary) => void):
   results: async () => <p role="status">{assignmentUnavailable.results}</p>,
   "assignment-linked-diaries": async (_slot, record, context, signal) => {
     const centerId = context.surface === "BO" ? context.centerId : null;
-    if (context.surface !== "BO" || !centerId || record.center !== centerId ||
-        !context.authorize("student.mission_assignment.view"))
+    // PAP-1924: the TDD projection intentionally strips hidden row.center.
+    // Check effective BO context and canonical record ID; Core BFF reauthorizes Center on GET.
+    if (!centerId || !canReadMissionProjectedSlot(context, record.id))
       return <p role="status">Không có quyền xem Nhật Ký liên kết.</p>;
     return missionLinkedDiaryContent(await readMissionLinkedDiaries(fetch, centerId, record.id, signal), onOpenDiary);
   },
@@ -216,8 +218,8 @@ function ScopedMissionAssignment({centerId,centerSource,writeLease,setWriteLease
       ready?.centerId === centerId ? <>
         <SurfaceWorkspace key={centerId} adapter={ready.adapter} navigation={ready.navigation} initialQuery={assignmentQuery}
           businessLoaders={businessLoaders} actionBindings={actions}
-          detailHistory={(row, context) => context.surface === "BO" && row.center === context.centerId &&
-            context.authorize("student.mission_assignment.view")
+          detailHistory={(row, context) => context.surface === "BO" &&
+            canReadMissionProjectedSlot(context, row.id)
               ? <div className={styles.missionHistory}>
                   <BoMissionHistory key={context.centerId + ":" + row.id} id={row.id}
                     centerId={context.centerId} context={context} />
