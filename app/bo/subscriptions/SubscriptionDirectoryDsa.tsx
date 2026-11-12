@@ -19,6 +19,7 @@ import type {BoPathProgram} from "@/lib/bo-model";
 import {SubscriptionCreateDrawer} from "./SubscriptionCreateDrawer";
 import type {OwnedSubscriptionItem} from "@/lib/pap1334-native-subscription-read";
 import {readSubscriptionCenterDetail} from "@/lib/bo-subscription-center-detail-client";
+import {readSubscriptionDetailRoute,subscriptionDetailUrl,type SubscriptionDetailTab} from "@/lib/bo-subscription-detail-url";
 import {assertCenterDetail,loadCenterSubscriptionDirectory,nativeSubscriptionModule,
   subscriptionRecord,subscriptionUuid} from "@/lib/pap1334-native-subscription-read";
 
@@ -27,12 +28,16 @@ const detailSections=[
   {id:"service",label:"Thông tin gói học",fields:["name","path","status","start","end","weeklyCommitment","effectiveAvailableUnits"]},
   {id:"history",label:"Lịch sử",fields:["createdAt","createdBy","updatedAt","updatedBy","commercialReference"]},
 ] as const;
+// PAP-1907: preserve the four authorized prototype Detail tabs without reviving legacy writers.
+const subscriptionDetailTabs=[
+  {id:"Detail",label:"Thông tin"},
+  {id:"Enrollment",label:"Enrollment"},
+  {id:"Chuyên đề",label:"Chuyên đề"},
+  {id:"Lịch Sử",label:"Lịch Sử"},
+] as const;
 
-function scopedHref(record:string|null):string {
-  const url=new URL(window.location.href);
-  if(record)url.searchParams.set("record",record);
-  else url.searchParams.delete("record");
-  return url.pathname+url.search+url.hash;
+function scopedHref(record:string|null,tab:SubscriptionDetailTab="Detail"):string {
+  return subscriptionDetailUrl(window.location.href,record,tab);
 }
 function failure(error:unknown):string {
   return error instanceof Error ? error.message : "Không thể đọc gói học từ Core.";
@@ -77,6 +82,7 @@ function ScopedSubscriptions({centerId,centerName,menu}:{
   const [busy,setBusy]=useState<string|null>(null);
   const [drawer,setDrawer]=useState<Attested|null>(null);
   const [detail,setDetail]=useState<Attested|null>(null);
+  const [detailTab,setDetailTab]=useState<SubscriptionDetailTab>("Detail");
   const [revision,setRevision]=useState(0);
   const [page,setPage]=useState(1);
   const [settings,setSettings]=useState<string|null>(null);
@@ -126,8 +132,11 @@ function ScopedSubscriptions({centerId,centerName,menu}:{
         commercialReference:canonical.commercialReference||"",
         centerId:canonical.centerId,
       };
+      const route=readSubscriptionDetailRoute(window.location.search);
+      const nextTab=pushUrl?"Detail":route.id===item.id?route.tab:"Detail";
+      setDetailTab(nextTab);
       setDetail(null);setDrawer({id:item.id,row});setNotice("");
-      if(pushUrl)window.history.pushState(null,"",scopedHref(item.id));
+      if(pushUrl)window.history.pushState(null,"",scopedHref(item.id,nextTab));
     }catch(cause){
       if(!ctl.signal.aborted){setError(failure(cause));setDrawer(null);setDetail(null);}
     }finally{if(!ctl.signal.aborted)setBusy(null);}
@@ -149,7 +158,8 @@ function ScopedSubscriptions({centerId,centerName,menu}:{
   useEffect(()=>{
     const onBack=()=>{
       const record=new URL(window.location.href).searchParams.get("record");
-      if(!record){detailController.current?.abort();setDrawer(null);setDetail(null);setBusy(null);}
+      if(!record){detailController.current?.abort();setDrawer(null);setDetail(null);setBusy(null);setDetailTab("Detail");}
+      else setDetailTab(readSubscriptionDetailRoute(window.location.search).tab);
     };
     window.addEventListener("popstate",onBack);
     return()=>window.removeEventListener("popstate",onBack);
@@ -157,7 +167,7 @@ function ScopedSubscriptions({centerId,centerName,menu}:{
   const rows=items.map(subscriptionRecord);
   const close=()=>{
     detailController.current?.abort();
-    setDetail(null);setDrawer(null);setBusy(null);
+    setDetail(null);setDrawer(null);setBusy(null);setDetailTab("Detail");
     window.history.replaceState(null,"",scopedHref(null));
     requestAnimationFrame(()=>invoker.current?.focus({preventScroll:true}));
   };
@@ -168,6 +178,12 @@ function ScopedSubscriptions({centerId,centerName,menu}:{
     void verify(item,true);
   };
   const selected=detail??drawer;
+  const selectDetailTab=(id:string)=>{
+    const tab=subscriptionDetailTabs.find(item=>item.id===id)?.id;
+    if(!tab||!detail)return;
+    setDetailTab(tab);
+    window.history.pushState(null,"",scopedHref(detail.id,tab));
+  };
   const openCreate=async()=>{
     if(status!=="ready"||creating||createBusy||busy||detail||drawer)return;
     invoker.current=document.activeElement instanceof HTMLElement?document.activeElement:null;
@@ -185,11 +201,23 @@ function ScopedSubscriptions({centerId,centerName,menu}:{
   };
 
   return <>
-    {detail ? <DetailFrame title={detail.row.name} subtitle={String(detail.row.path||"Gói học")}
-      mobileMenu={menu} onBack={close}
-      legacyContent={<PropertySections variant="detail" record={detail.row}
-        fields={nativeSubscriptionModule.fields} sections={detailSections}
-        canEdit={()=>false}/>}>{null}</DetailFrame> :
+    {detail ? <DetailFrame title={String(detail.row.path||"Gói học")+" · "+detail.row.name}
+      subtitle={"Gói học · "+(centerName||"Cơ sở đã chọn")}
+      mobileMenu={menu} onBack={close} tabs={subscriptionDetailTabs}
+      selected={detailTab} onSelect={selectDetailTab}>
+      {detailTab==="Detail"||detailTab==="Lịch Sử" ?
+        <PropertySections variant="detail" record={detail.row}
+          fields={nativeSubscriptionModule.fields}
+          sections={detailTab==="Detail"?[detailSections[0]]:[detailSections[1]]}
+          canEdit={()=>false}/> :
+        <section className="empty-table" data-pap1907-center-safe-business-tab={detailTab}
+          role="status" aria-label={detailTab}>
+          <strong>{detailTab}</strong>
+          <p>{detailTab==="Enrollment"
+            ? "Chưa có dữ liệu Enrollment được xác nhận theo cơ sở này. Xếp lớp chỉ khả dụng sau khi Core cấp quyền và xác thực Center."
+            : "Chưa có liên kết Chuyên đề được xác nhận theo cơ sở này. Không mở lại tác vụ ghi cũ khi chưa xác thực Center."}</p>
+        </section>}
+    </DetailFrame> :
       <section id="list-screen">
         <div className="page-heading">
           <div className="page-heading-left">{menu}<h1>Gói học</h1></div>
