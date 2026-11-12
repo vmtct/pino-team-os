@@ -280,6 +280,9 @@ function CustomAttributesFsg3(){
   }catch(e){setError(e instanceof Error?e.message:"Không thể lưu thuộc tính.");}
   finally{setBusy(false);}
  };
+ // PAP-1883 / PAP-1665 PLT-ATTR FSG4: state-to-surface route for native DSA Full Detail.
+ if(open==="detail"&&selected)return <HoAttributeFullDetail key={selected.id} id={selected.id}
+  centers={centers} mobileMenu={menu("menu-btn")} onBack={close}/>;
  return <section id="list-screen" data-plt-attr-stage="fsg3-server-table" data-tdd-shell="table">
   <div className="page-heading"><div className="page-heading-left">
    {menu("menu-btn")}<h1><LocalizedModuleTitle label="Custom Attributes" moduleKey="customAttributes"/></h1>

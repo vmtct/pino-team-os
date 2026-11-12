@@ -41,3 +41,10 @@ test("PAP-1874: Full Detail reuses PINO DSA 14-field native shell and has zero e
  assert.match(page,/onDetail=\{\(\)=>setOpen\("detail"\)\}/);
  assert.doesNotMatch(page,/hideDetailAction/);
 });
+
+/** PAP-1883 / PLT-ATTR FSG4: regression for real Quick Drawer -> native Full Detail transition. */
+test("PAP-1883: detail state must render full detail, not silently revert to table",()=>{
+ const page=readFileSync("app/ho/system/custom-attributes/page.tsx","utf8");
+ assert.match(page,/if\s*\(open==="detail"&&selected\)\s*return\s*<HoAttributeFullDetail/);
+ assert.match(page,/onBack=\{close\}/);
+});
