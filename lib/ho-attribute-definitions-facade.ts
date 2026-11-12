@@ -11,7 +11,7 @@ import { validateAttributeDirectoryParams } from "./pap1841-attribute-directory-
 export interface HoAttributeEnv extends HoEnv { PINO_CORE?: PinoCoreBinding }
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const keyPattern = /^[a-zA-Z0-9][a-zA-Z0-9_-]{7,119}$/;
-const pathPattern = /^\/api\/ho\/custom-attributes\/definitions(?:\/([0-9a-f-]+))?$/;
+const pathPattern = /^\/api\/ho\/custom-attributes\/definitions(?:\/([0-9a-f-]+)(\/history)?)?$/;
 const allowed = new Set(["displayName","attributeKey","entityType","valueType","scope","centerId","required","visibility","options"]);
 const respond = (status:number,code:string) => Response.json({error:{code}},{
   status,headers:{"cache-control":"no-store","x-content-type-options":"nosniff"}
@@ -24,13 +24,23 @@ export async function hoAttributeDefinitions(request:Request,env:HoAttributeEnv)
   const route=pathPattern.exec(url.pathname);
   if(!route)return respond(404,"PLATFORM_NOT_FOUND");
   const id=route[1];
+  const history=route[2]==="/history";
   const method=request.method.toUpperCase();
   if(method!=="GET"&&method!=="POST")return respond(405,"PLATFORM_METHOD_NOT_ALLOWED");
   if(method==="POST"&&(id||url.search))return respond(404,"PLATFORM_NOT_FOUND");
   if(id&&!uuid.test(id))return respond(404,"ATTRIBUTE_NOT_FOUND");
   if(method==="GET"&&!id&&!validateAttributeDirectoryParams(url.searchParams))
     return respond(400,"ATTRIBUTE_QUERY_INVALID");
-  if(method==="GET"&&id&&url.search)return respond(400,"ATTRIBUTE_QUERY_INVALID");
+  if(method==="GET"&&id&&!history&&url.search)return respond(400,"ATTRIBUTE_QUERY_INVALID");
+  if(history){
+    for(const key of url.searchParams.keys()){
+      if(!["limit","offset"].includes(key)||url.searchParams.getAll(key).length!==1)
+        return respond(400,"ATTRIBUTE_HISTORY_QUERY_INVALID");
+      const raw=url.searchParams.get(key)??"";
+      if(!/^\d{1,5}$/.test(raw)||Number(raw)>(key==="limit"?50:10000)||
+         (key==="limit"&&Number(raw)<1))return respond(400,"ATTRIBUTE_HISTORY_QUERY_INVALID");
+    }
+  }
   let body:unknown;
   let replayKey:string|undefined;
   if(method==="POST"){
@@ -53,7 +63,7 @@ export async function hoAttributeDefinitions(request:Request,env:HoAttributeEnv)
     const credential=await teamCredential(request,env,"BO");
     if(credential.kind!=="password")return respond(401,"IDENTITY_UNAUTHORIZED");
     if(!env.PINO_CORE?.executeWithStaffPassword)return respond(503,"ATTRIBUTE_CORE_UNAVAILABLE");
-    const corePath=id?"custom-attributes/definitions/"+id:
+    const corePath=id?"custom-attributes/definitions/"+id+(history?"/history"+url.search:""):
       "custom-attributes/definitions"+(method==="GET"?url.search:"");
     const core=await callFounderCoreWithStaffPassword(env.PINO_CORE,{
       method,path:corePath,...(body===undefined?{}:{body}),
