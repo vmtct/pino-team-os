@@ -24,7 +24,7 @@ export default function PublicLayout({children}:{children:ReactNode}){
   <div className={css.unifiedShell} data-piner-shared="unified-shell" data-piner-space={space} data-public-guest="true">
    <header className={css.unifiedHeader} data-piner-shared="unified-header">
     <Link href={current} className={css.guestHeaderCommunity}>{space==="mytime"?"MyTime by PINO":"PINO Afterschool"}</Link>
-    <Link href={"/piner/public/login?returnTo="+encodeURIComponent(path)}
+    <Link href={(space==="house"?"/piner/public/login/afterschool":"/piner/public/login")+"?returnTo="+encodeURIComponent(path)}
       className={css.guestHeaderLogin}>Đăng nhập</Link>
     <Link href="/piner" aria-label="Logo PINO Space · Ứng dụng" className={css.unifiedLogo}>
      <strong>PINO</strong><small>SPACE</small>
@@ -33,7 +33,7 @@ export default function PublicLayout({children}:{children:ReactNode}){
    <main className={css.unifiedContent} data-piner-slot="content" data-public-scroll-main>{children}</main>
    <nav className={css.unifiedNav} data-piner-shared="bottom-nav" aria-label="Điều hướng Piner Space">
     <div className={css.unifiedNavInner}>{tabs.map(item=><Link key={item.id}
-      href={item.id==="community"?current:"/piner/public/login?returnTo="+encodeURIComponent(pathFor(space,item.id))}
+      href={item.id==="community"?current:(space==="house"?"/piner/public/login/afterschool":"/piner/public/login")+"?returnTo="+encodeURIComponent(pathFor(space,item.id))}
       data-tab={item.id} aria-current={item.id==="community"?"page":undefined}
       className={item.id==="community"?css.unifiedNavActive:css.unifiedNavItem}>
       <span aria-hidden="true" className={css.guestNavGlyph}><PinoIcon name={item.glyph}/></span><small>{item.label}</small>

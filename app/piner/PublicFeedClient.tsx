@@ -13,7 +13,7 @@ import css from "./launcher.module.css";
 import {PinoIcon} from "./PinoIcon";
 
 type Props={posts:PublicPost[];mode:"community"|"profile";selectedPostId?:string;space:PinerSpace};
-function guestLogin(){return "/piner/public/login?returnTo="+encodeURIComponent(window.location.pathname+window.location.search)}
+function guestLogin(space:PinerSpace){return (space==="house"?"/piner/public/login/afterschool":"/piner/public/login")+"?returnTo="+encodeURIComponent(window.location.pathname+window.location.search)}
 function GuestComments({post,expanded}:{post:PublicPost;expanded:boolean}){
  const replies=expanded?post.comments:post.comments.slice(0,1);
  return <div className={css.postComments} data-comment-thread={post.id} data-expanded={expanded?"true":"false"}>
@@ -103,7 +103,7 @@ export function PublicFeedClient({posts,mode,selectedPostId,space}:Props){
   }else if(el){el.scrollTop=0}
   setReady(true);
  },[selectedPostId,mode]);
- const login=()=>{window.location.assign(guestLogin())};
+ const login=()=>{window.location.assign(guestLogin(space))};
  const openReel=(post:PublicPost)=>{
    lastFocus.current=document.activeElement instanceof HTMLElement?document.activeElement:null;
    setReel(post);

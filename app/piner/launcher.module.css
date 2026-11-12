@@ -367,6 +367,21 @@
 .guestLoginCard>button:disabled{opacity:.48;cursor:not-allowed}
 .guestLoginCard small{font-size:11px;color:var(--muted);line-height:1.45;text-align:center}
 .guestLoginBack{min-height:44px;display:flex;align-items:center;justify-content:center;color:var(--tone)!important;font-weight:800;font-size:12px}
+/* PAP-1884 · Epic PAP-1832 / PNR-IDENTITY · Afterschool PIN G0 only; PINO DS tokens. */
+.pinDemoBadge{font-size:11px;font-weight:750;color:var(--tone);background:var(--tint);border:1px solid var(--line);padding:10px 12px;border-radius:11px;line-height:1.5;text-align:center}
+.pinDemoSelect{min-height:44px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);padding:9px 12px;font-size:13px;width:100%;outline-offset:2px}
+.pinDemoForm{display:flex;flex-direction:column;gap:10px;min-width:0}
+.pinDemoForm label{font-size:12px;font-weight:850;color:var(--ink)}
+.pinDemoPrimary{height:44px;min-height:44px;padding:8px 14px;border:0;border-radius:12px;background:var(--tone);color:#fff;font-size:13px;font-weight:850;cursor:pointer}
+.pinDemoPrimary:focus-visible,.pinDemoSecondary:focus-visible,.pinDemoSelect:focus-visible{outline:3px solid var(--tone);outline-offset:2px}
+.pinDemoSecondary{min-height:44px;padding:8px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--tone);font-size:12px;font-weight:850;cursor:pointer}
+.pinDemoNotice{padding:11px 12px;border:1px solid var(--line);border-radius:12px;background:var(--tint);color:var(--ink);font-size:12px;line-height:1.6}
+.pinDemoError{padding:11px 12px;border:1px solid #dba2a2;border-radius:10px;background:#fff1f0;color:#8e3333;font-size:12px;line-height:1.5}
+.pinDemoSuccess{padding:13px;border:1px solid var(--line);border-radius:12px;background:var(--tint);display:flex;flex-direction:column;gap:12px}
+.pinDemoSuccess strong{font-size:15px;color:var(--tone)}
+.pinDemoSuccess p{margin:0;text-align:left;font-size:12px;color:var(--ink)}
+@media(max-width:390px){.pinDemoBadge{padding:9px}.pinDemoSuccess{padding:10px}}
+
 .unifiedShell [data-public-mode] .postActions button{min-height:44px}
 .unifiedShell [data-public-mode] .publicShareGroup{display:inline-flex;align-items:center;gap:4px;flex:1 1 auto;min-width:0}
 .unifiedShell [data-public-mode] .publicShareGroup>button{font-size:18px!important}
