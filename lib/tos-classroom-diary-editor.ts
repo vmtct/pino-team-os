@@ -23,17 +23,17 @@ export async function saveExistingClassroomDiary(input:{
  check(current);
  if(current.status!=="REGISTERED"||current.version!==diary.version)
   throw new Error("Diary version changed");
- const fields={centerId,expectedVersion:diary.version,interest,notes,difficulty};
+ const fields={centerId,expectedVersion:diary.version,interest,notes:notes.trim()||null,difficulty:difficulty.trim()||null};
  const idempotencyKey=await key(kind,[diary.id,fields]);
  if(kind==="close"){
-  if(interest===null)throw new Error("Diary interest required");
+  if(interest===null||fields.notes===null)throw new Error("Diary interest and notes required");
   for(const item of input.evidence){
    const base64=item.kind==="image"?item.preview?.match(/^data:image\/jpeg;base64,(.+)$/)?.[1]:undefined;
    if(!base64)continue;
    await api.uploadEvidence(diary.id,{centerId,mimeType:"image/jpeg",base64},
     await key("evidence",[diary.id,base64]));
   }
-  await api.close(diary.id,{...fields,interest},idempotencyKey);
+  await api.close(diary.id,{...fields,interest,notes:fields.notes},idempotencyKey);
  }else await api.saveDraft(diary.id,fields,idempotencyKey);
  const saved=await api.diary(diary.id,centerId);
  check(saved);
