@@ -79,7 +79,7 @@ const terms: readonly (readonly [string, string, readonly string[]])[] = [
   ["Staff Links", "Liên kết nhân sự", []],
   ["Users", "Người dùng", []],
   ["Roles", "Vai trò", []],
-  ["Custom Attributes", "Thuộc tính bổ sung", []],
+  ["Custom Attributes", "Thuộc tính tùy chỉnh", []],
   ["TDD Reference", "Tham chiếu TDD", []],
   ["TDD Reference — DEMO", "Tham chiếu TDD — DEMO", []],
   ["Language Mapping", "Đối chiếu ngôn ngữ", []],
