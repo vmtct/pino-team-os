@@ -37,3 +37,11 @@ test("PAP-1907 cannot show foreign Center or unauthenticated legacy writer data 
   assert.doesNotMatch(source,/boApi\.subscriptionById\(|boApi\.learnerLifecycle\(|<BillingWorkspace|<SpecialtyWorkspace/);
   assert.match(source,/Không mở lại tác vụ ghi cũ khi chưa xác thực Center/);
 });
+
+test("PAP-1907 URL reload restores Full Detail; only a Table click opens Quick View",()=>{
+  assert.match(source,/if\(pushUrl\)\{\s*setDetail\(null\);setDrawer\(\{id:item\.id,row\}\)/);
+  assert.match(source,/\}else\{\s*setDrawer\(null\);setDetail\(\{id:item\.id,row\}\)/);
+  assert.match(source,/queueMicrotask\(\(\)=>void verify\(matching,false\)\)/);
+  assert.match(source,/const nextTab=pushUrl\?"Detail":route\.id===item\.id\?route\.tab:"Detail"/);
+  assert.match(source,/readSubscriptionCenterDetail\(item\.id,centerId,ctl\.signal\)/);
+});
