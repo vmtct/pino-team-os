@@ -27,7 +27,6 @@ type MissionWriteLease = { centerId:string; state:"pending" | "unverified" };
 export const assignmentUnavailable = {
   results: "Kết quả chưa khả dụng: nguồn kết quả học viên chưa được kết nối. Trạng thái giao nhiệm vụ không phải kết quả hoàn tất.",
   diary: "Nhật Ký chưa khả dụng: cần nguồn liên kết trực tiếp với nhiệm vụ được giao. Không suy diễn từ Student hoặc Mission.",
-  readOnly: "Nhiệm vụ được giáo viên giao từ TOS. BO chỉ xem; Quản lý có thể mở lại khi nhiệm vụ đã hoàn tất.",
 } as const;
 const missionBusinessLoaders = (onOpenDiary: (row: LinkedMissionDiary) => void): SlotLoaders => ({
   results: async () => <p role="status">{assignmentUnavailable.results}</p>,
@@ -210,7 +209,6 @@ function ScopedMissionAssignment({centerId,centerSource,writeLease,setWriteLease
         reopenReason.trim().length>500, run:submitReopen },
   };
   return <>
-    <p role="note">{assignmentUnavailable.readOnly}</p>
     {confirmed ? <p role="status">{confirmed}</p> : null}
     {loadError ? <p role="alert">{loadError}</p> : null}
     {uncertain ? <p role="alert">Kết quả ghi chưa xác minh. Đối chiếu Core trước khi gửi lại hoặc mở lệnh mới.</p> : null}

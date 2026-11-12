@@ -32,7 +32,6 @@ export function HoWalkinPassTdd(){
   ready?<div data-testid="ho-walkin-pass-tdd">
    <HoWalkinBatchCreate authorized={ready.adapter.context.authorize("open_studio.walkin_pass.manage")} onVerified={()=>setRefresh(n=>n+1)}/>
    <SurfaceWorkspace key={refresh} adapter={ready.adapter} navigation={ready.navigation} initialQuery={passQuery}/>
-   <p role="note">Hiển thị tối đa 100 Pass gần nhất từ Core. Không suy diễn tồn kho ngoài cửa sổ này.</p>
   </div>:<p role="status">Đang tải Pass từ Core…</p>;
  return <HoWorkspace module="walkinPasses" content={content}/>;
 }

@@ -73,6 +73,5 @@ function ScopedPasses({centerId,centerSource}:{centerId:string;centerSource:Dire
  return <>
   <CenterPassActions centerId={centerId} key={centerId} onChanged={()=>setRefresh(n=>n+1)}/>
   <SurfaceWorkspace key={centerId+":"+refresh} adapter={ready.adapter} navigation={ready.navigation} initialQuery={passQuery}/>
-  <p role="note">Danh sách tối đa 100 Pass của Center đã chọn từ Core. Không bao gồm kho chung chưa cấp.</p>
  </>;
 }
