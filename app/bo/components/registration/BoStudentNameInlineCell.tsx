@@ -13,17 +13,20 @@ import { useStudentCenterEditCapability } from "@/app/bo/learners/useStudentCent
 import type { BoField } from "@/lib/bo-registration";
 
 const NAME_FIELD: BoField = { key: "name", label: "Học viên", type: "text", icon: "Aa", w: 160 };
-type Snapshot = { scope: string; version: number; status: string; displayName: string };
+const GENDER_FIELD: BoField = { key: "gender", label: "Giới tính", type: "select", icon: "▣", w: 160, options: ["Nam", "Nữ"] };
+type Snapshot = { scope: string; version: number; status: string; displayName: string; gender?: "MALE" | "FEMALE" | null };
 
 export function BoStudentNameInlineCell({
-  studentId, displayName, centerId, centerReady, onSaved,
+  studentId, displayName, centerId, centerReady, onSaved, editGender = false,
 }: {
   studentId: string;
   displayName: string;
   centerId: string;
   centerReady: boolean;
-  onSaved: (nextName: string) => void;
+  onSaved?: (nextName: string) => void;
+  editGender?: boolean;
 }) {
+  const field = editGender ? GENDER_FIELD : NAME_FIELD;
   const scope = JSON.stringify([studentId, centerId]);
   const allowed = useStudentCenterEditCapability(centerReady ? centerId : "");
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
@@ -49,6 +52,7 @@ export function BoStudentNameInlineCell({
       setSnapshot({
         scope,
         displayName: detail.student.displayName,
+        gender: detail.student.gender,
         version: detail.student.version,
         status: detail.student.status,
       });
@@ -61,22 +65,27 @@ export function BoStudentNameInlineCell({
 
   const ready = centerReady && allowed && snapshot?.scope === scope && snapshot.status !== "ARCHIVED";
   const name = snapshot?.scope === scope ? snapshot.displayName : displayName;
-  const canEdit = Boolean(ready);
+  const gender = snapshot?.scope === scope ? snapshot.gender : undefined;
+  const shownValue = editGender ? (gender === "MALE" ? "Nam" : gender === "FEMALE" ? "Nữ" : "") : name;
+  const canEdit = Boolean(ready && (!editGender || gender !== undefined));
   async function commit(value: string | number | boolean | string[] | null | undefined) {
     const nextName = typeof value === "string" ? value.trim() : "";
     if (savingRef.current || !ready || !snapshot || snapshot.scope !== currentScope.current || !aliveRef.current) return;
-    if (!nextName || nextName.length > 120) { setError("Tên học viên phải có từ 1 đến 120 ký tự."); return; }
-    if (nextName === name) { setError(""); setAnchor(null); return; }
+    const nextGender = nextName === "Nam" ? "MALE" : nextName === "Nữ" ? "FEMALE" : null;
+    if (editGender && !nextGender) { setError("Vui lòng chọn Nam hoặc Nữ."); return; }
+    if (!editGender && (!nextName || nextName.length > 120)) { setError("Tên học viên phải có từ 1 đến 120 ký tự."); return; }
+    if (nextName === shownValue) { setError(""); setAnchor(null); return; }
     savingRef.current = true;
     setSaving(true);
     setError("");
     const requestedScope = scope;
     try {
-      await studentCenterApi.updateStudentProfile(studentId, { displayName: nextName, expectedVersion: snapshot.version }, centerId);
+      if (editGender && nextGender) await studentCenterApi.updateStudentGender(studentId, { gender: nextGender, expectedVersion: snapshot.version }, centerId);
+      else await studentCenterApi.updateStudentProfile(studentId, { displayName: nextName, expectedVersion: snapshot.version }, centerId);
       const reloaded = await studentCenterApi.learnerLifecycle(studentId, centerId);
       if (!aliveRef.current || currentScope.current !== requestedScope || reloaded.student.id !== studentId) return;
-      setSnapshot({ scope, displayName: reloaded.student.displayName, version: reloaded.student.version, status: reloaded.student.status });
-      onSaved(reloaded.student.displayName);
+      setSnapshot({ scope, displayName: reloaded.student.displayName, gender: reloaded.student.gender, version: reloaded.student.version, status: reloaded.student.status });
+      if (!editGender) onSaved?.(reloaded.student.displayName);
       setAnchor(null);
     } catch (cause: unknown) {
       if (!aliveRef.current || currentScope.current !== requestedScope) return;
@@ -85,7 +94,7 @@ export function BoStudentNameInlineCell({
       } else if (cause instanceof BoApiError && cause.status === 403) {
         setError("Bạn không có quyền sửa học viên tại cơ sở hiện tại.");
       } else {
-        setError(cause instanceof Error ? cause.message : "Không thể lưu tên học viên.");
+        setError(cause instanceof Error ? cause.message : "Không thể lưu " + field.label.toLowerCase() + ".");
       }
     } finally {
       savingRef.current = false;
@@ -93,20 +102,20 @@ export function BoStudentNameInlineCell({
     }
   }
 
-  return <div className="v24-prop-item" data-student-detail-field="displayName">
-    <div className="v24-prop-key"><span className="v24-field-glyph">Aa</span>Học viên</div>
+  return <div className="v24-prop-item" data-student-detail-field={editGender ? "gender" : "displayName"}>
+    <div className="v24-prop-key"><span className="v24-field-glyph">{field.icon}</span>{field.label}</div>
     {canEdit
-      ? <button type="button" className="v24-prop-value" data-detail-edit="displayName" aria-label="Sửa Học viên" disabled={saving}
+      ? <button type="button" className="v24-prop-value" data-detail-edit={editGender ? "gender" : "displayName"} aria-label={"Sửa " + field.label} disabled={saving}
           onClick={event => { setError(""); setAnchor(event.currentTarget); }}>
-          <span>{name}</span><span className="v24-edit-glyph" aria-hidden="true">✎</span>
+          <span>{shownValue || "—"}</span><span className="v24-edit-glyph" aria-hidden="true">✎</span>
         </button>
-      : <div className="v24-prop-value readonly" aria-label="Chỉ đọc Học viên">
-          <span>{name}</span><span className="v24-lock" aria-hidden="true">⌁</span>
+      : <div className="v24-prop-value readonly" aria-label={"Chỉ đọc " + field.label}>
+          <span>{shownValue || "—"}</span><span className="v24-lock" aria-hidden="true">⌁</span>
         </div>}
     {error ? <div className="edit-error" role="alert">{error}</div> : null}
     {saving ? <span role="status">Đang lưu…</span> : null}
     {anchor && ready
-      ? <BoTypedEditor field={NAME_FIELD} value={name} anchor={anchor} closeOnSave={false}
+      ? <BoTypedEditor field={field} value={shownValue} anchor={anchor} closeOnSave={false}
           onClose={() => { if (!savingRef.current) setAnchor(null); }}
           onSave={value => { void commit(value); }} />
       : null}

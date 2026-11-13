@@ -123,6 +123,7 @@ export function BoFullDetail({
                       <span className="v24-lock" aria-label="Chỉ đọc">⌁</span>
                     </div>
                   </div>)}
+                  {moduleKey === "students" && <BoStudentNameInlineCell key={"gender:" + record.id + ":" + centerId} studentId={record.id} displayName={record.name} centerId={centerId} centerReady={centerReady} editGender />}
                 </div>
               </section>
             : activeTab === "Subscription" && moduleKey === "students" && enableStudentSubscriptions

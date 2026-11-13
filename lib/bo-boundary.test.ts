@@ -125,7 +125,7 @@ test("PAP-893 Running Class PATCH proxy and typed client preserve Core authoriza
   const api = await readFile("lib/f3-delivery-api.ts", "utf8");
   assert.match(proxy, /const RUNNING_CLASS_PATCH =/);
   // PAP-1763 / SCH-PARENTS-GUARDIANS: Parent name-only PATCH has its own exact Center guard.
-  assert.match(proxy, /request.method === "PATCH" && \(RUNNING_CLASS_PATCH.test\(path\) \|\| STUDENT_PROFILE_PATCH.test\(path\) \|\| PARENT_NAME_PATCH.test\(path\)\)/);
+  assert.match(proxy, /request.method === "PATCH" && \(RUNNING_CLASS_PATCH.test\(path\) \|\| STUDENT_PROFILE_PATCH.test\(path\) \|\| PARENT_NAME_PATCH.test\(path\) \|\| STUDENT_GENDER_PATCH.test\(path\)\)/);
   assert.match(proxy, /CATALOG_PATH_UPDATE.test\(path\) \|\| RUNNING_CLASS_PATCH.test\(path\)/);
   assert.match(api, /updateRunningClass:[\s\S]*patchOne<F3RunningClass>/);
   assert.match(api, /method: "PATCH"/);
