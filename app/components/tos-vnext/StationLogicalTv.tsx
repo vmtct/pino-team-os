@@ -36,7 +36,7 @@ export function StationLogicalTv({tvs=[],centerId,centerName,authorizedCenterIds
         className={styles.card} data-pnr-tv-logical-id={row.tvId}>
         <span className={styles.icon} aria-hidden="true"><FontAwesomeIcon icon={faTv}/></span>
         <div className={styles.copy}><strong>{row.name}</strong><span>{centerName} · TV dùng chung nhiều Center</span></div>
-        {readStatus==="ready" && row.visibilityScope==="CENTER" && row.tvId==="tvp1-center-"+centerId && formatTvPolicyViewerPath(row.tvId)
+        {readStatus==="ready" && row.visibilityScope==="CENTER" && (row.tvId==="tvp1-center-"+centerId||row.tvId==="tvp2-house-ambient-"+centerId) && formatTvPolicyViewerPath(row.tvId)
           ?<a className={styles.viewer} href={formatTvPolicyViewerPath(row.tvId)!} target="_blank" rel="noopener noreferrer" aria-label={"Mở TV "+row.name}>Mở TV</a>
           :<button type="button" className={styles.viewer} disabled aria-label={"Mở TV "+row.name}>Mở TV</button>}
       </article>)}</div>}
