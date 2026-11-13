@@ -16,7 +16,7 @@ import styles from "./MissionDetailEnhancements.module.css";
 import { BoRegistrationWorkspace } from "@/app/bo/components/registration/BoRegistrationWorkspace";
 import { useBoStagingUser } from "@/app/bo/components/registration/BoRuntimeBoundary";
 import { unifiedBoWorkspaceSource } from "@/app/bo/architecture/bo-unified-workspace-source";
-import { assignmentDefinition, assignmentFields, assignmentProvider, assignmentQuery } from "./schema";
+import { assignmentDefinition, assignmentFields, assignmentProvider, assignmentQuery, canReadMissionProjectedSlot } from "./schema";
 import { BoMissionHistory } from "./BoMissionHistory";
 import { useBoCenterSelection } from "@/app/bo/components/registration/BoCenterSelection";
 import type { DirectoryCenterSource } from "@/app/bo/pinoria-avatars/centers";
@@ -27,14 +27,14 @@ type MissionWriteLease = { centerId:string; state:"pending" | "unverified" };
 export const assignmentUnavailable = {
   results: "Kết quả chưa khả dụng: nguồn kết quả học viên chưa được kết nối. Trạng thái giao nhiệm vụ không phải kết quả hoàn tất.",
   diary: "Nhật Ký chưa khả dụng: cần nguồn liên kết trực tiếp với nhiệm vụ được giao. Không suy diễn từ Student hoặc Mission.",
-  readOnly: "Nhiệm vụ được giáo viên giao từ TOS. BO chỉ xem; Quản lý có thể mở lại khi nhiệm vụ đã hoàn tất.",
 } as const;
 const missionBusinessLoaders = (onOpenDiary: (row: LinkedMissionDiary) => void): SlotLoaders => ({
   results: async () => <p role="status">{assignmentUnavailable.results}</p>,
   "assignment-linked-diaries": async (_slot, record, context, signal) => {
     const centerId = context.surface === "BO" ? context.centerId : null;
-    if (context.surface !== "BO" || !centerId || record.center !== centerId ||
-        !context.authorize("student.mission_assignment.view"))
+    // PAP-1924: the TDD projection intentionally strips hidden row.center.
+    // Check effective BO context and canonical record ID; Core BFF reauthorizes Center on GET.
+    if (!centerId || !canReadMissionProjectedSlot(context, record.id))
       return <p role="status">Không có quyền xem Nhật Ký liên kết.</p>;
     return missionLinkedDiaryContent(await readMissionLinkedDiaries(fetch, centerId, record.id, signal), onOpenDiary);
   },
@@ -210,7 +210,6 @@ function ScopedMissionAssignment({centerId,centerSource,writeLease,setWriteLease
         reopenReason.trim().length>500, run:submitReopen },
   };
   return <>
-    <p role="note">{assignmentUnavailable.readOnly}</p>
     {confirmed ? <p role="status">{confirmed}</p> : null}
     {loadError ? <p role="alert">{loadError}</p> : null}
     {uncertain ? <p role="alert">Kết quả ghi chưa xác minh. Đối chiếu Core trước khi gửi lại hoặc mở lệnh mới.</p> : null}
@@ -218,8 +217,8 @@ function ScopedMissionAssignment({centerId,centerSource,writeLease,setWriteLease
       ready?.centerId === centerId ? <>
         <SurfaceWorkspace key={centerId} adapter={ready.adapter} navigation={ready.navigation} initialQuery={assignmentQuery}
           businessLoaders={businessLoaders} actionBindings={actions}
-          detailHistory={(row, context) => context.surface === "BO" && row.center === context.centerId &&
-            context.authorize("student.mission_assignment.view")
+          detailHistory={(row, context) => context.surface === "BO" &&
+            canReadMissionProjectedSlot(context, row.id)
               ? <div className={styles.missionHistory}>
                   <BoMissionHistory key={context.centerId + ":" + row.id} id={row.id}
                     centerId={context.centerId} context={context} />
@@ -234,9 +233,9 @@ function ScopedMissionAssignment({centerId,centerSource,writeLease,setWriteLease
               ["Ngày ghi",formatMissionAuditTime(selectedDiary.registeredAt)],
               ["Giáo viên",selectedDiary.teacherLegalFullName ?? "—"],
               ["Ghi chú",selectedDiary.notes?.trim() || "—"],
-              ["Học viên",selectedDiary.studentId],
-              ["Lớp",selectedDiary.runningClassId ?? "—"],
-              ["Bối cảnh dạy",selectedDiary.teachingContextKey || "—"],
+              ["Học viên","—"], // PAP-1875: Directory name not part of this linked Diary read.
+              ["Lớp","—"], // PAP-1875: class title unavailable, do not display UUID.
+              ["Ngày học",missionContextDay(selectedDiary.teachingContextKey)],
               ["Trạng thái",selectedDiary.status === "CLOSED" ? "Đã đóng" : "Đã ghi"],
               ["Created Time","—"],["Created By","—"],
               ["Last Modified Time",formatMissionAuditTime(selectedDiary.updatedAt)],
@@ -272,6 +271,18 @@ function ScopedMissionAssignment({centerId,centerSource,writeLease,setWriteLease
 }
 
 
+/** PAP-1875 / Epic PAP-1676: redact opaque context identifier, retain only an
+ * independently validated ISO local-date suffix when present.
+ */
+function missionContextDay(key: string): string {
+  const match = /(?:^|:)(\d{4})-(\d{2})-(\d{2})$/.exec(key);
+  if (!match) return "—";
+  const [year, month, day] = match.slice(1).map(Number);
+  const value = new Date(Date.UTC(year, month - 1, day));
+  if (value.getUTCFullYear() !== year || value.getUTCMonth() + 1 !== month ||
+      value.getUTCDate() !== day) return "—";
+  return String(day).padStart(2, "0") + "/" + String(month).padStart(2, "0") + "/" + year;
+}
 /** PAP-1818: content-only related Grid; onRowOpen is handled by parent shared DrawerFrame. */
 function missionLinkedDiaryContent(
  rows: readonly LinkedMissionDiary[], onRowOpen: (row: LinkedMissionDiary) => void,
@@ -288,8 +299,7 @@ function missionLinkedDiaryContent(
       ? row.notes.trim().length > 100 ? row.notes.trim().slice(0, 100) + "…" : row.notes.trim()
       : "—"}</span> },
   { key:"status", header:"Trạng thái", render:(row:LinkedMissionDiary)=>row.status==="CLOSED"?"Đã đóng":"Đã ghi" },
-  { key:"teachingContextKey", header:"Bối cảnh dạy", render:(row:LinkedMissionDiary)=>row.teachingContextKey||"—" },
-  { key:"diaryId", header:"Diary ID", render:(row:LinkedMissionDiary)=>row.diaryId },
+  { key:"teachingContextKey", header:"Ngày học", render:(row:LinkedMissionDiary)=>missionContextDay(row.teachingContextKey) },
  ];
  return <section className="v24-prop-section">
   <h3>Nhật Ký đã liên kết</h3>

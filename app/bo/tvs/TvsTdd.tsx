@@ -112,7 +112,7 @@ export function TvsTdd(){
   {!centerId?<p role="status">{centerError||"Chọn Center được cấp quyền để xem TVs."}</p>:
    error?<p role="alert">{error} <button type="button" onClick={()=>{setReady(null);setError("");setRetry(v=>v+1)}}>Thử lại</button></p>:
    ready?<><SurfaceWorkspace key={centerId} adapter={ready.adapter} navigation={ready.navigation} initialQuery={tvQuery} businessLoaders={loaders}/>
-    <p role="note">Trạng thái bảng là trạng thái định nghĩa Display, không phải trạng thái Online. Thông tin phiên và telemetry chỉ hiển thị khi Core trả về chứng cứ có quyền.</p></>:
+   </>:
    <p role="status">Đang kiểm tra quyền Center và tải Display…</p>}
  </section>;
  return <BoRegistrationWorkspace source={source} moduleKey="tvs" currentUser={{displayName:null}} content={content}/>;

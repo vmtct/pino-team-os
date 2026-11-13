@@ -136,9 +136,9 @@ export default function DiaryCapturePanel({model,classroom,confirmedSkipClassId}
      if(!active)return;
      try{
       const assignment=await assignments.get(scope,item.assignmentId!);
-      if(assignment.missionId!==item.missionId)throw new Error("Mission mismatch");
+      if(assignment.missionId!==item.missionId||assignment.status!=="ASSIGNED")throw new Error("Inactive assignment");
       const execution=await readTosMissionCompletion(day,occurrence,studentId,assignment);
-      states[item.missionId]=execution.executionStatus==="COMPLETED"?"VERIFIED":"IN_PROGRESS";
+      states[item.missionId]=execution.executionStatus==="COMPLETED"?"VERIFIED":execution.executionStatus==="IN_PROGRESS"?"IN_PROGRESS":"UNVERIFIED";
      }catch{states[item.missionId]="UNVERIFIED";}
     }
    }catch{
@@ -149,8 +149,11 @@ export default function DiaryCapturePanel({model,classroom,confirmedSkipClassId}
   return()=>{active=false;};
  },[permitted,eligibility,specialtyGuarded,writerApi,model.centerId,model.today,
    classroom.id,classroom.runningClassId,studentId]);
+ const activeMissions=eligibility?.items.filter(item=>item.assignmentId&&
+  (completionStatus[item.missionId]==="IN_PROGRESS"||(locked&&missionIds.includes(item.missionId))))??[];
+ const checkingActiveMissions=eligibility?.items.some(item=>item.assignmentId&&!completionStatus[item.missionId])??false;
  const errors=[
-  ...validateDiaryCaptureDraft({studentId,missionIds,eligibleIds:eligibility?.items.map(x=>x.missionId)??[],
+  ...validateDiaryCaptureDraft({studentId,missionIds,eligibleIds:activeMissions.map(x=>x.missionId),
    eligibilityLoaded:current.phase==="ready",eligibilityHasMore:eligibility?.hasMore??false,notes,interest,difficulty}),
   ...(studentId&&current.phase==="error"?[current.message]:[]),
   ...(missionIds.length>0&&!preflight?["Mission hoặc ngữ cảnh học chưa được Core xác nhận."]:[]),
@@ -319,8 +322,9 @@ export default function DiaryCapturePanel({model,classroom,confirmedSkipClassId}
    <legend>Nhiệm vụ <span aria-hidden="true">*</span></legend>
    {current.phase==="idle"||current.phase==="loading"?<p role="status">Đang xác nhận Mission từ Core…</p>:
     current.phase==="error"?<p role="alert">{current.message}</p>:
-    eligibility?.items.length===0?<p role="status">Không có Mission đủ điều kiện; không thể tạo Nhật ký.</p>:
-    <div className={styles.choices}>{eligibility?.items.map(m=><div key={m.missionId} className={styles.choice}>
+    checkingActiveMissions?<p role="status">Đang kiểm tra nhiệm vụ đang làm…</p>:
+    activeMissions.length===0?<p role="status">Học viên chưa có nhiệm vụ đang làm.</p>:
+    <div className={styles.choices}>{activeMissions.map(m=><div key={m.missionId} className={styles.choice}>
      <label><input type="checkbox" checked={missionIds.includes(m.missionId)} onChange={e=>toggleMission(m.missionId,e.target.checked)}/>
       <span>{m.code} · {m.name} <small>Cấp {m.level}</small></span>
      </label>

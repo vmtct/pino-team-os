@@ -2,23 +2,42 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { BoQuickView } from "./BoQuickView";
+import { useBoCenterSelection } from "./BoCenterSelection";
 import { PropertySections, type CreateDrawerField } from "@/app/components/workspace-renderer/Properties";
 import type { BoField, BoModule, BoRecord, BoValue } from "@/lib/bo-registration";
-import { boApi, BoApiError, type BoStudentIntakeCreateInput } from "@/lib/bo-api";
+import { BoApiError, type BoStudentIntakeCreateInput } from "@/lib/bo-api";
+import { studentIntakeCenterApi } from "@/lib/bo-student-intake-center-client";
 import type { BoParentSearchResult } from "@/lib/bo-model";
 
 type ParentResults =
   | { state: "loading" }
-  | { state: "ready"; data: BoParentSearchResult[] }
+  | { state: "ready"; centerId: string; data: BoParentSearchResult[] }
   | { state: "error"; message: string };
-type Attempt = { body: BoStudentIntakeCreateInput; idempotencyKey: string };
+type Attempt = { body: BoStudentIntakeCreateInput; idempotencyKey: string; centerId: string };
 
 function message(cause: unknown) {
   return cause instanceof Error && cause.message ? cause.message : "Không thể tạo học viên. Hãy thử lại.";
 }
 
-/** Student Intake uses the same BO drawer/property primitives and the existing canonical command. */
+/** PAP-1908 / SCH-STUDENT-MGMT: changing Center remounts the form, never reuses Parent or replay state. */
 export function BoStudentCreate({ onClose, onCreated }: { onClose: () => void; onCreated: (studentId: string) => void }) {
+  // A Center selector is only a hint. Core independently authorizes every resource.
+  const selectedCenter = useBoCenterSelection();
+  const centerId = selectedCenter && !selectedCenter.loading && !selectedCenter.error &&
+    selectedCenter.centers.some(center => center.id === selectedCenter.selected)
+    ? selectedCenter.selected : "";
+  return <BoStudentCreateScoped key={centerId} centerId={centerId} onClose={onClose} onCreated={onCreated} />;
+}
+
+function BoStudentCreateScoped({ centerId, onClose, onCreated }: {
+  centerId: string; onClose: () => void; onCreated: (studentId: string) => void;
+}) {
+  // An in-flight request can finish at the old Center; never publish the old result after remount.
+  const mountedRef = useRef(false);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
   const busyRef = useRef(false);
   const attemptRef = useRef<Attempt | null>(null);
   const [studentName, setStudentName] = useState("");
@@ -37,22 +56,23 @@ export function BoStudentCreate({ onClose, onCreated }: { onClose: () => void; o
   const [canResetAttempt, setCanResetAttempt] = useState(false);
   const uncertainAttempt = attempt !== null && Boolean(error) && !canResetAttempt;
   const locked = attempt !== null;
-
   useEffect(() => {
     if (parentMode !== "EXISTING" || locked) return;
+    if (!centerId) return;
     let active = true;
     const timer = window.setTimeout(() => {
       setParentResults({ state: "loading" });
-      void boApi.parents(parentQuery, 20).then(data => {
+      void studentIntakeCenterApi.parentsInCenter(centerId, parentQuery, 20).then(data => {
         if (!active) return;
-        setParentResults({ state: "ready", data });
+        setParentResults({ state: "ready", centerId, data });
         setSelectedParentId(current => current && data.some(item => item.parent.id === current) ? current : null);
       }).catch((cause: unknown) => { if (active) setParentResults({ state: "error", message: message(cause) }); });
     }, 180);
     return () => { active = false; window.clearTimeout(timer); };
-  }, [locked, parentMode, parentQuery]);
+  }, [centerId, locked, parentMode, parentQuery]);
 
-  const selectedParent = parentResults.state === "ready" ? parentResults.data.find(item => item.parent.id === selectedParentId) : null;
+  const selectedParent = parentResults.state === "ready" && parentResults.centerId === centerId
+    ? parentResults.data.find(item => item.parent.id === selectedParentId) : null;
   function closeIfSafe() { if (!busyRef.current && !uncertainAttempt) onClose(); }
   function resetAttempt() { attemptRef.current = null; setAttempt(null); setCanResetAttempt(false); setError(""); }
   function switchMode(next: "EXISTING" | "NEW") {
@@ -63,7 +83,16 @@ export function BoStudentCreate({ onClose, onCreated }: { onClose: () => void; o
   async function submit(event?: FormEvent<HTMLFormElement>) {
     event?.preventDefault();
     if (busyRef.current) return;
-    const selectedParentReady = parentResults.state === "ready" && selectedParentId !== null && parentResults.data.some(item => item.parent.id === selectedParentId);
+    if (!centerId) {
+      setError("Chọn cơ sở được cấp quyền trước khi tạo học viên.");
+      return;
+    }
+    if (attemptRef.current && attemptRef.current.centerId !== centerId) {
+      setError("Cơ sở đã thay đổi. Đóng và mở lại thao tác để tránh tạo học viên sai cơ sở.");
+      return;
+    }
+    const selectedParentReady = parentResults.state === "ready" && parentResults.centerId === centerId &&
+      selectedParentId !== null && parentResults.data.some(item => item.parent.id === selectedParentId);
     if (!attemptRef.current && parentMode === "EXISTING" && !selectedParentReady) {
       setError("Chọn phụ huynh từ kết quả tìm kiếm hiện tại trước khi tạo học viên.");
       return;
@@ -81,6 +110,7 @@ export function BoStudentCreate({ onClose, onCreated }: { onClose: () => void; o
       };
       return {
         idempotencyKey: crypto.randomUUID(),
+        centerId,
         body: parentMode === "EXISTING"
           ? { ...common, existingParentUserId: selectedParentId! }
           : { ...common, guardianDisplayName: guardianName.trim() || null, contactType, contactValue: contactValue.trim() },
@@ -90,12 +120,17 @@ export function BoStudentCreate({ onClose, onCreated }: { onClose: () => void; o
     setAttempt(currentAttempt);
     busyRef.current = true; setBusy(true); setError(""); setCanResetAttempt(false);
     try {
-      const result = await boApi.createStudentIntake(currentAttempt.body, currentAttempt.idempotencyKey);
-      onCreated(result.studentProfileId);
+      const result = await studentIntakeCenterApi.createStudentIntakeInCenter(currentAttempt.centerId, currentAttempt.body, currentAttempt.idempotencyKey);
+      if (mountedRef.current) onCreated(result.studentProfileId);
     } catch (cause) {
-      setError(message(cause));
-      setCanResetAttempt(cause instanceof BoApiError && cause.structuredResponse && cause.status >= 400 && cause.status < 500);
-    } finally { busyRef.current = false; setBusy(false); }
+      if (mountedRef.current) {
+        setError(message(cause));
+        setCanResetAttempt(cause instanceof BoApiError && cause.structuredResponse && cause.status >= 400 && cause.status < 500);
+      }
+    } finally {
+      busyRef.current = false;
+      if (mountedRef.current) setBusy(false);
+    }
   }
 
   const parentFieldKeys = parentMode === "EXISTING"
@@ -183,7 +218,7 @@ export function BoStudentCreate({ onClose, onCreated }: { onClose: () => void; o
   return <BoQuickView moduleKey="students" module={studentModule} record={null}
     onClose={closeIfSafe}
     create={{
-      draft: record, fields: studentFields, busy, error, title: "Tạo học viên", path: "Students",
+      draft: record, fields: studentFields, busy: busy || !centerId, error, title: "Tạo học viên", path: "Students",
       editable: field => !locked && studentKeys.includes(field.key),
       editorField: field => field.key === "relationshipType"
         ? { ...field, readonly: false, options: Object.values(relationshipLabels) }
@@ -201,6 +236,7 @@ export function BoStudentCreate({ onClose, onCreated }: { onClose: () => void; o
       onCreate: () => submit(),
     }}
     extraSection={<>
+      {!centerId ? <p className="edit-error" role="alert">Chọn cơ sở được cấp quyền để tạo học viên.</p> : null}
       <PropertySections variant="drawer" fields={parentFields} record={record}
         sections={[{ id: "guardian", label: "Phụ huynh / người giám hộ", fields: parentFieldKeys }]}
         createFields={createFields} />

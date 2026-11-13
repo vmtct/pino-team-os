@@ -25,6 +25,14 @@ export type HostBoundaryDecision =
 
 export function decideHostBoundary(host: string, pathname: string, method = "GET"): HostBoundaryDecision {
   const hostname = normalizeHostname(host);
+  // PAP-1914 / PAP-1705 PNR-AVATAR-CRUD: exact Nickname PATCH ingress on BO Staging.
+  // Fence all other hosts, verbs and malformed child IDs before generic host fallthrough.
+  // BFF and Core independently enforce selected-Center ACL, CAS and actor audit.
+  if (pathname.startsWith("/api/bo/pinoria/avatars/")) {
+    const exactAvatar = /^\/api\/bo\/pinoria\/avatars\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pathname);
+    return hostname === BO_STAGING_HOSTNAME && method === "PATCH" && exactAvatar
+      ? { action: "next" } : { action: "not_found" };
+  }
   // PAP-1871 / PAP-1491: exact BO Staging GET only. Core still rechecks Center and payer ACL.
   if(pathname.startsWith("/api/bo/billing/sales/eligible-payers"))
     return {action:hostname===BO_STAGING_HOSTNAME&&method==="GET"&&

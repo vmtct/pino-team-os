@@ -21,6 +21,7 @@ export type Data={students:Student[];participants:Record<string,string[]>;openin
 export type CollectionReadState="LOADED"|"UNAVAILABLE";
 export interface ClassroomV4ViewModel {
  centerId:string;today:string;staffLabel:string;classes:ScheduledClass[];data:Data;missions:Mission[];
+ diaryOccurrenceReadState?:Record<string,CollectionReadState>;
  diaryReadState:CollectionReadState;missionReadState:CollectionReadState;openingReadState:CollectionReadState;
  conflictStudentIds:string[];
 }
