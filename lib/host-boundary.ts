@@ -144,6 +144,12 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   if (studentNameEdit) {
     return hostname === BO_STAGING_HOSTNAME && method === "PATCH" ? { action: "next" } : { action: "not_found" };
   }
+  // PAP-1931 / SCH-STUDENT-MGMT: exact B2 Gender PATCH on BO Staging only.
+  // BO facade and Core still recheck selected Center, actor, CAS and audit.
+  const studentGenderEdit = /^\/api\/bo\/students\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/gender$/.test(pathname);
+  if (studentGenderEdit) {
+    return hostname === BO_STAGING_HOSTNAME && method === "PATCH" ? { action: "next" } : { action: "not_found" };
+  }
   // PAP-1356: global fail-closed fence so unknown hosts cannot fall through.
   const loadoutId = "[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
   const setRoot = new RegExp("^/api/bo/pinoria/selfs/" + loadoutId + "/set$").test(pathname);
