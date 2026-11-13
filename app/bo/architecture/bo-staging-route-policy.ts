@@ -9,6 +9,8 @@ export const boStagingAdmittedRoutes = new Set([
   "/bo/pinoria-avatars",
   "/bo/open-studio-passes",
   "/bo/classroom-diaries",
+  // PAP-764 / Epic PAP-759: S1 Staging-only navigation; Core read/review not admitted.
+  "/bo/opening-evidence",
 ]);
 
 // New canonical modules must be admitted or deliberately deferred in this policy.
