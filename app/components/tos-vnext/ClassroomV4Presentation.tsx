@@ -201,8 +201,8 @@ export default function ClassroomV4Presentation({model,initialView,onDetailChang
   setAppendBusy(false);
  };
  const submitSupplement=blocked;
- const genderLabel=(s:Student)=>s.gender==="Nữ"?"♀":s.gender==="Nam"?"♂":"·";
- const genderBadge=(s:Student)=><span hidden={s.gender==="Khác / chưa cung cấp"} aria-label={"Giới tính: "+s.gender} title={s.gender} className={s.gender==="Nữ"?styles.genderFemale:s.gender==="Nam"?styles.genderMale:styles.genderUnknown} data-tos-slot={tosSlotKeys(s.gender==="Nữ"?styles.genderFemale:s.gender==="Nam"?styles.genderMale:styles.genderUnknown)}>{genderLabel(s)}</span>;
+ const genderLabel=(s:Pick<Student,"gender">)=>s.gender==="Nữ"?"♀":s.gender==="Nam"?"♂":"·";
+ const genderBadge=(s:Pick<Student,"gender">)=><span hidden={s.gender==="Khác / chưa cung cấp"} aria-label={"Giới tính: "+s.gender} title={s.gender} className={s.gender==="Nữ"?styles.genderFemale:s.gender==="Nam"?styles.genderMale:styles.genderUnknown} data-tos-slot={tosSlotKeys(s.gender==="Nữ"?styles.genderFemale:s.gender==="Nam"?styles.genderMale:styles.genderUnknown)}>{genderLabel(s)}</span>;
  const avatar=(s:Student)=><span className={s.domain==="art"?styles.avatarArt:styles.avatarPiano} data-tos-slot={tosSlotKeys(s.domain==="art"?styles.avatarArt:styles.avatarPiano)} aria-label={s.name}>{s.name.split(" ").slice(-2).map(v=>v[0]).join("").toUpperCase()}</span>;
  const badge=(d:Diary)=><span className={d.status==="CLOSED"?styles.badgeGood:d.draftSavedAt?styles.badgePending:styles.badgePending} data-tos-slot={tosSlotKeys(d.status==="CLOSED"?styles.badgeGood:d.draftSavedAt?styles.badgePending:styles.badgePending)}>{d.status==="CLOSED"?"Đã kết thúc":d.draftSavedAt&&d.missions.every(m=>m.completed!==null)?"Đã lưu nháp":"Đang học"}</span>;
  const missionBadge=(d:Diary,m:DiaryMission)=><span className={m.completed===true&&!!(d.draftSavedAt||d.closedAt)?styles.badgeGood:m.completed===false&&!!(d.draftSavedAt||d.closedAt)?styles.badgeBad:styles.badgePending} data-tos-slot={tosSlotKeys(m.completed===true&&!!(d.draftSavedAt||d.closedAt)?styles.badgeGood:m.completed===false&&!!(d.draftSavedAt||d.closedAt)?styles.badgeBad:styles.badgePending)}>{m.completed===true?"Đã hoàn thành":m.completed===false?"Chưa hoàn thành":"Đang học"}</span>;
@@ -263,7 +263,7 @@ export default function ClassroomV4Presentation({model,initialView,onDetailChang
      const enrolled=people.some(p=>p.id===s.id);
      return <button type="button" className={styles.lookupResult} data-tos-slot={tosSlotKeys(styles.lookupResult)} key={s.id}
       disabled={enrolled||!s.canAdd||adding} onClick={()=>void addExisting(s.id)}>
-      <div><strong>{s.name}</strong><small>{enrolled?"Đã trong lớp":s.canAdd?"Có thể thêm":"Không thể thêm"}</small></div>
+      <div><strong>{s.name} {genderBadge({gender:s.gender==="FEMALE"?"Nữ":s.gender==="MALE"?"Nam":data.students.find(student=>student.id===s.id)?.gender??"Khác / chưa cung cấp"})}</strong><small>{s.homeCenterName?"Cơ sở gốc: "+s.homeCenterName:"Chưa có cơ sở gốc"}{enrolled?" · Đã trong lớp":!s.canAdd?" · Không thể thêm":""}</small></div>
       <span aria-hidden="true">{enrolled?"✓":"+"}</span>
      </button>;
     })}{displayedCandidates?.more&&<button type="button" onClick={()=>setPageLimit(n=>n+50)}>Tải thêm</button>}
