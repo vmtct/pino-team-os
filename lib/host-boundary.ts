@@ -25,6 +25,17 @@ export type HostBoundaryDecision =
 
 export function decideHostBoundary(host: string, pathname: string, method = "GET"): HostBoundaryDecision {
   const hostname = normalizeHostname(host);
+  // PAP-1918 / PAP-1365 Student Management: exact BO Staging intake ingress.
+  // The authenticated BFF and Core still enforce selected-Center access.
+  const parentSearch = "/api/bo/identity/parents/center-search";
+  const centerIntake = "/api/bo/student-intakes/center";
+  if (isPathWithin(pathname, parentSearch) || isPathWithin(pathname, centerIntake)) {
+    const allowed = hostname === BO_STAGING_HOSTNAME &&
+      ((pathname === parentSearch && method === "GET") ||
+       (pathname === centerIntake && method === "POST"));
+    return { action: allowed ? "next" : "not_found" };
+  }
+
   // PAP-1914 / PAP-1705 PNR-AVATAR-CRUD: exact Nickname PATCH ingress on BO Staging.
   // Fence all other hosts, verbs and malformed child IDs before generic host fallthrough.
   // BFF and Core independently enforce selected-Center ACL, CAS and actor audit.
