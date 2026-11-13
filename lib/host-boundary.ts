@@ -25,6 +25,10 @@ export type HostBoundaryDecision =
 
 export function decideHostBoundary(host: string, pathname: string, method = "GET"): HostBoundaryDecision {
   const hostname = normalizeHostname(host);
+  // PAP-1939 / PAP-1934: exact BO Staging read admission only. No HO/TOS/Production.
+  if (pathname === "/api/bo/classroom/day-headcounts" || pathname.startsWith("/api/bo/classroom/day-headcounts/"))
+    return { action: hostname === BO_STAGING_HOSTNAME && method === "GET" &&
+      pathname === "/api/bo/classroom/day-headcounts" ? "next" : "not_found" };
   // PAP-1918 / PAP-1365 Student Management: exact BO Staging intake ingress.
   // The authenticated BFF and Core still enforce selected-Center access.
   const parentSearch = "/api/bo/identity/parents/center-search";
