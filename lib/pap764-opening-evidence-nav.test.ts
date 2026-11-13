@@ -1,35 +1,42 @@
 /** PAP-764 · Epic PAP-759 · SCH-OPENING-EVIDENCE.
- * AP FSG1 BO Staging-only shell invariants. No Core/read/review admission.
+ * AP source-only fail-closed BO route preflight. Canonical TDD admission is not yet granted.
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+
 const read = (p: string) => readFileSync(new URL("../" + p, import.meta.url), "utf8");
 const shell = read("app/bo/shell/BoApplicationShell.tsx");
 const policy = read("app/bo/architecture/bo-staging-route-policy.ts");
+const layout = read("app/bo/layout.tsx");
 const route = read("app/bo/opening-evidence/page.tsx");
 const stage = read("app/bo/opening-evidence/OpeningEvidenceStageGate.tsx");
 const productionNav = read("app/bo/navigation.ts");
 
-test("PAP-764 Staging route is exactly admitted and Production is 404", () => {
-  assert.match(policy, /"\/bo\/opening-evidence"/);
-  assert.match(route, /host !== "bo\.staging\.pinohouse\.art"\) notFound\(\)/);
+test("PAP-764 source-only route stays unadmitted until canonical TDD/Core contract", () => {
+  const literal = policy.match(/boStagingAdmittedRoutes\s*=\s*new Set\(\s*(\[[\s\S]*?\])\s*\)/);
+  assert.ok(literal, "Staging policy must remain a literal list");
+  const routes = JSON.parse(literal[1].replace(/,\s*\]$/, "]")) as string[];
+  assert.ok(!routes.includes("/bo/opening-evidence"), "No unregistered Staging admission");
+  assert.doesNotMatch(shell, /"opening-evidence":/);
   assert.doesNotMatch(productionNav, /\/bo\/opening-evidence/);
+  assert.match(layout, /isBoStagingRouteAdmitted\(routePath\)/);
+  assert.match(route, /host !== "bo\.staging\.pinohouse\.art"\) notFound\(\)/);
 });
-test("PAP-764 owns one native BO shell destination, without second side menu", () => {
-  assert.match(shell, /"opening-evidence": \{ label: "Mở lớp & ca", group: "Operations", fields: \[\] \}/);
-  assert.match(shell, /modules: \{ \.\.\.unifiedBoWorkspaceSource\.modules, \.\.\.directModules \}/);
+
+test("PAP-764 placeholder cannot create a second Center provider or authorizer", () => {
   assert.doesNotMatch(stage, /BoCenterSelectionProvider|loadAuthorizedDirectoryCenters/);
   assert.match(stage, /useBoCenterSelection/);
-});
-test("PAP-764 Stage truth is fail-closed for missing Center and Core", () => {
   assert.match(stage, /scope\.centers\.some\(center => center\.id === scope\.selected\)/);
+});
+
+test("PAP-764 unconnected Core must not silently render rows or enable review", () => {
   assert.match(stage, /role=\{denied \? "alert" : "status"\}/);
   assert.match(stage, /Chưa kết nối dữ liệu bằng chứng mở lớp và ca từ Core/);
   assert.doesNotMatch(stage, /fetch\(|localStorage|sessionStorage|BoDataGrid|<table|<button|approve\(|review\(|onClick=/);
-  assert.match(stage, /data-opening-evidence-phase="AP_FSG1_NAV_ONLY"/);
 });
-test("PAP-1946 list density gate is explicitly not falsely passed by a nav-only placeholder", () => {
+
+test("PAP-1946 list gate not falsely passed by source-only non-list preparation", () => {
   assert.doesNotMatch(stage, /\.view-tabs|<table|BoDataGrid|BoDataTable/);
   assert.match(stage, /className="page-heading"/);
   assert.match(stage, /className="grid-card"/);

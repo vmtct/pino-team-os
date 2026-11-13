@@ -3,8 +3,8 @@ import { notFound } from "next/navigation";
 import { OpeningEvidenceStageGate } from "./OpeningEvidenceStageGate";
 
 /** PAP-764 · SCH-OPENING-EVIDENCE / Epic PAP-759.
- * AP FSG1 nav/route scaffold only; no Core read/review contract admitted.
- * This standalone Staging page MUST NOT become a Production route.
+ * AP_PREP_ONLY: dormant route scaffold until registered BO TDD/Core adapter.
+ * Not admitted into Staging or Production navigation; never bypass BO route policy.
  */
 export default async function OpeningEvidencePage() {
   const host = (await headers()).get("host")?.toLowerCase().split(":")[0] ?? "";

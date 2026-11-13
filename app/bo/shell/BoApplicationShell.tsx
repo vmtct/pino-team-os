@@ -26,8 +26,6 @@ const productionSource: BoWorkspaceSource = {
 // presentation destinations only; never call those adapters from the outer shell.
 const directModules = {
   "classroom-diaries": { label: "Nhật ký lớp học", group: "SCHOOL", fields: [] },
-  // PAP-764 / Epic PAP-759: staging-only BO Navigation. No Core read/write projection.
-  "opening-evidence": { label: "Mở lớp & ca", group: "Operations", fields: [] },
   "open-studio-passes": { label: "Pass Trạm Nghệ Thuật", group: "Open Studio", fields: [] },
 };
 const stagingSource: BoWorkspaceSource = {
