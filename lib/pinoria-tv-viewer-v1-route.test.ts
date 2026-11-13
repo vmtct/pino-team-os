@@ -34,7 +34,7 @@ test("PAP-1646 Core authenticator checks requested Center membership and distinc
   assert.match(gate,/callWorkforceCoreWithCredential/);
   assert.match(gate,/ctx\.centers\.some\(center => object\(center\) && center\.id === requestedCenterId\)/);
   assert.match(gate,/credential\.kind !== "password"/);
-  assert.match(gate,/authorizedStaffViewerCenter\(context\.body, policyRef\.slice/);
+  assert.match(gate,/authorizedStaffViewerCenter\(context\.body, tvPolicyViewerCenter\(policyRef\)/);
   assert.match(gate,/callTosLearningCoreWithCredential/);
   assert.match(gate,/path: "\/pinoria\/tv-policies\/published"/);
   assert.match(gate,/parsePublishedTvPolicyProjection/);
