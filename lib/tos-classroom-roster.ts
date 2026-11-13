@@ -1,4 +1,4 @@
-export interface RosterCandidate {id:string;name:string;canAdd:boolean}
+export interface RosterCandidate {id:string;name:string;canAdd:boolean;homeCenterName?:string|null;gender?: "FEMALE"|"MALE"|null}
 const base="/api/tos-learning/classroom/";
 export async function searchClassroomStudents(centerId:string,runningClassId:string,query:string,limit:number,signal:AbortSignal){
  const items:RosterCandidate[]=[];
