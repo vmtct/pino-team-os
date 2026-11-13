@@ -1,0 +1,36 @@
+name: Piner App Shell F1-F2
+on:
+  push:
+    branches:
+      - 'feat/pap1943-*'
+    paths:
+      - 'piner-shell/**'
+      - '.github/workflows/piner-shell-ci.yml'
+  pull_request:
+    paths:
+      - 'piner-shell/**'
+      - '.github/workflows/piner-shell-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  worker-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Check FE-only module syntax
+        run: |
+          node --check piner-shell/src/worker.mjs
+          node --check piner-shell/src/adapter.mjs
+          node --check piner-shell/src/view.mjs
+          node --check piner-shell/src/styles.mjs
+          node --check piner-shell/src/client.mjs
+      - name: Unit — fail-closed auth, negative routes and R2 object fallback
+        run: node --test piner-shell/test/shell.test.mjs
+      - name: Bundle Worker without deployment or credentials
+        run: npx --yes wrangler@4.122.0 deploy --dry-run --config piner-shell/wrangler.jsonc --outdir /tmp/piner-shell-bundle
