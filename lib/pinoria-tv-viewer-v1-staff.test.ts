@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-  oneTrustedStaffViewerCenter, readStaffPublishedViewer,
+  authorizedStaffViewerCenter, readStaffPublishedViewer,
   type StaffPolicyViewerEnv,
 } from "./pinoria-tv-viewer-v1-staff";
 import type { WorkforceRequest } from "./workforce-core";
@@ -56,17 +56,17 @@ function setup(opts: {contextStatus?:number; publishedStatus?:number; contextBod
 function request(path="/tv/p/"+ref,cookie="pino_staff_password_session=session-token",host="tos.staging.pinohouse.art") {
   return new Request(ROOT+path,{method:"GET",headers:{host,...(cookie?{cookie}:{})}});
 }
-test("PAP-1646 only accepts single canonical Core-authorized Staff Center",()=>{
-  assert.equal(oneTrustedStaffViewerCenter(context()),centerId);
-  for(const invalid of [null,{},[],context([]),context([centerId,otherCenter]),
+test("PAP-1646 accepts the requested canonical Core-authorized Staff Center",()=>{
+  assert.equal(authorizedStaffViewerCenter(context(),centerId),centerId);
+  for(const invalid of [null,{},[],context([]),
     context(["bogus"]),{data:{...context().data,founderMode:true}},
     {data:{...context().data,staffMemberId:null}},
     {data:{...context().data,userId:""}},]) {
-    assert.equal(oneTrustedStaffViewerCenter(invalid),null);
+    assert.equal(authorizedStaffViewerCenter(invalid,centerId),null);
   }
 });
 test("PAP-1646 requires Workforce Core proof before published Core projection",async()=>{
-  const {env,workforce,tv}=setup();
+  const {env,workforce,tv}=setup({contextBody:context([otherCenter,centerId])});
   const result=await readStaffPublishedViewer(request(),env,ref);
   assert.equal(result.kind,"published");
   if(result.kind!=="published") return;
@@ -90,8 +90,8 @@ test("PAP-1646 never accepts support-session as Staff Viewer authority",async()=
     {kind:"blocked",status:403});
   assert.equal(workforce.length,0);assert.equal(tv.length,0);
 });
-test("PAP-1646 mult Center / unauthorized Center never reaches published Core",async()=>{
-  for(const body of [context([]),context([centerId,otherCenter]),context([otherCenter])]) {
+test("PAP-1646 unauthorized Center never reaches published Core",async()=>{
+  for(const body of [context([]),context([otherCenter])]) {
     const s=setup({contextBody:body});
     assert.deepEqual(await readStaffPublishedViewer(request(),s.env,ref),{kind:"blocked",status:403});
     assert.equal(s.tv.length,0);

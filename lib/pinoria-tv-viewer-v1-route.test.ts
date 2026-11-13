@@ -30,11 +30,11 @@ test("PAP-1646 output status Response is explicit and Core authorization first",
   assert.match(status,/default-src 'none'/);
   assert.doesNotMatch(status,/localStorage|sessionStorage|window\.|document\.|setInterval|setTimeout/);
 });
-test("PAP-1646 Core authenticator still demands one Center and distinct Core policy read",()=>{
+test("PAP-1646 Core authenticator checks requested Center membership and distinct Core policy read",()=>{
   assert.match(gate,/callWorkforceCoreWithCredential/);
-  assert.match(gate,/ctx\.centers\.length !== 1/);
+  assert.match(gate,/ctx\.centers\.some\(center => object\(center\) && center\.id === requestedCenterId\)/);
   assert.match(gate,/credential\.kind !== "password"/);
-  assert.match(gate,/policyRef !== "tvp1-center-" \+ centerId/);
+  assert.match(gate,/authorizedStaffViewerCenter\(context\.body, policyRef\.slice/);
   assert.match(gate,/callTosLearningCoreWithCredential/);
   assert.match(gate,/path: "\/pinoria\/tv-policies\/published"/);
   assert.match(gate,/parsePublishedTvPolicyProjection/);
