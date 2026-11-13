@@ -78,8 +78,8 @@ test("PAP-1646 invalid canonical ref and forged query are HTTP 404 before Core",
     assert.equal(r.status,404);assert.deepEqual(s.calls,[]);
   }
 });
-test("PAP-1646 multicenter Staff is HTTP 403 before published Core",async()=>{
-  const s=setup({centers:[centerId,"0199ce43-781b-7e14-8a72-836a2925f8a9"]});
+test("PAP-1646 multicenter Staff without target membership is HTTP 403 before published Core",async()=>{
+  const s=setup({centers:["0199ce43-781b-7e14-8a72-836a2925f8a9","0199ce43-781b-7e14-8a72-836a2925f8aa"]});
   const r=await handlePolicyViewerHttp(request(),s.env,ref);
   assert.equal(r.status,403);assert.deepEqual(s.calls,["workforce:/context"]);
 });
