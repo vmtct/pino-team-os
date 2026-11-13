@@ -25,7 +25,7 @@ type Choices={phase:"loading"|"ready"|"error";items:readonly TosEligibleMissionC
 type CreateGate="loading"|"clear"|"unfinished"|"unavailable";
 export default function MissionAssignmentTab({
   scope,readOnly=false,visible=true,createRequest=null,onCreateRequestConsumed,
-}:{scope:MissionTabScope & {pathProgramId?:string};readOnly?:boolean;visible?:boolean;
+}:{scope:MissionTabScope & {pathProgramId?:string;pathLabel?:string};readOnly?:boolean;visible?:boolean;
   createRequest?:MissionCreateRequest|null;onCreateRequestConsumed?:(requestId:number)=>void}){
   const [read,setRead]=useState<MissionTabReadState>({state:"LOADING",groups:[]});
   const [attempt,setAttempt]=useState(0);
@@ -210,6 +210,7 @@ export default function MissionAssignmentTab({
             {groups.map(g=><option value={g.studentId} key={g.studentId}>{g.studentName}</option>)}
           </select>
         </label>
+        {scope.pathLabel&&scope.pathLabel!=="—"&&<p>Path lớp: {scope.pathLabel}</p>}
         {editor.old&&<p className={styles.smallMuted} data-tos-slot={slot(styles.smallMuted)}>
           Thay {editor.old.missionCodeSnapshot} · {editor.old.missionNameSnapshot} của {studentName}.
         </p>}
