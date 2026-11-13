@@ -772,3 +772,11 @@
   .phone .sectionHead { gap: var(--tos-space-3); align-items: center; }
   .phone .sectionHead>button { min-height: var(--tos-hit-min); }
 }
+
+/* PAP-1942: unlayered form skins outrank normal tos.apps declarations.
+   Scope the border reset only to the nested Student Add search control. */
+.phone .sheet .search input {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
