@@ -1,0 +1,56 @@
+# PAP-1910 — No-arrow Carousel (Epic PAP-1746 PNR-APP-HUB is keeping).
+# PAP-1887 — Afterschool Secure PIN Session (Epic PAP-1832 PNR-IDENTITY)
+# may reuse this staging-only source CI after explicit serialized handoff.
+# Never deploy, upload Worker versions, use Cloudflare credentials or mutate i5.
+name: PAP-1910 Piner Safe Build (No Deploy)
+
+on:
+  push:
+    branches:
+      - fix/pap1910-supported-build-20261113
+      - feat/pap1910-remove-carousel-arrows
+      - feat/pap1887-s3b-piner-worker-20261113
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pap1910-piner-safe-ci-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  supported-piner-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout exact SHA
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Setup Node LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install pinned dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Check current supported adapter and Next.js security floor
+        run: |
+          node -e "const l=require('./package-lock.json');const n=l.packages['node_modules/next'].version;const a=l.packages['node_modules/@opennextjs/cloudflare'].version;if(n!=='15.5.29'||a!=='1.20.16')process.exit(2);console.log('PAP1910 next='+n+' OpenNext='+a)"
+      - name: TypeScript and PINO visual source boundaries
+        run: |
+          npx tsc --noEmit
+          npx eslint app/piner/CommunityPhotoCarousel.tsx app/piner/public/community/page.tsx app/piner/public/login/afterschool/page.tsx
+      - name: Piner PIN security unit tests when branch includes PAP-1887
+        run: |
+          if test -f lib/piner-afterschool-pin-bff.test.mjs; then
+            node --test lib/piner-afterschool-pin-bff.test.mjs lib/piner-afterschool-worker-route.test.mjs
+          else
+            echo "PAP-1887 tests not present; PAP-1910 framework-only source"
+          fi
+      - name: Build OpenNext Cloudflare artifact without deployment
+        run: npx opennextjs-cloudflare build
+      - name: No deployment proof
+        run: |
+          echo "PAP-1910 SAFE CI ONLY: no Cloudflare token, no Wrangler deploy, no Worker upload, no Production"
