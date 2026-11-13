@@ -48,6 +48,7 @@ const ok=(v,m)=>{if(!v)throw Error(m)};
   ok(Math.abs(props.sigil.height-props.wordmark.height)<.7,"canonical brand equal height "+space+" "+w);
   ok(props.adapter==="unauthenticated"&&props.navCount===4&&props.scrollMax>150,"FE-only no data + nav "+space+" "+w);
   ok((await page.locator(".profile-switch").innerText()).includes(space==="house"?"Chọn hồ sơ":"Tài khoản"),"switch label "+space);
+  if(w===390){const shot=path.join(evidence,space+"-initial-390-preview.png");await page.screenshot({path:shot});report.screenshots.push(shot);}
   await page.locator(".profile-switch").click();
   ok(await page.locator(".profile-panel").isVisible(),"switch menu "+space+" "+w);
   await page.keyboard.press("Escape");ok(!(await page.locator(".profile-panel").isVisible()),"Escape dismisses "+space+" "+w);
@@ -62,6 +63,9 @@ const ok=(v,m)=>{if(!v)throw Error(m)};
   await main.evaluate(el=>el.scrollBy({top:-105,behavior:"instant"}));
   await page.locator('.member[data-chrome-collapsed="false"]').waitFor({timeout:6000});
   ok(!(await page.locator(".app-header").evaluate(e=>e.inert))&&!(await page.locator(".bottom-nav").evaluate(e=>e.inert)),"scroll up reveals "+space+" "+w);
+  await page.waitForTimeout(290);
+  const geom=await page.evaluate(()=>{const h=document.querySelector(".app-header"),n=document.querySelector(".bottom-nav");const a=h.getBoundingClientRect(),b=n.getBoundingClientRect();return {top:a.top,bottom:b.bottom,hopacity:+getComputedStyle(h).opacity,nopacity:+getComputedStyle(n).opacity,viewport:innerHeight,docScroll:document.documentElement.scrollTop}});
+  ok(geom.top>=-1&&geom.bottom<=geom.viewport+1&&geom.hopacity>.95&&geom.nopacity>.95,"restored chrome visible after transition "+space+" "+w+" "+JSON.stringify(geom));
   if(w===390){const f=path.join(evidence,space+"-member-390-preview.png");await page.screenshot({path:f});report.screenshots.push(f);}
   await go("/piner/"+space+"/community");
   ok((await page.locator(".feed-inner h1").count())===0,"Community redundant heading "+space);
