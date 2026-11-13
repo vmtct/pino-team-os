@@ -263,7 +263,7 @@ export default function ClassroomV4Presentation({model,initialView,onDetailChang
      const enrolled=people.some(p=>p.id===s.id);
      return <button type="button" className={styles.lookupResult} data-tos-slot={tosSlotKeys(styles.lookupResult)} key={s.id}
       disabled={enrolled||!s.canAdd||adding} onClick={()=>void addExisting(s.id)}>
-      <div><strong>{s.name} {genderBadge({gender:s.gender==="FEMALE"?"Nữ":s.gender==="MALE"?"Nam":data.students.find(student=>student.id===s.id)?.gender??"Khác / chưa cung cấp"})}</strong><small>{s.homeCenterName?"Cơ sở gốc: "+s.homeCenterName:"Chưa có cơ sở gốc"}{enrolled?" · Đã trong lớp":!s.canAdd?" · Không thể thêm":""}</small></div>
+      <div><strong>{s.name} {genderBadge({gender:s.gender==="FEMALE"?"Nữ":s.gender==="MALE"?"Nam":"Khác / chưa cung cấp"})}</strong><small>{s.homeCenterName?"Cơ sở gốc: "+s.homeCenterName:"Chưa có cơ sở gốc"}{enrolled?" · Đã trong lớp":!s.canAdd?" · Không thể thêm":""}</small></div>
       <span aria-hidden="true">{enrolled?"✓":"+"}</span>
      </button>;
     })}{displayedCandidates?.more&&<button type="button" onClick={()=>setPageLimit(n=>n+50)}>Tải thêm</button>}

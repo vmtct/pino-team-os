@@ -47,6 +47,7 @@ const TERM_WEEK_COMMAND = /^delivery\/term-weeks\/[0-9a-f-]{36}\/(update|delete)
 const TERM_NEUTRALIZE_COMMAND = /^delivery\/terms\/[0-9a-f-]{36}\/neutralize$/;
 const RUNNING_CLASS_PATCH = /^delivery\/running-classes\/[0-9a-f-]{36}$/;
 const STUDENT_PROFILE_PATCH = /^students\/[0-9a-f-]{36}$/;
+const STUDENT_GENDER_PATCH = /^students\/[0-9a-f-]{36}\/gender$/;
 const DELIVERY_CONFIG_LIFECYCLE = /^delivery\/(?:learning-spaces|running-classes)\/[0-9a-f-]{36}\/lifecycle$/;
 const DELIVERY_FUTURE_RESERVATION_POLICY_VERSION = "policies/delivery/future_reservation.v1/versions";
 const DELIVERY_FUTURE_RESERVATION_POLICY_PUBLISH = /^policies\/delivery\/future_reservation\.v1\/versions\/[0-9a-f-]{36}\/publish$/;
@@ -161,11 +162,11 @@ export async function handleBoWriteRequest(
     }
     if (
       request.method !== "POST"
-      && !(request.method === "PATCH" && (CATALOG_PATH_UPDATE.test(path) || RUNNING_CLASS_PATCH.test(path) || STUDENT_PROFILE_PATCH.test(path) || PARENT_NAME_PATCH.test(path) || WARD_CATALOG_WRITE.test(path) || WARD_SET_WRITE.test(path) || PINORIA_WORLD_WRITE.test(path)))
+      && !(request.method === "PATCH" && (CATALOG_PATH_UPDATE.test(path) || RUNNING_CLASS_PATCH.test(path) || STUDENT_PROFILE_PATCH.test(path) || PARENT_NAME_PATCH.test(path) || STUDENT_GENDER_PATCH.test(path) || WARD_CATALOG_WRITE.test(path) || WARD_SET_WRITE.test(path) || PINORIA_WORLD_WRITE.test(path)))
       && !(request.method === "PUT" && (WARD_SET_WRITE.test(path) || WARD_LEARNER_WRITE.test(path) || PINORIA_ONBOARDING_SET_WRITE.test(path) || PINORIA_WORLD_WRITE.test(path) || MISSION_CATALOG_UPDATE.test(path)))
       && !(request.method === "DELETE" && (PINORIA_ONBOARDING_GRANT_WRITE.test(path) || PINORIA_WORLD_WRITE.test(path)))
     ) return json({ error: { code: "PLATFORM_METHOD_NOT_ALLOWED", message: "Method not allowed" } }, 405);
-    if (!isAllowedPostPath(path) && !(request.method === "PATCH" && (RUNNING_CLASS_PATCH.test(path) || STUDENT_PROFILE_PATCH.test(path) || PARENT_NAME_PATCH.test(path)))) return json({ error: { code: "PLATFORM_NOT_FOUND", message: "BO operation not found" } }, 404);
+    if (!isAllowedPostPath(path) && !(request.method === "PATCH" && (RUNNING_CLASS_PATCH.test(path) || STUDENT_PROFILE_PATCH.test(path) || PARENT_NAME_PATCH.test(path) || STUDENT_GENDER_PATCH.test(path)))) return json({ error: { code: "PLATFORM_NOT_FOUND", message: "BO operation not found" } }, 404);
 
     const credential = await teamCredential(request, env, "BO");
 
@@ -194,7 +195,8 @@ export async function handleBoWriteRequest(
     // PAP-1426: selected Center is an explicit resource constraint, never a role/grant.
     // Reject malformed, missing or ambiguous Center and any legacy status payload.
     let studentProfileResource: { centerId: string } | undefined;
-    if (request.method === "PATCH" && STUDENT_PROFILE_PATCH.test(path)) {
+    const editingGender = STUDENT_GENDER_PATCH.test(path);
+    if (request.method === "PATCH" && (STUDENT_PROFILE_PATCH.test(path) || editingGender)) {
       const query = new URL(request.url).searchParams;
       const ids = query.getAll("centerId");
       if ([...query.keys()].length !== 1 || ids.length !== 1 ||
@@ -203,8 +205,9 @@ export async function handleBoWriteRequest(
       }
       if (!body || typeof body !== "object" || Array.isArray(body) ||
           Object.keys(body).length !== 2 ||
-          Object.keys(body).some(key => key !== "displayName" && key !== "expectedVersion")) {
-        return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Student name-only edit requires displayName and expectedVersion" } }, 400);
+          Object.keys(body).some(key => key !== (editingGender ? "gender" : "displayName") && key !== "expectedVersion") ||
+          (editingGender && !["MALE", "FEMALE"].includes((body as {gender:string}).gender))) {
+        return json({ error: { code: "PLATFORM_INVALID_INPUT", message: editingGender ? "Student gender edit requires MALE or FEMALE and expectedVersion" : "Student name-only edit requires displayName and expectedVersion" } }, 400);
       }
       studentProfileResource = { centerId: ids[0]! };
     }
