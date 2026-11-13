@@ -16,8 +16,8 @@ test("PAP-1279: reception content reserves fixed DS nav, spacing, and device saf
  assert.match(component,/<AppBottomNav/);
 });
 test("PAP-1279: reservation uses canonical fixed nav height and DS spacing",()=>{
- assert.match(tokens,/--tos-nav-height:\s*76px/);
+ assert.match(tokens,/--tos-nav-height:\s*44px/); // PAP-1936 approved compact TOS nav
  assert.match(tokens,/--tos-space-4:\s*16px/);
  assert.match(shared,/\.bottomNav\{position:fixed;bottom:0;/);
- assert.match(shared,/height:var\(--tos-nav-height\)/);
+ assert.match(shared,/height:calc\(var\(--tos-nav-height\) \+ env\(safe-area-inset-bottom,0px\)\)/);
 });
