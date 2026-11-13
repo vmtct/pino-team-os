@@ -145,6 +145,7 @@ export function isOperationalReadPath(path: string): boolean {
     || /^learning\/syllabi\/[0-9a-f-]{36}$/.test(path)
     || /^learning\/syllabi\/versions\/[0-9a-f-]{36}\/(artchitect-profile|pianohouse-profile|little-piner-profile)$/.test(path)
     || path === "sessions"
+    || path === "classroom/day-headcounts"
     || /^sessions\/[0-9a-f-]{36}\/roster$/.test(path)
     || SESSION_SYLLABUS_BINDING_READ.test(path)
     || path === "tv/displays"
@@ -336,6 +337,11 @@ export function readCorePath(path: string, url: URL): string {
 }
 
 export function readQueryResource(path: string, url: URL): BoAccessRequest["resource"] | undefined {
+  if (path === "classroom/day-headcounts") {
+    // PAP-1939: this scope is a selector only; Core independently reauthorizes.
+    const body = readQueryBody(path, url);
+    return { centerId: String(body?.centerId) };
+  }
   // PAP-1908: only one explicit authorized Center; never infer GLOBAL from missing Center.
   if (path === "identity/parents/center-search") {
     const params = url.searchParams;
@@ -440,6 +446,18 @@ export function readQueryResource(path: string, url: URL): BoAccessRequest["reso
 }
 
 export function readQueryBody(path: string, url: URL): Record<string, unknown> | undefined {
+  if (path === "classroom/day-headcounts") {
+    const params = url.searchParams;
+    if ([...params.keys()].some(key => !["centerId", "localDate"].includes(key)) ||
+        params.getAll("centerId").length !== 1 || params.getAll("localDate").length !== 1)
+      throw new RangeError("Exact Center and date required");
+    const centerId = params.get("centerId")!, localDate = params.get("localDate")!;
+    if (!S3_UUID.test(centerId) || !S3_LOCAL_DATE.test(localDate) ||
+        !Number.isFinite(Date.parse(localDate + "T00:00:00Z")) ||
+        new Date(localDate + "T00:00:00Z").toISOString().slice(0, 10) !== localDate)
+      throw new RangeError("Invalid Center/date");
+    return { centerId, localDate };
+  }
   if (path === "identity/parents/center-search") {
     // BFF does not trust caller-supplied actor/scope; Core separately checks both permissions.
     readQueryResource(path, url); // rejects unknown, duplicate or malformed Center and filters.
