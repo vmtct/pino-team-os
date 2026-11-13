@@ -13,6 +13,7 @@ export type TosMissionAssignmentCard = Readonly<
     "missionId" | "missionCodeSnapshot" | "missionNameSnapshot" |
     "status" | "version" | "contextLabel"> & {
     assignmentId: TosMissionAssignmentRecord["id"];
+    missionDefinitionPathId?: string;
     catalogLevel: TosEligibleMissionChoice["level"] | null;
   }
 >;
@@ -115,6 +116,7 @@ export function buildTosMissionAssignmentCardModel(
       version: row.version,
       contextLabel: row.contextLabel,
       catalogLevel: choice?.level ?? null,
+      ...(validId(row.missionDefinitionPathId) && {missionDefinitionPathId: row.missionDefinitionPathId}),
     });
   }
   return cards.length === 0 ? { state: "EMPTY", groups: [] } : {

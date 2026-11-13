@@ -158,6 +158,9 @@ export default function MissionAssignmentTab({
             <strong>{card.missionCodeSnapshot} · {card.missionNameSnapshot}</strong>
             <span>Đã giao</span>
           </div>
+          {pathProgramId && card.missionDefinitionPathId &&
+            pathProgramId.toLowerCase() !== card.missionDefinitionPathId.toLowerCase() &&
+            <small>Nhiệm vụ khác Path của lớp</small>}
           {card.contextLabel&&<small>{card.contextLabel}</small>}
         </div>
         <div className={styles.missionCompactActions} data-tos-slot={slot(styles.missionCompactActions)}>
