@@ -1,6 +1,6 @@
 @layer tos.apps {
 /* Approved Home keeps its original shell; only contextual settings need new scope. */
-.homeSettingsMenu{position:relative;z-index:30;margin:0 16px 12px auto;max-width:250px;background:var(--tos-color-surface);border:1px solid var(--tos-color-border);border-radius:12px;box-shadow:0 12px 28px var(--tos-color-border);padding:12px;display:flex;flex-direction:column;gap:8px;font-size:14px;color:var(--tos-color-ink)}
+.homeSettingsMenu{position:absolute;z-index:30;top:calc(100% + var(--tos-space-2));right:0;margin:0;width:min(250px,calc(100vw - 2 * var(--tos-space-4)));max-width:250px;background:var(--tos-color-surface);border:1px solid var(--tos-color-border);border-radius:12px;box-shadow:0 12px 28px var(--tos-color-border);padding:12px;display:flex;flex-direction:column;gap:8px;font-size:14px;color:var(--tos-color-ink)}
 .homeLogout{display:block;min-height:44px;padding:10px 12px;text-align:left;border:0;border-radius:9px;background:var(--tos-color-subtle-surface);font-size:14px;font-weight:650;color:var(--tos-color-ink);cursor:pointer}
 .homeIconFallback{display:grid;place-items:center;width:64px;height:64px;border-radius:17px;background:var(--tos-color-info-bg);font:700 24px/1 "Segoe UI",sans-serif;color:var(--tos-color-info-text)}
 .homeLogout:focus-visible{outline:2px solid var(--tos-color-success);outline-offset:2px}

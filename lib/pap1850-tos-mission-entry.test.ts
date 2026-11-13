@@ -19,10 +19,10 @@ test("PAP-1850 Student-tab CTA uses one authorized Mission Assignment editor",()
  assert.match(m,/!visible&&createRequest&&read.state==="UNAVAILABLE"/);
  assert.match(m,/editor&&<AppModalRoot/);
 });
-test("PAP-1850 Mission Add controls show one plus; error retry is contextual only",()=>{
+test("PAP-1850 Mission Add controls use Founder-approved text-only Thêm (PAP-1942); error retry is contextual only",()=>{
  const s=source("MissionAssignmentTab.tsx"),css=source("classroom.module.css");
- assert.equal((s.match(/<FontAwesomeIcon icon=\{faPlus\}\/> Thêm/g)||[]).length,2);
- assert.doesNotMatch(s,/faPlus\}\/> \+ Thêm/);
+ assert.equal((s.match(/>\s*Thêm\s*<\/button>/g)||[]).length,2);
+ assert.doesNotMatch(s,/faPlus/);
  assert.doesNotMatch(s,/read.state==="UNAVAILABLE"\|\|attempt>0/);
  assert.match(s,/read.state==="UNAVAILABLE"&&<button/);
  assert.match(s,/Tải lại nhiệm vụ/);
