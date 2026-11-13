@@ -38,11 +38,6 @@ export const studentCenterApi={
   learnerLifecycle:(studentId:string,centerId:string,fetcher?:typeof fetch)=>{
     return requestData<BoLearnerLifecycle>(`students/${encodeURIComponent(studentId)}/lifecycle?centerId=${scopeCenter(centerId)}`,{cache:"no-store"},fetcher);
   },
-  updateStudentGender:(studentId:string,body:{gender:"MALE"|"FEMALE";expectedVersion:number},centerId:string)=>
-    requestData<{id:string;gender:"MALE"|"FEMALE";version:number}>(
-      `students/${encodeURIComponent(studentId)}/gender?centerId=${scopeCenter(centerId)}`,
-      {method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify(body)},
-    ),
   updateStudentProfile:(studentId:string,body:{displayName:string;expectedVersion:number},centerId:string,fetcher?:typeof fetch)=>{
     return requestData<{id:string;displayName:string;status:"ACTIVE"|"INACTIVE"|"ARCHIVED";version:number}>(
       `students/${encodeURIComponent(studentId)}?centerId=${scopeCenter(centerId)}`,

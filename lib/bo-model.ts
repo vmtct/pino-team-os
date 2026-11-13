@@ -407,7 +407,7 @@ export interface BoLearnerEnrollment {
 }
 
 export interface BoLearnerLifecycle {
-  student: BoLearnerDirectoryItem & { birthMonth: number | null; birthDay: number | null; gender?: "MALE" | "FEMALE" | null; version: number };
+  student: BoLearnerDirectoryItem & { birthMonth: number | null; birthDay: number | null; version: number };
   houseMembership: { id: string; joinedAt: string } | null;
   guardians: Array<{ relationshipId: string; relationshipType: string; parent: { id: string; displayName: string | null; status: string; contacts: Array<{ id: string; type: string; value: string; primary: boolean; verifiedAt: string | null }> } }>;
   subscriptions: Array<{ subscription: BoLearnerSubscription; enrollments: BoLearnerEnrollment[] }>;

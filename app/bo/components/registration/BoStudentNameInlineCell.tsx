@@ -12,6 +12,22 @@ import { studentCenterApi } from "@/lib/bo-student-center-api";
 import { useStudentCenterEditCapability } from "@/app/bo/learners/useStudentCenterEditCapability";
 import type { BoField } from "@/lib/bo-registration";
 
+type StudentGender = "MALE" | "FEMALE";
+function readGender(student: { displayName: string }): StudentGender | null | undefined {
+  const value = (student as { gender?: unknown }).gender;
+  return value === "MALE" || value === "FEMALE" || value === null ? value : undefined;
+}
+
+async function updateGender(studentId: string, centerId: string, gender: StudentGender, expectedVersion: number) {
+  const path = `/api/bo/students/${encodeURIComponent(studentId)}/gender?centerId=${encodeURIComponent(centerId)}`;
+  const response = await fetch(path, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ gender, expectedVersion }),
+  });
+  if (!response.ok) throw new BoApiError(response.status, "Không thể lưu giới tính.", response.headers.get("x-request-id"));
+}
+
 const NAME_FIELD: BoField = { key: "name", label: "Học viên", type: "text", icon: "Aa", w: 160 };
 const GENDER_FIELD: BoField = { key: "gender", label: "Giới tính", type: "select", icon: "▣", w: 160, options: ["Nam", "Nữ"] };
 type Snapshot = { scope: string; version: number; status: string; displayName: string; gender?: "MALE" | "FEMALE" | null };
@@ -52,7 +68,7 @@ export function BoStudentNameInlineCell({
       setSnapshot({
         scope,
         displayName: detail.student.displayName,
-        gender: detail.student.gender,
+        gender: readGender(detail.student),
         version: detail.student.version,
         status: detail.student.status,
       });
@@ -80,11 +96,11 @@ export function BoStudentNameInlineCell({
     setError("");
     const requestedScope = scope;
     try {
-      if (editGender && nextGender) await studentCenterApi.updateStudentGender(studentId, { gender: nextGender, expectedVersion: snapshot.version }, centerId);
+      if (editGender && nextGender) await updateGender(studentId, centerId, nextGender, snapshot.version);
       else await studentCenterApi.updateStudentProfile(studentId, { displayName: nextName, expectedVersion: snapshot.version }, centerId);
       const reloaded = await studentCenterApi.learnerLifecycle(studentId, centerId);
       if (!aliveRef.current || currentScope.current !== requestedScope || reloaded.student.id !== studentId) return;
-      setSnapshot({ scope, displayName: reloaded.student.displayName, gender: reloaded.student.gender, version: reloaded.student.version, status: reloaded.student.status });
+      setSnapshot({ scope, displayName: reloaded.student.displayName, gender: readGender(reloaded.student), version: reloaded.student.version, status: reloaded.student.status });
       if (!editGender) onSaved?.(reloaded.student.displayName);
       setAnchor(null);
     } catch (cause: unknown) {
