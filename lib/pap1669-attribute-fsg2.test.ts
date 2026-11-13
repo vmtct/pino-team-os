@@ -60,7 +60,8 @@ test("PAP-1669 exact host+verb matrix denies BO/TOS/Prod and unrelated HO writes
  for(const method of ["GET","POST"])assert.deepEqual(decideHostBoundary(ho,root,method),{action:"next"});
  assert.deepEqual(decideHostBoundary(ho,detail,"GET"),{action:"next"});
  for(const method of ["PUT","PATCH","DELETE"])assert.deepEqual(decideHostBoundary(ho,root,method),{action:"not_found"});
- for(const method of ["POST","PUT","PATCH","DELETE"])assert.deepEqual(decideHostBoundary(ho,detail,method),{action:"not_found"});
+ for(const method of ["POST","PUT","DELETE"])assert.deepEqual(decideHostBoundary(ho,detail,method),{action:"not_found"});
+ assert.deepEqual(decideHostBoundary(ho,detail,"PATCH"),{action:"next"}); // PAP-1905 authorized metadata-only
  for(const host of ["bo.staging.pinohouse.art","tos.staging.pinohouse.art","ho.pinohouse.art","pinohouse.art"]){
   for(const method of ["GET","POST"])assert.deepEqual(decideHostBoundary(host,root,method),{action:"not_found"});
  }
