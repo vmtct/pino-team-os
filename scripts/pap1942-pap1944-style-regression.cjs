@@ -58,14 +58,19 @@ async function main(){
     assert(geom.menu.y>=geom.gear.bottom-0.6,"Menu must start below settings gear "+width);
     assert(!geom.overflow,"Home horizontal overflow "+width);
     await page.screenshot({path:"D:/pino-e2e-evidence/PAP-1944-home-overlay-"+width+".png"});
-    await page.setContent("<style>"+vars+classCss+"</style>"+classroomMarkup);
+    // PAP-1942: simulate an unlayered app/global input skin arriving after tos.apps.
+    // The search shell must own the only border even when generic form controls add a border.
+    const unlayeredInputSkin="<style>.sheet input{border:1px solid #c4d7e5;border-radius:11px;box-shadow:inset 0 0 0 1px #d9e3eb}</style>";
+    await page.setContent("<style>"+vars+classCss+"</style>"+unlayeredInputSkin+classroomMarkup);
     const s=await page.evaluate(()=>{
       const e=document.querySelector(".search"),input=e.querySelector("input"),head=document.querySelector(".sheet>header"),name=document.querySelector(".lookupResult strong");
-      const pixels=e=>{const c=getComputedStyle(e);return {border:parseFloat(c.borderTopWidth),color:c.color,background:c.backgroundColor,boxShadow:c.boxShadow}};
+      const pixels=e=>{const c=getComputedStyle(e);return {border:parseFloat(c.borderTopWidth),radius:c.borderTopLeftRadius,color:c.color,background:c.backgroundColor,boxShadow:c.boxShadow}};
       return {outer:pixels(e),inner:pixels(input),header:pixels(head),name:pixels(name),overflow:document.documentElement.scrollWidth>innerWidth};
     });
     assert.equal(s.outer.border,1,"Search outer border must be exactly 1px "+width);
     assert.equal(s.inner.border,0,"Search inner input border must be removed "+width);
+    assert.equal(s.inner.radius,"0px","Search inner input corner must not draw a nested control "+width);
+    assert.equal(s.inner.boxShadow,"none","Search inner input must not draw inset global control skin "+width);
     assert.equal(s.header.boxShadow,"none","Sheet header must not have detached shadow "+width);
     assert.equal(s.name.color,"rgb(41, 54, 66)","Student name must be PINO neutral ink "+width);
     assert(!s.overflow,"Drawer horizontal overflow "+width);
