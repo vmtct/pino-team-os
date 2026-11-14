@@ -4,7 +4,7 @@ export interface PayPeriod{
  status:"ACTIVE"|"ARCHIVED";version:number;dateLocked:boolean;createdAt:string;updatedAt:string|null;
 }
 /** Additive GET-only metadata; command DTO stays unchanged. */
-export type BoPayPeriodRead = PayPeriod & {createdBy?:string|null;updatedBy?:string|null};
+export type BoPayPeriodRead = PayPeriod & {createdBy?:string|null;updatedBy?:string|null;canEdit?:boolean};
 export interface PeriodStaff{
  staffMemberId:string;status:"DRAFT"|"PENDING"|"FINALIZED"|"PAID"|"ARCHIVED_UNAVAILABLE";
  amountMinor:number|null;provisionalAmountMinor:number|null;warnings:string[];
@@ -45,7 +45,7 @@ async function call<T>(path:string,init:RequestInit={}):Promise<T>{
 const qs=(centerId:string,extra:Record<string,string>={})=>"?"+new URLSearchParams({centerId,...extra});
 export type PayPeriodDates=Pick<PayPeriod,"startDate"|"endDate">;
 export const periodApi={
- list:(centerId:string,offset=0)=>call<{data:{data:BoPayPeriodRead[];total:number;nextOffset:number|null}}>(
+ list:(centerId:string,offset=0)=>call<{data:{data:BoPayPeriodRead[];total:number;nextOffset:number|null;centerId?:string;canCreate?:boolean}}>(
   ROOT+qs(centerId,{limit:"50",offset:String(offset)})),
  get:(centerId:string,id:string)=>call<{data:BoPayPeriodRead}>(ROOT+"/"+id+qs(centerId)),
  create:(centerId:string,input:{name:string;startDate:string;endDate:string},key:string)=>
