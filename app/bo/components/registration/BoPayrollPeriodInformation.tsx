@@ -1,8 +1,9 @@
 import type { BoRecord } from "@/lib/bo-registration";
-import type { PayPeriod } from "@/lib/bo-payroll-period-api";
+import type { BoPayPeriodRead } from "@/lib/bo-payroll-period-api";
+import {payrollAuditTime,payrollVerifiedName} from "@/lib/bo-payroll-safe-read-metadata";
 
 /** Keep Payroll metadata in the same compact, read-only DS property grid as the other BO Detail modules. */
-export function payrollPeriodInfoFields(record: BoRecord, period: PayPeriod | null) {
+export function payrollPeriodInfoFields(record: BoRecord, period: BoPayPeriodRead | null) {
   const asText = (value: unknown) => typeof value === "string" && value.trim() ? value : "—";
   const dateLabel = (value: unknown) => {
     const raw = asText(value);
@@ -16,6 +17,10 @@ export function payrollPeriodInfoFields(record: BoRecord, period: PayPeriod | nu
     { key: "endDate", glyph: "▦", label: "Kết thúc", value: dateLabel(period?.endDate ?? record.endDate) },
     { key: "status", glyph: "▣", label: "Trạng thái", value: period?.status === "ARCHIVED" ? "Lưu trữ" : "Đang mở" },
     { key: "centerName", glyph: "↗", label: "Center", value: asText(record.centerName) },
+    { key: "createdAt", glyph: "▦", label: "Created Time", value: payrollAuditTime(period?.createdAt) },
+    { key: "createdBy", glyph: "Aa", label: "Created By", value: payrollVerifiedName(period?.createdBy) },
+    { key: "updatedAt", glyph: "▦", label: "Last Modified Time", value: payrollAuditTime(period?.updatedAt) },
+    { key: "updatedBy", glyph: "Aa", label: "Last Modified By", value: payrollVerifiedName(period?.updatedBy) },
   ] as const;
 }
 
