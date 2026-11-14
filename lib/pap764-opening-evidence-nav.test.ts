@@ -30,14 +30,17 @@ test("PAP-764 placeholder cannot create a second Center provider or authorizer",
   assert.match(stage, /scope\.centers\.some\(center => center\.id === scope\.selected\)/);
 });
 
-test("PAP-764 unconnected Core must not silently render rows or enable review", () => {
-  assert.match(stage, /role=\{denied \? "alert" : "status"\}/);
-  assert.match(stage, /Chưa kết nối dữ liệu bằng chứng mở lớp và ca từ Core/);
-  assert.doesNotMatch(stage, /fetch\(|localStorage|sessionStorage|BoDataGrid|<table|<button|approve\(|review\(|onClick=/);
+test("PAP-764 native grid/drawer use real scoped Core; no local or synthetic data",()=>{
+  assert.match(stage,/BoDataGridSidePeek/);
+  assert.match(stage,/BoProperties/);
+  assert.match(stage,/openingEvidenceApi\.list/);
+  assert.match(stage,/DEV_FIRST_UNADMITTED/);
+  assert.doesNotMatch(stage,/localStorage|sessionStorage|syntheticRows|demoRows/);
+  assert.match(stage,/controller\.abort/);
 });
-
-test("PAP-1946 list gate not falsely passed by source-only non-list preparation", () => {
-  assert.doesNotMatch(stage, /\.view-tabs|<table|BoDataGrid|BoDataTable/);
-  assert.match(stage, /className="page-heading"/);
-  assert.match(stage, /className="grid-card"/);
+test("PAP-1946 list skeleton uses one heading, one native grid and no KPI cards",()=>{
+  assert.equal((stage.match(/<BoDataGrid rows=/g)??[]).length,1);
+  assert.equal((stage.match(/<h1>/g)??[]).length,1);
+  assert.match(stage,/className="view-tabs"/);
+  assert.doesNotMatch(stage,/kpi-card|<table/);
 });
