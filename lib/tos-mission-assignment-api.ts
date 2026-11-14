@@ -42,6 +42,7 @@ export interface TosMissionAssignmentRecord {
   missionId: string;
   missionCodeSnapshot: string;
   missionNameSnapshot: string;
+  missionDefinitionPathId?: string | null;
   contextKey: string;
   contextLabel: string | null;
   status: TosAssignmentStatus;

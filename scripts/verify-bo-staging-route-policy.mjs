@@ -48,6 +48,26 @@ function tddRoutes(root, issues) {
   }
   return routes;
 }
+const nativePayrollEntries = [
+ {key:"payroll-daily",view:"BoPayrollDailyReadView",detail:"[staffMemberId]/[workDate]/BoPayrollDailyDetail.tsx",client:"lib/bo-payroll-daily-api.ts",test:"lib/bo-payroll-daily-read-contract.test.ts"},
+ {key:"payroll-exceptions",view:"BoPayrollExceptionsReadView",detail:"[requestId]/BoPayrollExceptionDetail.tsx",client:"lib/bo-payroll-exceptions-read.ts",test:"lib/bo-payroll-exceptions-model.test.ts"},
+];
+function nativePayrollRoutes(root,issues){
+ const out=new Set();
+ for(const e of nativePayrollEntries){
+  const base="app/bo/"+e.key+"/",page=base+"page.tsx";
+  if(!fs.existsSync(path.join(root,page)))continue;
+  const files=[page,base+e.view+".tsx",base+e.detail,e.client,e.test,"lib/bo-native-payroll-route.ts","lib/pap1970-native-payroll-route.test.ts"];
+  if(files.some(f=>!fs.existsSync(path.join(root,f)))){issues.push(e.key+": missing native read-only route contract");continue;}
+  const [p,v,d,c]=files.map(f=>read(root,f));
+  if(!p.includes("<"+e.view)||!p.includes("PAP-1970")||!v.includes("BoDataGrid")||!v.includes("BoDataGridSidePeek")||
+     !v.includes("useBoCenterSelection")||!d.includes("BoFullDetail")||!d.includes("useBoCenterSelection")||
+     !c.includes("same-origin")||!c.includes("no-store")||[p,v,d].some(x=>/BoModuleFactory|BoWorkforceRoute|defineTddModule|SurfaceWorkspace/.test(x))||
+     /method:\s*["'](?:POST|PATCH|PUT|DELETE)["']/.test(c)){issues.push(e.key+": invalid native read-only route contract");continue;}
+  out.add("/bo/"+e.key);
+ }
+ return out;
+}
 function canonicalRoutes(root, issues) {
   const base = path.join(root, "app/bo");
   const routes = new Set();
@@ -75,6 +95,7 @@ function canonicalRoutes(root, issues) {
     routes.add("/bo/pinoria-avatars");
     native.add("/bo/pinoria-avatars");
   }
+  for(const route of nativePayrollRoutes(root,issues)){routes.add(route);native.add(route);}
   return {routes,tdd,native};
 }
 

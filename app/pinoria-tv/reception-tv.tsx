@@ -49,7 +49,8 @@ const ARRIVAL_HANDOFF_MS = 1800;
 const DEPARTURE_TRANSITION_MS = 1200;
 const DEPARTURE_PERFORMANCE_MS = 5200;
 
-export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approvedHouseAreas, runtimeIdentity }: { fixedCenterId?: string; apiBase?: string; approvedHouseAreas?: readonly AmbientHouseArea[]; runtimeIdentity?: {displayId:string;sessionId:string;deviceId:string|null} } = {}) {
+export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approvedHouseAreas, runtimeIdentity, staffPolicyRef, staffPolicy }: { fixedCenterId?: string; apiBase?: string; approvedHouseAreas?: readonly AmbientHouseArea[]; staffPolicyRef?: string; staffPolicy?: ReturnType<typeof defaultSharedTvPolicy>; runtimeIdentity?: {displayId:string;sessionId:string;deviceId:string|null} } = {}) {
+  const [revoked, setRevoked] = useState(false);
   const [centerId, setCenterId] = useState("");
   const [spatial,setSpatial]=useState<HouseSpatialRefresh>({active:null,pending:null});
   // Only a successful authenticated null response proves that this session is using fallback.
@@ -100,10 +101,10 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
   const [replayedPresentationId, setReplayedPresentationId] = useState("");
   const replayScope = useRef("");
   const [onboardingPreview, setOnboardingPreview] = useState<OnboardingPreview | null>(null);
-  const [policy,setPolicy] = useState(defaultSharedTvPolicy);
+  const [policy,setPolicy] = useState(() => staffPolicy ?? defaultSharedTvPolicy());
   const [publishedDialogue,setPublishedDialogue] = useState<DialogueConfig|null>(null);
   useEffect(()=>{
-    if(!centerId){setPublishedDialogue(null);return;}
+    if(!centerId||staffPolicyRef){setPublishedDialogue(null);return;}
     let mounted=true;
     setPublishedDialogue(null); // Never carry another Center dialogue configuration.
     const pull=async()=>{
@@ -121,9 +122,9 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
     void pull();
     const timer=window.setInterval(()=>void pull(),30000);
     return()=>{mounted=false;window.clearInterval(timer);};
-  },[apiBase,centerId,runtimeSessionId]);
+  },[apiBase,centerId,runtimeSessionId,staffPolicyRef]);
   useEffect(() => {
-    if(!centerId)return;
+    if(!centerId||staffPolicyRef)return;
     setPolicy(defaultSharedTvPolicy()); // Never carry a permissive Center policy across TV scopes.
     let mounted=true;
     const pull=async()=>{
@@ -140,7 +141,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
     void pull();
     const timer=window.setInterval(()=>void pull(),30000);
     return()=>{mounted=false;window.clearInterval(timer)};
-  },[apiBase,centerId]);
+  },[apiBase,centerId,staffPolicyRef]);
   const cursor = useRef(0);
   const presentedSequence = useRef(0);
   const wasConnected = useRef(false);
@@ -167,7 +168,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
   // Device-authenticated read of Core published TV config. An outage or invalid
   // payload never replaces last-known-good. New geometry waits until House is empty.
   useEffect(()=>{
-    if(!centerId){setSpatial({active:null,pending:null});setFallbackProof(null);return;}
+    if(!centerId||staffPolicyRef){setSpatial({active:null,pending:null});setFallbackProof(null);return;}
     let cancelled=false;
     setSpatial({active:null,pending:null});setFallbackProof(null);
     async function pollSpatial(){
@@ -184,7 +185,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
     void pollSpatial();
     const timer=window.setInterval(()=>void pollSpatial(),12000);
     return()=>{cancelled=true;window.clearInterval(timer);};
-  },[centerId,apiBase,runtimeSessionId]);
+  },[centerId,apiBase,runtimeSessionId,staffPolicyRef]);
   useEffect(()=>{
     if(inside.length===0&&scenes.length===0&&!presentation)setSpatial(previous=>reconcileHouseSpatialRefresh(previous,null,0));
   },[inside.length,scenes.length,presentation]);
@@ -196,14 +197,33 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
   },[spatial.active]);
   const configuredAreas=spatial.active?.configuration.areas ?? approvedHouseAreas;
   const pollHouse = useCallback(async () => {
-    if (!centerId || housePollInFlight.current) return;
+    if (!centerId || revoked || housePollInFlight.current) return;
     housePollInFlight.current = true;
     const generation = houseGeneration.current;
+    const staffBase = "/api/tos-learning/pinoria/tv-policies/house-ambient";
+    const query = "?centerId=" + encodeURIComponent(centerId)
+      + (staffPolicyRef ? "&policyRef=" + encodeURIComponent(staffPolicyRef) : "");
+    const snapshotUrl = (staffPolicyRef ? staffBase + "/snapshot" : `${apiBase}/snapshot`) + query;
+    const eventsUrl = (staffPolicyRef ? staffBase + "/events" : `${apiBase}/events`) + query;
+    const read = async (url: string) => {
+      const response = await fetch(url, { cache: "no-store" });
+      if (staffPolicyRef && [401, 403, 404].includes(response.status) && generation === houseGeneration.current) {
+        setInside([]);
+        setScenes([]);
+        setRevoked(true);
+      }
+      return response;
+    };
+    const verifyCenter = (data: unknown) => {
+      if (staffPolicyRef && (!data || typeof data !== "object" || !("centerId" in data) || data.centerId !== centerId))
+        throw new Error("House Ambient Center mismatch");
+    };
     try {
       if (!wasConnected.current) {
-        const response = await fetch(`${apiBase}/snapshot?centerId=${encodeURIComponent(centerId)}&t=${Date.now()}`, { cache: "no-store" });
+        const response = await read(snapshotUrl + "&t=" + Date.now());
         const json = await response.json() as { data?: unknown };
         if (!response.ok || !json.data) throw new Error("offline");
+        verifyCenter(json.data);
         const snapshot = parsePresenceSnapshot(json.data);
         if (generation !== houseGeneration.current) return;
         const advanced = advanceHouseSnapshotCursor(snapshot.cursor, cursor.current, presentedSequence.current);
@@ -219,10 +239,11 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
         wasConnected.current = true;
         return;
       }
-      const response = await fetch(`${apiBase}/events?centerId=${encodeURIComponent(centerId)}&after=${cursor.current}&t=${Date.now()}`, { cache: "no-store" });
+      const response = await read(eventsUrl + "&after=" + cursor.current + "&t=" + Date.now());
       const json = await response.json() as { data?: unknown };
       if (!response.ok || !json.data) throw new Error("offline");
       if (generation !== houseGeneration.current) return;
+      verifyCenter(json.data);
       const page = parsePresenceEventPage(json.data);
       if (page.cursor < cursor.current) {
         setConnected(true);
@@ -246,10 +267,11 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
         enqueuePresenceEvents(unseen.events.filter((event): event is PresenceEvent => event.kind === "PRESENCE_EVENT"));
       }
       if (Date.now() - houseSnapshotRefreshedAt.current >= 1500) {
-        const snapshotResponse = await fetch(`${apiBase}/snapshot?centerId=${encodeURIComponent(centerId)}&t=${Date.now()}`, { cache: "no-store" });
+        const snapshotResponse = await read(snapshotUrl + "&t=" + Date.now());
         const snapshotJson = await snapshotResponse.json() as { data?: unknown };
         if (!snapshotResponse.ok || !snapshotJson.data) throw new Error("offline");
         if (generation !== houseGeneration.current) return;
+        verifyCenter(snapshotJson.data);
         const snapshot = parsePresenceSnapshot(snapshotJson.data);
         if (houseRefreshSnapshotIsCurrent(snapshot.cursor, cursor.current, presentedSequence.current)) {
           setInside(snapshot.actors);
@@ -268,7 +290,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
     } finally {
       if (generation === houseGeneration.current) housePollInFlight.current = false;
     }
-  }, [apiBase, centerId, policy]);
+  }, [apiBase, centerId, policy, staffPolicyRef, revoked]);
   function enqueuePresenceEvents(events: PresenceEvent[]) {
     setScenes((queue) => [
       ...queue,
@@ -313,7 +335,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
     };
   }, [centerId, pollHouse]);
   const pollOnboardingPreview = useCallback(async () => {
-    if (!centerId) return;
+    if (!centerId || staffPolicyRef) return;
     try {
       const response = await fetch(`${apiBase}/onboarding-preview?centerId=${encodeURIComponent(centerId)}&t=${Date.now()}`, { cache: "no-store" });
       const json = await response.json() as { data?: OnboardingPreview | null };
@@ -324,7 +346,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
     } catch {
       setOnboardingPreview(null);
     }
-  }, [apiBase, centerId, policy]);
+  }, [apiBase, centerId, policy, staffPolicyRef]);
 
   useEffect(() => {
     if (!centerId) return;
@@ -418,7 +440,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
     return()=>{disposed=true;cancelAnimationFrame(first);cancelAnimationFrame(second);window.clearTimeout(retry);};
   },[apiBase,centerId,presentation?.id,replayFrame,runtimeDisplayId,runtimeSessionId]);
   const pollPresentation = useCallback(async () => {
-    if (!centerId || presentationBusy.current || presentation || onboardingPreview || scenes.length > 0) return;
+    if (staffPolicyRef || !centerId || presentationBusy.current || presentation || onboardingPreview || scenes.length > 0) return;
     presentationBusy.current = true;
     const requestedGeneration = presentationGeneration.current;
     try {
@@ -435,7 +457,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
     } finally {
       if (requestedGeneration === presentationGeneration.current) presentationBusy.current = false;
     }
-  }, [apiBase, centerId, onboardingPreview, scenes.length, presentation, policy]);
+  }, [apiBase, centerId, onboardingPreview, scenes.length, presentation, policy, staffPolicyRef]);
 
   // Only a Center transition invalidates a pending claim. Callback changes caused by
   // house scenes/re-renders must not release the in-flight lock and double-claim Core.
@@ -607,6 +629,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
 
   const ambientActors = useMemo(() => inside.map((actor) => ({ id: actor.pinoriaSelfId, actorType: actor.actorType, name: displayNameForSharedTv(policy,actor.displayName), config: actor.character, wardRender: actor.wardRender, experience: actor.experience })), [inside,policy]);
   const wardLearner = useMemo(() => { const newest = [...inside].reverse(); return newest.find((actor) => actor.wardSession?.status === "OPEN") ?? newest.find((actor) => actor.wardSession) ?? null; }, [inside]);
+  if (revoked) return <main className={styles.setup} role="alert">TV unavailable</main>;
   if (!centerId) {
     return <main className={styles.setup}>
       <div>

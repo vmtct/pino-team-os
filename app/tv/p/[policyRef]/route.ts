@@ -7,7 +7,7 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import {
   blockedPolicyViewerHttp, handlePolicyViewerHttp,
 } from "@/lib/pinoria-tv-viewer-v1-http";
-import type { StaffPolicyViewerEnv } from "@/lib/pinoria-tv-viewer-v1-staff";
+import { readStaffPublishedViewer, type StaffPolicyViewerEnv } from "@/lib/pinoria-tv-viewer-v1-staff";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,6 +20,14 @@ export async function GET(request: Request, { params }: Context): Promise<Respon
     const { env } = await getCloudflareContext({ async: true }) as unknown as {
       env: StaffPolicyViewerEnv,
     };
+    if (policyRef.startsWith("tvp2-house-ambient-")) {
+      const result = await readStaffPublishedViewer(request, env, policyRef);
+      if (result.kind === "blocked") return blockedPolicyViewerHttp(result.status);
+      return new Response(null, {
+        status: 307,
+        headers: { location: "/tv/house-ambient/" + result.policy.policyRef, "cache-control": "private, no-store" },
+      });
+    }
     return await handlePolicyViewerHttp(request, env, policyRef);
   } catch {
     // No synthetic demo/Policy content on binding/transport failure.

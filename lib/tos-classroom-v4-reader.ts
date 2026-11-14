@@ -1,3 +1,4 @@
+import {tosLearningApi} from "./tos-learning-api";
 import {tosClassroomV18bApi,V18bCoreError} from "./tos-classroom-v18b-api";
 import {classroomV4ReadModel} from "./tos-classroom-v4-view-model";
 /** PAP-945: presentation uses HTTP status only; backend diagnostics must never become UI copy. */
@@ -15,7 +16,17 @@ export async function loadClassroomV4(centerId:string,localDate:string,staffLabe
  if(day.centerId!==centerId||day.localDate!==localDate||!Array.isArray(day.occurrences))throw new V18bCoreError(502,"CLASSROOM_SCOPE_RESPONSE_MISMATCH","Dữ liệu lớp học không khớp cơ sở hoặc ngày được chọn.");
  const model=classroomV4ReadModel(day,staffLabel);
  model.diaryOccurrenceReadState={};
- await Promise.all(day.occurrences.map(async row=>{
+ const loadPaths=async()=>{
+  const missingLabels=model.classes.filter(classroom=>classroom.path==="—");
+  if(!missingLabels.length)return;
+  const {data}=await tosLearningApi.sessionsDay(centerId,localDate);
+  if(data.centerId!==centerId||data.localDate!==localDate||!Array.isArray(data.sessions))return;
+  for(const classroom of missingLabels){
+   const labels=new Set(data.sessions.filter(session=>session.runningClassId===classroom.runningClassId&&session.pathProgramId===classroom.pathProgramId&&session.localDate===localDate).map(session=>typeof session.pathDisplayName==="string"?session.pathDisplayName.trim():"").filter(Boolean));
+   if(labels.size===1)classroom.path=[...labels][0]!;
+  }
+ };
+ await Promise.all([loadPaths().catch(()=>{}),...day.occurrences.map(async row=>{
   const teachingContextKey=row.teachingContextKey;
   try{
    const read=await tosClassroomV18bApi.diariesForOccurrence({centerId,localDate,
@@ -42,6 +53,6 @@ export async function loadClassroomV4(centerId:string,localDate:string,staffLabe
   }catch{
    model.diaryOccurrenceReadState![teachingContextKey]="UNAVAILABLE";
   }
- }));
+ })]);
  return model;
 }

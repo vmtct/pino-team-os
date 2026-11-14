@@ -60,6 +60,13 @@ export function verifyBoRuntimeSurfaceOwnership(root=ROOT,overrides={}) {
     c.saleAdmission?.createComponent==="app/bo/subscriptions/SubscriptionCreateDrawer.tsx" &&
     c.saleAdmission?.saleHelper==="lib/pap1882-independent-sale.ts");
   if(c.saleAdmission&&!saleAdmission)issues.push("PAP-1882 sale admission not in approved owner manifest");
+  // PAP-1496: separately approved, exact Subscription × Specialty grant/completion only.
+  const specialtyAdmission=Boolean(nativeRead && c.specialtyAdmission?.task==="PAP-1496" &&
+    c.specialtyAdmission?.epic==="PAP-1491" && c.specialtyAdmission?.approvalIssue==="PAP-1783" &&
+    c.specialtyAdmission?.mode==="center-attested-subscription-specialty" &&
+    c.specialtyAdmission?.component==="app/bo/subscriptions/BoSubscriptionSpecialtyTab.tsx" &&
+    c.specialtyAdmission?.client==="lib/bo-subscription-specialty-client.ts");
+  if(c.specialtyAdmission&&!specialtyAdmission)issues.push("PAP-1496 Specialty admission not in approved owner manifest");
   if(c.deliveryState!==undefined && !suspended && !nativeRead)
     issues.push("Unsupported specialized delivery state "+key);
   if(key==="subscriptions" && !suspended && !nativeRead)
@@ -115,6 +122,32 @@ export function verifyBoRuntimeSurfaceOwnership(root=ROOT,overrides={}) {
         if(requiredCreate.some(x=>!create.includes(x))||forbiddenCreate.some(x=>create.includes(x))||
           requiredHelper.some(x=>!helper.includes(x)))
           issues.push("PAP-1882 exact Center-owned independent Sale/Parent/readback contract incomplete");
+      }
+    }
+    const specialtyMounts=(ui.match(/<BoSubscriptionSpecialtyTab\b/g)||[]).length;
+    const admittedSpecialty=Boolean(specialtyAdmission && specialtyMounts===1 &&
+      ui.includes('import {BoSubscriptionSpecialtyTab} from "./BoSubscriptionSpecialtyTab"') &&
+      ui.includes('detailTab==="Chuyên đề" ?') &&
+      ui.includes('<BoSubscriptionSpecialtyTab key={detail.id+":"+centerId} subscriptionId={detail.id} centerId={centerId} centerReady={detail.row.centerId===centerId}/>'));
+    if((specialtyMounts||ui.includes("BoSubscriptionSpecialtyTab")||c.specialtyAdmission) && !admittedSpecialty)
+      issues.push("PAP-1496 exact Center-attested Specialty mount missing or unsafe");
+    if(specialtyAdmission){
+      const component=c.specialtyAdmission.component,client=c.specialtyAdmission.client;
+      if((!own(overrides,component)&&!fs.existsSync(path.join(root,component)))||
+        (!own(overrides,client)&&!fs.existsSync(path.join(root,client)))){
+        issues.push("PAP-1496 Specialty consumer/client missing");
+      }else{
+        const body=read(component),api=read(client);
+        const required=["data.subject.id!==subscriptionId||data.subject.centerId!==centerId",
+          "command.centerId!==centerId||command.subscriptionId!==subscriptionId",
+          "subscriptionSpecialtyClient.create(subscriptionId,centerId,command.grant,command.key)",
+          "subscriptionSpecialtyClient.complete(subscriptionId,command.completion.grantId,centerId",
+          "grant.version","eligibleForNewGrant","accessible(data,today)"];
+        if(required.some(x=>!body.includes(x))||!api.includes('"/"+suffix+"?centerId="+encodeURIComponent(centerId)')||
+          !api.includes('"specialty-grants/"+encodeURIComponent(grantId)+"/completion"')||
+          !api.includes('"idempotency-key"')||
+          ["createSpecialtyPurchase","completeSpecialtyAllocation","student-specialty-grants"].some(x=>body.includes(x)||api.includes(x)))
+          issues.push("PAP-1496 bounded Specialty grant/completion contract incomplete");
       }
     }
     const scoped="lib/pap1334-native-subscription-read.ts";

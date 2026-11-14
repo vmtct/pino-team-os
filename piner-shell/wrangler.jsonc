@@ -1,0 +1,11 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "piner-app-shell-pap1943",
+  "main": "src/worker.mjs",
+  "compatibility_date": "2026-11-13",
+  "workers_dev": true,
+  "observability": { "enabled": true },
+  "r2_buckets": [
+    { "binding": "PINER_BRAND_R2", "bucket_name": "app-piner" }
+  ]
+}

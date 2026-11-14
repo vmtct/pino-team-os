@@ -120,3 +120,20 @@ test("PAP-1529 missing, contradictory or invented Core readiness fails closed fo
  }
  assert.deepEqual(assignmentDefinitionReadyChoices([]),[]);
 });
+
+test("PAP-1933 rejects an eligible page from a different class Path", async () => {
+ const expectedPath = "55555555-5555-4555-8555-555555555555";
+ const wrongPath = "66666666-6666-4666-8666-666666666666";
+ const first = Array.from({length:100}, (_, index) => mission(
+  String(index).padStart(8, "0") + "-4444-4444-8444-444444444444"));
+ let calls = 0;
+ const transport = async () => {
+  calls++;
+  return calls === 1
+   ? Response.json(page(first, true))
+   : Response.json(page([mission()], false, {pathProgramId:wrongPath}));
+ };
+ await assert.rejects(readTosEligibleMissions({...scope,pathProgramId:expectedPath}, transport),
+  err("TOS_ELIGIBLE_MISSION_PATH_MISMATCH", 502));
+ assert.equal(calls, 2);
+});

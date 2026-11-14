@@ -6,11 +6,15 @@
  */
 const ROOT = "/tv/p/";
 const DEFAULT = "tvp1-default";
-const CENTER_REF = /^tvp1-center-[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const CENTER_REF = /^(?:tvp1-center-|tvp2-house-ambient-)[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 /** Exact Core PAP-1650 reference grammar; never a version or physical Display ID. */
 export function isStableTvPolicyRef(ref: unknown): ref is string {
   return typeof ref === "string" && (ref === DEFAULT || CENTER_REF.test(ref));
+}
+
+export function tvPolicyViewerCenter(ref: unknown): string | null {
+  return isStableTvPolicyRef(ref) && ref !== DEFAULT ? ref.slice(-36) : null;
 }
 
 /** Prepared same-origin link path for HO Open TV / Copy URL actions (not mounted). */

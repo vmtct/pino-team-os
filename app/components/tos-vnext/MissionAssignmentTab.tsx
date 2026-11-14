@@ -25,7 +25,7 @@ type Choices={phase:"loading"|"ready"|"error";items:readonly TosEligibleMissionC
 type CreateGate="loading"|"clear"|"unfinished"|"unavailable";
 export default function MissionAssignmentTab({
   scope,readOnly=false,visible=true,createRequest=null,onCreateRequestConsumed,
-}:{scope:MissionTabScope;readOnly?:boolean;visible?:boolean;
+}:{scope:MissionTabScope & {pathProgramId?:string;pathLabel?:string};readOnly?:boolean;visible?:boolean;
   createRequest?:MissionCreateRequest|null;onCreateRequestConsumed?:(requestId:number)=>void}){
   const [read,setRead]=useState<MissionTabReadState>({state:"LOADING",groups:[]});
   const [attempt,setAttempt]=useState(0);
@@ -37,18 +37,18 @@ export default function MissionAssignmentTab({
   const submitting=useRef(false);
   const consumedCreateRequest=useRef<number|null>(null);
   const [error,setError]=useState("");
-  const {centerId,localDate,runningClassId,teachingContextKey}=scope;
+  const {centerId,localDate,runningClassId,teachingContextKey,pathProgramId}=scope;
   const groups=read.state==="READY"||read.state==="EMPTY"?read.groups:[];
   const count=read.state==="READY"||read.state==="EMPTY"?
     groups.reduce((n,g)=>n+g.cards.length,0):"—";
-  const canWrite=!readOnly&&read.state!=="UNAVAILABLE"&&read.state!=="LOADING"&&
+  const canWrite=!!pathProgramId&&!readOnly&&read.state!=="UNAVAILABLE"&&read.state!=="LOADING"&&
     groups.length>0;
   useEffect(()=>startMissionAssignmentTabRead({
     centerId,localDate,runningClassId,teachingContextKey,
   },setRead),[centerId,localDate,runningClassId,teachingContextKey,attempt]);
   const scopeFor=(studentId:string)=>({...scope,studentId});
   useEffect(()=>{
-    if(!editor)return;
+    if(!editor||!pathProgramId)return;
     let active=true;
     const controller=new AbortController();
     // PAP-1851: do NOT request or show eligible Mission choices on new Create until
@@ -66,7 +66,7 @@ export default function MissionAssignmentTab({
         setCreateGate("clear");
       }
       const items=await getTosMissionCommandChoices(
-        {centerId,localDate,runningClassId,teachingContextKey,studentId:editor.studentId},
+        {centerId,localDate,runningClassId,teachingContextKey,studentId:editor.studentId,pathProgramId},
       );
       if(active)setChoices({phase:"ready",items});
     };
@@ -76,7 +76,7 @@ export default function MissionAssignmentTab({
       else setCreateGate("unavailable");
     });
     return()=>{active=false;controller.abort()};
-  },[editor,centerId,localDate,runningClassId,teachingContextKey]);
+  },[editor,centerId,localDate,runningClassId,teachingContextKey,pathProgramId]);
   const open=useCallback((studentId:string,old:TosMissionAssignmentCard|null=null)=>{
     if(!canWrite||submitting.current)return;
     if(!groups.some(g=>g.studentId===studentId))return;
@@ -158,6 +158,9 @@ export default function MissionAssignmentTab({
             <strong>{card.missionCodeSnapshot} · {card.missionNameSnapshot}</strong>
             <span>Đã giao</span>
           </div>
+          {pathProgramId && card.missionDefinitionPathId &&
+            pathProgramId.toLowerCase() !== card.missionDefinitionPathId.toLowerCase() &&
+            <small>Nhiệm vụ khác Path của lớp</small>}
           {card.contextLabel&&<small>{card.contextLabel}</small>}
         </div>
         <div className={styles.missionCompactActions} data-tos-slot={slot(styles.missionCompactActions)}>
@@ -210,6 +213,7 @@ export default function MissionAssignmentTab({
             {groups.map(g=><option value={g.studentId} key={g.studentId}>{g.studentName}</option>)}
           </select>
         </label>
+        {scope.pathLabel&&scope.pathLabel!=="—"&&<p>Path lớp: {scope.pathLabel}</p>}
         {editor.old&&<p className={styles.smallMuted} data-tos-slot={slot(styles.smallMuted)}>
           Thay {editor.old.missionCodeSnapshot} · {editor.old.missionNameSnapshot} của {studentName}.
         </p>}

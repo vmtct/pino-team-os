@@ -4,6 +4,7 @@ import {useEffect,useMemo,useRef,useState} from "react";
 import {BoTypedEditor} from "@/app/bo/components/registration/BoTypedEditor";
 import type {BoField,BoRecord,BoValue} from "@/lib/bo-registration";
 import {DetailFrame} from "@/app/components/workspace-renderer/DetailFrame";
+import {editorOwnsDialogKey} from "@/app/components/workspace-renderer/dialog";
 import {PropertySections} from "@/app/components/workspace-renderer/Properties";
 import {attributeModule,optionsField,needsOptions,VISIBILITY,asRecord,type AttributeDefinition,type CenterOption} from "@/lib/ho-attribute-model";
 
@@ -95,7 +96,10 @@ export function HoAttributeFullDetail({id,centers,mobileMenu,onBack,onUpdated}:{
  },[tab,id,detail,offset,historyRetry]);
  useEffect(()=>{
   const escape=(event:KeyboardEvent)=>{
-   if(event.key==="Escape"&&!document.getElementById("popover")){event.preventDefault();onBack();}
+   if(event.key!=="Escape"||event.defaultPrevented||event.repeat)return;
+   // PAP-1986: the first Escape belongs to the original editor, even after React unmounts it.
+   if(editorOwnsDialogKey(event)||document.querySelector('.edit-popover:not(.hidden)'))return;
+   event.preventDefault();onBack();
   };
   document.addEventListener("keydown",escape);
   return()=>document.removeEventListener("keydown",escape);
