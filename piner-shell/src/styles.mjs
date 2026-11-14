@@ -13,8 +13,8 @@ button,a{-webkit-tap-highlight-color:transparent}
 .launch-phone{background:#fffaf5 url("/piner_mobile_shell_background.png") center center/cover no-repeat}
 .launch{min-height:100%;height:100%;display:flex;flex-direction:column;overflow:auto;padding:env(safe-area-inset-top) 15px calc(18px + env(safe-area-inset-bottom))}
 .launch-brand{height:clamp(174px,27.5dvh,245px);flex:0 0 clamp(174px,27.5dvh,245px);display:flex;justify-content:center;align-items:center;flex-direction:column}
-.launch-sigil{width:30px;height:30px;object-fit:contain;margin-bottom:-5px;filter:drop-shadow(0 2px 3px #967a6d22)}
-.launch-wordmark{width:clamp(136px,41.3%,175px);height:auto;max-height:80px;object-fit:contain}
+.launch-sigil{width:45px;height:45px;object-fit:contain;margin-bottom:-5px;filter:drop-shadow(0 2px 3px #967a6d22)}
+.launch-wordmark{width:clamp(108.8px,33.04%,140px);height:auto;max-height:80px;object-fit:contain}
 .programs{display:flex;flex-direction:column;gap:clamp(13px,2dvh,20px)}
 .program-card{position:relative;display:block;width:100%;min-height:166px;aspect-ratio:1.73;max-height:244px;border-radius:clamp(20px,5vw,27px);overflow:hidden;background:#fffcf5;box-shadow:0 9px 26px #765e4811;isolation:isolate}
 .card-photo{position:absolute;inset:0 -10% 0 10%;background-size:cover;background-repeat:no-repeat;z-index:0}
@@ -26,7 +26,8 @@ button,a{-webkit-tap-highlight-color:transparent}
 .card-copy{position:relative;z-index:2;max-width:73%;height:100%;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;padding:12px 0 12px clamp(18px,5.5vw,27px)}
 .card-copy strong{font-family:ui-rounded,"Arial Rounded MT Bold","Trebuchet MS",Arial,sans-serif;font-size:clamp(26px,7.4vw,37px);font-weight:800;line-height:1.03;letter-spacing:-.06em}
 .house .card-copy strong .pino-word,.house .card-copy strong .afterschool-word{display:block}
-.house .card-copy strong .afterschool-word{font-size:.4244em;letter-spacing:-.06em;line-height:1.08}
+.house .card-copy strong .pino-word{font-size:calc(1em + 2px)}
+.house .card-copy strong .afterschool-word{font-size:calc(.4244em - 2px);letter-spacing:-.06em;line-height:1.08}
 .card-copy strong small{font-size:.56em;display:block;font-weight:700;letter-spacing:-.02em;margin-top:4px}
 .tagline{font-size:clamp(12px,3.4vw,15px);line-height:1.35;margin-top:12px;color:#5d6770}
 .arrow{margin-top:13px;width:42px;height:42px;display:grid;place-items:center;border-radius:50%;background:#fffefeea;font-size:22px;box-shadow:0 3px 12px #2b2a2914}

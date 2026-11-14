@@ -1,8 +1,8 @@
 "use strict";
-// PAP-1962 · PNR-APP-HUB · launcher rendered pixel-width parity, executable on i5.
+// PAP-1962 baseline superseded by PAP-1963, PAP-1964 typography and brand delta; standalone i5 G3.
 const { chromium } = require(process.env.PINER_PLAYWRIGHT_CORE || "playwright-core");
 const BASE = process.env.PINER_SHELL_BASE || "https://app.staging.pinohouse.art";
-const EXPECT_EQUAL = process.env.PAP1962_ASSERT === "1";
+const EXPECT_CURRENT = process.env.PAP1962_ASSERT === "1" || process.env.PAP1963_ASSERT === "1";
 const USE_LOCAL = process.env.PAP1962_LOCAL === "1";
 const WIDTHS = [320, 390, 430, 768, 1024, 1440, 1920];
 (async () => {
@@ -49,12 +49,12 @@ const WIDTHS = [320, 390, 430, 768, 1024, 1440, 1920];
    });
    console.log("PAP1962_WIDTH "+width+" "+JSON.stringify(m));
    if(width===390){const fs=require("node:fs"),path=require("node:path");const dir=path.join(__dirname,"../evidence");fs.mkdirSync(dir,{recursive:true});await page.screenshot({path:path.join(dir,"pap1962-launcher-"+(USE_LOCAL?"local":"staging")+"-390.png")});}
-   if(EXPECT_EQUAL){
-    if(m.overflow||Math.abs(m.diff)>2||m.tagRight>m.cardRight+1)
-     throw Error("PAP1962_PARITY_FAIL width "+width+" diff "+m.diff+" overflow "+m.overflow);
+   if(EXPECT_CURRENT){
+    if(m.overflow||!(m.diff<-2)||m.tagRight>m.cardRight+1)
+     throw Error("PAP1963_CURRENT_WIDTH_FAIL width "+width+" diff "+m.diff+" overflow "+m.overflow);
     pass++;
    }
   }
-  console.log(EXPECT_EQUAL?"PAP1962_RENDERED_PIXEL_PARITY_PASS "+pass+"/"+WIDTHS.length:"PAP1962_BASELINE_MEASURED "+WIDTHS.length);
+  console.log(EXPECT_CURRENT?"PAP1963_CURRENT_WIDTH_RELATION_PASS "+pass+"/"+WIDTHS.length:"PAP1963_WIDTH_MEASURED "+WIDTHS.length);
  }finally{await context.close();await browser.close();console.log("PAP1962_CHROME_CLOSED");}
 })().catch(e=>{console.error(e.stack||e);process.exitCode=1});
