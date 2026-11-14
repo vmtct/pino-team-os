@@ -108,3 +108,13 @@ test("PAP-1985 date-only write retains CAS and date validation before authorizat
  };
  try{await periodApi.cancel(center,{id,version:7},"test-cancel-key");}finally{globalThis.fetch=original;}
 });
+
+test("PAP-1985 exact history route denies writes and ambiguous scope",async()=>{
+ const id="0199f001-0000-7000-8000-000000000001",path="workforce/payroll/periods/"+id+"/history";
+ assert.equal(isBoPayrollPeriodPath(path),true);
+ assert.equal(isBoPayrollPeriodPath("workforce/payroll/periods/all/history"),false);
+ for(const [method,query,status] of [["POST","centerId="+center,405],["GET","centerId="+center+"&centerId="+center,400],["GET","centerId="+center+"&limit=51",400]] as const){
+  const res=await handleBoPayrollPeriodRequest(new Request(base+path+"?"+query,{method}),env,path);
+  assert.equal(res.status,status);
+ }
+});

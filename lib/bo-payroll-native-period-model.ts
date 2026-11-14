@@ -1,4 +1,4 @@
-import {type BoPayPeriodRead,type PeriodStaffPage,type PayPeriodDates} from "./bo-payroll-period-api";
+import {type BoPayPeriodRead,type PeriodStaffPage,type PayPeriodDates,type PeriodHistoryPage} from "./bo-payroll-period-api";
 import {periodDisplayName,periodSummaries,staffWithWorkEvidence} from "./bo-payroll-read-model";
 import {payrollAuditTime,payrollVerifiedName} from "./bo-payroll-safe-read-metadata";
 
@@ -19,7 +19,8 @@ export function nativePeriodRow(period:BoPayPeriodRead,rollup:PeriodStaffPage,ce
   throw Error("PAYROLL_PERIOD_INVALID");
  const totals=periodSummaries(rollup.periodTotals);
  return {...period,name:periodDisplayName(period.startDate,centerName),
-  centerName,staffCount:rollup.nextOffset===null?staffWithWorkEvidence(rollup.rows).length:null,
+    centerName,staffCount:rollup.staffWithWorkEvidenceCount===undefined?
+   (rollup.nextOffset===null&&rollup.offset===0?staffWithWorkEvidence(rollup.rows).length:null):validatedCount(rollup),
   expected:totals.expected,finalized:totals.finalized,
   createdTime:payrollAuditTime(period.createdAt),createdActor:payrollVerifiedName(period.createdBy),
   modifiedTime:payrollAuditTime(period.updatedAt),modifiedActor:payrollVerifiedName(period.updatedBy)};
@@ -30,4 +31,25 @@ export function nativePeriodStatus(row:Pick<BoPayPeriodRead,"status"|"dateLocked
 }
 export function mayCancelNativePeriod(row:Pick<BoPayPeriodRead,"canCancel"|"status"|"dateLocked"|"canceledAt">):boolean {
  return row.canCancel===true&&row.status==="ACTIVE"&&!row.dateLocked&&!row.canceledAt;
+}
+
+function validatedCount(rollup:PeriodStaffPage):number{
+ const n=rollup.staffWithWorkEvidenceCount;
+ if(typeof n!=="number"||!Number.isSafeInteger(n)||n<0||n>rollup.totalStaffCount||n<staffWithWorkEvidence(rollup.rows).length)
+  throw Error("PAYROLL_PERIOD_COUNT_MISMATCH");
+ return n;
+}
+const historyLabels:Record<string,string>={
+ PAYROLL_PERIOD_CREATED:"Tạo kỳ lương",
+ PAYROLL_PERIOD_UPDATED:"Cập nhật kỳ lương",
+ PAYROLL_PERIOD_CANCELLED:"Hủy kỳ lương",
+};
+export function nativePeriodHistory(page:PeriodHistoryPage,centerId:string,periodId:string,offset:number){
+ if(page.centerId!==centerId||page.periodId!==periodId||page.offset!==offset||!Array.isArray(page.events)||page.events.length>50||
+  (page.nextOffset!==null&&(!Number.isSafeInteger(page.nextOffset)||page.nextOffset!==offset+page.events.length||page.events.length===0))||
+  new Set(page.events.map(e=>e.id)).size!==page.events.length)throw Error("PAYROLL_HISTORY_SCOPE_MISMATCH");
+ return page.events.map(e=>{
+  if(!e.id||!Object.hasOwn(historyLabels,e.action))throw Error("PAYROLL_HISTORY_EVENT_INVALID");
+  return {id:e.id,action:historyLabels[e.action]!,time:payrollAuditTime(e.occurredAt),actor:payrollVerifiedName(e.actorName)};
+ });
 }

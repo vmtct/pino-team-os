@@ -6,7 +6,7 @@ export interface PayPeriod{
 /** Additive GET-only metadata; command DTO stays unchanged. */
 export type BoPayPeriodRead = PayPeriod & {createdBy?:string|null;updatedBy?:string|null;canEdit?:boolean;canCancel?:boolean;canceledAt?:string|null};
 export interface PeriodStaff{
- staffMemberId:string;status:"DRAFT"|"PENDING"|"FINALIZED"|"PAID"|"ARCHIVED_UNAVAILABLE";
+ staffMemberId:string;staffName?:string|null;status:"DRAFT"|"PENDING"|"FINALIZED"|"PAID"|"ARCHIVED_UNAVAILABLE";
  amountMinor:number|null;provisionalAmountMinor:number|null;warnings:string[];
  preview:SettlementPreview|null;settlementId:string|null;
  /** Authoritative Core flag; optional during cross-repo staggered staging release. */
@@ -22,7 +22,7 @@ export interface SettlementPreview{
 }
 export interface PeriodStaffPage{
  period:Pick<PayPeriod,"id"|"name"|"startDate"|"endDate"|"status">;
- rows:PeriodStaff[];totalStaffCount:number;limit:number;offset:number;nextOffset:number|null;
+ rows:PeriodStaff[];totalStaffCount:number;staffWithWorkEvidenceCount?:number;limit:number;offset:number;nextOffset:number|null;
  totalsScope:"FULL_PERIOD";periodTotals:{
   knownMinor:number;draftMinor:number;finalizedMinor:number;paidMinor:number;
   pendingProvisionalMinor:number;draftCount:number;pendingCount:number;
@@ -45,7 +45,10 @@ async function call<T>(path:string,init:RequestInit={}):Promise<T>{
 const qs=(centerId:string,extra:Record<string,string>={})=>"?"+new URLSearchParams({centerId,...extra});
 export type PayPeriodDates=Pick<PayPeriod,"startDate"|"endDate">;
 export type PeriodCancellation={id:string;centerId:string;status:"CANCELLED";version:number;canceledAt:string};
+export type PeriodHistoryEvent={id:string;action:string;occurredAt:string;actorName:string|null};
+export type PeriodHistoryPage={centerId:string;periodId:string;offset:number;nextOffset:number|null;events:PeriodHistoryEvent[]};
 export const periodApi={
+ history:(centerId:string,id:string,offset=0)=>call<{data:PeriodHistoryPage}>(ROOT+"/"+id+"/history"+qs(centerId,{limit:"50",offset:String(offset)})),
  cancel:(centerId:string,period:Pick<PayPeriod,"id"|"version">,key:string)=>
   call<{data:PeriodCancellation}>(ROOT+"/"+period.id+"/cancel"+qs(centerId),{
    method:"POST",headers:{"idempotency-key":key},body:JSON.stringify({centerId,expectedVersion:period.version})}),

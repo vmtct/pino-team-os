@@ -9,8 +9,9 @@ import {DrawerFrame} from "@/app/components/workspace-renderer/DrawerFrame";
 import {PeriodProperties,CreatePeriod} from "./PeriodProperties";
 import {useBoCenterSelection} from "@/app/bo/components/registration/BoCenterSelection";
 import {periodApi,money,type PeriodStaffPage} from "@/lib/bo-payroll-period-api";
-import {nativePeriodRow,nativePeriodStatus,type NativePeriodRow} from "@/lib/bo-payroll-native-period-model";
+import {nativePeriodRow,nativePeriodStatus,nativePeriodHistory,type NativePeriodRow} from "@/lib/bo-payroll-native-period-model";
 import {staffWithWorkEvidence} from "@/lib/bo-payroll-read-model";
+import {payrollVerifiedName} from "@/lib/bo-payroll-safe-read-metadata";
 
 const ROOT="/bo/payroll-periods";
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -39,7 +40,7 @@ function errorText(e:unknown){return e instanceof Error?e.message:"Không thể 
 export default function BoNativePayrollPeriods(){
  const scope=useBoCenterSelection(),query=useSearchParams();
  const center=scope?.centers.find(c=>c.id===scope.selected);
- const allowed=Boolean(scope&&!scope.loading&&!scope.error&&center);
+ const allowed=Boolean(scope&&!scope.loading&&!scope.error&&center&&(!query.has("centerId")||(query.getAll("centerId").length===1&&query.get("centerId")===center.id)));
  const record=query.get("record");
  if(!allowed||!center)return scope?.loading?<p role="status">Đang xác thực cơ sở…</p>:<p role="alert">{scope?.error||"Chọn cơ sở được cấp quyền."}</p>;
  if(record&&!uuid.test(record))return <p role="alert">Kỳ lương không hợp lệ.</p>;
@@ -108,7 +109,7 @@ function PeriodDetail({centerId,centerName,id,tab}:{centerId:string;centerName:s
   tabs={[
    {id:"overview",label:"Tổng quan",content:<PeriodProperties key={row.id+":"+row.version} row={row} variant="detail" onSaved={()=>setRefresh(r=>r+1)}/>},
    {id:"settlements",label:"Quyết Toán",content:<Settlements key={id} centerId={centerId} id={id} initial={rollup}/>},
-   {id:"history",label:"Lịch sử",content:<p>Chưa có nguồn lịch sử kỳ lương được cấp quyền.</p>},
+   {id:"history",label:"Lịch sử",content:<PeriodHistory key={centerId+":"+id+":"+row.version} centerId={centerId} id={id}/>},
   ]}/>;
 }
 function Settlements({centerId,id,initial}:{centerId:string;id:string;initial:PeriodStaffPage}){
@@ -131,9 +132,34 @@ function Settlements({centerId,id,initial}:{centerId:string;id:string;initial:Pe
  }
  return <section aria-label="Quyết toán theo PTE">
   <BoDataGrid rows={visible} rowKey={r=>r.staffMemberId} caption="Quyết toán theo PTE"
-   columns={[{key:"staff",header:"PTE",render:r=>r.staffMemberId},{key:"amount",header:"Thành tiền",render:r=>money(r.amountMinor)},{key:"status",header:"Trạng thái",render:r=>r.status}]}
+   columns={[{key:"staff",header:"PTE",render:r=>payrollVerifiedName(r.staffName)},{key:"amount",header:"Thành tiền",render:r=>money(r.amountMinor)},{key:"status",header:"Trạng thái",render:r=>r.status}]}
    emptyTitle="Chưa có giờ công" emptyMessage="Không có bản ghi đủ điều kiện trong trang hiện tại."/>
   {page.nextOffset!==null?<button type="button" disabled={busy} onClick={()=>void more()}>Tải thêm PTE</button>:null}
   {error?<p role="alert">{error}</p>:null}
+ </section>;
+}
+
+function PeriodHistory({centerId,id}:{centerId:string;id:string}){
+ const [offset,setOffset]=useState(0);
+ const [result,setResult]=useState<{offset:number;rows:ReturnType<typeof nativePeriodHistory>;nextOffset:number|null;error:string}|null>(null);
+ useEffect(()=>{
+  let live=true;
+  void periodApi.history(centerId,id,offset).then(({data})=>{
+   const rows=nativePeriodHistory(data,centerId,id,offset);
+   if(live)setResult({offset,rows,nextOffset:data.nextOffset,error:""});
+  }).catch(e=>{if(live)setResult({offset,rows:[],nextOffset:null,error:errorText(e)});});
+  return()=>{live=false;};
+ },[centerId,id,offset]);
+ const page=result?.offset===offset?result:null;
+ if(!page)return <p role="status">Đang tải lịch sử…</p>;
+ if(page.error)return <p role="alert">{page.error}</p>;
+ return <section aria-label="Lịch sử kỳ lương">
+  <BoDataGrid rows={page.rows} rowKey={r=>r.id} caption="Lịch sử kỳ lương" columns={[
+   {key:"action",header:"Thao tác",render:r=>r.action},
+   {key:"time",header:"Thời gian",render:r=>r.time},
+   {key:"actor",header:"Người thao tác",render:r=>r.actor},
+  ]} emptyTitle="Chưa có lịch sử" emptyMessage="Không có sự kiện được cấp quyền."/>
+  {offset>0?<button type="button" onClick={()=>setOffset(Math.max(0,offset-50))}>Trang trước</button>:null}
+  {page.nextOffset!==null?<button type="button" onClick={()=>setOffset(page.nextOffset!)}>Trang sau</button>:null}
  </section>;
 }
