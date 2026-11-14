@@ -4,7 +4,7 @@ import {BoFullDetail} from "@/app/bo/components/BoFullDetail";
 import {BoProperties} from "@/app/bo/components/BoProperties";
 import {useBoCenterSelection} from "@/app/bo/components/registration/BoCenterSelection";
 import {openingEvidenceApi,newReviewRequestKey,type OpeningEvidenceRow,type EvidenceDetail,type SubjectType} from "@/lib/bo-opening-evidence-api";
-import {evidenceProperties,detailHref,statusLabels,subjectLabels} from "../../OpeningEvidenceStageGate";
+import {evidenceProperties,evidenceTime,detailHref,statusLabels,subjectLabels} from "../../OpeningEvidenceStageGate";
 
 function PhotoPreview({row,assetId}:{row:OpeningEvidenceRow;assetId:string}){
   const [url,setUrl]=useState(""),[error,setError]=useState("");
@@ -66,7 +66,7 @@ function DetailScope({centerId,subjectType,receiptId,activeTab}:{centerId:string
       {id:"overview",label:"Tổng quan",content:<BoProperties items={evidenceProperties(row)}/>},
       {id:"evidence",label:"Ảnh setup & vòng duyệt",content:<section>
         {history.filter(e=>e.kind==="SUBMISSION"&&e.privateAssetId).map(e=><article key={e.eventId}>
-          <h3>Vòng {e.version}</h3><p>{e.actorLegalFullName??"—"} · {e.occurredAt}</p>
+          <h3>Vòng {e.version}</h3><p>{e.actorLegalFullName??"—"} · {evidenceTime(e.occurredAt)}</p>
                     {e.note?<p>Ghi chú: {e.note}</p>:null}
           {(e.privateAssetIds??[e.privateAssetId!]).map(assetId=><PhotoPreview key={assetId} row={row} assetId={assetId}/>)}
         </article>)}
@@ -75,7 +75,7 @@ function DetailScope({centerId,subjectType,receiptId,activeTab}:{centerId:string
       </section>},
       {id:"history",label:"Lịch sử",content:<section aria-label="Lịch sử bằng chứng">
         {history.map(e=><article key={e.eventId}><BoProperties compact items={[
-          {key:"time",label:"Thời gian",value:e.occurredAt},
+          {key:"time",label:"Thời gian",value:evidenceTime(e.occurredAt)},
           {key:"actor",label:"Nhân viên",value:e.actorLegalFullName??"—"},
           {key:"action",label:"Sự kiện",value:e.kind==="SUBMISSION"?"Gửi ảnh":statusLabels[e.verdict!]},
           {key:"reason",label:e.kind==="SUBMISSION"?"Ghi chú":"Lý do",value:(e.kind==="SUBMISSION"?e.note:e.reason)||"—"},

@@ -40,3 +40,15 @@ void test("PAP-764 preserves all private attachments and note in a single round"
  assert.equal(p.history[0]?.note,"Bổ sung ảnh quầy");
  assert.throws(()=>parseEvidenceDetail({...multi,history:[{...multi.history[0],privateAssetIds:[id(4),id(4)]}]},row.centerId,row.subjectType,row.openingReceiptId),/không hợp lệ/);
 });
+
+void test("PAP-764 date filter is inclusive, bounded, and rejects mismatched Core rows",async t=>{
+ const calls:string[]=[];
+ t.mock.method(globalThis,"fetch",(url:string)=>{calls.push(url);return Promise.resolve(new Response(JSON.stringify({data:{rows:[row],total:1}})));});
+ const base={centerId:row.centerId,offset:0,limit:25};
+ assert.equal((await openingEvidenceApi.list({...base,startDate:row.workDate,endDate:row.workDate})).total,1);
+ assert.match(calls[0]!,/startDate=2026-11-14/);assert.match(calls[0]!,/endDate=2026-11-14/);
+ await assert.rejects(openingEvidenceApi.list({...base,startDate:"2026-11-15"}),/không đúng bộ lọc/);
+ await assert.rejects(openingEvidenceApi.list({...base,startDate:"2026-02-30"}),/Khoảng ngày không hợp lệ/);
+ await assert.rejects(openingEvidenceApi.list({...base,startDate:"2026-11-15",endDate:"2026-11-14"}),/Khoảng ngày không hợp lệ/);
+ assert.equal(calls.length,2);
+});

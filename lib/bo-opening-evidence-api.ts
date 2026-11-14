@@ -11,7 +11,7 @@ export type EvidenceEvent={
   occurredAt:string;privateAssetId:string|null;privateAssetIds?:string[];note?:string;verdict:"APPROVED"|"REJECTED"|null;reason:string|null;
 };
 export type EvidenceDetail={row:OpeningEvidenceRow;history:EvidenceEvent[]};
-export type EvidenceListScope={centerId:string;status?:EvidenceStatus;subjectType?:SubjectType;search?:string;offset:number;limit:number};
+export type EvidenceListScope={centerId:string;status?:EvidenceStatus;subjectType?:SubjectType;search?:string;startDate?:string;endDate?:string;offset:number;limit:number};
 const ROOT="/api/bo/opening-evidence";
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const text=(v:unknown):v is string=>typeof v==="string"&&v.length>0;
@@ -69,12 +69,15 @@ const path=(type:SubjectType,id:string)=>ROOT+"/"+encodeURIComponent(type)+"/"+e
 export const openingEvidenceApi={
   async list(scope:EvidenceListScope,signal?:AbortSignal){
     const q=new URLSearchParams({centerId:scope.centerId,offset:String(scope.offset),limit:String(scope.limit)});
+        const validDate=(v:string)=>/^\d{4}-\d{2}-\d{2}$/.test(v)&&Number.isFinite(Date.parse(v+"T00:00:00Z"))&&new Date(v+"T00:00:00Z").toISOString().slice(0,10)===v;
+    if((scope.startDate&&!validDate(scope.startDate))||(scope.endDate&&!validDate(scope.endDate))||(scope.startDate&&scope.endDate&&scope.startDate>scope.endDate))throw new Error("Khoảng ngày không hợp lệ.");
+    if(scope.startDate)q.set("startDate",scope.startDate);if(scope.endDate)q.set("endDate",scope.endDate);
     if(scope.status)q.set("status",scope.status);if(scope.subjectType)q.set("subjectType",scope.subjectType);if(scope.search)q.set("search",scope.search);
     const result=await json(ROOT+"?"+q,signal?{signal}:{}) as {rows?:unknown[];total?:number}|null;
     if(!result||!Array.isArray(result.rows)||!Number.isSafeInteger(result.total)||result.total!<result.rows.length||result.rows.length>scope.limit)
       throw new Error("Danh sách mở lớp và ca không hợp lệ.");
     const rows=result.rows.map(r=>parseEvidenceRow(r,scope.centerId));
-    if(rows.some(r=>(scope.status&&r.status!==scope.status)||(scope.subjectType&&r.subjectType!==scope.subjectType)))
+    if(rows.some(r=>(scope.status&&r.status!==scope.status)||(scope.subjectType&&r.subjectType!==scope.subjectType)||(scope.startDate&&r.workDate<scope.startDate)||(scope.endDate&&r.workDate>scope.endDate)))
       throw new Error("Danh sách không đúng bộ lọc.");
     return {rows,total:result.total!};
   },
