@@ -20,7 +20,7 @@ export const periodFields:BoField[]=[
 ];
 const sections=[{id:"overview",label:"Thông tin chính",fields:periodFields.map(f=>f.key)}];
 const dateField=(k:string):k is keyof PayPeriodDates=>k==="startDate"||k==="endDate";
-function record(row:NativePeriodRow):BoRecord{
+export function periodRecord(row:NativePeriodRow):BoRecord{
  return {id:row.id,name:row.name,startDate:row.startDate,endDate:row.endDate,
   status:nativePeriodStatus(row),
   staffCount:row.staffCount??"—",expected:money(row.expected),finalized:money(row.finalized),
@@ -64,15 +64,15 @@ export function PeriodProperties({row,variant,onSaved}:{row:NativePeriodRow;vari
    const read=(await periodApi.get(row.centerId,row.id)).data;
    if(reply.centerId!==row.centerId||reply.id!==row.id||reply.version!==row.version+1||
     read.centerId!==row.centerId||read.id!==row.id||read.version!==reply.version||
-    read.startDate!==input.startDate||read.endDate!==input.endDate)throw Error("Không xác minh được kỳ lương đã lưu. Tải lại trước khi sửa.");
+    read.status!=="ACTIVE"||read.startDate!==input.startDate||read.endDate!==input.endDate)throw Error("Không xác minh được kỳ lương đã lưu. Tải lại trước khi sửa.");
    if(alive.current){setEdit(null);onSaved();}
   }catch(e){if(alive.current)setError(text(e));}
   finally{saving.current=false;if(alive.current)setBusy(false);}
  }
  return <>
-  <PropertySections fields={periodFields} record={record(row)} sections={sections} variant={variant}
-   canEdit={field=>allowed&&!busy&&!confirmCancel&&dateField(field.key)} onEdit={(field,anchor)=>{if(allowed&&!confirmCancel&&!saving.current&&dateField(field.key)){setError("");setEdit({field,anchor});}}}/>
-  {edit&&allowed?<BoTypedEditor field={edit.field} value={row[edit.field.key as keyof PayPeriodDates]} anchor={edit.anchor}
+  <PropertySections fields={periodFields} record={periodRecord(row)} sections={sections} variant={variant}
+   canEdit={field=>allowed&&!confirmCancel&&dateField(field.key)} onEdit={(field,anchor)=>{if(allowed&&!confirmCancel&&!saving.current&&dateField(field.key)){setError("");setEdit({field,anchor});}}}/>
+  {edit&&allowed?<BoTypedEditor key={edit.field.key} field={edit.field} value={row[edit.field.key as keyof PayPeriodDates]} anchor={edit.anchor}
    onClose={close} onSave={v=>void save(v)} closeOnSave={false}/>:null}
   {canCancel&&!edit?<section className="property-section" aria-label="Hủy kỳ lương">
    {confirmCancel?<><p role="alert">Bạn có chắc muốn hủy kỳ lương này? Kỳ và lịch sử vẫn được giữ lại. Không thể khôi phục.</p>
@@ -103,9 +103,9 @@ export function CreatePeriod({centerId,centerName,onClose,onSaved,keyForPayload}
   saving.current=true;setBusy(true);setError("");
   try{
    const receipt=(await periodApi.createDates(centerId,dates,key)).data;
-   if(receipt.centerId!==centerId||!receipt.id.match(/^[0-9a-f-]{36}$/))throw Error("Phản hồi kỳ lương không đúng cơ sở.");
+   if(receipt.centerId!==centerId||!receipt.id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)||receipt.status!=="ACTIVE"||receipt.version!==1)throw Error("Phản hồi kỳ lương không đúng cơ sở.");
    const read=(await periodApi.get(centerId,receipt.id)).data;
-   if(read.centerId!==centerId||read.id!==receipt.id||read.startDate!==dates.startDate||read.endDate!==dates.endDate)throw Error("Chưa xác minh được kỳ lương đã lưu.");
+   if(read.centerId!==centerId||read.id!==receipt.id||read.status!=="ACTIVE"||read.version!==receipt.version||read.startDate!==dates.startDate||read.endDate!==dates.endDate)throw Error("Chưa xác minh được kỳ lương đã lưu.");
    if(alive.current)onSaved();
   }catch(e){if(alive.current)setError(text(e));}
   finally{saving.current=false;if(alive.current)setBusy(false);}
