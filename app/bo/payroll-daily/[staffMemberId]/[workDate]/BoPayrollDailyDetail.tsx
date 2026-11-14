@@ -6,10 +6,9 @@ import {BoFullDetail} from "@/app/bo/components/BoFullDetail";
 import {dailyReadApi,DailyReadError} from "@/lib/bo-payroll-daily-api";
 import {payrollDailyRow,type BoPayrollDailyRow} from "@/lib/bo-payroll-daily-view-model";
 import {dailyPropertyFields} from "../../BoPayrollDailyReadView";
-import styles from "../../bo-payroll-daily.module.css";
+import {BoProperties} from "@/app/bo/components/BoProperties";
 function Properties({row}:{row:BoPayrollDailyRow}){
- return <dl className={styles.properties}>{dailyPropertyFields.map(([name,render])=>
-  <div key={name}><dt>{name}</dt><dd>{render(row)}</dd></div>)}</dl>;
+ return <BoProperties items={dailyPropertyFields.map(([name,render])=>({key:name,label:name,value:render(row)}))}/>;
 }
 export default function BoPayrollDailyDetail({staffMemberId,workDate,activeTab}:{
  staffMemberId:string;workDate:string;activeTab?:string;
@@ -39,22 +38,18 @@ export default function BoPayrollDailyDetail({staffMemberId,workDate,activeTab}:
  const row=data.row;
  const tabs=[
   {id:"detail",label:"Detail",content:<Properties row={row}/>},
-  {id:"specialized",label:"Chuyên Sâu",content:<section className={styles.detail}>
+  {id:"specialized",label:"Chuyên Sâu",content:<section>
    <h2>Chứng từ nguồn Core</h2>
    <p>Ngày công lấy từ phân công và chấm công được phép xem, không tính lương lại trên BO.</p>
-   <dl className={styles.properties}>
-    <div><dt>Mã phân công</dt><dd>{row.assignmentRefs}</dd></div>
-    <div><dt>Check-in/out ghi nhận</dt><dd>{row.recordedInOut}</dd></div>
-    <div><dt>Check-in/out hiệu lực</dt><dd>{row.actualInOut}</dd></div>
-   </dl></section>},
-  {id:"history",label:"Lịch Sử",content:<section className={styles.detail}>
+   <BoProperties items={[{key:"assignment",label:"Mã phân công",value:row.assignmentRefs},
+    {key:"recorded",label:"Check-in/out ghi nhận",value:row.recordedInOut},
+    {key:"actual",label:"Check-in/out hiệu lực",value:row.actualInOut}]}/></section>},
+  {id:"history",label:"Lịch Sử",content:<section>
    <h2>Điều chỉnh ngày công</h2>
-   {row.override?<dl className={styles.properties}>
-    <div><dt>Created Time</dt><dd>{row.override.createdAt}</dd></div>
-    <div><dt>Created By</dt><dd>—</dd></div>
-    <div><dt>Actor ID (technical)</dt><dd>{row.override.createdByUserId}</dd></div>
-    <div><dt>Lý do</dt><dd>{row.override.reason}</dd></div>
-   </dl>:<p>Core chưa trả về sự kiện điều chỉnh cho ngày này.</p>}
+   {row.override?<BoProperties items={[{key:"time",label:"Created Time",value:row.override.createdAt},
+    {key:"by",label:"Created By",value:"—"},
+    {key:"actor",label:"Actor ID (technical)",value:row.override.createdByUserId},
+    {key:"reason",label:"Lý do",value:row.override.reason}]}/>:<p>Core chưa trả về sự kiện điều chỉnh cho ngày này.</p>}
   </section>},
  ];
  return <BoFullDetail title={"Bảng lương ngày · "+row.workDate}
