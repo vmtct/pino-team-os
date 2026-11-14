@@ -10,7 +10,7 @@ function card(space,title,sub){
  return '<a class="program-card '+space+'" href="'+routeFor(space)+'" data-launch-app="'+space+'" aria-label="Mở '+h(PROGRAMS[space].label)+'"><span class="card-photo" aria-hidden="true"></span><span class="card-fade" aria-hidden="true"></span><span class="card-copy"><strong>'+title+'</strong><span class="tagline">'+sub+'</span><span class="arrow" aria-hidden="true">→</span></span></a>';
 }
 function launch(){
- return '<main id="main-content" class="launch"><div class="launch-brand"><img class="launch-sigil" src="'+PINO+'" alt="PINO" width="30" height="30"><img class="launch-wordmark" src="'+WORDMARK+'" alt="Piner APP" width="160" height="70"></div><nav class="programs" aria-label="Chọn chương trình">'+
+ return '<main id="main-content" class="launch"><div class="launch-brand"><img class="launch-sigil" src="'+PINO+'" alt="PINO" width="45" height="45"><img class="launch-wordmark" src="'+WORDMARK+'" alt="Piner APP" width="160" height="70"></div><nav class="programs" aria-label="Chọn chương trình">'+
  card("house",'<span class="pino-word">PINO</span> <span class="afterschool-word">Afterschool</span>',"Hết giờ học,<br>đến giờ con khám phá.")+
  card("mytime","MyTime<small>by PINO</small>","Hết những bận rộn,<br>đến giờ mình tận hưởng.")+
  '</nav><p class="launch-note">Piner APP · Không gian sáng tạo của bạn</p></main>';

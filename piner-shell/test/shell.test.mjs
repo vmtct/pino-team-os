@@ -88,3 +88,13 @@ test("PAP-1962 launcher title width contract is scoped to Afterschool", async ()
  assert.match(css, /\.house \.card-copy strong \.pino-word,\.house \.card-copy strong \.afterschool-word\{display:block\}/);
  assert.doesNotMatch(css,/\.mytime \.card-copy strong \.afterschool-word/);
 });
+test("PAP-1964 brand scale on launcher only: Piner -20%, PINO sigil +50%",async()=>{
+ const html=await (await handleRequest(req("/"),fixture)).text();
+ const css=await (await handleRequest(req("/piner-shell.css"),fixture)).text();
+ assert.match(html,/class="launch-sigil"[^>]*width="45" height="45"/);
+ assert.match(html,/class="launch-wordmark"[^>]*alt="Piner APP"/);
+ assert.match(css,/\.launch-sigil\{width:45px;height:45px;/);
+ assert.match(css,/\.launch-wordmark\{width:clamp\(108\.8px,33\.04%,140px\);/);
+ assert.match(css,/\.brand \.sigil\{width:29px;height:29px;/);
+ assert.match(css,/\.brand \.wordmark\{width:auto;height:29px;/);
+});

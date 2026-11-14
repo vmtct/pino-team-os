@@ -13,8 +13,8 @@ button,a{-webkit-tap-highlight-color:transparent}
 .launch-phone{background:#fffaf5 url("/piner_mobile_shell_background.png") center center/cover no-repeat}
 .launch{min-height:100%;height:100%;display:flex;flex-direction:column;overflow:auto;padding:env(safe-area-inset-top) 15px calc(18px + env(safe-area-inset-bottom))}
 .launch-brand{height:clamp(174px,27.5dvh,245px);flex:0 0 clamp(174px,27.5dvh,245px);display:flex;justify-content:center;align-items:center;flex-direction:column}
-.launch-sigil{width:30px;height:30px;object-fit:contain;margin-bottom:-5px;filter:drop-shadow(0 2px 3px #967a6d22)}
-.launch-wordmark{width:clamp(136px,41.3%,175px);height:auto;max-height:80px;object-fit:contain}
+.launch-sigil{width:45px;height:45px;object-fit:contain;margin-bottom:-5px;filter:drop-shadow(0 2px 3px #967a6d22)}
+.launch-wordmark{width:clamp(108.8px,33.04%,140px);height:auto;max-height:80px;object-fit:contain}
 .programs{display:flex;flex-direction:column;gap:clamp(13px,2dvh,20px)}
 .program-card{position:relative;display:block;width:100%;min-height:166px;aspect-ratio:1.73;max-height:244px;border-radius:clamp(20px,5vw,27px);overflow:hidden;background:#fffcf5;box-shadow:0 9px 26px #765e4811;isolation:isolate}
 .card-photo{position:absolute;inset:0 -10% 0 10%;background-size:cover;background-repeat:no-repeat;z-index:0}
