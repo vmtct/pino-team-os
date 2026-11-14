@@ -49,14 +49,18 @@ const assert=(condition,why)=>{if(!condition)throw new Error(why)};
    const response=await page.goto(BASE+"/",{waitUntil:"networkidle",timeout:30000});
    assert(response?.status()===200,"launcher unavailable at "+w);
    await page.waitForFunction(()=>[...document.querySelectorAll(".launch-brand img")].every(i=>i.complete&&i.naturalWidth>0),null,{timeout:18000});
-   const beforeStyle=await page.addStyleTag({content:
-    ".house .card-copy strong .pino-word{font-size:1em!important}"+
-    ".house .card-copy strong .afterschool-word{font-size:.4244em!important}"+
-    ".launch-sigil{width:30px!important;height:30px!important}"+
-    ".launch-wordmark{width:clamp(136px,41.3%,175px)!important}"
+   // CSP on the actual Worker forbids injecting <style>. CSSOM property writes
+   // from Playwright's debugger context model the PAP-1962 baseline without
+   // changing the deployed stylesheet or weakening style-src.
+   await page.evaluate(()=>{
+    document.querySelector(".pino-word").style.setProperty("font-size","1em","important");
+    document.querySelector(".afterschool-word").style.setProperty("font-size",".4244em","important");
+    document.querySelector(".launch-sigil").style.setProperty("width","30px","important");
+    document.querySelector(".launch-sigil").style.setProperty("height","30px","important");
+    document.querySelector(".launch-wordmark").style.setProperty("width","clamp(136px,41.3%,175px)","important");
    });
    const base=await measure();
-   await beforeStyle.evaluate(el=>el.remove());
+   await page.reload({waitUntil:"networkidle",timeout:30000});
    const updated=await measure();
    const diffs={width:w,
     pinoPx:updated.pino-base.pino,afterPx:updated.after-base.after,
