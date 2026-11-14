@@ -40,7 +40,7 @@ export default function ReceptionV4Presentation({centerName,profileLabel,workDat
   function openFilter(value:ArrivalStatus){setFilter(value);setQuery("");setTab("arrivals");}
   function closeDetail(){setSelectedId(null);setGuardianConfirmed(false);}
   function openDetail(id:string){setSelectedId(id);setGuardianConfirmed(false);}
-  if(!readOnly)return <ReceptionOpenShift centerName={centerName} shiftTime={shiftTime} slots={slots} onReady={receipt=>{setReadyReceipt(receipt);setReadOnly(true);}} onBypass={()=>{setReadyReceipt(null);setReadOnly(true);}}/>;
+  if(!readOnly)return <ReceptionOpenShift centerName={centerName} shiftTime={shiftTime} slots={slots} initialTemplateId={readyReceipt?.shift_template_id??slots?.[0]?.shiftTemplateId??""} onReady={receipt=>{setReadyReceipt(receipt);setReadOnly(true);}} onBypass={()=>{setReadyReceipt(null);setReadOnly(true);}}/>;
   return <OpsFrame app="reception" title="Tiếp Tân" tabs={TABS} tab={tab} onTab={value=>setTab(value as Tab)} notice={notice}>
     {tab==="overview"&&<>
       <div className={css.intro}><span className={css.eyebrow}>{workDate}</span><h2 className={css.title}>Xin chào, {profileLabel||"bạn"} 👋</h2><p className={css.lead}>Học viên đến và về trong ca trực hôm nay.</p></div>
