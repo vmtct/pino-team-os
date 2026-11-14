@@ -17,6 +17,7 @@ import {defaultTable,type BoRecord,type BoTableState} from "@/lib/bo-registratio
 import {boApi} from "@/lib/bo-api";
 import type {BoPathProgram} from "@/lib/bo-model";
 import {SubscriptionCreateDrawer} from "./SubscriptionCreateDrawer";
+import {BoSubscriptionSpecialtyTab} from "./BoSubscriptionSpecialtyTab";
 import type {OwnedSubscriptionItem} from "@/lib/pap1334-native-subscription-read";
 import {readSubscriptionCenterDetail} from "@/lib/bo-subscription-center-detail-client";
 import {readSubscriptionDetailRoute,subscriptionDetailUrl,type SubscriptionDetailTab} from "@/lib/bo-subscription-detail-url";
@@ -216,7 +217,8 @@ function ScopedSubscriptions({centerId,centerName,menu}:{
         <PropertySections variant="detail" record={detail.row}
           fields={nativeSubscriptionModule.fields}
           sections={detailTab==="Detail"?[detailSections[0]]:[detailSections[1]]}
-          canEdit={()=>false}/> :
+          canEdit={()=>false}/> : detailTab==="Chuyên đề" ?
+        <BoSubscriptionSpecialtyTab key={detail.id+":"+centerId} subscriptionId={detail.id} centerId={centerId} centerReady={detail.row.centerId===centerId}/> :
         <section className="empty-table" data-pap1907-center-safe-business-tab={detailTab}
           role="status" aria-label={detailTab}>
           <strong>{detailTab}</strong>

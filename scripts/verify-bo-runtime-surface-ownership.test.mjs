@@ -152,3 +152,25 @@ test("PAP-1089 sidebar must import the canonical legacy URL key list, not an ad 
  assert.equal(result.ok,false);
  assert.match(result.issues.join(","),/sidebar URL whitelist/);
 });
+
+test("PAP-1496 native Specialty tab cannot disappear or mount outside the exact attested admission",()=>{
+ const m=JSON.parse(get(manifest)),native="app/bo/subscriptions/SubscriptionDirectoryDsa.tsx",source=get(native);
+ assert.equal(m.specialized.subscriptions.specialtyAdmission.approvalIssue,"PAP-1783");
+ assert.equal(verifyBoRuntimeSurfaceOwnership().ok,true);
+ for(const change of [
+   x=>{delete x.specialized.subscriptions.specialtyAdmission;},
+   x=>{x.specialized.subscriptions.specialtyAdmission.approvalIssue="PAP-UNKNOWN";},
+   x=>{x.specialized.subscriptions.specialtyAdmission.mode="unscoped";},
+ ]){
+   const altered=structuredClone(m);change(altered);
+   assert.equal(verifyBoRuntimeSurfaceOwnership(undefined,{[manifest]:JSON.stringify(altered)}).ok,false);
+ }
+ for(const altered of [
+  source.replace('<BoSubscriptionSpecialtyTab key={detail.id+":"+centerId} subscriptionId={detail.id} centerId={centerId} centerReady={detail.row.centerId===centerId}/>','<p>Unconnected</p>'),
+  source.replace('centerReady={detail.row.centerId===centerId}','centerReady={true}'),
+  source.replace('detailTab==="Chuyên đề" ?', 'detailTab==="Enrollment" ?'),
+  source+'\n<BoSubscriptionSpecialtyTab />',
+ ])assert.equal(verifyBoRuntimeSurfaceOwnership(undefined,{[native]:altered}).ok,false);
+ const client="lib/bo-subscription-specialty-client.ts",body=get(client);
+ assert.equal(verifyBoRuntimeSurfaceOwnership(undefined,{[client]:body.replace('"idempotency-key"','"removed"')}).ok,false);
+});
