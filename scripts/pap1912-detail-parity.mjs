@@ -50,7 +50,16 @@ export function checkSharedFrame(source) {
   for(const [name,marker] of markers)if(!source.includes(marker))errors.push("shared DetailFrame missing "+name);
   return errors;
 }
-function declaredTabs(source){
+function declaredTabs(source,entry){
+  // Literal native tabs are inspected at the actual JSX callsite, not a disconnected declaration.
+  if(entry.tabSource==="literal"){
+    const ast=tsx("detail.tsx",source),all=[];
+    const walk=n=>{if((ts.isJsxOpeningElement(n)||ts.isJsxSelfClosingElement(n))&&n.tagName.getText(ast)==="DetailFrame"){
+      const a=n.attributes.properties.find(p=>ts.isJsxAttribute(p)&&p.name.getText(ast)==="tabs");
+      const e=a?.initializer&&ts.isJsxExpression(a.initializer)?a.initializer.expression:undefined;
+      if(e&&ts.isArrayLiteralExpression(e))all.push(e.elements.map(o=>{if(!ts.isObjectLiteralExpression(o))return null;const get=name=>{const prop=o.properties.find(p=>ts.isPropertyAssignment(p)&&p.name.getText(ast)===name);return prop&&ts.isStringLiteral(prop.initializer)?prop.initializer.text:null;};return [get("id"),get("label")];}));
+    }ts.forEachChild(n,walk);};walk(ast);return all.length===1?all[0]:undefined;
+  }
   const ast=tsx("detail.tsx",source);let rows;
   const visit=n=>{
     if(ts.isVariableDeclaration(n)&&ts.isIdentifier(n.name)&&n.name.text==="subscriptionDetailTabs"&&(ts.isArrayLiteralExpression(n.initializer)||ts.isAsExpression(n.initializer))){
@@ -111,7 +120,7 @@ export function inspectConsumer(file,source,entry,legacyExceptions){
       errors.push(prefix+": static-single-tab requires literal accessible tab");
   }
   if(entry.tabs){
-    const actual=declaredTabs(source);
+    const actual=declaredTabs(source,entry);
     if(JSON.stringify(actual)!==JSON.stringify(entry.tabs))
       errors.push(file+": registered business tab IDs/labels drift: "+JSON.stringify(actual));
   }

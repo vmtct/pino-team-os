@@ -12,6 +12,7 @@ import {defaultTable,type BoField,type BoModule,type BoRecord,type BoTableState,
 import {assetUrl,slots,slotNames,type Slot,type HoSetItem,type ItemRecord,type HoItem} from "../wardrobe/item-client";
 import {loadStarterCatalog,starterDraft,createStarter,updateStarter,changeStarterLifecycle,type StarterSetDraft} from "./starter-catalog-client";
 import "@/app/components/pinoria-item/item-calibration.css";
+import {isStarterTab,readStarterDetailRoute,starterDetailUrl,type StarterTab} from "./starter-detail-route";
 const starterModule:BoModule={label:"Starter Set",group:"Pinoria",fields:[
  {key:"name",label:"Tên Starter Set",type:"text",icon:"Aa",w:220},
  {key:"preview",label:"Preview",type:"text",icon:"▣",w:90,readonly:true},
@@ -63,13 +64,22 @@ export function HoStarterSets({canManage=false,mobileMenu}:{canManage?:boolean;m
  const [table,setTable]=useState<BoTableState>(()=>defaultTable(starterModule.fields)),[page,setPage]=useState(1);
  const [settings,setSettings]=useState<string|null>(null),[filter,setFilter]=useState(false),[views,setViews]=useState<BoSavedView[]>([]),[activeView,setActiveView]=useState<string|null>(null);
  const [selected,setSelected]=useState<HoSetItem|null>(null),[mode,setMode]=useState<"create"|"view"|"detail"|null>(null);
- const [tab,setTab]=useState("overview"),[draft,setDraft]=useState(emptyDraft),[error,setError]=useState(""),[notice,setNotice]=useState(""),[busy,setBusy]=useState(false);
+ const [tab,setTab]=useState<StarterTab>("overview"),[draft,setDraft]=useState(emptyDraft),[error,setError]=useState(""),[notice,setNotice]=useState(""),[busy,setBusy]=useState(false);
  const busyRef=useRef(false),opener=useRef<HTMLElement|null>(null);
  const [editor,setEditor]=useState<{field:BoField;anchor:HTMLElement}|null>(null);
  useEffect(()=>{const ctl=new AbortController();void loadStarterCatalog(ctl.signal).then(r=>{if(!ctl.signal.aborted){setRows(r.starters);setItems(concrete(r.items));setLoad("ready")}}).catch(e=>{if(!ctl.signal.aborted){setRows([]);setItems([]);setLoad(message(e))}});return()=>ctl.abort()},[refresh]);
+ const restore=useCallback((available:HoSetItem[])=>{
+  const route=readStarterDetailRoute(window.location.search);
+  if(!route){setMode(null);setSelected(null);setEditor(null);return}
+  const found=available.find(r=>r.id===route.record);
+  if(!found){setMode(null);setSelected(null);setNotice("Starter Set không tồn tại hoặc không còn khả dụng.");return}
+  setSelected(found);setDraft(starterDraft(found));setTab(route.tab);setMode("detail");setEditor(null);setError("");
+ },[]);
+ useEffect(()=>{if(load!=="ready")return;const onPop=()=>restore(rows);window.addEventListener("popstate",onPop);if(readStarterDetailRoute(window.location.search))restore(rows);return()=>window.removeEventListener("popstate",onPop)},[load,rows,restore]);
+ const selectDetailTab=(id:string)=>{if(!selected||!isStarterTab(id)||busyRef.current)return;setTab(id);window.history.pushState(null,"",starterDetailUrl(window.location.href,selected.id,id));setEditor(null)};
  const reset=()=>{setTable(defaultTable(starterModule.fields));setPage(1);setActiveView(null)};
  const update=useCallback((p:Partial<BoTableState>)=>{setTable(t=>({...t,...p}));setPage(1)},[]);
- const close=()=>{if(busyRef.current)return;setMode(null);setSelected(null);setEditor(null);setError("");requestAnimationFrame(()=>opener.current?.focus({preventScroll:true}))};
+ const close=()=>{if(busyRef.current)return;if(readStarterDetailRoute(window.location.search))window.history.pushState(null,"",starterDetailUrl(window.location.href,null));setMode(null);setSelected(null);setEditor(null);setError("");requestAnimationFrame(()=>opener.current?.focus({preventScroll:true}))};
  const choose=(row:BoRecord)=>{const x=rows.find(r=>r.id===row.id);if(!x)return;opener.current=document.activeElement instanceof HTMLElement?document.activeElement:null;setSelected(x);setDraft(starterDraft(x));setMode("view");setError("")};
  const apply=async(fn:()=>Promise<HoSetItem>,next:"view"|"detail")=>{
   if(!canManage||busyRef.current)return;
@@ -83,7 +93,7 @@ export function HoStarterSets({canManage=false,mobileMenu}:{canManage?:boolean;m
  if(mode==="detail"&&selected){
   const row:BoRecord={...toRow(selected),name:starterDraft(selected).displayName,key:starterDraft(selected).key};
   return <DetailFrame title={selected.displayName} subtitle={selected.key+" · "+selected.status} mobileMenu={mobileMenu} onBack={close}
-   tabs={[{id:"overview",label:"Tổng quan"},{id:"members",label:"Thành viên"},{id:"history",label:"Lịch sử"}]} selected={tab} onSelect={setTab}>
+   tabs={[{id:"overview",label:"Tổng quan"},{id:"members",label:"Thành viên"},{id:"history",label:"Lịch sử"}]} selected={tab} onSelect={selectDetailTab}>
    {notice&&<p role="status">{notice}</p>}{error&&<p role="alert">{error}</p>}
    {tab==="overview"?<>
     <PropertySections fields={fields} record={row} sections={sections} variant="detail" canEdit={f=>canEdit&&(f.key==="name"||f.key==="key")} onEdit={(field,anchor)=>setEditor({field,anchor})}/>
@@ -108,7 +118,7 @@ export function HoStarterSets({canManage=false,mobileMenu}:{canManage?:boolean;m
   {notice&&<p role="status">{notice}</p>}{load!=="ready"&&load!=="loading"&&<button className="secondary-btn" onClick={()=>setRefresh(v=>v+1)}>Thử lại</button>}
   <BoDataTable module={starterModule} rows={records} loadState={load} value={table} update={update} page={page} setPage={setPage} onOpen={choose} selected={selected?.id} onSettings={setSettings} filterOpen={filter} setFilterOpen={setFilter} views={views} changeViews={setViews} activeView={activeView} applyView={v=>{if(v){setTable(v.state);setActiveView(v.id);setPage(1)}else reset()}} reset={reset} undo={()=>{}} canUndo={false} nativeAvatarOpener/>
   {settings&&<BoTableSettings screen={settings} setScreen={setSettings} onClose={()=>setSettings(null)} fields={starterModule.fields} rows={records} value={table} update={update} views={views} setViews={setViews} applyView={v=>{setTable(v.state);setActiveView(v.id);setPage(1)}}/>}
-  {mode==="view"&&selected&&<BoQuickView module={{...starterModule,fields}} record={toRow(selected)} onClose={close} onDetail={()=>{setTab("overview");setMode("detail")}} extraSection={<Preview ids={starterDraft(selected).memberItemIds} items={items}/>}/>}
+  {mode==="view"&&selected&&<BoQuickView module={{...starterModule,fields}} record={toRow(selected)} onClose={close} onDetail={()=>{window.history.pushState(null,"",starterDetailUrl(window.location.href,selected.id));setTab("overview");setMode("detail")}} extraSection={<Preview ids={starterDraft(selected).memberItemIds} items={items}/>}/>}
   {mode==="create"&&canManage&&<DrawerFrame title="Tạo Starter Set" path="Pinoria · Starter Set" onClose={close}
     footer={<><button className="secondary-btn" disabled={busy} onClick={close}>Hủy</button><button className="primary-btn" disabled={busy||!draft.displayName.trim()||!draft.key.trim()} onClick={()=>void apply(()=>createStarter(draft),"view")}>Tạo bản nháp</button></>}>
     <PropertySections fields={fields} record={toDraftRow(draft)} sections={sections} variant="drawer" createFields={{

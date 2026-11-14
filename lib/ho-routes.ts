@@ -16,6 +16,7 @@ export const HO_PAGE_PATHS = {
   worlds: "/ho/pinoria/worlds",
   wardrobe: "/ho/pinoria/wardrobe",
   wardrobeSets: "/ho/pinoria/wardrobe-sets",
+  starterSets: "/ho/pinoria/starter-sets",
   effects: "/ho/pinoria/effects",
   tvPolicies: "/ho/pinoria/tv-policies",
  customAttributes: "/ho/system/custom-attributes",
@@ -39,6 +40,11 @@ export function safeHoReturnTo(raw: string | null | undefined): string | null {
     // PAP-1645 / PAP-1491: strip harmless campaign metadata before validating
     // returnTo, without allowing arbitrary query keys or an off-host target.
     const functionalKeys = [...parsed.searchParams.keys()].filter(key => !ignoredTrackingKeys.has(key));
+    if(parsed.pathname===HO_PAGE_PATHS.starterSets && functionalKeys.length===2 && functionalKeys.includes("record") && functionalKeys.includes("tab")){
+      const record=parsed.searchParams.get("record")??"",tab=parsed.searchParams.get("tab")??"";
+      if(!recordId.test(record)||!["overview","members","history"].includes(tab))return null;
+      return parsed.pathname+"?record="+encodeURIComponent(record)+"&tab="+tab;
+    }
     if (functionalKeys.length && (functionalKeys.length !== 1 || functionalKeys[0] !== "record" || parsed.pathname === "/ho" ||
         !recordId.test(parsed.searchParams.get("record") ?? ""))) return null;
     const record = parsed.searchParams.get("record");
