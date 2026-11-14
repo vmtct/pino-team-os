@@ -23,3 +23,19 @@ test("PAP-1970 only canonical BO Staging gets page GET/HEAD and API GET; no writ
  for(const foreign of ["bo.pinohouse.art","ho.staging.pinohouse.art","tos.staging.pinohouse.art","unknown.example","pino-team-os-staging.minhtri-van42.workers.dev"])
   for(const route of [...pages,...apis])assert.equal(decideHostBoundary(foreign,route,"GET").action,"not_found");
 });
+
+test("PAP-1970 / PAP-1990 exact period history and cancel obey Staging host, UUIDv7 and method boundaries",()=>{
+ const root="/api/bo/workforce/payroll/periods/";
+ const paths=[[root+id+"/history","GET"],[root+id+"/cancel","POST"]] as const;
+ const hosts=[host,"bo.pinohouse.art","ho.staging.pinohouse.art","tos.staging.pinohouse.art","unknown.example","localhost","pino-team-os-staging.minhtri-van42.workers.dev"];
+ for(const [route,verb] of paths){
+  for(const h of hosts)for(const m of ["GET","HEAD","POST","PATCH","PUT","DELETE","OPTIONS"])
+   assert.equal(decideHostBoundary(h,route,m).action,h===host&&m===verb?"next":"not_found",h+" "+m+" "+route);
+ }
+ for(const bad of [root+"history",root+"cancel",root+"all/history",root+"all/cancel",root+id+"/history/extra",root+id+"/cancel/",root+id+"/cancel/history",root+id.toUpperCase()+"/cancel",root+id.replace("-7db7-","-4db7-")+"/history",root+id.replace("-acbb-","-7cbb-")+"/cancel",root+id+"/HISTORY",root+id+"/staff/"+id+"/cancel"])
+  for(const h of hosts)for(const m of ["GET","POST"])
+   assert.equal(decideHostBoundary(h,bad,m).action,"not_found",h+" "+m+" "+bad);
+ for(const legacy of [root.slice(0,-1),root+id,root+id+"/staff-rollup",root+id+"/settlements",root+id+"/staff/"+id+"/preview"])
+  for(const h of [host,"bo.pinohouse.art"])
+   assert.equal(decideHostBoundary(h,legacy,"GET").action,"next",legacy);
+});
