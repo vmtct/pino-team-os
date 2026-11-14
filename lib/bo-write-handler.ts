@@ -56,6 +56,7 @@ const LEARNING_OWNER_PATH = /^sessions\/[0-9a-f-]{36}\/learning-owner$/;
 const SESSION_SYLLABUS_BINDING_PATH = /^delivery\/sessions\/[0-9a-f-]{36}\/syllabus-binding$/;
 const CALENDAR_EXCLUSION_COMMAND = /^delivery\/calendar-exclusions\/[0-9a-f-]{36}$/;
 const PARENT_PIN_PATH = /^identity\/parents\/[0-9a-f-]{36}\/pin\/(issue-initial|reset)$/;
+const AFTERSCHOOL_PIN_PATH = /^identity\/afterschool-users\/[0-9a-f-]{36}\/pin\/(issue-initial|reset)$/;
 const STUDENT_COMPANION_FEED_PATH = /^students\/[0-9a-f-]{36}\/pinoria\/companions\/[0-9a-f-]{36}\/feed$/;
 const STUDENT_VISIT_CHECK_IN = "student-visits/check-in";
 const STUDENT_VISIT_COMMAND = /^student-visits\/[0-9a-f-]{36}\/(check-out|correct)$/;
@@ -211,6 +212,20 @@ export async function handleBoWriteRequest(
       }
       studentProfileResource = { centerId: ids[0]! };
     }
+    let afterschoolPinResource: { centerId: string } | undefined;
+    if (request.method === "POST" && AFTERSCHOOL_PIN_PATH.test(path)) {
+      const query = new URL(request.url).searchParams;
+      const ids = query.getAll("centerId");
+      if ([...query.keys()].length !== 1 || ids.length !== 1 ||
+          !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ids[0]!))
+        return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Exactly one selected Center is required" } }, 400);
+      if (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body).length !== 1 ||
+          !Object.hasOwn(body, "confirmedPhone") ||
+          typeof (body as Record<string, unknown>).confirmedPhone !== "string")
+        return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Only confirmedPhone is accepted" } }, 400);
+      afterschoolPinResource = { centerId: ids[0]! };
+    }
+
     // PAP-1763: selected Center required on name-only Parent PATCH.
     let parentNameResource: { centerId: string } | undefined;
     if (request.method === "PATCH" && PARENT_NAME_PATCH.test(path)) {
@@ -288,6 +303,7 @@ export async function handleBoWriteRequest(
       ...(studentIntakeCenterResource ? { resource: studentIntakeCenterResource } : {}),
       ...(parentCreateResource ? { resource: parentCreateResource } : {}),
       ...(parentNameResource ? { resource: parentNameResource } : {}),
+      ...(afterschoolPinResource ? { resource: afterschoolPinResource } : {}),
       ...(idempotencyKey ? { idempotencyKey } : {}),
 
     };
@@ -371,6 +387,7 @@ export function isAllowedPostPath(path: string): boolean {
     || SESSION_SYLLABUS_BINDING_PATH.test(path)
     || CALENDAR_EXCLUSION_COMMAND.test(path)
     || PARENT_PIN_PATH.test(path)
+    || AFTERSCHOOL_PIN_PATH.test(path)
     || STUDENT_COMPANION_FEED_PATH.test(path)
     || path === PARENT_CREATE_PATH || path === STUDENT_INTAKE_PATH || path === STUDENT_INTAKE_CENTER_PATH
     || path === STAGING_CENTER_AFFILIATION_FIXTURE_PATH
