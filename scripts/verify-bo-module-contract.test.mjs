@@ -6,6 +6,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { verifyBoModuleContract } from "./verify-bo-module-contract.mjs";
+import {auditCanonicalBoRoute} from "./bo-route-import-guard.mjs";
 
 const repo=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"..");
 const navFile="app/bo/navigation.ts",regFile="app/bo/architecture/registry.ts";
@@ -412,4 +413,33 @@ test("PAP-1460 retired BO TV nav carries exact migration receipt and cannot reap
     edit(root,navFile,s=>s.replace('label: "Operations"','label: "Operations", href: "/bo/tvs"'));
     assert.ok(check(root).some(s=>s.includes("Retired legacy BO navigation reintroduced: /bo/tvs")));
   } finally {fs.rmSync(root,{recursive:true,force:true});}
+});
+
+test("PAP-1970 exact native period admission fails closed for reversed scope, arbitrary JSX and decoy imports",()=>{
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),"pap1970-period-entry-"));
+ const file="app/bo/payroll-periods/page.tsx";
+ try{
+  for(const p of [file,"app/bo/payroll-periods/BoNativePayrollPeriods.tsx"]){
+   const dest=path.join(root,p);fs.mkdirSync(path.dirname(dest),{recursive:true});
+   fs.copyFileSync(path.join(repo,p),dest);
+  }
+  const original=fs.readFileSync(path.join(root,file),"utf8");
+  fs.writeFileSync(path.join(root,"app/bo/payroll-periods/adapter.ts"),"export const moduleAdapter={};");
+  const checkEntry=(source,key="payroll-periods")=>{
+   fs.writeFileSync(path.join(root,file),source);
+   const issues=[];auditCanonicalBoRoute(root,file,key,issues);return issues;
+  };
+  assert.deepEqual(checkEntry(original),[]);
+  for(const changed of [
+   original.replace("return stagingUser ?", "return !stagingUser ?"),
+   original.replace("useBoStagingUser();","true;"),
+   original.replace("<BoNativePayrollPeriods/>","<BoNativePayrollPeriods arbitrary={true}/>"),
+   original+"\nexport function Additional(){return <div/>;}\n",
+   original.replace('from "./BoNativePayrollPeriods"','from "./OtherRenderer"'),
+   original.replace('moduleKey="payroll-periods"','moduleKey="workforce-assignments"'),
+  ])assert.ok(checkEntry(changed).length>0,changed);
+  assert.ok(checkEntry(original,"workforce-assignments").length>0);
+  fs.writeFileSync(path.join(root,"app/bo/payroll-periods/BoNativePayrollPeriods.tsx"),"export default function BoNativePayrollPeriods(){return null;}");
+  assert.ok(checkEntry(original).some(x=>x.includes("contract incomplete")));
+ }finally{fs.rmSync(root,{recursive:true,force:true});}
 });
