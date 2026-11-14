@@ -2,12 +2,13 @@
 export type Slot="HAIR"|"FACE"|"HEADWEAR"|"OUTFIT"|"BACK"|"AURA_BACK"|"AURA_GROUND"|"PATH_MARK";
 export type ItemAsset={key:string;mimeType:"image/png"|"image/webp";byteSize:number;sha256:string};
 export type ItemInput={key:string;displayName:string;type:"WEARABLE"|"ACCESSORY";slot:Slot;asset:ItemAsset;positionX:number;positionY:number;scale:number;rotationDegrees:number|null;variantOfItemId?:string|null};
-export type SetInput={key:string;displayName:string;type:"SET";starterEligible:boolean;memberItemIds:string[];variantOfItemId?:string|null};
+export type SetInput={key:string;displayName:string;type:"SET";starterEligible:boolean;memberItemIds:string[];description?:string|null;variantOfItemId?:string|null};
 type Common={id:string;key:string;displayName:string;status:"DRAFT"|"PUBLISHED"|"UNPUBLISHED";revision:number;createdAt:string;updatedAt:string;publishedAt:string|null;unpublishedAt:string|null;variantOfItemId?:string|null};
 export type HoItem=Common&ItemInput&{pendingDraft?:ItemInput&{revision:number}};
 /** Core GET SET members are immutable ordered, underscored R2/slot projections. */
 export type SetMember={id:string;ordinal:number;item_type:"WEARABLE"|"ACCESSORY"|"SET";status:Common["status"];slot:Slot|null;asset_key:string|null;position_x:number;position_y:number;scale:number;rotation_degrees:number|null};
-export type HoSetItem=Common&{type:"SET";slot:null;asset:null;positionX:number;positionY:number;scale:number;rotationDegrees:null;starterEligible?:boolean;members?:SetMember[];pendingDraft?:SetInput&{revision:number}};
+export type SetHistoryEntry={revision:number;action:string;actorUserId:string;requestId:string;createdAt:string};
+export type HoSetItem=Common&{type:"SET";slot:null;asset:null;positionX:number;positionY:number;scale:number;rotationDegrees:null;starterEligible?:boolean;members?:SetMember[];description?:string|null;memberCount?:number|null;createdByUserId?:string|null;updatedByUserId?:string|null;history?:SetHistoryEntry[];pendingDraft?:SetInput&{revision:number}};
 export type ItemRecord=HoItem|HoSetItem;
 export const slots:readonly Slot[]=["HAIR","FACE","HEADWEAR","OUTFIT","BACK","AURA_BACK","AURA_GROUND","PATH_MARK"];
 export const slotNames:Record<Slot,string>={HAIR:"Tóc",FACE:"Khuôn mặt",HEADWEAR:"Phụ kiện đầu",OUTFIT:"Trang phục",BACK:"Phụ kiện lưng",AURA_BACK:"Hào quang sau",AURA_GROUND:"Hào quang nền",PATH_MARK:"Dấu ấn Path"};
@@ -28,7 +29,11 @@ export function validateItem(value:unknown):ItemRecord{
  if(i.type==="SET"){
   if(i.slot!==null||i.asset!==null||i.starterEligible!==undefined&&typeof i.starterEligible!=="boolean"||
     i.members!==undefined&&(!Array.isArray(i.members)||i.members.some(m=>!m||typeof m!=="object"||!uuid.test(String((m as SetMember).id)))))throw Error("Invalid SET projection");
-  if(i.pendingDraft){const draft=i.pendingDraft as SetInput;if(draft.type!=="SET"||!Array.isArray(draft.memberItemIds)||draft.memberItemIds.some(k=>!uuid.test(k)))throw Error("Invalid pending SET");}
+  if((i.description!==undefined&&i.description!==null&&typeof i.description!=="string")||
+    (i.memberCount!==undefined&&i.memberCount!==null&&(!Number.isSafeInteger(i.memberCount)||Number(i.memberCount)<0||Number(i.memberCount)>8))||
+    [i.createdByUserId,i.updatedByUserId].some(v=>v!==undefined&&v!==null&&!uuid.test(String(v)))||
+    (i.history!==undefined&&(!Array.isArray(i.history)||i.history.some(h=>!h||!Number.isSafeInteger(h.revision)||h.revision<1||!["CREATED","UPDATED","PUBLISHED","UNPUBLISHED"].includes(h.action)||!uuid.test(h.actorUserId)||typeof h.requestId!=="string"||!Number.isFinite(Date.parse(h.createdAt))))))throw Error("Invalid SET metadata");
+  if(i.pendingDraft){const draft=i.pendingDraft as SetInput;if(draft.type!=="SET"||(draft.description!==undefined&&draft.description!==null&&typeof draft.description!=="string")||!Array.isArray(draft.memberItemIds)||draft.memberItemIds.some(k=>!uuid.test(k)))throw Error("Invalid pending SET");}
   return i as unknown as HoSetItem;
  }
  if(!slots.includes(i.slot as Slot)||!i.asset||typeof i.asset!=="object"||Array.isArray(i.asset))throw Error("Invalid Item media");

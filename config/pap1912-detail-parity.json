@@ -87,6 +87,36 @@
       "uses": 1,
       "mode": "tabbed",
       "jira": "PAP-1077"
+    },
+    {
+      "file": "app/ho/pinoria/starter-sets/HoStarterSets.tsx",
+      "uses": 1,
+      "mode": "tabbed",
+      "jira": "PAP-1978",
+      "tabSource": "literal",
+      "tabs": [
+        [
+          "overview",
+          "Tổng quan"
+        ],
+        [
+          "members",
+          "Thành viên"
+        ],
+        [
+          "history",
+          "Lịch sử"
+        ]
+      ],
+      "g4": {
+        "surface": "HO",
+        "module": "starterSets",
+        "authPort": 9337,
+        "route": "/ho/pinoria/starter-sets",
+        "tableSelector": "#list-screen table tbody tr",
+        "detailSelector": "#detail-screen",
+        "runner": "scripts/pap1978-starter-detail-live-cdp.mjs"
+      }
     }
   ],
   "grandfatheredLegacyContent": [
