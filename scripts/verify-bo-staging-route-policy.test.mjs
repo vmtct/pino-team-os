@@ -27,12 +27,34 @@ function fixture(run) {
   for (const file of [policy, layout, rootLayout, source, gateway, cd, ci, ...pages.map(name => `app/bo/${name}/page.tsx`)]) {
     const content=fs.readFileSync(path.join(repo,file),"utf8");
     // Existing PAP-901 factory fixtures have no TDD manifest; keep scopes independent.
-    write(file,file===policy?content.replace(/\r\n/g,"\n").replace('  "/bo/pinoria-avatars",\n',"").replace('  "/bo/open-studio-passes",\n',"")
+    write(file,file===policy?content.replace(/\r\n/g,"\n").replace('  "/bo/payroll-daily",\n',"").replace('  "/bo/payroll-exceptions",\n',"").replace('  "/bo/pinoria-avatars",\n',"").replace('  "/bo/open-studio-passes",\n',"")
       .replace(/\s*"\/bo\/classroom-diaries",\r?\n/,"\n").replace('  "/bo/bills",\n',"").replace('  "/bo/missions",\n',"").replace('  "/bo/tvs",\n',""):content);
   }
   try { return run({ root, read, write }); }
   finally { fs.rmSync(root, { recursive: true, force: true }); }
 }
+
+test("PAP-1970 native Payroll is explicit, read-only and does not re-enter TDD Engine",()=>fixture(({root,read,write})=>{
+  const files=[
+    "app/bo/payroll-daily/page.tsx",
+    "app/bo/payroll-daily/BoPayrollDailyReadView.tsx",
+    "app/bo/payroll-daily/[staffMemberId]/[workDate]/BoPayrollDailyDetail.tsx",
+    "lib/bo-payroll-daily-api.ts",
+    "lib/bo-payroll-daily-read-contract.test.ts",
+    "lib/bo-native-payroll-route.ts",
+    "lib/pap1970-native-payroll-route.test.ts",
+  ];
+  for(const file of files)write(file,fs.readFileSync(path.join(repo,file),"utf8"));
+  assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/payroll-daily.*exactly one staging decision/);
+  write(policy,read(policy).replace('  "/bo/payroll-periods",','  "/bo/payroll-periods",\n  "/bo/payroll-daily",'));
+  assert.deepEqual(verifyBoStagingRoutePolicy(root).issues,[]);
+  const view=files[1], original=read(view);
+  write(view,original+"\n// BoModuleFactory");
+  assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/payroll-daily.*invalid native read-only route contract/);
+  write(view,original);
+  fs.unlinkSync(path.join(root,files[4]));
+  assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/payroll-daily.*missing native read-only route contract/);
+}));
 
 test("PAP-901 current canonical routes use one admitted BO workspace with required stylesheet", () => {
   const result=verifyBoStagingRoutePolicy(repo);
