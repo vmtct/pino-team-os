@@ -74,3 +74,16 @@ test("06 script, CSS available; HEAD never carries body",async()=>{
   assert.equal(await head.text(),"");
  }
 });
+
+test("PAP-1962 launcher title width contract is scoped to Afterschool", async () => {
+ const response=await handleRequest(req("/"),fixture);
+ const html=await response.text();
+ assert.match(html, /class="pino-word">PINO<\/span> <span class="afterschool-word">Afterschool<\/span>/);
+ assert.match(html, /MyTime<small>by PINO<\/small>/);
+ assert.match(html, /Hết giờ học,<br>đến giờ con khám phá\./);
+ const sheet=await handleRequest(req("/piner-shell.css"),fixture);
+ const css=await sheet.text();
+ assert.match(css, /\.house \.card-copy strong \.afterschool-word\{font-size:\.4244em;letter-spacing:-\.06em;/);
+ assert.match(css, /\.house \.card-copy strong \.pino-word,\.house \.card-copy strong \.afterschool-word\{display:block\}/);
+ assert.doesNotMatch(css,/\.mytime \.card-copy strong \.afterschool-word/);
+});
