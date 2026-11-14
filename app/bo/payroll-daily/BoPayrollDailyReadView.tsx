@@ -8,7 +8,7 @@ import {BoDataGrid,BoDataGridBadge,BoDataGridSidePeek,type BoDataGridColumn} fro
 import {useBoCenterSelection} from "@/app/bo/components/registration/BoCenterSelection";
 import {dailyReadApi,DailyReadError} from "@/lib/bo-payroll-daily-api";
 import {payrollDailyRow,displayDailyMoney,validDailyWindow,type BoPayrollDailyRow} from "@/lib/bo-payroll-daily-view-model";
-import styles from "./bo-payroll-daily.module.css";
+import {BoProperties} from "@/app/bo/components/BoProperties";
 
 const statuses:Record<BoPayrollDailyRow["status"],string>={
  READY:"Đã tính",NO_ATTENDANCE:"Chưa chấm công",NO_ASSIGNMENT:"Thiếu phân công",
@@ -90,12 +90,12 @@ export default function BoPayrollDailyReadView(){
  const safeRows=allowed&&servedScope===scopeKey?rows:[];
  const safeTotal=allowed&&servedScope===scopeKey?total:0;
  const safeSelected=allowed&&servedScope===scopeKey&&selected?.centerId===centerId?selected:null;
- return <section className={styles.page} aria-label="Bảng lương ngày" data-pap-ticket="PAP-1954">
-  <header className={styles.heading}><small>NHÂN SỰ / LƯƠNG</small>
+ return <section aria-label="Bảng lương ngày" data-pap-ticket="PAP-1954">
+  <header><small>NHÂN SỰ / LƯƠNG</small>
    <h1>Bảng lương ngày</h1><p>Chỉ đọc theo cơ sở đang chọn · Core Payroll</p></header>
   {scope?.loading?<p role="status">Đang xác thực cơ sở…</p>:!allowed?
    <p role="alert">{scope?.error||"Chọn cơ sở được cấp quyền để xem lương."}</p>:
-   <div className={styles.filters}>
+   <div role="group" aria-label="Khoảng ngày">
     <label>Từ ngày<input type="date" value={startDate} onChange={e=>{setOffset(0);setStartDate(e.target.value);}} /></label>
     <label>Đến ngày<input type="date" value={endDate} onChange={e=>{setOffset(0);setEndDate(e.target.value);}} /></label>
     <button type="button" onClick={()=>{setSelected(null);setRefresh(n=>n+1);}}>Tải lại</button>
@@ -111,9 +111,8 @@ export default function BoPayrollDailyReadView(){
   {safeSelected?<BoDataGridSidePeek title={safeSelected.workDate} eyebrow="Bảng lương ngày · Chỉ xem" onClose={()=>setSelected(null)}
    footer={<Link href={"/bo/payroll-daily/"+encodeURIComponent(safeSelected.staffMemberId)+"/"+
     encodeURIComponent(safeSelected.workDate)+"?centerId="+encodeURIComponent(centerId)}>Full Detail</Link>}>
-   <dl className={styles.properties}>{dailyPropertyFields.map(([name,render])=>
-    <div key={name}><dt>{name}</dt><dd>{render(safeSelected)}</dd></div>)}</dl>
-   <p className={styles.note}>Audit “—” là dữ liệu chưa có trên bản ghi dẫn xuất; lịch sử override riêng biệt.</p>
+   <BoProperties compact items={dailyPropertyFields.map(([name,render])=>({key:name,label:name,value:render(safeSelected)}))}/>
+   <p>Audit “—” là dữ liệu chưa có trên bản ghi dẫn xuất; lịch sử override riêng biệt.</p>
   </BoDataGridSidePeek>:null}
  </section>;
 }
