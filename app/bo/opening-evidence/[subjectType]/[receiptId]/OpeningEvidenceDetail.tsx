@@ -67,7 +67,8 @@ function DetailScope({centerId,subjectType,receiptId,activeTab}:{centerId:string
       {id:"evidence",label:"Ảnh setup & vòng duyệt",content:<section>
         {history.filter(e=>e.kind==="SUBMISSION"&&e.privateAssetId).map(e=><article key={e.eventId}>
           <h3>Vòng {e.version}</h3><p>{e.actorLegalFullName??"—"} · {e.occurredAt}</p>
-          <PhotoPreview key={e.privateAssetId} row={row} assetId={e.privateAssetId!}/>
+                    {e.note?<p>Ghi chú: {e.note}</p>:null}
+          {(e.privateAssetIds??[e.privateAssetId!]).map(assetId=><PhotoPreview key={assetId} row={row} assetId={assetId}/>)}
         </article>)}
         <p>{statusLabels[row.status]}</p>
         <Review key={row.version} row={row} onSaved={reload}/>
@@ -77,7 +78,7 @@ function DetailScope({centerId,subjectType,receiptId,activeTab}:{centerId:string
           {key:"time",label:"Thời gian",value:e.occurredAt},
           {key:"actor",label:"Nhân viên",value:e.actorLegalFullName??"—"},
           {key:"action",label:"Sự kiện",value:e.kind==="SUBMISSION"?"Gửi ảnh":statusLabels[e.verdict!]},
-          {key:"reason",label:"Lý do",value:e.reason||"—"},
+          {key:"reason",label:e.kind==="SUBMISSION"?"Ghi chú":"Lý do",value:(e.kind==="SUBMISSION"?e.note:e.reason)||"—"},
         ]}/></article>)}
       </section>},
     ]}/>;

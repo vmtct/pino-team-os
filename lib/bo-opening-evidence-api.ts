@@ -8,7 +8,7 @@ export type OpeningEvidenceRow={
 };
 export type EvidenceEvent={
   eventId:string;version:number;kind:"SUBMISSION"|"REVIEW";roundId:string;actorLegalFullName:string|null;
-  occurredAt:string;privateAssetId:string|null;verdict:"APPROVED"|"REJECTED"|null;reason:string|null;
+  occurredAt:string;privateAssetId:string|null;privateAssetIds?:string[];note?:string;verdict:"APPROVED"|"REJECTED"|null;reason:string|null;
 };
 export type EvidenceDetail={row:OpeningEvidenceRow;history:EvidenceEvent[]};
 export type EvidenceListScope={centerId:string;status?:EvidenceStatus;subjectType?:SubjectType;search?:string;offset:number;limit:number};
@@ -37,7 +37,15 @@ export function parseEvidenceDetail(value:unknown,centerId:string,subjectType:Su
   for(let i=0;i<history.length;i++){
     const e=history[i];
     if(!e||events.has(e.eventId)||(e.privateAssetId&&assets.has(e.privateAssetId)))throw new Error("Lịch sử bằng chứng không hợp lệ.");
-    events.add(e.eventId);if(e.privateAssetId)assets.add(e.privateAssetId);
+        events.add(e.eventId);
+    const photoIds=e.privateAssetIds??(e.privateAssetId?[e.privateAssetId]:[]);
+    if(!Array.isArray(photoIds)||photoIds.length>10||
+       (e.kind==="SUBMISSION"&&(photoIds.length===0||photoIds[0]!==e.privateAssetId))||
+       (e.kind==="REVIEW"&&photoIds.length!==0)||
+       (e.note!==undefined&&(typeof e.note!=="string"||e.note.length>1000||(e.kind==="REVIEW"&&e.note!==""))))
+      throw new Error("Lịch sử bằng chứng không hợp lệ.");
+    for(const asset of photoIds){if(!uuid.test(asset)||assets.has(asset))throw new Error("Lịch sử bằng chứng không hợp lệ.");assets.add(asset);}
+    e.privateAssetIds=photoIds;
     if(!e||e.version!==i+1||!uuid.test(e.eventId)||!uuid.test(e.roundId)||!name(e.actorLegalFullName)||!instant(e.occurredAt)||
        (e.kind==="SUBMISSION"?(!e.privateAssetId||!uuid.test(e.privateAssetId)||e.roundId!==e.eventId||e.verdict!==null||e.reason!==null):
        (e.kind!=="REVIEW"||e.privateAssetId!==null||!["APPROVED","REJECTED"].includes(e.verdict??"")||

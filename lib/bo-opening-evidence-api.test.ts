@@ -32,3 +32,11 @@ void test("PAP-764 list and review use scoped Core payload, never optimistic or 
   await assert.rejects(openingEvidenceApi.review(row,"REJECTED","Ảnh không đủ sáng",key),/đã thay đổi/);
   assert.equal(calls.length,3);
 });
+
+void test("PAP-764 preserves all private attachments and note in a single round",()=>{
+ const multi={row,history:[{...detail.history[0],privateAssetIds:[id(4),id(5)],note:"Bổ sung ảnh quầy"}]};
+ const p=parseEvidenceDetail(multi,row.centerId,row.subjectType,row.openingReceiptId);
+ assert.deepEqual(p.history[0]?.privateAssetIds,[id(4),id(5)]);
+ assert.equal(p.history[0]?.note,"Bổ sung ảnh quầy");
+ assert.throws(()=>parseEvidenceDetail({...multi,history:[{...multi.history[0],privateAssetIds:[id(4),id(4)]}]},row.centerId,row.subjectType,row.openingReceiptId),/không hợp lệ/);
+});
