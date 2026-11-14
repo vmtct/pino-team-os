@@ -62,12 +62,18 @@ function errorMessage(e:unknown):string{
 }
 export default function BoPayrollExceptionsReadView(){
  const scope=useBoCenterSelection(),centerId=scope?.selected??"";
+ const allowed=Boolean(scope&&!scope.loading&&!scope.error&&centerId&&scope.centers.some(c=>c.id===centerId));
+ // PAP-1972: independent request lifetime for each selected/authorized Center.
+ return <ExceptionScopeView key={JSON.stringify([centerId,allowed])}/>;
+}
+function ExceptionScopeView(){
+ const scope=useBoCenterSelection(),centerId=scope?.selected??"";
  const allowed=Boolean(scope&&!scope.loading&&!scope.error&&centerId&&scope.centers.some(x=>x.id===centerId));
  const [from,setFrom]=useState(()=>plusDay(vietnamToday(),-30)),[to,setTo]=useState(vietnamToday);
  const [status,setStatus]=useState<ReviewStatus|"ALL">("PENDING");
  const [offset,setOffset]=useState(0),[refresh,setRefresh]=useState(0);
  const [rows,setRows]=useState<ExceptionReadRow[]>([]),[total,setTotal]=useState(0);
- const [selected,setSelected]=useState<ExceptionReadRow|null>(null);
+ const [selected,setSelected]=useState<string|null>(null);
  const [servedScope,setServedScope]=useState("");
  const [state,setState]=useState<"loading"|"ready"|"permission"|"error">("loading"),[message,setMessage]=useState("");
  const valid=validExceptionRange(from,to),key=[centerId,from,to,status,offset,refresh].join("|");
@@ -89,7 +95,7 @@ export default function BoPayrollExceptionsReadView(){
  },[allowed,valid,centerId,from,to,status,offset,refresh,key]);
  const safe=allowed&&servedScope===key;
  const safeRows=safe?rows:[],safeTotal=safe?total:0;
- const safeSelected=safe&&selected?.centerId===centerId?selected:null;
+ const safeSelected=safeRows.find(row=>row.id===selected)??null;
  return <section aria-label="Ngoại lệ & thêm giờ" data-pap-ticket="PAP-1955">
   <header><small>NHÂN SỰ / LƯƠNG</small>
    <h1>Ngoại lệ & thêm giờ</h1>
@@ -106,7 +112,7 @@ export default function BoPayrollExceptionsReadView(){
   {allowed&&!valid?<p role="alert">Chọn khoảng thời gian hợp lệ, tối đa 91 ngày gồm hai đầu.</p>:null}
   {allowed&&valid?<BoDataGrid rows={safeRows} columns={columns} rowKey={r=>r.id}
    caption="Ngoại lệ và thêm giờ" state={safe?state:"loading"} stateMessage={message}
-   onRowOpen={setSelected} quickViewOpener resultLabel={String(safeRows.length)+" / "+String(safeTotal)+" yêu cầu"}
+   onRowOpen={row=>setSelected(row.id)} quickViewOpener resultLabel={String(safeRows.length)+" / "+String(safeTotal)+" yêu cầu"}
    pagination={{page:Math.floor(offset/50)+1,pageSize:50,total:safeTotal,
     onPageChange:p=>{setSelected(null);setOffset((p-1)*50);}}}
    emptyTitle="Chưa có yêu cầu" emptyMessage="Core không trả về yêu cầu trong bộ lọc."/>:null}
