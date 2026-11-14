@@ -6,6 +6,7 @@ import { faArrowRight, faCamera, faCheck, faChevronRight, faDoorOpen, faHeart, f
 import { OpsFrame, type OpsTab } from "./OpsV4Body";
 import {Initials} from "./OpsInitials";
 import ReceptionOpenShift from "./ReceptionV4OpenShift";
+import type { ReceptionReadySlot,ReceptionReadyReceipt } from "@/lib/tos-reception-ready-client";
 
 import {unavailableOpsReadModel,type OpsReadModel,type ArrivalStatus} from "@/lib/tos-ops-v4-view-model";
 import css from "./ops.module.css";
@@ -18,9 +19,10 @@ const TABS: OpsTab[] = [
   { id:"pinoria", label:"Pinoria", icon:faStar },
 ];
 const labels:Record<ArrivalStatus,string>={EXPECTED:"Chưa đến",ARRIVED:"Đang ở PINO",LEFT:"Đã về"};
-export default function ReceptionV4Presentation({centerName,profileLabel,workDate,shiftTime,visitLookup,model=unavailableOpsReadModel(),initialTab="overview",initialReadOnly=false}:{centerName:string;profileLabel:string;workDate:string;shiftTime:string;visitLookup?:ReactNode;model?:OpsReadModel;initialTab?:Tab;initialReadOnly?:boolean}){
+export default function ReceptionV4Presentation({centerName,profileLabel,workDate,shiftTime,visitLookup,slots,model=unavailableOpsReadModel(),initialTab="overview",initialReadOnly=false}:{centerName:string;profileLabel:string;workDate:string;shiftTime:string;visitLookup?:ReactNode;slots?:readonly ReceptionReadySlot[];model?:OpsReadModel;initialTab?:Tab;initialReadOnly?:boolean}){
   const state=model,guests=model.guests;
   const [readOnly,setReadOnly]=useState(initialReadOnly);
+  const [readyReceipt,setReadyReceipt]=useState<ReceptionReadyReceipt|null>(null);
   const [tab,setTab]=useState<Tab>(initialTab);
   const [filter,setFilter]=useState<"ALL"|ArrivalStatus>("ALL");
   const [query,setQuery]=useState("");
@@ -38,11 +40,11 @@ export default function ReceptionV4Presentation({centerName,profileLabel,workDat
   function openFilter(value:ArrivalStatus){setFilter(value);setQuery("");setTab("arrivals");}
   function closeDetail(){setSelectedId(null);setGuardianConfirmed(false);}
   function openDetail(id:string){setSelectedId(id);setGuardianConfirmed(false);}
-  if(!readOnly)return <ReceptionOpenShift centerName={centerName} shiftTime={shiftTime} onBypass={()=>setReadOnly(true)}/>;
+  if(!readOnly)return <ReceptionOpenShift centerName={centerName} shiftTime={shiftTime} slots={slots} onReady={receipt=>{setReadyReceipt(receipt);setReadOnly(true);}} onBypass={()=>{setReadyReceipt(null);setReadOnly(true);}}/>;
   return <OpsFrame app="reception" title="Tiếp Tân" tabs={TABS} tab={tab} onTab={value=>setTab(value as Tab)} notice={notice}>
     {tab==="overview"&&<>
       <div className={css.intro}><span className={css.eyebrow}>{workDate}</span><h2 className={css.title}>Xin chào, {profileLabel||"bạn"} 👋</h2><p className={css.lead}>Học viên đến và về trong ca trực hôm nay.</p></div>
-      <div className={css.openedStrip}><div><strong>Đang xem quầy · Chưa xác nhận mở ca</strong><small>{centerName} · {shiftTime}</small></div><button className={css.photoBadge} type="button" onClick={()=>setReadOnly(false)}><FontAwesomeIcon icon={faCamera}/> Ảnh setup</button></div>
+      <div className={css.openedStrip}><div><strong>{readyReceipt?"Đã xác nhận mở ca":"Đang xem quầy · Chưa xác nhận mở ca"}</strong><small>{centerName} · {shiftTime}</small></div><button className={css.photoBadge} type="button" onClick={()=>setReadOnly(false)}><FontAwesomeIcon icon={faCamera}/> Ảnh setup</button></div>
       <div className={css.stats} aria-label="Tình trạng học viên hôm nay">
         <button type="button" className={css.stat} onClick={()=>openFilter("EXPECTED")} aria-label={"Xem "+(model.loaded?counts.EXPECTED:"chưa xác minh")+" học viên chưa đến"}><strong>{model.loaded?counts.EXPECTED:"—"}</strong><span>Chưa đến <FontAwesomeIcon icon={faChevronRight}/></span></button>
         <button type="button" className={css.stat} onClick={()=>openFilter("ARRIVED")} aria-label={"Xem "+(model.loaded?counts.ARRIVED:"chưa xác minh")+" học viên đang ở PINO"}><strong>{model.loaded?counts.ARRIVED:"—"}</strong><span>Đang ở PINO <FontAwesomeIcon icon={faChevronRight}/></span></button>
