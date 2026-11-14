@@ -1,5 +1,6 @@
 /** PAP-1954 · Display-only BO Payroll Daily ledger. Core alone computes financial truth. */
 import type {DailyWorkRecord} from "./bo-payroll-daily-api";
+import {payrollVerifiedName} from "./bo-payroll-safe-read-metadata";
 
 export interface BoPayrollDailyRow {
  id:string;staffMemberId:string;staffDisplayName:string;centerId:string;workDate:string;
@@ -31,8 +32,8 @@ export function payrollDailyRow(record:DailyWorkRecord,expectedCenterId:string):
  return {
   id:expectedCenterId+"/"+record.base.staffMemberId+"/"+record.base.workDate,
   centerId:expectedCenterId,staffMemberId:record.base.staffMemberId,
-  // Legal CCCD full name is NOT in this Core projection; never guess.
-  staffDisplayName:missing,workDate:record.base.workDate,status:record.effective.status,
+  // PAP-1959: trust only the verified, scoped Core field; old Core stays missing.
+  staffDisplayName:payrollVerifiedName(record.staffLegalFullName),workDate:record.base.workDate,status:record.effective.status,
   assignmentRefs:record.source.coverage.map(item=>item.assignmentId).join(", ")||missing,
   recordedInOut:recorded,actualInOut:actual,
   paidMinutes:record.effective.paidMinutes,appliedRateMinor:record.base.hourlyRateMinor,

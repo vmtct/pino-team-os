@@ -1,6 +1,13 @@
 /** PAP-1955 · BO Payroll Exception S2 read-only Core interface (no decision writer). */
 import type {ReviewedException,ReviewPage,ReviewStatus} from "./bo-payroll-extra-review-api";
 export type {ReviewedException,ReviewPage,ReviewStatus};
+/** PAP-1959: native read-only enrichment, never change legacy decision command DTO. */
+export type NativeReviewedException=Omit<ReviewedException,"decision">&{
+ staffLegalFullName?:string|null;createdAt?:string|null;createdBy?:string|null;submittedBy?:string|null;
+ updatedAt?:null;updatedBy?:null;
+ decision:(NonNullable<ReviewedException["decision"]>&{reviewerLegalFullName?:string|null})|null;
+};
+export type NativeReviewPage=Omit<ReviewPage,"data">&{data:NativeReviewedException[]};
 export class ExceptionReadError extends Error {
  constructor(readonly status:number,readonly code:string,message:string){super(message);}
 }
@@ -18,8 +25,8 @@ export const exceptionReadApi={
   const q=new URLSearchParams({centerId:input.centerId,startDate:input.startDate,endDate:input.endDate,
    offset:String(input.offset??0),limit:String(input.limit??50)});
   if(input.status)q.set("status",input.status);
-  return coreGet<{data:ReviewPage}>(ROOT+"?"+q,fetcher);
+  return coreGet<{data:NativeReviewPage}>(ROOT+"?"+q,fetcher);
  },
  detail:(centerId:string,requestId:string,fetcher?:typeof fetch)=>
-  coreGet<{data:ReviewedException}>(ROOT+"/"+encodeURIComponent(requestId)+"?centerId="+encodeURIComponent(centerId),fetcher),
+  coreGet<{data:NativeReviewedException}>(ROOT+"/"+encodeURIComponent(requestId)+"?centerId="+encodeURIComponent(centerId),fetcher),
 } as const;

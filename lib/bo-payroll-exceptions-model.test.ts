@@ -64,3 +64,13 @@ test("PAP-1955 read client always GET, no mutation contract",async()=>{
  assert.ok(calls.every(c=>c.url.includes("centerId="+center)));
  assert.equal("decide" in exceptionReadApi,false);
 });
+
+test("PAP-1959 verified request actor and timestamp, no decision-as-request updated audit",()=>{
+ const decision={id:"decision-id",type:"APPROVED" as const,startAt:"2026-11-13T11:15:00Z",endAt:"2026-11-13T11:30:00Z",minutes:15,hourlyRateMinor:50000,rateEntryId:"rate",rateVersion:2,amountMinor:12500,reason:"verified adjustment",reviewerId:"user-id",reviewedAt:"2026-11-13T13:00:00Z",sourceFingerprint:"abc",reviewerLegalFullName:"Synthetic Reviewer"};
+ const p=toExceptionReadRow({...sample,status:"APPROVED",staffLegalFullName:"Synthetic Staff",submittedBy:"Synthetic Submitter",createdBy:"Synthetic Submitter",createdAt:"2026-11-13T10:00:00.000Z",decision},center);
+ assert.deepEqual([p.staffLegalName,p.submittedBy,p.createdBy,p.reviewerName],["Synthetic Staff","Synthetic Submitter","Synthetic Submitter","Synthetic Reviewer"]);
+ assert.equal(p.createdAt,"13/11/2026 · 17:00");
+ assert.deepEqual([p.updatedAt,p.updatedBy],["—","—"]);
+ assert.equal(p.reviewedAmountMinor,12500);
+ assert.equal(toExceptionReadRow({...sample,staffLegalFullName:null,createdAt:"invalid",createdBy:null},center).createdAt,"—");
+});

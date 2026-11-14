@@ -2,6 +2,8 @@
 export type DayStatus="READY"|"NO_ATTENDANCE"|"NO_ASSIGNMENT"|
  "PENDING_CHECKOUT"|"RATE_MISSING"|"RECONCILIATION_REQUIRED";
 export interface DailyWorkRecord {
+ /** PAP-1959: additive, nullable authorized BO read-only projection. */
+ staffLegalFullName?:string|null;
  base:{
   calculationVersion:string;staffMemberId:string;centerId:string;workDate:string;
   status:DayStatus;paidMinutes:number|null;amountMinor:number|null;

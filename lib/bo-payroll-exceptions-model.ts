@@ -1,5 +1,6 @@
 /** PAP-1955 · Pure presentation from authorized Core extra-time review response. */
-import type {ReviewedException,ReviewStatus} from "./bo-payroll-extra-review-api";
+import type {NativeReviewedException,ReviewStatus} from "./bo-payroll-exceptions-read";
+import {payrollVerifiedName,payrollAuditTime} from "./bo-payroll-safe-read-metadata";
 export interface ExceptionReadRow {
  id:string;centerId:string;staffMemberId:string;staffLegalName:string;
  submittedBy:string;workDate:string;assignmentId:string;
@@ -8,7 +9,7 @@ export interface ExceptionReadRow {
  reviewedWindow:string;reviewedMinutes:number|null;reviewedAmountMinor:number|null;
  reviewerName:string;reviewerId:string|null;reviewedAt:string;
  decisionReason:string;createdAt:string;createdBy:string;updatedAt:string;updatedBy:string;
- source:ReviewedException;
+ source:NativeReviewedException;
 }
 export const NA="—";
 export const labels:Record<ReviewStatus,string>={
@@ -39,14 +40,14 @@ export function validExceptionRange(start:string,end:string):boolean {
   new Date(a).toISOString().slice(0,10)===start&&
   new Date(b).toISOString().slice(0,10)===end&&b>=a&&(b-a)/86400000<=90;
 }
-export function toExceptionReadRow(row:ReviewedException,selectedCenterId:string):ExceptionReadRow {
+export function toExceptionReadRow(row:NativeReviewedException,selectedCenterId:string):ExceptionReadRow {
  if(!selectedCenterId||row.centerId!==selectedCenterId)throw Error("PAYROLL_EXCEPTION_CROSS_CENTER");
  if(!row.id||!row.staffMemberId||!row.workDate)throw Error("PAYROLL_EXCEPTION_SOURCE_ID_MISSING");
  const d=row.decision;
  return {
   id:row.id,centerId:row.centerId,staffMemberId:row.staffMemberId,
-  // Core does not project verified CCCD full legal name or TOS submitting actor.
-  staffLegalName:NA,submittedBy:NA,workDate:row.workDate,assignmentId:row.assignmentId,
+  // PAP-1959: exact verified server fields only; never infer creator from subject staff.
+  staffLegalName:payrollVerifiedName(row.staffLegalFullName),submittedBy:payrollVerifiedName(row.submittedBy),workDate:row.workDate,assignmentId:row.assignmentId,
   requestedStartAt:row.requestedStartAt,requestedEndAt:row.requestedEndAt,
   requestedWindow:vietnamTime(row.requestedStartAt)+" – "+vietnamTime(row.requestedEndAt),
   requestReason:row.requestReason,status:row.status,statusLabel:labels[row.status],
@@ -55,10 +56,10 @@ export function toExceptionReadRow(row:ReviewedException,selectedCenterId:string
   reviewedMinutes:d?.type==="APPROVED"?d.minutes:null,
   reviewedAmountMinor:d?.type==="APPROVED"?d.amountMinor:null,
   // reviewerId is a technical identifier; never masquerade as verified legal name.
-  reviewerName:NA,reviewerId:d?.reviewerId??null,
+  reviewerName:payrollVerifiedName(d?.reviewerLegalFullName),reviewerId:d?.reviewerId??null,
   reviewedAt:vietnamDateTime(d?.reviewedAt),
   decisionReason:d?.reason??NA,
-  // Request audit is NOT projected in Core; decision review time ≠ updatedAt.
-  createdAt:NA,createdBy:NA,updatedAt:NA,updatedBy:NA,source:row,
+  // Genuine request creation metadata only; decision review time is not request updatedAt.
+  createdAt:payrollAuditTime(row.createdAt),createdBy:payrollVerifiedName(row.createdBy),updatedAt:NA,updatedBy:NA,source:row,
  };
 }
