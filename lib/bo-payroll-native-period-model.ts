@@ -25,3 +25,9 @@ export function nativePeriodRow(period:BoPayPeriodRead,rollup:PeriodStaffPage,ce
   modifiedTime:payrollAuditTime(period.updatedAt),modifiedActor:payrollVerifiedName(period.updatedBy)};
 }
 export type NativePeriodRow=ReturnType<typeof nativePeriodRow>;
+export function nativePeriodStatus(row:Pick<BoPayPeriodRead,"status"|"dateLocked"|"canceledAt">):string {
+ return row.status==="ARCHIVED"?(typeof row.canceledAt==="string"&&row.canceledAt.length>0?"Đã hủy":"Lưu trữ"):row.dateLocked?"Đã khóa ngày":"Đang mở";
+}
+export function mayCancelNativePeriod(row:Pick<BoPayPeriodRead,"canCancel"|"status"|"dateLocked"|"canceledAt">):boolean {
+ return row.canCancel===true&&row.status==="ACTIVE"&&!row.dateLocked&&!row.canceledAt;
+}

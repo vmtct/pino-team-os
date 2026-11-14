@@ -6,7 +6,7 @@ import {DrawerFrame} from "@/app/components/workspace-renderer/DrawerFrame";
 import {BoTypedEditor} from "@/app/bo/components/registration/BoTypedEditor";
 import type {BoField,BoRecord,BoValue} from "@/lib/bo-registration";
 import {periodApi,money,type PayPeriodDates} from "@/lib/bo-payroll-period-api";
-import {validNativePeriodDates,type NativePeriodRow} from "@/lib/bo-payroll-native-period-model";
+import {validNativePeriodDates,nativePeriodStatus,mayCancelNativePeriod,type NativePeriodRow} from "@/lib/bo-payroll-native-period-model";
 import {periodDisplayName} from "@/lib/bo-payroll-read-model";
 import "@pino/design-system/bo-tokens.css";
 import "@pino/design-system/components.css";
@@ -22,7 +22,7 @@ const sections=[{id:"overview",label:"Thông tin chính",fields:periodFields.map
 const dateField=(k:string):k is keyof PayPeriodDates=>k==="startDate"||k==="endDate";
 function record(row:NativePeriodRow):BoRecord{
  return {id:row.id,name:row.name,startDate:row.startDate,endDate:row.endDate,
-  status:row.status==="ARCHIVED"?"Lưu trữ":row.dateLocked?"Đã khóa ngày":"Đang mở",
+  status:nativePeriodStatus(row),
   staffCount:row.staffCount??"—",expected:money(row.expected),finalized:money(row.finalized),
   createdAt:row.createdTime,createdBy:row.createdActor,updatedAt:row.modifiedTime,updatedBy:row.modifiedActor};
 }
@@ -34,6 +34,25 @@ export function PeriodProperties({row,variant,onSaved}:{row:NativePeriodRow;vari
  useEffect(()=>{alive.current=true;return()=>{alive.current=false;};},[]);
  const close=useCallback(()=>{if(!saving.current)setEdit(null);},[]);
  const allowed=row.canEdit===true&&row.status==="ACTIVE"&&!row.dateLocked;
+ const canCancel=mayCancelNativePeriod(row);
+ const [confirmCancel,setConfirmCancel]=useState(false);
+ const cancelKeyRef=useRef<string|null>(null);
+ async function cancel(){
+  if(!canCancel||!confirmCancel||saving.current||!alive.current)return;
+  cancelKeyRef.current??="period-cancel-"+crypto.randomUUID();
+  saving.current=true;setBusy(true);setError("");
+  try{
+   const receipt=(await periodApi.cancel(row.centerId,row,cancelKeyRef.current)).data;
+   const read=(await periodApi.get(row.centerId,row.id)).data;
+   if(receipt.centerId!==row.centerId||receipt.id!==row.id||receipt.status!=="CANCELLED"||
+    receipt.version!==row.version+1||read.centerId!==row.centerId||read.id!==row.id||
+    read.status!=="ARCHIVED"||read.version!==receipt.version||read.canceledAt!==receipt.canceledAt||
+    !receipt.canceledAt||read.canCancel!==false)
+    throw Error("Chưa xác minh được kỳ lương đã hủy. Tải lại trước khi thao tác.");
+   if(alive.current){setConfirmCancel(false);onSaved();}
+  }catch(e){if(alive.current)setError(text(e));}
+  finally{saving.current=false;if(alive.current)setBusy(false);}
+ }
  async function save(value:BoValue){
   if(!edit||!allowed||saving.current||!alive.current||!dateField(edit.field.key)||typeof value!=="string")return;
   const input={startDate:row.startDate,endDate:row.endDate,[edit.field.key]:value};
@@ -52,9 +71,15 @@ export function PeriodProperties({row,variant,onSaved}:{row:NativePeriodRow;vari
  }
  return <>
   <PropertySections fields={periodFields} record={record(row)} sections={sections} variant={variant}
-   canEdit={field=>allowed&&!busy&&dateField(field.key)} onEdit={(field,anchor)=>{if(allowed&&!saving.current&&dateField(field.key)){setError("");setEdit({field,anchor});}}}/>
+   canEdit={field=>allowed&&!busy&&!confirmCancel&&dateField(field.key)} onEdit={(field,anchor)=>{if(allowed&&!confirmCancel&&!saving.current&&dateField(field.key)){setError("");setEdit({field,anchor});}}}/>
   {edit&&allowed?<BoTypedEditor field={edit.field} value={row[edit.field.key as keyof PayPeriodDates]} anchor={edit.anchor}
    onClose={close} onSave={v=>void save(v)} closeOnSave={false}/>:null}
+  {canCancel&&!edit?<section className="property-section" aria-label="Hủy kỳ lương">
+   {confirmCancel?<><p role="alert">Bạn có chắc muốn hủy kỳ lương này? Kỳ và lịch sử vẫn được giữ lại. Không thể khôi phục.</p>
+    <button type="button" className="secondary-btn" disabled={busy} onClick={()=>setConfirmCancel(false)}>Quay lại</button>
+    <button type="button" className="primary-btn" disabled={busy} onClick={()=>void cancel()}>Xác nhận hủy kỳ lương</button></>:
+    <button type="button" className="secondary-btn" disabled={busy} onClick={()=>{setError("");setConfirmCancel(true);}}>Hủy kỳ lương</button>}
+  </section>:null}
   {error?<p role="alert">{error}</p>:null}{busy?<p role="status">Đang lưu…</p>:null}
  </>;
 }

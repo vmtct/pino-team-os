@@ -9,12 +9,12 @@ import {DrawerFrame} from "@/app/components/workspace-renderer/DrawerFrame";
 import {PeriodProperties,CreatePeriod} from "./PeriodProperties";
 import {useBoCenterSelection} from "@/app/bo/components/registration/BoCenterSelection";
 import {periodApi,money,type PeriodStaffPage} from "@/lib/bo-payroll-period-api";
-import {nativePeriodRow,type NativePeriodRow} from "@/lib/bo-payroll-native-period-model";
+import {nativePeriodRow,nativePeriodStatus,type NativePeriodRow} from "@/lib/bo-payroll-native-period-model";
 import {staffWithWorkEvidence} from "@/lib/bo-payroll-read-model";
 
 const ROOT="/bo/payroll-periods";
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-const status=(r:NativePeriodRow)=>r.status==="ARCHIVED"?"Lưu trữ":r.dateLocked?"Đã khóa ngày":"Đang mở";
+const status=nativePeriodStatus;
 const fields:{key:string;label:string;value:(r:NativePeriodRow)=>string}[]=[
  {key:"name",label:"Tên kỳ",value:r=>r.name},
  {key:"startDate",label:"Bắt đầu",value:r=>r.startDate},

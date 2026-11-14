@@ -4,7 +4,7 @@ export interface PayPeriod{
  status:"ACTIVE"|"ARCHIVED";version:number;dateLocked:boolean;createdAt:string;updatedAt:string|null;
 }
 /** Additive GET-only metadata; command DTO stays unchanged. */
-export type BoPayPeriodRead = PayPeriod & {createdBy?:string|null;updatedBy?:string|null;canEdit?:boolean};
+export type BoPayPeriodRead = PayPeriod & {createdBy?:string|null;updatedBy?:string|null;canEdit?:boolean;canCancel?:boolean;canceledAt?:string|null};
 export interface PeriodStaff{
  staffMemberId:string;status:"DRAFT"|"PENDING"|"FINALIZED"|"PAID"|"ARCHIVED_UNAVAILABLE";
  amountMinor:number|null;provisionalAmountMinor:number|null;warnings:string[];
@@ -44,7 +44,11 @@ async function call<T>(path:string,init:RequestInit={}):Promise<T>{
 }
 const qs=(centerId:string,extra:Record<string,string>={})=>"?"+new URLSearchParams({centerId,...extra});
 export type PayPeriodDates=Pick<PayPeriod,"startDate"|"endDate">;
+export type PeriodCancellation={id:string;centerId:string;status:"CANCELLED";version:number;canceledAt:string};
 export const periodApi={
+ cancel:(centerId:string,period:Pick<PayPeriod,"id"|"version">,key:string)=>
+  call<{data:PeriodCancellation}>(ROOT+"/"+period.id+"/cancel"+qs(centerId),{
+   method:"POST",headers:{"idempotency-key":key},body:JSON.stringify({centerId,expectedVersion:period.version})}),
  list:(centerId:string,offset=0)=>call<{data:{data:BoPayPeriodRead[];total:number;nextOffset:number|null;centerId?:string;canCreate?:boolean}}>(
   ROOT+qs(centerId,{limit:"50",offset:String(offset)})),
  get:(centerId:string,id:string)=>call<{data:BoPayPeriodRead}>(ROOT+"/"+id+qs(centerId)),
