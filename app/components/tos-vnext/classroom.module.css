@@ -712,3 +712,86 @@
   color: var(--tos-color-warning-text);
   border-color: var(--tos-color-border);
 }
+
+
+/* PAP-1942 · Classroom Add Student / Mission FE-only polish — PINO DS. */
+@layer tos.apps {
+  .phone .sheet>header {
+    margin: 0;
+    padding: var(--tos-space-2) 0 var(--tos-space-3);
+    min-height: 56px;
+    background: var(--tos-color-surface);
+    box-shadow: none;
+  }
+  .phone .sheet>header h2 { color: var(--tos-color-ink); }
+  .phone .sheet>header button { color: var(--tos-color-ink); }
+  .phone .sheet .search {
+    display: flex;
+    align-items: center;
+    gap: var(--tos-space-2);
+    min-height: 46px;
+    padding: 0 var(--tos-space-3);
+    margin: var(--tos-space-2) 0 var(--tos-space-3);
+    border: 1px solid var(--tos-color-border);
+    border-radius: var(--tos-radius-control);
+    background: var(--tos-color-surface);
+    box-shadow: none;
+  }
+  .phone .sheet .search:focus-within {
+    outline: 2px solid var(--tos-color-success);
+    outline-offset: 2px;
+  }
+  .phone .sheet .search input {
+    display: block;
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 44px;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    outline: none;
+    color: var(--tos-color-ink);
+  }
+  .phone .sheet .lookupResult {
+    gap: var(--tos-space-3);
+    min-height: 58px;
+    padding: var(--tos-space-3) var(--tos-space-1);
+  }
+  .phone .sheet .lookupResult>div { gap: var(--tos-space-1); }
+  .phone .sheet .lookupResult strong,
+  .phone .personTitle strong,
+  .phone .missionBatch strong { color: var(--tos-color-ink); }
+  .phone .sheet .toggle { margin: var(--tos-space-3) 0; }
+  .phone .sheet>.smallMuted { margin: var(--tos-space-2) 0 var(--tos-space-3); }
+  .phone .sheet .field { gap: var(--tos-space-2); }
+  .phone .sheet .fieldGrid { gap: var(--tos-space-3); }
+  .phone .sectionHead { gap: var(--tos-space-3); align-items: center; }
+  .phone .sectionHead>button { min-height: var(--tos-hit-min); }
+}
+
+/* PAP-1942: unlayered form skins outrank normal tos.apps declarations.
+   Scope the border reset only to the nested Student Add search control. */
+.phone .sheet .search input {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* PAP-1960 · TOS Classroom three-tab spacing, age and neutral Diary colors. */
+@layer tos.apps {
+ .phone [role="tabpanel"]{display:flex;flex-direction:column;gap:var(--tos-space-3);min-height:0}
+ .phone [role="tabpanel"] > .sectionHead{margin-bottom:var(--tos-space-1)}
+ .phone .personActions{gap:var(--tos-space-3);margin-top:var(--tos-space-4)}
+ .phone .filterPills{gap:var(--tos-space-2);margin-block:var(--tos-space-1)}
+ .phone .diaryCard{color:var(--tos-color-ink)}
+ .phone .diaryCard > span{color:var(--tos-color-warm-text)}
+ .phone .studentAge{font-size:var(--tos-text-caption);font-weight:400;color:var(--tos-color-soft)}
+ .phone .bottomNav{flex-shrink:0;position:relative;z-index:15;background:var(--tos-color-surface)}
+ .phone .bypassEntry{background:var(--tos-color-surface);gap:var(--tos-space-3);margin-top:var(--tos-space-2)}
+ .phone .bypassEntryButton{min-height:var(--tos-hit-min);color:var(--tos-color-warning-text)}
+ .phone .bypassConfirm > div{margin-top:var(--tos-space-3)}
+}

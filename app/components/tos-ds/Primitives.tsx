@@ -16,14 +16,14 @@ function useModalIsolation(ref:React.RefObject<HTMLElement|null>){
  },[ref]);
 }
 
-export type NavOption={id:string;label:string;icon:ReactNode};
+export type NavOption={id:string;label:string;icon?:ReactNode};
 export function AppBottomNav({items,active,onChange,label,tabPanelPrefix}:{
  items:NavOption[];active:string;onChange:(id:string)=>void;label:string;tabPanelPrefix?:string;
 }){
  if(items.length>5)throw new Error("TOS BottomNav supports at most 5 tabs");
  return <nav role={tabPanelPrefix?"tablist":undefined} className={ui.bottomNav} aria-label={label} data-tos-shared="bottom-nav">
  {items.map(item=><button type="button" key={item.id} role={tabPanelPrefix?"tab":undefined} id={tabPanelPrefix?`${tabPanelPrefix}-tab-${item.id}`:undefined} aria-controls={tabPanelPrefix?`${tabPanelPrefix}-panel-${item.id}`:undefined} aria-selected={tabPanelPrefix?item.id===active:undefined} aria-current={item.id===active?"page":undefined} onClick={()=>onChange(item.id)}>
- <span className={ui.navIcon} aria-hidden="true">{item.icon}</span><span className={ui.navText}>{item.label}</span></button>)}
+ <span className={ui.navText}>{item.label}</span></button>)}
  </nav>;
 }
 export function AppSectionHeading({title,meta}:{

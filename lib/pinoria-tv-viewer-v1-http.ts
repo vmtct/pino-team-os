@@ -67,7 +67,7 @@ export async function handlePolicyViewerHttp(
   // Render no staff, student, token, Center, events or private Context fields.
   const body = document('<article data-pnr-tv-published-policy="authorized">' +
     '<h1>Pinoria TV</h1><p>Ambient Welcome · Chính sách đang áp dụng</p>' +
-    '<p>Phiên bản ' + policy.appliedRevision + '</p>' +
+    (policy.appliedRevision === null ? "" : '<p>Phiên bản ' + policy.appliedRevision + '</p>') +
     '<p>' + (policy.configuration.quietMode
       ? 'Chế độ yên tĩnh' : 'Chỉ xem chính sách đã xuất bản') + '</p></article>');
   return new Response(body, { status: 200, headers: HEADERS });

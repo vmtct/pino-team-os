@@ -3,7 +3,7 @@
  * Core Assignment IDs (not Diary child records). Approved card and sheet CSS only.
  */
 import {useCallback,useEffect,useRef,useState} from "react";
-import {FontAwesomeIcon,faBookOpen,faCheck,faPlus,faRotate,faXmark} from "./classroom-icons";
+import {FontAwesomeIcon,faBookOpen,faCheck,faRotate,faXmark} from "./classroom-icons";
 import styles from "./classroom.module.css";
 import {AppModalRoot,createSlotKeys} from "../tos-ds";
 import {
@@ -132,7 +132,7 @@ export default function MissionAssignmentTab({
       <button type="button" className={styles.missionAddAction} aria-label="Thêm Nhiệm Vụ" disabled={!canWrite}
         onClick={()=>{if(groups.length===1)open(groups[0]!.studentId);
           else if(groups.length>1)open(groups[0]!.studentId)}}>
-        <FontAwesomeIcon icon={faPlus}/> Thêm
+        Thêm
       </button>
     </div>
     {read.state==="LOADING"&&<p role="status" className={styles.empty}
@@ -174,7 +174,7 @@ export default function MissionAssignmentTab({
             data-tos-slot={slot(styles.missionNextCta)}
             aria-label={"Thêm nhiệm vụ sau "+card.missionCodeSnapshot}
             disabled={!canWrite} onClick={()=>open(group.studentId)}>
-            <FontAwesomeIcon icon={faPlus}/> Thêm
+            Thêm
           </button>
           <button type="button" className={styles.missionSwapCta}
             data-tos-slot={slot(styles.missionSwapCta)}

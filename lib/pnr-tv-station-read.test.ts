@@ -55,14 +55,22 @@ test("strict selected Center, IDs, scope, duplicates, names and no Viewer leakag
  ];
  for(const value of malformed)assert.throws(()=>parseStaffTvRead(value,a));
 });
-test("PAP-1753 UI keeps Viewer and commands disabled, exposes loading/error states",()=>{
+test("PAP-1753 UI links the matching Center Viewer through the guarded route, exposes loading/error states",()=>{
  const source=readFileSync(new URL("../app/components/tos-vnext/StationLogicalTv.tsx",import.meta.url),"utf8");
  const station=readFileSync(new URL("../app/components/tos-vnext/TosVNextStation.tsx",import.meta.url),"utf8");
  assert.match(source,/readStatus==="loading"/);
  assert.match(source,/readStatus==="error"/);
  assert.match(source,/data-pnr-tv-source/);
- assert.match(source,/disabled title="Viewer cần Core xác thực"/);
- assert.doesNotMatch(source,/href=\{.*tvId/);
+ assert.match(source,/row.visibilityScope==="CENTER"/);
+ assert.match(source,/href=\{formatTvPolicyViewerPath\(row.tvId\)/);
  assert.match(station,/readStaffStationTvs\(centerId,authorizedCenterIds,\{signal:controller.signal\}\)/);
  assert.match(station,/controller.abort\(\)/);
+});
+
+test("House Ambient metadata must match the selected Center",()=>{
+ const instance={id:"tvp2-house-ambient-"+a,name:"House Ambient",scope:"CENTER"};
+ const payload=(row:typeof instance)=>({data:{centerId:a,policies:[row]}});
+ assert.equal(parseStaffTvRead(payload(instance),a)[0]?.tvId,instance.id);
+ assert.throws(()=>parseStaffTvRead(payload({...instance,id:"tvp2-house-ambient-"+b}),a));
+ assert.throws(()=>parseStaffTvRead(payload({...instance,scope:"DEFAULT"}),a));
 });

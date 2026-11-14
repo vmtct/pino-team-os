@@ -19,7 +19,7 @@ async function handle(request: Request, context: Context) {
     }
     let body: Record<string, unknown> = {};
     const url = new URL(request.url);
-    for (const [key, value] of url.searchParams) if (key !== "t") body[key] = tosQueryParamValue(key, value);
+    for (const [key, value] of url.searchParams) if (key !== "t") body[key] = tosQueryParamValue(key, value, normalizedPath);
     if (request.method !== "GET" && request.method !== "HEAD") {
       const parsed = await request.json().catch(() => ({}));
       if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) body = { ...body, ...parsed };

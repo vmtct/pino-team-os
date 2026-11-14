@@ -1,11 +1,9 @@
 /** PAP-1646 / Epic PAP-650 PNR-TV — F1/F2 read-only Staff Viewer ingress.
  * The Viewer reference is a target, NEVER a credential or permission.
- * Selected Center MUST come from one unambiguous authenticated Core Workforce
- * context, not caller URL/query, device session, localStorage or user headers.
- * When Staff has multiple Centers (no Core selectedCenter yet), fail closed.
+ * The policy reference requests a Center. Workforce confirms Staff membership, and Core authorizes the policy.
  * HO Founder selected-Center bridge and PAP-9/PAP-1921 ACL F3 remain separate.
  */
-import { isStableTvPolicyRef } from "./pinoria-tv-viewer-link";
+import { isStableTvPolicyRef, tvPolicyViewerCenter } from "./pinoria-tv-viewer-link";
 import { parsePublishedTvPolicyProjection, type ViewerPublishedProjection } from "./pinoria-tv-viewer-published";
 import { callTosLearningCoreWithCredential, type TosLearningCoreBinding } from "./tos-learning-core";
 import { callWorkforceCoreWithCredential, type WorkforceCoreBinding } from "./workforce-core";
@@ -30,20 +28,19 @@ function statusOf(status: number): 401 | 403 | 404 | 503 {
   return 503;
 }
 
-/** Stronger than an authorization-list membership check: 1 active Core context Center. */
-export function oneTrustedStaffViewerCenter(payload: unknown): string | null {
-  if (!object(payload) || !object(payload.data)) return null;
+/** Resolve only a requested Center present in authenticated Staff Workforce context. */
+export function authorizedStaffViewerCenter(payload: unknown, requestedCenterId: string): string | null {
+  if (!UUID_V7.test(requestedCenterId) || !object(payload) || !object(payload.data)) return null;
   const ctx = payload.data;
   if (typeof ctx.userId !== "string" || !ctx.userId.trim() ||
     typeof ctx.staffMemberId !== "string" || !ctx.staffMemberId.trim() ||
-    ctx.founderMode === true || !Array.isArray(ctx.centers) || ctx.centers.length !== 1 ||
-    !object(ctx.centers[0]) || typeof ctx.centers[0].id !== "string" ||
-    !UUID_V7.test(ctx.centers[0].id)) return null;
-  return ctx.centers[0].id;
+    ctx.founderMode === true || !Array.isArray(ctx.centers) ) return null;
+  return ctx.centers.some(center => object(center) && center.id === requestedCenterId) ? requestedCenterId : null;
 }
 
+
 /** This can never produce a successful projection from Team input alone:
- * Workforce Core first authenticates Staff + its single authorized Center,
+ * Workforce Core first authenticates Staff + membership in the requested Center,
  * then TosLearning Core independently validates surface, center and
  * pinoria.tv.published.view before returning the currently published Policy.
  */
@@ -70,10 +67,8 @@ export async function readStaffPublishedViewer(
       env.PINO_WORKFORCE_CORE, { method: "GET", path: "/context", body: {} }, credential,
     );
     if (context.status !== 200) return blocked(statusOf(context.status));
-    const centerId = oneTrustedStaffViewerCenter(context.body);
+    const centerId = authorizedStaffViewerCenter(context.body, tvPolicyViewerCenter(policyRef) ?? "");
     if (!centerId) return blocked(403);
-    // The URL is compared against the Core-proven current Center, NOT trusted as a selection.
-    if (policyRef !== "tvp1-center-" + centerId) return blocked(403);
 
     const published = await callTosLearningCoreWithCredential(
       env.PINO_TOS_LEARNING_CORE,

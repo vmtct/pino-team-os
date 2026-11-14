@@ -9,6 +9,7 @@ import type { BoRunningClass, BoWorkforceAssignment, BoWorkforcePlanningBootstra
 import { eligibleShiftRunningClasses, buildIndependentRoleCommands } from "@/lib/workforce-planning-class-eligibility";
 import { correctWorkforceAssignment } from "@/lib/workforce-planning-correction";
 import { BoWorkforceWeekPlanner } from "@/app/bo/components/workforce/BoWorkforceWeekPlanner";
+import { BoWorkforceDayHeadcount, fetchWorkforceDayHeadcount, type DayHeadcountLoad } from "./BoWorkforceDayHeadcount";
 import { assignmentTimeSummary, canUseTeachingSessionTime, learningOwnerBlocksShiftCancellation, type WorkforceShiftCoverageMode } from "@/lib/workforce-planning-time-basis";
 import styles from "../bo.module.css";
 import { workforceAssignmentNote } from "@/app/bo/architecture/workforce-shift-note";
@@ -24,6 +25,19 @@ export function WorkforcePlanningView({ embedded = false, scope }: { embedded?: 
   const [centerWeeks, setCenterWeeks] = useState<CenterWeek[]>([]);
   const [planning, setPlanning] = useState<Load>({ state: "loading" });
   const [selection, setSelection] = useState<Selection>(null);
+  const selectedDay = selection?.workDate ?? null;
+  const dayHeadcountScope = centerId && selectedDay ? centerId + "|" + selectedDay : "";
+  const [dayHeadcount, setDayHeadcount] = useState<DayHeadcountLoad>({ scope: "", status: "loading" });
+  useEffect(() => {
+    if (!centerId || !selectedDay) return;
+    const key = centerId + "|" + selectedDay;
+    let current = true;
+    // A scope-key mismatch already renders the one-table loading row; avoid a redundant state update.
+    void fetchWorkforceDayHeadcount(centerId, selectedDay)
+      .then(data => { if (current) setDayHeadcount({ scope: key, status: "ready", data }); })
+      .catch(() => { if (current) setDayHeadcount({ scope: key, status: "error" }); });
+    return () => { current = false; };
+  }, [centerId, selectedDay]);
   const [templateId, setTemplateId] = useState("");
   const [frontDesk, setFrontDesk] = useState(false);
   const [shiftLeader, setShiftLeader] = useState(false);
@@ -309,6 +323,8 @@ export function WorkforcePlanningView({ embedded = false, scope }: { embedded?: 
               </> : null}
             </span>)}
           </div> : null}
+
+          <BoWorkforceDayHeadcount state={dayHeadcount} scope={dayHeadcountScope} />
 
           <div className={styles.plannerShiftPicker}>
             <select aria-label="Chọn ca để phân công" value={templateId} onChange={(event) => {
