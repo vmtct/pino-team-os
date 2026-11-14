@@ -3,6 +3,8 @@ export interface PayPeriod{
  id:string;centerId:string;name:string;startDate:string;endDate:string;
  status:"ACTIVE"|"ARCHIVED";version:number;dateLocked:boolean;createdAt:string;updatedAt:string|null;
 }
+/** Additive GET-only metadata; command DTO stays unchanged. */
+export type BoPayPeriodRead = PayPeriod & {createdBy?:string|null;updatedBy?:string|null};
 export interface PeriodStaff{
  staffMemberId:string;status:"DRAFT"|"PENDING"|"FINALIZED"|"PAID"|"ARCHIVED_UNAVAILABLE";
  amountMinor:number|null;provisionalAmountMinor:number|null;warnings:string[];
@@ -42,9 +44,9 @@ async function call<T>(path:string,init:RequestInit={}):Promise<T>{
 }
 const qs=(centerId:string,extra:Record<string,string>={})=>"?"+new URLSearchParams({centerId,...extra});
 export const periodApi={
- list:(centerId:string,offset=0)=>call<{data:{data:PayPeriod[];total:number;nextOffset:number|null}}>(
+ list:(centerId:string,offset=0)=>call<{data:{data:BoPayPeriodRead[];total:number;nextOffset:number|null}}>(
   ROOT+qs(centerId,{limit:"50",offset:String(offset)})),
- get:(centerId:string,id:string)=>call<{data:PayPeriod}>(ROOT+"/"+id+qs(centerId)),
+ get:(centerId:string,id:string)=>call<{data:BoPayPeriodRead}>(ROOT+"/"+id+qs(centerId)),
  create:(centerId:string,input:{name:string;startDate:string;endDate:string},key:string)=>
   call<{data:PayPeriod}>(ROOT+qs(centerId),{method:"POST",headers:{"idempotency-key":key},
    body:JSON.stringify({centerId,...input})}),
