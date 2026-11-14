@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {isBoPayrollPeriodPath,handleBoPayrollPeriodRequest} from "./bo-payroll-period-handler";
-import {validPeriodInput,money} from "./bo-payroll-period-api";
+import {validPeriodInput,money,periodApi} from "./bo-payroll-period-api";
 const center="a57d77f0-d217-4af6-afb9-fc41b6751209",period="1cddf9e6-2ef4-42b2-8d50-74dcab97c9f8";
 const staff="a93e1220-05d2-4f17-b937-cd2bdba5204e";
 const base="https://test.local/api/bo/";
@@ -52,4 +52,34 @@ test("PAP-808 facade rejects unsafe payment without reference",async()=>{
   body:JSON.stringify({centerId:center,paymentDate:"2026-10-20",paymentReference:""})
  }),env,path);
  assert.equal(response.status,400);
+});
+
+test("PAP-1985 native dates commands omit name and preserve replay key and CAS",async()=>{
+ const calls:{url:string;init:RequestInit}[]=[];
+ const original=globalThis.fetch;
+ globalThis.fetch=async(input,init)=>{
+  calls.push({url:String(input),init:init??{}});
+  return Response.json({data:{}});
+ };
+ try{
+  const dates={startDate:"2026-10-01",endDate:"2026-10-31",name:"spoof"};
+  await periodApi.createDates(center,dates,"test-create-123");
+  await periodApi.editDates(center,{id:period,version:7},dates);
+  assert.deepEqual(JSON.parse(String(calls[0].init.body)),{centerId:center,startDate:dates.startDate,endDate:dates.endDate});
+  assert.equal(new Headers(calls[0].init.headers).get("idempotency-key"),"test-create-123");
+  assert.equal(calls[1].init.method,"PATCH");
+  assert.deepEqual(JSON.parse(String(calls[1].init.body)),{centerId:center,startDate:dates.startDate,endDate:dates.endDate,expectedVersion:7});
+ }finally{globalThis.fetch=original;}
+});
+test("PAP-1985 date-only write retains CAS and date validation before authorization",async()=>{
+ const path="workforce/payroll/periods/"+period;
+ for(const body of [
+  {centerId:center,startDate:"2026-10-01",endDate:"2026-10-31"},
+  {centerId:center,startDate:"2026-11-01",endDate:"2026-10-31",expectedVersion:1},
+ ]){
+  const response=await handleBoPayrollPeriodRequest(new Request(base+path+"?centerId="+center,{
+   method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify(body)
+  }),env,path);
+  assert.equal(response.status,400);
+ }
 });

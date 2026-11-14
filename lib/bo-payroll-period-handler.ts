@@ -52,7 +52,7 @@ export async function handleBoPayrollPeriodRequest(request:Request,env:BoPayroll
    body=raw as Record<string,unknown>;
    if(body.centerId!==centerId)return response({error:{code:"PLATFORM_INVALID_INPUT",message:"Center mismatch"}},400);
    if((path===ROOT||PERIOD.test(path))&&
-     (typeof body.name!=="string"||!body.name.trim()||
+     ((body.name!==undefined&&(typeof body.name!=="string"||!body.name.trim()))||
       typeof body.startDate!=="string"||!DATE.test(body.startDate)||
       typeof body.endDate!=="string"||!DATE.test(body.endDate)||body.startDate>body.endDate))
       return response({error:{code:"PLATFORM_INVALID_INPUT",message:"Invalid pay period"}},400);

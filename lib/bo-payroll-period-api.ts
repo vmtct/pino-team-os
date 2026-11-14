@@ -43,6 +43,7 @@ async function call<T>(path:string,init:RequestInit={}):Promise<T>{
  return data;
 }
 const qs=(centerId:string,extra:Record<string,string>={})=>"?"+new URLSearchParams({centerId,...extra});
+export type PayPeriodDates=Pick<PayPeriod,"startDate"|"endDate">;
 export const periodApi={
  list:(centerId:string,offset=0)=>call<{data:{data:BoPayPeriodRead[];total:number;nextOffset:number|null}}>(
   ROOT+qs(centerId,{limit:"50",offset:String(offset)})),
@@ -53,6 +54,13 @@ export const periodApi={
  edit:(centerId:string,period:PayPeriod,input:{name:string;startDate:string;endDate:string})=>
   call<{data:PayPeriod}>(ROOT+"/"+period.id+qs(centerId),{method:"PATCH",
    body:JSON.stringify({centerId,...input,expectedVersion:period.version})}),
+ /** Native P0: Core derives the name from the canonical Center and start month. */
+ createDates:(centerId:string,input:PayPeriodDates,key:string)=>
+  call<{data:PayPeriod}>(ROOT+qs(centerId),{method:"POST",headers:{"idempotency-key":key},
+   body:JSON.stringify({centerId,startDate:input.startDate,endDate:input.endDate})}),
+ editDates:(centerId:string,period:Pick<PayPeriod,"id"|"version">,input:PayPeriodDates)=>
+  call<{data:PayPeriod}>(ROOT+"/"+period.id+qs(centerId),{method:"PATCH",
+   body:JSON.stringify({centerId,startDate:input.startDate,endDate:input.endDate,expectedVersion:period.version})}),
  staff:(centerId:string,id:string,offset=0)=>call<{data:PeriodStaffPage}>(
   ROOT+"/"+id+"/staff-rollup"+qs(centerId,{limit:"25",offset:String(offset)})),
  preview:(centerId:string,id:string,staffId:string)=>call<{data:SettlementPreview}>(
