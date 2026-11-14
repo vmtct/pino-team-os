@@ -4,7 +4,7 @@ export type {ReviewedException,ReviewPage,ReviewStatus};
 export class ExceptionReadError extends Error {
  constructor(readonly status:number,readonly code:string,message:string){super(message);}
 }
-const ROOT="/api/bo/workforce/payroll/extra-time/reviews";
+const ROOT="/api/bo/workforce/payroll/read-only/extra-time/reviews";
 async function coreGet<T>(path:string,fetcher:typeof fetch=fetch):Promise<T>{
  const response=await fetcher(path,{method:"GET",cache:"no-store",credentials:"same-origin"});
  const value=await response.json() as T&{error?:{code?:string;message?:string}};

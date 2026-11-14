@@ -7,6 +7,7 @@ import { boScopedModuleHref } from "../components/registration/BoGlobalCenterPol
 import { BoContentCenterBoundary, useBoCenterSelection } from "../components/registration/BoCenterSelection";
 import { unifiedBoWorkspaceSource } from "../architecture/bo-unified-workspace-source";
 import { boNavigation } from "../navigation";
+import { nativePayrollModule } from "@/lib/bo-native-payroll-route";
 
 // Keep Production's existing destinations and content dispatch. Staging-only
 // adapters and aliases are not enabled by adopting the shared presentation.
@@ -27,6 +28,8 @@ const productionSource: BoWorkspaceSource = {
 const directModules = {
   "classroom-diaries": { label: "Nhật ký lớp học", group: "SCHOOL", fields: [] },
   "open-studio-passes": { label: "Pass Trạm Nghệ Thuật", group: "Open Studio", fields: [] },
+  "payroll-daily": { label: "Bảng lương ngày", group: "WORKFORCE", fields: [] },
+  "payroll-exceptions": { label: "Ngoại lệ & thêm giờ", group: "WORKFORCE", fields: [] },
 };
 const stagingSource: BoWorkspaceSource = {
   ...unifiedBoWorkspaceSource,
@@ -54,7 +57,7 @@ export function BoApplicationShell({ currentUser, staging, children }: {
   const productionKey = destinationKey(productionDestination?.href ?? "/bo");
   const stagingKey = pathname === "/bo" || pathname === "/bo/"
     ? query.get("module") ?? "students"
-    : pathname.slice("/bo/".length);
+    : nativePayrollModule(pathname) ?? pathname.slice("/bo/".length);
   return <BoRegistrationWorkspace shellOnly currentUser={currentUser}
     moduleKey={staging ? stagingKey : productionKey}
     source={staging ? scopedSource : productionSource}

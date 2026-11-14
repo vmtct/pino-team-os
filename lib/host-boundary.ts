@@ -1,3 +1,4 @@
+import {isNativePayrollNamespace,nativePayrollModule,isNativePayrollApi} from "./bo-native-payroll-route";
 import {isHoTvReadRequest} from "./ho-tv-read-contract";
 import {isHoTvVisibilityRequest} from "./ho-tv-visibility-contract";
 import {billMethodAllowed} from "./bo-bills-paths";
@@ -25,6 +26,9 @@ export type HostBoundaryDecision =
 
 export function decideHostBoundary(host: string, pathname: string, method = "GET"): HostBoundaryDecision {
   const hostname = normalizeHostname(host);
+  // PAP-1970: exact native BO Payroll read-only admission; Core reauthorizes every read.
+  if (isNativePayrollNamespace(pathname)) return {action:hostname===BO_STAGING_HOSTNAME &&
+    ((Boolean(nativePayrollModule(pathname))&&(method==="GET"||method==="HEAD")) || (isNativePayrollApi(pathname)&&method==="GET"))?"next":"not_found"};
   // PAP-1939 / PAP-1934: exact BO Staging read admission only. No HO/TOS/Production.
   if (pathname === "/api/bo/classroom/day-headcounts" || pathname.startsWith("/api/bo/classroom/day-headcounts/"))
     return { action: hostname === BO_STAGING_HOSTNAME && method === "GET" &&
