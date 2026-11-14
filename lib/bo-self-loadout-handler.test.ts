@@ -74,7 +74,7 @@ test("PAP-1486 BO Set command paths forward only Center-bound, authenticated CAS
  assert.equal((await handleBoSelfLoadoutRequest(request("GET",undefined,rootUrl),f.env,base)).status,200);
  assert.deepEqual(f.seen.pop()?.request,{method:"GET",path:base,resource:{centerId}});
  for(const command of ["starter","apply","clear"] as const){
-   const body={expectedVersion:0,expectedSelfVersion:11,reason:" PAP-1486 QA ",...(command!=="clear"?{setItemId:itemId}:{})};
+   const body={expectedVersion:0,expectedSelfVersion:11,reason:" PAP-1486 QA ",...(command!=="clear"?{setItemId:itemId}:{}),...(command==="starter"?{expectedMembershipRevision:2,expectedLoadoutVersion:0}:{})};
    const p=base+"/"+command;
    assert.equal(isBoSelfLoadoutPath(p),true);
    const response=await handleBoSelfLoadoutRequest(request("POST",body,rootUrl.replace("/set?","/set/"+command+"?"),"pap1486-"+command+"-request"),f.env,p);
@@ -84,4 +84,13 @@ test("PAP-1486 BO Set command paths forward only Center-bound, authenticated CAS
  for(const bad of ["set/starter/extra","set/delete","set/media/8"]){
    assert.equal(isBoSelfLoadoutPath("pinoria/selfs/"+selfId+"/"+bad),false);
  }
+});
+
+test("PAP-1979 legacy or partial Starter command rejects before Core; normal apply cannot carry Starter revisions",async()=>{
+ const f=fixture(), base="pinoria/selfs/"+selfId+"/set", root="https://bo.staging.pinohouse.art/api/bo/"+base;
+ const body={expectedVersion:0,expectedSelfVersion:11,reason:"Starter",setItemId:itemId};
+ for(const [mode,payload] of [["starter",body],["starter",{...body,expectedMembershipRevision:2}],["starter",{...body,expectedMembershipRevision:2,expectedLoadoutVersion:-1}],["apply",{...body,expectedMembershipRevision:2,expectedLoadoutVersion:0}]] as const){
+  assert.equal((await handleBoSelfLoadoutRequest(request("POST",payload,root+"/"+mode+"?centerId="+centerId,"pap1979-starter-retry"),f.env,base+"/"+mode)).status,400);
+ }
+ assert.equal(f.seen.length,0);
 });
