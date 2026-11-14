@@ -51,6 +51,11 @@ jobs:
           fi
       - name: Build OpenNext Cloudflare artifact without deployment
         run: npx opennextjs-cloudflare build
+      - name: Bundle the configured Piner Staging Worker without upload
+        run: |
+          if test -f wrangler.piner-staging.jsonc; then
+            npx --no-install wrangler deploy --dry-run --config wrangler.piner-staging.jsonc --outdir /tmp/piner-staging-worker
+          fi
       - name: No deployment proof
         run: |
-          echo "PAP-1910 SAFE CI ONLY: no Cloudflare token, no Wrangler deploy, no Worker upload, no Production"
+          echo "PAP-1910 SAFE CI ONLY: no Cloudflare token, no live Wrangler deploy, no Worker upload, no Production"
