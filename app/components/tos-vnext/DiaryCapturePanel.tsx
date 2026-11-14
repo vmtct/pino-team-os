@@ -401,9 +401,8 @@ export default function DiaryCapturePanel({model,classroom,confirmedSkipClassId}
   {completionMessage&&<p role="status" aria-live="polite" className={styles.hint}>{completionMessage}</p>}
   <div className={styles.actions}>
    <button type="button" className={styles.secondary} disabled={busy} onClick={()=>setShowValidation(true)}>Kiểm tra biểu mẫu</button>
-   <button type="button" className={styles.primary} disabled={!canCreateDiary(receipt,writeAdmitted)||busy||registerTicket.state!=="EMPTY"} onClick={()=>void submitDiary()} aria-describedby="tos-diary-admission-message">Gửi Nhật ký</button>
+   <button type="button" className={styles.primary} disabled={!canCreateDiary(receipt,writeAdmitted)||busy||registerTicket.state!=="EMPTY"} onClick={()=>void submitDiary()} aria-describedby={!writeAdmitted?"tos-diary-admission-message":undefined}>Gửi Nhật ký</button>
   </div>
-  <p id="tos-diary-admission-message" className={styles.hint}>Ghi Nhật ký chỉ khả dụng khi đã xác nhận “Vào lớp không mở ca”, đúng quyền Staff, roster, Mission và Staging admission.
-   Không tạo ảnh mở lớp; mã gửi gốc chỉ giữ dưới dạng khóa ngẫu nhiên. MissionResult và Progression là nguồn độc lập.</p>
+  {!writeAdmitted&&<p id="tos-diary-admission-message" className={styles.hint}>Chưa thể gửi Nhật ký ở lớp này.</p>}
  </section>;
 }

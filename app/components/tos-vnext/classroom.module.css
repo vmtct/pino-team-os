@@ -780,3 +780,18 @@
   border-radius: 0;
   box-shadow: none;
 }
+
+/* PAP-1960 · TOS Classroom three-tab spacing, age and neutral Diary colors. */
+@layer tos.apps {
+ .phone [role="tabpanel"]{display:flex;flex-direction:column;gap:var(--tos-space-3);min-height:0}
+ .phone [role="tabpanel"] > .sectionHead{margin-bottom:var(--tos-space-1)}
+ .phone .personActions{gap:var(--tos-space-3);margin-top:var(--tos-space-4)}
+ .phone .filterPills{gap:var(--tos-space-2);margin-block:var(--tos-space-1)}
+ .phone .diaryCard{color:var(--tos-color-ink)}
+ .phone .diaryCard > span{color:var(--tos-color-warm-text)}
+ .phone .studentAge{font-size:var(--tos-text-caption);font-weight:400;color:var(--tos-color-soft)}
+ .phone .bottomNav{flex-shrink:0;position:relative;z-index:15;background:var(--tos-color-surface)}
+ .phone .bypassEntry{background:var(--tos-color-surface);gap:var(--tos-space-3);margin-top:var(--tos-space-2)}
+ .phone .bypassEntryButton{min-height:var(--tos-hit-min);color:var(--tos-color-warning-text)}
+ .phone .bypassConfirm > div{margin-top:var(--tos-space-3)}
+}
