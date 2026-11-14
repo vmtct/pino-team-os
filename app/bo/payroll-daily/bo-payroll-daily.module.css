@@ -1,0 +1,11 @@
+.page{max-width:100%;min-width:0;display:grid;gap:16px;padding:clamp(12px,2vw,24px);color:#293642}
+.heading small{font-size:12px;letter-spacing:.05em;color:#667788}.heading h1{font-size:24px;line-height:1.25;margin:4px 0}
+.heading p{margin:0;color:#667788;font-size:13px}.filters{display:flex;flex-wrap:wrap;align-items:end;gap:12px}
+.filters label{display:grid;gap:6px;font-size:13px;color:#415363}
+.filters input{min-height:38px;border:1px solid #cbd5df;border-radius:8px;padding:6px 10px;font:inherit;color:inherit;background:#fff}
+.filters button{min-height:38px;border:1px solid #cbd5df;background:#fff;border-radius:8px;padding:8px 13px;color:inherit;cursor:pointer}
+.filters :is(button,input):focus-visible{outline:2px solid #547d9b;outline-offset:2px}
+.properties{margin:0;display:grid}.properties>div{display:grid;grid-template-columns:minmax(120px,1fr) minmax(0,1.5fr);gap:16px;padding:12px 0;border-bottom:1px solid #e4e9ee}
+.properties dt{font-size:13px;color:#667788}.properties dd{margin:0;min-width:0;overflow-wrap:anywhere;font-size:14px;color:#293642}
+.note{font-size:12px;color:#667788;line-height:1.6}
+@media(max-width:480px){.properties>div{grid-template-columns:1fr;gap:4px}.heading h1{font-size:20px}}
