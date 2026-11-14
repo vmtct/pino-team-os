@@ -23,14 +23,14 @@ const starterModule:BoModule={label:"Starter Set",group:"Pinoria",fields:[
  {key:"updatedAt",label:"Last Modified Time",type:"datetime",icon:"◷",w:190,readonly:true},
  {key:"updatedBy",label:"Last Modified By",type:"text",icon:"Aa",w:160,readonly:true},
 ]};
-const detailFields:BoField[]=[...starterModule.fields,{key:"key",label:"Item Key",type:"text",icon:"#",w:200,readonly:true}];
+const detailFields:BoField[]=[...starterModule.fields,{key:"description",label:"Mô tả",type:"textarea",icon:"Aa",w:240},{key:"key",label:"Item Key",type:"text",icon:"#",w:200,readonly:true}];
 const auditFields=["createdAt","createdBy","updatedAt","updatedBy"];
-const sections=[{id:"info",label:"Thông tin Starter Set",fields:["name","key","count","status"]},{id:"audit",label:"Lịch sử hệ thống",fields:auditFields}];
-const emptyDraft=():StarterSetDraft=>({key:"",displayName:"",memberItemIds:[]});
+const sections=[{id:"info",label:"Thông tin Starter Set",fields:["name","key","description","count","status"]},{id:"audit",label:"Lịch sử hệ thống",fields:auditFields}];
+const emptyDraft=():StarterSetDraft=>({key:"",displayName:"",description:"",memberItemIds:[]});
 const concrete=(items:ItemRecord[]):HoItem[]=>items.filter((r):r is HoItem=>r.type!=="SET"&&r.status==="PUBLISHED");
 const stack:Record<Slot,number>={AURA_GROUND:6,AURA_BACK:12,BACK:30,OUTFIT:60,HAIR:70,FACE:80,HEADWEAR:90,PATH_MARK:100};
-const toRow=(r:HoSetItem):BoRecord=>({id:r.id,name:r.displayName,key:r.key,preview:"Xem chi tiết",count:r.members?.length??0,status:r.status,createdAt:r.createdAt,updatedAt:r.updatedAt,createdBy:null,updatedBy:null});
-const toDraftRow=(d:StarterSetDraft):BoRecord=>({id:"",name:d.displayName,key:d.key,count:d.memberItemIds.length,status:"DRAFT"});
+const toRow=(r:HoSetItem):BoRecord=>({id:r.id,name:r.displayName,key:r.key,preview:"Xem chi tiết",description:r.description??"",count:r.memberCount??r.members?.length??0,status:r.status,createdAt:r.createdAt,updatedAt:r.updatedAt,createdBy:r.createdByUserId??null,updatedBy:r.updatedByUserId??null});
+const toDraftRow=(d:StarterSetDraft):BoRecord=>({id:"",name:d.displayName,key:d.key,description:d.description,count:d.memberItemIds.length,status:"DRAFT"});
 const message=(e:unknown)=>e instanceof Error?e.message:"Không thể xử lý Starter Set.";
 function Preview({ids,items}:{ids:string[];items:HoItem[]}){
  const found=ids.map(id=>items.find(r=>r.id===id)).filter((r):r is HoItem=>Boolean(r));
@@ -91,14 +91,14 @@ export function HoStarterSets({canManage=false,mobileMenu}:{canManage?:boolean;m
  const publishReady=selected!==null&&(selected.status==="DRAFT"||(selected.status==="PUBLISHED"&&Boolean(selected.pendingDraft)))&&["HAIR","FACE","OUTFIT"].every(slot=>items.some(i=>i.slot===slot&&starterDraft(selected).memberItemIds.includes(i.id)));
  const fields=detailFields;
  if(mode==="detail"&&selected){
-  const row:BoRecord={...toRow(selected),name:starterDraft(selected).displayName,key:starterDraft(selected).key};
+  const row:BoRecord={...toRow(selected),name:starterDraft(selected).displayName,key:starterDraft(selected).key,description:starterDraft(selected).description};
   return <DetailFrame title={selected.displayName} subtitle={selected.key+" · "+selected.status} mobileMenu={mobileMenu} onBack={close}
    tabs={[{id:"overview",label:"Tổng quan"},{id:"members",label:"Thành viên"},{id:"history",label:"Lịch sử"}]} selected={tab} onSelect={selectDetailTab}>
    {notice&&<p role="status">{notice}</p>}{error&&<p role="alert">{error}</p>}
    {tab==="overview"?<>
-    <PropertySections fields={fields} record={row} sections={sections} variant="detail" canEdit={f=>canEdit&&(f.key==="name"||f.key==="key")} onEdit={(field,anchor)=>setEditor({field,anchor})}/>
+    <PropertySections fields={fields} record={row} sections={sections} variant="detail" canEdit={f=>canEdit&&(f.key==="name"||f.key==="key"||f.key==="description")} onEdit={(field,anchor)=>setEditor({field,anchor})}/>
     {editor&&canEdit?<BoTypedEditor field={{...editor.field,readonly:false}} value={row[editor.field.key] as BoValue} anchor={editor.anchor} closeOnSave={false}
-     onClose={()=>{if(!busyRef.current)setEditor(null)}} onSave={v=>{const field=editor.field.key;void apply(()=>updateStarter(selected,{...starterDraft(selected),...(field==="name"?{displayName:String(v??"")}:{key:String(v??"")})}),"detail")}}/>:null}
+     onClose={()=>{if(!busyRef.current)setEditor(null)}} onSave={v=>{const field=editor.field.key;void apply(()=>updateStarter(selected,{...starterDraft(selected),...(field==="name"?{displayName:String(v??"")}:field==="description"?{description:String(v??"")}:{key:String(v??"")})}),"detail")}}/>:null}
     <Preview ids={starterDraft(selected).memberItemIds} items={items}/>
     {canManage&&<div className="ho-rel-actions">
       {(selected.status==="DRAFT"||selected.pendingDraft)&&<button className="primary-btn" disabled={busy||!publishReady} onClick={()=>void apply(()=>changeStarterLifecycle(selected,"publish"),"detail")}>Publish</button>}
@@ -107,7 +107,11 @@ export function HoStarterSets({canManage=false,mobileMenu}:{canManage?:boolean;m
    </>:tab==="members"?<>
     <Members draft={draft} items={items} disabled={!canEdit} onChange={ids=>setDraft(d=>({...d,memberItemIds:ids}))}/>
     {canEdit&&<button className="primary-btn" disabled={JSON.stringify(draft)===JSON.stringify(starterDraft(selected))} onClick={()=>void apply(()=>updateStarter(selected,draft),"detail")}>Lưu thành viên</button>}
-   </>:<p role="status">Core chưa cung cấp lịch sử sự kiện Starter Set.</p>}
+   </>:<section aria-label="Lịch sử Starter Set">
+    {selected.history?.length?<table className="pds-table"><thead><tr><th>Phiên bản</th><th>Hoạt động</th><th>Người thực hiện (ID)</th><th>Thời gian</th></tr></thead><tbody>
+      {selected.history.map(h=><tr key={h.revision}><td>{h.revision}</td><td>{({CREATED:"Tạo",UPDATED:"Cập nhật",PUBLISHED:"Publish",UNPUBLISHED:"Unpublish"} as Record<string,string>)[h.action]}</td><td>{h.actorUserId}</td><td>{new Date(h.createdAt).toLocaleString("vi-VN")}</td></tr>)}
+    </tbody></table>:<p role="status">Chưa có lịch sử được Core xác nhận.</p>}
+   </section>}
   </DetailFrame>;
  }
  const records=rows.map(toRow);
@@ -123,7 +127,8 @@ export function HoStarterSets({canManage=false,mobileMenu}:{canManage?:boolean;m
     footer={<><button className="secondary-btn" disabled={busy} onClick={close}>Hủy</button><button className="primary-btn" disabled={busy||!draft.displayName.trim()||!draft.key.trim()} onClick={()=>void apply(()=>createStarter(draft),"view")}>Tạo bản nháp</button></>}>
     <PropertySections fields={fields} record={toDraftRow(draft)} sections={sections} variant="drawer" createFields={{
      name:{id:"starter-name",value:draft.displayName,onChange:v=>setDraft(d=>({...d,displayName:v})),required:true,disabled:busy,maxLength:160},
-     key:{id:"starter-key",value:draft.key,onChange:v=>setDraft(d=>({...d,key:v})),required:true,disabled:busy,maxLength:120}
+     key:{id:"starter-key",value:draft.key,onChange:v=>setDraft(d=>({...d,key:v})),required:true,disabled:busy,maxLength:120},
+     description:{id:"starter-description",value:draft.description,onChange:v=>setDraft(d=>({...d,description:v})),disabled:busy,maxLength:1000}
     }}/>
     <Members draft={draft} items={items} disabled={busy} onChange={ids=>setDraft(d=>({...d,memberItemIds:ids}))}/>
     {error&&<p role="alert">{error}</p>}

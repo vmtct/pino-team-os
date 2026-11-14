@@ -2,7 +2,7 @@
 import {getItem,listItems,writeItem,type HoSetItem,type ItemRecord,type SetInput} from "../wardrobe/item-client";
 type CatalogClient={list:typeof listItems;get:typeof getItem;write:typeof writeItem};
 const canonical:CatalogClient={list:listItems,get:getItem,write:writeItem};
-export type StarterSetDraft={key:string;displayName:string;memberItemIds:string[]};
+export type StarterSetDraft={key:string;displayName:string;description:string;memberItemIds:string[]};
 function requireSet(record:ItemRecord):HoSetItem{
  if(record.type!=="SET"||typeof record.starterEligible!=="boolean"||!Array.isArray(record.members))
   throw Error("Core chưa trả đủ thông tin SET.");
@@ -24,10 +24,10 @@ export async function loadStarterCatalog(signal?:AbortSignal,client:CatalogClien
 }
 export function starterDraft(r:HoSetItem):StarterSetDraft{
  const d=r.pendingDraft;
- return {key:d?.key??r.key,displayName:d?.displayName??r.displayName,memberItemIds:[...(d?.memberItemIds??r.members?.map(m=>m.id)??[])]};
+ return {key:d?.key??r.key,displayName:d?.displayName??r.displayName,description:(d&&d.description!==undefined?d.description:r.description)??"",memberItemIds:[...(d?.memberItemIds??r.members?.map(m=>m.id)??[])]};
 }
 function payload(d:StarterSetDraft,r?:HoSetItem):SetInput{
- return {type:"SET",key:d.key.trim(),displayName:d.displayName.trim(),starterEligible:true,memberItemIds:[...d.memberItemIds],
+ return {type:"SET",key:d.key.trim(),displayName:d.displayName.trim(),description:d.description.trim()||null,starterEligible:true,memberItemIds:[...d.memberItemIds],
  ...(r?{variantOfItemId:r.pendingDraft?r.pendingDraft.variantOfItemId??null:r.variantOfItemId??null}:{})};
 }
 async function verify(client:CatalogClient,response:ItemRecord,prev?:HoSetItem){
@@ -37,7 +37,7 @@ async function verify(client:CatalogClient,response:ItemRecord,prev?:HoSetItem){
  return fresh;
 }
 function checkDraft(r:HoSetItem,d:StarterSetDraft){
- if(JSON.stringify(starterDraft(r))!==JSON.stringify({key:d.key.trim(),displayName:d.displayName.trim(),memberItemIds:d.memberItemIds}))throw Error("Core chưa xác nhận nội dung Starter Set.");
+ if(JSON.stringify(starterDraft(r))!==JSON.stringify({key:d.key.trim(),displayName:d.displayName.trim(),description:d.description.trim(),memberItemIds:d.memberItemIds}))throw Error("Core chưa xác nhận nội dung Starter Set.");
  return r;
 }
 export async function createStarter(d:StarterSetDraft,client:CatalogClient=canonical){

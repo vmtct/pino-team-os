@@ -17,12 +17,12 @@ test("list fails closed on missing flag or revision change",async()=>{
 });
 test("create writes canonical starter SET and verifies draft",async()=>{
  const a=set(1),m=mock([], [a]);assert.deepEqual(await createStarter(starterDraft(a),m.client),a);
- assert.deepEqual(m.calls,[{path:"",method:"POST",body:{type:"SET",key:a.key,displayName:a.displayName,starterEligible:true,memberItemIds:[]}}]);
+ assert.deepEqual(m.calls,[{path:"",method:"POST",body:{type:"SET",key:a.key,displayName:a.displayName,description:null,starterEligible:true,memberItemIds:[]}}]);
 });
 test("update preserves variant and CAS and verifies readback",async()=>{
  const a=set(1,{variantOfItemId:id(9)}),b=set(1,{revision:2,displayName:"New",variantOfItemId:id(9)}),m=mock([], [b]);
  assert.equal((await updateStarter(a,starterDraft(b),m.client)).revision,2);
- assert.deepEqual(m.calls[0],{path:"/"+a.id,method:"PATCH",body:{type:"SET",key:a.key,displayName:"New",starterEligible:true,memberItemIds:[],variantOfItemId:id(9),expectedRevision:1}});
+ assert.deepEqual(m.calls[0],{path:"/"+a.id,method:"PATCH",body:{type:"SET",key:a.key,displayName:"New",description:null,starterEligible:true,memberItemIds:[],variantOfItemId:id(9),expectedRevision:1}});
  await assert.rejects(updateStarter(a,starterDraft(b),mock([], [a],b).client));
 });
 test("lifecycle CAS and readback; wrong state writes nothing",async()=>{
@@ -31,4 +31,13 @@ test("lifecycle CAS and readback; wrong state writes nothing",async()=>{
  assert.deepEqual(m.calls[0],{path:"/"+a.id+"/publish",method:"POST",body:{expectedRevision:1}});
  m=mock([], [c]);assert.equal((await changeStarterLifecycle(b,"unpublish",m.client)).status,"UNPUBLISHED");
  m=mock([], [a]);await assert.rejects(changeStarterLifecycle(a,"unpublish",m.client));assert.equal(m.calls.length,0);
+});
+
+test("description respects pending draft, explicit clear and exact readback",async()=>{
+ const a=set(1,{description:"Published",status:"PUBLISHED",revision:2});
+ const b=set(1,{...a,revision:3,pendingDraft:{type:"SET",key:a.key,displayName:a.displayName,starterEligible:true,memberItemIds:[],description:null,revision:3}});
+ assert.equal(starterDraft(b).description,"");
+ const m=mock([], [b]);await updateStarter(a,starterDraft(b),m.client);
+ assert.equal((m.calls[0].body as {description:unknown}).description,null);
+ await assert.rejects(updateStarter(a,{...starterDraft(b),description:"not persisted"},m.client));
 });
