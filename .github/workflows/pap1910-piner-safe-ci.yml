@@ -56,6 +56,23 @@ jobs:
           if test -f wrangler.piner-staging.jsonc; then
             npx --no-install wrangler deploy --dry-run --config wrangler.piner-staging.jsonc --outdir /tmp/piner-staging-worker
           fi
+      - name: Package Piner Staging artifact for guarded handoff
+        if: github.ref == 'refs/heads/feat/pap1887-s3b-piner-worker-20261113'
+        run: |
+          tar -czf /tmp/piner-staging-open-next.tgz .open-next
+          (cd /tmp && sha256sum piner-staging-open-next.tgz > piner-staging-open-next.tgz.sha256)
+          printf "%s\n" "$GITHUB_SHA" > /tmp/piner-staging-source-sha.txt
+      - name: Upload Piner Staging build only
+        if: github.ref == 'refs/heads/feat/pap1887-s3b-piner-worker-20261113'
+        uses: actions/upload-artifact@v4
+        with:
+          name: piner-staging-open-next-${{ github.sha }}
+          path: |
+            /tmp/piner-staging-open-next.tgz
+            /tmp/piner-staging-open-next.tgz.sha256
+            /tmp/piner-staging-source-sha.txt
+          if-no-files-found: error
+          retention-days: 3
       - name: No deployment proof
         run: |
           echo "PAP-1910 SAFE CI ONLY: no Cloudflare token, no live Wrangler deploy, no Worker upload, no Production"
