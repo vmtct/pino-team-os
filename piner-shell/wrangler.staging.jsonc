@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/wrangler/config-schema.json",
   "name": "piner-app-shell-staging",
-  "main": "src/worker.mjs",
+  "main": "src/staging-worker.mjs",
   "compatibility_date": "2026-11-13",
   "workers_dev": true,
   "observability": { "enabled": true },
