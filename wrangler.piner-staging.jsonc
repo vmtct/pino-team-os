@@ -16,6 +16,7 @@
   },
   "workers_dev": true,
   "vars": {
+    "APP_ENV": "staging",
     "PINER_AUTH_STAGING_ENABLED": "false",
     "PINER_AFTERSCHOOL_PIN_BFF_ENABLED": "false"
   },
