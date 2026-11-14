@@ -48,3 +48,16 @@ void test("PAP-1991 denial and mismatched write readback fail closed",async t=>{
   await assert.rejects(confirmClassOpening(scope,data),/không hợp lệ/);
   await assert.rejects(confirmClassOpening(scope,data),/không hợp lệ/);
 });
+
+void test("PAP-1991 correction sends and reads all photos and note in one version",async t=>{
+ const corrected={...opened,history:[first,review,{...first,eventId:id(7),roundId:id(7),privateAssetId:id(8),privateAssetIds:[id(8),id(9)],note:"Bổ sung góc bàn",version:3}]};
+ const calls:RequestInit[]=[];
+ t.mock.method(globalThis,"fetch",(_url:string,init:RequestInit)=>{calls.push(init);return Promise.resolve(new Response(JSON.stringify({data:corrected})));});
+ const record=parseClassOpening(opened,scope).opening!;
+ const result=await appendClassOpening(scope,record,[data,data],newOpeningRequestKey(),"Bổ sung góc bàn");
+ const round=result.opening?.rounds?.at(-1);
+ assert.equal(round?.photos.length,2);assert.equal(round?.note,"Bổ sung góc bàn");assert.equal(result.opening?.version,3);
+ const body=JSON.parse(String(calls[0]?.body));
+ assert.equal(body.photos.length,2);assert.equal(body.note,"Bổ sung góc bàn");assert.equal(body.expectedVersion,2);
+ assert.throws(()=>parseClassOpening({...corrected,history:[first,review,{...corrected.history[2],privateAssetIds:[id(8),id(5)]}]},scope),/không hợp lệ/);
+});

@@ -4,7 +4,7 @@ import type {OpeningRecord,OpeningRound} from "./tos-classroom-v4-view-model";
 export type ClassOpeningScope={centerId:string;runningClassId:string;localDate:string};
 export type ClassOpeningSnapshot={opening:OpeningRecord|null;canConfirm:boolean};
 type History={eventId:string;roundId:string;version:number;kind:"SUBMISSION"|"REVIEW";actorLegalFullName:string|null;
-  occurredAt:string;privateAssetId:string|null;verdict:"APPROVED"|"REJECTED"|null;reason:string|null};
+  occurredAt:string;privateAssetId:string|null;privateAssetIds?:string[];note?:string;verdict:"APPROVED"|"REJECTED"|null;reason:string|null};
 const ROOT="/api/workforce/class-opening";
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const validTime=(value:unknown):value is string=>typeof value==="string"&&Number.isFinite(Date.parse(value));
@@ -29,12 +29,15 @@ export function parseClassOpening(value:unknown,scope:ClassOpeningScope):ClassOp
     ids.add(e.eventId);
     if(e.kind==="SUBMISSION"){
       if(e.eventId!==e.roundId||!e.privateAssetId||!uuid.test(e.privateAssetId)||assets.has(e.privateAssetId)||e.verdict!==null||e.reason!==null)throw error();
-      assets.add(e.privateAssetId);
-      rounds.push({id:e.roundId,submittedBy:e.actorLegalFullName??"—",submittedAt:e.occurredAt,note:"",
-        photos:[{id:e.privateAssetId,fileName:"Ảnh setup",preview:"",uploadedAt:e.occurredAt,uploadedBy:e.actorLegalFullName??"—"}],status:"PENDING"});
+      const photoIds=e.privateAssetIds??[e.privateAssetId],note=e.note??"";
+      if(!Array.isArray(photoIds)||photoIds.length<1||photoIds.length>10||photoIds[0]!==e.privateAssetId||
+         typeof note!=="string"||note.length>1000)throw error();
+      for(const asset of photoIds){if(!uuid.test(asset)||assets.has(asset))throw error();assets.add(asset);}
+      rounds.push({id:e.roundId,submittedBy:e.actorLegalFullName??"—",submittedAt:e.occurredAt,note,
+        photos:photoIds.map(id=>({id,fileName:"Ảnh setup",preview:"",uploadedAt:e.occurredAt,uploadedBy:e.actorLegalFullName??"—"})),status:"PENDING"});
     }else if(e.kind==="REVIEW"){
       const last=rounds.at(-1);
-      if(!last||last.id!==e.roundId||previous?.kind!=="SUBMISSION"||e.privateAssetId!==null||
+      if(!last||last.id!==e.roundId||previous?.kind!=="SUBMISSION"||e.privateAssetId!==null||(e.privateAssetIds!==undefined&&(!Array.isArray(e.privateAssetIds)||e.privateAssetIds.length!==0))||(e.note!==undefined&&e.note!=="")||
         (e.verdict!=="APPROVED"&&e.verdict!=="REJECTED")||typeof e.reason!=="string")throw error();
       last.status=e.verdict;last.reviewedAt=e.occurredAt;last.reviewedBy=e.actorLegalFullName??"—";last.reason=e.reason;
     }else throw error();
@@ -63,10 +66,14 @@ export async function confirmClassOpening(scope:ClassOpeningScope,data:string){
   const result=parseClassOpening(await request("",scope,{photo:photoData(data)}),scope);
   if(!result.opening)throw error();return result;
 }
-export async function appendClassOpening(scope:ClassOpeningScope,opening:OpeningRecord,data:string,requestKey:string){
+export async function appendClassOpening(scope:ClassOpeningScope,opening:OpeningRecord,data:string|readonly string[],requestKey:string,note=""){
   if(!opening.canAppend||!opening.receiptId||!uuid.test(requestKey))throw error();
+  const images=typeof data==="string"?[data]:data;
+  if(images.length<1||images.length>10||note.trim().length>1000)throw error();
+  const photos=images.map(photoData);
+  if(photos.reduce((n,p)=>n+Math.floor(p.base64!.length*3/4),0)>10*1024*1024)throw new Error("Tổng dung lượng ảnh vượt 10 MB.");
   const result=parseClassOpening(await request("/append",scope,{openingReceiptId:opening.receiptId,expectedVersion:opening.version,
-    requestKey,photo:photoData(data)}),scope);
+    requestKey,...(typeof data==="string"&&!note?{photo:photos[0]}:{photos,note:note.trim()})}),scope);
   if(!result.opening||result.opening.receiptId!==opening.receiptId||result.opening.version<=opening.version)throw error();
   return result;
 }

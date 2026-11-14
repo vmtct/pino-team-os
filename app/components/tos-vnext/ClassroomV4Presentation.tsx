@@ -255,14 +255,14 @@ export default function ClassroomV4Presentation({model,initialView,onDetailChang
   setAppendBusy(false);
  };
  const submitSupplement=async()=>{
-  if(readOnly||appendBusy||appendWriteLock.current||!proofClass||!proofOpening?.canAppend||draftPhotos.length!==1||draftNote.trim())return;
-  const image=draftPhotos[0]?.preview;
-  if(!image)return;
-  const signature=JSON.stringify([proofOpening.receiptId,proofOpening.version,image]);
+  if(readOnly||appendBusy||appendWriteLock.current||!proofClass||!proofOpening?.canAppend||draftPhotos.length<1||draftPhotos.length>10||draftNote.trim().length>1000)return;
+  const images=draftPhotos.map(photo=>photo.preview);
+  if(images.some(image=>!image))return;
+  const signature=JSON.stringify([proofOpening.receiptId,proofOpening.version,images,draftNote.trim()]);
   const key=appendRetry.current?.signature===signature?appendRetry.current.key:newOpeningRequestKey();
   appendRetry.current={signature,key};appendWriteLock.current=true;setAppendBusy(true);
   try{
-   const snapshot=await appendClassOpening(classScope(proofClass),proofOpening,image,key);
+   const snapshot=await appendClassOpening(classScope(proofClass),proofOpening,images,key,draftNote);
    setOpeningSnapshots(prev=>({...prev,[proofClass.id]:snapshot}));
    appendRetry.current=null;setDraftPhotos([]);setDraftNote("");setAppendOpen(false);
   }catch(error){notify(error instanceof Error?error.message:"Chưa thể gửi ảnh setup.");}
@@ -416,14 +416,14 @@ export default function ClassroomV4Presentation({model,initialView,onDetailChang
     {!appendOpen?<button className={styles.primaryButtonWide} data-tos-slot={tosSlotKeys(styles.primaryButtonWide)} disabled={readOnly||!proofOpening.canAppend} onClick={()=>setAppendOpen(true)}><FontAwesomeIcon icon={faCamera}/> Thêm ảnh setup</button>:
       <section className={styles.proofComposer} data-tos-slot={tosSlotKeys(styles.proofComposer)}>
        <h3>Thêm ảnh setup cho lớp đã mở</h3>
-       <p>Ảnh ban đầu và lịch sử duyệt được giữ nguyên. Bản dev hiện chỉ xác nhận được một ảnh mỗi lượt; nhiều ảnh và ghi chú chưa được gửi.</p>
+       <p>Ảnh ban đầu và lịch sử duyệt được giữ nguyên. Tối đa 10 ảnh mỗi lượt.</p>
        <div className={styles.proofPickers} data-tos-slot={tosSlotKeys(styles.proofPickers)}>
         <label className={styles.photoPicker} data-tos-slot={tosSlotKeys(styles.photoPicker)}><FontAwesomeIcon icon={faCamera}/> Chụp ảnh<input aria-label="Chụp thêm ảnh setup" type="file" accept="image/*" capture="environment" onChange={e=>{void handleSupplementPhotos(e.target.files);e.target.value=""}}/></label>
         <label className={styles.photoPicker} data-tos-slot={tosSlotKeys(styles.photoPicker)}><FontAwesomeIcon icon={faPlus}/> Chọn nhiều ảnh<input aria-label="Chọn nhiều ảnh setup" type="file" accept="image/*" multiple onChange={e=>{void handleSupplementPhotos(e.target.files);e.target.value=""}}/></label>
        </div>
        {draftPhotos.length>0&&<div className={styles.proofDraftGrid} data-tos-slot={tosSlotKeys(styles.proofDraftGrid)}>{draftPhotos.map(photo=><div key={photo.id}><img alt={"Ảnh bổ sung "+photo.fileName} src={photo.preview}/><button type="button" aria-label={"Bỏ ảnh "+photo.fileName} onClick={()=>setDraftPhotos(p=>p.filter(x=>x.id!==photo.id))}>×</button><span>{photo.fileName}</span></div>)}</div>}
-       <label className={styles.field} data-tos-slot={tosSlotKeys(styles.field)}>Ghi chú về thay đổi setup (tùy chọn)<textarea aria-label="Ghi chú ảnh setup bổ sung" value={draftNote} onChange={e=>setDraftNote(e.target.value)} placeholder="Ví dụ: Đã chỉnh lại bàn ghế và ánh sáng."/></label>
-       <button disabled={readOnly||appendBusy||!proofOpening.canAppend||draftPhotos.length!==1||!!draftNote.trim()} className={styles.primaryButtonWide} data-tos-slot={tosSlotKeys(styles.primaryButtonWide)} onClick={()=>void submitSupplement()}>{appendBusy?"Đang xử lý ảnh...":needsAction(proofOpening)?"Gửi bổ sung để duyệt lại":"Gửi ảnh setup bổ sung"}</button>
+       <label className={styles.field} data-tos-slot={tosSlotKeys(styles.field)}>Ghi chú về thay đổi setup (tùy chọn)<textarea maxLength={1000} aria-label="Ghi chú ảnh setup bổ sung" value={draftNote} onChange={e=>setDraftNote(e.target.value)} placeholder="Ví dụ: Đã chỉnh lại bàn ghế và ánh sáng."/></label>
+       <button disabled={readOnly||appendBusy||!proofOpening.canAppend||draftPhotos.length<1||draftPhotos.length>10||draftNote.trim().length>1000} className={styles.primaryButtonWide} data-tos-slot={tosSlotKeys(styles.primaryButtonWide)} onClick={()=>void submitSupplement()}>{appendBusy?"Đang xử lý ảnh...":needsAction(proofOpening)?"Gửi bổ sung để duyệt lại":"Gửi ảnh setup bổ sung"}</button>
        <button className={styles.cancel} data-tos-slot={tosSlotKeys(styles.cancel)} onClick={()=>{setAppendOpen(false);setDraftPhotos([]);setDraftNote("")}}>Hủy bổ sung</button>
       </section>}
     <p className={styles.smallMuted} data-tos-slot={tosSlotKeys(styles.smallMuted)}>Thông tin bằng chứng chỉ hiển thị khi được Core xác minh. Ảnh mới chọn chưa được gửi.</p>
