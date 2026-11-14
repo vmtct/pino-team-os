@@ -1,6 +1,7 @@
 "use client";
 /** PAP-1356 / PAP-1456 / Epic PAP-1097: Core-owned 8-slot Loadout; DS UI and draft-safe save. */
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { personalStarterIntent,verifyPersonalStarter,retryKey,type Receipt } from "./starter-personal-contract";
 import type { AvatarRow } from "./avatar-dsa-data";
 import type { ModuleRow } from "@/lib/workspace-schema";
 import type { SelfFields } from "./schema";
@@ -37,6 +38,8 @@ export function SelfLoadoutDetail({row,centerId,activeTab,canView,canManage,canV
   const [selfSet,setSelfSet]=useState<SelfSet|null>(null);
   const [selectedSetId,setSelectedSetId]=useState("");
   const [selectedStarterId,setSelectedStarterId]=useState("");
+  const [confirmStarter,setConfirmStarter]=useState(false);
+  const starterRetry=useRef<{signature:string;key:string}|null>(null);
   const [activeSetError,setActiveSetError]=useState("");
   const [activeSetReason,setActiveSetReason]=useState("");
   const [activeSetConflict,setActiveSetConflict]=useState(false);
@@ -53,7 +56,7 @@ export function SelfLoadoutDetail({row,centerId,activeTab,canView,canManage,canV
   useEffect(()=>{
     if(activeTab!=="loadout" || !selfId || !canView) return;
     const ctl=new AbortController();
-    queueMicrotask(()=>{if(!ctl.signal.aborted){setSelfSet(null);setSelectedSetId("");setSelectedStarterId("");setActiveSetError("");setActiveSetReason("");setActiveSetConflict(false);setLoading(true);setError("");setItemError("");setOwned(null);setLoadout(null);setChosen(null);setReason("");setNotice("");setConflict(false);}});
+    queueMicrotask(()=>{if(!ctl.signal.aborted){setSelfSet(null);setSelectedSetId("");setSelectedStarterId("");setConfirmStarter(false);setActiveSetError("");setActiveSetReason("");setActiveSetConflict(false);setLoading(true);setError("");setItemError("");setOwned(null);setLoadout(null);setChosen(null);setReason("");setNotice("");setConflict(false);}});
     const base="/api/bo/pinoria/selfs/"+selfId;
     const qs="?centerId="+encodeURIComponent(centerId);
     const load=(url:string)=>fetch(url,{credentials:"include",cache:"no-store",signal:ctl.signal}).then(async r=>{
@@ -107,13 +110,17 @@ export function SelfLoadoutDetail({row,centerId,activeTab,canView,canManage,canV
   }
   async function startSet(){
     const choice=selfSet?.starterSets.find(s=>s.setItemId===selectedStarterId);
-    if(!selfId || !selfSet?.starterAvailable || !choice || !canManage || loading || saving || activeSetConflict || !activeSetReason.trim())return;
+    if(!selfId || !selfSet?.starterAvailable || !choice || !loadout || dirty || !canManage || loading || saving || activeSetConflict || !activeSetReason.trim() || !confirmStarter)return;
     setSaving(true);setActiveSetError("");setNotice("");
     try {
+      const command=personalStarterIntent(selfSet,loadout,choice.setItemId,activeSetReason,crypto.randomUUID());
+      const attempt=retryKey(starterRetry.current,JSON.stringify([centerId,selfId,command.body]),()=>command.key);
+      starterRetry.current=attempt;
+      const intent={...command,key:attempt.key};
       const response=await fetch("/api/bo/pinoria/selfs/"+selfId+"/set/starter?centerId="+encodeURIComponent(centerId),{
         method:"POST",credentials:"include",cache:"no-store",
-        headers:{"content-type":"application/json","idempotency-key":crypto.randomUUID()},
-        body:JSON.stringify({setItemId:choice.setItemId,expectedVersion:selfSet.version,expectedSelfVersion:selfSet.selfVersion,reason:activeSetReason.trim()}),
+        headers:{"content-type":"application/json","idempotency-key":intent.key},
+        body:JSON.stringify(intent.body),
       });
       if(!response.ok){
         if(response.status===409)setActiveSetConflict(true);
@@ -121,9 +128,14 @@ export function SelfLoadoutDetail({row,centerId,activeTab,canView,canManage,canV
       }
       const read=await fetch("/api/bo/pinoria/selfs/"+selfId+"/set?centerId="+encodeURIComponent(centerId),{credentials:"include",cache:"no-store"});
       if(!read.ok)throw Error("Chưa xác minh được Starter đã lưu. Tải lại để kiểm tra.");
+      const receipt=(await response.json() as {data:Receipt}).data;
       const next=parseSet(await read.json(),selfId);
-      if(next.setItemId!==choice.setItemId || next.starterAvailable || next.selfVersion<=selfSet.selfVersion)throw Error("Trạng thái Starter chưa khớp. Tải lại để kiểm tra.");
-      setSelfSet(next);setSelectedStarterId("");setActiveSetReason("");setNotice("Đã nhận Starter và áp dụng Set.");onSaved();
+      const baseRead=await fetch("/api/bo/pinoria/selfs/"+selfId+"/loadout?centerId="+encodeURIComponent(centerId),{credentials:"include",cache:"no-store"});
+      if(!baseRead.ok)throw Error("Chưa đọc lại được trang bị.");
+      const base=parseLoadout(await baseRead.json(),selfId);
+      verifyPersonalStarter(intent,receipt,next,base);
+      setSelfSet(next);setLoadout(base);setChosen(slotIds(base));setSelectedStarterId("");setConfirmStarter(false);setActiveSetReason("");setNotice("Đã nhận Starter và trang bị từng Item.");onSaved();
+      setRefresh(n=>n+1);
     }catch(e){setActiveSetError(e instanceof Error?e.message:"Chưa xác nhận được Starter. Hãy tải lại.");}
     finally{setSaving(false);}
   }
@@ -185,7 +197,7 @@ export function SelfLoadoutDetail({row,centerId,activeTab,canView,canManage,canV
       <label className="pds-property-label" htmlFor="self-loadout-starter">Bộ Starter lần đầu</label>
       <select id="self-loadout-starter" className="pds-property-input" value={selectedStarterId}
         disabled={!canManage||loading||saving||activeSetConflict}
-        onChange={e=>{setSelectedStarterId(e.target.value);setActiveSetError("");}}>
+        onChange={e=>{setSelectedStarterId(e.target.value);setConfirmStarter(false);setActiveSetError("");}}>
         <option value="">Chọn bộ Starter</option>
         {selfSet.starterSets.map(s=><option key={s.setItemId} value={s.setItemId}>{s.displayName}</option>)}
       </select>
@@ -199,11 +211,18 @@ export function SelfLoadoutDetail({row,centerId,activeTab,canView,canManage,canV
       <div className="pds-property-actions">
         <button type="button" disabled={!canManage||saving||loading||activeSetConflict||!activeSetReason.trim()||!selectedSetId||selectedSetId===selfSet.setItemId||!selfSet.eligibleSets.some(s=>s.setItemId===selectedSetId)} onClick={()=>{void applySet();}}>Áp dụng Set</button>
         {selfSet.starterAvailable && <button type="button"
-          disabled={!canManage||saving||loading||activeSetConflict||!activeSetReason.trim()||!selectedStarterId||!selfSet.starterSets.some(s=>s.setItemId===selectedStarterId)}
-          onClick={()=>{void startSet();}}>Nhận Starter</button>}
+          disabled={!canManage||saving||loading||dirty||!loadout||activeSetConflict||!activeSetReason.trim()||!selectedStarterId||!selfSet.starterSets.some(s=>s.setItemId===selectedStarterId)}
+          onClick={()=>setConfirmStarter(true)}>Nhận Starter</button>}
         {selfSet.setItemId && <button type="button" disabled={!canManage||saving||loading||activeSetConflict||!activeSetReason.trim()} onClick={()=>{void clearSet();}}>Bỏ Set</button>}
       </div>
     </>}
+    {confirmStarter && selfSet?.starterAvailable && <div className="pds-property-row" role="group" aria-label="Xác nhận nhận Starter">
+      <p className="pds-property-text">Chỉ nhận Starter một lần. Item trong Starter sẽ thay thế trang bị cùng vị trí và giữ các vị trí khác.</p>
+      <div className="pds-property-actions">
+       <button type="button" disabled={saving} onClick={()=>setConfirmStarter(false)}>Hủy</button>
+       <button type="button" disabled={saving||loading||dirty||!loadout||activeSetConflict||!activeSetReason.trim()} onClick={()=>void startSet()}>Xác nhận nhận Starter</button>
+      </div>
+    </div>}
     {activeSetError && <p role="alert">{activeSetError}</p>}
     {activeSetError && <button type="button" disabled={loading||saving} onClick={()=>setRefresh(n=>n+1)}>Bỏ bản nháp và tải lại</button>}
     {loading && <p role="status">Đang tải Loadout từ Core…</p>}
