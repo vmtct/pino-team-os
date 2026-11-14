@@ -39,7 +39,7 @@ export function classroomV4ReadModel(day:V18bClassroomToday,staffLabel:string):C
    if(member.status==="CONFLICT")conflicts.add(member.studentProfileId);
    return member.studentProfileId;
   });
-  return {id:row.teachingContextKey,runningClassId:row.runningClassId,pathProgramId:row.occurrence.pathProgramId,eligibleStudentIds:row.roster.filter(m=>m.status==="CANDIDATE").map(m=>m.studentProfileId),name:row.operationalName,subject:"unknown" as const,path:"—",time:row.occurrence.localInterval?row.occurrence.localInterval.startsAt.slice(11,16)+"–"+row.occurrence.localInterval.endsAt.slice(11,16):day.localDate,room:"",staff:[],expected:participants[row.teachingContextKey]};
+  return {id:row.teachingContextKey,runningClassId:row.runningClassId,pathProgramId:row.occurrence.pathProgramId,eligibleStudentIds:row.roster.filter(m=>m.status==="CANDIDATE").map(m=>m.studentProfileId),name:row.operationalName,subject:"unknown" as const,path:(typeof row.pathDisplayName==="string"?row.pathDisplayName.trim():"")||"—",time:row.occurrence.localInterval?row.occurrence.localInterval.startsAt.slice(11,16)+"–"+row.occurrence.localInterval.endsAt.slice(11,16):day.localDate,room:"",staff:[],expected:participants[row.teachingContextKey]};
  });
  return {centerId:day.centerId,today:day.localDate,staffLabel,classes,data:{students:[...students.values()],participants,diaries:[],openings:{},sequence:0},missions:[],diaryReadState:"UNAVAILABLE",missionReadState:"UNAVAILABLE",openingReadState:"UNAVAILABLE",conflictStudentIds:[...conflicts]};
 }

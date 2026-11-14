@@ -8,7 +8,7 @@ export interface V18bClassroomRosterMember {
  expectedSources:Array<{kind:"ENROLLMENT"|"RENEWAL_GRACE";id:string;subscriptionId:string;enrollmentId:string}>;
 }
 export interface V18bClassroomOccurrence {
- teachingContextKey:string;runningClassId:string;operationalName:string;
+ teachingContextKey:string;runningClassId:string;operationalName:string;pathDisplayName?:string|null;
  occurrence:{occurrenceKey:string;pathProgramId:string;localDate:string;status:string;localInterval:{startsAt:string;endsAt:string}|null};
  roster:V18bClassroomRosterMember[];rosterCoverage:"ENROLLMENTS_AND_GRACE_ONLY";
 }
