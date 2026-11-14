@@ -4,6 +4,8 @@
  */
 import type {LogicalTvListItem} from "./pnr-tv-logical-visibility";
 
+import {tvPolicyViewerCenter} from "./pinoria-tv-viewer-link";
+
 type Transport=typeof fetch;
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const tvId=/^tvp1-(?:default|center-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
@@ -20,7 +22,8 @@ export function parseStaffTvRead(value:unknown,selectedCenterId:string):readonly
  const seen=new Set<string>();
  return data.policies.map((raw:unknown)=>{
   if(!object(raw)||Object.keys(raw).sort().join(",")!=="id,name,scope"||
-     typeof raw.id!=="string"||!tvId.test(raw.id)||
+     typeof raw.id!=="string"||(!tvId.test(raw.id)&&
+       (raw.scope!=="CENTER"||tvPolicyViewerCenter(raw.id)!==selectedCenterId))||
      typeof raw.name!=="string"||!raw.name.trim()||raw.name.length>200||
      (raw.scope!=="CENTER"&&raw.scope!=="DEFAULT")||seen.has(raw.id))return invalid();
   seen.add(raw.id);

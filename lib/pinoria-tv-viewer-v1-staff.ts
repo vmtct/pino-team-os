@@ -3,7 +3,7 @@
  * The policy reference requests a Center. Workforce confirms Staff membership, and Core authorizes the policy.
  * HO Founder selected-Center bridge and PAP-9/PAP-1921 ACL F3 remain separate.
  */
-import { isStableTvPolicyRef } from "./pinoria-tv-viewer-link";
+import { isStableTvPolicyRef, tvPolicyViewerCenter } from "./pinoria-tv-viewer-link";
 import { parsePublishedTvPolicyProjection, type ViewerPublishedProjection } from "./pinoria-tv-viewer-published";
 import { callTosLearningCoreWithCredential, type TosLearningCoreBinding } from "./tos-learning-core";
 import { callWorkforceCoreWithCredential, type WorkforceCoreBinding } from "./workforce-core";
@@ -67,7 +67,7 @@ export async function readStaffPublishedViewer(
       env.PINO_WORKFORCE_CORE, { method: "GET", path: "/context", body: {} }, credential,
     );
     if (context.status !== 200) return blocked(statusOf(context.status));
-    const centerId = authorizedStaffViewerCenter(context.body, policyRef.slice("tvp1-center-".length));
+    const centerId = authorizedStaffViewerCenter(context.body, tvPolicyViewerCenter(policyRef) ?? "");
     if (!centerId) return blocked(403);
 
     const published = await callTosLearningCoreWithCredential(

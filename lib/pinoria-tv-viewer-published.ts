@@ -35,7 +35,7 @@ export type ViewerPublishedProjection = Readonly<{
   scope: "DEFAULT" | "CENTER";
   effectiveScope: "DEFAULT" | "CENTER";
   inherited: boolean;
-  appliedRevision: number;
+  appliedRevision: number | null;
   configuration: ViewerPublishedConfiguration;
 }>;
 export type ViewerTrustedRequestContext = Readonly<{
@@ -102,6 +102,8 @@ export function parsePublishedTvPolicyProjection(
 
   if (!record(responseBody) || !hasExactKeys(responseBody, ["data"])) return null;
   const row = responseBody.data;
+  const isHouseAmbient = trustedContext.surface === "TOS" &&
+    trustedContext.policyRef === "tvp2-house-ambient-" + trustedContext.centerId;
   if (!record(row) ||
     !hasExactKeys(row, ["policyRef", "selectedCenterId", "type", "aspectRatio",
       "scope", "effectiveScope", "inherited", "appliedRevision", "configuration"]) ||
@@ -110,7 +112,7 @@ export function parsePublishedTvPolicyProjection(
     row.type !== "Ambient Welcome" || row.aspectRatio !== "16:9" ||
     (row.scope !== "DEFAULT" && row.scope !== "CENTER") ||
     (row.effectiveScope !== "DEFAULT" && row.effectiveScope !== "CENTER") ||
-    typeof row.inherited !== "boolean" || !safeInt(row.appliedRevision, 1, 2147483647)) return null;
+    typeof row.inherited !== "boolean" || (!safeInt(row.appliedRevision, 1, 2147483647) && !(isHouseAmbient && row.appliedRevision === null))) return null;
 
   const isDefault = trustedContext.policyRef === "tvp1-default";
   if ((isDefault && (row.scope !== "DEFAULT" || row.effectiveScope !== "DEFAULT" || row.inherited)) ||

@@ -109,3 +109,13 @@ test("PAP-1646 clones validated Core projection; future rendering still requires
   (cfg.visibleContext as Record<string,unknown>).name=false;
   assert.equal(result.configuration.visibleContext.name,true);
 });
+
+test("only the selected House Ambient TOS instance can use code defaults",()=>{
+  const policyRef="tvp2-house-ambient-"+centerId;
+  const context={...baseContext,policyRef};
+  const body=mutation(row=>Object.assign(row,{
+    policyRef,effectiveScope:"DEFAULT",inherited:true,appliedRevision:null,
+  }));
+  assert.equal(parsePublishedTvPolicyProjection(body,context)?.appliedRevision,null);
+  assert.equal(parsePublishedTvPolicyProjection(body,{...context,centerId:otherCenter}),null);
+});

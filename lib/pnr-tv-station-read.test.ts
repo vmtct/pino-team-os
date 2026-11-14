@@ -66,3 +66,11 @@ test("PAP-1753 UI links the matching Center Viewer through the guarded route, ex
  assert.match(station,/readStaffStationTvs\(centerId,authorizedCenterIds,\{signal:controller.signal\}\)/);
  assert.match(station,/controller.abort\(\)/);
 });
+
+test("House Ambient metadata must match the selected Center",()=>{
+ const instance={id:"tvp2-house-ambient-"+a,name:"House Ambient",scope:"CENTER"};
+ const payload=(row:typeof instance)=>({data:{centerId:a,policies:[row]}});
+ assert.equal(parseStaffTvRead(payload(instance),a)[0]?.tvId,instance.id);
+ assert.throws(()=>parseStaffTvRead(payload({...instance,id:"tvp2-house-ambient-"+b}),a));
+ assert.throws(()=>parseStaffTvRead(payload({...instance,scope:"DEFAULT"}),a));
+});
