@@ -17,10 +17,11 @@ export async function loadClassroomV4(centerId:string,localDate:string,staffLabe
  const model=classroomV4ReadModel(day,staffLabel);
  model.diaryOccurrenceReadState={};
  const loadPaths=async()=>{
-  if(!model.classes.length)return;
+  const missingLabels=model.classes.filter(classroom=>classroom.path==="—");
+  if(!missingLabels.length)return;
   const {data}=await tosLearningApi.sessionsDay(centerId,localDate);
   if(data.centerId!==centerId||data.localDate!==localDate||!Array.isArray(data.sessions))return;
-  for(const classroom of model.classes){
+  for(const classroom of missingLabels){
    const labels=new Set(data.sessions.filter(session=>session.runningClassId===classroom.runningClassId&&session.pathProgramId===classroom.pathProgramId&&session.localDate===localDate).map(session=>typeof session.pathDisplayName==="string"?session.pathDisplayName.trim():"").filter(Boolean));
    if(labels.size===1)classroom.path=[...labels][0]!;
   }
