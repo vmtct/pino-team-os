@@ -7,6 +7,7 @@ import {dailyReadApi,DailyReadError} from "@/lib/bo-payroll-daily-api";
 import {payrollDailyRow,type BoPayrollDailyRow} from "@/lib/bo-payroll-daily-view-model";
 import {dailyPropertyFields} from "../../BoPayrollDailyReadView";
 import {BoProperties} from "@/app/bo/components/BoProperties";
+import {payrollAuditTime} from "@/lib/bo-payroll-safe-read-metadata";
 function Properties({row}:{row:BoPayrollDailyRow}){
  return <BoProperties items={dailyPropertyFields.map(([name,render])=>({key:name,label:name,value:render(row)}))}/>;
 }
@@ -54,7 +55,7 @@ function DailyDetailScope({staffMemberId,workDate,activeTab}:DailyDetailProps){
     {key:"actual",label:"Check-in/out hiệu lực",value:row.actualInOut}]}/></section>},
   {id:"history",label:"Lịch Sử",content:<section>
    <h2>Điều chỉnh ngày công</h2>
-   {row.override?<BoProperties items={[{key:"time",label:"Created Time",value:row.override.createdAt},
+   {row.override?<BoProperties items={[{key:"time",label:"Created Time",value:payrollAuditTime(row.override.createdAt)},
     {key:"by",label:"Created By",value:"—"},
     {key:"actor",label:"Actor ID (technical)",value:row.override.createdByUserId},
     {key:"reason",label:"Lý do",value:row.override.reason}]}/>:<p>Core chưa trả về sự kiện điều chỉnh cho ngày này.</p>}

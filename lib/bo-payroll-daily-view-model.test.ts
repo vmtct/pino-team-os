@@ -50,3 +50,11 @@ test("PAP-1954 exact local day window prevents invalid calendar and >31 inclusiv
   ["2026-11-03","2026-11-02"],["2026-11-01","2026-11-34"]])
   assert.equal(validDailyWindow(from,to),false);
 });
+
+test("PAP-1959 uses only verified Core names and keeps derived day audit unavailable",()=>{
+ const row=payrollDailyRow({...base,staffLegalFullName:"Synthetic Verified Name"},center);
+ assert.equal(row.staffDisplayName,"Synthetic Verified Name");
+ assert.deepEqual([row.createdAt,row.createdBy,row.updatedAt,row.updatedBy],Array(4).fill("—"));
+ assert.equal(row.effectiveMinor,base.effective.amountMinor);
+ assert.equal(payrollDailyRow({...base,staffLegalFullName:null},center).staffDisplayName,"—");
+});
