@@ -1,7 +1,6 @@
 export { PinerOtpRateGuard } from "./lib/piner-auth-bff.mjs";
 import openNextWorker from "./.open-next/worker.js";
 import { dispatchPinerAfterschoolPin } from "./lib/piner-afterschool-pin-dispatch.mjs";
-export { PinerAfterschoolRateGuard } from "./lib/piner-afterschool-rate-guard.mjs";
 
 const ALLOWED_PREFIXES = [
   "/piner-space",
