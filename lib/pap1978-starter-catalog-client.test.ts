@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {loadStarterCatalog,createStarter,updateStarter,changeStarterLifecycle,starterDraft} from "../app/ho/pinoria/starter-sets/starter-catalog-client";
-import type {HoSetItem,ItemRecord} from "../app/ho/pinoria/wardrobe/item-client";
+import {loadStarterCatalog,createStarter,updateStarter,changeStarterLifecycle,starterDraft,deleteStarter} from "../app/ho/pinoria/starter-sets/starter-catalog-client";
+import {ItemApiError,type HoSetItem,type ItemRecord} from "../app/ho/pinoria/wardrobe/item-client";
 const id=(n:number)=>"019b1126-0001-7000-8000-"+String(n).padStart(12,"0");
 const set=(n:number,p:Partial<HoSetItem>={}):HoSetItem=>({id:id(n),key:"set-"+n,displayName:"Set "+n,type:"SET",slot:null,asset:null,positionX:0,positionY:0,scale:1,rotationDegrees:null,status:"DRAFT",revision:1,createdAt:"2026-11-14",updatedAt:"2026-11-14",publishedAt:null,unpublishedAt:null,starterEligible:true,members:[],...p});
 const mock=(rows:ItemRecord[],detail:HoSetItem[],result:HoSetItem=detail[0])=>{
@@ -40,4 +40,17 @@ test("description respects pending draft, explicit clear and exact readback",asy
  const m=mock([], [b]);await updateStarter(a,starterDraft(b),m.client);
  assert.equal((m.calls[0].body as {description:unknown}).description,null);
  await assert.rejects(updateStarter(a,{...starterDraft(b),description:"not persisted"},m.client));
+});
+
+test("Draft delete requires exact receipt and independent missing detail/list readback",async()=>{
+ const a=set(1),calls:unknown[][]=[];
+ const client={remove:async(...args:[string,number,string])=>{calls.push(args);return {id:a.id,revision:2,deleted:true}},get:async()=>{throw new ItemApiError(404,"NOT_FOUND")},list:async()=>[]};
+ await deleteStarter(a,"stable-key",client);
+ assert.deepEqual(calls,[[a.id,1,"stable-key"]]);
+ await assert.rejects(deleteStarter({...a,status:"PUBLISHED"},"stable-key",client));
+ assert.equal(calls.length,1);
+ await assert.rejects(deleteStarter(a,"stable-key",{...client,remove:async()=>({id:id(2),revision:2,deleted:true})}));
+ await assert.rejects(deleteStarter(a,"stable-key",{...client,get:async()=>{throw new ItemApiError(503,"UNAVAILABLE")}}));
+ await assert.rejects(deleteStarter(a,"stable-key",{...client,get:async()=>a}));
+ await assert.rejects(deleteStarter(a,"stable-key",{...client,list:async()=>[a]}));
 });

@@ -1,7 +1,15 @@
 /** PAP-1978 / PAP-1974: reuse the canonical Item SET client. */
-import {getItem,listItems,writeItem,type HoSetItem,type ItemRecord,type SetInput} from "../wardrobe/item-client";
+import {getItem,listItems,writeItem,deleteItemDraft,ItemApiError,type HoSetItem,type ItemRecord,type SetInput} from "../wardrobe/item-client";
 type CatalogClient={list:typeof listItems;get:typeof getItem;write:typeof writeItem};
 const canonical:CatalogClient={list:listItems,get:getItem,write:writeItem};
+export async function deleteStarter(r:HoSetItem,key:string,client={remove:deleteItemDraft,get:getItem,list:listItems}){
+ if(r.status!=="DRAFT"||r.starterEligible!==true||r.publishedAt||r.unpublishedAt)throw Error("Chỉ có thể xóa Starter Set bản nháp.");
+ const result=await client.remove(r.id,r.revision,key) as {id?:unknown;revision?:unknown;deleted?:unknown}|null;
+ if(!result||result.id!==r.id||result.revision!==r.revision+1||result.deleted!==true)throw Error("Core chưa xác nhận xóa bản nháp.");
+ try{await client.get(r.id);throw Error("Starter Set vẫn tồn tại.");}catch(e){if(!(e instanceof ItemApiError)||e.status!==404)throw e;}
+ if((await client.list()).some(i=>i.id===r.id))throw Error("Starter Set vẫn còn trong danh sách.");
+ return result;
+}
 export type StarterSetDraft={key:string;displayName:string;description:string;memberItemIds:string[]};
 function requireSet(record:ItemRecord):HoSetItem{
  if(record.type!=="SET"||typeof record.starterEligible!=="boolean"||!Array.isArray(record.members))

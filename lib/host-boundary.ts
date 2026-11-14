@@ -258,7 +258,7 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
     const itemBase = p === "/api/ho/pinoria/items";
     const itemUpload = p === "/api/ho/pinoria/items/uploads";
     const itemRecord = /^\/api\/ho\/pinoria\/items\/[0-9a-f-]{36}$/.test(p);
-    const itemPublish = /^\/api\/ho\/pinoria\/items\/[0-9a-f-]{36}\/(?:publish|unpublish)$/.test(p);
+    const itemPublish = /^\/api\/ho\/pinoria\/items\/[0-9a-f-]{36}\/(?:publish|unpublish|delete-draft)$/.test(p);
     const itemMedia = /^\/api\/ho\/pinoria\/items\/[0-9a-f-]{36}\/(?:media|draft-media)$/.test(p);
     if (itemBase || itemUpload || itemRecord || itemPublish || itemMedia) {
       const allowed = (itemBase && (method === "GET" || method === "POST"))

@@ -1,6 +1,7 @@
 "use client";
 /** PAP-1978 / PAP-1974 native DSA module; host must supply confirmed Founder manage authority. */
 import {useCallback,useEffect,useRef,useState,type ReactNode} from "react";
+import {formatPinoDateTime} from "@/lib/pino-datetime";
 import {BoDataTable} from "@/app/bo/components/registration/BoDataTable";
 import {BoQuickView} from "@/app/bo/components/registration/BoQuickView";
 import {BoTableSettings,type BoSavedView} from "@/app/bo/components/registration/BoTableSettings";
@@ -10,7 +11,7 @@ import {DetailFrame} from "@/app/components/workspace-renderer/DetailFrame";
 import {PropertySections} from "@/app/components/workspace-renderer/Properties";
 import {defaultTable,type BoField,type BoModule,type BoRecord,type BoTableState,type BoValue} from "@/lib/bo-registration";
 import {assetUrl,slots,slotNames,type Slot,type HoSetItem,type ItemRecord,type HoItem} from "../wardrobe/item-client";
-import {loadStarterCatalog,starterDraft,createStarter,updateStarter,changeStarterLifecycle,type StarterSetDraft} from "./starter-catalog-client";
+import {loadStarterCatalog,starterDraft,createStarter,updateStarter,changeStarterLifecycle,deleteStarter,type StarterSetDraft} from "./starter-catalog-client";
 import "@/app/components/pinoria-item/item-calibration.css";
 import {isStarterTab,readStarterDetailRoute,starterDetailUrl,type StarterTab} from "./starter-detail-route";
 const starterModule:BoModule={label:"Starter Set",group:"Pinoria",fields:[
@@ -65,6 +66,8 @@ export function HoStarterSets({canManage=false,mobileMenu}:{canManage?:boolean;m
  const [settings,setSettings]=useState<string|null>(null),[filter,setFilter]=useState(false),[views,setViews]=useState<BoSavedView[]>([]),[activeView,setActiveView]=useState<string|null>(null);
  const [selected,setSelected]=useState<HoSetItem|null>(null),[mode,setMode]=useState<"create"|"view"|"detail"|null>(null);
  const [tab,setTab]=useState<StarterTab>("overview"),[draft,setDraft]=useState(emptyDraft),[error,setError]=useState(""),[notice,setNotice]=useState(""),[busy,setBusy]=useState(false);
+ const [deleteConfirm,setDeleteConfirm]=useState(false);
+ const deleteKey=useRef<{fingerprint:string;key:string}|null>(null);
  const busyRef=useRef(false),opener=useRef<HTMLElement|null>(null);
  const [editor,setEditor]=useState<{field:BoField;anchor:HTMLElement}|null>(null);
  useEffect(()=>{const ctl=new AbortController();void loadStarterCatalog(ctl.signal).then(r=>{if(!ctl.signal.aborted){setRows(r.starters);setItems(concrete(r.items));setLoad("ready")}}).catch(e=>{if(!ctl.signal.aborted){setRows([]);setItems([]);setLoad(message(e))}});return()=>ctl.abort()},[refresh]);
@@ -79,13 +82,21 @@ export function HoStarterSets({canManage=false,mobileMenu}:{canManage?:boolean;m
  const selectDetailTab=(id:string)=>{if(!selected||!isStarterTab(id)||busyRef.current)return;setTab(id);window.history.pushState(null,"",starterDetailUrl(window.location.href,selected.id,id));setEditor(null)};
  const reset=()=>{setTable(defaultTable(starterModule.fields));setPage(1);setActiveView(null)};
  const update=useCallback((p:Partial<BoTableState>)=>{setTable(t=>({...t,...p}));setPage(1)},[]);
- const close=()=>{if(busyRef.current)return;if(readStarterDetailRoute(window.location.search))window.history.pushState(null,"",starterDetailUrl(window.location.href,null));setMode(null);setSelected(null);setEditor(null);setError("");requestAnimationFrame(()=>opener.current?.focus({preventScroll:true}))};
+ const close=()=>{if(busyRef.current)return;setDeleteConfirm(false);if(readStarterDetailRoute(window.location.search))window.history.pushState(null,"",starterDetailUrl(window.location.href,null));setMode(null);setSelected(null);setEditor(null);setError("");requestAnimationFrame(()=>opener.current?.focus({preventScroll:true}))};
  const choose=(row:BoRecord)=>{const x=rows.find(r=>r.id===row.id);if(!x)return;opener.current=document.activeElement instanceof HTMLElement?document.activeElement:null;setSelected(x);setDraft(starterDraft(x));setMode("view");setError("")};
  const apply=async(fn:()=>Promise<HoSetItem>,next:"view"|"detail")=>{
   if(!canManage||busyRef.current)return;
   busyRef.current=true;setBusy(true);setError("");setNotice("");
   try{const n=await fn();setSelected(n);setDraft(starterDraft(n));setMode(next);setEditor(null);setNotice("Đã lưu và xác minh Core readback.");setRefresh(v=>v+1)}
   catch(e){setError(message(e))}finally{busyRef.current=false;setBusy(false)}
+ };
+ const removeDraft=async()=>{
+  if(!selected||!canManage||busyRef.current||selected.status!=="DRAFT"||!deleteConfirm)return;
+  const fingerprint=selected.id+":"+selected.revision;
+  if(deleteKey.current?.fingerprint!==fingerprint)deleteKey.current={fingerprint,key:crypto.randomUUID()};
+  busyRef.current=true;setBusy(true);setError("");
+  try{await deleteStarter(selected,deleteKey.current.key);busyRef.current=false;close();setRows(old=>old.filter(r=>r.id!==selected.id));setNotice("Đã xóa Starter Set bản nháp.");setRefresh(v=>v+1);deleteKey.current=null;}
+  catch(e){setError(message(e));}finally{busyRef.current=false;setBusy(false)}
  };
  const canEdit=canManage&&selected!==null&&selected.status!=="UNPUBLISHED"&&!busy;
  const publishReady=selected!==null&&(selected.status==="DRAFT"||(selected.status==="PUBLISHED"&&Boolean(selected.pendingDraft)))&&["HAIR","FACE","OUTFIT"].every(slot=>items.some(i=>i.slot===slot&&starterDraft(selected).memberItemIds.includes(i.id)));
@@ -102,6 +113,7 @@ export function HoStarterSets({canManage=false,mobileMenu}:{canManage?:boolean;m
     <Preview ids={starterDraft(selected).memberItemIds} items={items}/>
     {canManage&&<div className="ho-rel-actions">
       {(selected.status==="DRAFT"||selected.pendingDraft)&&<button className="primary-btn" disabled={busy||!publishReady} onClick={()=>void apply(()=>changeStarterLifecycle(selected,"publish"),"detail")}>Publish</button>}
+      {selected.status==="DRAFT"&&selected.starterEligible&&(!deleteConfirm?<button className="secondary-btn" disabled={busy} onClick={()=>setDeleteConfirm(true)}>Xóa bản nháp</button>:<div role="group" aria-label="Xác nhận xóa bản nháp"><p>Xóa Starter Set bản nháp này? Không thể hoàn tác.</p><button className="secondary-btn" disabled={busy} onClick={()=>setDeleteConfirm(false)}>Hủy</button><button className="primary-btn" disabled={busy} onClick={()=>void removeDraft()}>Xác nhận xóa</button></div>)}
       {selected.status==="PUBLISHED"&&!selected.pendingDraft&&<button className="secondary-btn" disabled={busy} onClick={()=>void apply(()=>changeStarterLifecycle(selected,"unpublish"),"detail")}>Unpublish</button>}
     </div>}
    </>:tab==="members"?<>
@@ -109,7 +121,7 @@ export function HoStarterSets({canManage=false,mobileMenu}:{canManage?:boolean;m
     {canEdit&&<button className="primary-btn" disabled={JSON.stringify(draft)===JSON.stringify(starterDraft(selected))} onClick={()=>void apply(()=>updateStarter(selected,draft),"detail")}>Lưu thành viên</button>}
    </>:<section aria-label="Lịch sử Starter Set">
     {selected.history?.length?<table className="pds-table"><thead><tr><th>Phiên bản</th><th>Hoạt động</th><th>Người thực hiện (ID)</th><th>Thời gian</th></tr></thead><tbody>
-      {selected.history.map(h=><tr key={h.revision}><td>{h.revision}</td><td>{({CREATED:"Tạo",UPDATED:"Cập nhật",PUBLISHED:"Publish",UNPUBLISHED:"Unpublish"} as Record<string,string>)[h.action]}</td><td>{h.actorUserId}</td><td>{new Date(h.createdAt).toLocaleString("vi-VN")}</td></tr>)}
+      {selected.history.map(h=><tr key={h.revision}><td>{h.revision}</td><td>{({CREATED:"Tạo",UPDATED:"Cập nhật",PUBLISHED:"Publish",UNPUBLISHED:"Unpublish"} as Record<string,string>)[h.action]}</td><td>{h.actorUserId}</td><td>{formatPinoDateTime(h.createdAt)}</td></tr>)}
     </tbody></table>:<p role="status">Chưa có lịch sử được Core xác nhận.</p>}
    </section>}
   </DetailFrame>;

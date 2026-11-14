@@ -78,6 +78,10 @@ function requestKey(){return crypto.randomUUID()}
 export async function writeItem(path:string,method:"POST"|"PATCH",body:object):Promise<ItemRecord>{
  return validateItem(await api<unknown>(path,{method,headers:{"content-type":"application/json","idempotency-key":requestKey()},body:JSON.stringify(body)}));
 }
+export async function deleteItemDraft(id:string,expectedRevision:number,idempotencyKey:string):Promise<unknown>{
+ if(!uuid.test(id)||!Number.isSafeInteger(expectedRevision)||expectedRevision<1)throw Error("Invalid Draft revision");
+ return api<unknown>("/"+id+"/delete-draft",{method:"POST",headers:{"content-type":"application/json","idempotency-key":idempotencyKey},body:JSON.stringify({expectedRevision})});
+}
 export async function writeWearableItem(path:string,method:"POST"|"PATCH",body:object):Promise<HoItem>{
  const result=await writeItem(path,method,body);if(result.type==="SET")throw Error("Unexpected SET response");return result;
 }
