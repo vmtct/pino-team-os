@@ -64,7 +64,9 @@ async function run(){
    }finally{await p.close()}
   }
   assert.match(source,/className=\{styles\.studentAge\}/,"Student age must be explicitly muted alongside name");
-  assert.match(source,/Vào lớp<\/button>/,"Bypass CTA must read Vào lớp");
+  assert.match(source,/className=\{styles\.bypassEntryButton\}[\s\S]*?>Vào lớp không mở ca<\/button>/,"PAP-1966 Staff CTA must be explicit Vào lớp không mở ca");
+  assert.match(source,/<strong>Bạn có chắc không mở ca vẫn vào lớp\?<\/strong>/,"PAP-1966 Staff confirmation question exact");
+  assert(!source.includes("Thông tin này sẽ được gửi đến Quản lý"),"Do not falsely claim Manager notification before committed write and readback");
   for(const s of ["Có thể vào lớp mà không mở ca","Không xác nhận lớp đã mở","Nhật ký kiểm tra qua Core","Không tạo mở ca, ảnh setup hay chấm công"])assert(!source.includes(s),"Old technical copy leaked: "+s);
   assert(!diarySource.includes("Ghi Nhật ký chỉ khả dụng khi đã xác nhận"),"Diary old technical admission hint must not remain");
   assert(diarySource.includes("Chưa thể gửi Nhật ký ở lớp này."),"Diary must keep concise disabled feedback");
