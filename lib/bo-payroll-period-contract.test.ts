@@ -1,4 +1,6 @@
 import test from "node:test";
+import {readFileSync} from "node:fs";
+import {decideHostBoundary} from "./host-boundary";
 import assert from "node:assert/strict";
 import {isBoPayrollPeriodPath,handleBoPayrollPeriodRequest} from "./bo-payroll-period-handler";
 import {validPeriodInput,money,periodApi} from "./bo-payroll-period-api";
@@ -116,5 +118,21 @@ test("PAP-1985 exact history route denies writes and ambiguous scope",async()=>{
  for(const [method,query,status] of [["POST","centerId="+center,405],["GET","centerId="+center+"&centerId="+center,400],["GET","centerId="+center+"&limit=51",400]] as const){
   const res=await handleBoPayrollPeriodRequest(new Request(base+path+"?"+query,{method}),env,path);
   assert.equal(res.status,status);
+ }
+});
+
+test("PAP-1985 native period entry is exact existing Staging route with unchanged legacy fallback",()=>{
+ const entry=readFileSync(new URL("../app/bo/payroll-periods/page.tsx",import.meta.url),"utf8");
+ assert.match(entry,/import \{useBoStagingUser\} from "@\/app\/bo\/components\/registration\/BoRuntimeBoundary"/);
+ assert.match(entry,/return stagingUser \? <BoNativePayrollPeriods\/> : <BoWorkforceRoute moduleKey="payroll-periods" adapter=\{moduleAdapter\}\/>/);
+ const view=readFileSync(new URL("../app/bo/payroll-periods/BoNativePayrollPeriods.tsx",import.meta.url),"utf8");
+ assert.match(view,/useBoCenterSelection\(\)/);
+ assert.match(view,/query\.getAll\("centerId"\)\.length===1/);
+ assert.match(view,/query\.getAll\("record"\)\.length>1/);
+ assert.doesNotMatch(view,/BoWorkforceRoute|BoModuleFactory|defineTddModule/);
+ assert.equal(decideHostBoundary("bo.staging.pinohouse.art","/bo/payroll-periods").action,"next");
+ assert.equal(decideHostBoundary("bo.pinohouse.art","/bo/payroll-periods").action,"next");
+ for(const host of ["ho.staging.pinohouse.art","tos.staging.pinohouse.art"]){
+  assert.equal(decideHostBoundary(host,"/bo/payroll-periods").action,"not_found");
  }
 });

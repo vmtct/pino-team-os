@@ -59,8 +59,49 @@ function checkedImportGraph(root,start,issues){
   }
   walk(start,0);
 }
+/** PAP-1970 / PAP-1985 / PAP-1063: ONLY the existing period page may
+ * mount the admitted native renderer conditional on the authenticated
+ * Staging context. The complete AST-printed entry must match exactly.
+ * Production fallback and the entire remaining adapter guard stay intact. */
+const periodEntryFile="app/bo/payroll-periods/page.tsx";
+const periodEntryTemplate=`
+"use client";
+import {BoWorkforceRoute} from "@/app/bo/architecture/BoWorkforceRoute";
+import {useBoStagingUser} from "@/app/bo/components/registration/BoRuntimeBoundary";
+import BoNativePayrollPeriods from "./BoNativePayrollPeriods";
+import {moduleAdapter} from "./adapter";
+export default function PayrollPeriodCanonicalPage(){
+ const stagingUser=useBoStagingUser();
+ return stagingUser ? <BoNativePayrollPeriods/> : <BoWorkforceRoute moduleKey="payroll-periods" adapter={moduleAdapter}/>;
+}`;
+const periodPrinter=ts.createPrinter({removeComments:true,newLine:ts.NewLineKind.LineFeed});
+function auditNativePeriodEntry(root,file,sf,issues){
+  if(periodPrinter.printFile(sf)!==periodPrinter.printFile(parse(file,periodEntryTemplate))){
+    issues.push(file+": PAP-1970 invalid exact native Staging / unchanged legacy fallback entry");
+    return;
+  }
+  const viewPath="app/bo/payroll-periods/BoNativePayrollPeriods.tsx";
+  try {
+    const view=fs.readFileSync(path.join(root,viewPath),"utf8");
+    if(!view.includes("export default function BoNativePayrollPeriods()")||
+      !view.includes("useBoCenterSelection()")||!view.includes("BoDataGrid")||
+      !view.includes("BoFullDetail")||!view.includes("PeriodProperties")||
+      /BoModuleFactory|BoWorkforceRoute|defineTddModule/.test(view))
+      issues.push(file+": PAP-1970 native period Center/TDD contract incomplete");
+    const adapterPath=resolve(root,file,"./adapter");
+    if(adapterPath)checkedImportGraph(root,adapterPath,issues);
+  }catch(err){issues.push(file+": "+String(err instanceof Error?err.message:err));}
+}
+
 export function auditCanonicalBoRoute(root,file,expectedKey,issues){
   const sf=parse(file,fs.readFileSync(path.join(root,file),"utf8"));
+  if(file===periodEntryFile&&expectedKey==="payroll-periods"&&
+    sf.statements.some(stmt=>ts.isImportDeclaration(stmt)&&ts.isStringLiteral(stmt.moduleSpecifier)&&
+      (stmt.moduleSpecifier.text==="./BoNativePayrollPeriods"||
+       stmt.moduleSpecifier.text==="@/app/bo/components/registration/BoRuntimeBoundary"))){
+    auditNativePeriodEntry(root,file,sf,issues);
+    return;
+  }
   let factory=false,stagingGateway=false,adapter=false;
   for(const stmt of sf.statements){
     if(!ts.isImportDeclaration(stmt))continue;
