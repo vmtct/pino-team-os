@@ -7,9 +7,14 @@ import {useBoCenterSelection} from "@/app/bo/components/registration/BoCenterSel
 import {exceptionReadApi,ExceptionReadError} from "@/lib/bo-payroll-exceptions-read";
 import {toExceptionReadRow,minorVnd,type ExceptionReadRow} from "@/lib/bo-payroll-exceptions-model";
 import {exceptionProperties} from "../BoPayrollExceptionsReadView";
-export default function BoPayrollExceptionDetail({requestId,activeTab}:{
- requestId:string;activeTab?:string;
-}){
+type ExceptionDetailProps={requestId:string;activeTab?:string};
+export default function BoPayrollExceptionDetail(props:ExceptionDetailProps){
+ const scope=useBoCenterSelection(),centerId=scope?.selected??"";
+ const allowed=Boolean(scope&&!scope.loading&&!scope.error&&centerId&&scope.centers.some(c=>c.id===centerId));
+ // PAP-1972: discard prior record/error state when authorization or identity changes.
+ return <ExceptionDetailScope key={JSON.stringify([centerId,allowed,props.requestId])} {...props}/>;
+}
+function ExceptionDetailScope({requestId,activeTab}:ExceptionDetailProps){
  const scope=useBoCenterSelection(),centerId=scope?.selected??"";
  const authorized=Boolean(scope&&!scope.loading&&!scope.error&&centerId&&scope.centers.some(c=>c.id===centerId));
  const [record,setRecord]=useState<{centerId:string;row:ExceptionReadRow}|null>(null);

@@ -61,11 +61,17 @@ function apiError(error:unknown){
 export default function BoPayrollDailyReadView(){
  const scope=useBoCenterSelection(),centerId=scope?.selected??"";
  const allowed=Boolean(scope&&!scope.loading&&!scope.error&&centerId&&scope.centers.some(c=>c.id===centerId));
+ // PAP-1972: switching Center or revoking scope destroys the old request/Drawer lifetime.
+ return <DailyScopeView key={JSON.stringify([centerId,allowed])}/>;
+}
+function DailyScopeView(){
+ const scope=useBoCenterSelection(),centerId=scope?.selected??"";
+ const allowed=Boolean(scope&&!scope.loading&&!scope.error&&centerId&&scope.centers.some(c=>c.id===centerId));
  const [startDate,setStartDate]=useState(()=>offsetDay(vnToday(),-29));
  const [endDate,setEndDate]=useState(vnToday);
  const [rows,setRows]=useState<BoPayrollDailyRow[]>([]);
  const [total,setTotal]=useState(0),[offset,setOffset]=useState(0),[refresh,setRefresh]=useState(0);
- const [selected,setSelected]=useState<BoPayrollDailyRow|null>(null);
+ const [selected,setSelected]=useState<string|null>(null);
  const [state,setState]=useState<"loading"|"ready"|"error"|"permission">("loading");
  const [message,setMessage]=useState("");
  const valid=validDailyWindow(startDate,endDate);
@@ -89,21 +95,21 @@ export default function BoPayrollDailyReadView(){
  },[allowed,centerId,startDate,endDate,offset,refresh,valid,scopeKey]);
  const safeRows=allowed&&servedScope===scopeKey?rows:[];
  const safeTotal=allowed&&servedScope===scopeKey?total:0;
- const safeSelected=allowed&&servedScope===scopeKey&&selected?.centerId===centerId?selected:null;
+ const safeSelected=safeRows.find(row=>row.id===selected)??null;
  return <section aria-label="Bảng lương ngày" data-pap-ticket="PAP-1954">
   <header><small>NHÂN SỰ / LƯƠNG</small>
    <h1>Bảng lương ngày</h1><p>Chỉ đọc theo cơ sở đang chọn · Core Payroll</p></header>
   {scope?.loading?<p role="status">Đang xác thực cơ sở…</p>:!allowed?
    <p role="alert">{scope?.error||"Chọn cơ sở được cấp quyền để xem lương."}</p>:
    <div role="group" aria-label="Khoảng ngày">
-    <label>Từ ngày<input type="date" value={startDate} onChange={e=>{setOffset(0);setStartDate(e.target.value);}} /></label>
-    <label>Đến ngày<input type="date" value={endDate} onChange={e=>{setOffset(0);setEndDate(e.target.value);}} /></label>
+    <label>Từ ngày<input type="date" value={startDate} onChange={e=>{setOffset(0);setSelected(null);setStartDate(e.target.value);}} /></label>
+    <label>Đến ngày<input type="date" value={endDate} onChange={e=>{setOffset(0);setSelected(null);setEndDate(e.target.value);}} /></label>
     <button type="button" onClick={()=>{setSelected(null);setRefresh(n=>n+1);}}>Tải lại</button>
    </div>}
   {allowed&&!valid?<p role="alert">Khoảng ngày không hợp lệ; tối đa 31 ngày kể cả hai đầu.</p>:null}
   {allowed&&valid?<BoDataGrid rows={safeRows} columns={columns} rowKey={r=>r.id}
    caption="Bảng lương ngày" state={servedScope===scopeKey?state:"loading"} stateMessage={message}
-   onRowOpen={setSelected} quickViewOpener
+   onRowOpen={row=>setSelected(row.id)} quickViewOpener
    resultLabel={String(safeRows.length)+" / "+String(safeTotal)+" bản ghi"}
    pagination={{page:Math.floor(offset/50)+1,pageSize:50,total:safeTotal,
     onPageChange:page=>{setSelected(null);setOffset((page-1)*50);}}}

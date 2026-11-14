@@ -10,9 +10,14 @@ import {BoProperties} from "@/app/bo/components/BoProperties";
 function Properties({row}:{row:BoPayrollDailyRow}){
  return <BoProperties items={dailyPropertyFields.map(([name,render])=>({key:name,label:name,value:render(row)}))}/>;
 }
-export default function BoPayrollDailyDetail({staffMemberId,workDate,activeTab}:{
- staffMemberId:string;workDate:string;activeTab?:string;
-}){
+type DailyDetailProps={staffMemberId:string;workDate:string;activeTab?:string};
+export default function BoPayrollDailyDetail(props:DailyDetailProps){
+ const scope=useBoCenterSelection(),centerId=scope?.selected??"";
+ const allowed=Boolean(scope&&!scope.loading&&!scope.error&&centerId&&scope.centers.some(c=>c.id===centerId));
+ // PAP-1972: changing identity or authorization discards both stale data and errors.
+ return <DailyDetailScope key={JSON.stringify([centerId,allowed,props.staffMemberId,props.workDate])} {...props}/>;
+}
+function DailyDetailScope({staffMemberId,workDate,activeTab}:DailyDetailProps){
  const scope=useBoCenterSelection(),centerId=scope?.selected??"";
  const allowed=Boolean(scope&&!scope.loading&&!scope.error&&centerId&&scope.centers.some(c=>c.id===centerId));
  const [data,setData]=useState<{centerId:string;row:BoPayrollDailyRow}|null>(null);
@@ -23,7 +28,10 @@ export default function BoPayrollDailyDetail({staffMemberId,workDate,activeTab}:
   let live=true;
   if(!allowed)return;
   void dailyReadApi.detail(centerId,staffMemberId,workDate).then(reply=>{
-   if(!live)return;setData({centerId,row:payrollDailyRow(reply.data,centerId)});setError("");
+   if(!live)return;
+   const row=payrollDailyRow(reply.data,centerId);
+   if(row.staffMemberId!==staffMemberId||row.workDate!==workDate)throw Error("PAYROLL_DAILY_CROSS_RECORD_RESPONSE");
+   setData({centerId,row});setError("");
   }).catch(cause=>{if(!live)return;setData(null);
    setError(cause instanceof DailyReadError&&cause.status===403?
     "Không có quyền xem dữ liệu lương tại cơ sở này.":
