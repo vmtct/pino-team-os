@@ -200,11 +200,11 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
     if (!centerId || revoked || housePollInFlight.current) return;
     housePollInFlight.current = true;
     const generation = houseGeneration.current;
-    const endpoint = (kind: "snapshot" | "events", suffix = "") => {
-      const base = staffPolicyRef ? "/api/tos-learning/pinoria/tv-policies/house-ambient" : apiBase;
-      const policyQuery = staffPolicyRef ? "&policyRef=" + encodeURIComponent(staffPolicyRef) : "";
-      return base + "/" + kind + "?centerId=" + encodeURIComponent(centerId) + policyQuery + suffix + "&t=" + Date.now();
-    };
+    const staffBase = "/api/tos-learning/pinoria/tv-policies/house-ambient";
+    const query = "?centerId=" + encodeURIComponent(centerId)
+      + (staffPolicyRef ? "&policyRef=" + encodeURIComponent(staffPolicyRef) : "");
+    const snapshotUrl = (staffPolicyRef ? staffBase + "/snapshot" : `${apiBase}/snapshot`) + query;
+    const eventsUrl = (staffPolicyRef ? staffBase + "/events" : `${apiBase}/events`) + query;
     const read = async (url: string) => {
       const response = await fetch(url, { cache: "no-store" });
       if (staffPolicyRef && [401, 403, 404].includes(response.status) && generation === houseGeneration.current) {
@@ -220,7 +220,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
     };
     try {
       if (!wasConnected.current) {
-        const response = await read(endpoint("snapshot"));
+        const response = await read(snapshotUrl + "&t=" + Date.now());
         const json = await response.json() as { data?: unknown };
         if (!response.ok || !json.data) throw new Error("offline");
         verifyCenter(json.data);
@@ -239,7 +239,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
         wasConnected.current = true;
         return;
       }
-      const response = await read(endpoint("events", "&after=" + cursor.current));
+      const response = await read(eventsUrl + "&after=" + cursor.current + "&t=" + Date.now());
       const json = await response.json() as { data?: unknown };
       if (!response.ok || !json.data) throw new Error("offline");
       if (generation !== houseGeneration.current) return;
@@ -267,7 +267,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
         enqueuePresenceEvents(unseen.events.filter((event): event is PresenceEvent => event.kind === "PRESENCE_EVENT"));
       }
       if (Date.now() - houseSnapshotRefreshedAt.current >= 1500) {
-        const snapshotResponse = await read(endpoint("snapshot"));
+        const snapshotResponse = await read(snapshotUrl + "&t=" + Date.now());
         const snapshotJson = await snapshotResponse.json() as { data?: unknown };
         if (!snapshotResponse.ok || !snapshotJson.data) throw new Error("offline");
         if (generation !== houseGeneration.current) return;
