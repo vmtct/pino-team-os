@@ -69,7 +69,7 @@ function validPage(body: unknown, scope: TosMissionAssignmentScope, seen: Set<st
 
 /** Fetch all 100-sized pages; abort on incomplete, mismatched or unauthorized data. */
 export async function readTosEligibleMissions(
-  scope: TosMissionAssignmentScope,
+  scope: TosMissionAssignmentScope & {pathProgramId?:string},
   transport: typeof fetch = (...args) => fetch(...args),
 ): Promise<readonly TosEligibleMissionChoice[]> {
   validScope(scope);
@@ -90,6 +90,9 @@ export async function readTosEligibleMissions(
         e?.message ?? "Không thể tải Mission hợp lệ.");
     }
     const page = validPage(body, scope, seen);
+    if (scope.pathProgramId !== undefined && page.pathProgramId !== scope.pathProgramId) {
+      return fail(502, "TOS_ELIGIBLE_MISSION_PATH_MISMATCH", "Danh sách nhiệm vụ không khớp Path của lớp.");
+    }
     items.push(...page.items);
     if (!page.hasMore) return items;
   }

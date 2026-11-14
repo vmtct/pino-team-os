@@ -21,7 +21,7 @@ import {
 
 export type MissionCommandDeps={
   today:(centerId:string,localDate:string)=>Promise<AssignmentV18bToday>;
-  eligible:(scope:TosMissionAssignmentScope)=>Promise<readonly TosEligibleMissionChoice[]>;
+  eligible:(scope:TosMissionAssignmentScope & {pathProgramId?:string})=>Promise<readonly TosEligibleMissionChoice[]>;
   assignments:ReturnType<typeof createTosMissionAssignmentApiTransport>;
 };
 const live:MissionCommandDeps={
@@ -47,14 +47,17 @@ function findCandidate(day:AssignmentV18bToday,scope:TosMissionAssignmentScope):
   return occurrence;
 }
 async function fresh(
-  scope:TosMissionAssignmentScope,api:MissionCommandDeps,
+  scope:TosMissionAssignmentScope & {pathProgramId?:string},api:MissionCommandDeps,
 ):Promise<{scope:TosMissionAssignmentScope;available:readonly TosEligibleMissionChoice[];
   active:readonly TosMissionAssignmentRecord[]}>{
   const day=await api.today(scope.centerId,scope.localDate);
   const occurrence=findCandidate(day,scope);
+  const pathProgramId=occurrence.occurrence.pathProgramId;
+  if(!pathProgramId||(scope.pathProgramId!==undefined&&scope.pathProgramId!==pathProgramId))
+    return invalid("MISSION_COMMAND_PATH_MISMATCH",409);
   const trusted=assignmentScopeForCandidate(day,occurrence,scope.studentId);
   const [choices,active]=await Promise.all([
-    api.eligible(trusted),loadAssignmentsInOccurrence(api.assignments,trusted),
+    api.eligible({...trusted,pathProgramId}),loadAssignmentsInOccurrence(api.assignments,trusted),
   ]);
   const available=assignmentDefinitionReadyChoices(choices);
   return {scope:trusted,available,active};
@@ -69,7 +72,7 @@ function verified(result:TosMissionAssignmentRecord,records:readonly TosMissionA
     actual.version!==result.version)return invalid("MISSION_COMMAND_READBACK_UNVERIFIED",502);
 }
 export async function getTosMissionCommandChoices(
-  scope:TosMissionAssignmentScope,api:MissionCommandDeps=live,
+  scope:TosMissionAssignmentScope & {pathProgramId?:string},api:MissionCommandDeps=live,
 ):Promise<readonly TosEligibleMissionChoice[]>{
   const checked=await fresh(scope,api);
   return checked.available.filter(x=>x.assignmentId===null);
