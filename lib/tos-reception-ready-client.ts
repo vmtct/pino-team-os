@@ -91,3 +91,13 @@ export async function receptionEvidencePhoto(scope:ReceptionReadyScope,receiptId
  if(!data)throw new Error("Ảnh không hợp lệ.");
  const uri="data:"+data.mimeType+";base64,"+data.base64;parseReceptionPhoto(uri);return uri;
 }
+
+/** Derived notice, never alters the immutable READY fact. */
+export function receptionCorrectionNotice(history:readonly ReceptionEvidenceEvent[]|undefined){
+  const latest=history?.at(-1);
+  if(!latest||latest.verdict==="APPROVED")return null;
+  if(latest.verdict==="REJECTED")return {label:"Cần bổ sung ảnh",reason:latest.reason??"",rejected:true};
+  if(latest.kind==="SUBMISSION"&&history?.some(e=>e.verdict==="REJECTED"))
+    return {label:"Đã bổ sung · chờ duyệt lại",reason:"",rejected:false};
+  return null;
+}

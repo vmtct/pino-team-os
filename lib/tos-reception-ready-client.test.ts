@@ -1,6 +1,6 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
-import {readReceptionReady,confirmReceptionReady,parseReceptionPhoto,appendReceptionEvidence,receptionEvidencePhoto,newReceptionCorrectionKey,parseReceptionHistory} from "./tos-reception-ready-client";
+import {readReceptionReady,confirmReceptionReady,parseReceptionPhoto,appendReceptionEvidence,receptionEvidencePhoto,newReceptionCorrectionKey,parseReceptionHistory,receptionCorrectionNotice} from "./tos-reception-ready-client";
 const scope={centerId:"center",workDate:"2026-11-14",shiftTemplateId:"shift"};
 const receipt={receipt_id:"receipt",center_id:scope.centerId,work_date:scope.workDate,shift_template_id:scope.shiftTemplateId,opened_at:"2026-11-14T01:00:00.000Z"};
 const photo="data:image/jpeg;base64,/9j/4A==";
@@ -46,4 +46,13 @@ void test("PAP-763 reception correction preserves the same READY and appends one
  assert.deepEqual(JSON.parse(String(calls[1]?.init?.body)),{...scope,openingReceiptId:r.receipt_id,expectedVersion:2,requestKey:key,photos:[parseReceptionPhoto(photo),parseReceptionPhoto(photo)],note:"Góc quầy"});
  assert.equal(await receptionEvidencePhoto(scope,r.receipt_id,id(7)),photo);
  assert.throws(()=>parseReceptionHistory([first,{...next,version:2,privateAssetIds:[id(3)]}]),/không hợp lệ/);
+});
+
+void test("PAP-763 out-of-detail notice retains rejection until latest round approved",()=>{
+ const base={eventId:"event",roundId:"round",version:1,kind:"SUBMISSION" as const,actorLegalFullName:null,occurredAt:receipt.opened_at,privateAssetIds:["asset"],note:"",verdict:null,reason:null};
+ const rejected={...base,kind:"REVIEW" as const,verdict:"REJECTED" as const,reason:"Ảnh chưa đủ sáng",privateAssetIds:[]};
+ assert.equal(receptionCorrectionNotice([base]),null);
+ assert.equal(receptionCorrectionNotice([base,rejected])?.reason,"Ảnh chưa đủ sáng");
+ assert.equal(receptionCorrectionNotice([base,rejected,base])?.label,"Đã bổ sung · chờ duyệt lại");
+ assert.equal(receptionCorrectionNotice([base,rejected,base,{...rejected,verdict:"APPROVED"}]),null);
 });
