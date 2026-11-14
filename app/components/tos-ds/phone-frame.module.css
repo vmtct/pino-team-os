@@ -1,5 +1,7 @@
 @layer tos.layout{
 .phoneFrame{width:100%;max-width:var(--tos-mobile-max);min-height:100svh;margin-inline:auto;display:flex;flex-direction:column;position:relative;background:var(--tos-color-surface);color:var(--tos-color-ink);font-family:var(--tos-font-family)}
+/* PAP-1960: bounded Classroom viewport preserves the internal three-tab nav after Diary scroll. */
+.phoneFrame[data-tos-mobile-frame="classroom"]{height:100svh;height:100dvh;min-height:0;max-height:100dvh;overflow:hidden}
 .nativeBody{position:relative;flex:1;min-height:0;overflow:hidden;width:100%}
 .phoneFrame[data-tos-mobile-frame="shift"] .nativeBody{overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 .phoneFrame[data-tos-mobile-frame="shift"] .nativeBody :global([data-tos-slot~="content"]){overflow-y:visible;overscroll-behavior:auto}
