@@ -64,3 +64,10 @@ void test("PAP-1496 UI reuses shared Drawer/Detail and never invokes legacy Stud
  assert.match(detail,/moduleKey === "subscriptions"[\s\S]*"Chuyên đề"/);
  assert.match(facade,/isBoSubscriptionSpecialtyPath/);
 });
+
+void test("PAP-1496 canonical native Subscription Detail actually mounts Specialty consumer",()=>{
+ const native=readFileSync(new URL("../app/bo/subscriptions/SubscriptionDirectoryDsa.tsx",import.meta.url),"utf8");
+ assert.match(native,/detailTab==="Chuyên đề" \?\s*<BoSubscriptionSpecialtyTab key=\{detail.id\+":"\+centerId\} subscriptionId=\{detail.id\} centerId=\{centerId\} centerReady=\{detail.row.centerId===centerId\}\/>/);
+ assert.match(native,/assertCenterDetail\(/);
+ assert.doesNotMatch(native,/<BoSubscriptionsView\b/);
+});
