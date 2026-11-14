@@ -26,7 +26,8 @@ button,a{-webkit-tap-highlight-color:transparent}
 .card-copy{position:relative;z-index:2;max-width:73%;height:100%;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;padding:12px 0 12px clamp(18px,5.5vw,27px)}
 .card-copy strong{font-family:ui-rounded,"Arial Rounded MT Bold","Trebuchet MS",Arial,sans-serif;font-size:clamp(26px,7.4vw,37px);font-weight:800;line-height:1.03;letter-spacing:-.06em}
 .house .card-copy strong .pino-word,.house .card-copy strong .afterschool-word{display:block}
-.house .card-copy strong .afterschool-word{font-size:.4244em;letter-spacing:-.06em;line-height:1.08}
+.house .card-copy strong .pino-word{font-size:calc(1em + 2px)}
+.house .card-copy strong .afterschool-word{font-size:calc(.4244em - 2px);letter-spacing:-.06em;line-height:1.08}
 .card-copy strong small{font-size:.56em;display:block;font-weight:700;letter-spacing:-.02em;margin-top:4px}
 .tagline{font-size:clamp(12px,3.4vw,15px);line-height:1.35;margin-top:12px;color:#5d6770}
 .arrow{margin-top:13px;width:42px;height:42px;display:grid;place-items:center;border-radius:50%;background:#fffefeea;font-size:22px;box-shadow:0 3px 12px #2b2a2914}
