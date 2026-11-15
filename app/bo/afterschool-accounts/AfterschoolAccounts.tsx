@@ -86,7 +86,6 @@ async function locateAccount(centerId: string, parentId: string) {
 }
 
 const overview = [{ id: "account", label: "Thông tin tài khoản", fields: directory.fields.map((field) => field.key) }];
-const accountTabs = [{ id: "overview", label: "Tổng quan" }];
 
 export function AfterschoolAccounts() {
   const selection = useBoCenterSelection();
@@ -161,7 +160,7 @@ function ScopedAccounts({ centerId }: { centerId: string }) {
     }} />;
 
   if (detail) return <DetailFrame title={detail.name} mobileMenu={menu?.("detail-menu-btn")}
-    onBack={() => setDetail(null)} tabs={accountTabs} selected="overview"
+    onBack={() => setDetail(null)} tabs={[{ id: "overview", label: "Tổng quan" }]} selected="overview"
     actions={actionsEnabled && <button type="button" className="secondary-btn"
       onClick={() => setPinDrawer({ parent: { id: detail.id, name: detail.name } })}>Cấp lại PIN</button>}
     after={pinActionDrawer}>
