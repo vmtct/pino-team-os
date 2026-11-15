@@ -26,6 +26,14 @@ export type HostBoundaryDecision =
 
 export function decideHostBoundary(host: string, pathname: string, method = "GET"): HostBoundaryDecision {
   const hostname = normalizeHostname(host);
+  // PAP-1970 / PAP-1990: new period history/cancel ingress, BO Staging only.
+  // Fence malformed descendants before legacy host fallthrough. Keep existing
+  // period, settlement and adjustment routes unchanged; BFF/Core own ACL/CAS.
+  if (/^\/api\/bo\/workforce\/payroll\/periods\/(?:.*\/)?(?:history|cancel)(?:\/|$)/i.test(pathname)) {
+    const exact = /^\/api\/bo\/workforce\/payroll\/periods\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/(history|cancel)$/.exec(pathname);
+    return {action:hostname===BO_STAGING_HOSTNAME && exact &&
+      (exact[1]==="history" ? method==="GET" : method==="POST") ? "next" : "not_found"};
+  }
   // PAP-1970: exact native BO Payroll read-only admission; Core reauthorizes every read.
   if (isNativePayrollNamespace(pathname)) return {action:hostname===BO_STAGING_HOSTNAME &&
     ((Boolean(nativePayrollModule(pathname))&&(method==="GET"||method==="HEAD")) || (isNativePayrollApi(pathname)&&method==="GET"))?"next":"not_found"};
