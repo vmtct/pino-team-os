@@ -54,11 +54,21 @@ const ok=(v,m)=>{if(!v)throw Error(m)};
   await page.keyboard.press("Escape");ok(!(await page.locator(".profile-panel").isVisible()),"Escape dismisses "+space+" "+w);
   await page.locator(".profile-switch").evaluate(e=>e.blur()); // Touch-scroll case: no keyboard-focused chrome.
   const main=page.locator(".scroll-content");
-  await main.evaluate(el=>el.scrollBy({top:260,behavior:"instant"}));
+  const nav=page.locator(".bottom-nav");
+  const scale=()=>nav.evaluate(el=>new DOMMatrix(getComputedStyle(el).transform).a);
+  for(const y of [79,80]){
+   await main.evaluate((el,top)=>el.scrollTo({top,behavior:"instant"}),y);
+   await page.waitForFunction(top=>document.querySelector(".scroll-content").scrollTop===top,y);
+   ok(Math.abs(await scale()-1)<.01,"footer full through "+y+" "+space+" "+w);
+  }
+  await main.evaluate(el=>el.scrollTo({top:260,behavior:"instant"}));
   await page.locator('.member[data-chrome-collapsed="true"]').waitFor({timeout:6000});
-  await page.waitForTimeout(300);
-  const collapsed=await page.evaluate(()=>{const s=document.querySelector(".member");return {top:s.querySelector(".app-header").inert,bottom:s.querySelector(".bottom-nav").inert,client:s.querySelector(".scroll-content").clientHeight}});
-  ok(collapsed.top&&collapsed.bottom&&collapsed.client>=props.mainHeight+70,"scroll hide frees height "+space+" "+w);
+  await page.waitForFunction(()=>Math.abs(new DOMMatrix(getComputedStyle(document.querySelector(".bottom-nav")).transform).a-.7)<.01);
+  ok(!(await nav.evaluate(el=>el.inert)),"scaled footer remains interactive "+space+" "+w);
+  await nav.locator("a").first().focus();
+  await page.waitForFunction(()=>Math.abs(new DOMMatrix(getComputedStyle(document.querySelector(".bottom-nav")).transform).a-1)<.01);
+  await nav.locator("a").first().evaluate(el=>el.blur());
+  await page.waitForTimeout(270);
   if(w===390){const f=path.join(evidence,space+"-collapsed-390-preview.png");await page.screenshot({path:f});report.screenshots.push(f);}
   await main.evaluate(el=>el.scrollBy({top:-105,behavior:"instant"}));
   await page.locator('.member[data-chrome-collapsed="false"]').waitFor({timeout:6000});
