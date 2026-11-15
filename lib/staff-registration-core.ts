@@ -10,6 +10,7 @@ export interface StaffRegistrationDocumentInput {
 }
 
 export interface StaffRegistrationSubmissionInput {
+  selectedCenterId: string;
   displayLabel: string;
   email: string;
   password: string;
@@ -27,6 +28,7 @@ export interface StaffRegistrationSubmissionInput {
 
 export interface StaffRegistrationCoreBinding {
   status(): Promise<StaffRegistrationIntakeState>;
+  listCenters(): Promise<Array<{id:string;displayName:string}>>;
   submit(input: StaffRegistrationSubmissionInput): Promise<{ status: "PENDING" }>;
 }
 

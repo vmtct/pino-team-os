@@ -287,6 +287,22 @@ export async function handleBoWriteRequest(
       }
       studentIntakeCenterResource = { centerId: ids[0]! };
     }
+    let staffRegistrationResource: {centerId:string}|undefined;
+    if (STAFF_REGISTRATION_REVIEW_PATH.test(path)) {
+      const query=new URL(request.url).searchParams;
+      if(query.size) {
+        const ids=query.getAll("centerId");
+        if(query.size!==1||ids.length!==1||!/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(ids[0]!))
+          return json({error:{code:"PLATFORM_INVALID_INPUT",message:"Exactly one selected Center is required"}},400);
+        if(!body||typeof body!=="object"||Array.isArray(body)) return json({error:{code:"PLATFORM_INVALID_INPUT",message:"Invalid review payload"}},400);
+        const form=body as Record<string,unknown>;
+        const approve=path.endsWith("/approve");
+        if(Object.keys(form).some(k=>!(approve?["assignments","pinoriaIdentity","expectedVersion"]:["reason","expectedVersion"]).includes(k))||
+            !Number.isSafeInteger(form.expectedVersion)||Number(form.expectedVersion)<1)
+          return json({error:{code:"PLATFORM_INVALID_INPUT",message:"Invalid Center review version or payload"}},400);
+        staffRegistrationResource={centerId:ids[0]!};
+      }
+    }
     const coreRequest: BoAccessRequest = billingPlanConfig ? {
       method: "PATCH",
       path: `billing/product-plans/${billingPlanConfig[1]}`,
@@ -304,6 +320,7 @@ export async function handleBoWriteRequest(
       ...(parentCreateResource ? { resource: parentCreateResource } : {}),
       ...(parentNameResource ? { resource: parentNameResource } : {}),
       ...(afterschoolPinResource ? { resource: afterschoolPinResource } : {}),
+      ...(staffRegistrationResource ? { resource: staffRegistrationResource } : {}),
       ...(idempotencyKey ? { idempotencyKey } : {}),
 
     };

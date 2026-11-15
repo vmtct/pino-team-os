@@ -347,6 +347,9 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
       const read=["head","versions","version","active"].includes(spatialPath[1]);
       return hostname===BO_STAGING_HOSTNAME && (read?method==="GET":method==="POST") ? {action:"next"} : {action:"not_found"};
     }
+    if (pathname === "/api/bo/workforce/staff-registration-eligible-roles") {
+      return hostname === BO_STAGING_HOSTNAME && method === "GET" ? {action:"next"} : {action:"not_found"};
+    }
     if (pathname === "/api/bo/tv/operator-health") {
       return hostname === BO_STAGING_HOSTNAME && method === "GET" ? { action: "next" } : { action: "not_found" };
     }

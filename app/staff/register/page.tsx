@@ -6,6 +6,8 @@ type IntakeState = "LOADING" | "OPEN" | "CLOSED";
 
 export default function StaffRegistrationPage() {
   const [state, setState] = useState<IntakeState>("LOADING");
+  const [centers, setCenters] = useState<Array<{id:string;displayName:string}>>([]);
+  const [selectedCenterId,setSelectedCenterId]=useState("");
   const [busy, setBusy] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
@@ -13,9 +15,11 @@ export default function StaffRegistrationPage() {
   useEffect(() => {
     void fetch("/api/staff-registration", { cache: "no-store" })
       .then(async (response) => {
-        const body = await response.json() as { data?: { enabled?: boolean }; error?: { message?: string } };
+        const body = await response.json() as { data?: { enabled?: boolean;centers?:Array<{id:string;displayName:string}> }; error?: { message?: string } };
         if (!response.ok) throw new Error(body.error?.message ?? "Không thể kiểm tra trạng thái đăng ký.");
-        setState(body.data?.enabled ? "OPEN" : "CLOSED");
+        const available=body.data?.centers ?? [];
+        setCenters(available);
+        setState(body.data?.enabled && available.length ? "OPEN" : "CLOSED");
       })
       .catch(() => setState("CLOSED"));
   }, []);
@@ -63,6 +67,10 @@ export default function StaffRegistrationPage() {
         <section className={styles.section}>
           <div className={styles.sectionHead}><span>01</span><div><h2>Thông tin cá nhân</h2><p>Thông tin cơ bản để tạo hồ sơ nhân sự.</p></div></div>
           <div className={styles.grid}>
+            <label className={styles.span2}>Cơ sở đăng ký<select name="selectedCenterId" required value={selectedCenterId} onChange={e=>setSelectedCenterId(e.target.value)} disabled={busy}>
+              <option value="">Chọn cơ sở</option>
+              {centers.map(center=><option key={center.id} value={center.id}>{center.displayName}</option>)}
+            </select></label>
             <label className={styles.span2}>Họ và tên theo CCCD<input name="legalName" autoComplete="name" maxLength={160} required /></label>
             <label>Email cá nhân<input name="email" type="email" autoComplete="email" maxLength={320} required /></label>
             <label>Số điện thoại<input name="mobile" type="tel" autoComplete="tel" maxLength={30} required /></label>

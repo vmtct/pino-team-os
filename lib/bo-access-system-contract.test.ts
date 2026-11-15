@@ -27,7 +27,16 @@ test("TOS perimeter reconciles entitlement-changing writes, not inert role copie
 });
 test("BO Staff surface renders the pending registration review queue", () => {
   const source = fs.readFileSync(path.join(process.cwd(), "app/bo/staff/page.tsx"), "utf8");
-  assert.match(source, /<StaffRegistrationReviewQueue \/>/);
+  assert.match(source, /<StaffRegistrationSection \/>/);
+  const section = fs.readFileSync(path.join(process.cwd(), "app/bo/staff/StaffRegistrationSection.tsx"), "utf8");
+  assert.match(section, /if\(mode==="founder"\)return <><StaffRegistrationIntakeToggle\/><StaffRegistrationReviewQueue\/><\/>/);
+  assert.match(section, /return <StaffCenterRegistrationReview\/>/);
+  assert.match(section, /cause instanceof BoApiError&&cause.status===403/);
+  assert.match(section, /if\(mode==="error"\)return <p role="alert">/);
+  assert.match(section, /r.centerId!==centerId/);
+  assert.match(section, /<BoDataGrid /);
+  assert.match(section, /<BoDrawer /);
+  assert.match(section, /busy=\{busy\} canClose=\{canClose\}/);
 });
 test("BO shell retires standalone Users/Roles while retaining System policy and audit", () => {
   const source = fs.readFileSync(path.join(process.cwd(), "app/bo/navigation.ts"), "utf8");
