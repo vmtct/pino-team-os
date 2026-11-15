@@ -23,7 +23,7 @@ export function validHoDefinitionMetadataPatch(raw:unknown):boolean{
  const fields=["displayName","required","visibility","options"];
  const chosen=fields.filter(k=>Object.prototype.hasOwnProperty.call(o,k));
  if(keys.length!==3||chosen.length!==1||keys.some(k=>!["selectedCenterId","expectedRevision",...fields].includes(k)))return false;
- if(typeof o.selectedCenterId!=="string"||!uuid.test(o.selectedCenterId))return false;
+ if(o.selectedCenterId!==null&&(typeof o.selectedCenterId!=="string"||!uuid.test(o.selectedCenterId)))return false;
  if(!Number.isSafeInteger(o.expectedRevision)||(o.expectedRevision as number)<1)return false;
  switch(chosen[0]){
   case "displayName":return typeof o.displayName==="string"&&o.displayName.length>0&&o.displayName.length<=120&&
@@ -43,7 +43,7 @@ export function validHoLifecycleCommand(raw:unknown):boolean {
  if(!raw||typeof raw!=="object"||Array.isArray(raw))return false;
  const o=raw as Record<string,unknown>;
  return Object.keys(o).every(k=>["selectedCenterId","expectedRevision","targetStatus","confirmGlobalActivation"].includes(k))&&
-  typeof o.selectedCenterId==="string"&&uuid.test(o.selectedCenterId)&&
+  (o.selectedCenterId===null||(typeof o.selectedCenterId==="string"&&uuid.test(o.selectedCenterId)))&&
   Number.isSafeInteger(o.expectedRevision)&&(o.expectedRevision as number)>0&&
   typeof o.targetStatus==="string"&&["PILOT","ACTIVE","DEPRECATED","ARCHIVED"].includes(o.targetStatus)&&
   (!Object.prototype.hasOwnProperty.call(o,"confirmGlobalActivation")||o.confirmGlobalActivation===true);
