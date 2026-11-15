@@ -20,9 +20,19 @@ export type StationChoiceAction =
 // a Center-scoped, server-authorized projection. No local fixtures or persistence.
 export function visibleStationChoiceTurns(read:StationChoiceRead,selectedCenterId:string|null):readonly StationChoiceTurn[]{
   if(!selectedCenterId||read.status!=="ready"||read.centerId!==selectedCenterId)return [];
+  const signatures=new Map<string,string>(),ambiguous=new Set<string>();
+  for(const turn of read.turns){
+    if(turn.centerId!==selectedCenterId||!turn.visitId)continue;
+    const signature=JSON.stringify([turn.learnerName,turn.balancePls,turn.offers.map(offer=>[
+      offer.offerId,offer.itemId,offer.offerVersion,offer.itemRevision,offer.displayName,offer.pricePls,offer.imageUrl
+    ])]);
+    const previous=signatures.get(turn.visitId);
+    if(previous!==undefined&&previous!==signature)ambiguous.add(turn.visitId);
+    signatures.set(turn.visitId,signature);
+  }
   const seen=new Set<string>();
   return read.turns.filter(turn=>{
-    if(turn.centerId!==selectedCenterId||!turn.visitId||seen.has(turn.visitId)
+    if(turn.centerId!==selectedCenterId||!turn.visitId||ambiguous.has(turn.visitId)||seen.has(turn.visitId)
       ||!turn.learnerName.trim()||!Number.isSafeInteger(turn.balancePls)||turn.balancePls<0
       ||turn.offers.length>3)return false;
     const offerIds=new Set<string>(),itemIds=new Set<string>();

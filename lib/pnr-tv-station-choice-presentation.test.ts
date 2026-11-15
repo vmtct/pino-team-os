@@ -28,6 +28,15 @@ test("invalid, duplicated or excess offers are not rendered",()=>{
  }
  assert.deepEqual(visibleStationChoiceTurns(read([turn,turn]),"center-a"),[turn]);
 });
+test("conflicting same-Visit projections hide only the ambiguous turn",()=>{
+ const other={...turn,visitId:"visit-b"};
+ const changedBalance={...turn,balancePls:31};
+ const changedOffer={...turn,offers:[{...turn.offers[0],offerVersion:3},turn.offers[1]]};
+ for(const conflicting of [changedBalance,changedOffer]) {
+  assert.deepEqual(visibleStationChoiceTurns(read([turn,other,conflicting]),"center-a"),[other]);
+  assert.deepEqual(visibleStationChoiceTurns(read([conflicting,other,turn]),"center-a"),[other]);
+ }
+});
 test("invalid balances and unnamed learner do not render",()=>{
  for(const balancePls of [-1,NaN,1.5])assert.deepEqual(visibleStationChoiceTurns(read([{...turn,balancePls}]),"center-a"),[]);
  assert.deepEqual(visibleStationChoiceTurns(read([{...turn,learnerName:" "}]),"center-a"),[]);
