@@ -1,7 +1,7 @@
 // PAP-655: isolated presentation candidate; no runtime/ACL assertions.
 import test from "node:test";
 import assert from "node:assert/strict";
-import {visibleStationChoiceTurns,stationChoiceAction,type StationChoiceRead,type StationChoiceTurn} from "./pnr-tv-station-choice-presentation";
+import {canMountStationQuickChoice,visibleStationChoiceTurns,stationChoiceAction,type StationChoiceRead,type StationChoiceTurn} from "./pnr-tv-station-choice-presentation";
 const turn:StationChoiceTurn={visitId:"visit-a",centerId:"center-a",learnerName:"Demo Learner",balancePls:30,offers:[
   {offerId:"o1",itemId:"i1",offerVersion:2,itemRevision:3,displayName:"Hat",pricePls:20,imageUrl:null},
   {offerId:"o2",itemId:"i2",offerVersion:1,itemRevision:1,displayName:"Glasses",pricePls:40,imageUrl:null}
@@ -34,4 +34,15 @@ test("skip emits exact Visit and Center only and changes no input",()=>{
  const before=JSON.stringify(turn);
  assert.deepEqual(stationChoiceAction(turn,null),{kind:"skip",visitId:"visit-a",centerId:"center-a"});
  assert.equal(JSON.stringify(turn),before);
+});
+
+test("Station overview host requires supplied projection and an authorized matching Center",()=>{
+ assert.equal(canMountStationQuickChoice("overview","center-a",["center-a"],read()),true);
+ assert.equal(canMountStationQuickChoice("overview","center-a",["center-a"],undefined),false);
+ assert.equal(canMountStationQuickChoice("overview","center-a",[],read()),false);
+ assert.equal(canMountStationQuickChoice("overview","center-b",["center-b"],read()),false);
+ assert.equal(canMountStationQuickChoice("overview",null,["center-a"],read()),false);
+ assert.equal(canMountStationQuickChoice("overview","center-a",["center-a"],{...read(),status:"unverified"}),false);
+ for(const tab of ["pinoria","students","devices","tv","reception"])
+  assert.equal(canMountStationQuickChoice(tab,"center-a",["center-a"],read()),false);
 });

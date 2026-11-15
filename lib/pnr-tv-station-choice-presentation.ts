@@ -44,3 +44,9 @@ export function stationChoiceAction(turn:StationChoiceTurn,offerId:string|null):
   return {kind:"purchase",visitId:turn.visitId,centerId:turn.centerId,
     offerId:offer.offerId,offerVersion:offer.offerVersion,itemRevision:offer.itemRevision,pricePls:offer.pricePls};
 }
+
+/** UI scoping guard only; the Core adapter remains responsible for effective ACL. */
+export function canMountStationQuickChoice(tab:string,centerId:string|null,authorizedCenterIds:readonly string[],read:StationChoiceRead|undefined):boolean{
+  return tab==="overview" && !!centerId && authorizedCenterIds.includes(centerId)
+    && !!read && read.centerId===centerId && read.status!=="unverified";
+}

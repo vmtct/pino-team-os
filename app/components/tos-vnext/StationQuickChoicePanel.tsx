@@ -1,6 +1,6 @@
 "use client";
 // PAP-655 · Quick Choice, PAP-650 · Pinoria TV. Presentation candidate only.
-// Deliberately not mounted until Core contract and Station host are ready.
+// Host can mount only with a supplied, Center-scoped Core adapter; absent by default.
 import {
   visibleStationChoiceTurns,stationChoiceAction,
   type StationChoiceAction,type StationChoiceRead,
@@ -9,14 +9,13 @@ import Image from "next/image";
 import ops from "./ops.module.css";
 import css from "./StationQuickChoicePanel.module.css";
 
-type Props={
+export type StationQuickChoiceBinding={
   read:StationChoiceRead;
-  selectedCenterId:string|null;
   pendingVisitIds:readonly string[];
   errorsByVisit?:Readonly<Record<string,string>>;
   onAction:(action:StationChoiceAction)=>void;
 };
-export function StationQuickChoicePanel({read,selectedCenterId,pendingVisitIds,errorsByVisit={},onAction}:Props){
+export function StationQuickChoicePanel({read,selectedCenterId,pendingVisitIds,errorsByVisit={},onAction}:StationQuickChoiceBinding & {selectedCenterId:string|null}){
   const turns=visibleStationChoiceTurns(read,selectedCenterId);
   if(!selectedCenterId||read.centerId!==selectedCenterId||read.status==="unverified")return null;
   if(read.status==="loading"||read.status==="error")return <section className={ops.panel} aria-label="Quick Choice">
