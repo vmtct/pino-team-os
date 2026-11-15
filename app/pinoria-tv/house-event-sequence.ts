@@ -22,7 +22,7 @@ export function selectUnseenHouseEvents<T extends SequencedHouseEvent>(
   const lastSequence = unseen.at(-1)?.sequence ?? afterSequence;
   if (pageCursor !== undefined) {
     if (!Number.isSafeInteger(pageCursor) || pageCursor < afterSequence) throw new Error("INVALID_HOUSE_EVENT_CURSOR");
-    if (pageCursor > lastSequence) hasGap = true;
+    if (pageCursor !== lastSequence) hasGap = true;
   }
   return { events: unseen, lastSequence, hasGap };
 }

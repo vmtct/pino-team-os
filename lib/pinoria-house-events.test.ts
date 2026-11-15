@@ -92,6 +92,11 @@ test("event page cursor cannot skip payload sequences", () => {
   assert.equal(result.lastSequence, 10);
 });
 
+test("event page cursor cannot lag behind delivered sequences", () => {
+  const result = selectUnseenHouseEvents([arrival, departure], 10, 11);
+  assert.equal(result.hasGap, true);
+});
+
 test("contiguous event page remains eligible for presentation", () => {
   const result = selectUnseenHouseEvents([arrival, departure], 10, 12);
   assert.equal(result.hasGap, false);
