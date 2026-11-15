@@ -8,9 +8,10 @@ export async function GET(): Promise<Response> {
   try {
     const env = await registrationEnv();
     const state = await env.PINO_STAFF_REGISTRATION_CORE.status();
-    return json({ data: { enabled: state.enabled } }, 200);
+    const centers = state.enabled ? await env.PINO_STAFF_REGISTRATION_CORE.listCenters() : [];
+    return json({ data: { enabled: state.enabled, centers: centers.map(({id,displayName})=>({id,displayName})) } }, 200);
   } catch (cause) {
-    if (isLocalPreview()) return json({ data: { enabled: true, preview: true } }, 200);
+    if (isLocalPreview()) return json({ data: { enabled: true, preview: true, centers: [{id:"019d1000-0001-7000-8000-000000000001",displayName:"QA Preview (không phải dữ liệu thực)"}] } }, 200);
     return publicFailure(cause);
   }
 }
@@ -29,10 +30,12 @@ export async function POST(request: Request): Promise<Response> {
 
 async function registrationEnv(): Promise<StaffRegistrationEnv> {
   const { env } = await getCloudflareContext({ async: true }) as unknown as { env: StaffRegistrationEnv };
-  if (!env?.PINO_STAFF_REGISTRATION_CORE?.status || !env.PINO_STAFF_REGISTRATION_CORE?.submit) throw new Error("STAFF_REGISTRATION_CORE_UNAVAILABLE");
+  if (!env?.PINO_STAFF_REGISTRATION_CORE?.status || !env.PINO_STAFF_REGISTRATION_CORE?.listCenters || !env.PINO_STAFF_REGISTRATION_CORE?.submit) throw new Error("STAFF_REGISTRATION_CORE_UNAVAILABLE");
   return env;
 }
 async function validate(form: FormData): Promise<StaffRegistrationSubmissionInput> {
+  const selectedCenterId = required(form, "selectedCenterId",36,"Vui lòng chọn cơ sở.");
+  if (form.getAll("selectedCenterId").length !== 1 || !/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(selectedCenterId)) throw new ValidationError("Cơ sở không hợp lệ.");
   const displayLabel = required(form, "legalName", 160, "Vui lòng nhập họ và tên theo CCCD.");
   const email = required(form, "email", 320, "Vui lòng nhập email.").toLowerCase();
   const password = registrationPassword(form, "password");
@@ -53,7 +56,7 @@ async function validate(form: FormData): Promise<StaffRegistrationSubmissionInpu
   if (form.get("confirmAccuracy") !== "yes") throw new ValidationError("Vui lòng xác nhận tính chính xác của hồ sơ.");
   const governmentIdFront = await document(form, "governmentIdFront", "mặt trước CCCD");
   const governmentIdBack = await document(form, "governmentIdBack", "mặt sau CCCD");
-  return { displayLabel, email, password, mobile, dateOfBirth, currentAddress, governmentIdNumber, bankName, bankAccountNumber, bankAccountHolder, bankBranch, governmentIdFront, governmentIdBack };
+  return { selectedCenterId, displayLabel, email, password, mobile, dateOfBirth, currentAddress, governmentIdNumber, bankName, bankAccountNumber, bankAccountHolder, bankBranch, governmentIdFront, governmentIdBack };
 }
 
 async function document(form: FormData, key: string, label: string): Promise<StaffRegistrationDocumentInput | null> {
