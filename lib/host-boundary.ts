@@ -27,6 +27,11 @@ export type HostBoundaryDecision =
 
 export function decideHostBoundary(host: string, pathname: string, method = "GET"): HostBoundaryDecision {
   const hostname = normalizeHostname(host);
+  // PAP-2012: exact single-PTE income history read, BO Staging only.
+  if (/^\/api\/bo\/workforce\/payroll\/periods\/.*\/income-history(?:\/|$)/i.test(pathname)) {
+    const exact = /^\/api\/bo\/workforce\/payroll\/periods\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/staff\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/income-history$/.test(pathname);
+    return {action:hostname===BO_STAGING_HOSTNAME&&method==="GET"&&exact?"next":"not_found"};
+  }
   // PAP-1970 / PAP-1990: new period history/cancel ingress, BO Staging only.
   // Fence malformed descendants before legacy host fallthrough. Keep existing
   // period, settlement and adjustment routes unchanged; BFF/Core own ACL/CAS.

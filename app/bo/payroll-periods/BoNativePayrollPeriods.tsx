@@ -1,6 +1,7 @@
 "use client";
 /** PAP-1985 / PAP-1063 native Kỳ lương view. Core is the only money authority. */
 import Link from "next/link";
+import {PayrollIncomeDetail} from "./PayrollIncomeDetail";
 import {useEffect,useState,useRef} from "react";
 import {useSearchParams} from "next/navigation";
 import {BoDataGrid,BoDataGridBadge,type BoDataGridColumn} from "@/app/bo/components/data-grid";
@@ -31,6 +32,11 @@ export default function BoNativePayrollPeriods(){
  const record=query.get("record");
  if(!allowed||!center)return scope?.loading?<p role="status">Đang xác thực cơ sở…</p>:<p role="alert">{scope?.error||"Chọn cơ sở được cấp quyền."}</p>;
  if(query.getAll("record").length>1||(query.has("record")&&(!record||!uuid.test(record))))return <p role="alert">Kỳ lương không hợp lệ.</p>;
+ const incomeStaff=query.get("incomeStaff");
+ if(query.has("incomeStaff")){
+  if(!record||!incomeStaff||query.getAll("incomeStaff").length!==1||!uuid.test(incomeStaff))return <p role="alert">PTE không hợp lệ.</p>;
+  return <PayrollIncomeDetail key={JSON.stringify([center.id,record,incomeStaff])} centerId={center.id} centerName={center.displayName} id={record} staffId={incomeStaff} tab={query.get("tab")}/>;
+ }
  if(record)return <PeriodDetail key={JSON.stringify([center.id,record])} centerId={center.id} centerName={center.displayName} id={record} tab={query.get("tab")}/>;
  return <PeriodTable key={center.id} centerId={center.id} centerName={center.displayName}/>;
 }
@@ -141,6 +147,7 @@ function Settlements({centerId,id,initial}:{centerId:string;id:string;initial:Pe
     {key:"staff",header:"PTE",minWidth:190,render:r=><><strong>{payrollVerifiedName(r.staffName)}</strong><div className="id-code">{r.staffMemberId}</div></>},
     {key:"amount",header:"Thành tiền",minWidth:150,render:r=><strong className="payroll-ro-amount">{money(r.amountMinor)}</strong>},
     {key:"status",header:"Trạng thái",minWidth:140,render:r=><BoPill {...settlementStatus(r.status)}/>},
+    {key:"income",header:"",minWidth:130,render:r=><Link className="secondary-btn" href={ROOT+"?"+new URLSearchParams({centerId,record:id,incomeStaff:r.staffMemberId})}>Xem thu nhập</Link>},
    ]}
    emptyTitle="Chưa có giờ công" emptyMessage="Không có bản ghi đủ điều kiện trong trang hiện tại."/>
   {page.nextOffset!==null?<button type="button" disabled={busy} onClick={()=>void more()}>Tải thêm PTE</button>:null}
