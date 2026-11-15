@@ -58,7 +58,7 @@ function ScopeView({centerId,allowed,loading}:{centerId:string;allowed:boolean;l
   },[allowed,centerId,key,status,type,search,offset,startDate,endDate,validRange]);
   const current=allowed&&validRange&&response?.key===key?response:null;
   const row=current?.rows.find(r=>rowKey(r)===selected);
-  return <section aria-label="Mở lớp và ca" data-opening-evidence-phase="DEV_FIRST_UNADMITTED">
+  return <section aria-label="Mở lớp và ca" data-opening-evidence-phase="NATIVE_STAGING_CANDIDATE">
     <div className="page-heading"><div className="page-heading-left"><h1>Mở lớp &amp; ca</h1></div></div>
     {loading?<p role="status">Đang xác thực cơ sở…</p>:!allowed?<p role="alert">Chọn cơ sở được cấp quyền.</p>:<>
       <div className="view-tabs" role="group" aria-label="Trạng thái duyệt">

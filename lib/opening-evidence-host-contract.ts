@@ -26,3 +26,8 @@ export function openingEvidenceHostDecision(host:string,path:string,method:strin
  if(path===root+"/photo")return verb==="GET"?"next":"not_found";
  return "not_found";
 }
+
+/** One module key for the canonical native list and exact typed detail. */
+export function openingEvidenceBoModule(path:string):"opening-evidence"|null{
+ return path==="/bo/opening-evidence"||boPage.test(path)?"opening-evidence":null;
+}

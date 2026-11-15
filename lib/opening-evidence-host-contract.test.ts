@@ -1,6 +1,7 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
-import {openingEvidenceHostDecision as decide} from "./opening-evidence-host-contract";
+import {openingEvidenceHostDecision as decide,openingEvidenceBoModule} from "./opening-evidence-host-contract";
+import {decideHostBoundary} from "./host-boundary";
 const id="00000000-0000-7000-8000-000000000001";
 void test("PAP-767 exact staging BO entry, detail, review and photo only",()=>{
  const root="/api/bo/opening-evidence",detail=root+"/CLASS/"+id,bo="bo.staging.pinohouse.art";
@@ -22,4 +23,13 @@ void test("PAP-767 TOS evidence ingress staging-only and strict verbs, unrelated
  }
  assert.equal(decide("tos.pinohouse.art","/api/workforce/schedule","GET"),null);
  assert.equal(decide("bo.staging.pinohouse.art","/bo/payroll-periods","GET"),null);
+});
+
+void test("PAP-767 actual host boundary consumes evidence contract before generic fallthrough",()=>{
+ const detail="/bo/opening-evidence/CLASS/"+id;
+ assert.equal(openingEvidenceBoModule(detail),"opening-evidence");
+ assert.equal(openingEvidenceBoModule(detail+"/extra"),null);
+ for(const [host,url,verb] of [["bo.staging.pinohouse.art",detail,"GET"],["tos.staging.pinohouse.art","/api/workforce/class-opening/append","POST"],["tos.pinohouse.art","/api/workforce/class-opening","POST"],["bo.pinohouse.art",detail,"GET"],["bo.staging.pinohouse.art",detail+"/extra","GET"],["tos.staging.pinohouse.art","/api/workforce/reception/ready/photo","POST"]]){
+  assert.equal(decideHostBoundary(host!,url!,verb!).action,decide(host!,url!,verb!));
+ }
 });

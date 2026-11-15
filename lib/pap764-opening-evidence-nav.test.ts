@@ -13,12 +13,14 @@ const route = read("app/bo/opening-evidence/page.tsx");
 const stage = read("app/bo/opening-evidence/OpeningEvidenceStageGate.tsx");
 const productionNav = read("app/bo/navigation.ts");
 
-test("PAP-764 source-only route stays unadmitted until canonical TDD/Core contract", () => {
+test("PAP-764 native staging entry admits only exact scoped pages and no production navigation", () => {
   const literal = policy.match(/boStagingAdmittedRoutes\s*=\s*new Set\(\s*(\[[\s\S]*?\])\s*\)/);
   assert.ok(literal, "Staging policy must remain a literal list");
   const routes = JSON.parse(literal[1].replace(/,\s*\]$/, "]")) as string[];
-  assert.ok(!routes.includes("/bo/opening-evidence"), "No unregistered Staging admission");
-  assert.doesNotMatch(shell, /"opening-evidence":/);
+  assert.ok(routes.includes("/bo/opening-evidence"), "Exact native Staging admission");
+  assert.match(shell, /"opening-evidence":/);
+  assert.match(shell,/openingEvidenceBoModule\(pathname\)/);
+  assert.match(policy,/openingEvidenceBoModule\(path\)/);
   assert.doesNotMatch(productionNav, /\/bo\/opening-evidence/);
   assert.match(layout, /isBoStagingRouteAdmitted\(routePath\)/);
   assert.match(route, /host !== "bo\.staging\.pinohouse\.art"\) notFound\(\)/);
@@ -34,7 +36,7 @@ test("PAP-764 native grid/drawer use real scoped Core; no local or synthetic dat
   assert.match(stage,/BoDataGridSidePeek/);
   assert.match(stage,/BoProperties/);
   assert.match(stage,/openingEvidenceApi\.list/);
-  assert.match(stage,/DEV_FIRST_UNADMITTED/);
+  assert.match(stage,/NATIVE_STAGING_CANDIDATE/);
   assert.doesNotMatch(stage,/localStorage|sessionStorage|syntheticRows|demoRows/);
   assert.match(stage,/controller\.abort/);
 });
