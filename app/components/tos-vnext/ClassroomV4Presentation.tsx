@@ -1,5 +1,6 @@
 "use client";
 import {useEffect,useMemo,useRef,useState} from "react";
+import {readClassOpening,confirmClassOpening,appendClassOpening,classOpeningPhoto,newOpeningRequestKey,type ClassOpeningScope,type ClassOpeningSnapshot} from "@/lib/tos-class-opening-client";
 import {FontAwesomeIcon,faArrowLeft,faBookOpen,faCalendarDays,faCamera,faCheck,faChevronRight,faCircleCheck,faClipboardList,faClock,faFlag,faGraduationCap,faInfoCircle,faLink,faMagnifyingGlass,faMusic,faPalette,faPlay,faPlus,faRotate,faStar,faTriangleExclamation,faUserPlus,faUsers,faXmark} from "./classroom-icons";
 import type {IconDefinition} from "./classroom-icons";
 import styles from "./classroom.module.css";
@@ -14,6 +15,20 @@ const tosSlotKeys=createSlotKeys(styles);
 import {AppNavShell,AppModalRoot,AppToast} from "../tos-ds";
 
 import {evidenceRounds,lastRound,reviewState,reviewText,needsAction,validateClassroomDraft,type Tab,type Domain,type Gender,type Student,type ScheduledClass,type Mission,type Evidence,type DiaryMission,type Diary,type OpeningPhoto,type ClassroomV4ViewModel,type ClassroomV4InitialView} from "@/lib/tos-classroom-v4-view-model";
+function PrivateClassOpeningImage({scope,receiptId,assetId,alt}:{scope:ClassOpeningScope;receiptId:string;assetId:string;alt:string}){
+ const [src,setSrc]=useState(""),[error,setError]=useState(false);
+ const {centerId,runningClassId,localDate}=scope;
+ useEffect(()=>{
+  const controller=new AbortController();
+  void classOpeningPhoto({centerId,runningClassId,localDate},receiptId,assetId,controller.signal).then(value=>{
+   if(!controller.signal.aborted)setSrc(value);
+  }).catch(()=>{if(!controller.signal.aborted)setError(true);});
+  return()=>controller.abort();
+ },[centerId,runningClassId,localDate,receiptId,assetId]);
+ // Existing proof gallery uses the same image element; bytes fetched through authorized RPC.
+ // eslint-disable-next-line @next/next/no-img-element
+ return src?<img src={src} alt={alt}/>:<p role="status">{error?"Không thể xác minh ảnh.":"Đang tải ảnh…"}</p>;
+}
 const dateLabel=(s:string)=>{const p=s.slice(0,10).split("-");return p.length===3?p[2]+"/"+p[1]:"—"};
 const timeLabel=(s:string)=>s.includes("T")?s.slice(11,16):"—";
 const interactionOptions=[{value:1,label:"Không hợp tác và phản kháng",short:"Phản kháng"},{value:2,label:"Hoàn thành không tương tác",short:"Không tương tác"},{value:3,label:"Hoàn thành buổi học có tương tác",short:"Có tương tác"},{value:4,label:"Hứng thú và đào sâu",short:"Hứng thú, đào sâu"}] as const;
@@ -31,7 +46,29 @@ export default function ClassroomV4Presentation({model,initialView,onDetailChang
  const mission=(id:string)=>catalog.find(item=>item.id===id);
  const blocked=()=>notify("Chức năng chưa khả dụng. Chưa gửi hoặc lưu dữ liệu.");
  const [diaryEdits,setDiaryEdits]=useState<Record<string,Diary>>({});
- const data=useMemo(()=>({...model.data,diaries:model.data.diaries.map(d=>diaryEdits[d.id]??d)}),[model.data,diaryEdits]);
+ const [openingSnapshots,setOpeningSnapshots]=useState<Record<string,ClassOpeningSnapshot|undefined>>({});
+ const openingWriteLock=useRef(false),appendWriteLock=useRef(false);
+ const openingGeneration=useRef(0);
+ const classScope=(c:ScheduledClass)=>({centerId:model.centerId,runningClassId:c.runningClassId,localDate:model.today});
+ useEffect(()=>{
+  const generation=++openingGeneration.current,controller=new AbortController();
+  for(const c of classes)void readClassOpening({centerId:model.centerId,runningClassId:c.runningClassId,localDate:model.today},controller.signal)
+   .then(snapshot=>{if(controller.signal.aborted||generation!==openingGeneration.current)return;
+    setOpeningSnapshots(prev=>{
+     if((prev[c.id]?.opening?.version??0)>(snapshot.opening?.version??0))return prev;
+     return {...prev,[c.id]:snapshot};
+    });
+   }).catch(()=>{if(!controller.signal.aborted&&generation===openingGeneration.current)setOpeningSnapshots(prev=>({...prev,[c.id]:undefined}));});
+  return()=>{controller.abort();};
+ },[model.centerId,model.today,classes]);
+ const data=useMemo(()=>{
+  const openings={...model.data.openings};
+  for(const c of model.classes){
+   const snapshot=openingSnapshots[c.id];
+   if(snapshot){if(snapshot.opening)openings[c.id]=snapshot.opening;else delete openings[c.id];}
+  }
+  return {...model.data,openings,diaries:model.data.diaries.map(d=>diaryEdits[d.id]??d)};
+ },[model.data,model.classes,diaryEdits,openingSnapshots]);
  const [diaryWriting,setDiaryWriting]=useState(false);
  const diaryWriteLock=useRef(false);
  const [diaryHostAdmitted,setDiaryHostAdmitted]=useState(false);
@@ -51,6 +88,7 @@ export default function ClassroomV4Presentation({model,initialView,onDetailChang
  const [draftPhotos,setDraftPhotos]=useState<OpeningPhoto[]>([]);
  const [draftNote,setDraftNote]=useState("");
  const [appendBusy,setAppendBusy]=useState(false);
+ const appendRetry=useRef<{signature:string;key:string}|null>(null);
  const [studentId,setStudentId]=useState(initialView?.studentId??model.data.students[0]?.id??"");const [addMode,setAddMode]=useState<"existing"|"lead">("existing");const [lookup,setLookup]=useState("");const [newName,setNewName]=useState("");const [newAge,setNewAge]=useState("");const [newGender,setNewGender]=useState<Gender>("Nữ");
  const [missionSearch,setMissionSearch]=useState("");const [chosenMission,setChosenMission]=useState("");const [replacingDiaryId,setReplacingDiaryId]=useState("");const [replacingMissionId,setReplacingMissionId]=useState("");const [appendDiaryId,setAppendDiaryId]=useState("");const [selectedMissionId,setSelectedMissionId]=useState(initialView?.missionId??"");
  const [selectedDiary,setSelectedDiary]=useState(initialView?.diaryId??"");const [missionResults,setMissionResults]=useState<Record<string,boolean|null>>({});const [interest,setInterest]=useState<number|null>(null);const [difficulty,setDifficulty]=useState("");const [notes,setNotes]=useState("");const [evidence,setEvidence]=useState<Evidence[]>([]);const [formErrors,setFormErrors]=useState<string[]>([]);const [uploading,setUploading]=useState(false);
@@ -103,12 +141,29 @@ export default function ClassroomV4Presentation({model,initialView,onDetailChang
  useEffect(()=>{if(!overlay)return;const onKey=(e:KeyboardEvent)=>{if(e.key==="Escape"){e.preventDefault();e.stopPropagation();closeOverlay();return}if(e.key!=="Tab")return;const root=discardConfirm?document.querySelector('[aria-label="Bỏ thay đổi Nhật ký?"]'):sheetRef.current;if(!root)return;const controls=Array.from(root.querySelectorAll<HTMLElement>('button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])')).filter(el=>el.getBoundingClientRect().width>0&&getComputedStyle(el).visibility!=="hidden");if(!controls.length)return;const first=controls[0],last=controls[controls.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}};document.addEventListener("keydown",onKey,true);return()=>document.removeEventListener("keydown",onKey,true)},[overlay,discardConfirm,isDiaryDirty]);
  const toLauncher=()=>{setMissionCreateRequest(null);setSession("");setOpening("");setConfirmedSkipClassId("");setOverlay("");setAppendOpen(false);setBypassConfirm(false);setTab("students")};
  const showProof=(id:string,append=false)=>{if(!data.openings[id])return;setProofClassId(id);setDraftPhotos([]);setDraftNote("");setAppendOpen(append);setOverlay("photo")};
- const askOpen=(s:ScheduledClass)=>{setSession("");setConfirmedSkipClassId("");setOpening(s.id);setOpeningImage("");setBypassConfirm(false)};
+ const askOpen=(s:ScheduledClass)=>{if(openingWriteLock.current)return;setSession("");setConfirmedSkipClassId("");setOpening(s.id);setOpeningImage("");setBypassConfirm(false);
+  void readClassOpening(classScope(s)).then(snapshot=>setOpeningSnapshots(prev=>({...prev,[s.id]:snapshot}))).catch(()=>setOpeningSnapshots(prev=>({...prev,[s.id]:undefined})));
+ };
  const enter=(s:ScheduledClass)=>{if(data.openings[s.id]){setConfirmedSkipClassId("");setSession(s.id);setTab("students");setOverlay("")}else askOpen(s)};
  const confirmBypass=()=>{if(!opening||!classes.some(c=>c.id===opening))return;
   setConfirmedSkipClassId(opening);setSession(opening);setOpening("");setBypassConfirm(false);setOverlay("");setTab("students")};
  const handlePhoto=(files:FileList|null)=>{const f=files?.[0];if(!f)return;if(!f.type.startsWith("image/")){notify("Cần chọn ảnh chụp setup lớp.");return}setOpeningBusy(true);const img=new Image();const src=URL.createObjectURL(f);img.onload=()=>{try{const ratio=Math.min(1,960/Math.max(img.naturalWidth,img.naturalHeight));const cv=document.createElement("canvas");cv.width=Math.max(1,Math.round(img.naturalWidth*ratio));cv.height=Math.max(1,Math.round(img.naturalHeight*ratio));const ctx=cv.getContext("2d");if(!ctx)throw Error("canvas");ctx.drawImage(img,0,0,cv.width,cv.height);setOpeningImage(cv.toDataURL("image/jpeg",0.67))}catch{notify("Không xử lý được ảnh setup.")}finally{URL.revokeObjectURL(src);setOpeningBusy(false)}};img.onerror=()=>{URL.revokeObjectURL(src);setOpeningBusy(false);notify("Không đọc được ảnh setup.")};img.src=src};
- const confirmOpen=blocked;
+ const confirmOpen=async()=>{
+  const c=classes.find(item=>item.id===opening);
+  if(openingWriteLock.current||openingBusy||!c)return;
+  if(openingSnapshots[c.id]?.opening){
+   setConfirmedSkipClassId("");setSession(c.id);setOpening("");setOpeningImage("");setBypassConfirm(false);setOverlay("");setTab("students");return;
+  }
+  if(readOnly||!openingImage||!openingSnapshots[c.id]?.canConfirm)return;
+  openingWriteLock.current=true;setOpeningBusy(true);
+  try{
+   const snapshot=await confirmClassOpening(classScope(c),openingImage);
+   if(!snapshot.opening)throw new Error("Core chưa xác nhận mở lớp.");
+   setOpeningSnapshots(prev=>({...prev,[c.id]:snapshot}));
+   setConfirmedSkipClassId("");setSession(c.id);setOpening("");setOpeningImage("");setBypassConfirm(false);setOverlay("");setTab("students");
+  }catch(error){notify(error instanceof Error?error.message:"Chưa thể mở lớp.");}
+  finally{openingWriteLock.current=false;setOpeningBusy(false);}
+ };
  const openStudent=(id:string)=>{setStudentId(id);setOverlay("student")};
  const openHistory=(d:Diary)=>{setStudentId(d.studentId);setSelectedDiary(d.id);setSelectedMissionId(d.missions[0]?.id||"");setOverlay("historyDetail")};
  const showAdd=()=>{setPageLimit(50);setAddError(false);setAddMode("existing");setLookup("");setNewName("");setNewAge("");setNewGender("Nữ");setOverlay("add")};
@@ -199,7 +254,20 @@ export default function ClassroomV4Presentation({model,initialView,onDetailChang
   if(next.length)setDraftPhotos(prev=>[...prev,...next]);
   setAppendBusy(false);
  };
- const submitSupplement=blocked;
+ const submitSupplement=async()=>{
+  if(readOnly||appendBusy||appendWriteLock.current||!proofClass||!proofOpening?.canAppend||draftPhotos.length<1||draftPhotos.length>10||draftNote.trim().length>1000)return;
+  const images=draftPhotos.map(photo=>photo.preview);
+  if(images.some(image=>!image))return;
+  const signature=JSON.stringify([proofOpening.receiptId,proofOpening.version,images,draftNote.trim()]);
+  const key=appendRetry.current?.signature===signature?appendRetry.current.key:newOpeningRequestKey();
+  appendRetry.current={signature,key};appendWriteLock.current=true;setAppendBusy(true);
+  try{
+   const snapshot=await appendClassOpening(classScope(proofClass),proofOpening,images,key,draftNote);
+   setOpeningSnapshots(prev=>({...prev,[proofClass.id]:snapshot}));
+   appendRetry.current=null;setDraftPhotos([]);setDraftNote("");setAppendOpen(false);
+  }catch(error){notify(error instanceof Error?error.message:"Chưa thể gửi ảnh setup.");}
+  finally{appendWriteLock.current=false;setAppendBusy(false);}
+ };
  const genderLabel=(s:Pick<Student,"gender">)=>s.gender==="Nữ"?"♀":s.gender==="Nam"?"♂":"·";
  const genderBadge=(s:Pick<Student,"gender">)=>s.gender==="Khác / chưa cung cấp"?null:<span aria-label={"Giới tính: "+s.gender} title={s.gender} className={s.gender==="Nữ"?styles.genderFemale:s.gender==="Nam"?styles.genderMale:styles.genderUnknown} data-tos-slot={tosSlotKeys(s.gender==="Nữ"?styles.genderFemale:s.gender==="Nam"?styles.genderMale:styles.genderUnknown)}>{genderLabel(s)}</span>;
  const avatar=(s:Student)=><span className={s.domain==="art"?styles.avatarArt:styles.avatarPiano} data-tos-slot={tosSlotKeys(s.domain==="art"?styles.avatarArt:styles.avatarPiano)} aria-label={s.name}>{s.name.split(" ").slice(-2).map(v=>v[0]).join("").toUpperCase()}</span>;
@@ -220,8 +288,8 @@ export default function ClassroomV4Presentation({model,initialView,onDetailChang
  const diaryListState=(current&&model.diaryOccurrenceReadState?.[current.id])??model.diaryReadState;
  const rows=diaryStateFilter==="all"?currentDiaries:currentDiaries.filter(d=>d.status===diaryStateFilter);
  return <main className={styles.shell} data-tos-slot={tosSlotKeys(styles.shell)}><div className={styles.phone} data-tos-slot={tosSlotKeys(styles.phone)}>
-  {!session&&!opening&&<div className={styles.content} data-tos-slot={tosSlotKeys(styles.content)}>{classes.map(c=>{const o=data.openings[c.id];const last=lastRound(o);const rejected=needsAction(o);const hasEarlierReject=!!o&&evidenceRounds(o).some(r=>r.status==="REJECTED");return <article className={styles.classCard} data-tos-slot={tosSlotKeys(styles.classCard)} key={c.id}><div className={styles.classTop} data-tos-slot={tosSlotKeys(styles.classTop)}><div className={styles.classIcon} data-tos-slot={tosSlotKeys(styles.classIcon)}><FontAwesomeIcon icon={icon(c.subject)}/></div><div className={styles.classSummary} data-tos-slot={tosSlotKeys(styles.classSummary)}><strong>{c.name}</strong><span><FontAwesomeIcon icon={faClock}/> {c.time} {c.room&&"· "+c.room}</span><span><FontAwesomeIcon icon={faUsers}/> Dạy chung: {c.staff.join(" · ")||"Chưa có thông tin"}</span></div></div><div className={styles.classFooter} data-tos-slot={tosSlotKeys(styles.classFooter)}><div><span className={o?styles.badgeGood:styles.badgePending} data-tos-slot={tosSlotKeys(o?styles.badgeGood:styles.badgePending)}>{o?"Đã mở lớp":model.openingReadState==="LOADED"?"Chưa mở lớp":"Chưa xác minh mở lớp"}</span><small>{c.expected.length} học viên dự kiến</small>{o&&<small>Mở bởi {o.openedBy}</small>}{o&&<span className={reviewState(o)==="REJECTED"?styles.badgeBad:reviewState(o)==="APPROVED"?styles.badgeGood:styles.badgePending} data-tos-slot={tosSlotKeys(reviewState(o)==="REJECTED"?styles.badgeBad:reviewState(o)==="APPROVED"?styles.badgeGood:styles.badgePending)}>{hasEarlierReject&&last?.status==="PENDING"?"Đã bổ sung · chờ duyệt lại":"Ảnh: "+reviewText(reviewState(o))}</span>}</div><button className={styles.primaryButton} data-tos-slot={tosSlotKeys(styles.primaryButton)} onClick={()=>enter(c)}>{o?"Vào lớp":"Mở lớp"} <FontAwesomeIcon icon={faChevronRight}/></button></div>{rejected&&<div className={styles.classRejected} data-tos-slot={tosSlotKeys(styles.classRejected)} role="status" aria-label={"Cần bổ sung ảnh setup - "+c.name}><div><strong><FontAwesomeIcon icon={faTriangleExclamation}/> Ảnh setup chưa được duyệt</strong><p>{last?.reason||"Cần bổ sung ảnh setup theo yêu cầu BO."}</p></div><button onClick={()=>showProof(c.id,true)}>Bổ sung ảnh <FontAwesomeIcon icon={faChevronRight}/></button></div>}</article>})}</div>}
-  {opening&&<div className={styles.content} data-tos-slot={tosSlotKeys(styles.content)}><section className={styles.prep} data-tos-slot={tosSlotKeys(styles.prep)}><span>BƯỚC MỞ LỚP</span><h2>Kiểm tra setup phòng học</h2><p>{classes.find(c=>c.id===opening)?.name} · {classes.find(c=>c.id===opening)?.room}</p></section><div className={styles.openPanel} data-tos-slot={tosSlotKeys(styles.openPanel)}><div className={styles.step} data-tos-slot={tosSlotKeys(styles.step)}><span>1</span><div><strong>Chụp ảnh phòng đã setup</strong><p>Ghi lại hiện trạng trước giờ dạy. Chỉ người mở lớp đầu tiên thực hiện.</p></div></div><label className={styles.photoPicker} data-tos-slot={tosSlotKeys(styles.photoPicker)}><FontAwesomeIcon icon={faCamera}/> {openingImage?"Thay ảnh setup":"Chụp / chọn ảnh setup"}<input aria-label="Ảnh setup lớp" type="file" accept="image/*" capture="environment" onChange={e=>handlePhoto(e.target.files)}/></label>{openingImage?<img className={styles.openPreview} data-tos-slot={tosSlotKeys(styles.openPreview)} src={openingImage} alt="Ảnh setup lớp vừa chụp"/>:<div className={styles.photoPlaceholder} data-tos-slot={tosSlotKeys(styles.photoPlaceholder)}><FontAwesomeIcon icon={faCamera}/> Chưa có ảnh setup</div>}<div className={styles.step} data-tos-slot={tosSlotKeys(styles.step)}><span>2</span><div><strong>Xác nhận mở lớp</strong><p>Mở lớp cần được hệ thống xác nhận. Các thao tác ghi vẫn khóa đến khi đủ điều kiện.</p></div></div><button disabled title="Chức năng chưa khả dụng; chưa gửi dữ liệu" className={styles.primaryButtonWide} data-tos-slot={tosSlotKeys(styles.primaryButtonWide)} onClick={confirmOpen}>Xác nhận mở lớp <FontAwesomeIcon icon={faCheck}/></button><div className={styles.bypassEntry} data-tos-slot={tosSlotKeys(styles.bypassEntry)}><button type="button" className={styles.bypassEntryButton} data-tos-slot={tosSlotKeys(styles.bypassEntryButton)} onClick={()=>setBypassConfirm(true)}>Vào lớp không mở ca</button>{bypassConfirm&&<div className={styles.bypassConfirm} data-tos-slot={tosSlotKeys(styles.bypassConfirm)} role="dialog" aria-label="Xác nhận vào lớp không mở ca"><strong>Bạn có chắc không mở ca vẫn vào lớp?</strong><p>Thông tin này sẽ được gửi đến Quản lý</p><div><button type="button" onClick={()=>setBypassConfirm(false)}>Hủy</button><button type="button" onClick={confirmBypass}>Vào lớp không mở ca</button></div></div>}</div><button className={styles.cancel} data-tos-slot={tosSlotKeys(styles.cancel)} onClick={()=>{setOpening("");setOpeningImage("")}}>Quay lại danh sách lớp</button></div></div>}
+  {!session&&!opening&&<div className={styles.content} data-tos-slot={tosSlotKeys(styles.content)}>{classes.map(c=>{const o=data.openings[c.id];const last=lastRound(o);const rejected=needsAction(o);const hasEarlierReject=!!o&&evidenceRounds(o).some(r=>r.status==="REJECTED");return <article className={styles.classCard} data-tos-slot={tosSlotKeys(styles.classCard)} key={c.id}><div className={styles.classTop} data-tos-slot={tosSlotKeys(styles.classTop)}><div className={styles.classIcon} data-tos-slot={tosSlotKeys(styles.classIcon)}><FontAwesomeIcon icon={icon(c.subject)}/></div><div className={styles.classSummary} data-tos-slot={tosSlotKeys(styles.classSummary)}><strong>{c.name}</strong><span><FontAwesomeIcon icon={faClock}/> {c.time} {c.room&&"· "+c.room}</span><span><FontAwesomeIcon icon={faUsers}/> Dạy chung: {c.staff.join(" · ")||"Chưa có thông tin"}</span></div></div><div className={styles.classFooter} data-tos-slot={tosSlotKeys(styles.classFooter)}><div><span className={o?styles.badgeGood:styles.badgePending} data-tos-slot={tosSlotKeys(o?styles.badgeGood:styles.badgePending)}>{o?"Đã mở lớp":openingSnapshots[c.id]?"Chưa mở lớp":"Chưa xác minh mở lớp"}</span><small>{c.expected.length} học viên dự kiến</small>{o&&<small>Mở bởi {o.openedBy}</small>}{o&&<span className={reviewState(o)==="REJECTED"?styles.badgeBad:reviewState(o)==="APPROVED"?styles.badgeGood:styles.badgePending} data-tos-slot={tosSlotKeys(reviewState(o)==="REJECTED"?styles.badgeBad:reviewState(o)==="APPROVED"?styles.badgeGood:styles.badgePending)}>{hasEarlierReject&&last?.status==="PENDING"?"Đã bổ sung · chờ duyệt lại":"Ảnh: "+reviewText(reviewState(o))}</span>}</div><button className={styles.primaryButton} data-tos-slot={tosSlotKeys(styles.primaryButton)} onClick={()=>enter(c)}>{o?"Vào lớp":"Mở lớp"} <FontAwesomeIcon icon={faChevronRight}/></button></div>{rejected&&<div className={styles.classRejected} data-tos-slot={tosSlotKeys(styles.classRejected)} role="status" aria-label={"Cần bổ sung ảnh setup - "+c.name}><div><strong><FontAwesomeIcon icon={faTriangleExclamation}/> Ảnh setup chưa được duyệt</strong><p>{last?.reason||"Cần bổ sung ảnh setup theo yêu cầu BO."}</p></div><button disabled={readOnly||!o?.canAppend} onClick={()=>showProof(c.id,true)}>Bổ sung ảnh <FontAwesomeIcon icon={faChevronRight}/></button></div>}</article>})}</div>}
+  {opening&&<div className={styles.content} data-tos-slot={tosSlotKeys(styles.content)}><section className={styles.prep} data-tos-slot={tosSlotKeys(styles.prep)}><span>BƯỚC MỞ LỚP</span><h2>Kiểm tra setup phòng học</h2><p>{classes.find(c=>c.id===opening)?.name} · {classes.find(c=>c.id===opening)?.room}</p></section><div className={styles.openPanel} data-tos-slot={tosSlotKeys(styles.openPanel)}><div className={styles.step} data-tos-slot={tosSlotKeys(styles.step)}><span>1</span><div><strong>Chụp ảnh phòng đã setup</strong><p>Ghi lại hiện trạng trước giờ dạy. Chỉ người mở lớp đầu tiên thực hiện.</p></div></div><label className={styles.photoPicker} data-tos-slot={tosSlotKeys(styles.photoPicker)}><FontAwesomeIcon icon={faCamera}/> {openingImage?"Thay ảnh setup":"Chụp / chọn ảnh setup"}<input aria-label="Ảnh setup lớp" type="file" accept="image/*" capture="environment" onChange={e=>handlePhoto(e.target.files)}/></label>{openingImage?<img className={styles.openPreview} data-tos-slot={tosSlotKeys(styles.openPreview)} src={openingImage} alt="Ảnh setup lớp vừa chụp"/>:<div className={styles.photoPlaceholder} data-tos-slot={tosSlotKeys(styles.photoPlaceholder)}><FontAwesomeIcon icon={faCamera}/> Chưa có ảnh setup</div>}<div className={styles.step} data-tos-slot={tosSlotKeys(styles.step)}><span>2</span><div><strong>Xác nhận mở lớp</strong><p>Mở lớp cần được hệ thống xác nhận. Các thao tác ghi vẫn khóa đến khi đủ điều kiện.</p></div></div><button disabled={openingBusy||(!openingSnapshots[opening]?.opening&&(readOnly||!openingImage||!openingSnapshots[opening]?.canConfirm))} className={styles.primaryButtonWide} data-tos-slot={tosSlotKeys(styles.primaryButtonWide)} onClick={()=>void confirmOpen()}>{openingSnapshots[opening]?.opening?"Vào lớp":"Xác nhận mở lớp"} <FontAwesomeIcon icon={faCheck}/></button><div className={styles.bypassEntry} data-tos-slot={tosSlotKeys(styles.bypassEntry)}><button type="button" className={styles.bypassEntryButton} data-tos-slot={tosSlotKeys(styles.bypassEntryButton)} disabled={openingBusy} onClick={()=>setBypassConfirm(true)}>Vào lớp không mở ca</button>{bypassConfirm&&<div className={styles.bypassConfirm} data-tos-slot={tosSlotKeys(styles.bypassConfirm)} role="dialog" aria-label="Xác nhận vào lớp không mở ca"><strong>Bạn có chắc không mở ca vẫn vào lớp?</strong><p>Thông tin này sẽ được gửi đến Quản lý</p><div><button type="button" onClick={()=>setBypassConfirm(false)}>Hủy</button><button type="button" onClick={confirmBypass}>Vào lớp không mở ca</button></div></div>}</div><button className={styles.cancel} data-tos-slot={tosSlotKeys(styles.cancel)} disabled={openingBusy} onClick={()=>{setOpening("");setOpeningImage("")}}>Quay lại danh sách lớp</button></div></div>}
   {session&&current&&(currentOpening||bypassActive)&&<><header className={styles.sessionBar} data-tos-slot={tosSlotKeys(styles.sessionBar)} data-tos-vnext="classroom-detail-header" aria-label={"Lớp đang truy cập: "+current.name}><button type="button" className={styles.sessionBack} data-tos-slot={tosSlotKeys(styles.sessionBack)} onClick={toLauncher} aria-label="Trở về danh sách lớp"><FontAwesomeIcon icon={faArrowLeft}/></button><div className={styles.sessionIcon} data-tos-slot={tosSlotKeys(styles.sessionIcon)}><FontAwesomeIcon icon={icon(current.subject)}/></div><div className={styles.sessionInfo} data-tos-slot={tosSlotKeys(styles.sessionInfo)}><h1 className={styles.sessionTitle} data-tos-slot={tosSlotKeys(styles.sessionTitle)}>{current.name}</h1><span>{current.time} {current.room&&"· "+current.room}</span></div><button type="button" className={styles.sessionPhoto} data-tos-slot={tosSlotKeys(styles.sessionPhoto)} disabled={!currentOpening} onClick={()=>showProof(current.id)} aria-label={currentOpening?"Xem ảnh setup":"Chưa xác minh ảnh setup"}><FontAwesomeIcon icon={faCamera}/></button></header><div ref={classContentRef} className={styles.content} data-tos-slot={tosSlotKeys(styles.content)}><p className={styles.sessionTeaching} data-tos-slot={tosSlotKeys(styles.sessionTeaching)}><FontAwesomeIcon icon={faUsers}/> Dạy chung: {current.staff.join(" · ")||"Chưa có thông tin"}<span>{currentOpening?"Mở bởi "+currentOpening.openedBy:skipConfirmed?"Chưa mở lớp":"Chỉ xem"}</span></p>
     {tab==="students"&&<section role="tabpanel" id="tos-classroom-panel-students" aria-labelledby="tos-classroom-tab-students"><div className={styles.sectionHead} data-tos-slot={tosSlotKeys(styles.sectionHead)}><div><h2>Học viên trong buổi ({people.length})</h2></div><button disabled={readOnly} onClick={showAdd}>Thêm</button></div>{people.map(person)}{people.some(s=>model.conflictStudentIds.includes(s.id))&&<p role="alert">Danh sách có học viên xung đột. Cần kiểm tra trước khi ghi.</p>}</section>}
     {(tab==="students"||tab==="missions")&&<MissionAssignmentTab
@@ -339,23 +407,23 @@ export default function ClassroomV4Presentation({model,initialView,onDetailChang
       <p>{dateLabel(round.submittedAt)} {timeLabel(round.submittedAt)} · Người gửi: {round.submittedBy}</p>
       {round.note&&<p>Ghi chú: {round.note}</p>}
       <div className={styles.proofGallery} data-tos-slot={tosSlotKeys(styles.proofGallery)}>
-      {round.photos.map((photo,index)=><figure key={photo.id}><img alt={index===0&&round.id===evidenceRounds(proofOpening)[0].id?"Ảnh setup đã lưu":"Ảnh setup "+photo.fileName} src={photo.preview}/><figcaption>{photo.fileName}<small>{photo.uploadedBy} · {timeLabel(photo.uploadedAt)}</small></figcaption></figure>)}
+      {round.photos.map((photo,index)=><figure key={photo.id}>{proofOpening.receiptId?<PrivateClassOpeningImage key={proofOpening.receiptId+":"+photo.id} scope={classScope(proofClass)} receiptId={proofOpening.receiptId} assetId={photo.id} alt={index===0&&round.id===evidenceRounds(proofOpening)[0].id?"Ảnh setup đã lưu":"Ảnh setup "+photo.fileName}/>:<p>Chưa xác minh ảnh.</p>}<figcaption>{photo.fileName}<small>{photo.uploadedBy} · {timeLabel(photo.uploadedAt)}</small></figcaption></figure>)}
       </div>
       {round.reviewedAt&&<p className={styles.proofReviewNote} data-tos-slot={tosSlotKeys(styles.proofReviewNote)}>Duyệt bởi {round.reviewedBy} · {dateLabel(round.reviewedAt)} {timeLabel(round.reviewedAt)}</p>}
       {round.status==="REJECTED"&&<div className={styles.proofReason} data-tos-slot={tosSlotKeys(styles.proofReason)}>Lý do từ chối: {round.reason||"Chưa cung cấp lý do"}</div>}
       {round.status==="APPROVED"&&round.reason&&<p className={styles.proofReviewNote} data-tos-slot={tosSlotKeys(styles.proofReviewNote)}>{round.reason}</p>}
     </article>)}
-    {!appendOpen?<button className={styles.primaryButtonWide} data-tos-slot={tosSlotKeys(styles.primaryButtonWide)} onClick={()=>setAppendOpen(true)}><FontAwesomeIcon icon={faCamera}/> Thêm ảnh setup</button>:
+    {!appendOpen?<button className={styles.primaryButtonWide} data-tos-slot={tosSlotKeys(styles.primaryButtonWide)} disabled={readOnly||!proofOpening.canAppend} onClick={()=>setAppendOpen(true)}><FontAwesomeIcon icon={faCamera}/> Thêm ảnh setup</button>:
       <section className={styles.proofComposer} data-tos-slot={tosSlotKeys(styles.proofComposer)}>
        <h3>Thêm ảnh setup cho lớp đã mở</h3>
-       <p>Chọn nhiều ảnh hoặc chụp bằng camera. Ảnh ban đầu và lịch sử duyệt được giữ nguyên.</p>
+       <p>Ảnh ban đầu và lịch sử duyệt được giữ nguyên. Tối đa 10 ảnh mỗi lượt.</p>
        <div className={styles.proofPickers} data-tos-slot={tosSlotKeys(styles.proofPickers)}>
         <label className={styles.photoPicker} data-tos-slot={tosSlotKeys(styles.photoPicker)}><FontAwesomeIcon icon={faCamera}/> Chụp ảnh<input aria-label="Chụp thêm ảnh setup" type="file" accept="image/*" capture="environment" onChange={e=>{void handleSupplementPhotos(e.target.files);e.target.value=""}}/></label>
         <label className={styles.photoPicker} data-tos-slot={tosSlotKeys(styles.photoPicker)}><FontAwesomeIcon icon={faPlus}/> Chọn nhiều ảnh<input aria-label="Chọn nhiều ảnh setup" type="file" accept="image/*" multiple onChange={e=>{void handleSupplementPhotos(e.target.files);e.target.value=""}}/></label>
        </div>
        {draftPhotos.length>0&&<div className={styles.proofDraftGrid} data-tos-slot={tosSlotKeys(styles.proofDraftGrid)}>{draftPhotos.map(photo=><div key={photo.id}><img alt={"Ảnh bổ sung "+photo.fileName} src={photo.preview}/><button type="button" aria-label={"Bỏ ảnh "+photo.fileName} onClick={()=>setDraftPhotos(p=>p.filter(x=>x.id!==photo.id))}>×</button><span>{photo.fileName}</span></div>)}</div>}
-       <label className={styles.field} data-tos-slot={tosSlotKeys(styles.field)}>Ghi chú về thay đổi setup (tùy chọn)<textarea aria-label="Ghi chú ảnh setup bổ sung" value={draftNote} onChange={e=>setDraftNote(e.target.value)} placeholder="Ví dụ: Đã chỉnh lại bàn ghế và ánh sáng."/></label>
-       <button disabled title="Chức năng chưa khả dụng; chưa gửi dữ liệu" className={styles.primaryButtonWide} data-tos-slot={tosSlotKeys(styles.primaryButtonWide)} onClick={submitSupplement}>{appendBusy?"Đang xử lý ảnh...":needsAction(proofOpening)?"Gửi bổ sung để duyệt lại":"Gửi ảnh setup bổ sung"}</button>
+       <label className={styles.field} data-tos-slot={tosSlotKeys(styles.field)}>Ghi chú về thay đổi setup (tùy chọn)<textarea maxLength={1000} aria-label="Ghi chú ảnh setup bổ sung" value={draftNote} onChange={e=>setDraftNote(e.target.value)} placeholder="Ví dụ: Đã chỉnh lại bàn ghế và ánh sáng."/></label>
+       <button disabled={readOnly||appendBusy||!proofOpening.canAppend||draftPhotos.length<1||draftPhotos.length>10||draftNote.trim().length>1000} className={styles.primaryButtonWide} data-tos-slot={tosSlotKeys(styles.primaryButtonWide)} onClick={()=>void submitSupplement()}>{appendBusy?"Đang xử lý ảnh...":needsAction(proofOpening)?"Gửi bổ sung để duyệt lại":"Gửi ảnh setup bổ sung"}</button>
        <button className={styles.cancel} data-tos-slot={tosSlotKeys(styles.cancel)} onClick={()=>{setAppendOpen(false);setDraftPhotos([]);setDraftNote("")}}>Hủy bổ sung</button>
       </section>}
     <p className={styles.smallMuted} data-tos-slot={tosSlotKeys(styles.smallMuted)}>Thông tin bằng chứng chỉ hiển thị khi được Core xác minh. Ảnh mới chọn chưa được gửi.</p>

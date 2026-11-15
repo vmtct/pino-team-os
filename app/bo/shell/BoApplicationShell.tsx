@@ -8,6 +8,7 @@ import { boScopedModuleHref } from "../components/registration/BoGlobalCenterPol
 import { BoContentCenterBoundary, useBoCenterSelection } from "../components/registration/BoCenterSelection";
 import { unifiedBoWorkspaceSource } from "../architecture/bo-unified-workspace-source";
 import { boNavigation } from "../navigation";
+import {openingEvidenceBoModule} from "@/lib/opening-evidence-host-contract";
 import { nativePayrollModule } from "@/lib/bo-native-payroll-route";
 
 // Keep Production's existing destinations and content dispatch. Staging-only
@@ -27,6 +28,7 @@ const productionSource: BoWorkspaceSource = {
 // These existing admitted direct pages have their own content adapters. Register
 // presentation destinations only; never call those adapters from the outer shell.
 const directModules = {
+  "opening-evidence": { label: "Mở lớp & ca", group: "SCHOOL", fields: [] },
   "classroom-diaries": { label: "Nhật ký lớp học", group: "SCHOOL", fields: [] },
   "open-studio-passes": { label: "Pass Trạm Nghệ Thuật", group: "Open Studio", fields: [] },
   "payroll-daily": { label: "Bảng lương ngày", group: "WORKFORCE", fields: [] },
@@ -78,7 +80,7 @@ export function BoApplicationShell({ currentUser, staging, children }: {
   const productionKey = destinationKey(productionDestination?.href ?? "/bo");
   const stagingKey = pathname === "/bo" || pathname === "/bo/"
     ? query.get("module") ?? "students"
-    : nativePayrollModule(pathname) ?? pathname.slice("/bo/".length);
+    : nativePayrollModule(pathname) ?? openingEvidenceBoModule(pathname) ?? pathname.slice("/bo/".length);
   return <BoRegistrationWorkspace shellOnly currentUser={currentUser}
     moduleKey={staging ? stagingKey : productionKey}
     source={staging ? scopedSource : productionSource}

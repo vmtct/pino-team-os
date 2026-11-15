@@ -1,3 +1,4 @@
+import {openingEvidenceHostDecision} from "./opening-evidence-host-contract";
 import {isNativePayrollNamespace,nativePayrollModule,isNativePayrollApi} from "./bo-native-payroll-route";
 import {isHoTvReadRequest} from "./ho-tv-read-contract";
 import {isHoTvVisibilityRequest} from "./ho-tv-visibility-contract";
@@ -44,6 +45,9 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   }
   if (isNativePayrollNamespace(pathname)) return {action:hostname===BO_STAGING_HOSTNAME &&
     ((Boolean(nativePayrollModule(pathname))&&(method==="GET"||method==="HEAD")) || (isNativePayrollApi(pathname)&&method==="GET"))?"next":"not_found"};
+  // PAP-767: exact Opening Evidence admission before generic TOS/BO host fallthrough.
+  const openingEvidence = openingEvidenceHostDecision(hostname, pathname, method);
+  if (openingEvidence) return { action: openingEvidence };
   // PAP-1939 / PAP-1934: exact BO Staging read admission only. No HO/TOS/Production.
   if (pathname === "/api/bo/classroom/day-headcounts" || pathname.startsWith("/api/bo/classroom/day-headcounts/"))
     return { action: hostname === BO_STAGING_HOSTNAME && method === "GET" &&
