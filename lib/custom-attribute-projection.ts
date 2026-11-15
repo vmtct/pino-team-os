@@ -18,8 +18,32 @@ const validDatetime=(s:string)=>{
  return !!m&&validDate(m[1]!)&&Number.isFinite(Date.parse(s));
 };
 const bytes=(x:unknown)=>new TextEncoder().encode(JSON.stringify(x)).byteLength;
+type JsonValue=null|boolean|number|string|JsonValue[]|{[key:string]:JsonValue};
+type JsonObject={[key:string]:JsonValue};
+type SavedAttributeValue=string|number|boolean|string[]|JsonObject;
+const plain=(v:unknown):v is Record<string,unknown>=>v!==null&&typeof v==="object"&&!Array.isArray(v)&&(Object.getPrototypeOf(v)===Object.prototype||Object.getPrototypeOf(v)===null);
+function jsonTree(raw:unknown,depth:number,budget:{count:number},seen:Set<object>):boolean{
+ if(++budget.count>1024||depth>16)return false;
+ if(raw===null||typeof raw==="string"||typeof raw==="boolean")return true;
+ if(typeof raw==="number")return Number.isFinite(raw);
+ if(typeof raw!=="object"||seen.has(raw))return false;
+ seen.add(raw);
+ try{
+  if(Array.isArray(raw)){
+   if(raw.length>1024||Object.keys(raw).length!==raw.length||Object.getOwnPropertySymbols(raw).length)return false;
+   for(let i=0;i<raw.length;i++){const d=Object.getOwnPropertyDescriptor(raw,String(i));if(!d||!("value" in d)||!jsonTree(d.value,depth+1,budget,seen))return false;}
+   return true;
+  }
+  if(!plain(raw)||Object.getOwnPropertySymbols(raw).length)return false;
+  return Object.keys(raw).every(k=>{
+   if(["__proto__","constructor","prototype"].includes(k))return false;
+   const d=Object.getOwnPropertyDescriptor(raw,k);
+   return !!d&&"value" in d&&jsonTree(d.value,depth+1,budget,seen);
+  });
+ }finally{seen.delete(raw);}
+}
 function jsonText(raw:unknown):string|null {
- if(raw===null||typeof raw!=="object"||Array.isArray(raw))return null;
+ if(!plain(raw)||!jsonTree(raw,0,{count:0},new Set()))return null;
  try{
   const s=JSON.stringify(raw);
   return typeof s==="string"&&bytes(raw)<=8192?s:null;
@@ -46,10 +70,7 @@ export function projectAttribute(input:AttributeFieldProjection):ProjectedAttrib
   }
   if(valid&&bytes(projected)>8192)valid=false;
  }
- // Existing BoTypedEditor cannot faithfully edit arbitrary signed decimals,
- // explicit-offset timestamps or structured JSON. Keep those read-only for now.
- const editorCompatible=!(["number","datetime","json"] as ValueType[]).includes(valueType);
- const canEdit=writable===true&&valid&&editorCompatible;
+ const canEdit=writable===true&&valid;
  return {field:{...field,readonly:!canEdit},value:valid?projected:null,canEdit,invalid:!valid};
 }
 export function projectAttributeRows(items:readonly AttributeFieldProjection[]):{
@@ -64,4 +85,42 @@ export function projectAttributeRows(items:readonly AttributeFieldProjection[]):
   if(p.canEdit)editable.add(p.field.key);if(p.invalid)invalid.push(input.label);
  }
  return {fields,record,editable,invalid};
+}
+
+/** PAP-1670: native editor plan, with explicit conversion before any future CAS command.
+ * Empty/null is never implicitly saved as a default; no clear operation is defined here. */
+type EditResult={ok:true;value:SavedAttributeValue}|{ok:false;error:string};
+export type AttributeEditPlan={field:BoField;value:BoValue;parse:(draft:BoValue)=>EditResult};
+const bad=():EditResult=>({ok:false,error:"Giá trị thuộc tính không hợp lệ."});
+export function prepareAttributeEdit(input:AttributeFieldProjection):AttributeEditPlan|null {
+ const p=projectAttribute(input);
+ if(!p.canEdit)return null;
+ const {valueType,required,options}=input;
+ const field:BoField={...p.field,readonly:false};
+ let value=p.value;
+ if(valueType==="number"||valueType==="datetime"){
+  field.type="text";value=value===null?null:String(value);
+ }else if(valueType==="boolean"){
+  field.type="select";field.options=["Có","Không"];value=value===null?null:value===true?"Có":"Không";
+ }
+ return {field,value,parse(draft){
+  let raw:unknown=draft;
+  if(valueType==="number"){
+   if(typeof draft!=="string"||!/^[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?$/.test(draft))return bad();
+   raw=Number(draft);
+  }else if(valueType==="boolean"){
+   if(draft!=="Có"&&draft!=="Không")return bad();
+   raw=draft==="Có";
+  }else if(valueType==="json"){
+   if(typeof draft!=="string"||new TextEncoder().encode(draft).byteLength>8192)return bad();
+   try{raw=JSON.parse(draft) as unknown;}catch{return bad();}
+  }
+  if(raw===null||raw===undefined)return bad();
+  if(valueType==="text"&&required&&typeof raw==="string"&&!raw.trim())return bad();
+  if(valueType==="multiselect"&&required&&Array.isArray(raw)&&raw.length===0)return bad();
+  if(valueType==="select"&&(typeof raw!=="string"||!options.includes(raw)))return bad();
+  const result=projectAttribute({...input,value:raw});
+  if(result.invalid||result.value===null)return bad();
+  return {ok:true,value:raw as SavedAttributeValue};
+ }};
 }
