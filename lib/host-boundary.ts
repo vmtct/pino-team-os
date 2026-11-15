@@ -51,6 +51,8 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   // PAP-1914 / PAP-1705 PNR-AVATAR-CRUD: exact Nickname PATCH ingress on BO Staging.
   // Fence all other hosts, verbs and malformed child IDs before generic host fallthrough.
   // BFF and Core independently enforce selected-Center ACL, CAS and actor audit.
+  if (pathname === "/api/bo/pinoria/avatars/starter-sets")
+    return {action:hostname===BO_STAGING_HOSTNAME&&method==="GET"?"next":"not_found"};
   if (pathname.startsWith("/api/bo/pinoria/avatars/")) {
     const exactAvatar = /^\/api\/bo\/pinoria\/avatars\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pathname);
     return hostname === BO_STAGING_HOSTNAME && method === "PATCH" && exactAvatar
@@ -262,7 +264,7 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
     const itemBase = p === "/api/ho/pinoria/items";
     const itemUpload = p === "/api/ho/pinoria/items/uploads";
     const itemRecord = /^\/api\/ho\/pinoria\/items\/[0-9a-f-]{36}$/.test(p);
-    const itemPublish = /^\/api\/ho\/pinoria\/items\/[0-9a-f-]{36}\/(?:publish|unpublish)$/.test(p);
+    const itemPublish = /^\/api\/ho\/pinoria\/items\/[0-9a-f-]{36}\/(?:publish|unpublish|delete-draft)$/.test(p);
     const itemMedia = /^\/api\/ho\/pinoria\/items\/[0-9a-f-]{36}\/(?:media|draft-media)$/.test(p);
     if (itemBase || itemUpload || itemRecord || itemPublish || itemMedia) {
       const allowed = (itemBase && (method === "GET" || method === "POST"))
