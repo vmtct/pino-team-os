@@ -29,7 +29,7 @@ const columns:BoDataGridColumn<RequestRow>[]=[
 
 // Core's Founder-only intake capability distinguishes the legacy global surface.
 // A network failure is not a grant or a reason to fall back to global data.
-export function StaffRegistrationSection(){
+export function StaffRegistrationSection({embedded=false}:{embedded?:boolean}){
   const [mode,setMode]=useState<"loading"|"founder"|"center"|"error">("loading");
   const [error,setError]=useState("");
   useEffect(()=>{
@@ -44,16 +44,16 @@ export function StaffRegistrationSection(){
   if(mode==="loading")return <p role="status">Đang xác minh quyền duyệt hồ sơ…</p>;
   if(mode==="error")return <p role="alert">{error}</p>;
   if(mode==="founder")return <><StaffRegistrationIntakeToggle/><StaffRegistrationReviewQueue/></>;
-  return <StaffCenterRegistrationReview/>;
+  return <StaffCenterRegistrationReview embedded={embedded}/>;
 }
-function StaffCenterRegistrationReview(){
+function StaffCenterRegistrationReview({embedded}:{embedded:boolean}){
   const scope=useBoCenterSelection();
   const center=scope?.centers.find(c=>c.id===scope.selected);
   if(!scope||scope.loading)return <p role="status">Đang xác thực cơ sở…</p>;
   if(scope.error||!center)return <p role="alert">Chọn cơ sở được cấp quyền.</p>;
-  return <CenterReview key={center.id} centerId={center.id} centerName={center.displayName}/>;
+  return <CenterReview key={center.id} centerId={center.id} centerName={center.displayName} embedded={embedded}/>;
 }
-function CenterReview({centerId,centerName}:{centerId:string;centerName:string}){
+function CenterReview({centerId,centerName,embedded}:{centerId:string;centerName:string;embedded:boolean}){
   const [rows,setRows]=useState<RequestRow[]>([]);
   const [roles,setRoles]=useState<RoleOption[]>([]);
   const [loading,setLoading]=useState(true);
@@ -108,7 +108,7 @@ function CenterReview({centerId,centerName}:{centerId:string;centerName:string})
     finally{inFlight.current=false;setBusy(false)}
   }
   return <section id="staff-registration-review" aria-label="Hồ sơ nhân sự chờ duyệt">
-    <div className="page-heading"><div className="page-heading-left"><h1>Hồ sơ chờ duyệt</h1><p>{centerName}</p></div></div>
+    {embedded?<p className="settings-hint">{centerName} · Hồ sơ chờ duyệt</p>:<div className="page-heading"><div className="page-heading-left"><h1>Hồ sơ chờ duyệt</h1><p>{centerName}</p></div></div>}
     {notice?<p role="status">{notice}</p>:null}
     {reviewError?<p role="status">{reviewError}</p>:null}
     {error?<p role="alert">{error}</p>:null}
