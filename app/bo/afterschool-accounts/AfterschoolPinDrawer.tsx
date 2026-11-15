@@ -11,7 +11,7 @@ export function AfterschoolPinDrawer({ centerId, parent, onClose, onChanged, onE
   parent: Parent | null;
   onClose: () => void;
   onChanged: () => void;
-  onExisting: (parentId: string) => boolean;
+  onExisting: (parentId: string) => Promise<boolean>;
 }) {
   const [parents, setParents] = useState<NativeParentRow[] | null>(null);
   const [search, setSearch] = useState("");
@@ -54,7 +54,7 @@ export function AfterschoolPinDrawer({ centerId, parent, onClose, onChanged, onE
       });
       form.reset();
       if (response.status === 409 && !parent) {
-        if (!onExisting(selected.id)) setError("Tài khoản đã tồn tại hoặc số điện thoại bị trùng. Kiểm tra lại danh sách Tài khoản.");
+        if (!(await onExisting(selected.id))) setError("Tài khoản đã tồn tại hoặc số điện thoại bị trùng. Kiểm tra lại danh sách Tài khoản.");
         return;
       }
       if (!response.ok) {
