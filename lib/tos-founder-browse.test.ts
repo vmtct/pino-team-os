@@ -8,7 +8,7 @@ test("PAP-938 Founder browse never impersonates a StaffMember or fabricates shif
  const shiftRead=source.indexOf("void shiftReadModel(",effectStart);
  assert.ok(effectStart>0&&shiftRead>effectStart,"Founder skips all self-scoped schedule reads");
  assert.match(source,/if\(ctx\?\.founderMode\)\{/);
- assert.match(source,/const canBrowse=\(id:TosVNextAppId\)=>id!=="station"\|\|desktop/);
+ assert.match(source,/const canBrowse=\(id:TosVNextAppId\)=>canOpenVNextApp/);
  assert.match(source,/"shift-lead":"Trưởng Ca"/);
  assert.match(source,/Chế độ Founder/);
  assert.match(source,/workforceApi\.founderCenterSchedule/);
