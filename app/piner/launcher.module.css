@@ -638,7 +638,7 @@
 .unifiedShell[data-piner-space][data-chrome-collapsed="true"] .unifiedHeader{
  margin-bottom:-50px;transform:translateY(-100%);opacity:0;pointer-events:none;
 }
-.unifiedShell[data-piner-space][data-chrome-collapsed="true"] .unifiedNav{
+.unifiedShell[data-piner-space] .unifiedNav[data-island-scale="0.7"]{
  margin-top:calc(-56px - env(safe-area-inset-bottom));
  transform:translateY(100%);opacity:0;pointer-events:none;
 }
@@ -858,7 +858,7 @@
  transition:transform .23s cubic-bezier(.18,.85,.22,1),background .23s ease,box-shadow .23s ease;
  z-index:24;will-change:transform;
 }
-.unifiedShell[data-piner-space][data-chrome-collapsed="true"]>.unifiedNav{
+.unifiedShell[data-piner-space]>.unifiedNav[data-island-scale="0.7"]{
  margin:0;transform:translateX(-50%) scale(.7);opacity:1;pointer-events:auto;
 }
 .unifiedShell[data-piner-space]>.unifiedNav:focus-within{
