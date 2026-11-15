@@ -27,7 +27,8 @@
     },
     {
       "binding": "PINO_AFTERSCHOOL_CORE",
-      "service": "pino-core-staging"
+      "service": "pino-core-staging",
+      "entrypoint": "AfterschoolPinBffControlPlane"
     }
   ],
   "durable_objects": {

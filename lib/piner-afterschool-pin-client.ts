@@ -66,3 +66,12 @@ export async function restoreAfterschoolSession() {
 export async function logoutAfterschool(csrfToken: string) {
   await request("logout", {}, csrfToken);
 }
+
+type DisplayIdentity = { id: string; displayName: string };
+export type AfterschoolStudent = DisplayIdentity & { centers: DisplayIdentity[] };
+
+export async function listAfterschoolStudents(): Promise<AfterschoolStudent[]> {
+  const data = await request("students");
+  if (!Array.isArray(data)) throw new AfterschoolPinError(502, "INVALID_STUDENT_RESPONSE");
+  return data;
+}
