@@ -6,6 +6,7 @@ import type {BoField,BoRecord,BoValue} from "@/lib/bo-registration";
 import {DetailFrame} from "@/app/components/workspace-renderer/DetailFrame";
 import {editorOwnsDialogKey} from "@/app/components/workspace-renderer/dialog";
 import {PropertySections} from "@/app/components/workspace-renderer/Properties";
+import {nextLifecycle,lifecyclePayload} from "@/lib/ho-attribute-lifecycle";
 import {attributeModule,optionsField,needsOptions,VISIBILITY,asRecord,type AttributeDefinition,type CenterOption} from "@/lib/ho-attribute-model";
 
 type HistoryEvent={
@@ -107,6 +108,7 @@ export function HoAttributeFullDetail({id,centers,mobileMenu,onBack,onUpdated}:{
  const selectedCenterId=detail?.scope==="CENTER"?detail.centerId??"":selectedCenter;
  const centerValid=centers.some(c=>c.id===selectedCenterId);
  const canWrite=Boolean(detail?.status==="DRAFT"&&centerValid);
+ const lifecycleNext=detail&&centerValid?nextLifecycle(detail.scope,detail.status):null;
  const record=useMemo<BoRecord|null>(()=>detail?{...asRecord(detail,centers),
   ...(needsOptions(detail.valueType)?{options:detail.options.join("\n")}:{})}:null,[detail,centers]);
  const detailFields=detail&&needsOptions(detail.valueType)?[...attributeModule.fields,optionsField]:attributeModule.fields;
@@ -116,7 +118,9 @@ export function HoAttributeFullDetail({id,centers,mobileMenu,onBack,onUpdated}:{
  const editable=new Set(["displayName","required","visibility","options"]);
  /** PAP-1905 / PAP-1665: one native DSA popover, one Core CAS command, real readback. */
  async function saveMetadata(raw:BoValue):Promise<void>{
-  if(savingRef.current||!detail||!editor||!canWrite||!selectedCenterId)return;
+  if(savingRef.current||!detail||!editor||!selectedCenterId)return;
+  if(editor.field.key==="lifecycleState"){await saveLifecycle(raw);return;}
+  if(!canWrite)return;
   const field=editor.field.key;
   let value:unknown;
   if(field==="displayName")value=String(raw??"").trim();
@@ -164,6 +168,32 @@ export function HoAttributeFullDetail({id,centers,mobileMenu,onBack,onUpdated}:{
    }
   }finally{savingRef.current=false;setSaving(false);}
  }
+ /** PAP-1906: explicit select + Save; no optimistic mutation; exact Core revision readback. */
+ async function saveLifecycle(raw:BoValue):Promise<void>{
+  if(savingRef.current||!detail||!centerValid)return;
+  const body=lifecyclePayload(detail,selectedCenterId,raw);
+  if(!body){setEditError("Chọn trạng thái kế tiếp hợp lệ.");return;}
+  savingRef.current=true;setSaving(true);setEditError("");
+  try{
+   const path=endpoint+encodeURIComponent(id);
+   const response=await fetch(path+"/lifecycle",{method:"POST",cache:"no-store",
+    headers:{"content-type":"application/json"},body:JSON.stringify(body)});
+   if(!response.ok)throw Error(response.status===409?"Phiên bản thay đổi. Đã ngừng lưu; tải lại trước khi thử.":
+    response.status===403||response.status===401?"Founder hoặc Trung tâm không có quyền sửa.":errorMessage(response.status));
+   const changed=await response.json() as {data?:unknown};
+   if(!isDefinition(changed.data)||changed.data.id!==id||changed.data.revision!==detail.revision+1||
+      changed.data.status!==body.targetStatus)throw Error("Core không xác nhận trạng thái mới.");
+   const responseRead=await fetch(path,{cache:"no-store"});
+   const read=await responseRead.json() as {data?:unknown};
+   if(!responseRead.ok||!isDefinition(read.data)||read.data.id!==id||
+      read.data.revision!==changed.data.revision||read.data.status!==body.targetStatus)
+     throw Error("Core readback chưa trùng khớp; cần kiểm tra lại.");
+   setDetail(read.data);onUpdated(read.data);setHistoryRetry(n=>n+1);setEditor(null);
+  }catch(error){
+   setEditError(error instanceof Error?error.message:"Không thể xác nhận vòng đời.");
+   setEditor(null);setDetailLoading(true);setDetailRetry(n=>n+1);
+  }finally{savingRef.current=false;setSaving(false);}
+ }
  return <DetailFrame title={detail?.displayName??"Thuộc tính tùy chỉnh"}
   subtitle={detail?detail.entityType+" · "+(detail.scope==="GLOBAL"?"Toàn hệ thống":
    centers.find(c=>c.id===detail.centerId)?.label??"Trung tâm"):""}
@@ -173,7 +203,7 @@ export function HoAttributeFullDetail({id,centers,mobileMenu,onBack,onUpdated}:{
    detailError?<div role="alert">{detailError} <button type="button" onClick={()=>{setDetailLoading(true);setDetailRetry(v=>v+1)}}>Thử lại</button></div>:
    !record?<p role="alert">Không có dữ liệu được phép xem.</p>:
    tab==="overview"?<>
-    {detail?.status==="DRAFT"?<div role="group" aria-label="Trung tâm thao tác Founder">
+    {detail&&nextLifecycle(detail.scope,detail.status)?<div role="group" aria-label="Trung tâm thao tác Founder">
      {detail.scope==="GLOBAL"?<label htmlFor="attribute-selected-center">Trung tâm thao tác
       <select id="attribute-selected-center" className="edit-input" value={selectedCenter}
        onChange={e=>{setSelectedCenter(e.target.value);setEditor(null);setEditError("");}}>
@@ -181,16 +211,17 @@ export function HoAttributeFullDetail({id,centers,mobileMenu,onBack,onUpdated}:{
        {centers.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}
       </select></label>:
       <p role="status">Trung tâm thao tác: {centers.find(c=>c.id===detail.centerId)?.label??"Chưa được cấp quyền"}</p>}
-     {!centerValid?<p role="status">Chọn Trung tâm hợp lệ để sửa thuộc tính DRAFT.</p>:null}
+     {!centerValid?<p role="status">Chọn Trung tâm hợp lệ để thao tác thuộc tính.</p>:null}
     </div>:null}
     <PropertySections variant="detail" fields={detailFields}
      record={record} sections={detailSections}
-     canEdit={field=>canWrite&&editable.has(field.key)}
+     canEdit={field=>field.key==="lifecycleState"?Boolean(lifecycleNext):canWrite&&editable.has(field.key)}
      onEdit={(field,anchor)=>{setEditor({field,anchor});setEditError("");}}/>
-    {editor&&canWrite?<BoTypedEditor key={editor.field.key+":"+(detail?.revision??0)}
+    {editor&&(editor.field.key==="lifecycleState"?Boolean(lifecycleNext):canWrite)?<BoTypedEditor key={editor.field.key+":"+(detail?.revision??0)}
      field={{...editor.field,readonly:false,
-      options:editor.field.key==="visibility"?[...VISIBILITY]:editor.field.options}}
-     value={record[editor.field.key] as BoValue} anchor={editor.anchor}
+      label:editor.field.key==="lifecycleState"&&detail?.scope==="GLOBAL"&&detail.status==="DRAFT"?"Vòng đời — Kích hoạt toàn hệ thống":editor.field.label,
+      options:editor.field.key==="lifecycleState"&&lifecycleNext?[lifecycleNext]:editor.field.key==="visibility"?[...VISIBILITY]:editor.field.options}}
+     value={editor.field.key==="lifecycleState"?"":record[editor.field.key] as BoValue} anchor={editor.anchor}
      closeOnSave={false} onClose={()=>{if(!savingRef.current){setEditor(null);setEditError("");}}}
      onSave={next=>{void saveMetadata(next);}}/>:null}
     {saving?<p role="status">Đang xác minh Core readback…</p>:null}
