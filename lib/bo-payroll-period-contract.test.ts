@@ -34,7 +34,7 @@ test("PAP-808 facade rejects missing center before credential or Core",async()=>
 test("PAP-1998 duplicates on collection and detail fail before credential or Core",async()=>{
  const root="workforce/payroll/periods";
  for(const second of [center,period]){
-  for(const [path,method] of [[root,"GET"],[root,"POST"],[root+"/"+period,"GET"],[root+"/"+period,"PATCH"]]){
+  for(const [path,method] of [[root,"GET"],[root,"POST"],[root+"/"+period,"GET"],[root+"/"+period,"PATCH"],[root+"/"+period+"/staff-rollup","GET"]]){
    const body=method==="GET"?undefined:JSON.stringify({centerId:center,startDate:"2026-10-01",endDate:"2026-10-31",expectedVersion:1});
    const response=await handleBoPayrollPeriodRequest(new Request(base+path+"?centerId="+center+"&centerId="+second,{
     method,headers:{"content-type":"application/json","idempotency-key":"pap1998-test-key"},...(body?{body}:{})
