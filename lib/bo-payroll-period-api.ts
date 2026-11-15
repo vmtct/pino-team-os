@@ -48,6 +48,7 @@ export type PeriodCancellation={id:string;centerId:string;status:"CANCELLED";ver
 export type PeriodHistoryEvent={id:string;action:string;occurredAt:string;actorName:string|null};
 export type PeriodHistoryPage={centerId:string;periodId:string;offset:number;nextOffset:number|null;events:PeriodHistoryEvent[]};
 export const periodApi={
+ incomeHistory:(centerId:string,id:string,staffId:string,offset=0)=>call<{data:import("./bo-payroll-income-read").IncomePage}>(ROOT+"/"+id+"/staff/"+staffId+"/income-history"+qs(centerId,{limit:"5",offset:String(offset)})),
  history:(centerId:string,id:string,offset=0)=>call<{data:PeriodHistoryPage}>(ROOT+"/"+id+"/history"+qs(centerId,{limit:"50",offset:String(offset)})),
  cancel:(centerId:string,period:Pick<PayPeriod,"id"|"version">,key:string)=>
   call<{data:PeriodCancellation}>(ROOT+"/"+period.id+"/cancel"+qs(centerId),{
