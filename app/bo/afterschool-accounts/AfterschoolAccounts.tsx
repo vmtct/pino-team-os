@@ -17,10 +17,10 @@ const directory: BoModule = {
     { key: "name", label: "Phụ huynh", type: "text", icon: "Aa", w: 230, readonly: true },
     { key: "maskedPhone", label: "Số điện thoại", type: "text", icon: "Aa", w: 155, readonly: true },
     { key: "pinStatus", label: "Trạng thái PIN", type: "text", icon: "Aa", w: 150, readonly: true },
-    { key: "temporaryPinExpiresAt", label: "PIN tạm hết hạn", type: "text", icon: "▦", w: 170, readonly: true },
-    { key: "createdAt", label: "Created Time", type: "text", icon: "▦", w: 170, readonly: true },
+    { key: "temporaryPinExpiresAt", label: "PIN tạm hết hạn", type: "datetime", icon: "▦", w: 170, readonly: true },
+    { key: "createdAt", label: "Created Time", type: "datetime", icon: "▦", w: 170, readonly: true },
     { key: "createdBy", label: "Created By", type: "text", icon: "Aa", w: 175, readonly: true },
-    { key: "updatedAt", label: "Last Modified Time", type: "text", icon: "▦", w: 170, readonly: true },
+    { key: "updatedAt", label: "Last Modified Time", type: "datetime", icon: "▦", w: 170, readonly: true },
     { key: "updatedBy", label: "Last Modified By", type: "text", icon: "Aa", w: 175, readonly: true },
   ],
 };
@@ -29,11 +29,8 @@ const pinLabels: Readonly<Record<string, string>> = {
   ACTIVE: "Đã kích hoạt", TEMPORARY: "PIN tạm", EXPIRED: "Đã hết hạn", LOCKED: "Tạm khóa", REVOKED: "Đã thu hồi",
 };
 const idPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-const vnTime = new Intl.DateTimeFormat("vi-VN", {
-  timeZone: "Asia/Ho_Chi_Minh", dateStyle: "short", timeStyle: "short", hour12: false,
-});
 const timestamp = (value: unknown) =>
-  typeof value === "string" && Number.isFinite(Date.parse(value)) ? vnTime.format(new Date(value)) : "—";
+  typeof value === "string" && Number.isFinite(Date.parse(value)) ? value : null;
 const label = (value: unknown) => typeof value === "string" && value.trim() ? value : "—";
 
 function accountRecord(item: Record<string, unknown>): BoRecord {
