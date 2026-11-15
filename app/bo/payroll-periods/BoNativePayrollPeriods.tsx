@@ -35,7 +35,9 @@ export default function BoNativePayrollPeriods(){
  const incomeStaff=query.get("incomeStaff");
  if(query.has("incomeStaff")){
   if(!record||!incomeStaff||query.getAll("incomeStaff").length!==1||!uuid.test(incomeStaff))return <p role="alert">PTE không hợp lệ.</p>;
-  return <PayrollIncomeDetail key={JSON.stringify([center.id,record,incomeStaff])} centerId={center.id} centerName={center.displayName} id={record} staffId={incomeStaff} tab={query.get("tab")}/>;
+  const incomeDay=query.get("incomeDay");
+  if(query.has("incomeDay")&&(query.getAll("incomeDay").length!==1||!incomeDay||!/^\d{4}-\d{2}-\d{2}$/.test(incomeDay)))return <p role="alert">Ngày công không hợp lệ.</p>;
+  return <PayrollIncomeDetail dayDate={incomeDay} key={JSON.stringify([center.id,record,incomeStaff,incomeDay])} centerId={center.id} centerName={center.displayName} id={record} staffId={incomeStaff} tab={query.get("tab")}/>;
  }
  if(record)return <PeriodDetail key={JSON.stringify([center.id,record])} centerId={center.id} centerName={center.displayName} id={record} tab={query.get("tab")}/>;
  return <PeriodTable key={center.id} centerId={center.id} centerName={center.displayName}/>;

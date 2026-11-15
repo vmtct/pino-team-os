@@ -23,3 +23,15 @@ export async function loadIncomeHistory(centerId:string,currentId:string,staffId
  return p;
 }
 
+
+/** Day detail stays within the verified period projection, including frozen settlements. */
+export function scopedIncomeDay(row:IncomePeriod,workDate:string){
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(workDate)||workDate<row.period.startDate||workDate>row.period.endDate)return null;
+ const days=row.staff.preview?.days.filter(d=>d.workDate===workDate)??[];
+ return days.length===1?days[0]:null;
+}
+/** Separate private compensation contract: never accept foreign or malformed rate records. */
+export function verifiedCompensationRows(data:import("./bo-model").BoStaffCompensationEntry[],staffId:string){
+ if(!Array.isArray(data)||data.some(r=>!r||r.staffMemberId!==staffId||r.currency!=="VND"||!Number.isSafeInteger(r.amountMinor)||r.amountMinor<0||!["CURRENT","HISTORICAL","SCHEDULED"].includes(r.state)||!/^\d{4}-\d{2}-\d{2}$/.test(r.effectiveFrom))||new Set(data.map(r=>r.id)).size!==data.length)throw Error("Invalid compensation scope");
+ return data;
+}
