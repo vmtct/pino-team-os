@@ -16,6 +16,24 @@ export type StationChoiceAction =
   | Readonly<{kind:"skip";visitId:string;centerId:string}>
   | Readonly<{kind:"purchase";visitId:string;centerId:string;offerId:string;offerVersion:number;itemRevision:number;pricePls:number}>;
 
+// Shared validity predicate for both rendering and direct intent emission.
+// This is presentation validation only; it does not authorize a server action.
+function isValidStationChoiceTurn(turn:StationChoiceTurn):boolean{
+  if(!turn.visitId.trim()||!turn.centerId.trim()||!turn.learnerName.trim()
+    ||!Number.isSafeInteger(turn.balancePls)||turn.balancePls<0||turn.offers.length>3)return false;
+  const offerIds=new Set<string>(),itemIds=new Set<string>();
+  for(const offer of turn.offers){
+    if(!offer.offerId.trim()||!offer.itemId.trim()||!offer.displayName.trim()
+      ||offerIds.has(offer.offerId)||itemIds.has(offer.itemId)
+      ||!Number.isSafeInteger(offer.offerVersion)||offer.offerVersion<1
+      ||!Number.isSafeInteger(offer.itemRevision)||offer.itemRevision<1
+      ||!Number.isSafeInteger(offer.pricePls)||offer.pricePls<1)return false;
+    offerIds.add(offer.offerId);itemIds.add(offer.itemId);
+  }
+  return true;
+}
+
+
 // Hides stale projections; never grants permissions. Trusted parent must provide
 // a Center-scoped, server-authorized projection. No local fixtures or persistence.
 export function visibleStationChoiceTurns(read:StationChoiceRead,selectedCenterId:string|null):readonly StationChoiceTurn[]{
@@ -32,22 +50,14 @@ export function visibleStationChoiceTurns(read:StationChoiceRead,selectedCenterI
   }
   const seen=new Set<string>();
   return read.turns.filter(turn=>{
-    if(turn.centerId!==selectedCenterId||!turn.visitId||ambiguous.has(turn.visitId)||seen.has(turn.visitId)
-      ||!turn.learnerName.trim()||!Number.isSafeInteger(turn.balancePls)||turn.balancePls<0
-      ||turn.offers.length>3)return false;
-    const offerIds=new Set<string>(),itemIds=new Set<string>();
-    for(const offer of turn.offers){
-      if(!offer.offerId||!offer.itemId||!offer.displayName.trim()||offerIds.has(offer.offerId)||itemIds.has(offer.itemId)
-        ||!Number.isSafeInteger(offer.offerVersion)||offer.offerVersion<1
-        ||!Number.isSafeInteger(offer.itemRevision)||offer.itemRevision<1
-        ||!Number.isSafeInteger(offer.pricePls)||offer.pricePls<1)return false;
-      offerIds.add(offer.offerId);itemIds.add(offer.itemId);
-    }
+    if(turn.centerId!==selectedCenterId||ambiguous.has(turn.visitId)||seen.has(turn.visitId)
+      ||!isValidStationChoiceTurn(turn))return false;
     seen.add(turn.visitId);return true;
   });
 }
 
 export function stationChoiceAction(turn:StationChoiceTurn,offerId:string|null):StationChoiceAction|null{
+  if(!isValidStationChoiceTurn(turn))return null;
   if(offerId===null)return {kind:"skip",visitId:turn.visitId,centerId:turn.centerId};
   const offer=turn.offers.find(o=>o.offerId===offerId);
   if(!offer||offer.pricePls>turn.balancePls)return null;

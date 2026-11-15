@@ -62,3 +62,21 @@ test("Station overview host requires supplied projection and an authorized match
  for(const tab of ["pinoria","students","devices","tv","reception"])
   assert.equal(canMountStationQuickChoice(tab,"center-a",["center-a"],read()),false);
 });
+
+test("PAP-2021 rejects invalid direct action candidates before emitting an intent",()=>{
+ const o=turn.offers[0];
+ const bad:StationChoiceTurn[]=[
+ {...turn,visitId:" "},{...turn,centerId:""},{...turn,learnerName:" "},
+ {...turn,balancePls:-1},{...turn,balancePls:NaN},{...turn,balancePls:1.5},
+ {...turn,offers:[{...o,offerId:" "}]},{...turn,offers:[{...o,itemId:" "}]},
+ {...turn,offers:[{...o,pricePls:-1}]},{...turn,offers:[{...o,offerVersion:0}]},
+ {...turn,offers:[{...o,itemRevision:1.5}]},{...turn,offers:[o,o]},
+ {...turn,offers:[o,{...o,offerId:"other"}]},
+ {...turn,offers:[o,{...o,offerId:"2",itemId:"2"},{...o,offerId:"3",itemId:"3"},{...o,offerId:"4",itemId:"4"}]}
+ ];
+ for(const candidate of bad){
+  assert.equal(stationChoiceAction(candidate,null),null);
+  assert.equal(stationChoiceAction(candidate,candidate.offers[0]?.offerId??"o1"),null);
+  assert.deepEqual(visibleStationChoiceTurns(read([candidate]),candidate.centerId),[]);
+ }
+});
