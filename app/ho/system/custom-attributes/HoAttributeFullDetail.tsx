@@ -49,7 +49,7 @@ export function HoAttributeFullDetail({id,centers,mobileMenu,onBack,onUpdated}:{
  id:string;centers:CenterOption[];mobileMenu:React.ReactNode;onBack:()=>void;onUpdated:(next:AttributeDefinition)=>void;
 }){
  const [tab,setTab]=useState<"overview"|"history">("overview");
- const [selectedCenter,setSelectedCenter]=useState("");
+
  const [editor,setEditor]=useState<{field:BoField;anchor:HTMLButtonElement}|null>(null);
  const [editError,setEditError]=useState("");
  const [saving,setSaving]=useState(false);
@@ -105,8 +105,8 @@ export function HoAttributeFullDetail({id,centers,mobileMenu,onBack,onUpdated}:{
   document.addEventListener("keydown",escape);
   return()=>document.removeEventListener("keydown",escape);
  },[onBack]);
- const selectedCenterId=detail?.scope==="CENTER"?detail.centerId??"":selectedCenter;
- const centerValid=centers.some(c=>c.id===selectedCenterId);
+ const selectedCenterId=detail?.scope==="CENTER"?detail.centerId:null;
+ const centerValid=detail?.scope==="GLOBAL"?detail.centerId===null:detail?.scope==="CENTER"&&selectedCenterId!==null&&centers.some(c=>c.id===selectedCenterId);
  const canWrite=Boolean(detail?.status==="DRAFT"&&centerValid);
  const lifecycleNext=detail&&centerValid?nextLifecycle(detail.scope,detail.status):null;
  const record=useMemo<BoRecord|null>(()=>detail?{...asRecord(detail,centers),
@@ -118,7 +118,7 @@ export function HoAttributeFullDetail({id,centers,mobileMenu,onBack,onUpdated}:{
  const editable=new Set(["displayName","required","visibility","options"]);
  /** PAP-1905 / PAP-1665: one native DSA popover, one Core CAS command, real readback. */
  async function saveMetadata(raw:BoValue):Promise<void>{
-  if(savingRef.current||!detail||!editor||!selectedCenterId)return;
+  if(savingRef.current||!detail||!editor||!centerValid)return;
   if(editor.field.key==="lifecycleState"){await saveLifecycle(raw);return;}
   if(!canWrite)return;
   const field=editor.field.key;
@@ -203,16 +203,8 @@ export function HoAttributeFullDetail({id,centers,mobileMenu,onBack,onUpdated}:{
    detailError?<div role="alert">{detailError} <button type="button" onClick={()=>{setDetailLoading(true);setDetailRetry(v=>v+1)}}>Thử lại</button></div>:
    !record?<p role="alert">Không có dữ liệu được phép xem.</p>:
    tab==="overview"?<>
-    {detail&&nextLifecycle(detail.scope,detail.status)?<div role="group" aria-label="Trung tâm thao tác Founder">
-     {detail.scope==="GLOBAL"?<label htmlFor="attribute-selected-center">Trung tâm thao tác
-      <select id="attribute-selected-center" className="edit-input" value={selectedCenter}
-       onChange={e=>{setSelectedCenter(e.target.value);setEditor(null);setEditError("");}}>
-       <option value="">— Chọn Trung tâm —</option>
-       {centers.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}
-      </select></label>:
-      <p role="status">Trung tâm thao tác: {centers.find(c=>c.id===detail.centerId)?.label??"Chưa được cấp quyền"}</p>}
-     {!centerValid?<p role="status">Chọn Trung tâm hợp lệ để thao tác thuộc tính.</p>:null}
-    </div>:null}
+    {detail?.scope==="CENTER"&&nextLifecycle(detail.scope,detail.status)&&!centerValid?
+     <p role="status">Trung tâm của thuộc tính không còn hợp lệ để thao tác.</p>:null}
     <PropertySections variant="detail" fields={detailFields}
      record={record} sections={detailSections}
      canEdit={field=>field.key==="lifecycleState"?Boolean(lifecycleNext):canWrite&&editable.has(field.key)}
