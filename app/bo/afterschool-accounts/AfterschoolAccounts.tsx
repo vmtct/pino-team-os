@@ -6,6 +6,8 @@ import "@pino/design-system/components.css";
 import { useContext, useEffect, useState } from "react";
 import { BoApplicationShellContext } from "@/app/bo/shell/BoApplicationShellContext";
 import { BoDataTable } from "@/app/bo/components/registration/BoDataTable";
+import { useBoStagingUser } from "@/app/bo/components/registration/BoRuntimeBoundary";
+import { AfterschoolPinDrawer } from "./AfterschoolPinDrawer";
 import { BoQuickView } from "@/app/bo/components/registration/BoQuickView";
 import { BoTableSettings, type BoSavedView } from "@/app/bo/components/registration/BoTableSettings";
 import { useBoCenterSelection } from "@/app/bo/components/registration/BoCenterSelection";
@@ -60,6 +62,8 @@ export function AfterschoolAccounts() {
 const initial = () => ({ ...defaultTable(directory.fields), pageSize: 15 });
 function ScopedAccounts({ centerId }: { centerId: string }) {
   const menu = useContext(BoApplicationShellContext);
+  const stagingUser = useBoStagingUser();
+  const [pinDrawer, setPinDrawer] = useState<{ parent: { id: string; name: string } | null } | null>(null);
   const [cursor, setCursor] = useState<string>();
   const [retry, setRetry] = useState(0);
   const [result, setResult] = useState<{ cursor?: string; rows: BoRecord[]; next: string | null }>();
@@ -115,7 +119,10 @@ function ScopedAccounts({ centerId }: { centerId: string }) {
     setActiveView(view?.id ?? null);
   };
   return <section id="list-screen" aria-label="Tài khoản" data-bo-afterschool-directory="PAP-1886">
-    <div className="page-heading"><div className="page-heading-left">{menu?.("menu-btn")}<h1>Tài khoản</h1></div></div>
+    <div className="page-heading"><div className="page-heading-left">{menu?.("menu-btn")}<h1>Tài khoản</h1></div>
+      {stagingUser && result && !error && <button type="button" className="primary-btn"
+        onClick={() => setPinDrawer({ parent: null })}>Tạo tài khoản</button>}
+    </div>
     {error && <p role="alert">{error} <button type="button" className="ghost-btn"
       onClick={() => { setError(""); setRetry(value => value + 1); }}>Thử lại</button></p>}
     <BoDataTable module={directory} rows={rows} loadState={loading ? "loading" : error ? "error" : "ready"}
@@ -126,7 +133,19 @@ function ScopedAccounts({ centerId }: { centerId: string }) {
       reset={() => applyView(null)} undo={() => {}} canUndo={false}
       builtInViews={result?.next && <button type="button" className="ghost-btn" disabled={loading || Boolean(error)}
         onClick={() => setCursor(result.next!)}>Tải thêm tài khoản</button>} />
-    {drawer && <BoQuickView module={directory} record={drawer} onClose={() => setDrawer(null)} hideDetailAction />}
+    {drawer && !pinDrawer && <BoQuickView module={directory} record={drawer}
+      onClose={() => setDrawer(null)} hideDetailAction
+      extraSection={stagingUser && !error && <button type="button" className="secondary-btn"
+        onClick={() => setPinDrawer({ parent: { id: drawer.id, name: drawer.name } })}>Cấp lại PIN</button>} />}
+    {pinDrawer && <AfterschoolPinDrawer centerId={centerId} parent={pinDrawer.parent}
+      onClose={() => setPinDrawer(null)}
+      onChanged={() => { setCursor(undefined); setRetry((value) => value + 1); }}
+      onExisting={(id) => {
+        const existing = rows.find((row) => row.id === id);
+        if (!existing) return false;
+        setDrawer(existing); setPinDrawer(null);
+        return true;
+      }} />}
     {settings && <BoTableSettings screen={settings} setScreen={setSettings}
       onClose={() => setSettings(null)} fields={directory.fields} rows={rows}
       value={table} update={update} views={views} setViews={setViews} applyView={applyView} />}
