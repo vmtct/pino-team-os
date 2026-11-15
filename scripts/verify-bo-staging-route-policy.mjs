@@ -68,6 +68,31 @@ function nativePayrollRoutes(root,issues){
  }
  return out;
 }
+/** PAP-1886: exact read-only Accounts page using shared native BO DSA primitives. */
+function nativeAfterschoolAccountsRoute(root, issues) {
+  const base = "app/bo/afterschool-accounts/";
+  const page = base + "page.tsx";
+  if (!fs.existsSync(path.join(root, page))) return false;
+  const files = [page, base + "AfterschoolAccounts.tsx", "lib/host-boundary.ts", "lib/host-boundary.test.ts"];
+  if (files.some(file => !fs.existsSync(path.join(root, file)))) {
+    issues.push("/bo/afterschool-accounts: missing native read-only route contract");
+    return false;
+  }
+  const [entry, view, host, test] = files.map(file => read(root, file));
+  if (!entry.includes("<AfterschoolAccounts />") || !view.includes("PAP-1886") ||
+      !view.includes("<BoDataTable") || !view.includes("<BoQuickView") ||
+      !view.includes("useBoCenterSelection") || !view.includes("/api/bo/identity/afterschool-users?") ||
+      !view.includes("data?.scopeCenterId !== centerId") || !view.includes('cache: "no-store"') ||
+      !host.includes('pathname === "/bo/afterschool-accounts"') ||
+      !test.includes("PAP-1886 native Accounts page is BO Staging and session gated") ||
+      [entry, view].some(source => /BoModuleFactory|BoWorkforceRoute|defineTddModule|SurfaceWorkspace/.test(source)) ||
+      /method:\s*["'](?:POST|PATCH|PUT|DELETE)["']/.test(view)) {
+    issues.push("/bo/afterschool-accounts: invalid native read-only route contract");
+    return false;
+  }
+  return true;
+}
+
 function canonicalRoutes(root, issues) {
   const base = path.join(root, "app/bo");
   const routes = new Set();
@@ -96,6 +121,10 @@ function canonicalRoutes(root, issues) {
     native.add("/bo/pinoria-avatars");
   }
   for(const route of nativePayrollRoutes(root,issues)){routes.add(route);native.add(route);}
+  if (nativeAfterschoolAccountsRoute(root,issues)) {
+    routes.add("/bo/afterschool-accounts");
+    native.add("/bo/afterschool-accounts");
+  }
   return {routes,tdd,native};
 }
 
