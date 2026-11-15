@@ -91,8 +91,8 @@ export function CreatePeriod({centerId,centerName,onClose,onSaved,keyForPayload}
  const close=useCallback(()=>{if(!saving.current)onClose();},[onClose]);
  const controls:Record<string,CreateDrawerField>=Object.fromEntries((["startDate","endDate"] as const).map(k=>[k,{
   id:"period-create-"+k,value:dates[k],onChange:(v:string)=>setDates(o=>({...o,[k]:v})),required:true,disabled:busy,
-  control:<input className="property-control" id={"period-create-"+k} type="date" required value={dates[k]} disabled={busy}
-   onChange={e=>{setError("");setDates(o=>({...o,[k]:e.target.value}));}}/>,
+  control:<div className="pay-inline-date-value"><input id={"period-create-"+k} type="date" required value={dates[k]} disabled={busy}
+   onChange={e=>{setError("");setDates(o=>({...o,[k]:e.target.value}));}}/></div>,
  }]));
  const draft:BoRecord={...Object.fromEntries(periodFields.map(f=>[f.key,"—"])),id:"",name:dates.startDate?periodDisplayName(dates.startDate,centerName):"—"};
  async function save(){
