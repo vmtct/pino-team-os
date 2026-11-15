@@ -24,7 +24,7 @@ export function visibleStationChoiceTurns(read:StationChoiceRead,selectedCenterI
   return read.turns.filter(turn=>{
     if(turn.centerId!==selectedCenterId||!turn.visitId||seen.has(turn.visitId)
       ||!turn.learnerName.trim()||!Number.isSafeInteger(turn.balancePls)||turn.balancePls<0
-      ||turn.offers.length<1||turn.offers.length>3)return false;
+      ||turn.offers.length>3)return false;
     const offerIds=new Set<string>(),itemIds=new Set<string>();
     for(const offer of turn.offers){
       if(!offer.offerId||!offer.itemId||!offer.displayName.trim()||offerIds.has(offer.offerId)||itemIds.has(offer.itemId)

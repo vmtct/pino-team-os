@@ -15,8 +15,15 @@ test("only matching ready Center projection is rendered",()=>{
  assert.deepEqual(visibleStationChoiceTurns(read(),null),[]);
  assert.deepEqual(visibleStationChoiceTurns(read([{...turn,centerId:"center-b"}]),"center-a"),[]);
 });
-test("empty supply produces no panel turn; invalid, duplicated or excess offers are not rendered",()=>{
- for(const offers of [[],[turn.offers[0],turn.offers[0]],[{...turn.offers[0],pricePls:0}],[{...turn.offers[0],offerVersion:0}],[...turn.offers,...turn.offers]]){
+test("zero offers keeps a valid turn available for explicit skip only",()=>{
+ const empty={...turn,offers:[]};
+ assert.deepEqual(visibleStationChoiceTurns(read([empty]),"center-a"),[empty]);
+ assert.equal(stationChoiceAction(empty,"o1"),null);
+ assert.deepEqual(stationChoiceAction(empty,null),{kind:"skip",visitId:"visit-a",centerId:"center-a"});
+ assert.deepEqual(visibleStationChoiceTurns(read([empty]),"center-b"),[]);
+});
+test("invalid, duplicated or excess offers are not rendered",()=>{
+ for(const offers of [[turn.offers[0],turn.offers[0]],[{...turn.offers[0],pricePls:0}],[{...turn.offers[0],offerVersion:0}],[...turn.offers,...turn.offers]]){
   assert.deepEqual(visibleStationChoiceTurns(read([{...turn,offers}]),"center-a"),[]);
  }
  assert.deepEqual(visibleStationChoiceTurns(read([turn,turn]),"center-a"),[turn]);

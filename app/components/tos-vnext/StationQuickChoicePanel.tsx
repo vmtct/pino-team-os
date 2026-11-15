@@ -31,8 +31,8 @@ export function StationQuickChoicePanel({read,selectedCenterId,pendingVisitIds,e
       const pending=pendingVisitIds.includes(turn.visitId),error=errorsByVisit[turn.visitId];
       return <article key={turn.visitId} className={css.turn} data-turn={turn.visitId} aria-busy={pending}>
         <div className={css.heading}><strong>{turn.learnerName}</strong><span>{turn.balancePls.toLocaleString("vi-VN")} PLS</span></div>
-        <p className={css.message}>Xác nhận lựa chọn của học viên trước khi chọn.</p>
-        <div className={css.options}>{turn.offers.map(offer=>
+        <p className={css.message}>{turn.offers.length ? "Xác nhận lựa chọn của học viên trước khi chọn." : "Hiện không có sản phẩm phù hợp. Chọn Bỏ qua để tiếp tục."}</p>
+        {turn.offers.length > 0 && <div className={css.options}>{turn.offers.map(offer=>
           <button type="button" key={offer.offerId} className={ops.option+" "+css.option}
             disabled={pending||offer.pricePls>turn.balancePls}
             aria-label={offer.displayName+" · "+offer.pricePls+" PLS"}
@@ -40,7 +40,7 @@ export function StationQuickChoicePanel({read,selectedCenterId,pendingVisitIds,e
             {offer.imageUrl&&<Image className={css.artwork} src={offer.imageUrl} width={48} height={48} alt="" unoptimized/>}
             <span className={css.copy}><strong>{offer.displayName}</strong><small>{offer.pricePls.toLocaleString("vi-VN")} PLS</small></span>
             {offer.pricePls>turn.balancePls&&<small>Không đủ PLS</small>}
-          </button>)}</div>
+          </button>)}</div>}
         <button type="button" disabled={pending} className={ops.secondary+" "+css.skip}
           onClick={()=>{const action=stationChoiceAction(turn,null);if(action&&!pending)onAction(action);}}>Bỏ qua</button>
         {pending&&<p role="status" className={css.message}>Đang xác nhận từ hệ thống…</p>}
