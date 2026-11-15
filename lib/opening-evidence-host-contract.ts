@@ -3,7 +3,8 @@
  * Return null outside the namespace so existing routes retain their policies.
  */
 const uuid="[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
-const boPage=new RegExp("^/bo/opening-evidence/(?:CLASS|RECEPTION)/"+uuid+"$");
+// PAP-1999: lowercase canonical UI paths; existing exact uppercase links still resolve.
+const boPage=new RegExp("^/bo/opening-evidence/(?:class|reception|CLASS|RECEPTION)/"+uuid+"$");
 const boDetail=new RegExp("^/api/bo/opening-evidence/(?:CLASS|RECEPTION)/"+uuid+"$");
 const boReview=new RegExp("^/api/bo/opening-evidence/(?:CLASS|RECEPTION)/"+uuid+"/review$");
 const boPhoto=new RegExp("^/api/bo/opening-evidence/(?:CLASS|RECEPTION)/"+uuid+"/photo/"+uuid+"$");
