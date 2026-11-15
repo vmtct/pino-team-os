@@ -66,3 +66,25 @@ test("PAP-1661 invalid Nickname fails closed before Core write",async()=>{
  }
  assert.equal(f.seen.length,0);
 });
+
+test("PAP-1979 forwards Starter and stable retry key only for canonical optional selection",async()=>{
+ const f=fixture(), starter={setItemId:personId,expectedMembershipRevision:2}, headers={...session,"idempotency-key":"starter-create-stable-key"};
+ const first=await handleBoSelfCreateRequest(req({personId,starter},ctx,headers),f.env,path);
+ assert.equal(first.status,201);
+ assert.deepEqual(f.seen[0]?.request,{method:"POST",path,resource:{centerId},body:{personId,starter},idempotencyKey:"starter-create-stable-key"});
+ await handleBoSelfCreateRequest(req({personId,starter},ctx,headers),f.env,path);
+ assert.deepEqual(f.seen[1],f.seen[0]);
+ for(const bad of [{...starter,expectedMembershipRevision:0},{...starter,expectedMembershipRevision:"2"},{...starter,actorId:personId},null]){
+  assert.equal((await handleBoSelfCreateRequest(req({personId,starter:bad},ctx,headers),f.env,path)).status,400);
+ }
+ assert.equal((await handleBoSelfCreateRequest(req({personId,starter}),f.env,path)).status,400);
+ assert.equal(f.seen.length,2);
+});
+test("PAP-1979 catalog facet is authenticated and selected-Center only",async()=>{
+ const f=fixture(200), catalog=path+"/starter-sets", url=base+"/starter-sets"+ctx;
+ assert.equal((await handleBoSelfCreateRequest(new Request(url,{headers:session}),f.env,catalog)).status,200);
+ assert.deepEqual(f.seen[0]?.request,{method:"GET",path:catalog,resource:{centerId}});
+ assert.equal((await handleBoSelfCreateRequest(new Request(url),f.env,catalog)).status,401);
+ assert.equal((await handleBoSelfCreateRequest(req({personId}),f.env,catalog)).status,405);
+ assert.equal(f.seen.length,1);
+});

@@ -179,3 +179,29 @@ test("PAP-1181 / PAP-435: BO forwards only the idempotent Core-owned Staging aff
   // Core remains the sole authority for APP_ENV=staging, both per-Center grants,
   // synthetic Student/Parent predicates, CAS, receipt and atomic audit.
 });
+
+test("Afterschool PIN facade forwards exact Center and phone and rejects ambiguous input", async () => {
+  const id = "0198d050-56c1-7ac5-b9ab-b0e45d912345";
+  const centerId = "0198d050-56c1-7ac5-b9ab-b0e45d956789";
+  const body = { confirmedPhone: "+84900000000" };
+  const forwarded: BoAccessRequest[] = [];
+  const binding: BoAccessCoreBinding = {
+    async executeWithStaffPassword(coreRequest, credential) {
+      assert.equal(credential, token);
+      forwarded.push(coreRequest);
+      return { status: 200, body: { data: {} }, requestId: "pin-result" };
+    },
+  };
+  for (const command of ["issue-initial", "reset"]) {
+    const route = "identity/afterschool-users/" + id + "/pin/" + command;
+    const query = route + "?centerId=" + centerId;
+    const response = await handleBoWriteRequest(request(query, true, body), env(binding), route);
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("cache-control"), "no-store");
+    assert.deepEqual(forwarded.pop(), { method: "POST", path: route, resource: { centerId }, body });
+    assert.equal((await handleBoWriteRequest(request(route, true, body), env(binding), route)).status, 400);
+    assert.equal((await handleBoWriteRequest(request(query + "&centerId=" + centerId, true, body), env(binding), route)).status, 400);
+    assert.equal((await handleBoWriteRequest(request(query, true, { ...body, centerId }), env(binding), route)).status, 400);
+    assert.deepEqual(forwarded, []);
+  }
+});

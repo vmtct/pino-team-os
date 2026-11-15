@@ -474,3 +474,12 @@ test("PAP-1486 admits exact Self Set Starter/Apply/Clear and member media only o
   ])for(const method of ["GET","POST"])
     assert.deepEqual(decideHostBoundary(bo,path,method),{action:"not_found"},path+" "+method);
 });
+
+test("PAP-1979 exact published Starter catalog is GET on BO Staging only",()=>{
+ const path="/api/bo/pinoria/avatars/starter-sets";
+ assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art",path,"GET"),{action:"next"});
+ for(const host of [BO_HOSTNAME,"ho.staging.pinohouse.art","tos.staging.pinohouse.art","unknown.invalid"])
+  assert.deepEqual(decideHostBoundary(host,path,"GET"),{action:"not_found"});
+ for(const method of ["HEAD","POST","PATCH","DELETE"])assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art",path,method),{action:"not_found"});
+ assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art",path+"/extra","GET"),{action:"not_found"});
+});
