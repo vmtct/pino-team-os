@@ -16,7 +16,7 @@ export interface HoItemBinding {
 }
 export interface HoItemEnv extends HoEnv { PINO_HO_ITEM_CORE?:HoItemBinding; }
 
-export const HO_ITEM_PATH = /^\/api\/ho\/pinoria\/items(?:\/uploads|\/[0-9a-f-]{36}(?:\/(?:publish|unpublish|media|draft-media))?)?$/;
+export const HO_ITEM_PATH = /^\/api\/ho\/pinoria\/items(?:\/uploads|\/[0-9a-f-]{36}(?:\/(?:publish|unpublish|delete-draft|media|draft-media))?)?$/;
 
 export async function handleHoPinoriaItemRequest(request:Request,env:HoItemEnv):Promise<Response>{
   const url=new URL(request.url);
@@ -26,6 +26,8 @@ export async function handleHoPinoriaItemRequest(request:Request,env:HoItemEnv):
      normalizeHostname(request.headers.get("host")??"")!==HO_STAGING_HOSTNAME ||
      !HO_ITEM_PATH.test(localPath))return json(404,{error:{code:"NOT_FOUND",message:"Not found"}});
   if(!["GET","POST","PATCH"].includes(method))return json(405,{error:{code:"METHOD_NOT_ALLOWED",message:"Method not allowed"}});
+  const deleteDraft=/\/delete-draft$/.test(localPath);
+  if(deleteDraft&&method!=="POST")return json(405,{error:{code:"METHOD_NOT_ALLOWED",message:"Method not allowed"}});
   const mediaRequest=/\/(?:media|draft-media)$/.test(localPath);
   if(mediaRequest&&method!=="GET")return json(405,{error:{code:"METHOD_NOT_ALLOWED",message:"Read-only media endpoint"}});
   try{
