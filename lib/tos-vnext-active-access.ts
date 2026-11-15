@@ -7,7 +7,7 @@ export function canOpenVNextApp(app:TosVNextAppId,options:{
  if(!options.authenticated||!options.centerReady)return false;
  switch(app){
   case "shift":case "reception":case "shift-lead":case "classroom":case "training":return true;
-  case "station":return options.desktop;
+  case "station":return true; // PAP-2000 responsive admission, same session/Center guard.
  }
  return false;
 }
