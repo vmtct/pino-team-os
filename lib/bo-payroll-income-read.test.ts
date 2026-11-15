@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {scopedIncomeRow,loadIncomeHistory,scopedIncomeDay,verifiedCompensationRows,type IncomePage} from "./bo-payroll-income-read";
+import {scopedIncomeRow,loadIncomeHistory,scopedIncomeDay,historicalDayRate,verifiedCompensationRows,type IncomePage} from "./bo-payroll-income-read";
 import type {PeriodStaffPage,PayPeriod} from "./bo-payroll-period-api";
 const period={id:"p",centerId:"c",name:"P",startDate:"2026-10-01",endDate:"2026-10-31",status:"ACTIVE"} as PayPeriod;
 const page={period,totalsScope:"FULL_PERIOD",offset:0,nextOffset:null,rows:[{staffMemberId:"s",staffName:"Name",status:"FINALIZED",settlementId:"f",amountMinor:100,preview:{centerId:"c",periodId:"p",staffMemberId:"s",periodStartDate:period.startDate,periodEndDate:period.endDate,amountMinor:100,days:[]}}]} as unknown as PeriodStaffPage;
@@ -33,4 +33,16 @@ test("PAP-2012 private compensation rejects mismatched identity, currency and du
  assert.throws(()=>verifiedCompensationRows([row],"other"),/Invalid compensation scope/);
  assert.throws(()=>verifiedCompensationRows([row,row],"s"),/Invalid compensation scope/);
  assert.throws(()=>verifiedCompensationRows([{...row,amountMinor:-1}],"s"),/Invalid compensation scope/);
+});
+test("PAP-2012 historical day rate requires exact authorized snapshot match",()=>{
+ const day={workDate:"2026-10-04",status:"READY",paidMinutes:60,amountMinor:100,base:{centerId:"c",staffMemberId:"s",workDate:"2026-10-04",hourlyRateMinor:100,rateEntryId:"rate",rateVersion:1,assignmentIds:[],sessionIds:[]}};
+ const rate={id:"rate",staffMemberId:"s",effectiveFrom:"2026-10-01",periodUntilExclusive:null,state:"HISTORICAL" as const,amountMinor:100,currency:"VND" as const,note:null,version:1,updatedAt:"2026-10-01T00:00:00Z"};
+ assert.equal(historicalDayRate(day,null),null);
+ assert.equal(historicalDayRate(day,[rate]),100);
+ assert.equal(historicalDayRate(day,[{...rate,version:2}]),null);
+ assert.equal(historicalDayRate(day,[{...rate,staffMemberId:"other"}]),null);
+ assert.equal(historicalDayRate(day,[{...rate,amountMinor:200}]),null);
+ assert.equal(historicalDayRate(day,[{...rate,periodUntilExclusive:"2026-10-04"}]),null);
+ const row={period,staff:{...page.rows[0],preview:{...page.rows[0].preview!,days:[{...day,base:{...day.base,centerId:"other"}}]}}};
+ assert.equal(scopedIncomeDay(row,day.workDate),null);
 });
