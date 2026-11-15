@@ -39,5 +39,5 @@ test("PAP-938 legacy control typography and focus stay outside TOS DS",()=>{
 test("PAP-2010 Station mobile fixed nav excludes classic scrollbar width and preserves tablet layout",()=>{
  const css=readFileSync("app/components/tos-vnext/station.module.css","utf8");
  assert.match(css,/\.mobileNav :global\(\[data-tos-shared="bottom-nav"\]\) \{width:min\(var\(--tos-mobile-max\),100%\)\}/);
- assert.match(css,/@media\(min-width:768px\) and \(max-width:1023px\)\{[^}]*\}[^}]*\.mobileNav :global\(\[data-tos-shared="bottom-nav"\]\) \{width:100%\}/s);
+ assert.match(css,/@media\(min-width:768px\) and \(max-width:1023px\)\{[^}]*\}[^}]*\.mobileNav :global\(\[data-tos-shared="bottom-nav"\]\) \{width:100%\}/);
 });
