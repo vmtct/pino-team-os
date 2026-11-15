@@ -35,6 +35,13 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
       (exact[1]==="history" ? method==="GET" : method==="POST") ? "next" : "not_found"};
   }
   // PAP-1970: exact native BO Payroll read-only admission; Core reauthorizes every read.
+  // PAP-1886 · BO Users TDD: keep the Afterschool account directory in BO Staging.
+  if (pathname === "/bo/afterschool-accounts") {
+    return { action: hostname === BO_STAGING_HOSTNAME && (method === "GET" || method === "HEAD") ? "next" : "not_found" };
+  }
+  if (pathname === "/api/bo/identity/afterschool-users") {
+    return { action: hostname === BO_STAGING_HOSTNAME && method === "GET" ? "next" : "not_found" };
+  }
   if (isNativePayrollNamespace(pathname)) return {action:hostname===BO_STAGING_HOSTNAME &&
     ((Boolean(nativePayrollModule(pathname))&&(method==="GET"||method==="HEAD")) || (isNativePayrollApi(pathname)&&method==="GET"))?"next":"not_found"};
   // PAP-1939 / PAP-1934: exact BO Staging read admission only. No HO/TOS/Production.

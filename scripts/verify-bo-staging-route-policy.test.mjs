@@ -27,7 +27,7 @@ function fixture(run) {
   for (const file of [policy, layout, rootLayout, source, gateway, cd, ci, ...pages.map(name => `app/bo/${name}/page.tsx`)]) {
     const content=fs.readFileSync(path.join(repo,file),"utf8");
     // Existing PAP-901 factory fixtures have no TDD manifest; keep scopes independent.
-    write(file,file===policy?content.replace(/\r\n/g,"\n").replace('  "/bo/payroll-daily",\n',"").replace('  "/bo/payroll-exceptions",\n',"").replace('  "/bo/pinoria-avatars",\n',"").replace('  "/bo/open-studio-passes",\n',"")
+    write(file,file===policy?content.replace(/\r\n/g,"\n").replace('  "/bo/payroll-daily",\n',"").replace('  "/bo/payroll-exceptions",\n',"").replace('  "/bo/pinoria-avatars",\n',"").replace('  "/bo/afterschool-accounts",\n',"").replace('  "/bo/open-studio-passes",\n',"")
       .replace(/\s*"\/bo\/classroom-diaries",\r?\n/,"\n").replace('  "/bo/bills",\n',"").replace('  "/bo/missions",\n',"").replace('  "/bo/tvs",\n',""):content);
   }
   try { return run({ root, read, write }); }
@@ -175,4 +175,19 @@ test("PAP-1810 native BO Avatar is canonical under exact Founder migration, not 
     '  "/bo/payroll-periods",\n  "/bo/new-unregistered",'));
   assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),
     /new-unregistered.*canonical BoModuleFactory page/);
+}));
+
+test("PAP-1886 native Accounts must stay centered, read-only and explicitly admitted", () => fixture(({root, read, write}) => {
+  const files = [
+    "app/bo/afterschool-accounts/page.tsx",
+    "app/bo/afterschool-accounts/AfterschoolAccounts.tsx",
+    "lib/host-boundary.ts",
+    "lib/host-boundary.test.ts",
+  ];
+  for (const file of files) write(file, fs.readFileSync(path.join(repo, file), "utf8"));
+  assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"), /afterschool-accounts.*exactly one staging decision/);
+  write(policy, read(policy).replace('  "/bo/payroll-periods",', '  "/bo/payroll-periods",\n  "/bo/afterschool-accounts",'));
+  assert.deepEqual(verifyBoStagingRoutePolicy(root).issues, []);
+  write(files[1], read(files[1]).replace("data?.scopeCenterId !== centerId", "false"));
+  assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"), /afterschool-accounts.*invalid native read-only route contract/);
 }));
