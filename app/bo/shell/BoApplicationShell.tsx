@@ -1,5 +1,6 @@
 "use client";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { canOpenAfterschoolAccounts } from "../afterschool-accounts/accounts-nav-access";
 import { usePathname, useSearchParams } from "next/navigation";
 import type { BoShellContext } from "@/lib/bo-shell-gate";
 import { BoRegistrationWorkspace, type BoWorkspaceSource } from "../components/registration/BoRegistrationWorkspace";
@@ -46,11 +47,31 @@ export function BoApplicationShell({ currentUser, staging, children }: {
   const pathname = usePathname();
   const query = useSearchParams();
   const center = useBoCenterSelection();
+  const centerId = staging && !center?.loading && !center?.error ? center?.selected ?? "" : "";
+  const [accountsCenter, setAccountsCenter] = useState<string | null>(null);
+  useEffect(() => {
+    if (!centerId) return;
+    const controller = new AbortController();
+    void canOpenAfterschoolAccounts(centerId, controller.signal).then(allowed => {
+      if (!controller.signal.aborted) setAccountsCenter(allowed ? centerId : null);
+    });
+    return () => {
+      controller.abort();
+      setAccountsCenter(null);
+    };
+  }, [centerId]);
+  const showAccounts = Boolean(centerId && accountsCenter === centerId);
   const scopedSource = useMemo<BoWorkspaceSource>(() => ({
     ...stagingSource,
-    routeForModule: key => boScopedModuleHref(stagingSource.routeForModule!(key), key,
-      center?.selected ?? "", center?.centers.map(item => item.id) ?? []),
-  }), [center?.selected, center?.centers]);
+    modules: showAccounts ? {
+      ...stagingSource.modules,
+      "afterschool-accounts": { label: "Tài khoản", group: "SCHOOL", fields: [] },
+    } : stagingSource.modules,
+    routeForModule: key => key === "afterschool-accounts" && showAccounts
+      ? "/bo/afterschool-accounts?" + new URLSearchParams({ centerId })
+      : boScopedModuleHref(stagingSource.routeForModule!(key), key,
+        center?.selected ?? "", center?.centers.map(item => item.id) ?? []),
+  }), [center?.selected, center?.centers, centerId, showAccounts]);
   const productionDestination = destinations.find(item => item.href === pathname)
     ?? destinations.filter(item => item.href !== "/bo" && pathname.startsWith(item.href + "/"))
       .sort((left, right) => right.href.length - left.href.length)[0];
