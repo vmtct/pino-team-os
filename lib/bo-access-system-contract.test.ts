@@ -35,7 +35,8 @@ test("BO Staff surface renders the pending registration review queue", () => {
   assert.match(section, /if\(mode==="error"\)return <p role="alert">/);
   assert.match(section, /r.centerId!==centerId/);
   assert.match(section, /<BoDataGrid /);
-  assert.match(section, /<BoDataGridSidePeek /);
+  assert.match(section, /<BoDrawer /);
+  assert.match(section, /busy=\{busy\} canClose=\{canClose\}/);
 });
 test("BO shell retires standalone Users/Roles while retaining System policy and audit", () => {
   const source = fs.readFileSync(path.join(process.cwd(), "app/bo/navigation.ts"), "utf8");

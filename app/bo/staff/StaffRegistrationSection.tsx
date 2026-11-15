@@ -1,6 +1,6 @@
 "use client";
 import {useEffect,useState,useRef} from "react";
-import {BoDataGrid,BoDataGridBadge,BoDataGridSidePeek,type BoDataGridColumn} from "@/app/bo/components/data-grid";
+import {BoDataGrid,BoDataGridBadge,BoDrawer,type BoDataGridColumn} from "@/app/bo/components/data-grid";
 import {BoProperties} from "@/app/bo/components/BoProperties";
 import {useBoCenterSelection} from "@/app/bo/components/registration/BoCenterSelection";
 import {StaffRegistrationReviewQueue} from "./StaffRegistrationReviewQueue";
@@ -10,7 +10,7 @@ import styles from "../bo.module.css";
 
 type RequestRow={id:string;centerId:string;displayLabel:string;submittedAt:string;version:number};
 type RoleOption={id:string;displayName:string};
-type Attempt={fingerprint:string;key:string};
+
 type Mode="approve"|"reject";
 const time=(s:string)=>new Date(s).toLocaleString("vi-VN",{timeZone:"Asia/Ho_Chi_Minh"});
 const route="workforce/staff-registration-requests";
@@ -59,6 +59,7 @@ function CenterReview({centerId,centerName}:{centerId:string;centerName:string})
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState("");
   const [reviewError,setReviewError]=useState("");
+  const [reviewReady,setReviewReady]=useState(false);
   const [selected,setSelected]=useState<RequestRow|null>(null);
   const [roleId,setRoleId]=useState("");
   const [reason,setReason]=useState("");
@@ -66,7 +67,8 @@ function CenterReview({centerId,centerName}:{centerId:string;centerName:string})
   const [search,setSearch]=useState("");
   const [revision,refresh]=useState(0);
   const [notice,setNotice]=useState("");
-  const attempt=useRef<Attempt|null>(null);
+  const attempts=useRef(new Map<string,string>());
+  const inFlight=useRef(false);
   useEffect(()=>{
     const ctl=new AbortController();
     void get<RequestRow[]>(path(route,centerId),ctl.signal).then(next=>{
@@ -75,17 +77,21 @@ function CenterReview({centerId,centerName}:{centerId:string;centerName:string})
       setRows(next);setLoading(false);
     }).catch((cause:unknown)=>{if(!ctl.signal.aborted){setRows([]);setError(cause instanceof Error?cause.message:"Không thể tải hồ sơ.");setLoading(false)}});
     void get<RoleOption[]>(path("workforce/staff-registration-eligible-roles",centerId),ctl.signal).then(next=>{
-      if(!ctl.signal.aborted)setRoles(next);
+      if(!ctl.signal.aborted){setRoles(next);setReviewReady(true);}
     }).catch((cause:unknown)=>{if(!ctl.signal.aborted){setRoles([]);setReviewError(cause instanceof Error?cause.message:"Không có quyền duyệt.")}});
     return()=>ctl.abort();
   },[centerId,revision]);
-  const close=()=>{if(!busy){setSelected(null);setRoleId("");setReason("");attempt.current=null;}};
+  const canClose=()=>!inFlight.current&&(!roleId&&!reason.trim()||window.confirm("Hủy thay đổi chưa lưu?"));
+  const resetSelection=()=>{setSelected(null);setRoleId("");setReason("");};
+  const close=()=>{if(!inFlight.current)resetSelection();};
+  const requestClose=()=>{if(canClose())close();};
   async function review(mode:Mode){
-    if(!selected||busy||reviewError||(mode==="approve"&&!roles.some(r=>r.id===roleId))||(mode==="reject"&&!reason.trim()))return;
+    if(!selected||inFlight.current||!reviewReady||reviewError||(mode==="approve"&&!roles.some(r=>r.id===roleId))||(mode==="reject"&&!reason.trim()))return;
     const body=mode==="approve"?{expectedVersion:selected.version,assignments:[{roleId,scopeType:"CENTER",scopeId:centerId}],pinoriaIdentity:{mode:"CREATE_STAFF_ONLY_PERSON"}}:{expectedVersion:selected.version,reason:reason.trim()};
     const fingerprint=JSON.stringify([centerId,selected.id,mode,body]);
-    if(attempt.current?.fingerprint!==fingerprint)attempt.current={fingerprint,key:crypto.randomUUID()};
-    const key=attempt.current.key;
+    const key=attempts.current.get(fingerprint)??crypto.randomUUID();
+    attempts.current.set(fingerprint,key);
+    inFlight.current=true;
     setBusy(true);setError("");setNotice("");
     try{
       const response=await fetch(path(route+"/"+encodeURIComponent(selected.id)+"/"+mode,centerId),{
@@ -96,10 +102,10 @@ function CenterReview({centerId,centerName}:{centerId:string;centerName:string})
         throw Error(payload.error?.message??"Chưa xác nhận được kết quả. Thử lại cùng yêu cầu.");
       setNotice(mode==="approve"?"Đã duyệt hồ sơ.":"Đã từ chối hồ sơ.");
       setRows(current=>current.filter(r=>r.id!==selected.id));
-      attempt.current=null;setSelected(null);setRoleId("");setReason("");
-      setLoading(true);setReviewError("");refresh(v=>v+1);
+      attempts.current.delete(fingerprint);resetSelection();
+      setLoading(true);setReviewReady(false);setReviewError("");refresh(v=>v+1);
     }catch(cause){setError(cause instanceof Error?cause.message:"Chưa xác nhận được kết quả.");}
-    finally{setBusy(false)}
+    finally{inFlight.current=false;setBusy(false)}
   }
   return <section id="staff-registration-review" aria-label="Hồ sơ nhân sự chờ duyệt">
     <div className="page-heading"><div className="page-heading-left"><h1>Hồ sơ chờ duyệt</h1><p>{centerName}</p></div></div>
@@ -109,20 +115,20 @@ function CenterReview({centerId,centerName}:{centerId:string;centerName:string})
     <BoDataGrid rows={rows.filter(r=>r.displayLabel.toLocaleLowerCase("vi-VN").includes(search.toLocaleLowerCase("vi-VN")))}
       columns={columns} rowKey={r=>r.id} caption="Hồ sơ nhân sự chờ duyệt" state={loading?"loading":error&&!rows.length?"error":"ready"}
       stateMessage={error} search={search} onSearchChange={setSearch} searchPlaceholder="Tìm tên nhân viên"
-      onRowOpen={r=>{if(!busy){setSelected(r);setRoleId("");setReason("");attempt.current=null;setError("")}}} quickViewOpener
+      onRowOpen={r=>{if(canClose()){setSelected(r);setRoleId("");setReason("");setError("")}}} quickViewOpener
       emptyTitle="Chưa có hồ sơ" emptyMessage="Không có hồ sơ chờ duyệt trong cơ sở này." resultLabel={rows.length+" hồ sơ"}
-      toolbarActions={<button type="button" onClick={()=>{if(!busy){close();setError("");setReviewError("");setLoading(true);refresh(v=>v+1)}}} disabled={busy}>Tải lại</button>}/>
-    {selected?<BoDataGridSidePeek title={selected.displayLabel} eyebrow="Hồ sơ chờ duyệt" onClose={close}
-      footer={<button className={styles.secondaryButton} type="button" disabled={busy} onClick={close}>Đóng</button>}>
+      toolbarActions={<button type="button" onClick={()=>{if(canClose()){close();setError("");setReviewError("");setReviewReady(false);setLoading(true);refresh(v=>v+1)}}} disabled={busy}>Tải lại</button>}/>
+    {selected?<BoDrawer title={selected.displayLabel} eyebrow="Hồ sơ chờ duyệt" mode="view" busy={busy} canClose={canClose} onClose={close}
+      footer={<button className={styles.secondaryButton} type="button" disabled={busy} onClick={requestClose}>Đóng</button>}>
       <BoProperties compact items={[{key:"center",label:"Cơ sở",value:centerName},{key:"date",label:"Ngày gửi",value:time(selected.submittedAt)}]}/>
-      <label>Vai trò Staff<select aria-label="Vai trò Staff" value={roleId} disabled={busy||!!reviewError} onChange={e=>setRoleId(e.target.value)}>
+      <label>Vai trò Staff<select aria-label="Vai trò Staff" value={roleId} disabled={busy||!reviewReady||!!reviewError} onChange={e=>setRoleId(e.target.value)}>
         <option value="">Chọn vai trò</option>{roles.map(r=><option value={r.id} key={r.id}>{r.displayName}</option>)}
       </select></label>
       <p>Tài khoản mới chỉ được cấp quyền tại cơ sở này.</p>
-      <button type="button" className={styles.primaryButton} disabled={busy||!!reviewError||!roleId} onClick={()=>void review("approve")}>Duyệt hồ sơ</button>
-      <label>Lý do từ chối<textarea aria-label="Lý do từ chối" value={reason} maxLength={500} disabled={busy||!!reviewError} onChange={e=>setReason(e.target.value)}/></label>
-      <button type="button" className={styles.secondaryButton} disabled={busy||!!reviewError||!reason.trim()} onClick={()=>void review("reject")}>Từ chối</button>
+      <button type="button" className={styles.primaryButton} disabled={busy||!reviewReady||!!reviewError||!roleId} onClick={()=>void review("approve")}>Duyệt hồ sơ</button>
+      <label>Lý do từ chối<textarea aria-label="Lý do từ chối" value={reason} maxLength={500} disabled={busy||!reviewReady||!!reviewError} onChange={e=>setReason(e.target.value)}/></label>
+      <button type="button" className={styles.secondaryButton} disabled={busy||!reviewReady||!!reviewError||!reason.trim()} onClick={()=>void review("reject")}>Từ chối</button>
       {error?<p role="alert">{error}</p>:null}{busy?<p role="status">Đang xử lý…</p>:null}
-    </BoDataGridSidePeek>:null}
+    </BoDrawer>:null}
   </section>;
 }

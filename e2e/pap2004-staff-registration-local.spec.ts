@@ -48,12 +48,31 @@ for(const width of [320,390,768,1024,1440,1920])test(`PAP-2004 local actual Mana
  await expect(approve).toBeDisabled();await expect(reject).toBeDisabled();
  await page.getByRole("combobox",{name:"Vai trò Staff"}).selectOption(roleId);
  await expect(approve).toBeEnabled();
+ // Dirty close must preserve the current selection until the user accepts discard.
+ page.once("dialog",d=>void d.dismiss());
+ await page.keyboard.press("Escape");
+ await expect(approve).toBeVisible();
+ await expect(page.getByRole("combobox",{name:"Vai trò Staff"})).toHaveValue(roleId);
+ page.once("dialog",d=>void d.accept());
+ await page.keyboard.press("Escape");
+ await expect(approve).toHaveCount(0);
+ await expect(grid.getByRole("button",{name:"Open Quick View for "+row.id})).toBeFocused();
+ await grid.getByRole("button",{name:"Open Quick View for "+row.id}).click();
+ await expect(approve).toBeDisabled();
+ await page.getByRole("combobox",{name:"Vai trò Staff"}).selectOption(roleId);
  await page.getByRole("textbox",{name:"Lý do từ chối"}).fill("QA reason");
  await expect(reject).toBeEnabled();
  await page.getByRole("textbox",{name:"Lý do từ chối"}).clear();
  await expect(reject).toBeDisabled();
  await page.screenshot({path:info.outputPath("drawer.png"),fullPage:true});
- await approve.click();await expect(page.getByText("QA controlled denial").first()).toBeVisible();
+ await approve.evaluate((el:HTMLButtonElement)=>{el.click();el.click()});
+ await expect(page.getByText("QA controlled denial").first()).toBeVisible();
+ expect(attempts).toBe(1);
+ // Closing and reopening the same review after an ambiguous response must not replace its key.
+ page.once("dialog",d=>void d.accept());
+ await page.getByRole("button",{name:"Đóng",exact:true}).click();
+ await grid.getByRole("button",{name:"Open Quick View for "+row.id}).click();
+ await page.getByRole("combobox",{name:"Vai trò Staff"}).selectOption(roleId);
  await approve.click();await expect(grid.getByText("Đã duyệt hồ sơ.")).toBeVisible();
  await expect(grid.getByText(row.displayLabel,{exact:true})).toHaveCount(0);
  expect(attempts).toBe(2);expect(keys[0]).toBe(keys[1]);expect(payloads[0]).toEqual(payloads[1]);
