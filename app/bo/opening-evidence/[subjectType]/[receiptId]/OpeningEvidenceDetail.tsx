@@ -5,20 +5,8 @@ import {BoProperties} from "@/app/bo/components/BoProperties";
 import {useBoCenterSelection} from "@/app/bo/components/registration/BoCenterSelection";
 import {openingEvidenceApi,newReviewRequestKey,type OpeningEvidenceRow,type EvidenceDetail,type SubjectType} from "@/lib/bo-opening-evidence-api";
 import {evidenceProperties,evidenceTime,detailHref,statusLabels,subjectLabels} from "../../OpeningEvidenceStageGate";
+import {OpeningEvidenceGallery} from "../../OpeningEvidenceGallery";
 
-function PhotoPreview({row,assetId}:{row:OpeningEvidenceRow;assetId:string}){
-  const [url,setUrl]=useState(""),[error,setError]=useState("");
-  useEffect(()=>{
-    const controller=new AbortController();let objectUrl="";
-    void openingEvidenceApi.photo(row,assetId,controller.signal).then(blob=>{
-      if(controller.signal.aborted)return;objectUrl=URL.createObjectURL(blob);setUrl(objectUrl);
-    }).catch(()=>{if(!controller.signal.aborted)setError("Không thể xác minh ảnh private.");});
-    return()=>{controller.abort();if(objectUrl)URL.revokeObjectURL(objectUrl);};
-  },[row,assetId]);
-  // Private object URL from a checked same-origin response, never a public bucket URL.
-  // eslint-disable-next-line @next/next/no-img-element
-  return url?<img src={url} alt="Ảnh setup" style={{maxWidth:"100%",maxHeight:320,objectFit:"contain"}}/>:<p role="status">{error||"Đang tải ảnh…"}</p>;
-}
 function Review({row,onSaved}:{row:OpeningEvidenceRow;onSaved:()=>void}){
   const [reason,setReason]=useState(""),[busy,setBusy]=useState(false),[message,setMessage]=useState("");
   const [request,setRequest]=useState<{signature:string;key:string}|null>(null);
@@ -65,11 +53,7 @@ function DetailScope({centerId,subjectType,receiptId,activeTab}:{centerId:string
     activeTab={activeTab} tabs={[
       {id:"overview",label:"Tổng quan",content:<BoProperties items={evidenceProperties(row)}/>},
       {id:"evidence",label:"Ảnh setup & vòng duyệt",content:<section>
-        {history.filter(e=>e.kind==="SUBMISSION"&&e.privateAssetId).map(e=><article key={e.eventId}>
-          <h3>Vòng {e.version}</h3><p>{e.actorLegalFullName??"—"} · {evidenceTime(e.occurredAt)}</p>
-                    {e.note?<p>Ghi chú: {e.note}</p>:null}
-          {(e.privateAssetIds??[e.privateAssetId!]).map(assetId=><PhotoPreview key={assetId} row={row} assetId={assetId}/>)}
-        </article>)}
+        <OpeningEvidenceGallery data={data} formatTime={evidenceTime}/>
         <p>{statusLabels[row.status]}</p>
         <Review key={row.version} row={row} onSaved={reload}/>
       </section>},

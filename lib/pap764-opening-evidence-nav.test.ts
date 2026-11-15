@@ -46,3 +46,17 @@ test("PAP-1946 list skeleton uses one heading, one native grid and no KPI cards"
   assert.match(stage,/className="view-tabs"/);
   assert.doesNotMatch(stage,/kpi-card|<table/);
 });
+
+test("PAP-767 Quick Drawer and Full Detail share authorized private gallery with scope reset",()=>{
+  const gallery=read("app/bo/opening-evidence/OpeningEvidenceGallery.tsx");
+  const detail=read("app/bo/opening-evidence/[subjectType]/[receiptId]/OpeningEvidenceDetail.tsx");
+  assert.match(stage,/<OpeningEvidenceDrawerGallery row={row} formatTime={evidenceTime}\/>/);
+  assert.match(detail,/<OpeningEvidenceGallery data={data} formatTime={evidenceTime}\/>/);
+  assert.match(gallery,/key={JSON\.stringify\(\[row\.centerId,row\.subjectType,row\.openingReceiptId,row\.version\]\)}/);
+  assert.match(gallery,/openingEvidenceApi\.detail\(centerId,subjectType,openingReceiptId,controller\.signal\)/);
+  assert.match(gallery,/result\.row\.version<version/);
+  assert.match(gallery,/openingEvidenceApi\.photo\(row,assetId,controller\.signal\)/);
+  assert.match(gallery,/URL\.revokeObjectURL/);
+  assert.match(gallery,/privateAssetIds\?\?/);
+  assert.doesNotMatch(gallery,/localStorage|sessionStorage|openingEvidenceApi\.review/);
+});

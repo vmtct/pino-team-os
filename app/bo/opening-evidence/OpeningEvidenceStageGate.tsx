@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import {useEffect,useState} from "react";
+import {OpeningEvidenceDrawerGallery} from "./OpeningEvidenceGallery";
 import {BoDataGrid,BoDataGridBadge,BoDataGridSidePeek,type BoDataGridColumn} from "@/app/bo/components/data-grid";
 import {BoProperties} from "@/app/bo/components/BoProperties";
 import {useBoCenterSelection} from "@/app/bo/components/registration/BoCenterSelection";
@@ -81,6 +82,7 @@ function ScopeView({centerId,allowed,loading}:{centerId:string;allowed:boolean;l
     {row?<BoDataGridSidePeek title={row.subjectLabel} eyebrow={subjectLabels[row.subjectType]} onClose={()=>setSelected(null)}
       footer={<Link href={detailHref(row)}>Chi tiết</Link>}>
       <BoProperties compact items={evidenceProperties(row)}/>
+      <OpeningEvidenceDrawerGallery row={row} formatTime={evidenceTime}/>
     </BoDataGridSidePeek>:null}
   </section>;
 }
