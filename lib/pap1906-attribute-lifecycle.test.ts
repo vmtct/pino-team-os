@@ -2,6 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
+import {decideHostBoundary} from "./host-boundary";
 import {nextLifecycle,lifecyclePayload} from "./ho-attribute-lifecycle";
 import {validHoLifecycleCommand,hoAttributeDefinitions} from "./ho-attribute-definitions-facade";
 import type {AttributeDefinition} from "./ho-attribute-model";
@@ -51,4 +52,13 @@ test("PAP-1906 existing single native editor and explicit Core readback retained
  assert.match(src,/changed.data.status!==body.targetStatus/);
  assert.match(src,/read.data.status!==body.targetStatus/);
  assert.match(src,/editor.field.key==="lifecycleState"\?"":/);
+});
+test("PAP-1906 host admission exact HO Staging POST; no production, BO, TOS or broad writes",()=>{
+ const valid=route;
+ assert.equal(decideHostBoundary(host,valid,"POST").action,"next");
+ for(const method of ["GET","PATCH","PUT","DELETE"])assert.equal(decideHostBoundary(host,valid,method).action,"not_found");
+ for(const path of [valid+"/extra",valid.replace(id,"wrong"),valid.replace(id,id.replace("-7000-","-4000-"))])
+  assert.equal(decideHostBoundary(host,path,"POST").action,"not_found");
+ for(const other of ["bo.staging.pinohouse.art","tos.staging.pinohouse.art","ho.pinohouse.art"])
+  assert.equal(decideHostBoundary(other,valid,"POST").action,"not_found");
 });
