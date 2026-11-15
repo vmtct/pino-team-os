@@ -28,10 +28,20 @@ export async function loadIncomeHistory(centerId:string,currentId:string,staffId
 export function scopedIncomeDay(row:IncomePeriod,workDate:string){
  if(!/^\d{4}-\d{2}-\d{2}$/.test(workDate)||workDate<row.period.startDate||workDate>row.period.endDate)return null;
  const days=row.staff.preview?.days.filter(d=>d.workDate===workDate)??[];
- return days.length===1?days[0]:null;
+ if(days.length!==1)return null;
+ const day=days[0],base=day.base;
+ if(base&&(base.centerId!==row.staff.preview?.centerId||base.staffMemberId!==row.staff.staffMemberId||base.workDate!==workDate))return null;
+ return day;
 }
 /** Separate private compensation contract: never accept foreign or malformed rate records. */
 export function verifiedCompensationRows(data:import("./bo-model").BoStaffCompensationEntry[],staffId:string){
  if(!Array.isArray(data)||data.some(r=>!r||r.staffMemberId!==staffId||r.currency!=="VND"||!Number.isSafeInteger(r.amountMinor)||r.amountMinor<0||!["CURRENT","HISTORICAL","SCHEDULED"].includes(r.state)||!/^\d{4}-\d{2}-\d{2}$/.test(r.effectiveFrom))||new Set(data.map(r=>r.id)).size!==data.length)throw Error("Invalid compensation scope");
  return data;
+}
+/** Private rates require a verified, separately authorized matching rate record. */
+export function historicalDayRate(day:import("./bo-payroll-period-api").SettlementDay,rates:import("./bo-model").BoStaffCompensationEntry[]|null){
+ const b=day.base;
+ if(!b||!rates||b.hourlyRateMinor===null||!Number.isSafeInteger(b.hourlyRateMinor)||b.hourlyRateMinor<0)return null;
+ const matches=rates.filter(r=>r.staffMemberId===b.staffMemberId&&r.id===b.rateEntryId&&r.version===b.rateVersion&&r.amountMinor===b.hourlyRateMinor&&r.effectiveFrom<=day.workDate&&(r.periodUntilExclusive===null||r.periodUntilExclusive>day.workDate));
+ return matches.length===1?b.hourlyRateMinor:null;
 }
