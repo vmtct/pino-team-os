@@ -10,7 +10,8 @@ import {PeriodProperties,CreatePeriod,periodFields,periodRecord} from "./PeriodP
 import {useBoCenterSelection} from "@/app/bo/components/registration/BoCenterSelection";
 import {periodApi,money,type PeriodStaffPage} from "@/lib/bo-payroll-period-api";
 import {nativePeriodRow,nativePeriodHistory,type NativePeriodRow} from "@/lib/bo-payroll-native-period-model";
-import {staffWithWorkEvidence} from "@/lib/bo-payroll-read-model";
+import {staffWithWorkEvidence,periodSummaries} from "@/lib/bo-payroll-read-model";
+import {BoPill} from "@/app/bo/components/registration/BoValue";
 import {payrollVerifiedName} from "@/lib/bo-payroll-safe-read-metadata";
 
 const ROOT="/bo/payroll-periods";
@@ -97,10 +98,22 @@ function PeriodDetail({centerId,centerName,id,tab}:{centerId:string;centerName:s
    {id:"history",label:"Lịch sử",content:<PeriodHistory key={centerId+":"+id+":"+row.version} centerId={centerId} id={id}/>},
   ]}/>;
 }
+function settlementStatus(status:PeriodStaffPage["rows"][number]["status"]){
+ switch(status){
+  case "DRAFT":return {text:"Bản nháp",color:"gray"};
+  case "PENDING":return {text:"Chờ duyệt",color:"orange"};
+  case "FINALIZED":return {text:"Đã chốt",color:"blue"};
+  case "PAID":return {text:"Đã thanh toán",color:"green"};
+  case "ARCHIVED_UNAVAILABLE":return {text:"Không đủ dữ liệu",color:"gray"};
+  default:return {text:"Không đủ dữ liệu",color:"gray"};
+ }
+}
 function Settlements({centerId,id,initial}:{centerId:string;id:string;initial:PeriodStaffPage}){
  const [page,setPage]=useState(initial),[rows,setRows]=useState(initial.rows);
  const [busy,setBusy]=useState(false),[error,setError]=useState("");
  const visible=staffWithWorkEvidence(rows);
+ const totals=periodSummaries(page.periodTotals);
+ const fullCount=page.staffWithWorkEvidenceCount;
  async function more(){
   if(busy||page.nextOffset===null)return;
   setBusy(true);setError("");
@@ -115,13 +128,24 @@ function Settlements({centerId,id,initial}:{centerId:string;id:string;initial:Pe
    setRows(old=>[...old,...next.rows]);setPage(next);
   }catch(e){setError(errorText(e));}finally{setBusy(false);}
  }
- return <section aria-label="Quyết toán theo PTE">
+ return <>
+  <div className="payroll-ro-kpis" role="group" aria-label="Tổng lương kỳ">
+   <div className="payroll-ro-kpi"><span>Tổng Dự Kiến</span><strong data-pay-total-expected>{money(totals.expected)}</strong></div>
+   <div className="payroll-ro-kpi"><span>Tổng Quyết Toán</span><strong data-pay-total-finalized>{money(totals.finalized)}</strong></div>
+  </div>
+  {page.periodTotals.hasPending||page.periodTotals.hasUnavailable?<p role="status">Tổng dự kiến chỉ gồm khoản đã đủ dữ liệu; còn khoản chưa xác định.</p>:null}
+  <section aria-label="Quyết toán theo PTE">
+  <div className="property-section"><h3>Quyết toán theo PTE</h3>{typeof fullCount==="number"?<span>{fullCount} PTE có ghi nhận giờ công hoặc đã chốt</span>:null}</div>
   <BoDataGrid showToolbar={false} rows={visible} rowKey={r=>r.staffMemberId} caption="Quyết toán theo PTE"
-   columns={[{key:"staff",header:"PTE",render:r=>payrollVerifiedName(r.staffName)},{key:"amount",header:"Thành tiền",render:r=>money(r.amountMinor)},{key:"status",header:"Trạng thái",render:r=>r.status}]}
+   columns={[
+    {key:"staff",header:"PTE",minWidth:190,render:r=><><strong>{payrollVerifiedName(r.staffName)}</strong><div className="id-code">{r.staffMemberId}</div></>},
+    {key:"amount",header:"Thành tiền",minWidth:150,render:r=><strong className="payroll-ro-amount">{money(r.amountMinor)}</strong>},
+    {key:"status",header:"Trạng thái",minWidth:140,render:r=><BoPill {...settlementStatus(r.status)}/>},
+   ]}
    emptyTitle="Chưa có giờ công" emptyMessage="Không có bản ghi đủ điều kiện trong trang hiện tại."/>
   {page.nextOffset!==null?<button type="button" disabled={busy} onClick={()=>void more()}>Tải thêm PTE</button>:null}
   {error?<p role="alert">{error}</p>:null}
- </section>;
+ </section></>;
 }
 
 function PeriodHistory({centerId,id}:{centerId:string;id:string}){
