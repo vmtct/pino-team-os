@@ -60,11 +60,10 @@ function PeriodTable({centerId,centerName}:{centerId:string;centerName:string}){
  const rows=current?.rows??[];
  const row=rows.find(r=>r.id===selected);
  return <section aria-label="Kỳ lương" data-pap-ticket="PAP-1985">
-  <header><h1>Kỳ lương</h1></header>
+  <header className="page-heading"><div className="page-heading-left"><h1>Kỳ lương</h1></div><div className="heading-actions">{current?.canCreate?<button type="button" className="primary-btn" onClick={()=>{setSelected(null);setCreating(true);}}>Tạo mới</button>:null}</div></header>
   <BoDataGrid rows={rows} columns={columns} rowKey={r=>r.id} caption="Kỳ lương"
    state={!current?"loading":current.error?"error":"ready"} stateMessage={current?.error}
    onRefresh={()=>{setCreating(false);setSelected(null);setRefresh(r=>r+1);}}
-   toolbarActions={current?.canCreate?<button type="button" className="primary-btn" onClick={()=>{setSelected(null);setCreating(true);}}>Tạo mới</button>:null}
    onRowOpen={r=>{setCreating(false);setSelected(r.id);}} selectedRowKey={selected} quickViewOpener
    pagination={{page:Math.floor(offset/50)+1,pageSize:50,total:current?.total??0,onPageChange:n=>{setSelected(null);setOffset((n-1)*50);}}}
    emptyTitle="Chưa có kỳ lương" emptyMessage="Core không trả về kỳ lương tại cơ sở này."/>
