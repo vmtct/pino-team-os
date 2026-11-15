@@ -1,0 +1,15 @@
+/* PAP-655: scoped PINO TOS tokens. No edits to Station host or shared DS. */
+@layer tos.apps {
+.turns{display:grid;gap:var(--tos-space-4);min-width:0}
+.turn{display:grid;gap:var(--tos-space-3);padding:var(--tos-space-3);border:1px solid var(--tos-color-border);border-radius:var(--tos-radius-card);min-width:0}
+.heading{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:var(--tos-space-2);min-width:0;color:var(--tos-color-ink);font-size:var(--tos-text-secondary);overflow-wrap:anywhere}
+.heading span,.message{font-size:var(--tos-text-caption);color:var(--tos-color-muted);margin:0;overflow-wrap:anywhere}
+.options{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,120px),1fr));gap:var(--tos-space-2);min-width:0}
+.option{min-width:0;min-height:var(--tos-hit-min);display:flex;flex-direction:column;gap:var(--tos-space-2);align-items:flex-start;overflow-wrap:anywhere}
+.artwork{object-fit:contain;align-self:center;max-width:100%;height:auto}
+.copy{display:grid;gap:var(--tos-space-2);min-width:0}
+.copy strong{font-size:var(--tos-text-label);color:var(--tos-color-ink)}
+.skip{min-height:var(--tos-hit-min);justify-self:start}
+.option:disabled,.skip:disabled{opacity:.55;cursor:not-allowed}
+.option:focus-visible,.skip:focus-visible{outline:2px solid var(--tos-color-accent);outline-offset:2px}
+}
