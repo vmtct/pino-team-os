@@ -17,11 +17,12 @@ test.beforeAll(async()=>{
  const bundle=await build({stdin:{contents:`import React from "react";import{createRoot}from "react-dom/client";import{BoCenterSelectionProvider}from "./app/bo/components/registration/BoCenterSelection";import{StaffRegistrationSection}from "./app/bo/staff/StaffRegistrationSection";createRoot(document.getElementById("root")).render(<BoCenterSelectionProvider><StaffRegistrationSection/></BoCenterSelectionProvider>);`,resolveDir:process.cwd(),loader:"tsx"},bundle:true,write:false,platform:"browser",format:"iife",jsx:"automatic",outdir:"fixture",plugins:[mocks],define:{"process.env.NODE_ENV":'"production"'}});
  const css=bundle.outputFiles.filter(f=>f.path.endsWith(".css")).map(f=>f.text).join("\n");
  const ds=readFileSync(createRequire(path.resolve("package.json")).resolve("@pino/design-system/components.css"),"utf8");
- const legacy=readFileSync("app/bo/design-system/foundation.css","utf8");
+ const legacy=readFileSync("app/globals.css","utf8")+"\n"+readFileSync("app/bo/design-system/foundation.css","utf8");
  html=`<!doctype html><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${ds}\n${legacy}\n${css}</style><main id="root"></main><script>${bundle.outputFiles.find(f=>f.path.endsWith(".js"))!.text.replace(/<\/script/gi,"<\\/script")}</script>`;
 });
 for(const width of [320,390,768,1024,1440,1920])test(`PAP-2004 local actual Manager UI ${width}`,async({page},info)=>{
  await page.setViewportSize({width,height:900});
+ const rejectMode=width===390||width===1024;
  let pending=true,attempts=0;const keys:string[]=[];const payloads:unknown[]=[];
  await page.route("**/*",async r=>{
   const req=r.request(),url=new URL(req.url());
@@ -32,10 +33,10 @@ for(const width of [320,390,768,1024,1440,1920])test(`PAP-2004 local actual Mana
   if(url.pathname.endsWith("/staff-registration-settings"))return send(403,null);
   if(url.pathname.endsWith("/staff-registration-eligible-roles")){expect(url.searchParams.get("centerId")).toBe(centerId);return send(200,[{id:roleId,displayName:"QA Staff Role"}]);}
   if(url.pathname.endsWith("/staff-registration-requests"))return send(200,pending?[row]:[]);
-  if(url.pathname.endsWith("/"+row.id+"/approve")){
+  if(url.pathname.endsWith("/"+row.id+(rejectMode?"/reject":"/approve"))){
    attempts++;keys.push(req.headers()["idempotency-key"]!);payloads.push(req.postDataJSON());expect(url.searchParams.get("centerId")).toBe(centerId);
    if(attempts===1)return send(503,null);
-   pending=false;return send(200,{registrationRequestId:row.id,status:"APPROVED"});
+   pending=false;return send(200,{registrationRequestId:row.id,status:rejectMode?"REJECTED":"APPROVED"});
   }
   return send(404,null);
  });
@@ -65,7 +66,9 @@ for(const width of [320,390,768,1024,1440,1920])test(`PAP-2004 local actual Mana
  await page.getByRole("textbox",{name:"Lý do từ chối"}).clear();
  await expect(reject).toBeDisabled();
  await page.screenshot({path:info.outputPath("drawer.png"),fullPage:true});
- await approve.evaluate((el:HTMLButtonElement)=>{el.click();el.click()});
+ if(rejectMode) await page.getByRole("textbox",{name:"Lý do từ chối"}).fill("QA reason");
+ const decision=rejectMode?reject:approve;
+ await decision.evaluate((el:HTMLButtonElement)=>{el.click();el.click()});
  await expect(page.getByText("QA controlled denial").first()).toBeVisible();
  expect(attempts).toBe(1);
  // Closing and reopening the same review after an ambiguous response must not replace its key.
@@ -73,10 +76,11 @@ for(const width of [320,390,768,1024,1440,1920])test(`PAP-2004 local actual Mana
  await page.getByRole("button",{name:"Đóng",exact:true}).click();
  await grid.getByRole("button",{name:"Open Quick View for "+row.id}).click();
  await page.getByRole("combobox",{name:"Vai trò Staff"}).selectOption(roleId);
- await approve.click();await expect(grid.getByText("Đã duyệt hồ sơ.")).toBeVisible();
+ if(rejectMode) await page.getByRole("textbox",{name:"Lý do từ chối"}).fill("QA reason");
+ await decision.click();await expect(grid.getByText(rejectMode?"Đã từ chối hồ sơ.":"Đã duyệt hồ sơ.")).toBeVisible();
  await expect(grid.getByText(row.displayLabel,{exact:true})).toHaveCount(0);
  expect(attempts).toBe(2);expect(keys[0]).toBe(keys[1]);expect(payloads[0]).toEqual(payloads[1]);
- expect(payloads[0]).toEqual({expectedVersion:1,assignments:[{roleId,scopeType:"CENTER",scopeId:centerId}],pinoriaIdentity:{mode:"CREATE_STAFF_ONLY_PERSON"}});
+ expect(payloads[0]).toEqual(rejectMode?{expectedVersion:1,reason:"QA reason"}:{expectedVersion:1,assignments:[{roleId,scopeType:"CENTER",scopeId:centerId}],pinoriaIdentity:{mode:"CREATE_STAFF_ONLY_PERSON"}});
  expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
  await page.screenshot({path:info.outputPath("result.png"),fullPage:true});
 });

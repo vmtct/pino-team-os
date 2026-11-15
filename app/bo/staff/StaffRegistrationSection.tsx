@@ -121,13 +121,15 @@ function CenterReview({centerId,centerName}:{centerId:string;centerName:string})
     {selected?<BoDrawer title={selected.displayLabel} eyebrow="Hồ sơ chờ duyệt" mode="view" busy={busy} canClose={canClose} onClose={close}
       footer={<button className={styles.secondaryButton} type="button" disabled={busy} onClick={requestClose}>Đóng</button>}>
       <BoProperties compact items={[{key:"center",label:"Cơ sở",value:centerName},{key:"date",label:"Ngày gửi",value:time(selected.submittedAt)}]}/>
-      <label>Vai trò Staff<select aria-label="Vai trò Staff" value={roleId} disabled={busy||!reviewReady||!!reviewError} onChange={e=>setRoleId(e.target.value)}>
+      <div className={styles.registrationReviewDetail}>
+      <label className={styles.field}>Vai trò Staff<select aria-label="Vai trò Staff" value={roleId} disabled={busy||!reviewReady||!!reviewError} onChange={e=>setRoleId(e.target.value)}>
         <option value="">Chọn vai trò</option>{roles.map(r=><option value={r.id} key={r.id}>{r.displayName}</option>)}
       </select></label>
-      <p>Tài khoản mới chỉ được cấp quyền tại cơ sở này.</p>
-      <button type="button" className={styles.primaryButton} disabled={busy||!reviewReady||!!reviewError||!roleId} onClick={()=>void review("approve")}>Duyệt hồ sơ</button>
-      <label>Lý do từ chối<textarea aria-label="Lý do từ chối" value={reason} maxLength={500} disabled={busy||!reviewReady||!!reviewError} onChange={e=>setReason(e.target.value)}/></label>
-      <button type="button" className={styles.secondaryButton} disabled={busy||!reviewReady||!!reviewError||!reason.trim()} onClick={()=>void review("reject")}>Từ chối</button>
+      <p className={styles.registrationPrivacyNote}>Tài khoản mới chỉ được cấp quyền tại cơ sở này.</p>
+      <div className={styles.registrationDecisionActions}><button type="button" className={styles.primaryButton} disabled={busy||!reviewReady||!!reviewError||!roleId} onClick={()=>void review("approve")}>Duyệt hồ sơ</button></div>
+      <label className={styles.field}>Lý do từ chối<textarea rows={3} aria-label="Lý do từ chối" value={reason} maxLength={500} disabled={busy||!reviewReady||!!reviewError} onChange={e=>setReason(e.target.value)}/></label>
+      <div className={styles.registrationDecisionActions}><button type="button" className={styles.secondaryButton} disabled={busy||!reviewReady||!!reviewError||!reason.trim()} onClick={()=>void review("reject")}>Từ chối</button></div>
+      </div>
       {error?<p role="alert">{error}</p>:null}{busy?<p role="status">Đang xử lý…</p>:null}
     </BoDrawer>:null}
   </section>;
