@@ -178,6 +178,8 @@
    display:flex;position:sticky;top:0;
   }
   .stationFrame[data-tos-phone-frame="station"][data-tos-scroll-chrome="hidden"] > :global([data-tos-app-header="station"]) {margin-bottom:0}
+  /* PAP-2010: use the scrollbar-excluding fixed containing block, not 100vw. */
+  .mobileNav :global([data-tos-shared="bottom-nav"]) {width:min(var(--tos-mobile-max),100%)}
   .mobileNav :global([data-tos-shared="bottom-nav"]) button {padding:0 var(--tos-space-1)}
   .mobileNav :global([data-tos-shared="bottom-nav"]) button span {
    white-space:normal;overflow:visible;text-overflow:clip;text-align:center;font-size:var(--tos-text-caption);

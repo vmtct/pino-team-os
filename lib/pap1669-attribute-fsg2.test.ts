@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 import { attributeModule, asRecord, draft, draftRecord, editDraft, validate, type AttributeDefinition } from "./ho-attribute-model";
 import { hoAttributeDefinitions } from "./ho-attribute-definitions-facade";
 import { decideHostBoundary } from "./host-boundary";
+import { formatPinoDateTime } from "./pino-datetime";
 
 const centers=[{id:"019d1000-0001-7000-8000-000000000002",label:"PINO Cần Thơ"}];
 test("G0/PINO DSA exact 14 fields and original shared Drawer renderer",()=>{
@@ -41,7 +42,11 @@ test("View only exposes Core data; never invent audit actor names",()=>{
   createdByUserId:"opaque-actor-1",updatedByUserId:"opaque-actor-1"};
  const row=asRecord(data,centers);
  assert.equal(row.createdByUser,"—");assert.equal(row.updatedByUser,"—");
- assert.match(String(row.createdAt),/09\/11\/2026/);
+ // PAP-2005 / PAP-1665: typed records retain Core instants; the DSA renderer formats once.
+ assert.equal(row.createdAt,data.createdAt);
+ assert.equal(row.updatedAt,data.updatedAt);
+ assert.equal(formatPinoDateTime(row.createdAt),"09/11/2026 · 13:00");
+ assert.equal(formatPinoDateTime(row.updatedAt),"09/11/2026 · 13:00");
  assert.equal(draftRecord(draft(),centers).lifecycleState,"DRAFT");
 });
 test("HO route rejects untrusted host, cross-host POST and unsupported query before Core",async()=>{
@@ -66,4 +71,21 @@ test("PAP-1669 exact host+verb matrix denies BO/TOS/Prod and unrelated HO writes
   for(const method of ["GET","POST"])assert.deepEqual(decideHostBoundary(host,root,method),{action:"not_found"});
  }
  assert.deepEqual(decideHostBoundary(ho,root+"/019d1000-0001-4000-8000-000000000001","GET"),{action:"not_found"});
+});
+
+test("PAP-2005 audit projection preserves distinct instants and PINO datetime fallback",()=>{
+ const data:AttributeDefinition={...draft(),displayName:"QA",attributeKey:"qa_timestamp",
+  id:"019d1000-0001-7000-8000-000000000001",status:"ARCHIVED",revision:8,
+  createdAt:"2026-11-15T16:59:59.000Z",updatedAt:"2026-11-15T17:01:00.000Z",
+  createdByUserId:"opaque-actor-1",updatedByUserId:"opaque-actor-1"};
+ const row=asRecord(data,centers);
+ assert.equal(row.createdAt,data.createdAt);assert.equal(row.updatedAt,data.updatedAt);
+ assert.equal(formatPinoDateTime(row.createdAt),"15/11/2026 · 23:59");
+ assert.equal(formatPinoDateTime(row.updatedAt),"16/11/2026 · 00:01");
+ const missing=draftRecord(draft(),centers);
+ assert.equal(formatPinoDateTime(missing.createdAt),"—");
+ assert.equal(formatPinoDateTime(missing.updatedAt),"—");
+ const malformed=asRecord({...data,createdAt:"15/11/2026 · 23:59",updatedAt:"invalid"},centers);
+ assert.equal(formatPinoDateTime(malformed.createdAt),"—");
+ assert.equal(formatPinoDateTime(malformed.updatedAt),"—");
 });
