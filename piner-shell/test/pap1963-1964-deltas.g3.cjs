@@ -49,7 +49,13 @@ const assert=(condition,why)=>{if(!condition)throw new Error(why)};
    const response=await page.goto(BASE+"/",{waitUntil:"networkidle",timeout:30000});
    assert(response?.status()===200,"launcher unavailable at "+w);
    await page.waitForFunction(()=>[...document.querySelectorAll(".launch-brand img")].every(i=>i.complete&&i.naturalWidth>0),null,{timeout:18000});
-   // CSP on the actual Worker forbids injecting <style>. CSSOM property writes
+   // PAP-1969: capture the previous Live (PAP-1963) font-size under the same
+   // viewport using CSSOM only; preserving the production CSP.
+   const previousAfterschool=await page.evaluate(()=>{
+    const el=document.querySelector(".house .card-copy strong .afterschool-word");
+    el.style.setProperty("font-size","calc(.4244em - 2px)","important");
+    return parseFloat(getComputedStyle(el).fontSize);
+   });   // CSP on the actual Worker forbids injecting <style>. CSSOM property writes
    // from Playwright's debugger context model the PAP-1962 baseline without
    // changing the deployed stylesheet or weakening style-src.
    await page.evaluate(()=>{
@@ -69,7 +75,8 @@ const assert=(condition,why)=>{if(!condition)throw new Error(why)};
     wordmarkWidthRatio:updated.wordmark.w/base.wordmark.w};
    console.log("PAP1963_1964_DELTA "+JSON.stringify(diffs));
    assert(Math.abs(diffs.pinoPx-2)<.05,"PINO not +2px "+JSON.stringify(diffs));
-   assert(Math.abs(diffs.afterPx+2)<.05,"Afterschool not -2px "+JSON.stringify(diffs));
+   assert(Math.abs(diffs.afterPx+1)<.05,"Afterschool should be -1px vs PAP-1962 baseline "+JSON.stringify(diffs));
+   assert(Math.abs(updated.after-previousAfterschool-1)<.05,"PAP-1969 Afterschool not +1px vs previous Live "+JSON.stringify({width:w,previousAfterschool,newFontSize:updated.after}));
    assert(Math.abs(diffs.sigilWidthRatio-1.5)<.005&&Math.abs(diffs.sigilHeightRatio-1.5)<.005,
     "Logo not +50% "+JSON.stringify(diffs));
    assert(Math.abs(diffs.wordmarkWidthRatio-.8)<.005,"Piner APP wordmark not -20% "+JSON.stringify(diffs));
