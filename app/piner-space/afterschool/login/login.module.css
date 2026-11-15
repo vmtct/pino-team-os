@@ -13,6 +13,7 @@
 }
 
 .form input,
+.form select,
 .submit {
   min-height: 44px;
   padding: 0.625rem;

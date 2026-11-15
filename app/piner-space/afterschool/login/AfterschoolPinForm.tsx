@@ -1,11 +1,13 @@
 "use client";
 
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   AfterschoolPinError,
   changeAfterschoolPin,
   loginAfterschool,
+  restoreAfterschoolSession,
 } from "../../../../lib/piner-afterschool-pin-client";
+import AfterschoolStudentPicker from "./AfterschoolStudentPicker";
 import css from "./login.module.css";
 
 function errorMessage(error: unknown) {
@@ -24,12 +26,27 @@ export default function AfterschoolPinForm() {
   const [csrf, setCsrf] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
-  const [complete, setComplete] = useState(false);
+  const [memberCsrf, setMemberCsrf] = useState<string | null>(null);
   const submitting = useRef(false);
+  const [restoring, setRestoring] = useState(true);
+
+  useEffect(() => {
+    let current = true;
+    restoreAfterschoolSession().then(
+      (session) => {
+        if (current) {
+          setMemberCsrf(session.csrfToken);
+          setRestoring(false);
+        }
+      },
+      () => { if (current) setRestoring(false); },
+    );
+    return () => { current = false; };
+  }, []);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (submitting.current || complete) return;
+    if (submitting.current || memberCsrf) return;
     const form = event.currentTarget;
     const fields = new FormData(form);
     const pin = String(fields.get("pin") ?? "");
@@ -56,7 +73,7 @@ export default function AfterschoolPinForm() {
         setCsrf(session.csrfToken);
       } else {
         setCsrf(null);
-        setComplete(true);
+        setMemberCsrf(session.csrfToken);
       }
     } catch (error) {
       form.reset();
@@ -68,11 +85,10 @@ export default function AfterschoolPinForm() {
     }
   }
 
-  if (complete) {
-    return <section className={css.card}>
-      <h1>PINO Afterschool</h1>
-      <p role="status">Đã xác thực PIN.</p>
-    </section>;
+  if (restoring) return <p role="status" className={css.card}>Đang kiểm tra phiên đăng nhập…</p>;
+
+  if (memberCsrf) {
+    return <AfterschoolStudentPicker csrfToken={memberCsrf} onSignedOut={() => setMemberCsrf(null)} />;
   }
 
   return <section className={css.card}>
