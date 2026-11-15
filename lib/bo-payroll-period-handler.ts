@@ -41,6 +41,9 @@ export async function handleBoPayrollPeriodRequest(request:Request,env:BoPayroll
   if(ADJUSTMENTS.test(path))return handlePAP1211Adjustment(request,env,path,resolver);
   const query=new URL(request.url).searchParams,centerId=query.get("centerId");
   if(!centerId||!CENTER.test(centerId))return response({error:{code:"PLATFORM_INVALID_INPUT",message:"Center required"}},400);
+  // PAP-1998: collection/detail accept one explicit Center, never first-value ambiguity.
+  if((path===ROOT||PERIOD.test(path))&&query.getAll("centerId").length!==1)
+   return response({error:{code:"PLATFORM_INVALID_INPUT",message:"Ambiguous Center"}},400);
   const method=request.method.toUpperCase();
   const read=method==="GET"&&(path===ROOT||PERIOD.test(path)||ROLLUP.test(path)||SETTLEMENTS.test(path)||PREVIEW.test(path)||HISTORY.test(path));
   const write=(method==="POST"&&(path===ROOT||FINALIZE.test(path)||PAID.test(path)||CANCEL.test(path)))
