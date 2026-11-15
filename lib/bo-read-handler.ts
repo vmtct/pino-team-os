@@ -132,7 +132,7 @@ export function isOpenStudioReadPath(path: string): boolean {
 }
 
 export function isStaffRegistrationProtectedReadPath(path: string): boolean {
-  return path === "workforce/staff-registration-settings" || path === "workforce/staff-registration-requests";
+  return path === "workforce/staff-registration-settings" || path === "workforce/staff-registration-requests" || path === "workforce/staff-registration-eligible-roles";
 }
 
 export function isStaffCompensationPath(path: string): boolean {
@@ -199,6 +199,7 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "workforce/timekeeping/centers"
     || path === "workforce/staff-registration-settings"
     || path === "workforce/staff-registration-requests"
+    || path === "workforce/staff-registration-eligible-roles"
     || TV_SPATIAL_CONFIG_READ.has(path) || TV_DIALOGUE_CONFIG_READ.has(path)
     || path === "pinoria/avatars"
     || path === "pinoria/effects/catalog"
@@ -374,6 +375,13 @@ export function readCorePath(path: string, url: URL): string {
 }
 
 export function readQueryResource(path: string, url: URL): BoAccessRequest["resource"] | undefined {
+  if (path === "workforce/staff-registration-requests" || path === "workforce/staff-registration-eligible-roles") {
+    const params=url.searchParams;
+    if (!params.size && path==="workforce/staff-registration-requests") return undefined; // Founder-only legacy in Core.
+    const ids=params.getAll("centerId");
+    if(params.size!==1 || ids.length!==1 || !S3_UUID.test(ids[0]!)) throw new RangeError("Exactly one selected Center is required");
+    return {centerId:ids[0]!};
+  }
   if (path === "classroom/day-headcounts") {
     // PAP-1939: this scope is a selector only; Core independently reauthorizes.
     const body = readQueryBody(path, url);
