@@ -27,8 +27,8 @@ test("PAP-1906 only actual Founder facade POST, exact forwarding, no-store and C
  const calls:unknown[]=[];
  const env=(status=200,founder=true)=>({
  APP_ENV:"staging",HO_PILOT_FOUNDER_USER_IDS:"founder",
- PINO_BO_CORE:{async executeWithStaffPassword(req:{path:string}){return req.path==="context"?{status:200,body:{data:{userId:founder?"founder":"manager",email:"fixture@invalid.local",surface:"BO",entitled:true,permissionKeys:["team.bo.access"]}}}:{status:founder?200:403,body:{data:{admitted:founder}}};}},
- PINO_CORE:{async executeWithStaffPassword(req:{method:string;path:string;body?:unknown}){calls.push({method:req.method,path:req.path,body:req.body});return {status,body:status===200?{data:{id,revision:2,status:"ACTIVE"}}:{error:{code:"ATTRIBUTE_LIFECYCLE_CONFLICT"}}};}}
+ PINO_BO_CORE:{async executeWithStaffPassword(req:{path:string}){return req.path==="context"?{status:200,requestId:"mock-bo",body:{data:{userId:founder?"founder":"manager",email:"fixture@invalid.local",surface:"BO",entitled:true,permissionKeys:["team.bo.access"]}}}:{status:founder?200:403,requestId:"mock-admission",body:{data:{admitted:founder}}};}},
+ PINO_CORE:{async executeWithStaffPassword(req:{method:string;path:string;body?:unknown}){calls.push({method:req.method,path:req.path,body:req.body});return {status,requestId:"mock-lifecycle",body:status===200?{data:{id,revision:2,status:"ACTIVE"}}:{error:{code:"ATTRIBUTE_LIFECYCLE_CONFLICT"}}};}}
  }) as Parameters<typeof hoAttributeDefinitions>[1];
  const make=(body:unknown=payload,method="POST",origin="https://"+host,path=route)=>new Request("https://"+host+path,{method,headers:{host,origin,cookie:"pino_staff_password_session=synthetic","content-type":"application/json"},...(method==="GET"?{}:{body:JSON.stringify(body)})});
  const ok=await hoAttributeDefinitions(make(),env());
