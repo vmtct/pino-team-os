@@ -81,6 +81,7 @@ export function PinerUnified({tab,space="house"}:{tab:UnifiedTab;space?:PinerSpa
  const [sharedPreviewId,setSharedPreviewId]=useState<string|null>(null);
  const [status,setStatus]=useState("");
  const [chromeCollapsed,setChromeCollapsed]=useState(false);
+ const [bottomPastThreshold,setBottomPastThreshold]=useState(false);
  const contentRef=useRef<HTMLElement|null>(null);
  const focusReturn=useRef<HTMLElement|null>(null);
  const previewReturn=useRef<HTMLElement|null>(null);
@@ -91,10 +92,13 @@ export function PinerUnified({tab,space="house"}:{tab:UnifiedTab;space?:PinerSpa
   const viewport=contentRef.current;
   if(!viewport)return;
   setChromeCollapsed(false);
+  setBottomPastThreshold(false);
   let lastY=viewport.scrollTop,travel=0,lockedUntil=0;
   const onScroll=()=>{
    const y=viewport.scrollTop;
    const delta=y-lastY;lastY=y;
+   // PAP-2035: leave header direction unchanged; the island stays full through 80px.
+   if(delta!==0)setBottomPastThreshold(y>80);
    if(y<=8){travel=0;lockedUntil=0;setChromeCollapsed(false);return;}
    if(performance.now()<lockedUntil||Math.abs(delta)<.75)return;
    if(Math.sign(travel)!==Math.sign(delta))travel=0;
@@ -211,7 +215,7 @@ export function PinerUnified({tab,space="house"}:{tab:UnifiedTab;space?:PinerSpa
            <div className={css.emptyMedia}><strong>Chưa có bài đăng</strong><p>Hành trình sáng tạo sẽ xuất hiện tại đây.</p></div>}
        </div>
      </main>
-                       <Footer tab={tab} space={space} collapsed={chromeCollapsed} onExpand={()=>setChromeCollapsed(false)}/>
+                       <Footer tab={tab} space={space} collapsed={chromeCollapsed&&bottomPastThreshold} onExpand={()=>setChromeCollapsed(false)}/>
      {preview&&(preview.type==="reel"
        ?<ReelViewer post={all.find(p=>p.id===preview.id)??preview} onClose={closePreview}/>
        :<PreviewDialog post={all.find(p=>p.id===preview.id)??preview} onClose={closePreview}
