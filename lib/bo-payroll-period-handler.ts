@@ -11,6 +11,8 @@ export interface BoPayrollPeriodEnv extends TeamAccessEnv {
 const UUID="[0-9a-f-]{36}";
 const ROOT="workforce/payroll/periods";
 const PERIOD=new RegExp("^"+ROOT+"/("+UUID+")$");
+const CANCEL=new RegExp("^"+ROOT+"/([0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})/cancel$");
+const HISTORY=new RegExp("^"+ROOT+"/([0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})/history$");
 const ROLLUP=new RegExp("^"+ROOT+"/("+UUID+")/staff-rollup$");
 const SETTLEMENTS=new RegExp("^"+ROOT+"/("+UUID+")/settlements$");
 const PREVIEW=new RegExp("^"+ROOT+"/("+UUID+")/staff/("+UUID+")/preview$");
@@ -27,7 +29,7 @@ const KEY=/^[A-Za-z0-9._:-]{8,160}$/;
 const DATE=/^\d{4}-\d{2}-\d{2}$/;
 export function isBoPayrollPeriodPath(path:string):boolean{
  return path===ROOT||PERIOD.test(path)||ROLLUP.test(path)||SETTLEMENTS.test(path)
-   ||PREVIEW.test(path)||FINALIZE.test(path)||PAID.test(path)||ADJUSTMENTS.test(path);
+   ||PREVIEW.test(path)||FINALIZE.test(path)||PAID.test(path)||ADJUSTMENTS.test(path)||CANCEL.test(path)||HISTORY.test(path);
 }
 function response(body:unknown,status:number,headers:HeadersInit={}):Response{
  return Response.json(body,{status,headers:{"cache-control":"no-store",...headers}});
@@ -40,8 +42,8 @@ export async function handleBoPayrollPeriodRequest(request:Request,env:BoPayroll
   const query=new URL(request.url).searchParams,centerId=query.get("centerId");
   if(!centerId||!CENTER.test(centerId))return response({error:{code:"PLATFORM_INVALID_INPUT",message:"Center required"}},400);
   const method=request.method.toUpperCase();
-  const read=method==="GET"&&(path===ROOT||PERIOD.test(path)||ROLLUP.test(path)||SETTLEMENTS.test(path)||PREVIEW.test(path));
-  const write=(method==="POST"&&(path===ROOT||FINALIZE.test(path)||PAID.test(path)))
+  const read=method==="GET"&&(path===ROOT||PERIOD.test(path)||ROLLUP.test(path)||SETTLEMENTS.test(path)||PREVIEW.test(path)||HISTORY.test(path));
+  const write=(method==="POST"&&(path===ROOT||FINALIZE.test(path)||PAID.test(path)||CANCEL.test(path)))
     ||(method==="PATCH"&&PERIOD.test(path));
   if(!read&&!write)return response({error:{code:"PLATFORM_METHOD_NOT_ALLOWED"}},405);
   let body:Record<string,unknown>|undefined;
@@ -52,12 +54,16 @@ export async function handleBoPayrollPeriodRequest(request:Request,env:BoPayroll
    body=raw as Record<string,unknown>;
    if(body.centerId!==centerId)return response({error:{code:"PLATFORM_INVALID_INPUT",message:"Center mismatch"}},400);
    if((path===ROOT||PERIOD.test(path))&&
-     (typeof body.name!=="string"||!body.name.trim()||
+     ((body.name!==undefined&&(typeof body.name!=="string"||!body.name.trim()))||
       typeof body.startDate!=="string"||!DATE.test(body.startDate)||
       typeof body.endDate!=="string"||!DATE.test(body.endDate)||body.startDate>body.endDate))
       return response({error:{code:"PLATFORM_INVALID_INPUT",message:"Invalid pay period"}},400);
    if(method==="PATCH"&&(!Number.isSafeInteger(body.expectedVersion)||Number(body.expectedVersion)<1))
       return response({error:{code:"PLATFORM_INVALID_INPUT",message:"Version required"}},400);
+   if(CANCEL.test(path)&&(query.getAll("centerId").length!==1||[...query.keys()].some(k=>k!=="centerId")||
+     Object.keys(body).some(k=>k!=="centerId"&&k!=="expectedVersion")||
+     !Number.isSafeInteger(body.expectedVersion)||Number(body.expectedVersion)<1))
+    return response({error:{code:"PLATFORM_INVALID_INPUT",message:"Invalid cancellation request"}},400);
    if(FINALIZE.test(path)&&
       (typeof body.expectedFingerprint!=="string"||!/^[0-9a-f]{64}$/.test(body.expectedFingerprint)||
        !Array.isArray(body.acknowledgedWarnings)||body.acknowledgedWarnings.some(x=>typeof x!=="string")))
@@ -67,10 +73,13 @@ export async function handleBoPayrollPeriodRequest(request:Request,env:BoPayroll
        typeof body.paymentReference!=="string"||!body.paymentReference.trim()))
       return response({error:{code:"PLATFORM_INVALID_INPUT",message:"Payment reference required"}},400);
   }
+  if(HISTORY.test(path)&&(query.getAll("centerId").length!==1||[...query.keys()].some(k=>!["centerId","limit","offset"].includes(k))||
+    query.getAll("limit").length>1||query.getAll("offset").length>1))
+   return response({error:{code:"PLATFORM_INVALID_INPUT",message:"Invalid history scope"}},400);
   for(const field of ["limit","offset"]){
    const value=query.get(field);
    if(value!==null&&(!/^(0|[1-9][0-9]*)$/.test(value)||Number(value)>10000||
-      (field==="limit"&&(Number(value)<1||Number(value)>(ROLLUP.test(path)?50:100)))))
+      (field==="limit"&&(Number(value)<1||Number(value)>((ROLLUP.test(path)||HISTORY.test(path))?50:100)))))
     return response({error:{code:"PLATFORM_INVALID_INPUT",message:"Pagination invalid"}},400);
   }
   const key=request.headers.get("idempotency-key")??"";

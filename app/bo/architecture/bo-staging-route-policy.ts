@@ -11,6 +11,7 @@ export const boStagingAdmittedRoutes = new Set([
   "/bo/payroll-daily",
   "/bo/payroll-exceptions",
   "/bo/pinoria-avatars",
+  "/bo/afterschool-accounts",
   "/bo/open-studio-passes",
   "/bo/classroom-diaries",
   "/bo/opening-evidence",
