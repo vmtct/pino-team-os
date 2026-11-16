@@ -26,3 +26,43 @@ test("PAP-1952 denial and R2 public asset caching preserve original semantics",a
  assert.doesNotMatch(asset.headers.get("Cache-Control"),/no-transform/);
  assert.equal(asset.headers.get("X-Piner-Environment"),"staging");
 });
+
+test("PAP-2042 preserves the same-origin PIN request and response", async () => {
+ const request = new Request("https://app.staging.pinohouse.art/api/piner/afterschool/pin/change", {
+  method: "POST",
+  headers: { origin: "https://app.staging.pinohouse.art", "sec-fetch-site": "same-origin", "x-pino-csrf": "fixture" },
+  body: "{}"
+ });
+ const response = await staging.fetch(request, { AFTERSCHOOL_PIN_WORKER: {
+  async fetch(received) {
+   assert.equal(received, request);
+   assert.equal(await received.text(), "{}");
+   return new Response("{}", { headers: {
+    "set-cookie": "__Host-PINO_AFTERSCHOOL=fixture; Secure; HttpOnly; Path=/",
+    "cache-control": "no-store"
+   } });
+  }
+ } });
+ assert.equal(response.status, 200);
+ assert.match(response.headers.get("set-cookie"), /^__Host-PINO_AFTERSCHOOL=fixture/);
+ assert.match(response.headers.get("cache-control"), /no-store/);
+});
+
+test("PAP-2042 admits only the five method and path pairs", async () => {
+ const paths = [
+  ["/pin/login", "POST"], ["/pin/change", "POST"],
+  ["/session", "GET"], ["/students", "GET"], ["/logout", "POST"]
+ ];
+ const prefix = "/api/piner/afterschool";
+ const service = { AFTERSCHOOL_PIN_WORKER: { fetch: async () => new Response(null, { status: 204 }) } };
+ for (const [path, method] of paths) {
+  assert.equal((await staging.fetch(req(prefix + path, method), service)).status, 204);
+  const denied = await staging.fetch(req(prefix + path, method === "GET" ? "POST" : "GET"), service);
+  assert.equal(denied.status, 405);
+  assert.equal(denied.headers.get("allow"), method);
+ }
+ assert.equal((await staging.fetch(req(prefix + "/other"), service)).status, 404);
+ const unavailable = await staging.fetch(req(prefix + "/session"));
+ assert.equal(unavailable.status, 503);
+ assert.match(unavailable.headers.get("cache-control"), /no-store/);
+});
