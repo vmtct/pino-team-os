@@ -6,6 +6,10 @@ import "@pino/design-system/components.css";
 import { useContext, useEffect, useState } from "react";
 import { BoApplicationShellContext } from "@/app/bo/shell/BoApplicationShellContext";
 import { BoDataTable } from "@/app/bo/components/registration/BoDataTable";
+import { useBoStagingUser } from "@/app/bo/components/registration/BoRuntimeBoundary";
+import { AfterschoolPinDrawer } from "./AfterschoolPinDrawer";
+import { DetailFrame } from "@/app/components/workspace-renderer/DetailFrame";
+import { PropertySections } from "@/app/components/workspace-renderer/Properties";
 import { BoQuickView } from "@/app/bo/components/registration/BoQuickView";
 import { BoTableSettings, type BoSavedView } from "@/app/bo/components/registration/BoTableSettings";
 import { useBoCenterSelection } from "@/app/bo/components/registration/BoCenterSelection";
@@ -49,6 +53,40 @@ function accountRecord(item: Record<string, unknown>): BoRecord {
   };
 }
 
+async function readAccountPage(centerId: string, cursor?: string, signal?: AbortSignal) {
+  const query = new URLSearchParams({ centerId, limit: "50" });
+  if (cursor) query.set("afterParentId", cursor);
+  const response = await fetch("/api/bo/identity/afterschool-users?" + query, {
+    credentials: "same-origin", redirect: "error", cache: "no-store", ...(signal ? { signal } : {}),
+  });
+  if (!response.ok) {
+    throw new Error(response.status === 403 ? "Bạn không có quyền xem tài khoản tại cơ sở này." : "Không thể tải tài khoản.");
+  }
+  const { data } = await response.json() as { data?: {
+    scopeCenterId?: unknown; items?: Record<string, unknown>[]; nextParentId?: unknown;
+  } };
+  if (data?.scopeCenterId !== centerId || !Array.isArray(data.items) ||
+      (data.nextParentId !== null && (typeof data.nextParentId !== "string" ||
+        !idPattern.test(data.nextParentId) || (cursor !== undefined && data.nextParentId <= cursor)))) {
+    throw new Error("Không thể xác minh cơ sở hoặc trang dữ liệu.");
+  }
+  return { rows: data.items.map(accountRecord), next: data.nextParentId as string | null };
+}
+
+async function locateAccount(centerId: string, parentId: string) {
+  let cursor: string | undefined;
+  for (let page = 0; page < 100; page++) {
+    const { rows, next } = await readAccountPage(centerId, cursor);
+    const existing = rows.find((row) => row.id === parentId);
+    if (existing) return existing;
+    if (!next || next >= parentId) return null;
+    cursor = next;
+  }
+  return null;
+}
+
+const overview = [{ id: "account", label: "Thông tin tài khoản", fields: directory.fields.map((field) => field.key) }];
+
 export function AfterschoolAccounts() {
   const selection = useBoCenterSelection();
   if (selection?.error) return <p role="alert">{selection.error}</p>;
@@ -60,6 +98,8 @@ export function AfterschoolAccounts() {
 const initial = () => ({ ...defaultTable(directory.fields), pageSize: 15 });
 function ScopedAccounts({ centerId }: { centerId: string }) {
   const menu = useContext(BoApplicationShellContext);
+  const stagingUser = useBoStagingUser();
+  const [pinDrawer, setPinDrawer] = useState<{ parent: { id: string; name: string } | null } | null>(null);
   const [cursor, setCursor] = useState<string>();
   const [retry, setRetry] = useState(0);
   const [result, setResult] = useState<{ cursor?: string; rows: BoRecord[]; next: string | null }>();
@@ -67,6 +107,7 @@ function ScopedAccounts({ centerId }: { centerId: string }) {
   const [table, setTable] = useState<BoTableState>(initial);
   const [page, setPage] = useState(1);
   const [drawer, setDrawer] = useState<BoRecord | null>(null);
+  const [detail, setDetail] = useState<BoRecord | null>(null);
   const [settings, setSettings] = useState<string | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
   const [views, setViews] = useState<BoSavedView[]>([]);
@@ -74,26 +115,10 @@ function ScopedAccounts({ centerId }: { centerId: string }) {
 
   useEffect(() => {
     const controller = new AbortController();
-    const query = new URLSearchParams({ centerId, limit: "50" });
-    if (cursor) query.set("afterParentId", cursor);
     async function read() {
-      const response = await fetch("/api/bo/identity/afterschool-users?" + query, {
-        credentials: "same-origin", cache: "no-store", signal: controller.signal,
-      });
-      if (!response.ok) {
-        throw new Error(response.status === 403 ? "Bạn không có quyền xem tài khoản tại cơ sở này." : "Không thể tải tài khoản.");
-      }
-      const { data } = await response.json() as { data?: {
-        scopeCenterId?: unknown; items?: Record<string, unknown>[]; nextParentId?: unknown;
-      } };
-      if (data?.scopeCenterId !== centerId || !Array.isArray(data.items) ||
-          (data.nextParentId !== null && (typeof data.nextParentId !== "string" ||
-            !idPattern.test(data.nextParentId) || (cursor !== undefined && data.nextParentId <= cursor)))) {
-        throw new Error("Không thể xác minh cơ sở hoặc trang dữ liệu.");
-      }
-      const rows = data.items.map(accountRecord);
+      const { rows, next } = await readAccountPage(centerId, cursor, controller.signal);
       if (!controller.signal.aborted) {
-        setResult(previous => ({ cursor, rows: cursor ? [...(previous?.rows ?? []), ...rows] : rows, next: data.nextParentId as string | null }));
+        setResult(previous => ({ cursor, rows: cursor ? [...(previous?.rows ?? []), ...rows] : rows, next }));
       }
     }
     void read().catch((cause: unknown) => {
@@ -114,8 +139,39 @@ function ScopedAccounts({ centerId }: { centerId: string }) {
     setPage(1);
     setActiveView(view?.id ?? null);
   };
+  const actionsEnabled = Boolean(stagingUser && result && !error);
+  const pinActionDrawer = pinDrawer && <AfterschoolPinDrawer centerId={centerId} parent={pinDrawer.parent}
+    onClose={() => setPinDrawer(null)}
+    onChanged={() => {
+      setCursor(undefined); setRetry((value) => value + 1);
+      if (detail) {
+        void locateAccount(centerId, detail.id).then((fresh) => {
+          setDetail((shown) => shown?.id === detail.id ? fresh : shown);
+        }).catch(() => {
+          setDetail((shown) => shown?.id === detail.id ? null : shown);
+        });
+      }
+    }}
+    onExisting={async (id) => {
+      const existing = rows.find((row) => row.id === id) ?? await locateAccount(centerId, id);
+      if (!existing) return false;
+      setDrawer(null); setDetail(existing); setPinDrawer(null);
+      return true;
+    }} />;
+
+  if (detail) return <DetailFrame title={detail.name} mobileMenu={menu?.("detail-menu-btn")}
+    onBack={() => setDetail(null)} tabs={[{ id: "overview", label: "Tổng quan" }]} selected="overview"
+    actions={actionsEnabled && <button type="button" className="secondary-btn"
+      onClick={() => setPinDrawer({ parent: { id: detail.id, name: detail.name } })}>Cấp lại PIN</button>}
+    after={pinActionDrawer}>
+    <PropertySections variant="detail" fields={directory.fields} record={detail} sections={overview} />
+  </DetailFrame>;
+
   return <section id="list-screen" aria-label="Tài khoản" data-bo-afterschool-directory="PAP-1886">
-    <div className="page-heading"><div className="page-heading-left">{menu?.("menu-btn")}<h1>Tài khoản</h1></div></div>
+    <div className="page-heading"><div className="page-heading-left">{menu?.("menu-btn")}<h1>Tài khoản</h1></div>
+      <div className="heading-actions">{actionsEnabled && <button type="button" className="primary-btn"
+        onClick={() => setPinDrawer({ parent: null })}>Tạo tài khoản</button>}</div>
+    </div>
     {error && <p role="alert">{error} <button type="button" className="ghost-btn"
       onClick={() => { setError(""); setRetry(value => value + 1); }}>Thử lại</button></p>}
     <BoDataTable module={directory} rows={rows} loadState={loading ? "loading" : error ? "error" : "ready"}
@@ -126,7 +182,9 @@ function ScopedAccounts({ centerId }: { centerId: string }) {
       reset={() => applyView(null)} undo={() => {}} canUndo={false}
       builtInViews={result?.next && <button type="button" className="ghost-btn" disabled={loading || Boolean(error)}
         onClick={() => setCursor(result.next!)}>Tải thêm tài khoản</button>} />
-    {drawer && <BoQuickView module={directory} record={drawer} onClose={() => setDrawer(null)} hideDetailAction />}
+    {drawer && !pinDrawer && <BoQuickView module={directory} record={drawer}
+      onClose={() => setDrawer(null)} onDetail={() => { setDetail(drawer); setDrawer(null); }} />}
+    {pinActionDrawer}
     {settings && <BoTableSettings screen={settings} setScreen={setSettings}
       onClose={() => setSettings(null)} fields={directory.fields} rows={rows}
       value={table} update={update} views={views} setViews={setViews} applyView={applyView} />}
