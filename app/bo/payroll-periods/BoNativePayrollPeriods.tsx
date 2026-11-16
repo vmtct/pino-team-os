@@ -6,7 +6,6 @@ import {useEffect,useState,useRef} from "react";
 import {useSearchParams} from "next/navigation";
 import {BoDataGrid,BoDataGridBadge,type BoDataGridColumn} from "@/app/bo/components/data-grid";
 import {BoFullDetail} from "@/app/bo/components/BoFullDetail";
-import styles from "./PayrollVisual.module.css";
 import {DrawerFrame} from "@/app/components/workspace-renderer/DrawerFrame";
 import {PeriodProperties,CreatePeriod,periodFields,periodRecord} from "./PeriodProperties";
 import {useBoCenterSelection} from "@/app/bo/components/registration/BoCenterSelection";
@@ -138,9 +137,9 @@ function Settlements({centerId,id,initial}:{centerId:string;id:string;initial:Pe
   }catch(e){setError(errorText(e));}finally{setBusy(false);}
  }
  return <>
-  <div className="payroll-ro-kpis" role="group" aria-label="Tổng lương kỳ">
-   <div className="payroll-ro-kpi"><span>Tổng Dự Kiến</span><strong data-pay-total-expected>{money(totals.expected)}</strong></div>
-   <div className={"payroll-ro-kpi "+styles.finalizedKpi}><span>Tổng Quyết Toán</span><strong data-pay-total-finalized>{money(totals.finalized)}</strong></div>
+  <div className="pay-kpi-grid" role="group" aria-label="Tổng lương kỳ">
+   <div className="pay-kpi"><span>Tổng Dự Kiến</span><strong data-pay-total-expected>{money(totals.expected)}</strong></div>
+   <div className="pay-kpi"><span>Tổng Quyết Toán</span><strong data-pay-total-finalized>{money(totals.finalized)}</strong></div>
   </div>
   {page.periodTotals.hasPending||page.periodTotals.hasUnavailable?<p role="status">Tổng dự kiến chỉ gồm khoản đã đủ dữ liệu; còn khoản chưa xác định.</p>:null}
   <section aria-label="Quyết toán theo PTE">
@@ -150,7 +149,7 @@ function Settlements({centerId,id,initial}:{centerId:string;id:string;initial:Pe
     {key:"staff",header:"PTE",minWidth:190,render:r=><><strong>{payrollVerifiedName(r.staffName)}</strong><div className="id-code">{r.staffMemberId}</div></>},
     {key:"amount",header:"Thành tiền",minWidth:150,render:r=><strong className="payroll-ro-amount">{money(r.amountMinor)}</strong>},
     {key:"status",header:"Trạng thái",minWidth:140,render:r=><BoPill {...settlementStatus(r.status)}/>},
-    {key:"income",header:"Thao tác",minWidth:130,render:r=><Link className={"secondary-btn "+styles.incomeAction} href={ROOT+"?"+new URLSearchParams({centerId,record:id,incomeStaff:r.staffMemberId})}>Xem thu nhập</Link>},
+    {key:"income",header:"Thao tác",minWidth:130,render:r=><Link className="secondary-btn" href={ROOT+"?"+new URLSearchParams({centerId,record:id,incomeStaff:r.staffMemberId})}>Xem thu nhập</Link>},
    ]}
    emptyTitle="Chưa có giờ công" emptyMessage="Không có bản ghi đủ điều kiện trong trang hiện tại."/>
   {page.nextOffset!==null?<button type="button" disabled={busy} onClick={()=>void more()}>Tải thêm PTE</button>:null}

@@ -27,7 +27,9 @@ test("PAP-2012 native period and both income details opt in, with scoped settlem
  const income=readFileSync("app/bo/payroll-periods/PayrollIncomeDetail.tsx","utf8");
  assert.equal((period.match(/designVariant="business-v25"/g)||[]).length,1);
  assert.equal((income.match(/designVariant="business-v25"/g)||[]).length,2);
- assert.match(period,/styles.finalizedKpi/); assert.match(period,/styles.incomeAction/);
- const css=readFileSync("app/bo/payroll-periods/PayrollVisual.module.css","utf8");
- assert.match(css,/--bo-color-accent-soft/); assert.match(css,/min-height: 36px/);
+ assert.match(period,/className="pay-kpi-grid"/);
+ assert.equal((period.match(/className="pay-kpi"/g)||[]).length,2);
+ assert.match(period,/className="secondary-btn"/);
+ const css=readFileSync("public/bo-authority-source/styles.css","utf8");
+ assert.ok(css.includes(".pay-kpi:nth-child(2){border-color:var(--bo-color-focus);background:var(--bo-color-accent-soft)}"));
 });
