@@ -99,7 +99,7 @@ function PeriodDetail({centerId,centerName,id,tab}:{centerId:string;centerName:s
  if(error)return <p role="alert">{error}</p>;
  if(!data||data.refresh!==refresh)return <p role="status">Đang tải kỳ lương…</p>;
  const {row,rollup}=data;
- return <BoFullDetail designVariant="business-v25" title={row.name} currentUrl={detailUrl(centerId,id)} returnTo={tableUrl(centerId)} activeTab={tab}
+ return <BoFullDetail designVariant="business-v25" title={row.name} description={"Kỳ lương · "+centerName} currentUrl={detailUrl(centerId,id)} returnTo={tableUrl(centerId)} activeTab={tab}
   tabs={[
    {id:"overview",label:"Tổng quan",content:<PeriodProperties key={row.id+":"+row.version} row={row} variant="detail" onSaved={()=>setRefresh(r=>r+1)}/>},
    {id:"settlements",label:"Quyết Toán",content:<Settlements key={id} centerId={centerId} id={id} initial={rollup}/>},
@@ -143,13 +143,13 @@ function Settlements({centerId,id,initial}:{centerId:string;id:string;initial:Pe
   </div>
   {page.periodTotals.hasPending||page.periodTotals.hasUnavailable?<p role="status">Tổng dự kiến chỉ gồm khoản đã đủ dữ liệu; còn khoản chưa xác định.</p>:null}
   <section aria-label="Quyết toán theo PTE">
-  <div className="property-section"><h3>Quyết toán theo PTE</h3>{typeof fullCount==="number"?<span>{fullCount} PTE có ghi nhận giờ công hoặc đã chốt</span>:null}</div>
+  <div className="property-section pay-section-heading"><h3>Quyết toán theo PTE</h3>{typeof fullCount==="number"?<span>{fullCount} PTE có ghi nhận giờ công hoặc đã chốt</span>:null}</div>
   <BoDataGrid showToolbar={false} rows={visible} rowKey={r=>r.staffMemberId} caption="Quyết toán theo PTE"
    columns={[
     {key:"staff",header:"PTE",minWidth:190,render:r=><><strong>{payrollVerifiedName(r.staffName)}</strong><div className="id-code">{r.staffMemberId}</div></>},
     {key:"amount",header:"Thành tiền",minWidth:150,render:r=><strong className="payroll-ro-amount">{money(r.amountMinor)}</strong>},
     {key:"status",header:"Trạng thái",minWidth:140,render:r=><BoPill {...settlementStatus(r.status)}/>},
-    {key:"income",header:"Thao tác",minWidth:130,render:r=><Link className="secondary-btn" href={ROOT+"?"+new URLSearchParams({centerId,record:id,incomeStaff:r.staffMemberId})}>Xem thu nhập</Link>},
+    {key:"income",header:"Thao tác",minWidth:130,align:"right",render:r=><div className="pay-settlement-actions"><Link className="secondary-btn" href={ROOT+"?"+new URLSearchParams({centerId,record:id,incomeStaff:r.staffMemberId})}>Xem thu nhập</Link></div>},
    ]}
    emptyTitle="Chưa có giờ công" emptyMessage="Không có bản ghi đủ điều kiện trong trang hiện tại."/>
   {page.nextOffset!==null?<button type="button" disabled={busy} onClick={()=>void more()}>Tải thêm PTE</button>:null}

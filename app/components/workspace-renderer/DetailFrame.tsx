@@ -5,7 +5,7 @@ import { nextTabIndex, returnToTable } from "./navigation";
 
 export type DetailTab = { readonly id: string; readonly label: string; readonly href?: string };
 /** Only compatibility adapters may select the pre-existing Factory CSS profile. */
-export type LegacyDetailProfile = { readonly root?: string; readonly breadcrumb?: string; readonly cover?: string; readonly hero?: string; readonly tabs?: string; readonly body?: string; readonly panel?: string; readonly panelTitle?: string; readonly version?: "v25" };
+export type LegacyDetailProfile = { readonly root?: string; readonly breadcrumb?: string; readonly cover?: string; readonly hero?: string; readonly tabs?: string; readonly body?: string; readonly panel?: string; readonly panelTitle?: string; readonly version?: "v25"; readonly heroBack?: boolean };
 export type DetailFrameProps = {
   readonly title: string; readonly subtitle?: string; readonly mobileMenu?: ReactNode;
   readonly tabs?: readonly DetailTab[]; readonly selected?: string; readonly onSelect?: (id: string) => void;
@@ -22,10 +22,10 @@ export function DetailFrame({ title, subtitle, mobileMenu, tabs = [], selected, 
   const Hero = p ? "header" : "div";
   const identity = <><h1 id={p ? undefined : "detail-title"}>{title}</h1>{subtitle ? <p id={p ? undefined : "detail-subtitle"}>{subtitle}</p> : null}</>;
   return <section id={p ? undefined : "detail-screen"} aria-label={title} className={p ? `bo-full-detail ${p.root ?? ""}` : undefined} data-bo-detail-version={p?.version} data-tdd-shell="detail">
-    {p && backHref ? <nav className={p.breadcrumb} aria-label="Điều hướng chi tiết"><Link href={backHref}>← Về bảng</Link></nav> : null}
+    {p && backHref && !p.heroBack ? <nav className={p.breadcrumb} aria-label="Điều hướng chi tiết"><Link href={backHref}>← Về bảng</Link></nav> : null}
     <div className={p ? p.cover : "detail-cover"}>
       <Hero className={p ? p.hero : "detail-hero"}>
-        {p ? <div>{identity}</div> : <div className="detail-hero-primary">
+        {p ? (p.heroBack && backHref ? <div className="detail-hero-primary"><Link className="detail-hero-back" href={backHref} aria-label="Quay lại bảng" title="Quay lại bảng">←</Link><div className="detail-hero-copy">{identity}</div></div> : <div>{identity}</div>) : <div className="detail-hero-primary">
           {mobileMenu}
           {!p ? <button type="button" id="back-to-list" className="detail-hero-back" title="Quay lại bảng" aria-label="Quay lại bảng" onClick={() => { onBack?.(); if (returnFocus) requestAnimationFrame(() => returnToTable(() => {}, returnFocus())); }}>←</button> : null}
           <div className="detail-hero-copy">{identity}</div>
