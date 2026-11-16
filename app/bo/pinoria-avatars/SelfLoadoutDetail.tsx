@@ -104,7 +104,21 @@ export function SelfLoadoutDetail({row,centerId,activeTab,canView,canManage,canV
         throw Error(response.status===409?"Loadout đã thay đổi. Bản nháp và lý do được giữ lại. Sao chép nội dung cần giữ trước khi chọn bỏ bản nháp và tải lại.":response.status===403?"Không có quyền sửa Loadout tại cơ sở này. Bản nháp được giữ lại; hãy kiểm tra quyền trước khi thử lại.":"Không lưu được trang bị ("+response.status+"). Bản nháp được giữ lại; hãy thử lại hoặc tải lại trạng thái đã lưu.");
       }
       const next=parseLoadout(await response.json(),selfId);
-      setLoadout(next);setChosen(slotIds(next));setReason("");setNotice("Đã lưu Loadout phiên bản "+next.version+".");onSaved();
+      // PAP-2066: the combined readiness belongs to the Set projection, not the personal slots.
+      // A confirmed POST must not become a failed save just because its follow-up GET fails.
+      setSelfSet(null);setActiveSetError("");setActiveSetConflict(false);
+      setSelectedSetId("");setSelectedStarterId("");setConfirmStarter(false);
+      setLoadout(next);setChosen(slotIds(next));setReason("");
+      try {
+        const read=await fetch("/api/bo/pinoria/selfs/"+selfId+"/set?centerId="+encodeURIComponent(centerId),{credentials:"include",cache:"no-store"});
+        if(!read.ok)throw Error("Set readback unavailable.");
+        const current=parseSet(await read.json(),selfId);
+        if(current.setItemId===null && current.ready!==next.ready)throw Error("Set readiness changed.");
+        setSelfSet(current);
+      }catch{
+        setActiveSetError("Trang bị đã lưu nhưng chưa xác nhận được trạng thái Set. Hãy tải lại.");
+      }
+      setNotice("Đã lưu Loadout phiên bản "+next.version+".");onSaved();
     }catch(e){setError(e instanceof TypeError?"Không xác nhận được kết quả lưu do lỗi kết nối. Bản nháp được giữ lại; hãy kiểm tra kết nối và thử lại hoặc tải lại trạng thái đã lưu.":e instanceof Error?e.message:"Không xác nhận được kết quả lưu. Bản nháp được giữ lại; hãy thử lại hoặc tải lại trạng thái đã lưu.");}
     finally{setSaving(false);}
   }
