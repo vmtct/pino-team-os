@@ -1,8 +1,10 @@
 import { callBoAccessCoreWithCredential, type BoAccessCoreBinding, type BoAccessRequest } from "./bo-core";
 import { teamCredential, TeamAuthError, type TeamAccessEnv } from "./team-auth";
+import { BO_STAGING_HOSTNAME, normalizeHostname } from "./host-boundary";
 
 export interface BoWriteEnv extends TeamAccessEnv {
   PINO_BO_CORE: BoAccessCoreBinding;
+  APP_ENV?: string;
 }
 
 const STAFF_ONBOARDING_PATH = "workforce/staff-onboarding";
@@ -26,6 +28,8 @@ const ACCESS_ROLE_UPDATE_PATH = /^access\/roles\/[0-9a-f-]{36}\/update$/;
 const ACCESS_ROLE_ARCHIVE_PATH = /^access\/roles\/[0-9a-f-]{36}\/archive$/;
 const ACCESS_ASSIGNMENT_PATH = "access/assignments";
 const ACCESS_ASSIGNMENT_REMOVE_PATH = "access/assignments/remove";
+const FOUNDER_MANAGER_POLICY_PATHS = new Set(["access/founder-manager-policy/admit","access/founder-manager-policy/revoke"]);
+const FOUNDER_MANAGER_POLICY = "PAP-2025-STUDENT-OPERATIONAL-V1";
 const ACCESS_USER_STATUS_PATH = "access/users/status";
 const ACCESS_SUPPORT_SESSION_PATH = "access/support-sessions";
 const STAFF_PASSWORD_RESET_PATH = /^access\/users\/[0-9a-f-]{36}\/staff-password\/reset$/;
@@ -150,6 +154,41 @@ export async function handleBoWriteRequest(
   _legacyKeyResolver?: unknown,
 ): Promise<Response> {
   try {
+    // PAP-2050: narrow private service-binding transport; Core authenticates
+    // the canonical Founder and owns policy admission, CAS and audit.
+    if (/^access\/founder-manager-policy(?:\/|$)/i.test(path)) {
+      const url = new URL(request.url);
+      if (!FOUNDER_MANAGER_POLICY_PATHS.has(path) || env.APP_ENV !== "staging" ||
+          url.protocol !== "https:" || url.host !== BO_STAGING_HOSTNAME ||
+          normalizeHostname(request.headers.get("host") || url.hostname) !== BO_STAGING_HOSTNAME ||
+          url.pathname !== "/api/bo/"+path || url.search || url.hash || url.username || url.password) {
+        return json({error:{code:"PLATFORM_NOT_FOUND",message:"Not found"}},404);
+      }
+      if (request.method !== "POST") return json({error:{code:"PLATFORM_METHOD_NOT_ALLOWED",message:"Method not allowed"}},405);
+      if (request.headers.get("origin") !== "https://"+BO_STAGING_HOSTNAME ||
+          request.headers.get("content-type")?.split(";")[0].trim().toLowerCase() !== "application/json") {
+        return json({error:{code:"PLATFORM_FORBIDDEN",message:"Same-origin JSON required"}},403);
+      }
+      const credential=await teamCredential(request,env,"BO");
+      if (credential.kind !== "password") return json({error:{code:"PLATFORM_FORBIDDEN",message:"Authenticated session required"}},403);
+      let raw:unknown;
+      try {
+        const text=await request.text();
+        if(text.length>512) return json({error:{code:"PLATFORM_INVALID_INPUT",message:"Invalid policy command"}},400);
+        raw=JSON.parse(text);
+      } catch {return json({error:{code:"PLATFORM_INVALID_INPUT",message:"Invalid policy command"}},400);}
+      if (!raw || typeof raw !== "object" || Array.isArray(raw)) return json({error:{code:"PLATFORM_INVALID_INPUT",message:"Invalid policy command"}},400);
+      const form=raw as Record<string,unknown>;
+      if(Object.keys(form).length!==2 || form.policy!==FOUNDER_MANAGER_POLICY ||
+         typeof form.expectedRevision!=="number" || !Number.isSafeInteger(form.expectedRevision) ||
+         (path.endsWith("/admit") ? form.expectedRevision!==0 : form.expectedRevision<1)) {
+        return json({error:{code:"PLATFORM_INVALID_INPUT",message:"Exact policy and expected revision required"}},400);
+      }
+      const result=await callBoAccessCoreWithCredential(env.PINO_BO_CORE,{
+        method:"POST",path,body:{policy:FOUNDER_MANAGER_POLICY,expectedRevision:form.expectedRevision},
+      },credential);
+      return json(result.body,result.status,{"x-request-id":result.requestId});
+    }
     if (PINORIA_WORLD_WRITE.test(path) && !isAllowedPinoriaWorldMethod(request.method, path)) {
       return json({ error: { code: "PLATFORM_METHOD_NOT_ALLOWED", message: "Method not allowed" } }, 405);
     }
