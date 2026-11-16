@@ -32,7 +32,8 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   if (/^\/api\/bo\/access\/founder-manager-policy(?:\/|$)/i.test(pathname)) {
     return {action:hostname===BO_STAGING_HOSTNAME && method==="POST" &&
       (pathname==="/api/bo/access/founder-manager-policy/admit" ||
-       pathname==="/api/bo/access/founder-manager-policy/revoke") ? "next" : "not_found"};
+       pathname==="/api/bo/access/founder-manager-policy/revoke" ||
+       pathname==="/api/bo/access/founder-manager-policy/expand") ? "next" : "not_found"};
   }
   // PAP-2012: exact single-PTE income history read, BO Staging only.
   if (/^\/api\/bo\/workforce\/payroll\/periods\/.*\/income-history(?:\/|$)/i.test(pathname)) {
