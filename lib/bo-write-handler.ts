@@ -28,8 +28,9 @@ const ACCESS_ROLE_UPDATE_PATH = /^access\/roles\/[0-9a-f-]{36}\/update$/;
 const ACCESS_ROLE_ARCHIVE_PATH = /^access\/roles\/[0-9a-f-]{36}\/archive$/;
 const ACCESS_ASSIGNMENT_PATH = "access/assignments";
 const ACCESS_ASSIGNMENT_REMOVE_PATH = "access/assignments/remove";
-const FOUNDER_MANAGER_POLICY_PATHS = new Set(["access/founder-manager-policy/admit","access/founder-manager-policy/revoke"]);
+const FOUNDER_MANAGER_POLICY_PATHS = new Set(["access/founder-manager-policy/admit","access/founder-manager-policy/revoke","access/founder-manager-policy/expand"]);
 const FOUNDER_MANAGER_POLICY = "PAP-2025-STUDENT-OPERATIONAL-V1";
+const FOUNDER_MANAGER_POLICY_V2 = "PAP-2065-OPERATIONAL-V2";
 const ACCESS_USER_STATUS_PATH = "access/users/status";
 const ACCESS_SUPPORT_SESSION_PATH = "access/support-sessions";
 const STAFF_PASSWORD_RESET_PATH = /^access\/users\/[0-9a-f-]{36}\/staff-password\/reset$/;
@@ -179,13 +180,15 @@ export async function handleBoWriteRequest(
       } catch {return json({error:{code:"PLATFORM_INVALID_INPUT",message:"Invalid policy command"}},400);}
       if (!raw || typeof raw !== "object" || Array.isArray(raw)) return json({error:{code:"PLATFORM_INVALID_INPUT",message:"Invalid policy command"}},400);
       const form=raw as Record<string,unknown>;
-      if(Object.keys(form).length!==2 || form.policy!==FOUNDER_MANAGER_POLICY ||
+      const expansion=path==="access/founder-manager-policy/expand";
+      const exactPolicy=expansion ? FOUNDER_MANAGER_POLICY_V2 : FOUNDER_MANAGER_POLICY;
+      if(Object.keys(form).length!==2 || form.policy!==exactPolicy ||
          typeof form.expectedRevision!=="number" || !Number.isSafeInteger(form.expectedRevision) ||
-         (path.endsWith("/admit") ? form.expectedRevision!==0 : form.expectedRevision<1)) {
+         (expansion ? form.expectedRevision!==1 : path.endsWith("/admit") ? form.expectedRevision!==0 : form.expectedRevision<1)) {
         return json({error:{code:"PLATFORM_INVALID_INPUT",message:"Exact policy and expected revision required"}},400);
       }
       const result=await callBoAccessCoreWithCredential(env.PINO_BO_CORE,{
-        method:"POST",path,body:{policy:FOUNDER_MANAGER_POLICY,expectedRevision:form.expectedRevision},
+        method:"POST",path,body:{policy:exactPolicy,expectedRevision:form.expectedRevision},
       },credential);
       return json(result.body,result.status,{"x-request-id":result.requestId});
     }
