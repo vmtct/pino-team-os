@@ -14,7 +14,7 @@ export type BoFullDetailProps = {
   tabs: readonly BoFullDetailTab[];
   activeTab?: string | null;
   actions?: ReactNode;
-  designVariant?: "v25";
+  designVariant?: "v25" | "business-v25";
 };
 
 /** PAP-882 shared, domain-neutral Full Detail; domain owns data and ACL. */
@@ -29,7 +29,7 @@ export function BoFullDetail({ title, description, currentUrl, returnTo, tabs, a
   const selected = tabs.find(tab => tab.id === activeTab) ?? tabs[0];
   const tableHref = safeBoTableReturn(returnTo, "/bo");
   return <DetailFrame title={title} subtitle={description} backHref={tableHref} actions={actions}
-    legacyProfile={designVariant === "v25" ? { ...styles, version: designVariant } : {}}
+    legacyProfile={designVariant ? { ...styles, version: "v25" } : {}}
     tabs={tabs.map(tab => ({ id: tab.id, label: tab.label, href: detailTabHref(currentUrl, tab.id) }))}
     selected={selected.id}>{selected.content}</DetailFrame>;
 }
