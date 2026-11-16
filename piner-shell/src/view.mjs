@@ -16,12 +16,13 @@ function launch(){
  '</nav><p class="launch-note">Piner APP · Không gian sáng tạo của bạn</p></main>';
 }
 function icon(tab){return {home:"⌂",grid:"▦",reels:"▶",community:"◌"}[tab];}
-function member(space,tab,adapter){
+function member(space,tab,adapter,afterschoolLoginAvailable){
  assertFailClosed(adapter);
  const program=PROGRAMS[space];
  const tabLabel={home:"Bảng tin",grid:"Bộ sưu tập",reels:"Reels",community:"Cộng đồng"}[tab];
  const desc=tab==="community"?"Chưa có dữ liệu cộng đồng được phép hiển thị.":"Nội dung riêng tư sẽ xuất hiện sau khi kết nối tài khoản và quyền truy cập từ Core.";
- const notice='<div class="empty-state" data-adapter-state="unauthenticated"><span class="empty-art" aria-hidden="true">◇</span><strong>Không gian riêng tư</strong><p>'+h(desc)+'</p><small>UI Shell · Identity chưa kết nối</small></div>';
+ const loginLink=space==="house"&&afterschoolLoginAvailable===true?'<p><a href="/piner-space/afterschool/login" data-afterschool-login>Đăng nhập PINO Afterschool</a></p>':"";
+ const notice='<div class="empty-state" data-adapter-state="unauthenticated"><span class="empty-art" aria-hidden="true">◇</span><strong>Không gian riêng tư</strong><p>'+h(desc)+'</p>'+(loginLink||'<small>UI Shell · Identity chưa kết nối</small>')+'</div>';
  const skeleton=tab==="grid"?'<div class="grid-skeleton" aria-hidden="true"><i></i><i></i><i></i><i></i></div>':
   tab==="reels"?'<div class="reel-skeleton" aria-hidden="true"></div>':'<div class="post-skeleton" aria-hidden="true"><div class="skeleton-heading"></div><div class="skeleton-picture"></div><div class="skeleton-caption"></div></div>';
  const content='<div class="feed-inner">'+(tab==="community"?"":'<h1>'+h(tabLabel)+'</h1>')+notice+skeleton+skeleton+'<p class="ending">Đang chuẩn bị '+h(program.label)+'</p></div>';
@@ -33,7 +34,7 @@ function member(space,tab,adapter){
  '<main id="main-content" class="scroll-content" data-piner-slot="content" tabindex="-1">'+content+'</main>'+
  '<nav class="bottom-nav" data-piner-shared="bottom-nav" aria-label="Điều hướng Piner APP">'+nav+'</nav></section>';
 }
-export function renderHtml(route,adapter){
+export function renderHtml(route,adapter,{afterschoolLoginAvailable=false}={}){
  const title=route.kind==="launcher"?"Piner APP · PINO Afterschool + MyTime by PINO":PROGRAMS[route.space].label+" · Piner APP";
  return [
  '<!doctype html><html lang="vi"><head><meta charset="utf-8">',
@@ -41,7 +42,7 @@ export function renderHtml(route,adapter){
  '<meta name="theme-color" content="#faf8f3"><meta name="robots" content="noindex,nofollow"><link rel="icon" href="data:,">',
  '<title>'+h(title)+'</title><meta name="description" content="Piner APP — PINO Afterschool và MyTime by PINO.">',
  '<link rel="stylesheet" href="/piner-shell.css?v=pap1943">',
- '</head><body><div class="backdrop"><div class="phone'+(route.kind==="launcher"?" launch-phone":"")+'" data-piner-shell="pap1943" data-runtime="fe-only">'+(route.kind==="launcher"?launch():member(route.space,route.tab,adapter))+'</div></div>',
+ '</head><body><div class="backdrop"><div class="phone'+(route.kind==="launcher"?" launch-phone":"")+'" data-piner-shell="pap1943" data-runtime="fe-only">'+(route.kind==="launcher"?launch():member(route.space,route.tab,adapter,afterschoolLoginAvailable))+'</div></div>',
  '<script defer src="/piner-shell.js?v=pap1943"></script></body></html>'
  ].join("");
 }
