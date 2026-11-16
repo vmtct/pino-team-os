@@ -1,6 +1,7 @@
 "use client";
 import { FormEvent, useEffect, useState } from "react";
 import styles from "./staff-register.module.css";
+import { VIETNAM_REGISTRATION_BANKS } from "@/lib/vietnam-registration-banks";
 
 type IntakeState = "LOADING" | "OPEN" | "CLOSED";
 
@@ -91,7 +92,7 @@ export default function StaffRegistrationPage() {
         <section className={styles.section}>
           <div className={styles.sectionHead}><span>03</span><div><h2>Thông tin nhận lương</h2><p>Tài khoản ngân hàng chính chủ dùng cho thanh toán.</p></div></div>
           <div className={styles.grid}>
-            <label>Ngân hàng<input name="bankName" maxLength={120} placeholder="VD: Vietcombank" required /></label>
+            <label>Ngân hàng<select name="bankName" defaultValue="" required disabled={busy}><option value="">Chọn ngân hàng</option>{VIETNAM_REGISTRATION_BANKS.map(bank => <option key={bank.bin} value={bank.name}>{bank.label}</option>)}</select></label>
             <label>Số tài khoản<input name="bankAccountNumber" inputMode="numeric" maxLength={34} required /></label>
             <label className={styles.span2}>Tên chủ tài khoản<input name="bankAccountHolder" maxLength={160} required /></label>
             <label className={styles.span2}>Chi nhánh <span className={styles.optional}>Không bắt buộc</span><input name="bankBranch" maxLength={160} /></label>
