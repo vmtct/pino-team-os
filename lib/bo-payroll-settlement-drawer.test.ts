@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {settlementDrawerSource,settlementDrawerExceptions,pendingSettlementException,settlementExceptionDetail,settlementDrawerHref,settlementExceptionHref} from "./bo-payroll-settlement-drawer";
+import {settlementDrawerSource,settlementDrawerExceptions,pendingSettlementException,settlementReadiness,verifiedSettlementPreview,settlementExceptionDetail,settlementDrawerHref,settlementExceptionHref} from "./bo-payroll-settlement-drawer";
 import type {IncomePeriod} from "./bo-payroll-income-read";
 import type {NativeReviewedException} from "./bo-payroll-exceptions-read";
 const period={id:"period",name:"P",startDate:"2026-10-01",endDate:"2026-10-31",status:"ACTIVE" as const};
@@ -50,4 +50,26 @@ test("PAP-1956 signed adjustments are read from the exact snapshot; malformed or
  assert.deepEqual(settlementDrawerSource(make(adjustments),"center","period","staff").preview.adjustments,adjustments);
  assert.throws(()=>settlementDrawerSource(make([adjustments[0],adjustments[0]]),"center","period","staff"),/SOURCE_MISMATCH/);
  assert.throws(()=>settlementDrawerSource(make([{...adjustments[0],amountMinor:1.5}]),"center","period","staff"),/SOURCE_MISMATCH/);
+});
+test("PAP-1956 read-only readiness fails closed without exact capability and complete exception evidence",()=>{
+ const ready=settlementDrawerSource({...row,staff:{...row.staff,preview:{...preview,sourceFingerprint:"a".repeat(64)}}},"center","period","staff");
+ const capability={centerId:"center",canManageSettlement:true,canReviewExtraTime:true};
+ assert.equal(settlementReadiness(ready,capability,"center",[],""),"PREVIEW_REQUIRED");
+ assert.equal(settlementReadiness(ready,undefined,"center",[],""),"NO_CAPABILITY");
+ assert.equal(settlementReadiness(ready,{...capability,centerId:"other"},"center",[],""),"NO_CAPABILITY");
+ assert.equal(settlementReadiness(ready,capability,"center",[],"source unavailable"),"EXCEPTIONS_UNVERIFIED");
+ assert.equal(settlementReadiness(ready,capability,"center",[{...request,staffMemberId:"other"}],""),"EXCEPTIONS_UNVERIFIED");
+ assert.equal(settlementReadiness(ready,capability,"center",[request],""),"PENDING_EXCEPTION");
+ assert.equal(settlementReadiness({...ready,preview:{...ready.preview,warnings:["EXTRA_TIME_PENDING:2026-10-02:1"]}},capability,"center",[],""),"PENDING_EXCEPTION");
+ assert.equal(settlementReadiness({...ready,frozen:true},capability,"center",[],""),"LOCKED");
+ assert.equal(settlementReadiness({...ready,period:{...ready.period,status:"ARCHIVED"}},capability,"center",[],""),"LOCKED");
+ assert.equal(settlementReadiness({...ready,preview:{...ready.preview,sourceFingerprint:"invalid"}},capability,"center",[],""),"SOURCE_UNVERIFIED");
+});
+test("PAP-1956 fresh Core preview must retain exact selected source before confirmation",()=>{
+ const fresh={...preview,sourceFingerprint:"a".repeat(64)};
+ const source=settlementDrawerSource({...row,staff:{...row.staff,preview:fresh}},"center","period","staff");
+ assert.equal(verifiedSettlementPreview(source,fresh),fresh);
+ for(const bad of [{...fresh,centerId:"other"},{...fresh,staffMemberId:"other"},{...fresh,periodVersion:2},{...fresh,amountMinor:124},{...fresh,sourceFingerprint:"b".repeat(64)},{...fresh,warnings:["EXTRA_TIME_PENDING:2026-10-02:1"]}])
+  assert.throws(()=>verifiedSettlementPreview(source,bad),/tải lại/);
+ assert.throws(()=>verifiedSettlementPreview({...source,frozen:true},fresh),/tải lại/);
 });

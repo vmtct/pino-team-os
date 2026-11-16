@@ -109,7 +109,7 @@ function PeriodDetail({centerId,centerName,id,tab,incomeDrawer}:{centerId:string
  return <BoFullDetail designVariant="business-v25" title={row.name} description={"Kỳ lương · "+centerName} currentUrl={detailUrl(centerId,id)} returnTo={tableUrl(centerId)} activeTab={tab}
   tabs={[
    {id:"overview",label:"Tổng quan",content:<PeriodProperties key={row.id+":"+row.version} row={row} variant="detail" onSaved={()=>setRefresh(r=>r+1)}/>},
-   {id:"settlements",label:"Quyết Toán",content:<Settlements key={id+":"+refresh} centerId={centerId} id={id} initial={rollup} incomeDrawer={incomeDrawer}/>},
+   {id:"settlements",label:"Quyết Toán",content:<Settlements key={id+":"+refresh} centerId={centerId} id={id} initial={rollup} incomeDrawer={incomeDrawer} onFinalized={()=>setRefresh(r=>r+1)}/>},
    {id:"history",label:"Lịch sử",content:<PeriodHistory key={centerId+":"+id+":"+row.version} centerId={centerId} id={id}/>},
   ]}/>;
 }
@@ -123,7 +123,7 @@ function settlementStatus(status:PeriodStaffPage["rows"][number]["status"]){
   default:return {text:"Không đủ dữ liệu",color:"gray"};
  }
 }
-function Settlements({centerId,id,initial,incomeDrawer}:{centerId:string;id:string;initial:PeriodStaffPage;incomeDrawer:string|null}){
+function Settlements({centerId,id,initial,incomeDrawer,onFinalized}:{centerId:string;id:string;initial:PeriodStaffPage;incomeDrawer:string|null;onFinalized:()=>void}){
  const router=useRouter();
  const [page,setPage]=useState(initial),[rows,setRows]=useState(initial.rows);
  const [busy,setBusy]=useState(false),[error,setError]=useState("");
@@ -164,7 +164,7 @@ function Settlements({centerId,id,initial,incomeDrawer}:{centerId:string;id:stri
    emptyTitle="Chưa có giờ công" emptyMessage="Không có bản ghi đủ điều kiện trong trang hiện tại."/>
   {page.nextOffset!==null?<button type="button" disabled={busy} onClick={()=>void more()}>Tải thêm PTE</button>:null}
   {error?<p role="alert">{error}</p>:null}
-  {incomeDrawer?<SettlementIncomeDrawer key={JSON.stringify([centerId,id,initial.period.startDate,initial.period.endDate,initial.period.status,incomeDrawer])} centerId={centerId} period={initial.period} staffId={incomeDrawer} onClose={()=>router.replace(detailUrl(centerId,id)+"&tab=settlements")}/>:null}
+  {incomeDrawer?<SettlementIncomeDrawer key={JSON.stringify([centerId,id,initial.period.startDate,initial.period.endDate,initial.period.status,incomeDrawer])} centerId={centerId} period={initial.period} staffId={incomeDrawer} onClose={()=>router.replace(detailUrl(centerId,id)+"&tab=settlements")} onFinalized={()=>{router.replace(detailUrl(centerId,id)+"&tab=settlements");onFinalized();}}/>:null}
  </section></>;
 }
 

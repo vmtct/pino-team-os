@@ -1,5 +1,6 @@
+import type {SettlementPreview} from "./bo-payroll-period-api";
 import type {IncomePeriod} from "./bo-payroll-income-read";
-import {scopedIncomeRow,scopedIncomeDay} from "./bo-payroll-income-read";
+import {scopedIncomeRow,scopedIncomeDay,verifiedFinancialCapabilities} from "./bo-payroll-income-read";
 import {exceptionReadApi,type NativeReviewedException} from "./bo-payroll-exceptions-read";
 import {validExceptionRange} from "./bo-payroll-exceptions-model";
 
@@ -9,7 +10,7 @@ export function settlementDrawerSource(row:IncomePeriod,centerId:string,periodId
  if(!source||!source.staff.preview)throw Error("PAYROLL_DRAWER_SOURCE_UNAVAILABLE");
  const p=source.staff.preview;
  if(!Array.isArray(p.days)||!Array.isArray(p.adjustments)||!Array.isArray(p.extraTimeDecisions)||
-    !Array.isArray(p.warnings)||p.adjustments.some(a=>!a||typeof a.id!=="string"||!a.id||!Number.isSafeInteger(a.amountMinor)||typeof a.reason!=="string")||new Set(p.adjustments.map(a=>a.id)).size!==p.adjustments.length||p.days.some(day=>scopedIncomeDay(source,day.workDate)!==day))
+    !Array.isArray(p.warnings)||p.warnings.some(w=>typeof w!=="string")||p.adjustments.some(a=>!a||typeof a.id!=="string"||!a.id||!Number.isSafeInteger(a.amountMinor)||typeof a.reason!=="string")||new Set(p.adjustments.map(a=>a.id)).size!==p.adjustments.length||p.days.some(day=>scopedIncomeDay(source,day.workDate)!==day))
   throw Error("PAYROLL_DRAWER_SOURCE_MISMATCH");
  return {...source,preview:p,frozen:source.staff.status==="FINALIZED"||source.staff.status==="PAID"};
 }
@@ -54,9 +55,32 @@ export async function settlementDrawerExceptions(row:IncomePeriod,centerId:strin
  return rows;
 }
 export function pendingSettlementException(warnings:string[],rows:NativeReviewedException[]){
- return warnings.some(w=>w.startsWith("EXTRA_TIME_PENDING:"))||rows.some(r=>r.status==="PENDING"&&r.decision===null);
+ return warnings.some(w=>w.startsWith("EXTRA_TIME_PENDING:"))||rows.some(r=>r.status==="PENDING");
 }
 
+/** Read-only readiness; never authorizes nor submits a financial command. */
+export function settlementReadiness(source:ReturnType<typeof settlementDrawerSource>,capability:unknown,centerId:string,rows:NativeReviewedException[],exceptionError:string){
+ const rights=verifiedFinancialCapabilities(capability,centerId);
+ if(source.preview.centerId!==centerId||!rights.canManageSettlement)return "NO_CAPABILITY";
+ if(source.period.status!=="ACTIVE"||source.frozen||!["DRAFT","PENDING"].includes(source.staff.status))return "LOCKED";
+ if(exceptionError)return "EXCEPTIONS_UNVERIFIED";
+ if(rows.some(r=>r.centerId!==centerId||r.staffMemberId!==source.staff.staffMemberId||r.workDate<source.period.startDate||r.workDate>source.period.endDate))return "EXCEPTIONS_UNVERIFIED";
+ if(pendingSettlementException(source.preview.warnings,rows))return "PENDING_EXCEPTION";
+ if(!/^[a-f0-9]{64}$/.test(source.preview.sourceFingerprint))return "SOURCE_UNVERIFIED";
+ return "PREVIEW_REQUIRED";
+}
+
+/** Read-only preview must match the selected snapshot before confirmation. */
+export function verifiedSettlementPreview(source:ReturnType<typeof settlementDrawerSource>,next:SettlementPreview){
+ if(source.frozen||source.period.status!=="ACTIVE"||next.centerId!==source.preview.centerId||next.periodId!==source.period.id||
+  next.staffMemberId!==source.staff.staffMemberId||next.periodStartDate!==source.period.startDate||next.periodEndDate!==source.period.endDate||
+  next.periodVersion!==source.preview.periodVersion||!/^[a-f0-9]{64}$/.test(next.sourceFingerprint)||
+  next.sourceFingerprint!==source.preview.sourceFingerprint||!Number.isSafeInteger(next.amountMinor)||next.amountMinor!==source.preview.amountMinor||
+  !Array.isArray(next.warnings)||next.warnings.some(w=>typeof w!=="string")||
+  pendingSettlementException(next.warnings,[])||JSON.stringify(next.warnings)!==JSON.stringify(source.preview.warnings))
+ throw Error("Dữ liệu quyết toán đã thay đổi hoặc chưa đủ điều kiện. Vui lòng tải lại.");
+ return next;
+}
 export function settlementDrawerHref(centerId:string,periodId:string,staffId:string){
  return "/bo/payroll-periods?"+new URLSearchParams({centerId,record:periodId,tab:"settlements",incomeDrawer:staffId});
 }
