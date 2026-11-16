@@ -27,6 +27,13 @@ export type HostBoundaryDecision =
 
 export function decideHostBoundary(host: string, pathname: string, method = "GET"): HostBoundaryDecision {
   const hostname = normalizeHostname(host);
+  // PAP-1671 / PLT-ATTR: exact native value operations, BO Staging only.
+  // An entity or selected Center in the path/query is not an authorization grant.
+  if (/^\/api\/bo\/(?:students|identity\/parents)\/[^/]*\/custom-attributes(?:\/|$)/i.test(pathname)) {
+    const uuid = "[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
+    const route = new RegExp("^/api/bo/(?:students|identity/parents)/"+uuid+"/custom-attributes(?:/("+uuid+"))?$").exec(pathname);
+    return {action:hostname===BO_STAGING_HOSTNAME && route && (route[1]===undefined ? method==="GET" : method==="PATCH") ? "next" : "not_found"};
+  }
   // PAP-2050 / PLT-ACCESS: exact authenticated BO Staging operations only.
   // Never admit generic policy administration or this namespace on other hosts.
   if (/^\/api\/bo\/access\/founder-manager-policy(?:\/|$)/i.test(pathname)) {
