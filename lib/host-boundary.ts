@@ -27,6 +27,13 @@ export type HostBoundaryDecision =
 
 export function decideHostBoundary(host: string, pathname: string, method = "GET"): HostBoundaryDecision {
   const hostname = normalizeHostname(host);
+  // PAP-2050 / PLT-ACCESS: exact authenticated BO Staging operations only.
+  // Never admit generic policy administration or this namespace on other hosts.
+  if (/^\/api\/bo\/access\/founder-manager-policy(?:\/|$)/i.test(pathname)) {
+    return {action:hostname===BO_STAGING_HOSTNAME && method==="POST" &&
+      (pathname==="/api/bo/access/founder-manager-policy/admit" ||
+       pathname==="/api/bo/access/founder-manager-policy/revoke") ? "next" : "not_found"};
+  }
   // PAP-2012: exact single-PTE income history read, BO Staging only.
   if (/^\/api\/bo\/workforce\/payroll\/periods\/.*\/income-history(?:\/|$)/i.test(pathname)) {
     const exact = /^\/api\/bo\/workforce\/payroll\/periods\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/staff\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/income-history$/.test(pathname);
