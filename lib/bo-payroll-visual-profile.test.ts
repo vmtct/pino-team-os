@@ -32,6 +32,10 @@ test("PAP-2012 native period and both income details opt in, with scoped settlem
  assert.match(period,/className="pay-kpi-grid"/);
  assert.equal((period.match(/className="pay-kpi"/g)||[]).length,2);
  assert.match(period,/className="secondary-btn"/); assert.match(period,/className="pay-settlement-actions"/); assert.match(period,/pay-section-heading/); assert.match(period,/align:"right"/); assert.equal((income.match(/<BoProperties authority compact/g)||[]).length,4);
+ assert.match(period,/<button type="button" className="secondary-btn" onClick=\{\(\)=>router.push\([^\n]*>Xem thu nhập<\/button>/);
+ assert.match(income,/<button type="button" className="secondary-btn" onClick=\{\(\)=>router.push\([^\n]*>Xem kỳ<\/button>/);
+ for(const field of ['["#","PTE ID"','["♙","Họ tên"','["₫","Rate HO"','["▦","Ngày"','["◷","Check-in"']) assert.ok(income.includes(field),field);
+ assert.equal((income.match(/map\(\(\[icon,label,value\]\)/g)||[]).length,3);
  const css=readFileSync("public/bo-authority-source/styles.css","utf8");
  assert.ok(css.includes(".pay-kpi:nth-child(2){border-color:var(--bo-color-focus);background:var(--bo-color-accent-soft)}"));
 });
