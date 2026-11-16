@@ -60,6 +60,10 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   if (pathname === "/bo/afterschool-accounts") {
     return { action: hostname === BO_STAGING_HOSTNAME && (method === "GET" || method === "HEAD") ? "next" : "not_found" };
   }
+  if (pathname.startsWith("/api/bo/identity/afterschool-users/")) {
+    const command = /^\/api\/bo\/identity\/afterschool-users\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/pin\/(issue-initial|reset)$/.test(pathname);
+    return { action: hostname === BO_STAGING_HOSTNAME && method === "POST" && command ? "next" : "not_found" };
+  }
   if (pathname === "/api/bo/identity/afterschool-users") {
     return { action: hostname === BO_STAGING_HOSTNAME && method === "GET" ? "next" : "not_found" };
   }

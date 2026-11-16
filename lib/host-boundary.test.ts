@@ -507,3 +507,16 @@ test("PAP-1979 exact published Starter catalog is GET on BO Staging only",()=>{
  for(const method of ["HEAD","POST","PATCH","DELETE"])assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art",path,method),{action:"not_found"});
  assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art",path+"/extra","GET"),{action:"not_found"});
 });
+
+test("PAP-2067 Afterschool PIN commands are exact BO Staging POST routes", () => {
+  const staging = "bo.staging.pinohouse.art";
+  const root = "/api/bo/identity/afterschool-users/" + roleId + "/pin/";
+  for (const command of ["issue-initial", "reset"]) {
+    assert.deepEqual(decideHostBoundary(staging, root + command, "POST"), { action: "next" });
+    assert.deepEqual(decideHostBoundary(staging, root + command, "GET"), { action: "not_found" });
+    assert.deepEqual(decideHostBoundary(BO_HOSTNAME, root + command, "POST"), { action: "not_found" });
+    assert.deepEqual(decideHostBoundary("ho.staging.pinohouse.art", root + command, "POST"), { action: "not_found" });
+  }
+  assert.deepEqual(decideHostBoundary(staging, root + "reset/extra", "POST"), { action: "not_found" });
+  assert.deepEqual(decideHostBoundary(staging, root.replace(roleId, "invalid") + "reset", "POST"), { action: "not_found" });
+});
