@@ -152,13 +152,13 @@ function BoWorkspace({ moduleKey, options, currentUser, source, content, headerC
     // Specialized screens own their Core reads: the generic school adapter must not
     // fetch an unused second table or create unrelated generic drawers.
     if (shellOnly) return;
-    if (content) { document.title = definition.label + (ho ? " · PINO Head Office" : " · PINO BO"); return; }
+    if (content) { document.title = ho ? "HO - PINO" : "BO - PINO"; return; }
     const cancel = new AbortController();
     setLoadState("loading"); setRows([]); setDrawer(null); setDetail(null);
     // Cancellation and the adapter timeout both apply. Unmounted/stale module reads never publish.
     const fetcher: typeof fetch = (input, init) => fetch(input, { ...init, signal: init?.signal ? AbortSignal.any([cancel.signal, init.signal]) : cancel.signal });
     void source.load(moduleKey, fetcher, options).then(data => { if (!cancel.signal.aborted) { setRows(data); setLoadState("ready"); syncRecordFromUrl(data); } }).catch((error: unknown) => { if (!cancel.signal.aborted) { setRows([]); setLoadState(error instanceof Error ? error.message : "Không thể tải dữ liệu."); } });
-    document.title = definition.label + (ho ? " · PINO Head Office" : " · PINO BO");
+    document.title = ho ? "HO - PINO" : "BO - PINO";
     return () => cancel.abort();
   }, [moduleKey, definition.label, options, source, retry, ho, content, shellOnly]);
   function update(patch: Partial<BoTableState>) { history.current.push({ table: structuredClone(tableRef.current), views: structuredClone(viewsRef.current), activeView: activeViewRef.current }); history.current = history.current.slice(-60); future.current = []; setUndoAvailable(true); setTable(t => ({ ...t, ...patch })); setPage(1); setActiveView(null); }

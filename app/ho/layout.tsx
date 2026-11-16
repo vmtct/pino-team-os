@@ -6,7 +6,7 @@ import { authorizeHoShell, type HoEnv } from "@/lib/ho-auth";
 import { BoShellGateError } from "@/lib/bo-shell-gate";
 import { safeHoReturnTo } from "@/lib/ho-routes";
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Head Office · PINO House" };
+export const metadata = { title: "HO - PINO" };
 export default async function HoLayout({ children }: { children: React.ReactNode }) {
   const requestHeaders = new Headers(await headers());
   const returnTo = safeHoReturnTo(requestHeaders.get("x-pino-ho-return-to"));

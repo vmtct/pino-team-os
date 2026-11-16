@@ -36,7 +36,7 @@ function readableError(cause:unknown) {
 export function ParentDirectoryDsa() {
   const center=useBoCenterSelection(), menu=useContext(BoApplicationShellContext);
   const id=center && !center.loading && !center.error ? center.selected : "";
-  useEffect(()=>{document.title="Parents & Guardians · PINO BO";},[]);
+  useEffect(()=>{document.title="BO - PINO";},[]);
   return <section aria-label="Parents & Guardians" data-parent-native-dsa="PAP-1814">
     {!center ? <p role="alert">Không tìm thấy Center context.</p> :
       center.loading ? <p role="status">Đang xác thực cơ sở…</p> :

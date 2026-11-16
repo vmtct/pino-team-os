@@ -117,7 +117,7 @@ export function AvatarDirectoryDsa() {
   const center = useBoCenterSelection();
   const selected = center && !center.loading && !center.error ? center.selected : "";
   const header = useContext(BoApplicationShellContext);
-  useEffect(() => { document.title = "Pinoria Avatar · PINO BO"; }, []);
+  useEffect(() => { document.title = "BO - PINO"; }, []);
   return <section aria-label="Danh bạ Pinoria Avatar">
     {!center ? <p role="alert">Không tìm thấy Center context của BO.</p> :
     center.loading ? <p role="status">Đang xác thực cơ sở được cấp quyền…</p> :

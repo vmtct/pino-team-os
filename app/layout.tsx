@@ -1,4 +1,4 @@
-import { BO_HOSTNAME, normalizeHostname, HO_STAGING_HOSTNAME } from "@/lib/host-boundary";
+import { BO_HOSTNAME, BO_STAGING_HOSTNAME, TOS_HOSTNAME, TOS_STAGING_HOSTNAME, normalizeHostname, HO_STAGING_HOSTNAME } from "@/lib/host-boundary";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { isBoStagingHost } from "@/lib/bo-skeleton-routing";
@@ -15,7 +15,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const hostname = (await headers()).get("host")?.toLowerCase() ?? "";
   const icon = hostname === HO_STAGING_HOSTNAME ? pinoHoLogoIcon : pinoSigilIcon;
   return {
-    title: "PINO Team OS",
+    title: hostname === HO_STAGING_HOSTNAME ? "HO - PINO" : [BO_HOSTNAME, BO_STAGING_HOSTNAME].includes(normalizeHostname(hostname)) ? "BO - PINO" : [TOS_HOSTNAME, TOS_STAGING_HOSTNAME].includes(normalizeHostname(hostname)) ? "TOS - PINO" : "PINO Team OS",
     description: "Personal workspace for PINO Team",
     icons: {
       icon: [{ url: icon, type: "image/png" }],

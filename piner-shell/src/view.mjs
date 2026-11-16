@@ -34,7 +34,7 @@ function member(space,tab,adapter){
  '<nav class="bottom-nav" data-piner-shared="bottom-nav" aria-label="Điều hướng Piner APP">'+nav+'</nav></section>';
 }
 export function renderHtml(route,adapter){
- const title=route.kind==="launcher"?"Piner APP · PINO Afterschool + MyTime by PINO":PROGRAMS[route.space].label+" · Piner APP";
+ const title="Piner App - PINO";
  return [
  '<!doctype html><html lang="vi"><head><meta charset="utf-8">',
  '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">',

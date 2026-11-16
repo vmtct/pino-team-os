@@ -18,7 +18,7 @@ test("PAP-1334: Subscription route mounts ONLY the new PINO native read-only DSA
 });
 
 test("PAP-1334: new DSA owns Center selection and Core-attested Table/Drawer/Detail",()=>{
- assert.match(workspace,/if \(content\) \{ document\.title = definition\.label[\s\S]*?return; \}/);
+ assert.match(workspace,/if \(content\) \{ document\.title = ho \? "HO - PINO" : "BO - PINO"; return; \}/);
  assert.match(native,/useBoCenterSelection\(/);
  assert.match(native,/key=\{selected\+":"\+center\.source\}/);
  assert.match(native,/loadCenterSubscriptionDirectory\(centerId,ctl\.signal\)/);
