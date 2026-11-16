@@ -1,4 +1,5 @@
 "use client";
+import { NativeCustomAttributeValues } from "@/app/components/custom-attributes/NativeCustomAttributeValues";
 /** PAP-1814 · Epic PAP-1384 / SCH-PARENTS-GUARDIANS.
  * Native BO DSA Parent Table → Quick Drawer → Full Detail.
  * No TDD registry/controller/surface adapter; Core owns scope and writes.
@@ -163,7 +164,7 @@ function ScopedParents({centerId,centerName,menu}:{centerId:string;centerName?:s
           undo={()=>{}} canUndo={false}/>}
     </section>}
     {drawer&&!detail&&<BoQuickView module={parentNativeModule} moduleKey="parents" record={drawer}
-      onClose={close} onDetail={full}/>}
+      onClose={close} onDetail={full} extraSection={authorized&&centerId?<NativeCustomAttributeValues entity="Parent" entityId={drawer.id} centerId={centerId} variant="drawer"/>:null}/>}
     {creating&&authorized&&grants.has("identity.parent.create")&&
       <ParentCreateDrawer centerId={centerId} centerName={centerName}
         onClose={()=>setCreating(false)} onCreated={()=>{setCreating(false);setNotice("Đã tạo Parent.");
