@@ -29,7 +29,7 @@ export function BoFullDetail({ title, description, currentUrl, returnTo, tabs, a
   const selected = tabs.find(tab => tab.id === activeTab) ?? tabs[0];
   const tableHref = safeBoTableReturn(returnTo, "/bo");
   return <DetailFrame title={title} subtitle={description} backHref={tableHref} actions={actions}
-    legacyProfile={designVariant ? { ...styles, version: "v25" } : {}}
+    legacyProfile={designVariant ? { ...styles, version: "v25", ...(designVariant === "business-v25" ? { heroBack: true, panelTitle: undefined } : {}) } : {}}
     tabs={tabs.map(tab => ({ id: tab.id, label: tab.label, href: detailTabHref(currentUrl, tab.id) }))}
     selected={selected.id}>{selected.content}</DetailFrame>;
 }
