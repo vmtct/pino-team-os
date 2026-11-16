@@ -30,7 +30,10 @@ test("BO Staff surface renders the pending registration review queue", () => {
   assert.match(source, /<StaffRegistrationSection \/>/);
   const section = fs.readFileSync(path.join(process.cwd(), "app/bo/staff/StaffRegistrationSection.tsx"), "utf8");
   assert.match(section, /if\(mode==="founder"\)return <><StaffRegistrationIntakeToggle\/><StaffRegistrationReviewQueue\/><\/>/);
-  assert.match(section, /return <StaffCenterRegistrationReview\/>/);
+  assert.match(section, /return <StaffCenterRegistrationReview embedded=\{embedded\}\/>/);
+  const runtime = fs.readFileSync(path.join(process.cwd(), "app/bo/components/registration/BoRuntimeBoundary.tsx"), "utf8");
+  assert.match(runtime, /view === "register" \? <StaffsRegistrationContent/);
+  assert.match(runtime, /<StaffRegistrationSection embedded \/>/);
   assert.match(section, /cause instanceof BoApiError&&cause.status===403/);
   assert.match(section, /if\(mode==="error"\)return <p role="alert">/);
   assert.match(section, /r.centerId!==centerId/);
