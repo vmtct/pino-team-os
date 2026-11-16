@@ -1,0 +1,14 @@
+/* Payroll business content uses the existing BO design tokens and shared DetailFrame. */
+.finalizedKpi {
+  background: var(--bo-color-accent-soft);
+  border-color: var(--bo-color-accent);
+}
+.finalizedKpi strong { color: var(--bo-color-accent-strong); }
+.incomeAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 8px 12px;
+  white-space: nowrap;
+}
