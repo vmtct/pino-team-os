@@ -77,7 +77,7 @@ export async function appendReceptionEvidence(scope:ReceptionReadyScope,state:Ex
  if(!state.canAppend||!state.history?.length||!uuid.test(key)||images.length<1||images.length>10||note.trim().length>1000)throw new Error("Không đủ điều kiện bổ sung ảnh.");
  const photos=images.map(parseReceptionPhoto);
  if(photos.reduce((n,p)=>n+Math.floor(p.base64.length*3/4),0)>10*1024*1024)throw new Error("Tổng dung lượng ảnh vượt 10 MB.");
- const res=await fetch("/api/workforce/reception/ready/append",{method:"POST",cache:"no-store",headers:{"content-type":"application/json"},body:JSON.stringify({...scope,openingReceiptId:state.receipt.receipt_id,expectedVersion:state.history.length,requestKey:key,photos,note:note.trim()})});
+ const res=await fetch("/api/workforce/reception/ready/append",{method:"POST",cache:"no-store",headers:{"content-type":"application/json"},body:JSON.stringify({centerId:scope.centerId,workDate:scope.workDate,shiftTemplateId:scope.shiftTemplateId,openingReceiptId:state.receipt.receipt_id,expectedVersion:state.history.length,requestKey:key,photos,note:note.trim()})});
  if(!res.ok)throw new Error(res.status===409?"Thông tin đã thay đổi. Tải lại trước khi gửi.":"Không thể xác nhận ảnh bổ sung.");
  const result=parseReadySnapshot((await res.json() as {data?:unknown}).data,scope);
  if(result.state!=="READY"||result.receipt.receipt_id!==state.receipt.receipt_id||(result.history?.length??0)<=state.history.length)throw new Error("Chưa xác minh được vòng ảnh bổ sung.");
@@ -85,7 +85,7 @@ export async function appendReceptionEvidence(scope:ReceptionReadyScope,state:Ex
 }
 export async function receptionEvidencePhoto(scope:ReceptionReadyScope,receiptId:string,assetId:string,signal?:AbortSignal){
  if(!uuid.test(receiptId)||!uuid.test(assetId))throw new Error("Ảnh không hợp lệ.");
- const res=await fetch("/api/workforce/reception/ready/photo?"+new URLSearchParams({...scope,openingReceiptId:receiptId,assetId}),{cache:"no-store",...(signal?{signal}:{})});
+ const res=await fetch("/api/workforce/reception/ready/photo?"+new URLSearchParams({centerId:scope.centerId,workDate:scope.workDate,shiftTemplateId:scope.shiftTemplateId,openingReceiptId:receiptId,assetId}),{cache:"no-store",...(signal?{signal}:{})});
  if(!res.ok)throw new Error("Không thể xác minh ảnh private.");
  const {data}=await res.json() as {data?:Photo};
  if(!data)throw new Error("Ảnh không hợp lệ.");

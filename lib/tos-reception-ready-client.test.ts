@@ -41,10 +41,12 @@ void test("PAP-763 reception correction preserves the same READY and appends one
  const state=await readReceptionReady(scope);
  assert.equal(state.state,"READY");if(state.state!=="READY")throw new Error("missing READY");
  const key=newReceptionCorrectionKey();
- const result=await appendReceptionEvidence(scope,state,[photo,photo],"Góc quầy",key);
+ const slot={...scope,label:"18:00–21:00"};
+ const result=await appendReceptionEvidence(slot,state,[photo,photo],"Góc quầy",key);
  assert.equal(result.receipt.receipt_id,r.receipt_id);assert.equal(result.history?.length,3);assert.equal(result.history?.at(-1)?.privateAssetIds.length,2);
  assert.deepEqual(JSON.parse(String(calls[1]?.init?.body)),{...scope,openingReceiptId:r.receipt_id,expectedVersion:2,requestKey:key,photos:[parseReceptionPhoto(photo),parseReceptionPhoto(photo)],note:"Góc quầy"});
- assert.equal(await receptionEvidencePhoto(scope,r.receipt_id,id(7)),photo);
+ assert.equal(await receptionEvidencePhoto(slot,r.receipt_id,id(7)),photo);
+ assert.deepEqual(Object.fromEntries(new URL(calls[2]!.url,"https://tos.staging.pinohouse.art").searchParams),{...scope,openingReceiptId:r.receipt_id,assetId:id(7)});
  assert.throws(()=>parseReceptionHistory([first,{...next,version:2,privateAssetIds:[id(3)]}]),/không hợp lệ/);
 });
 
