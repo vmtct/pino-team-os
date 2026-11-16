@@ -80,3 +80,25 @@ test("PAP-2021 rejects invalid direct action candidates before emitting an inten
   assert.deepEqual(visibleStationChoiceTurns(read([candidate]),candidate.centerId),[]);
  }
 });
+
+test("PAP-2021 malformed runtime-shaped projections fail closed without crashing",()=>{
+ const unknownTurns=[null,{}, {...turn,offers:null},{...turn,offers:[null]},
+  {...turn,visitId:12},{...turn,learnerName:null},{...turn,offers:[{...turn.offers[0],offerId:8}]},
+  {...turn,offers:[{...turn.offers[0],imageUrl:42}]}] as unknown as StationChoiceTurn[];
+ for(const candidate of unknownTurns){
+  assert.equal(stationChoiceAction(candidate,null),null);
+  assert.equal(stationChoiceAction(candidate,"o1"),null);
+  assert.deepEqual(visibleStationChoiceTurns(read([candidate]),"center-a"),[]);
+ }
+ for(const candidate of [null,{...read(),turns:null},{...read(),status:"bogus"}] as unknown as StationChoiceRead[]){
+  assert.deepEqual(visibleStationChoiceTurns(candidate,"center-a"),[]);
+  assert.equal(canMountStationQuickChoice("overview","center-a",["center-a"],candidate),false);
+ }
+});
+
+test("PAP-2021 invalid same-Visit projection quarantines its lineage in either order",()=>{
+ const other={...turn,visitId:"visit-b"};
+ const malformed={...turn,offers:null} as unknown as StationChoiceTurn;
+ for(const variants of [[turn,other,malformed],[malformed,other,turn]])
+  assert.deepEqual(visibleStationChoiceTurns(read(variants),"center-a"),[other]);
+});

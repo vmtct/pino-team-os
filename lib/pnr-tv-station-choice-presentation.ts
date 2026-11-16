@@ -18,12 +18,15 @@ export type StationChoiceAction =
 
 // Shared validity predicate for both rendering and direct intent emission.
 // This is presentation validation only; it does not authorize a server action.
+function nonblank(value:unknown):value is string{
+  return typeof value==="string" && value.trim().length>0;
+}
 function isValidStationChoiceTurn(turn:StationChoiceTurn):boolean{
-  if(!turn.visitId.trim()||!turn.centerId.trim()||!turn.learnerName.trim()
+  if(!turn||!nonblank(turn.visitId)||!nonblank(turn.centerId)||!nonblank(turn.learnerName)||!Array.isArray(turn.offers)
     ||!Number.isSafeInteger(turn.balancePls)||turn.balancePls<0||turn.offers.length>3)return false;
   const offerIds=new Set<string>(),itemIds=new Set<string>();
   for(const offer of turn.offers){
-    if(!offer.offerId.trim()||!offer.itemId.trim()||!offer.displayName.trim()
+    if(!offer||!nonblank(offer.offerId)||!nonblank(offer.itemId)||!nonblank(offer.displayName)||(offer.imageUrl!==null&&!nonblank(offer.imageUrl))
       ||offerIds.has(offer.offerId)||itemIds.has(offer.itemId)
       ||!Number.isSafeInteger(offer.offerVersion)||offer.offerVersion<1
       ||!Number.isSafeInteger(offer.itemRevision)||offer.itemRevision<1
@@ -37,10 +40,12 @@ function isValidStationChoiceTurn(turn:StationChoiceTurn):boolean{
 // Hides stale projections; never grants permissions. Trusted parent must provide
 // a Center-scoped, server-authorized projection. No local fixtures or persistence.
 export function visibleStationChoiceTurns(read:StationChoiceRead,selectedCenterId:string|null):readonly StationChoiceTurn[]{
-  if(!selectedCenterId||read.status!=="ready"||read.centerId!==selectedCenterId)return [];
+  if(!selectedCenterId||!read||read.status!=="ready"||read.centerId!==selectedCenterId||!Array.isArray(read.turns))return [];
+  const turns:readonly StationChoiceTurn[]=read.turns;
   const signatures=new Map<string,string>(),ambiguous=new Set<string>();
-  for(const turn of read.turns){
-    if(turn.centerId!==selectedCenterId||!turn.visitId)continue;
+  for(const turn of turns){
+    if(!turn||turn.centerId!==selectedCenterId||!nonblank(turn.visitId))continue;
+    if(!isValidStationChoiceTurn(turn)){ambiguous.add(turn.visitId);continue;}
     const signature=JSON.stringify([turn.learnerName,turn.balancePls,turn.offers.map(offer=>[
       offer.offerId,offer.itemId,offer.offerVersion,offer.itemRevision,offer.displayName,offer.pricePls,offer.imageUrl
     ])]);
@@ -49,8 +54,8 @@ export function visibleStationChoiceTurns(read:StationChoiceRead,selectedCenterI
     signatures.set(turn.visitId,signature);
   }
   const seen=new Set<string>();
-  return read.turns.filter(turn=>{
-    if(turn.centerId!==selectedCenterId||ambiguous.has(turn.visitId)||seen.has(turn.visitId)
+  return turns.filter(turn=>{
+    if(!turn||turn.centerId!==selectedCenterId||ambiguous.has(turn.visitId)||seen.has(turn.visitId)
       ||!isValidStationChoiceTurn(turn))return false;
     seen.add(turn.visitId);return true;
   });
@@ -68,5 +73,5 @@ export function stationChoiceAction(turn:StationChoiceTurn,offerId:string|null):
 /** UI scoping guard only; the Core adapter remains responsible for effective ACL. */
 export function canMountStationQuickChoice(tab:string,centerId:string|null,authorizedCenterIds:readonly string[],read:StationChoiceRead|undefined):boolean{
   return tab==="overview" && !!centerId && authorizedCenterIds.includes(centerId)
-    && !!read && read.centerId===centerId && read.status!=="unverified";
+    && !!read && read.centerId===centerId && Array.isArray(read.turns) && (read.status==="ready"||read.status==="loading"||read.status==="error");
 }
