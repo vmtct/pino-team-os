@@ -43,3 +43,11 @@ test("PAP-1956 integrated exception detail checks PTE, period, Center and frozen
  assert.deepEqual(Object.fromEntries(url.searchParams),{centerId:"c",record:"p",incomeStaff:"s",incomeException:"r"});
  assert.equal(settlementDrawerHref("c","p","s"),"/bo/payroll-periods?centerId=c&record=p&tab=settlements&incomeDrawer=s");
 });
+
+test("PAP-1956 signed adjustments are read from the exact snapshot; malformed or duplicate entries rejected",()=>{
+ const adjustments=[{id:"bonus",amountMinor:1200,reason:"Synthetic bonus"},{id:"deduction",amountMinor:-200,reason:"Synthetic deduction"}];
+ const make=(items:typeof adjustments)=>({...row,staff:{...row.staff,preview:{...preview,adjustments:items,adjustmentsMinor:1000}}});
+ assert.deepEqual(settlementDrawerSource(make(adjustments),"center","period","staff").preview.adjustments,adjustments);
+ assert.throws(()=>settlementDrawerSource(make([adjustments[0],adjustments[0]]),"center","period","staff"),/SOURCE_MISMATCH/);
+ assert.throws(()=>settlementDrawerSource(make([{...adjustments[0],amountMinor:1.5}]),"center","period","staff"),/SOURCE_MISMATCH/);
+});

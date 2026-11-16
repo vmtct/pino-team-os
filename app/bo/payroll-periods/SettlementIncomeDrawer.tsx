@@ -12,6 +12,7 @@ import {payrollVerifiedName} from "@/lib/bo-payroll-safe-read-metadata";
 import type {NativeReviewedException} from "@/lib/bo-payroll-exceptions-read";
 
 const date=(v:string)=>v.split("-").reverse().join("/");
+const dayLabel=(status:string)=>({READY:"Đã tính",NO_ATTENDANCE:"Chưa chấm công",NO_ASSIGNMENT:"Thiếu phân công",PENDING_CHECKOUT:"Chưa checkout",RATE_MISSING:"Thiếu Rate HO",RECONCILIATION_REQUIRED:"Cần đối soát"} as Record<string,string>)[status]??"—";
 const statusLabels={DRAFT:"Bản nháp",PENDING:"Chờ duyệt",FINALIZED:"Đã chốt",PAID:"Đã thanh toán",ARCHIVED_UNAVAILABLE:"Không đủ dữ liệu"};
 export function SettlementIncomeDrawer({centerId,period,staffId,onClose}:{centerId:string;period:PeriodStaffPage["period"];staffId:string;onClose:()=>void}){
  const [result,setResult]=useState<{source:ReturnType<typeof settlementDrawerSource>;exceptions:NativeReviewedException[];exceptionError:string}|null>(null);
@@ -20,7 +21,7 @@ export function SettlementIncomeDrawer({centerId,period,staffId,onClose}:{center
   let live=true;
   void (async()=>{
    const {current}=await loadIncomeHistory(centerId,period.id,staffId);
-   if(current.period.startDate!==period.startDate||current.period.endDate!==period.endDate)throw Error("Kỳ lương đã thay đổi. Vui lòng tải lại.");
+   if(current.period.startDate!==period.startDate||current.period.endDate!==period.endDate||current.period.status!==period.status)throw Error("Kỳ lương đã thay đổi. Vui lòng tải lại.");
    const source=settlementDrawerSource(current,centerId,period.id,staffId);
    let exceptions:NativeReviewedException[]=[];let exceptionError="";
    try{exceptions=await settlementDrawerExceptions(current,centerId,period.id,staffId);}
@@ -28,7 +29,7 @@ export function SettlementIncomeDrawer({centerId,period,staffId,onClose}:{center
    if(live)setResult({source,exceptions,exceptionError});
   })().catch(e=>{if(live)setError(e instanceof Error?e.message:"Không thể đọc thu nhập từ Core.");});
   return()=>{live=false;};
- },[centerId,period.id,period.startDate,period.endDate,staffId]);
+ },[centerId,period.id,period.startDate,period.endDate,period.status,staffId]);
  const source=result?.source;
  const href=(day?:string)=>"/bo/payroll-periods?"+new URLSearchParams({centerId,record:period.id,incomeStaff:staffId,...(day?{incomeDay:day,fromSettlement:"1"}:{})});
  return <DrawerFrame title={source?payrollVerifiedName(source.staff.staffName):"Thu nhập PTE"} path="Kỳ lương · Quyết Toán" onClose={onClose}
@@ -49,7 +50,10 @@ export function SettlementIncomeDrawer({centerId,period,staffId,onClose}:{center
      {!source.frozen&&pendingSettlementException(source.preview.warnings,result.exceptions)?<p role="alert">Không thể quyết toán: còn yêu cầu ngoại lệ chưa duyệt.</p>:null}
     </section>
     <section className="property-section" aria-label="Ngày công"><h3>Ngày công</h3>
-     {source.preview.days.length?<div className="pay-card-list">{source.preview.days.map(day=><Link key={day.workDate} className="pay-compact-day" href={href(day.workDate)}><span>{date(day.workDate)} · {day.paidMinutes??"—"} phút</span><strong>{money(day.amountMinor)}</strong><span>{day.status}</span></Link>)}</div>:<p>Không có ngày công trong snapshot này.</p>}
+     {source.preview.days.length?<div className="pay-card-list">{source.preview.days.map(day=><Link key={day.workDate} className="pay-compact-day" href={href(day.workDate)}><span>{date(day.workDate)} · {day.paidMinutes??"—"} phút</span><strong>{money(day.amountMinor)}</strong><span>{dayLabel(day.status)}</span></Link>)}</div>:<p>Không có ngày công trong snapshot này.</p>}
+    </section>
+    <section className="property-section" aria-label="Điều chỉnh"><h3>Điều chỉnh</h3>
+     {source.preview.adjustments.length?<div className="pay-card-list">{source.preview.adjustments.map(a=><div className="pay-staff-card" key={a.id}><div><strong>{a.reason||"—"}</strong></div><div className="pay-staff-money"><strong>{a.amountMinor>0?"+":""}{money(a.amountMinor)}</strong></div></div>)}</div>:<p>Không có điều chỉnh trong kỳ.</p>}
     </section>
     <section className="property-section" aria-label="Ngoại lệ và thêm giờ"><h3>Ngoại lệ &amp; thêm giờ</h3>
      {result.exceptionError?<p role="alert">{result.exceptionError}</p>:result.exceptions.length?<div className="pay-card-list">{result.exceptions.map(raw=>{

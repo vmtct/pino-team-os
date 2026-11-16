@@ -9,7 +9,7 @@ export function settlementDrawerSource(row:IncomePeriod,centerId:string,periodId
  if(!source||!source.staff.preview)throw Error("PAYROLL_DRAWER_SOURCE_UNAVAILABLE");
  const p=source.staff.preview;
  if(!Array.isArray(p.days)||!Array.isArray(p.adjustments)||!Array.isArray(p.extraTimeDecisions)||
-    !Array.isArray(p.warnings)||p.days.some(day=>scopedIncomeDay(source,day.workDate)!==day))
+    !Array.isArray(p.warnings)||p.adjustments.some(a=>!a||typeof a.id!=="string"||!a.id||!Number.isSafeInteger(a.amountMinor)||typeof a.reason!=="string")||new Set(p.adjustments.map(a=>a.id)).size!==p.adjustments.length||p.days.some(day=>scopedIncomeDay(source,day.workDate)!==day))
   throw Error("PAYROLL_DRAWER_SOURCE_MISMATCH");
  return {...source,preview:p,frozen:source.staff.status==="FINALIZED"||source.staff.status==="PAID"};
 }

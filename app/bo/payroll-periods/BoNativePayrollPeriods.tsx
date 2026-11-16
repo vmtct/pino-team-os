@@ -164,7 +164,7 @@ function Settlements({centerId,id,initial,incomeDrawer}:{centerId:string;id:stri
    emptyTitle="Chưa có giờ công" emptyMessage="Không có bản ghi đủ điều kiện trong trang hiện tại."/>
   {page.nextOffset!==null?<button type="button" disabled={busy} onClick={()=>void more()}>Tải thêm PTE</button>:null}
   {error?<p role="alert">{error}</p>:null}
-  {incomeDrawer?<SettlementIncomeDrawer key={incomeDrawer} centerId={centerId} period={initial.period} staffId={incomeDrawer} onClose={()=>router.replace(detailUrl(centerId,id)+"&tab=settlements")}/>:null}
+  {incomeDrawer?<SettlementIncomeDrawer key={JSON.stringify([centerId,id,initial.period.startDate,initial.period.endDate,initial.period.status,incomeDrawer])} centerId={centerId} period={initial.period} staffId={incomeDrawer} onClose={()=>router.replace(detailUrl(centerId,id)+"&tab=settlements")}/>:null}
  </section></>;
 }
 
