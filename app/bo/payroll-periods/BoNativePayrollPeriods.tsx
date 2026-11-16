@@ -3,7 +3,7 @@
 import Link from "next/link";
 import {PayrollIncomeDetail} from "./PayrollIncomeDetail";
 import {useEffect,useState,useRef} from "react";
-import {useSearchParams} from "next/navigation";
+import {useRouter,useSearchParams} from "next/navigation";
 import {BoDataGrid,BoDataGridBadge,type BoDataGridColumn} from "@/app/bo/components/data-grid";
 import {BoFullDetail} from "@/app/bo/components/BoFullDetail";
 import {DrawerFrame} from "@/app/components/workspace-renderer/DrawerFrame";
@@ -117,6 +117,7 @@ function settlementStatus(status:PeriodStaffPage["rows"][number]["status"]){
  }
 }
 function Settlements({centerId,id,initial}:{centerId:string;id:string;initial:PeriodStaffPage}){
+ const router=useRouter();
  const [page,setPage]=useState(initial),[rows,setRows]=useState(initial.rows);
  const [busy,setBusy]=useState(false),[error,setError]=useState("");
  const visible=staffWithWorkEvidence(rows);
@@ -149,7 +150,7 @@ function Settlements({centerId,id,initial}:{centerId:string;id:string;initial:Pe
     {key:"staff",header:"PTE",minWidth:190,render:r=><><strong>{payrollVerifiedName(r.staffName)}</strong><div className="id-code">{r.staffMemberId}</div></>},
     {key:"amount",header:"Thành tiền",minWidth:150,render:r=><strong className="payroll-ro-amount">{money(r.amountMinor)}</strong>},
     {key:"status",header:"Trạng thái",minWidth:140,render:r=><BoPill {...settlementStatus(r.status)}/>},
-    {key:"income",header:"Thao tác",minWidth:130,align:"right",render:r=><div className="pay-settlement-actions"><Link className="secondary-btn" href={ROOT+"?"+new URLSearchParams({centerId,record:id,incomeStaff:r.staffMemberId})}>Xem thu nhập</Link></div>},
+    {key:"income",header:"Thao tác",minWidth:130,align:"right",render:r=><div className="pay-settlement-actions"><button type="button" className="secondary-btn" onClick={()=>router.push(ROOT+"?"+new URLSearchParams({centerId,record:id,incomeStaff:r.staffMemberId}))}>Xem thu nhập</button></div>},
    ]}
    emptyTitle="Chưa có giờ công" emptyMessage="Không có bản ghi đủ điều kiện trong trang hiện tại."/>
   {page.nextOffset!==null?<button type="button" disabled={busy} onClick={()=>void more()}>Tải thêm PTE</button>:null}
