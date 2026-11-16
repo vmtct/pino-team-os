@@ -3,7 +3,7 @@ import { createContext, useContext, useMemo, useState } from "react";
 import type { BoShellContext } from "@/lib/bo-shell-gate";
 import { BoRegistrationWorkspace, type BoWorkspaceSource } from "./BoRegistrationWorkspace";
 import { BoStaffsViews, type StaffsView } from "./BoStaffsViews";
-import { readStaffCenterApplications } from "@/lib/bo-staff-center-registration-adapter";
+import { StaffRegistrationSection } from "../../staff/StaffRegistrationSection";
 import { unifiedBoWorkspaceSource } from "../../architecture/bo-unified-workspace-source";
 import { BoOperationalView } from "../../BoOperationalView";
 import dynamic from "next/dynamic";
@@ -65,10 +65,7 @@ function CenterReadWorkspace({ moduleKey, options, currentUser }: {
     content={blocked ? <CenterReadPending message={message} denied={Boolean(center?.error)} /> : undefined} />;
 }
 
-/** PAP-1407: local Staffs business views atop the existing, unmodified shared TDD host.
- * The registration tab is intentionally NOT wired to the unscoped legacy queue.
- * PAP-1406 is responsible for the explicit Center-bound Core contract.
- */
+/** PAP-2004 / PAP-220: canonical Staffs registration tab uses the Center review capability; unrelated directory stays fail-closed. */
 function BoStaffsEntry({ currentUser, options }: {
   currentUser: Pick<BoShellContext, "displayName" | "email">;
   options: Record<string, string>;
@@ -79,27 +76,11 @@ function BoStaffsEntry({ currentUser, options }: {
   const scopedOptions = useMemo(() => ({ ...options, centerId: selected }), [options, selected]);
   const source = useMemo<BoWorkspaceSource>(() => ({
     ...unifiedBoWorkspaceSource,
-    modules: view === "register" ? {
-      ...unifiedBoWorkspaceSource.modules,
-      staffs: {
-        ...unifiedBoWorkspaceSource.modules.staffs!,
-        fields: [
-          { key: "name", label: "Người đăng ký", type: "text", icon: "Aa", w: 235 },
-          { key: "submittedAt", label: "Ngày đăng ký", type: "datetime", icon: "▦", w: 175 },
-          { key: "status", label: "Trạng thái", type: "select", icon: "▣", w: 145 },
-          { key: "id", label: "Mã đăng ký", type: "id", icon: "#", w: 145 },
-        ],
-      },
-    } : unifiedBoWorkspaceSource.modules,
     isModuleReadOnly: (key) => key === "staffs" || unifiedBoWorkspaceSource.isModuleReadOnly?.(key) === true,
     scopeLabel: (key, requestedOptions) => key === "staffs" && view === "register"
       ? "Cơ sở đã chọn" : unifiedBoWorkspaceSource.scopeLabel(key, requestedOptions),
     async load(key, fetcher, requestedOptions) {
       if (key === "staffs") {
-        if (view === "register") {
-          // The existing registration queue has a verified Center-bound API.
-          return readStaffCenterApplications(fetcher, selected);
-        }
         // PAP-1544 / PAP-1316: the legacy staff-records API is unscoped.
         // Refuse all regular Staff directory tabs until Core exposes an
         // independently authorized Center-bound read. Never client-filter PII.
@@ -107,13 +88,21 @@ function BoStaffsEntry({ currentUser, options }: {
       }
       return unifiedBoWorkspaceSource.load(key, fetcher, requestedOptions);
     },
-  }), [view, selected]);
-  const blocked = view === "register" && (!center || center.loading || Boolean(center.error) || !selected);
-  const message = center?.error || (center?.loading ? "Đang xác thực danh sách cơ sở…" : "Chọn cơ sở để xem đơn đăng ký.");
+  }), [view]);
+  const registrationContent = view === "register" ? <StaffsRegistrationContent view={view} onSelect={setView} /> : undefined;
   return <BoRegistrationWorkspace key={"staffs:" + view + ":" + selected} currentUser={currentUser}
     source={source} moduleKey="staffs" options={scopedOptions}
-    content={blocked ? <CenterReadPending message={message} denied={Boolean(center?.error)} /> : undefined}
+    content={registrationContent}
     headerContent={<BoStaffsViews selected={view} onSelect={setView} />} />;
+}
+
+function StaffsRegistrationContent({view,onSelect}: {view: StaffsView; onSelect: (view: StaffsView) => void}) {
+  const menu = useContext(TddHostMenu);
+  return <>
+    <div className="page-heading"><div className="page-heading-left">{menu("staff-register-menu-btn")}<h1>Nhân sự</h1></div></div>
+    <BoStaffsViews selected={view} onSelect={onSelect} />
+    <StaffRegistrationSection embedded />
+  </>;
 }
 
 export function BoRuntimeEntry({ moduleKey, options }: { moduleKey: string; options: Record<string, string> }) {
