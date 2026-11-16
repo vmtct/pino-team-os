@@ -66,3 +66,24 @@ test("PAP-2042 admits only the five method and path pairs", async () => {
  assert.equal(unavailable.status, 503);
  assert.match(unavailable.headers.get("cache-control"), /no-store/);
 });
+
+test("PAP-2044 serves only read-only PIN login and Next static asset requests", async () => {
+ const seen = [];
+ const env = {
+  PINER_BRAND_R2: { get: async () => null },
+  AFTERSCHOOL_PIN_WORKER: { fetch: async request => {
+   seen.push([new URL(request.url).pathname, request.method]);
+   return new Response(null, { status: 200 });
+  } }
+ };
+ const login = "/piner-space/afterschool/login";
+ const asset = "/_next/static/chunks/app/piner-space/afterschool/login/page-546c04ab6ef5f833.js";
+ const page = await staging.fetch(req(login), env);
+ assert.equal(page.status, 200);
+ assert.equal(page.headers.get("x-frame-options"), "DENY");
+ assert.match(page.headers.get("cache-control"), /no-store/);
+ assert.equal((await staging.fetch(req(asset, "HEAD"), env)).status, 200);
+ assert.equal((await staging.fetch(req(asset, "POST"), env)).status, 405);
+ assert.equal((await staging.fetch(req("/_next/data/private.json"), env)).status, 404);
+ assert.deepEqual(seen, [[login, "GET"], [asset, "HEAD"]]);
+});

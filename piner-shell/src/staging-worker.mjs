@@ -9,9 +9,12 @@ const PIN_ROUTES = new Map([
   ["/api/piner/afterschool/logout", "POST"],
 ]);
 
-async function forwardAfterschoolPin(request, service, method) {
-  if (request.method !== method) {
-    return new Response(null, { status: 405, headers: { Allow: method } });
+const LOGIN_PATH = "/piner-space/afterschool/login";
+const NEXT_STATIC = /^\/_next\/static\/(?:[\w.-]+\/)*[\w.-]+\.(?:js|css|woff2)$/;
+
+async function forwardAfterschoolPin(request, service, allowedMethods) {
+  if (!allowedMethods.includes(request.method)) {
+    return new Response(null, { status: 405, headers: { Allow: allowedMethods.join(", ") } });
   }
   try {
     // Forward the original request so Identity can validate its origin and session.
@@ -26,15 +29,23 @@ export default {
   async fetch(request, env, ctx) {
     const path = new URL(request.url).pathname;
     const isPinRoute = path.startsWith("/api/piner/afterschool/");
+    const isLogin = path === LOGIN_PATH;
+    const isAsset = NEXT_STATIC.test(path);
     const method = PIN_ROUTES.get(path);
-    const response = method
-      ? await forwardAfterschoolPin(request, env?.AFTERSCHOOL_PIN_WORKER, method)
+    const allowedMethods = isLogin || isAsset ? ["GET", "HEAD"] : method ? [method] : null;
+    const response = allowedMethods
+      ? await forwardAfterschoolPin(request, env?.AFTERSCHOOL_PIN_WORKER, allowedMethods)
       : isPinRoute ? new Response(null, { status: 404 }) : await base.fetch(request, env, ctx);
     const headers = new Headers(response.headers);
     headers.set("X-Piner-Environment", "staging");
-    if (isPinRoute) {
+    if (isPinRoute || isLogin || isAsset) {
       headers.set("Cache-Control", "no-store, no-transform");
       headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+      headers.set("X-Content-Type-Options", "nosniff");
+      if (isLogin) {
+        headers.set("X-Frame-Options", "DENY");
+        headers.set("Referrer-Policy", "no-referrer");
+      }
     } else if ((headers.get("Content-Type") || "").includes("text/html")) {
       headers.set("Cache-Control", "no-store, no-transform");
     }
