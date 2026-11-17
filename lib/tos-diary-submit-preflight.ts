@@ -4,6 +4,7 @@
  */
 import {V18bCoreError,type V18bEligibleMissionsRead,type createV18bApiTransport} from "./tos-classroom-v18b-api";
 import {validateMissionLinkChoices,type MissionChoice} from "./tos-diary-mission-link-workflow";
+import {projectTosSpecialtyPickerChoices} from "./tos-specialty-picker-read";
 import type {ClassroomV4ViewModel,ScheduledClass} from "./tos-classroom-v4-view-model";
 
 type Registration=Parameters<ReturnType<typeof createV18bApiTransport>["register"]>[0];
@@ -51,6 +52,7 @@ export function prepareDiarySubmission(input:DiarySubmissionInput):PreparedDiary
   throw scopeError();
  if(!nonEmpty(input.submissionKey)||input.submissionKey.trim().length>160)
   throw new V18bCoreError(400,"DIARY_SUBMISSION_KEY_INVALID","Thiếu mã gửi Nhật ký ổn định.");
+ if(eligibility.hasMore)throw new V18bCoreError(409,"DIARY_ELIGIBILITY_INCOMPLETE","Danh sách Mission chưa đầy đủ.");
  const eligibleMissionIds=eligibility.items.map(m=>m.missionId);
  const safeSelected=validateMissionLinkChoices(selected,eligibleMissionIds);
  for(const choice of safeSelected){
@@ -62,4 +64,19 @@ export function prepareDiarySubmission(input:DiarySubmissionInput):PreparedDiary
    studentId,pathKey:eligibility.pathProgramId,teachingContextKey:classroom.id},
   selected:safeSelected,eligibleMissionIds,submissionKey:input.submissionKey.trim(),
  };
+}
+
+// PAP-1497 / SPEC-UNLOCK: new selection only. Keep the original preparation
+// available for read-only reconciliation of an existing submission; a historical
+// Mission identity is not evidence of current write eligibility.
+export function prepareSpecialtyDiarySubmission(input:DiarySubmissionInput):PreparedDiarySubmission {
+ const catalog=input.eligibility;
+ if(!catalog||catalog.hasMore)throw new V18bCoreError(409,"DIARY_ELIGIBILITY_INCOMPLETE","Danh sách Mission chưa đầy đủ.");
+ let choices:ReturnType<typeof projectTosSpecialtyPickerChoices>;
+ try{choices=projectTosSpecialtyPickerChoices(catalog.items);}
+ catch{throw new V18bCoreError(502,"DIARY_SPECIALTY_ELIGIBILITY_UNVERIFIED","Chưa xác minh được điều kiện Chuyên đề từ Core.");}
+ if(!input.classroom.pathProgramId||catalog.pathProgramId!==input.classroom.pathProgramId)
+  throw scopeError();
+ const available=choices.filter(row=>row.available&&row.assignmentId!==null);
+ return prepareDiarySubmission({...input,eligibility:{...catalog,items:available}});
 }
