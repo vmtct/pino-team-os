@@ -87,7 +87,7 @@ function ScopedSelfDirectory({selected,centerSource}: {selected: string; centerS
         : <SelfWardrobeDetail key={selected + ":" + row.id} row={row} centerId={selected} activeTab={activeTab}
             canView={context.authorize("pinoria.self.item.view")} canManage={context.authorize("pinoria.self.item.manage")}
             onSaved={onSaved} />}/>
-    {creating && canCreate ? <CreateSelfDrawer centerId={selected} onClose={()=>setCreating(false)}
+    {creating && canCreate ? <CreateSelfDrawer centerId={selected} canUseStarter={current.adapter.context.authorize("pinoria.self.loadout.manage")} onClose={()=>setCreating(false)}
       onCreated={()=>{setCreating(false);setCreatedNotice("Đã tạo Avatar.");setReady(null);setRetry(n=>n+1)}}/> : null}
   </>;
 }
