@@ -7,6 +7,7 @@ import { useContext, useEffect, useState } from "react";
 import { BoApplicationShellContext } from "@/app/bo/shell/BoApplicationShellContext";
 import { BoDataTable } from "@/app/bo/components/registration/BoDataTable";
 import { useBoStagingUser } from "@/app/bo/components/registration/BoRuntimeBoundary";
+import { AfterschoolHistory } from "./AfterschoolHistory";
 import { AfterschoolPinDrawer } from "./AfterschoolPinDrawer";
 import { DetailFrame } from "@/app/components/workspace-renderer/DetailFrame";
 import { PropertySections } from "@/app/components/workspace-renderer/Properties";
@@ -108,6 +109,7 @@ function ScopedAccounts({ centerId }: { centerId: string }) {
   const [page, setPage] = useState(1);
   const [drawer, setDrawer] = useState<BoRecord | null>(null);
   const [detail, setDetail] = useState<BoRecord | null>(null);
+  const [historyTab, setHistoryTab] = useState<string>("overview");
   const [settings, setSettings] = useState<string | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
   const [views, setViews] = useState<BoSavedView[]>([]);
@@ -155,16 +157,16 @@ function ScopedAccounts({ centerId }: { centerId: string }) {
     onExisting={async (id) => {
       const existing = rows.find((row) => row.id === id) ?? await locateAccount(centerId, id);
       if (!existing) return false;
-      setDrawer(null); setDetail(existing); setPinDrawer(null);
+      setDrawer(null); setHistoryTab("overview"); setDetail(existing); setPinDrawer(null);
       return true;
     }} />;
 
   if (detail) return <DetailFrame title={detail.name} mobileMenu={menu?.("detail-menu-btn")}
-    onBack={() => setDetail(null)} tabs={[{ id: "overview", label: "Tổng quan" }]} selected="overview"
+    onBack={() => {setDetail(null);setHistoryTab("overview");}} tabs={[{ id: "overview", label: "Tổng quan" },{id:"history",label:"Lịch sử"}]} selected={historyTab} onSelect={setHistoryTab}
     actions={actionsEnabled && <button type="button" className="secondary-btn"
       onClick={() => setPinDrawer({ parent: { id: detail.id, name: detail.name } })}>Cấp lại PIN</button>}
     after={pinActionDrawer}>
-    <PropertySections variant="detail" fields={directory.fields} record={detail} sections={overview} />
+    {historyTab==="history" ? <AfterschoolHistory parentId={detail.id} centerId={centerId} revision={retry}/> : <PropertySections variant="detail" fields={directory.fields} record={detail} sections={overview} />}
   </DetailFrame>;
 
   return <section id="list-screen" aria-label="Tài khoản" data-bo-afterschool-directory="PAP-1886">
@@ -183,7 +185,7 @@ function ScopedAccounts({ centerId }: { centerId: string }) {
       builtInViews={result?.next && <button type="button" className="ghost-btn" disabled={loading || Boolean(error)}
         onClick={() => setCursor(result.next!)}>Tải thêm tài khoản</button>} />
     {drawer && !pinDrawer && <BoQuickView module={directory} record={drawer}
-      onClose={() => setDrawer(null)} onDetail={() => { setDetail(drawer); setDrawer(null); }} />}
+      onClose={() => setDrawer(null)} onDetail={() => { setHistoryTab("overview"); setDetail(drawer); setDrawer(null); }} />}
     {pinActionDrawer}
     {settings && <BoTableSettings screen={settings} setScreen={setSettings}
       onClose={() => setSettings(null)} fields={directory.fields} rows={rows}
