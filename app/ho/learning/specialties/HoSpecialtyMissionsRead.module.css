@@ -1,0 +1,8 @@
+/* PAP-1495: layout only; HO DS owns card and text presentation. */
+.stack { display:grid; gap:14px; min-width:0; }
+.list { display:grid; gap:10px; min-width:0; }
+.row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; min-width:0; }
+.identity { display:grid; grid-template-columns:minmax(0,auto) minmax(0,1fr); gap:8px; min-width:0; }
+@media (max-width:600px) {
+ .row,.identity { grid-template-columns:minmax(0,1fr); }
+}

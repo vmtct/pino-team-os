@@ -5,7 +5,18 @@ import { renderToStaticMarkup as html } from "react-dom/server";
 import { specialtyProvider,specialtyFields,specialtyPrerequisiteLabels,shouldPrimeSpecialtyS4Detail } from "../app/ho/learning/specialties/schema";
 import { loadSpecialtyS4Read } from "./ho-specialty-s4-read";
 import type { SpecialtyV2Summary } from "./ho-specialty-v2-reader";
-import { SpecialtyMissionsReadContent } from "../app/ho/learning/specialties/HoSpecialtyMissionsRead";
+import { createRequire } from "node:module";
+const requireCss = createRequire(import.meta.url);
+const cssPath = requireCss.resolve("../app/ho/learning/specialties/HoSpecialtyMissionsRead.module.css");
+const previousCss = requireCss.extensions[".css"];
+requireCss.extensions[".css"] = (module, file) => {
+  if (file !== cssPath) { if (previousCss) return previousCss(module, file); throw new Error("Unexpected CSS import: "+file); }
+  module.exports = {"stack":"stack","list":"list","row":"row","identity":"identity"};
+};
+const { SpecialtyMissionsReadContent } = (() => {
+  try { return requireCss("../app/ho/learning/specialties/HoSpecialtyMissionsRead") as typeof import("../app/ho/learning/specialties/HoSpecialtyMissionsRead"); }
+  finally { if (previousCss) requireCss.extensions[".css"] = previousCss; else delete requireCss.extensions[".css"]; }
+})();
 
 const id="01234567-89ab-7cde-8fab-0123456789ab",
   path="11234567-89ab-7cde-8fab-0123456789ab",
