@@ -1,7 +1,7 @@
 /* PAP-1495: layout only; HO DS owns cards, inputs, controls and status. */
 .stack { display:grid; gap:14px; min-width:0; }
 .form { display:grid; grid-template-columns:minmax(100px,1fr) minmax(0,2.5fr) auto; gap:10px; min-width:0; }
-.field { display:grid; gap:6px; min-width:0; }
+.field { display:grid; gap:10px; min-width:0; }
 .heading { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px; min-width:0; }
 .list { display:grid; gap:10px; min-width:0; }
 .row { display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:10px; min-width:0; }

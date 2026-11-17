@@ -42,6 +42,7 @@ test("PAP-1495: approved HO relation form is above the linked Mission table",()=
   assert.match(text,/class="primary-btn"[^>]*disabled=""/);
   assert.match(text,/class="option-item"[^>]*>Vẽ vật thể 3D/);
   assert.match(text,/class="form" data-specialty-link-form="true"/);
+  assert.match(text,/<div class="field"><label class="pds-property-label"[^>]*>Nhiệm vụ<\/label><input[^>]*role="combobox"/);
 });
 test("PAP-1495: canonical Mission missing from catalog is not opened as valid",()=>{
   const text=html(false,true);

@@ -12,11 +12,12 @@ export interface SpecialtyMissionPickerProps {
   value: SpecialtyMissionOption | null;
   onChange: (selected: SpecialtyMissionOption | null) => void;
   disabled?: boolean;
+  className?: string;
 }
 
 /** PAP-1495: approved HO relation search; parent performs the Core link command. */
 export function SpecialtyMissionPicker({
-  missions, pathProgramId, linkedMissionIds, value, onChange, disabled = false,
+  missions, pathProgramId, linkedMissionIds, value, onChange, disabled = false, className,
 }: SpecialtyMissionPickerProps) {
   const id = useId().replace(/:/g, "");
   const inputId = id + "-mission-search";
@@ -51,10 +52,10 @@ export function SpecialtyMissionPicker({
     setOpen(false);
     setActive(0);
   };
-  return <div className="v25-form-field" ref={field} onBlur={event => {
+  return <div className={className ?? "v25-form-field"} ref={field} onBlur={event => {
     if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOpen(false);
   }}>
-    <label htmlFor={inputId}>Nhiệm vụ</label>
+    <label className="pds-property-label" htmlFor={inputId}>Nhiệm vụ</label>
     <input id={inputId} type="search" role="combobox" autoComplete="off"
       className="edit-input edit-search" disabled={disabled}
       aria-haspopup="listbox" aria-autocomplete="list"
