@@ -50,7 +50,7 @@ export function HoSpecialtyMissionsEdit({specialtyId,canManage,onSaved}:{
  // Fallback S4 read is the only legal view for published or unauthorized specialties.
  if(!canManage||data?.detail.status!=="DRAFT"&&data?.detail.status!==undefined)
   return <HoSpecialtyMissionsRead specialtyId={specialtyId}/>;
- if(error)return <section role="alert"><p>{error}</p><button type="button" onClick={()=>{
+ if(error)return <section role="alert"><p>{error}</p><button type="button" className="secondary-btn" onClick={()=>{
    setError("");setData(null);setRefresh(n=>n+1);
  }}>Thử lại</button></section>;
  if(!data)return <p role="status">Đang xác minh Nhiệm vụ và quyền chỉnh sửa từ Core…</p>;
