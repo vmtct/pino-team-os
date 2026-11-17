@@ -1,0 +1,29 @@
+/* PAP-1495 / PAP-1491 SPEC-UNLOCK — feature-local layout matching canonical HO.
+ * Existing PINO DS owns control appearance, focus, and palette. */
+.ho-specialty-missions {display:grid;gap:14px;min-width:0}
+.ho-specialty-missions .ho-specialty-mission-card,.ho-specialty-missions.ho-specialty-mission-card {
+  display:grid;gap:16px;min-width:0;padding:20px;border:1px solid var(--line-strong);border-radius:12px;background:var(--white);
+}
+.ho-specialty-missions :is(h3,h4,p) {margin:0}
+.ho-specialty-missions h3,.ho-specialty-missions h4 {font-size:inherit;font-weight:700}
+.ho-specialty-missions .ho-specialty-link-form {display:grid;grid-template-columns:minmax(120px,1fr) minmax(0,2.5fr) auto;gap:10px;align-items:end;min-width:0}
+.ho-specialty-missions :is(.ho-specialty-level-field,.v25-form-field) {display:grid;gap:6px;min-width:0}
+.ho-specialty-missions .ho-specialty-link-form label {font-weight:600;color:var(--muted)}
+.ho-specialty-missions .ho-specialty-link-form .edit-input {width:100%;min-width:0}
+.ho-specialty-missions .ho-specialty-link-form > .primary-btn {min-height:36px}
+.ho-specialty-missions .primary-btn:disabled,.ho-specialty-missions .secondary-btn:disabled {opacity:.55;cursor:not-allowed}
+.ho-specialty-missions .ho-specialty-mission-heading {display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.ho-specialty-missions .ho-specialty-mission-heading a {display:inline-flex;align-items:center;text-decoration:none}
+.ho-specialty-missions .ho-specialty-count {display:inline-flex;align-items:center;justify-content:center;min-width:23px;height:23px;padding:0 5px;margin-left:6px;border-radius:50%;font-size:11px;color:var(--ds-primary);background:var(--ds-primary-subtle)}
+.ho-specialty-missions section[aria-label^="Nhiệm vụ "] > h4 {margin-bottom:10px}
+.ho-specialty-missions .ho-specialty-mission-list {list-style:none;display:grid;gap:8px;padding:0;margin:0}
+.ho-specialty-missions .ho-specialty-mission-list > li {display:flex;align-items:center;gap:12px;justify-content:space-between;flex-wrap:wrap;border:1px solid var(--line-strong);border-radius:8px;padding:10px;min-width:0}
+.ho-specialty-missions .ho-specialty-mission-identity {display:flex;align-items:center;flex-wrap:wrap;gap:8px;flex:1 1 240px;min-width:0;overflow-wrap:anywhere}
+.ho-specialty-missions .ho-specialty-mission-open {max-width:100%;min-height:36px;height:auto;white-space:normal;text-align:left}
+.ho-specialty-missions .ho-specialty-mission-empty {background:var(--bg);padding:14px;border:1px solid var(--line-strong);border-radius:8px}
+@media(max-width:600px) {
+ .ho-specialty-missions .ho-specialty-mission-card,.ho-specialty-missions.ho-specialty-mission-card {padding:14px}
+ .ho-specialty-missions .ho-specialty-link-form {grid-template-columns:minmax(0,1fr)}
+ .ho-specialty-missions .ho-specialty-link-form > .primary-btn {width:100%}
+ .ho-specialty-missions .ho-specialty-mission-identity {flex-basis:100%}
+}
