@@ -100,13 +100,16 @@ test("PAP-1497: existing eligible-only data preserved; any unsupported all/locke
     [{...legacy,available:false,lockReasons:[{code:"FUTURE_START_DATE"}]}],[{...legacy,available:undefined}]])
     assert.equal(requiresSpecialtySelectionGuard(items),true);
   const source=readFileSync("app/components/tos-vnext/DiaryCapturePanel.tsx","utf8");
-  assert.equal(source.match(/requiresSpecialtySelectionGuard\(fresh.items\)/g)?.length,2);
+  assert.match(source,/prepareSpecialtyDiarySubmission\(\{model,classroom,studentId,eligibility:fresh/);
+  assert.match(source,/prepareDiarySubmission\(\{model,classroom,studentId,eligibility:fresh,\s*selected:recoveryChosen/);
   // PAP-1497: the server-authenticated extension may render in the real Diary
   // flow, but it MUST remain read-only until Core S4 owns write enforcement.
   assert.match(source,/import.*TosSpecialtyMissionChoiceList/);
-  assert.match(source,/current\.phase==="ready"&&specialtyGuarded&&<section/);
+  assert.match(source,/current\.phase==="ready"&&<section/);
   assert.match(source,/<TosSpecialtyMissionChoiceList[\s\S]*?onSelect=\{\(\)=>\{\}\} disabled\/>/);
-  assert.match(source,/permitted&&!specialtyGuarded&&<fieldset/);
+  assert.match(source,/permitted&&<fieldset/);
+  assert.match(source,/availableIds.has\(item.missionId\)/);
+  assert.match(source,/recoveryMissionIds/);
   assert.match(source,/data-specialty-selection="read-only"/);
   assert.doesNotMatch(source,/onSelect=\{(?:submitDiary|toggleMission)\}/);
 });
