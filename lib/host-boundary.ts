@@ -34,6 +34,12 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
     const route = new RegExp("^/api/bo/(?:students|identity/parents)/"+uuid+"/custom-attributes(?:/("+uuid+"))?$").exec(pathname);
     return {action:hostname===BO_STAGING_HOSTNAME && route && (route[1]===undefined ? method==="GET" : method==="PATCH") ? "next" : "not_found"};
   }
+  // PAP-2098 / PLT-ATTR: exact authenticated cutover routes, never other hosts.
+  if (/^\/api\/bo\/access\/custom-attribute-cutover(?:\/|$)/i.test(pathname)) {
+    return {action:hostname===BO_STAGING_HOSTNAME &&
+      ((pathname==="/api/bo/access/custom-attribute-cutover/preview"&&method==="GET")||
+       (pathname==="/api/bo/access/custom-attribute-cutover/execute"&&method==="POST")) ? "next" : "not_found"};
+  }
   // PAP-2050 / PLT-ACCESS: exact authenticated BO Staging operations only.
   // Never admit generic policy administration or this namespace on other hosts.
   if (/^\/api\/bo\/access\/founder-manager-policy(?:\/|$)/i.test(pathname)) {
