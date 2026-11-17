@@ -1,7 +1,7 @@
 "use client";
 /** PAP-1700 / PAP-1097 PNR-WARD: Founder-approved HO Item Create uses canonical Dsa DrawerFrame. */
 import {useState,type FormEvent} from "react";
-import "./check-in-item.css";
+import "@/app/components/pinoria-item/item-calibration.css";
 import {DrawerFrame} from "@/app/components/workspace-renderer/DrawerFrame";
 import {slots,slotNames,uploadItem,writeItem,type Slot} from "./item-client";
 
