@@ -5,7 +5,7 @@ export function recordProjection(schema: ModuleSchema, context: AuthorizationCon
   validateModule(schema);
   if (!allows(schema, context, "read") || !allowsField(schema, context, schema.table.identity.field, "display")) return null;
   if (typeof row.id !== "string" || !row.id.trim()) throw Error("Invalid TDD record identity");
-  const fields = schema.fields.filter(f => allowsField(schema, context, f.key, "display"));
+  const fields = schema.fields.filter(f => allowsField(schema, context, f.key, "display") && (!f.omitWhenAbsent || row[f.key] !== undefined));
   const record: BoRecord = { id: row.id, name: "" };
   for (const field of fields) {
     const value = row[field.key];
