@@ -520,3 +520,6 @@ test("PAP-2067 Afterschool PIN commands are exact BO Staging POST routes", () =>
   assert.deepEqual(decideHostBoundary(staging, root + "reset/extra", "POST"), { action: "not_found" });
   assert.deepEqual(decideHostBoundary(staging, root.replace(roleId, "invalid") + "reset", "POST"), { action: "not_found" });
 });
+
+// PAP-2097 — only exact HO Staging definition catalog GET/POST.
+test("HO World private facade host and method fence",()=>{const path="/api/ho/pinoria/worlds",host="ho.staging.pinohouse.art";for(const method of ["GET","POST"])assert.deepEqual(decideHostBoundary(host,path,method),{action:"next"});for(const method of ["PATCH","PUT","DELETE","HEAD"])assert.deepEqual(decideHostBoundary(host,path,method),{action:"not_found"});for(const other of ["bo.staging.pinohouse.art","tos.staging.pinohouse.art","ho.pinohouse.art",BO_HOSTNAME])for(const method of ["GET","POST"])assert.deepEqual(decideHostBoundary(other,path,method),{action:"not_found"});for(const suffix of ["/","/media","/instances","/"+roleId])assert.deepEqual(decideHostBoundary(host,path+suffix,"POST"),{action:"not_found"});});
