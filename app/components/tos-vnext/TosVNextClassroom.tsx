@@ -20,5 +20,9 @@ export function TosVNextClassroom({centerId,localDate,profileLabel,onDetailChang
  if(read.key!==key||read.busy)return <p role="status">Đang tải lớp học…</p>;
  if(!read.model)return <section aria-label="Trạng thái lớp học"><p role="alert">{classroomReadErrorMessage(read.status)}</p><AppButton variant="secondary" onClick={()=>setRefresh(x=>x+1)}>Tải lại</AppButton></section>;
  if(read.model.classes.length===0)return <p>Không có lớp được phân công/được phép xem hôm nay.</p>;
- return <ClassroomV4Presentation key={key} model={read.model} onDetailChange={onDetailChange} readOnly={readOnly}/>;
+ return <ClassroomV4Presentation key={key} model={read.model} onDetailChange={onDetailChange} readOnly={readOnly} onRosterChanged={async(classId,studentId)=>{
+  const model=await loadClassroomV4(centerId,localDate,profileLabel||"Nhân sự");
+  if(!model.data.participants[classId]?.includes(studentId))throw new Error("Roster inclusion not visible");
+  setRead(previous=>previous.key===key?{...previous,model}:previous);
+ }}/>;
 }

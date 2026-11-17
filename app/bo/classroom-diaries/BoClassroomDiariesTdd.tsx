@@ -73,7 +73,5 @@ function ScopedDiary({selected,centerSource,date}:{selected:string;centerSource:
  if(ready?.centerId!==selected)return <p role="status">Đang xác minh quyền Center và tải Nhật ký…</p>;
  return <>
   <SurfaceWorkspace key={selected+":"+date} adapter={ready.adapter} navigation={ready.navigation} initialQuery={query}/>
-  <p role="note">Dữ liệu chỉ đọc từ Core tại Center và ngày đã chọn. Người Submit và Học viên hiện dùng ID xác thực; chưa có projection tên hiển thị.
-   Liên kết Nhiệm vụ và xác nhận hoàn tất chỉ hiển thị khi API nguồn được triển khai; không suy diễn từ Diary.</p>
  </>;
 }

@@ -1,10 +1,10 @@
-@layer tos.components{.bottomNav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);z-index:18;width:min(var(--tos-mobile-max),100vw);display:flex;align-items:stretch;background:var(--tos-color-surface);border-top:1px solid var(--tos-color-border);padding:var(--tos-space-1) var(--tos-space-1) max(var(--tos-space-2),env(safe-area-inset-bottom));box-sizing:border-box;box-shadow:var(--tos-shadow-card);height:var(--tos-nav-height);border-color:var(--tos-color-border)}
-.bottomNav button{flex:1;min-width:0;min-height:var(--tos-hit-min);border:0;background:transparent;color:var(--tos-color-soft);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:var(--tos-space-1);border-radius:var(--tos-radius-small);cursor:pointer;font-family:inherit}
+@layer tos.components{.bottomNav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);z-index:18;width:min(var(--tos-mobile-max),100vw);display:flex;align-items:stretch;background:var(--tos-color-surface);border-top:1px solid var(--tos-color-border);padding:0 var(--tos-space-1) env(safe-area-inset-bottom,0px);box-sizing:border-box;box-shadow:var(--tos-shadow-card);height:calc(var(--tos-nav-height) + env(safe-area-inset-bottom,0px));border-color:var(--tos-color-border)}
+.bottomNav button{flex:1;min-width:0;min-height:var(--tos-hit-min);border:0;background:transparent;color:var(--tos-color-soft);display:flex;align-items:center;justify-content:center;flex-direction:row;gap:0;border-radius:var(--tos-radius-small);cursor:pointer;font-family:inherit}
 .bottomNav button[aria-current=page]{color:var(--tone,var(--tos-color-info));font-weight:var(--tos-weight-strong)}
 .bottomNav button:focus-visible{outline:2px solid var(--tone,var(--tos-color-info-text));outline-offset:-2px}
 .navIcon{font-size:var(--tos-text-heading-md);line-height:21px;min-height:21px;display:grid;place-items:center}
 .navIcon svg{width:20px;height:20px}
-.navText{white-space:nowrap;font-size:var(--tos-text-caption);line-height:1.25}
+.navText{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:var(--tos-text-secondary);line-height:1.2}
 .sectionHeading{display:flex;align-items:baseline;justify-content:space-between;gap:var(--tos-space-2);margin:var(--tos-space-2) 0 0;color:var(--txt,var(--tos-color-ink))}
 .sectionHeading h3{font-weight:var(--tos-weight-strong);letter-spacing:-.02em;line-height:1.25;margin:0;font-size:var(--tos-text-heading-sm)}
 .sectionHeading small{color:var(--muted,var(--tos-color-soft));line-height:1.4;font-size:var(--tos-text-caption)}

@@ -27,12 +27,34 @@ function fixture(run) {
   for (const file of [policy, layout, rootLayout, source, gateway, cd, ci, ...pages.map(name => `app/bo/${name}/page.tsx`)]) {
     const content=fs.readFileSync(path.join(repo,file),"utf8");
     // Existing PAP-901 factory fixtures have no TDD manifest; keep scopes independent.
-    write(file,file===policy?content.replace(/\r\n/g,"\n").replace('  "/bo/pinoria-avatars",\n',"").replace('  "/bo/open-studio-passes",\n',"")
-      .replace(/\s*"\/bo\/classroom-diaries",\r?\n/,"\n").replace('  "/bo/bills",\n',"").replace('  "/bo/missions",\n',"").replace('  "/bo/tvs",\n',""):content);
+    write(file,file===policy?content.replace(/\r\n/g,"\n").replace('  "/bo/payroll-daily",\n',"").replace('  "/bo/payroll-exceptions",\n',"").replace('  "/bo/pinoria-avatars",\n',"").replace('  "/bo/afterschool-accounts",\n',"").replace('  "/bo/open-studio-passes",\n',"")
+      .replace(/\s*"\/bo\/classroom-diaries",\r?\n/,"\n").replace('  "/bo/bills",\n',"").replace('  "/bo/missions",\n',"").replace('  "/bo/tvs",\n',"").replace('  "/bo/opening-evidence",\n',""):content);
   }
   try { return run({ root, read, write }); }
   finally { fs.rmSync(root, { recursive: true, force: true }); }
 }
+
+test("PAP-1970 native Payroll is explicit, read-only and does not re-enter TDD Engine",()=>fixture(({root,read,write})=>{
+  const files=[
+    "app/bo/payroll-daily/page.tsx",
+    "app/bo/payroll-daily/BoPayrollDailyReadView.tsx",
+    "app/bo/payroll-daily/[staffMemberId]/[workDate]/BoPayrollDailyDetail.tsx",
+    "lib/bo-payroll-daily-api.ts",
+    "lib/bo-payroll-daily-read-contract.test.ts",
+    "lib/bo-native-payroll-route.ts",
+    "lib/pap1970-native-payroll-route.test.ts",
+  ];
+  for(const file of files)write(file,fs.readFileSync(path.join(repo,file),"utf8"));
+  assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/payroll-daily.*exactly one staging decision/);
+  write(policy,read(policy).replace('  "/bo/payroll-periods",','  "/bo/payroll-periods",\n  "/bo/payroll-daily",'));
+  assert.deepEqual(verifyBoStagingRoutePolicy(root).issues,[]);
+  const view=files[1], original=read(view);
+  write(view,original+"\n// BoModuleFactory");
+  assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/payroll-daily.*invalid native read-only route contract/);
+  write(view,original);
+  fs.unlinkSync(path.join(root,files[4]));
+  assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/payroll-daily.*missing native read-only route contract/);
+}));
 
 test("PAP-901 current canonical routes use one admitted BO workspace with required stylesheet", () => {
   const result=verifyBoStagingRoutePolicy(repo);
@@ -42,14 +64,14 @@ test("PAP-901 current canonical routes use one admitted BO workspace with requir
 });
 
 test("PAP-982 admitted TDD route requires exact schema, binding, tests and explicit policy",()=>fixture(({root,read,write})=>{
-  const entry=JSON.parse(fs.readFileSync(path.join(repo,"config/tdd-admission.json"),"utf8")).modules.find(e=>e.key==="pinoria-avatars");
+  const entry=JSON.parse(fs.readFileSync(path.join(repo,"config/tdd-admission.json"),"utf8")).modules.find(e=>e.key==="bills");
   for(const file of [...entry.files,...entry.tests])write(file,fs.readFileSync(path.join(repo,file),"utf8"));
   write("config/tdd-admission.json",JSON.stringify({modules:[entry]}));
-  assert.match(verifyBoStagingRoutePolicy(root).issues.join("\\n"),/pinoria-avatars.*exactly one staging decision/);
-  write(policy,read(policy).replace('  "/bo/payroll-periods",','  "/bo/payroll-periods",\n  "/bo/pinoria-avatars",'));
+  assert.match(verifyBoStagingRoutePolicy(root).issues.join("\\n"),/bills.*exactly one staging decision/);
+  write(policy,read(policy).replace('  "/bo/payroll-periods",','  "/bo/payroll-periods",\n  "/bo/bills",'));
   assert.deepEqual(verifyBoStagingRoutePolicy(root).issues,[]);
   write("config/tdd-admission.json",JSON.stringify({modules:[]}));
-  assert.match(verifyBoStagingRoutePolicy(root).issues.join("\\n"),/pinoria-avatars.*canonical BoModuleFactory page/);
+  assert.match(verifyBoStagingRoutePolicy(root).issues.join("\\n"),/bills.*canonical BoModuleFactory page/);
   write("config/tdd-admission.json",JSON.stringify({modules:[entry]}));
   fs.unlinkSync(path.join(root,entry.schema.file));
   assert.match(verifyBoStagingRoutePolicy(root).issues.join("\\n"),/Invalid exact BO TDD route admission|TDD entry/);
@@ -118,4 +140,96 @@ test("PAP-1030 retired BO deep-link smoke must run on canonical BO staging host"
   assert.match(source, /bo_host='https:\/\/bo\.staging\.pinohouse\.art'/);
   write(cd, source.replace("bo_host='https://bo.staging.pinohouse.art'", "bo_host='https://pino-team-os-staging.minhtri-van42.workers.dev'"));
   assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"), /retired BO route smoke must target canonical BO staging host/);
+}));
+
+test("PAP-1810 native BO Avatar is canonical under exact Founder migration, not Factory/TDD",()=>fixture(({root,read,write})=>{
+  const files=[
+    "app/bo/pinoria-avatars/page.tsx",
+    "app/bo/pinoria-avatars/AvatarDirectoryDsa.tsx",
+    "app/bo/pinoria-avatars/avatar-dsa-data.ts",
+    "app/bo/pinoria-avatars/avatar-dsa-model.ts",
+    "app/bo/pinoria-avatars/CreateSelfDrawer.tsx",
+    "app/bo/pinoria-avatars/SelfWardrobeDetail.tsx",
+    "app/bo/pinoria-avatars/SelfLoadoutDetail.tsx",
+    "lib/pap1810-avatar-native-dsa.test.ts",
+  ];
+  for(const file of files)write(file,fs.readFileSync(path.join(repo,file),"utf8"));
+  assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),
+    /pinoria-avatars.*exactly one staging decision/);
+  write(policy,read(policy).replace('  "/bo/payroll-periods",',
+    '  "/bo/payroll-periods",\n  "/bo/pinoria-avatars",'));
+  assert.deepEqual(verifyBoStagingRoutePolicy(root).issues,[]);
+  const data=files[2],good=read(data);
+  write(data,good.replace("pinoria.avatar.directory.view","unrestricted.read"));
+  assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),
+    /pinoria-avatars.*canonical BoModuleFactory page/);
+  write(data,good);
+  const page=files[0],original=read(page);
+  write(page,original.replace("<AvatarDirectoryDsa />","<SelfDirectoryTdd />"));
+  assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),
+    /pinoria-avatars.*canonical BoModuleFactory page/);
+  write(page,original);
+  write("app/bo/new-unregistered/page.tsx",
+    'export default function Page(){return <AvatarDirectoryDsa/>}');
+  write(policy,read(policy).replace('  "/bo/payroll-periods",',
+    '  "/bo/payroll-periods",\n  "/bo/new-unregistered",'));
+  assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),
+    /new-unregistered.*canonical BoModuleFactory page/);
+}));
+
+test("PAP-1886 native Accounts must stay centered, read-only and explicitly admitted", () => fixture(({root, read, write}) => {
+  const files = [
+    "app/bo/afterschool-accounts/page.tsx",
+    "app/bo/afterschool-accounts/AfterschoolAccounts.tsx",
+    "lib/host-boundary.ts",
+    "lib/host-boundary.test.ts",
+  ];
+  for (const file of files) write(file, fs.readFileSync(path.join(repo, file), "utf8"));
+  assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"), /afterschool-accounts.*exactly one staging decision/);
+  write(policy, read(policy).replace('  "/bo/payroll-periods",', '  "/bo/payroll-periods",\n  "/bo/afterschool-accounts",'));
+  assert.deepEqual(verifyBoStagingRoutePolicy(root).issues, []);
+  write(files[1], read(files[1]).replace("data?.scopeCenterId !== centerId", "false"));
+  assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"), /afterschool-accounts.*invalid native read-only route contract/);
+}));
+
+test("PAP-767 native Opening Evidence requires exact authorized entry, detail and host integration",()=>fixture(({root,read,write})=>{
+ const files=[
+  "app/bo/opening-evidence/page.tsx","app/bo/opening-evidence/OpeningEvidenceStageGate.tsx",
+  "app/bo/opening-evidence/[subjectType]/[receiptId]/page.tsx","app/bo/opening-evidence/[subjectType]/[receiptId]/OpeningEvidenceDetail.tsx",
+  "lib/bo-opening-evidence-api.ts","lib/bo-opening-evidence-handler.ts","lib/opening-evidence-host-contract.ts",
+  "lib/opening-evidence-host-contract.test.ts","lib/pap764-opening-evidence-nav.test.ts","lib/host-boundary.ts","app/bo/shell/BoApplicationShell.tsx"
+ ];
+ for(const file of files)write(file,fs.readFileSync(path.join(repo,file),"utf8"));
+ write(policy,read(policy).replace('  "/bo/payroll-periods",','  "/bo/payroll-periods",\n  "/bo/opening-evidence",'));
+ assert.deepEqual(verifyBoStagingRoutePolicy(root).issues,[]);
+ const boundary=files[9],original=read(boundary);
+ write(boundary,original.replace("openingEvidenceHostDecision(hostname, pathname, method)","null"));
+ assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/opening-evidence.*invalid native scoped route contract/);
+ write(boundary,original);
+ const api=files[4],apiOriginal=read(api);
+ write(api,apiOriginal.replaceAll("same-origin","omit"));
+ assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/opening-evidence.*invalid native scoped route contract/);
+ write(api,apiOriginal);
+ fs.unlinkSync(path.join(root,files[3]));
+ assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/opening-evidence.*missing exact native route contract/);
+}));
+
+test("PAP-767 and PAP-1886 native routes coexist without weakening either guard",()=>fixture(({root,read,write})=>{
+ const files=[
+  "app/bo/opening-evidence/page.tsx","app/bo/opening-evidence/OpeningEvidenceStageGate.tsx",
+  "app/bo/opening-evidence/[subjectType]/[receiptId]/page.tsx","app/bo/opening-evidence/[subjectType]/[receiptId]/OpeningEvidenceDetail.tsx",
+  "lib/bo-opening-evidence-api.ts","lib/bo-opening-evidence-handler.ts","lib/opening-evidence-host-contract.ts",
+  "lib/opening-evidence-host-contract.test.ts","lib/pap764-opening-evidence-nav.test.ts","lib/host-boundary.ts","app/bo/shell/BoApplicationShell.tsx",
+  "app/bo/afterschool-accounts/page.tsx","app/bo/afterschool-accounts/AfterschoolAccounts.tsx","lib/host-boundary.test.ts"
+ ];
+ for(const file of files)write(file,fs.readFileSync(path.join(repo,file),"utf8"));
+ write(policy,read(policy).replace('  "/bo/payroll-periods",','  "/bo/payroll-periods",\n  "/bo/opening-evidence",\n  "/bo/afterschool-accounts",'));
+ assert.deepEqual(verifyBoStagingRoutePolicy(root).issues,[]);
+ const accounts=files[12],original=read(accounts);
+ write(accounts,original.replace("data?.scopeCenterId !== centerId","false"));
+ assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/afterschool-accounts.*invalid native read-only route contract/);
+ write(accounts,original);
+ const evidence=files[4],good=read(evidence);
+ write(evidence,good.replaceAll("same-origin","omit"));
+ assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/opening-evidence.*invalid native scoped route contract/);
 }));

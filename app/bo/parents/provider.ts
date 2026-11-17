@@ -6,6 +6,8 @@ import type { ParentFields } from "./schema";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 type Row = ModuleRow<ParentFields>;
+type VersionedRow = Row & { readonly version?: number };
+type MutationRow = Row & { readonly mutationCenterId: string };
 type Json = Record<string, unknown>;
 function invalid(status = 502): never { throw new BoApiError(status, "Core Parent scope receipt or read projection is invalid.", null); }
 function asObject(value: unknown): Json {
@@ -22,10 +24,11 @@ function receipt(value: unknown, centerId: string): Json {
   if (payload.scopeCenterId !== centerId) return invalid(403);
   return payload;
 }
-function row(value: unknown): Row {
+function row(value: unknown): VersionedRow {
   const item = asObject(value);
-  if (Object.keys(item).some(key => !["id","displayName","maskedContact","linkedStudentCount","centers","createdAt","createdBy","updatedAt","updatedBy","attention"].includes(key))) return invalid();
+  if (Object.keys(item).some(key => !["id","displayName","version","maskedContact","linkedStudentCount","centers","createdAt","createdBy","updatedAt","updatedBy","attention"].includes(key))) return invalid();
   if (typeof item.id !== "string" || !UUID.test(item.id) ||
+      (item.version !== undefined && (!Number.isSafeInteger(item.version) || Number(item.version) < 1)) ||
       (item.displayName !== null && typeof item.displayName !== "string") ||
       (item.maskedContact !== null && (typeof item.maskedContact !== "string" || !/[•*]/.test(item.maskedContact))) ||
       !Number.isSafeInteger(item.linkedStudentCount) || Number(item.linkedStudentCount) < 0 ||
@@ -36,7 +39,8 @@ function row(value: unknown): Row {
       (item.updatedBy !== undefined && item.updatedBy !== null) ||
       (item.attention !== null && typeof item.attention !== "string")) return invalid();
   return {
-    id: item.id, name: item.displayName === null ? "Chưa có tên" : item.displayName as string,
+    id: item.id, ...(item.version !== undefined ? { version: item.version as number } : {}),
+    name: item.displayName === null ? "Chưa có tên" : item.displayName as string,
     maskedContact: item.maskedContact as string | null, studentCount: Number(item.linkedStudentCount),
     centers: (item.centers as string[]).join(", "),
     // PAP-1740: optional until Core guarded deploy; no invented actor identities.
@@ -46,9 +50,9 @@ function row(value: unknown): Row {
   };
 }
 /** Canonical read-only directory: Core attests and SQL-binds the selected BO Center. */
-export async function readScopedParentDirectory(centerId: string, fetcher: typeof fetch, signal: AbortSignal): Promise<Row[]> {
+export async function readScopedParentDirectory(centerId: string, fetcher: typeof fetch, signal: AbortSignal): Promise<VersionedRow[]> {
   if (!UUID.test(centerId)) return invalid(403);
-  const rows: Row[] = [], seen = new Set<string>();
+  const rows: VersionedRow[] = [], seen = new Set<string>();
   let total: number | null = null;
   for (let page = 0; page < 100; page++) {
     const offset = page * 100;
@@ -122,7 +126,7 @@ export function parentDirectoryProvider(): SurfaceProvider<ParentFields> {
     list: async (_query, scope, fetcher, signal) => {
       const centerId = center(scope);
       const rows = await readScopedParentDirectory(centerId, fetcher, signal);
-      return { records: rows.map(row => ({ row, centerId })), total: rows.length };
+      return { records: rows.map(({ version, ...row }) => ({ row, centerId, ...(version !== undefined ? { version: String(version) } : {}) })), total: rows.length };
     },
     detail: async (id, scope, fetcher, signal) => {
       const centerId = center(scope);
@@ -131,8 +135,37 @@ export function parentDirectoryProvider(): SurfaceProvider<ParentFields> {
       const found = rows.find(x => x.id === id);
       if (!found) return null;
       await readScopedParentDetail(id, scope, fetcher, signal);
-      return { row: found, centerId };
+      const { version, ...row } = found;
+      return { row, centerId, ...(version !== undefined ? { version: String(version) } : {}) };
     },
+    // PAP-1763 / SCH-PARENTS-GUARDIANS — Center-scoped name-only mutation.
+    mutationCenter: row => (row as MutationRow).mutationCenterId ?? "",
+    mutation: (fetcher, scope) => ({
+      update: async (id, patch, expectedVersion, context, signal) => {
+        const centerId = center(scope);
+        if (!context.authorize("identity.parent.edit") || !context.authorize("identity.parent_directory.view")) return { status: "denied" };
+        if (!UUID.test(id) || Object.keys(patch).length !== 1 || typeof patch.name !== "string") return { status: "invalid", fields: ["name"] };
+        const name = patch.name.trim(), version = Number(expectedVersion);
+        if (!name || name.length > 160 || !Number.isSafeInteger(version) || version < 1 || String(version) !== expectedVersion) return { status: "invalid", fields: ["name"] };
+        const url = "/api/bo/identity/parents/" + encodeURIComponent(id) + "?" + new URLSearchParams({ centerId });
+        const response = await fetcher(url, {
+          method: "PATCH", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ displayName: name, expectedVersion: version }), signal,
+        });
+        if (response.status === 409) return { status: "conflict" };
+        if (response.status === 401 || response.status === 403) return { status: "denied" };
+        if (response.status === 400 || response.status === 422) return { status: "invalid", fields: ["name"] };
+        if (!response.ok) throw new BoApiError(response.status, "Không lưu được tên Phụ huynh.", null);
+        const outer = asObject(await response.json());
+        const updated = asObject(outer.data);
+        signal.throwIfAborted();
+        if (updated.id !== id || updated.displayName !== name || updated.version !== version + 1 || updated.status !== "ACTIVE") return invalid();
+        const actual = (await readScopedParentDirectory(centerId, fetcher, signal)).find(row => row.id === id);
+        if (!actual || actual.version !== version + 1 || actual.name !== name) return invalid(403);
+        const { version: nextVersion, ...row } = actual;
+        return { status: "saved", row: { ...row, mutationCenterId: centerId }, version: String(nextVersion) };
+      },
+    }),
     history: {
       subjectType: "parent_user",
       bind: (fetcher, scope) => ({

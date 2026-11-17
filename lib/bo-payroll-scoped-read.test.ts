@@ -34,7 +34,7 @@ const stub = (calls: string[], opts: { authorized?: string[]; returnedCenter?: s
         id: "0199f001-0000-7000-8000-000000009999",
         centerId: opts.returnedCenter ?? requested,
         name: "Synthetic Period", startDate: "2026-11-01", endDate: "2026-11-30",
-        status: "ACTIVE"
+        status: "ACTIVE", createdAt:"2026-11-01T00:00:00Z", createdBy:"Synthetic Creator",updatedAt:null,updatedBy:null
       }],
       nextOffset: null, total: 1
     });
@@ -54,6 +54,7 @@ test("PAP-1329 Payroll: selected Center bounds every period and rollup Core GET"
     assert.equal(rows.length, 1);
     assert.equal(rows[0]?.centerId, B);
     assert.equal(rows[0]?.expected != null, true);
+    assert.deepEqual([rows[0]?.createdAt,rows[0]?.createdBy,rows[0]?.updatedAt,rows[0]?.updatedBy],["01/11/2026 · 07:00","Synthetic Creator","—","—"]);
   });
   assert.equal(calls[0], "/api/bo/centers");
   assert.ok(calls.some(c => c.includes("/workforce/payroll/periods") && c.includes("centerId=" + B)));

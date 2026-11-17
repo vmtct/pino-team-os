@@ -2,12 +2,12 @@
 /* eslint-disable @next/next/no-img-element */
 import type { ReactNode } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faArrowLeft, faChevronRight, faDesktop, faGear, faHouse, faMagnifyingGlass, faRotate, faStar, faTv, faUsers, faWifi } from "@fortawesome/free-solid-svg-icons";
+import { faChevronRight, faDesktop, faGear, faHouse, faMagnifyingGlass, faRotate, faStar, faTv, faUsers, faWifi } from "@fortawesome/free-solid-svg-icons";
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import ops from "./ops.module.css";
 import {appIcon} from "./identity";
 import desk from "./station.module.css";
-import {AppNavRail,AppToast} from "../tos-ds";
+import {AppNavRail,AppToast,AppPhoneFrame,AppHeader,AppBottomNav} from "../tos-ds";
 
 type Tab = "overview" | "pinoria" | "students" | "devices" | "tv";
 const TABS:{id:Tab;label:string;icon:IconDefinition;detail:string}[]=[
@@ -19,15 +19,14 @@ const TABS:{id:Tab;label:string;icon:IconDefinition;detail:string}[]=[
 ];
 const ICON=appIcon("station");
 export default function StationDesktopFrame(props:{
- tab:Tab;onTab:(tab:Tab)=>void;onHome:()=>void;onReset:()=>void;centerName:string;
+ tab:Tab;onTab:(tab:Tab)=>void;onHome:()=>void;onReset:()=>void;centerName:string;desktop:boolean;
  query:string;onQuery:(value:string)=>void;
  notice:string;children:ReactNode;
 }){
  const selected=TABS.find(t=>t.id===props.tab)!;
- return <main data-tos-system className={[ops.outer,desk.desktopRoot].join(" ")} data-tos-vnext-station="desktop">
-   <div className={desk.mobileBlock}>
-     <div className={desk.mobileCard}><img src={ICON} alt=""/><strong>Trạm TOS chỉ dùng trên máy tính</strong><p>Mở màn hình rộng từ 1024px để sử dụng giao diện workstation.</p><button type="button" onClick={props.onHome}><FontAwesomeIcon icon={faArrowLeft}/> Về TOS Home</button></div>
-   </div>
+ return <AppPhoneFrame app="station" runtimeApp="station" navigation className={desk.stationFrame}>
+   <AppHeader app="station" station={props.centerName} onHome={props.onHome}/>
+   <main data-tos-system className={[ops.outer,desk.desktopRoot].join(" ")} data-tos-vnext-station={props.desktop?"desktop":"mobile"}>
    <div className={desk.desktopShell}>
      <aside className={desk.sidebar} aria-label="Thanh bên Trạm TOS">
        <div className={desk.sidebarBrand}><img src={ICON} alt=""/><div><strong>Trạm TOS</strong><small>WORKSTATION · PINO HOUSE</small></div></div>
@@ -51,10 +50,13 @@ export default function StationDesktopFrame(props:{
        </header>
        <div className={desk.workspaceContent}>
          <div className={desk.pageIntro}><div><span className={desk.pageKicker}>TRẠM TOS · {selected.detail.toUpperCase()}</span><h1>{selected.label}</h1></div><span className={desk.demoChip}>CHƯA XÁC MINH DỮ LIỆU TRẠM</span></div>
+         {props.tab==="students"&&<label className={desk.mobileSearch}><FontAwesomeIcon icon={faMagnifyingGlass}/><input placeholder="Tìm học viên…" aria-label="Tìm học viên tại trạm" value={props.query} onChange={e=>props.onQuery(e.target.value)}/></label>}
          <div id="tos-vnext-station-workspace" className={desk.viewBody}>{props.children}</div>
        </div>
      </section>
    </div>
    {props.notice?<AppToast message={props.notice} className={[ops.toast,desk.toast].join(" ")}/>:null}
- </main>;
+ </main>
+   <div className={desk.mobileNav}><AppBottomNav items={TABS.map(({id,label})=>({id,label,icon:null}))} active={props.tab} onChange={id=>{props.onTab(id as Tab);window.scrollTo({top:0});}} label="Điều hướng Trạm TOS"/></div>
+ </AppPhoneFrame>;
 }

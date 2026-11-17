@@ -1,0 +1,47 @@
+.stage {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: #0f0e13;
+  color: #fff;
+}
+
+.landscape,
+.portrait {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  max-width: 100vw;
+  max-height: 100vh;
+  max-height: 100dvh;
+  box-sizing: border-box;
+}
+
+.landscape {
+  width: min(100vw, calc(100vh * 16 / 9));
+  width: min(100vw, calc(100dvh * 16 / 9));
+  aspect-ratio: 16 / 9;
+}
+
+.portrait {
+  width: min(100vw, calc(100vh * 9 / 16));
+  width: min(100vw, calc(100dvh * 9 / 16));
+  aspect-ratio: 9 / 16;
+}
+
+.unavailable {
+  display: grid;
+  gap: 12px;
+  width: min(520px, calc(100vw - 40px));
+  text-align: center;
+  line-height: 1.5;
+}
+
+.unavailable strong { font-size: clamp(24px, 4vw, 34px); }
+.unavailable span { color: #c8c2d1; font-size: clamp(14px, 2vw, 18px); }

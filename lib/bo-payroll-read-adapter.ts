@@ -1,5 +1,6 @@
 import type {BoModuleReadAdapter} from "@/app/bo/architecture/BoModuleFactory";
 import {periodApi} from "@/lib/bo-payroll-period-api";
+import {payrollAuditTime,payrollVerifiedName} from "@/lib/bo-payroll-safe-read-metadata";
 import {periodDisplayName,periodSummaries,staffWithWorkEvidence} from "@/lib/bo-payroll-read-model";
 
 /** Read-only Core payroll projection. Legacy non-BO callers retain their existing
@@ -30,6 +31,8 @@ export const payrollPeriodsAdapter={
       startDate:period.startDate,endDate:period.endDate,
       centerId:period.centerId,centerName:center.displayName,
       staffCount:rollup.nextOffset===null?staffWithWorkEvidence(rollup.rows).length:null,
+      createdAt:payrollAuditTime(period.createdAt),createdBy:payrollVerifiedName(period.createdBy),
+      updatedAt:payrollAuditTime(period.updatedAt),updatedBy:payrollVerifiedName(period.updatedBy),
       expected:total.expected,finalized:total.finalized,status:period.status==="ARCHIVED"?"Lưu trữ":"Đang mở"
      });
      if(rows.length>250)throw new Error("Payroll read result exceeds safe bound");

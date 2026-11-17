@@ -6,6 +6,7 @@ import { LogoutButton } from "./LogoutButton";
 import { TosCurrentUserChip } from "./TosCurrentUser";
 import { SupportSessionBanner } from "./SupportSessionBanner";
 import styles from "./tos-shell.module.css";
+import ScrollAwareChrome from "../tos-ds/ScrollAwareChrome";
 
 export type TosAppTheme = "home" | "shift" | "classroom" | "tasks" | "pinoria";
 
@@ -59,11 +60,11 @@ export function TosShell({
 
   return (
     <div className={`${styles.opsShell} ${themeClass[theme]} ${compactAppHeader ? styles.compactAppShell : ""}`}>
-      <SupportSessionBanner />
-      {compactAppHeader && !home ? <header className={styles.compactHeader}>
+      <ScrollAwareChrome/><SupportSessionBanner />
+      {compactAppHeader && !home ? <header className={styles.compactHeader} data-tos-nav="header">
         <Link href={backHref ?? homeHref} className={styles.compactBack} aria-label="Quay về TOS Home"><FontAwesomeIcon icon={faArrowLeft} /></Link>
         <div className={styles.compactBrand}>{appIconSrc ? <img src={appIconSrc} alt="" className={styles.compactAppIcon} /> : null}<h1>{title}</h1></div>
-      </header> : <header className={styles.opsHeader}>
+      </header> : <header className={styles.opsHeader} data-tos-nav="header">
         <div className={styles.opsHeaderCopy}>
           <span className={styles.opsKicker}>{home ? "PINO TEAM · TOS" : "TOS APP"}</span>
           <h1>{title}</h1>
@@ -87,7 +88,7 @@ export function TosShell({
 
       <main className={styles.opsContent}>{children}</main>
 
-      {footerItems.length > 0 ? <nav
+      {footerItems.length > 0 ? <nav data-tos-nav="footer"
         className={`${styles.opsFooter} ${home ? styles.opsFooterHome : styles.opsFooterFeature}`}
         aria-label={home ? "Điều hướng ứng dụng TOS" : `Điều hướng ${title}`}
       >
@@ -98,7 +99,7 @@ export function TosShell({
             className={item.id === activeFooterId ? styles.footerActive : undefined}
             aria-current={item.id === activeFooterId ? "page" : undefined}
           >
-            {item.icon ? <span className={styles.footerIcon}>{item.icon}</span> : null}
+
             <small>{item.label}</small>
           </Link>
         ))}

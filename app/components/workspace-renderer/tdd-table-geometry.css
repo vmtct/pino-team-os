@@ -101,3 +101,58 @@
   outline: 2px solid var(--ds-primary, #6151c4);
   outline-offset: 2px;
 }
+
+/* PAP-1810 / PNR-AVATAR-CRUD — Avatar-only native BO DSA utility opener.
+   Default BO tables preserve PAP-1437 no-separate-opener behavior. */
+[data-native-avatar] #typed-table :is(th.quick-open-th, td.first-quick-cell) {
+  width: 56px !important; min-width: 56px !important; max-width: 56px !important;
+  box-sizing: border-box !important;
+}
+[data-native-avatar] #typed-table :is(th,td):nth-child(2) { left: 56px !important; }
+[data-native-avatar] #typed-table td.first-quick-cell .row-open {
+  opacity: 1;
+}
+[data-native-avatar] #typed-table [data-avatar-person-lines] {
+  display: flex; flex-direction: column; min-width: 0; max-width: 100%;
+  gap: 2px; line-height: 1.25;
+}
+[data-native-avatar] #typed-table [data-avatar-person-primary],
+[data-native-avatar] #typed-table [data-avatar-person-lines] small {
+  display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+[data-native-avatar] #typed-table [data-avatar-person-primary] { font-weight: 650; }
+[data-native-avatar] #typed-table [data-avatar-person-lines] small { font-size: 11px; color: var(--bo-palette-neutral-34); }
+@media (max-width: 760px) {
+  [data-native-avatar] { --tdd-identity-width: 208px; }
+}
+
+/* PAP-1822 — native Avatar CSS parity proof; isolated to data-native-avatar.
+   Never re-enable TDD renderer or alter the global non-avatar table. */
+[data-native-avatar] #typed-table {
+  table-layout: fixed !important;
+  width: max-content !important;
+  min-width: max-content !important;
+}
+[data-native-avatar] #typed-table th[data-column],
+[data-native-avatar] #typed-table td.schema-column {
+  box-sizing: border-box !important;
+  width: var(--bo-column-width, 225px) !important;
+  min-width: var(--bo-column-width, 225px) !important;
+  max-width: var(--bo-column-width, 225px) !important;
+}
+[data-native-avatar] #typed-table :is(th,td)[data-tdd-identity-column] {
+  width: 240px !important; min-width: 240px !important; max-width: 240px !important;
+  position: sticky !important; left: 56px !important;
+}
+[data-native-avatar] #typed-table :is(th,td)[data-tdd-legacy-sticky-release]:not([data-tdd-freeze-cell]) {
+  position: static !important; left: auto !important;
+}
+[data-native-avatar] #filter-toggle,
+[data-native-avatar] #visible-columns,
+[data-native-avatar] #reset-all,
+[data-native-avatar] #save-view {
+  display: inline-flex !important;
+}
+[data-native-avatar] .toolbar {
+  display: flex !important;
+}

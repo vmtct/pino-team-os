@@ -20,7 +20,7 @@
 .avatar { flex: 0 0 auto; width: 46px; height: 46px; display: grid; place-items: center; border-radius: var(--tos-radius-card); background: linear-gradient(145deg, var(--tos-color-warning-bg), var(--tos-color-warm)); border: 2px solid var(--tos-color-border); box-shadow: var(--tos-shadow-card); color: var(--tos-color-surface); font-size: var(--tos-text-heading-sm); font-weight: var(--tos-weight-strong); }
 .kicker { display: block; margin-bottom: var(--tos-space-1); font-size: var(--tos-text-caption); letter-spacing: .14em; font-weight: var(--tos-weight-strong); color: var(--tos-color-warm); }
 .header h1 { margin: 0; font-size: var(--tos-home-title-size); line-height: 1.08; letter-spacing: -.035em; font-weight: var(--tos-weight-strong); color: var(--tos-color-ink); }
-.headerActions { display: flex; gap: var(--tos-space-2); }
+.headerActions { position: relative; z-index: 5; display: flex; gap: var(--tos-space-2); }
 .headerButton { width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid var(--tos-color-border); border-radius: var(--tos-radius-card); color: var(--tos-color-ink); background: var(--tos-color-surface); cursor: pointer; }
 .shiftCard { width: 100%; display: grid; gap: var(--tos-space-2); padding: var(--tos-space-3) var(--tos-space-4); text-align: left; color: var(--tos-color-ink); cursor: pointer; border: 1px solid var(--tos-color-border); border-radius: var(--tos-radius-card); background: var(--tos-color-surface); box-shadow: none; }
 .shiftTopline { display: flex; align-items: center; gap: var(--tos-space-2); min-width: 0; }

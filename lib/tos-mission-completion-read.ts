@@ -6,8 +6,9 @@
  * Not a TOS writer. Do NOT infer completion from Diary/Result or activate
  * the currently fail-closed Assignment writer / mutate approved prototype.
  */
-import {TosMissionAssignmentApiError, type TosMissionAssignmentRecord} from "./tos-mission-assignment-api";
-import {assignmentScopeForCandidate, type AssignmentV18bOccurrence, type AssignmentV18bToday} from "./tos-mission-assignment-workflow";
+import {TosMissionAssignmentApiError, tosMissionAssignmentApi, type TosMissionAssignmentRecord, type TosMissionAssignmentScope} from "./tos-mission-assignment-api";
+import {tosClassroomV18bApi} from "./tos-classroom-v18b-api";
+import {assignmentScopeForCandidate,loadAssignmentsInOccurrence, type AssignmentV18bOccurrence, type AssignmentV18bToday} from "./tos-mission-assignment-workflow";
 
 export type TosMissionExecutionRead = Readonly<{
   assignmentId:string;
@@ -94,4 +95,62 @@ export async function readTosMissionCompletion(
   if(!body||typeof body!=="object"||Array.isArray(body)||!("data" in body))
     return fail("MISSION_COMPLETION_READ_INVALID","Core thiếu trạng thái nhiệm vụ.");
   return parse((body as {data:unknown}).data,scope.centerId,assignment.id);
+}
+
+
+export type TosNewMissionGuard = "CLEAR" | "UNFINISHED";
+export type TosNewMissionGuardDeps = {
+  today: typeof tosClassroomV18bApi.today;
+  assignments: typeof tosMissionAssignmentApi;
+  completion: (
+    day: AssignmentV18bToday, occurrence: AssignmentV18bOccurrence,
+    studentId: string, assignment: TosMissionAssignmentRecord, signal: AbortSignal,
+  ) => Promise<TosMissionExecutionRead>;
+};
+const liveNewMissionGuard: TosNewMissionGuardDeps = {
+  today: tosClassroomV18bApi.today,
+  assignments: tosMissionAssignmentApi,
+  completion: (day,occurrence,studentId,assignment,signal) =>
+    readTosMissionCompletion(day,occurrence,studentId,assignment,undefined,signal),
+};
+
+/**
+ * Guard applies ONLY to new Create, not Replace.
+ * A fresh Core day + CANDIDATE roster and a complete active assignment page set
+ * are required before querying independent C1 status for EVERY active assignment.
+ * Any error is thrown (UI shows unavailable, NEVER a catalog or false warning).
+ * Only selected current occurrence is in scope; historical unrelated occurrences
+ * are not claimed to have been checked.
+ */
+export async function readTosNewMissionGuard(
+  scope: TosMissionAssignmentScope,
+  deps: TosNewMissionGuardDeps=liveNewMissionGuard,
+  signal: AbortSignal=new AbortController().signal,
+): Promise<TosNewMissionGuard> {
+  signal.throwIfAborted();
+  const day=await deps.today(scope.centerId,scope.localDate);
+  signal.throwIfAborted();
+  if(!day||day.centerId!==scope.centerId||day.localDate!==scope.localDate||
+     !Array.isArray(day.occurrences)) {
+    return fail("MISSION_CREATE_GUARD_DAY_SCOPE","Chưa xác minh được lớp học.",403);
+  }
+  const found=day.occurrences.filter(o=>
+    o.runningClassId===scope.runningClassId&&o.teachingContextKey===scope.teachingContextKey);
+  if(found.length!==1) {
+    return fail("MISSION_CREATE_GUARD_OCCURRENCE","Chưa xác minh được ca học.",403);
+  }
+  const occurrence=found[0]!;
+  const trusted=assignmentScopeForCandidate(day,occurrence,scope.studentId);
+  if(trusted.centerId!==scope.centerId||trusted.teachingContextKey!==scope.teachingContextKey) {
+    return fail("MISSION_CREATE_GUARD_SCOPE","Chưa xác minh được học viên.",403);
+  }
+  const active=await loadAssignmentsInOccurrence(deps.assignments,trusted);
+  signal.throwIfAborted();
+  if(active.length===0)return "CLEAR";
+  const statuses=await Promise.all(active.map(record=>
+    deps.completion(day,occurrence,scope.studentId,record,signal)));
+  signal.throwIfAborted();
+  if(statuses.some(item=>item.executionStatus==="IN_PROGRESS"))return "UNFINISHED";
+  if(statuses.every(item=>item.executionStatus==="COMPLETED"))return "CLEAR";
+  return fail("MISSION_CREATE_GUARD_INVALID_STATE","Trạng thái nhiệm vụ chưa được xác minh.");
 }

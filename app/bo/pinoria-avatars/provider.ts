@@ -10,7 +10,7 @@ const states = ["IDENTITY_UNLINKED", "SELF_MISSING", "NEEDS_REPAIR", "NOT_STARTE
 const statuses = ["ACTIVE", "INACTIVE", "ARCHIVED", "MIXED"];
 // PAP-1456 / Epic PAP-1097: labels never replace authoritative Core state/filter values.
 const avatarLabels: Record<string,string> = {
-  IDENTITY_UNLINKED:"Chưa liên kết", SELF_MISSING:"Chưa có Self", NEEDS_REPAIR:"Cần khôi phục",
+  IDENTITY_UNLINKED:"Chưa liên kết", SELF_MISSING:"Chưa có Avatar", NEEDS_REPAIR:"Cần khôi phục",
   NOT_STARTED:"Chưa bắt đầu", IN_PROGRESS:"Đang thiết lập", READY:"Sẵn sàng",
 };
 const subjectLabels: Record<string,string> = {
@@ -19,7 +19,16 @@ const subjectLabels: Record<string,string> = {
 const MAX_SELF_SLOTS=8;
 type Row = ModuleRow<SelfFields>;
 type Payload = { items: unknown[]; nextCursor: string | null };
-function invalid(): never { throw new BoApiError(502,"Core Self Directory trả về dữ liệu không hợp lệ.",null); }
+function invalid(): never { throw new BoApiError(502,"Core Avatar Directory trả về dữ liệu không hợp lệ.",null); }
+// PAP-1779 / PNR-AVATAR-CRUD: timestamp truth from Core, VN display only.
+function auditDate(value: unknown): string | null {
+  if (value === null) return null;
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value)
+    || Number.isNaN(Date.parse(value))) invalid();
+  const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Ho_Chi_Minh", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(new Date(value));
+  const part = (name: Intl.DateTimeFormatPartTypes) => parts.find(p => p.type === name)?.value ?? "";
+  return `${part("day")}/${part("month")}/${part("year")} · ${part("hour")}:${part("minute")}`;
+}
 function project(value: unknown): Row {
   if (!value || typeof value !== "object") invalid();
   const r = value as Record<string, unknown>;
@@ -33,12 +42,20 @@ function project(value: unknown): Row {
   for (const key of ["personId","pinoriaSelfId","staffMemberId","studentProfileId"]) if (r[key] !== null && (typeof r[key] !== "string" || !uuid.test(r[key]))) invalid();
   if (r.selfStatus !== null && r.selfStatus !== "ACTIVE" && r.selfStatus !== "ARCHIVED") invalid();
   for (const key of ["loadoutVersion","equippedCount"]) if (r[key] !== null && (!Number.isSafeInteger(r[key]) || Number(r[key]) < 0)) invalid();
+  // PAP-1779 / PNR-AVATAR-CRUD: no client-side guessed audit, count or actor.
+  for (const key of ["ownedCount","createdAt","createdBy","updatedAt","updatedBy"]) if (!Object.hasOwn(r,key)) invalid();
+  if (r.ownedCount !== null && (!Number.isSafeInteger(r.ownedCount) || Number(r.ownedCount) < 0)) invalid();
+  for (const key of ["createdBy","updatedBy"]) if (r[key] !== null
+    && (typeof r[key] !== "string" || !(r[key] as string).trim() || (r[key] as string).length > 200)) invalid();
+  if (r.pinoriaSelfId === null && (r.ownedCount !== null || r.createdAt !== null || r.createdBy !== null || r.updatedAt !== null || r.updatedBy !== null)) invalid();
   if (r.rowKey.startsWith("PERSON:") !== (r.personId !== null)
      || (r.subjectTypes.includes("STAFF") !== (r.staffMemberId !== null))
      || (r.subjectTypes.includes("LEARNER") !== (r.studentProfileId !== null))) invalid();
   return {
-    id: r.rowKey.replace(":", "_"), name: r.displayName, nickname: (r.nickname ?? null) as string | null,
-    createdAt: null, createdBy: null, updatedAt: null, updatedBy: null,
+    id: r.rowKey.replace(":", "_"), name: r.nickname ? `${r.displayName} · ${r.nickname}` : r.displayName, nickname: (r.nickname ?? null) as string | null,
+    createdAt: auditDate(r.createdAt), createdBy: r.createdBy as string | null,
+    updatedAt: auditDate(r.updatedAt), updatedBy: r.updatedBy as string | null,
+    ownedCount: r.ownedCount as number | null,
     roles: r.subjectTypes.join(" + "), rowKey: r.rowKey,
     avatarLabel: avatarLabels[String(r.avatarStatus)], subjectLabel: subjectLabels[String(r.subjectStatus)],
     loadoutSummary: r.equippedCount === null ? null : String(r.equippedCount)+"/"+MAX_SELF_SLOTS,

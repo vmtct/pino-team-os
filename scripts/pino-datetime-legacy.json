@@ -1,0 +1,245 @@
+{
+  "version": "PINO_DATETIME_LEGACY_V1",
+  "recordedFrom": "vmtct/pino-team-os main 2787b2f21302c0c20e5d202290d82fb51f97a4fc",
+  "textTimestampExceptions": {
+    "app/bo/missions/schema.ts": [
+      "createdAt",
+      "updatedAt"
+    ],
+    "app/bo/parents/parent-native-model.ts": [
+      "createdAt",
+      "updatedAt"
+    ],
+    "app/bo/pinoria-avatars/avatar-dsa-model.ts": [
+      "createdAt",
+      "updatedAt"
+    ],
+    "app/bo/pinoria-avatars/schema.ts": [
+      "createdAt",
+      "updatedAt"
+    ],
+    "app/ho/learning/missions/schema.ts": [
+      "createdAt",
+      "updatedAt"
+    ],
+    "app/ho/learning/paths/schema.ts": [
+      "createdAt",
+      "updatedAt"
+    ],
+    "app/ho/workforce/staff-links/schema.ts": [
+      "updatedAt"
+    ],
+    "app/bo/classroom-diaries/schema.ts": [
+      "updatedAt"
+    ],
+    "app/ho/learning/diaries/schema.ts": [
+      "updatedAt"
+    ],
+    "app/ho/pinoria/wardrobe/schema.ts": [
+      "createdAt",
+      "updatedAt"
+    ],
+    "app/ho/workforce/shift-templates/schema.ts": [
+      "createdAt",
+      "updatedAt"
+    ]
+  },
+  "unZonedLocale": [
+    {
+      "file": "app/bo/components/BoSubjectHistory.tsx",
+      "line": 80,
+      "sha256": "90b788fe30fb86193aee66b7516de570dff44aec0fb3eecb2e5ce88262a0d19b",
+      "jira": "PAP-1820",
+      "reason": "PRE_EXISTING_UNZONED_OPERATOR_DATE_UI"
+    },
+    {
+      "file": "app/bo/content/WebsiteCmsView.tsx",
+      "line": 141,
+      "sha256": "11598a207bbc478f8b947c50c9de23ae69afe2a0ae95a2d65d52ec810429ca14",
+      "jira": "PAP-1820",
+      "reason": "PRE_EXISTING_UNZONED_OPERATOR_DATE_UI"
+    },
+    {
+      "file": "app/bo/pinoria-activities/PinoriaActivitiesView.tsx",
+      "line": 230,
+      "sha256": "6f5e98a2241f4a4c20e3ec0a1634a4b3e325ac0f3933c5d091157f244756e502",
+      "jira": "PAP-1820",
+      "reason": "PRE_EXISTING_UNZONED_OPERATOR_DATE_UI"
+    },
+    {
+      "file": "app/bo/pinoria-wish/EnergySeedCorrectionPanel.tsx",
+      "line": 71,
+      "sha256": "59b38bec2d70d36215d5bd0f062f4d0315b616e942622bfaf1307c10b9d0a98b",
+      "jira": "PAP-1820",
+      "reason": "PRE_EXISTING_UNZONED_OPERATOR_DATE_UI"
+    },
+    {
+      "file": "app/bo/pinoria-wish/ReleasePhaseManager.tsx",
+      "line": 54,
+      "sha256": "78567d83ebf8083127761ee3d19b3004878ecc8751aa0db4fde1fac4836cb6cb",
+      "jira": "PAP-1820",
+      "reason": "PRE_EXISTING_UNZONED_OPERATOR_DATE_UI"
+    },
+    {
+      "file": "app/bo/pinoria-wish/WishBoView.tsx",
+      "line": 85,
+      "sha256": "701d01b423d6b2d7b5115003ec23a0c7e99f71ae5f58bcd112afe6d8e49fdfa9",
+      "jira": "PAP-1820",
+      "reason": "PRE_EXISTING_UNZONED_OPERATOR_DATE_UI"
+    },
+    {
+      "file": "app/bo/staff/StaffRegistrationIntakeToggle.tsx",
+      "line": 56,
+      "sha256": "6e9ad62416c79c5a52294a9be2b18d2a4cb9762abbe7c305d7c0da61251ee211",
+      "jira": "PAP-1820",
+      "reason": "PRE_EXISTING_UNZONED_OPERATOR_DATE_UI"
+    },
+    {
+      "file": "app/bo/staff/StaffRegistrationReviewQueue.tsx",
+      "line": 212,
+      "sha256": "e74cc47395c1ff9080b90bead1ec0e670d785bcb0642cfd27677ecfc1f95bdb6",
+      "jira": "PAP-1820",
+      "reason": "PRE_EXISTING_UNZONED_OPERATOR_DATE_UI"
+    },
+    {
+      "file": "app/bo/staff/StaffRegistrationReviewQueue.tsx",
+      "line": 218,
+      "sha256": "dbd3d720ee70024498b57b835f41816aad6b3982bdf01c1292c5c4a4757e400e",
+      "jira": "PAP-1820",
+      "reason": "PRE_EXISTING_UNZONED_OPERATOR_DATE_UI"
+    },
+    {
+      "file": "app/bo/system/ai-data/AiDataInboxView.tsx",
+      "line": 139,
+      "sha256": "07243ed2c9dbf751a25520d9b06d49569a50b5868b56f43ef96fb6ea51afcd5a",
+      "jira": "PAP-1820",
+      "reason": "PRE_EXISTING_UNZONED_OPERATOR_DATE_UI"
+    },
+    {
+      "file": "app/bo/system/ai-data/AiDataInboxView.tsx",
+      "line": 140,
+      "sha256": "b483143a3ff308df86b20913e68a7de4433891e4d14ebb205d1447bb30230908",
+      "jira": "PAP-1820",
+      "reason": "PRE_EXISTING_UNZONED_OPERATOR_DATE_UI"
+    },
+    {
+      "file": "app/bo/system/ai-data/AiDataInboxView.tsx",
+      "line": 202,
+      "sha256": "12a561b07f9574413f010c3ac3517fadca48f839237119352b62631ac02e04d9",
+      "jira": "PAP-1820",
+      "reason": "PRE_EXISTING_UNZONED_OPERATOR_DATE_UI"
+    },
+    {
+      "file": "app/bo/system/ai-data/AiDataInboxView.tsx",
+      "line": 203,
+      "sha256": "7a0d568574676088f4c85fec8a7c02d41dd8a4bad90b4727d136ae2df4c57a9e",
+      "jira": "PAP-1820",
+      "reason": "PRE_EXISTING_UNZONED_OPERATOR_DATE_UI"
+    },
+    {
+      "file": "app/bo/system/audit/AccessAuditView.tsx",
+      "line": 76,
+      "sha256": "ac8585dcbc184620032d7761db7dfab189926531cd737b115c15421cd8424ef9",
+      "jira": "PAP-1820",
+      "reason": "PRE_EXISTING_UNZONED_OPERATOR_DATE_UI"
+    },
+    {
+      "file": "app/bo/system/audit/AccessAuditView.tsx",
+      "line": 124,
+      "sha256": "d0cdf6328d7005edc8898c091bf039853baeee7a745255dcb50749a69f0bd898",
+      "jira": "PAP-1820",
+      "reason": "PRE_EXISTING_UNZONED_OPERATOR_DATE_UI"
+    },
+    {
+      "file": "app/bo/system/pancake/PancakeIntegrationView.tsx",
+      "line": 44,
+      "sha256": "76e2f12152e6dbd00669f28acb37b62aae75788b902358ba1928381fb648a3e2",
+      "jira": "PAP-1820",
+      "reason": "PRE_EXISTING_UNZONED_OPERATOR_DATE_UI"
+    },
+    {
+      "file": "app/bo/system/pancake/PancakeIntegrationView.tsx",
+      "line": 45,
+      "sha256": "252e152a2829c67874940105a083636641a14a179f8c10c875d826c039c424be",
+      "jira": "PAP-1820",
+      "reason": "PRE_EXISTING_UNZONED_OPERATOR_DATE_UI"
+    },
+    {
+      "file": "app/bo/system/pancake/PancakeIntegrationView.tsx",
+      "line": 59,
+      "sha256": "a37bcf3512850e61ff9fc500ae5a095991046ae172e3850cba619bbe1c4ba3ec",
+      "jira": "PAP-1820",
+      "reason": "PRE_EXISTING_UNZONED_OPERATOR_DATE_UI"
+    },
+    {
+      "file": "app/bo/system/users/AccessUsersView.tsx",
+      "line": 174,
+      "sha256": "30bc0b6ab0b7e4196709dc9f20344abbf404ae320d08824385108fa647e6ba47",
+      "jira": "PAP-1820",
+      "reason": "PRE_EXISTING_UNZONED_OPERATOR_DATE_UI"
+    },
+    {
+      "file": "app/bo/training/TrainingAssignmentsView.tsx",
+      "line": 58,
+      "sha256": "098ee6a2817826a0e844702160c1b14ae774806775831553702404a4887db40f",
+      "jira": "PAP-1820",
+      "reason": "PRE_EXISTING_UNZONED_OPERATOR_DATE_UI"
+    },
+    {
+      "file": "app/bo/training/TrainingAssignmentsView.tsx",
+      "line": 59,
+      "sha256": "65d0e5f8e12d87ca58d56d1db633e17dc31bc8c2970706b07d147eda7481bf0e",
+      "jira": "PAP-1820",
+      "reason": "PRE_EXISTING_UNZONED_OPERATOR_DATE_UI"
+    },
+    {
+      "file": "app/bo/training/TrainingAssignmentsView.tsx",
+      "line": 116,
+      "sha256": "c4727ddc3d9002a726e74c181022b5b07784ad2f31f2459dd4446262a5aa28d0",
+      "jira": "PAP-1820",
+      "reason": "PRE_EXISTING_UNZONED_OPERATOR_DATE_UI"
+    },
+    {
+      "file": "app/bo/training/TrainingAssignmentsView.tsx",
+      "line": 120,
+      "sha256": "d581a6a2e31d496861e19a257c316541787e331283b430893ec35269ef5e8cdc",
+      "jira": "PAP-1820",
+      "reason": "PRE_EXISTING_UNZONED_OPERATOR_DATE_UI"
+    },
+    {
+      "file": "app/bo/training/TrainingAssignmentsView.tsx",
+      "line": 121,
+      "sha256": "b0678d1c0e3d03800debd95f290ef6191cf31fe40a85bcf7b3bd6954f5b5f595",
+      "jira": "PAP-1820",
+      "reason": "PRE_EXISTING_UNZONED_OPERATOR_DATE_UI"
+    },
+    {
+      "file": "app/bo/workforce/WorkforcePlanningView.tsx",
+      "line": 302,
+      "sha256": "1a2d0fbfe6d81d1049c85bc04df6dcaa82729d54a9cac5ecde3b40cb34385b0f",
+      "jira": "PAP-1820",
+      "reason": "PRE_EXISTING_UNZONED_OPERATOR_DATE_UI"
+    },
+    {
+      "file": "app/ho/centers/CenterStaffRegistrationSection.tsx",
+      "line": 84,
+      "sha256": "1d5d6d960d563390cbc0fef1d3fd4e02e6a652cc0079e3103a2ee1178b20975e",
+      "jira": "PAP-1820",
+      "reason": "PRE_EXISTING_UNZONED_OPERATOR_DATE_UI"
+    },
+    {
+      "file": "app/ho/system/audit/HoAccessAudit.tsx",
+      "line": 45,
+      "sha256": "f0695d4088ffe7e5dde7b42ba842bbdc73476caedc3a8b9a61e763ba7b0b5783",
+      "jira": "PAP-1820",
+      "reason": "PRE_EXISTING_UNZONED_OPERATOR_DATE_UI"
+    },
+    {
+      "file": "app/ho/system/audit/HoAccessAudit.tsx",
+      "line": 66,
+      "sha256": "4b66f037eb15311c254ee1f0ec5b59b7c8470af045217b57746a3bcd4f12035f",
+      "jira": "PAP-1820",
+      "reason": "PRE_EXISTING_UNZONED_OPERATOR_DATE_UI"
+    }
+  ]
+}

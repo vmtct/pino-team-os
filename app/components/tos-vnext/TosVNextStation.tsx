@@ -1,10 +1,12 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBolt, faChevronRight, faDesktop, faGear, faShieldHalved, faStar, faTabletScreenButton, faTv, faUsers, faVolumeHigh, faWandMagicSparkles, faWifi } from "@fortawesome/free-solid-svg-icons";
 import StationDesktopFrame from "./StationV4Frame";
 import { Initials } from "./OpsInitials";
-import { TvLauncher } from "@/app/tv/TvLauncher";
+import { StationLogicalTv } from "./StationLogicalTv";
+import { readStaffStationTvs } from "@/lib/pnr-tv-station-read";
+import type { LogicalTvListItem } from "@/lib/pnr-tv-logical-visibility";
 import {unavailableOpsReadModel,type OpsReadModel} from "@/lib/tos-ops-v4-view-model";
 import ops from "./ops.module.css";
 import desk from "./station.module.css";
@@ -13,11 +15,14 @@ type Tab="overview"|"pinoria"|"students"|"devices"|"tv";
 const statusText=(value:string)=>value==="ARRIVED"?"Đang ở PINO":value==="LEFT"?"Đã về":value==="EXPECTED"?"Chưa đến":"Chưa xác minh";
 const statusKind=(value:string)=>value==="ARRIVED"?"ok":value==="LEFT"?"left":"waiting";
 
-export function TosVNextStation({onHome,desktop,centerName,model=unavailableOpsReadModel(),initialTab="overview"}:{onHome:()=>void;desktop:boolean;centerName:string;model?:OpsReadModel;initialTab?:Tab}){
+export function TosVNextStation({onHome,desktop,centerName,centerId,authorizedCenterIds,model=unavailableOpsReadModel(),initialTab="overview"}:{onHome:()=>void;desktop:boolean;centerName:string;centerId:string|null;authorizedCenterIds:readonly string[];model?:OpsReadModel;initialTab?:Tab}){
  const state=model,guests=model.guests,assetNames=model.assetNames,outfits=model.outfits;
  const [tab,setTab]=useState<Tab>(initialTab);
  const [studentId,setStudentId]=useState<string|null>(model.guests[0]?.id??null);
  const [query,setQuery]=useState("");
+ const [tvRead,setTvRead]=useState<{
+   centerId:string|null;status:"loading"|"ready"|"error";rows:readonly LogicalTvListItem[];
+ }>({centerId:null,status:"loading",rows:[]});
  const notice="";
  const [deviceMode,setDeviceMode]=useState<"all"|"attention">("all");
  const student=guests.find(g=>g.id===studentId);
@@ -25,16 +30,31 @@ export function TosVNextStation({onHome,desktop,centerName,model=unavailableOpsR
  const deviceAlerts=assetNames.filter(n=>state.equipment[n]!=="Sẵn sàng").length;
  const wishes=guests.filter(g=>Object.prototype.hasOwnProperty.call(state.wishes,g.id)&&!state.wishes[g.id]).length;
  const filtered=guests.filter(g=>(g.name+" "+g.className+" "+g.room).toLocaleLowerCase("vi").includes(query.toLocaleLowerCase("vi")));
- const navigate=(tab:Tab)=>{setTab(tab);};
- if(!desktop)return <StationDesktopFrame centerName={centerName} tab={tab} onTab={navigate} onHome={onHome} query={query} onQuery={setQuery} onReset={()=>{}} notice=""><p>Trạm TOS chỉ dùng trên máy tính</p></StationDesktopFrame>;
- return <StationDesktopFrame centerName={centerName} tab={tab} onTab={navigate} onHome={onHome} query={query} onQuery={setQuery}
+ // PAP-1753 / PAP-650: only authenticated Staff Center and Core's read ACL.
+ // A result from a previous Center must never remain visible.
+ const tvCenterAuthorized=Boolean(centerId&&authorizedCenterIds.includes(centerId));
+ useEffect(()=>{
+  if(tab!=="tv"||!centerId||!tvCenterAuthorized)return;
+  const controller=new AbortController();
+  void readStaffStationTvs(centerId,authorizedCenterIds,{signal:controller.signal})
+   .then(rows=>{if(!controller.signal.aborted)setTvRead({centerId,status:"ready",rows});})
+   .catch(()=>{if(!controller.signal.aborted)setTvRead({centerId,status:"error",rows:[]});});
+  return()=>controller.abort();
+ },[tab,centerId,tvCenterAuthorized]);
+ const currentTvRead=tvRead.centerId===centerId?tvRead:
+  {status:"loading" as const,rows:[] as readonly LogicalTvListItem[]};
+ const navigate=(next:Tab)=>{
+  if(next==="tv")setTvRead({centerId:null,status:"loading",rows:[]});
+  setTab(next);
+ };
+ return <StationDesktopFrame desktop={desktop} centerName={centerName} tab={tab} onTab={navigate} onHome={onHome} query={query} onQuery={setQuery}
   onReset={()=>{}} notice={notice}>
   {tab==="overview"&&<>
     <div className={desk.metricGrid}>
       <div className={desk.metricCard}><FontAwesomeIcon icon={faUsers}/><strong>{model.loaded?arrived.length:"—"}</strong><span>Học viên tại PINO</span></div>
       <div className={desk.metricCard}><FontAwesomeIcon icon={faStar}/><strong>{model.loaded?wishes:"—"}</strong><span>Wish đang chờ</span></div>
       <div className={desk.metricCard}><FontAwesomeIcon icon={faGear}/><strong>{model.loaded?deviceAlerts:"—"}</strong><span>Thiết bị cần kiểm tra</span></div>
-      <div className={desk.metricCard}><FontAwesomeIcon icon={faTv}/><strong>{state.tvPlaying===null?"—":state.tvPlaying?"ON":"OFF"}</strong><span>Trạng thái TV</span></div>
+      <div className={desk.metricCard}><FontAwesomeIcon icon={faTv}/><strong>—</strong><span>TV logic · chưa có dữ liệu</span></div>
     </div>
     <div className={desk.dashboardGrid}>
       <div className={desk.dashboardMain}>
@@ -78,10 +98,11 @@ export function TosVNextStation({onHome,desktop,centerName,model=unavailableOpsR
   {tab==="students"&&<>
     <section className={ops.panel} data-tos-ops="panel">
       <div className={ops.panelTitle} data-tos-ops="panelTitle"><h3>Danh sách học viên</h3><span>{model.loaded?filtered.length:"—"} học viên · lọc bằng ô tìm kiếm phía trên</span></div>
-      <div className={desk.dataTableWrap}><table className={desk.dataTable}><thead><tr><th>Học viên</th><th>Lớp học</th><th>Phòng</th><th>Khung giờ</th><th>Trạng thái</th><th>Wardrobe</th></tr></thead>
+      <div className={desk.mobileStudentList}>{filtered.map(g=><details key={g.id} className={desk.studentDetail}><summary><div className={desk.tableName}><Initials text={g.initials}/><span><strong>{g.name}</strong><small>{g.className}</small></span></div><span className={desk.statusPill} data-kind={statusKind(state.attendance[g.id])}>{statusText(state.attendance[g.id])}</span></summary><dl><dt>Mã học viên</dt><dd>{g.id}</dd><dt>Phòng</dt><dd>{g.room}</dd><dt>Khung giờ</dt><dd>{g.classTime}</dd><dt>Wardrobe</dt><dd>{state.wardrobe[g.id]??"—"}</dd></dl></details>)}{filtered.length===0&&<div className={ops.empty}>{model.loaded?"Không có học viên khớp tìm kiếm.":"Chưa tải được danh sách học viên."}</div>}</div>
+      <div className={desk.studentTable}><div className={desk.dataTableWrap}><table className={desk.dataTable}><thead><tr><th>Học viên</th><th>Lớp học</th><th>Phòng</th><th>Khung giờ</th><th>Trạng thái</th><th>Wardrobe</th></tr></thead>
         <tbody>{filtered.map(g=><tr key={g.id}><td><div className={desk.tableName}><Initials text={g.initials}/><span><strong>{g.name}</strong><small>{g.id}</small></span></div></td>
           <td>{g.className}</td><td>{g.room}</td><td>{g.classTime}</td><td><span className={desk.statusPill} data-kind={statusKind(state.attendance[g.id])}>{statusText(state.attendance[g.id])}</span></td><td>{state.wardrobe[g.id]??"—"}</td></tr>)}</tbody>
-      </table>{filtered.length===0?<div className={ops.empty}>{model.loaded?"Không có học viên khớp tìm kiếm.":"Chưa tải được danh sách học viên."}</div>:null}</div>
+      </table>{filtered.length===0?<div className={ops.empty}>{model.loaded?"Không có học viên khớp tìm kiếm.":"Chưa tải được danh sách học viên."}</div>:null}</div></div>
     </section>
     <div className={ops.callout} data-tos-ops="callout">Chỉ hiển thị thông tin học viên trong phạm vi được cấp quyền.</div>
   </>}
@@ -92,7 +113,7 @@ export function TosVNextStation({onHome,desktop,centerName,model=unavailableOpsR
       <div className={desk.metricCard}><FontAwesomeIcon icon={faDesktop}/><strong>—</strong><span>Node đang xem</span></div></div>
     <section className={ops.panel} data-tos-ops="panel"><div className={ops.panelTitle} data-tos-ops="panelTitle"><h3>Thiết bị tại trạm</h3><span>Chưa có command được xác minh</span></div>
       <div className={`${ops.segment} ${desk.deviceFilter}`}><button aria-pressed={deviceMode==="all"} onClick={()=>setDeviceMode("all")}>Tất cả</button><button aria-pressed={deviceMode==="attention"} onClick={()=>setDeviceMode("attention")}>Cần kiểm tra</button></div>
-      <div className={desk.dataTableWrap}><table className={desk.dataTable}><thead><tr><th>Thiết bị</th><th>Node</th><th>Trạng thái</th><th>Loại</th><th>Thao tác</th></tr></thead>
+      <div className={desk.dataTableWrap}><table className={desk.dataTable} data-station-device-table><thead><tr><th>Thiết bị</th><th>Node</th><th>Trạng thái</th><th>Loại</th><th>Thao tác</th></tr></thead>
         <tbody>{assetNames.filter(n=>deviceMode==="all"||state.equipment[n]!=="Sẵn sàng").map(name=><tr key={name}>
           <td><div className={desk.tableName}><span className={`${ops.avatar} ${desk.deviceAvatar}`}><FontAwesomeIcon icon={name.includes("TV")?faTv:name.includes("Loa")?faVolumeHigh:name.includes("bảng")?faTabletScreenButton:faBolt}/></span><span><strong>{name}</strong><small>PINO House</small></span></div></td>
           <td>—</td><td><span className={desk.statusPill} data-kind={state.equipment[name]==="Sẵn sàng"?"ok":"alert"}>{state.equipment[name]}</span></td>
@@ -102,9 +123,8 @@ export function TosVNextStation({onHome,desktop,centerName,model=unavailableOpsR
     </section>
     <div className={ops.callout} data-tos-ops="callout">Không điều khiển thiết bị, không khởi động lại phần cứng hay thay đổi network thật.</div>
   </>}
-  {tab==="tv"&&<section className={ops.panel} data-tos-ops="panel" data-tos-station-tv-launcher="true">
-    <div className={ops.panelTitle} data-tos-ops="panelTitle"><h3>Mở TV tại trạm</h3><span>Danh sách màn hình theo quyền Staff</span></div>
-    <TvLauncher station />
-  </section>}
+  {tab==="tv"&&<StationLogicalTv centerId={centerId} centerName={centerName}
+    authorizedCenterIds={authorizedCenterIds} tvs={currentTvRead.rows}
+    readStatus={currentTvRead.status} />}
  </StationDesktopFrame>;
 }

@@ -10,7 +10,7 @@ const parent = "01a0b29a-3acd-7a18-a0f2-cf6016548ab7";
 const contact = "01a0b29a-3acd-7a18-a0f2-cf6016548ab8";
 const scope = { surface: "BO" as const, centerId: center };
 const item = {
-  id: parent, displayName: "Parent A", maskedContact: "09••••12",
+  id: parent, displayName: "Parent A", version: 1, maskedContact: "09••••12",
   linkedStudentCount: 2, centers: ["Cơ sở Cần Thơ"],
   updatedAt: "2026-10-29T10:00:00Z", attention: null,
 };
@@ -47,7 +47,9 @@ test("PAP-1075 provider maps only a Core-attested selected Center and redacted c
   assert.equal(result.records[0].centerId, center);
   assert.equal(result.records[0].row.maskedContact, "09••••12");
   assert.equal(result.records[0].row.studentCount, 2);
+  assert.equal(result.records[0].version, "1", "Core-owned CAS version must be projected, never invented");
   assert.equal((await parentProvider.detail(parent, scope, fetcher, signal))?.row.id, parent);
+  assert.equal((await parentProvider.detail(parent, scope, fetcher, signal))?.version, "1");
   assert.equal((await readScopedParentDetail(parent, scope, fetcher, signal)).contacts[0].maskedValue, "09••••12");
   assert.ok(called.every(path => path.includes("centerId=" + center)));
   assert.ok(called.some(path => path.includes("/identity/parents/" + parent + "/detail")));
@@ -58,6 +60,8 @@ test("PAP-1075 provider refuses missing or cross-Center Core receipts and raw PI
   await assert.rejects(() => parentProvider.detail(parent, scope, api(center, other).fetcher, signal));
   await assert.rejects(() => parentProvider.list(parentQuery, scope, api(center, center, { ...item, maskedContact: "0901234567" }).fetcher, signal));
   await assert.rejects(() => parentProvider.list(parentQuery, scope, api(center, center, { ...item, rawPhone: "0901234567" }).fetcher, signal));
+  await assert.rejects(() => parentProvider.list(parentQuery, scope, api(center, center, { ...item, version: 0 }).fetcher, signal));
+  await assert.rejects(() => parentProvider.list(parentQuery, scope, api(center, center, { ...item, version: "1" }).fetcher, signal));
   const injected: typeof fetch = async input => {
     const path = new URL(String(input), "https://bo.staging.pinohouse.art").pathname;
     const data = path.endsWith("/detail") ? { ...detail, rawPhone: "0901234567" } :

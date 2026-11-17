@@ -4,7 +4,7 @@ import test from "node:test";
 const read=(name:string)=>readFileSync("app/components/tos-ds/"+name,"utf8");
 test("PAP-934 V4 shared mobile/header/navigation dimensions are token-owned",()=>{
  const tokens=read("tokens.css");
- for(const [name,value] of [["mobile-max","430px"],["header-height","60px"],["nav-height","76px"],["hit-min","44px"],["control-height","48px"]])assert.ok(tokens.includes(`--tos-${name}:${value}`));
+ for(const [name,value] of [["mobile-max","430px"],["header-height","60px"],["nav-height","44px"],["hit-min","44px"],["control-height","48px"]])assert.ok(tokens.includes(`--tos-${name}:${value}`));
  assert.match(read("phone-frame.module.css"),/max-width:var\(--tos-mobile-max\)/);
  assert.match(read("primitives.module.css"),/min-height:var\(--tos-hit-min\)/);
  assert.match(read("system.css"),/min-height:var\(--tos-control-height\)/);
@@ -34,4 +34,10 @@ test("PAP-938 legacy control typography and focus stay outside TOS DS",()=>{
  const ds=read("system.css");
  assert.match(ds,/font-size:var\(--tos-text-button\)/);
  assert.match(ds,/outline:var\(--tos-focus-ring\)/);
+});
+
+test("PAP-2010 Station mobile fixed nav excludes classic scrollbar width and preserves tablet layout",()=>{
+ const css=readFileSync("app/components/tos-vnext/station.module.css","utf8");
+ assert.match(css,/\.mobileNav :global\(\[data-tos-shared="bottom-nav"\]\) \{width:min\(var\(--tos-mobile-max\),100%\)\}/);
+ assert.match(css,/@media\(min-width:768px\) and \(max-width:1023px\)\{[^}]*\}[^}]*\.mobileNav :global\(\[data-tos-shared="bottom-nav"\]\) \{width:100%\}/);
 });

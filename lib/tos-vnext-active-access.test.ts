@@ -12,8 +12,8 @@ test("PAP-1127 authentication and Center context required for all apps",()=>{
  for(const app of SIX_TOS_APPS) for(const k of ["authenticated","centerReady"] as const)
   assert.equal(canOpenVNextApp(app.id,{...ready,[k]:false}),false,app.id+":"+k);
 });
-test("PAP-1127 only Trạm TOS requires desktop, other five are shift-independent",()=>{
- assert.equal(canOpenVNextApp("station",{...ready,desktop:false}),false);
+test("PAP-2000 all six apps open on mobile with the same session/Center guard",()=>{
+ assert.equal(canOpenVNextApp("station",{...ready,desktop:false}),true);
  for(const app of SIX_TOS_APPS.filter(app=>app.id!=="station"))
   assert.equal(canOpenVNextApp(app.id,{...ready,desktop:false}),true,app.id);
 });

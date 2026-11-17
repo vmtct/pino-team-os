@@ -31,7 +31,9 @@ test("PAP-1728 Create and View use the identical typed Drawer property renderer"
   assert.equal(count(view, /class="property-row"/g), visibleDrawerFields.length);
   assert.equal(count(create, /class="property-row"/g), visibleDrawerFields.length);
   assert.equal(count(create, /<input\b/g), 2, "only two approved inputs");
-  assert.equal(count(create, /<button\b/g), visibleDrawerFields.length - 2, "other visible properties stay read-only");
+  assert.equal(count(create, /class="v24-prop-value readonly"/g), visibleDrawerFields.length - 2, "other visible properties remain readonly DSA cells");
+  assert.equal(count(create, /<button\b/g), 0, "readonly property cells are no longer disabled buttons");
+  assert.equal(count(view, /class="v24-prop-value readonly"/g), visibleDrawerFields.length, "View readonly cells retain DSA form");
   assert.match(create, /data-tdd-create=""/);
   assert.doesNotMatch(view, /data-tdd-create=/);
   assert.match(create, /data-prop="studentCount"/);
@@ -46,8 +48,11 @@ test("PAP-1724 Parent Create consumes actual shared renderer, no handmade rows o
   const drawer = readFileSync(new URL("../app/bo/parents/ParentCreateDrawer.tsx", import.meta.url), "utf8");
   assert.match(drawer, /<PropertySections variant="drawer"/);
   assert.match(drawer, /fields=\{drawerFields\}/);
-  assert.match(drawer, /sections=\{parentDefinition\.drawer\.sections\}/);
-  assert.match(drawer, /toLegacyModule\(parentSchema/);
+  const nativeModel = readFileSync(new URL("../app/bo/parents/parent-native-model.ts", import.meta.url), "utf8");
+  assert.match(drawer, /sections=\{parentNativeCreateSections\}/);
+  assert.match(drawer, /drawerFields = parentNativeFields/);
+  assert.match(nativeModel, /export const parentNativeCreateSections = \[/);
+  assert.doesNotMatch(drawer, /parentDefinition|toLegacyModule|parentSchema/);
   assert.match(drawer, /studentCount: 0/);
   assert.doesNotMatch(drawer, /<section className="property-section"/);
   assert.doesNotMatch(drawer, /<label className="property-row"/);

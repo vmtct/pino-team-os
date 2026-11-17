@@ -436,6 +436,54 @@ export function isFounderRetiredHoStaffLinksRoute(root, entry) {
     /staffLinksBase/.test(boundary);
 }
 
+/** PAP-1810 / Epic PAP-1705 PNR-AVATAR-CRUD: exact Founder-directed migration.
+ * Admission is retired for this single BO route ONLY when the actual serving
+ * page binds native BO DSA + authenticated Core Center read. Existing TDD
+ * admissions cannot silently downgrade via this exception.
+ */
+export function isFounderMigratedBoAvatarNativeDsaRoute(root, entry) {
+  if (entry.file !== "app/bo/pinoria-avatars/page.tsx" ||
+      entry.route !== "/bo/pinoria-avatars" || entry.key !== "pinoria-avatars" ||
+      entry.surface !== "BO" || entry.profile !== "TDD_DEFAULT") return false;
+  const paths = [
+    "app/bo/pinoria-avatars/page.tsx",
+    "app/bo/pinoria-avatars/AvatarDirectoryDsa.tsx",
+    "app/bo/pinoria-avatars/avatar-dsa-data.ts",
+    "app/bo/pinoria-avatars/avatar-dsa-model.ts",
+    "app/bo/pinoria-avatars/CreateSelfDrawer.tsx",
+    "app/bo/pinoria-avatars/SelfWardrobeDetail.tsx",
+    "app/bo/pinoria-avatars/SelfLoadoutDetail.tsx",
+    "lib/pap1810-avatar-native-dsa.test.ts",
+  ];
+  if (paths.some(f => !fs.existsSync(path.join(root, f)))) return false;
+  const [page, client, data, model, create] = paths.map(f => read(root, f));
+  const actual = graph(root, paths[0]);
+  return /PAP-1810/.test(page) &&
+    /import\s*\{\s*AvatarDirectoryDsa\s*\}\s*from\s*["']\.\/AvatarDirectoryDsa["']/.test(page) &&
+    /<AvatarDirectoryDsa\s*\/>/.test(page) &&
+    /\bBoDataTable\b/.test(client) &&
+    /\bDrawerFrame\b/.test(client) &&
+    /\bDetailFrame\b/.test(client) &&
+    /\bPropertySections\b/.test(client) &&
+    /\bloadAvatarContext\b/.test(client) &&
+    /\bloadAvatarPage\b/.test(client) &&
+    /\bCreateSelfDrawer\b/.test(client) &&
+    /\bSelfWardrobeDetail\b/.test(client) &&
+    /\bSelfLoadoutDetail\b/.test(client) &&
+    /\/api\/bo\/context\?/.test(data) &&
+    /\/api\/bo\/pinoria\/avatars\?/.test(data) &&
+    /credentials:\s*"same-origin"/.test(data) &&
+    /centerId/.test(data) &&
+    /pinoria\.avatar\.directory\.view/.test(data) &&
+    /export const avatarFields/.test(model) &&
+    /"createdAt"/.test(model) && /"createdBy"/.test(model) &&
+    /"updatedAt"/.test(model) && /"updatedBy"/.test(model) &&
+    /pinoria\.self\.create/.test(client) &&
+    /method:\s*"POST"/.test(create) &&
+    !actual.some(f => f === "app/bo/pinoria-avatars/SelfDirectoryTdd.tsx") &&
+    !/(?:TddRegistry|createBoTddAdapter|SurfaceWorkspace|browserTddNavigation|TddRenderer)/.test(page + client);
+}
+
 export async function main() {
   const baseIndex=process.argv.indexOf('--base');
   const base=baseIndex<0?(process.env.TDD_BASE||'origin/main'):process.argv[baseIndex+1];
@@ -450,7 +498,7 @@ export async function main() {
   let previous=[];
   if(git(ROOT,['ls-tree','--name-only',base,MANIFEST])) previous=JSON.parse(git(ROOT,['show',base+':'+MANIFEST])).modules;
   const current=JSON.parse(read(ROOT,MANIFEST));
-  for(const e of previous.filter(e=>e.profile!=='EXISTING_GRANDFATHERED')) if(!current.modules.some(n=>n.file===e.file&&n.profile===e.profile) && !isFounderRetiredBoTvRoute(ROOT,e) && !isFounderRetiredHoStaffLinksRoute(ROOT,e)) throw Error('admitted route cannot return to grandfathered inventory: '+e.file);
+  for(const e of previous.filter(e=>e.profile!=='EXISTING_GRANDFATHERED')) if(!current.modules.some(n=>n.file===e.file&&n.profile===e.profile) && !isFounderRetiredBoTvRoute(ROOT,e) && !isFounderRetiredHoStaffLinksRoute(ROOT,e) && !isFounderMigratedBoAvatarNativeDsaRoute(ROOT,e)) throw Error('admitted route cannot return to grandfathered inventory: '+e.file);
   const readBaseSource=file=>{try{return git(ROOT,['show',base+':'+file]);}catch{return null;}};
   const result=await verify(ROOT,{changed,baseline,approvals,readBaseSource});
   for(const f of changed.filter(f=>f.endsWith('.css')&&!/^(?:public\/(?:bo|ho)-authority-source\/|app\/ho\/ho-theme\.css)/.test(f))) {

@@ -19,8 +19,12 @@ test("PAP-1029 Parent and Student delegate to one canonical Detail cover/hero ow
 test("PAP-1029 Full Detail nav/body retain approved DS selectors; narrow Drawer uses property rows", () => {
   assert.match(parent, /const navigation = <div className="detail-tabs"/);
   assert.match(parent, /const panel = <section id="parent-tab-panel"/);
-  assert.match(parent, /return fullDetail\s*\? <>\{navigation\}<div id="detail-body" className="detail-main v25-full-width"><div className="detail-panel v24-main-panel">\{panel\}/);
+  // PAP-1814: native Parent keeps the canonical Full Detail geometry and
+  // renders its inline editor as a sibling, not a nested alternate Detail.
+  assert.match(parent, /return <>\{fullDetail\s*\? <>\{navigation\}<div id="detail-body" className="detail-main v25-full-width"><div className="detail-panel v24-main-panel">\{panel\}/);
   assert.match(parent, /: <section aria-label="Parents & Guardians">\{navigation\}\{panel\}<\/section>/);
+  assert.match(parent, /<BoTypedEditor closeOnSave=\{false\}/);
+  assert.doesNotMatch(parent, /<DetailFrame|className="detail-cover"|className="detail-hero"/);
   assert.match(parent, /const overview = <PropertySections variant=\{fullDetail \? "detail" : "drawer"\}/);
   assert.doesNotMatch(parent, /<div className="v24-prop-grid">/);
   assert.match(parent, /aria-labelledby=\{"parent-tab-"\+tab\}/);

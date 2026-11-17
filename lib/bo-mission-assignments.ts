@@ -64,6 +64,9 @@ export type LinkedMissionDiary = {
  linkId: string; diaryId: string; linkedAt: string; registeredAt: string | null;
  studentId: string; teachingContextKey: string; runningClassId: string | null;
  status: "REGISTERED" | "CLOSED"; registeredByUserId: string | null;
+ /** PAP-1818/PAP-1819: source Diary note and independently verified CCCD name. */
+ notes: string | null; teacherLegalFullName: string | null;
+ updatedAt: string | null;
 };
 export type LinkedMissionDiaryPage = {
  assignmentId: string; diaries: LinkedMissionDiary[];
@@ -92,12 +95,19 @@ export function parseLinkedMissionDiaryPage(value: unknown, centerId: string, as
    !(x.runningClassId == null || typeof x.runningClassId === "string" && assignmentUuid.test(x.runningClassId)) ||
    !(x.registeredAt == null || iso(x.registeredAt)) ||
    !(x.registeredByUserId == null || typeof x.registeredByUserId === "string" && assignmentUuid.test(x.registeredByUserId)) ||
+   !(x.notes == null || typeof x.notes === "string" && x.notes.length <= 5000) ||
+   !(x.teacherLegalFullName == null || typeof x.teacherLegalFullName === "string" &&
+      x.teacherLegalFullName.trim().length > 0 && x.teacherLegalFullName.length <= 160) ||
+   !(x.updatedAt == null || iso(x.updatedAt)) ||
    seen.has(String(r.diaryId))) throw linkedInvalid();
   seen.add(String(r.diaryId));
   return {linkId:r.linkId as string, diaryId:r.diaryId as string, linkedAt:r.linkedAt as string,
    registeredAt:(x.registeredAt as string|null)??null, studentId:x.studentId as string,
    teachingContextKey:x.teachingContextKey as string, runningClassId:(x.runningClassId as string|null)??null,
-   status:x.status as "REGISTERED"|"CLOSED", registeredByUserId:(x.registeredByUserId as string|null)??null};
+   status:x.status as "REGISTERED"|"CLOSED", registeredByUserId:(x.registeredByUserId as string|null)??null,
+   notes:(x.notes as string|null)??null,
+   teacherLegalFullName:(x.teacherLegalFullName as string|null)??null,
+   updatedAt:(x.updatedAt as string|null)??null};
  });
  return {assignmentId,diaries,limit:p.limit as number,offset:p.offset as number,hasMore:p.hasMore as boolean};
 }

@@ -74,9 +74,7 @@ export function TosVNextHome({profileLabel,centerName,authorizedCenters,selected
       onClick={onNotify}>♧</button>
      <button ref={settingsButton} type="button" className={home.headerButton} aria-label="Cài đặt"
       aria-expanded={settingsOpen} aria-controls="tos-vnext-home-settings" onClick={()=>setSettingsOpen(v=>!v)}>⚙</button>
-    </div>
-   </header>
-   {settingsOpen&&<section ref={settingsMenu} id="tos-vnext-home-settings" aria-label="Cài đặt" className={shell.homeSettingsMenu}>
+     {settingsOpen&&<section ref={settingsMenu} id="tos-vnext-home-settings" aria-label="Cài đặt" className={shell.homeSettingsMenu}>
     <span>{profileLabel||"Tài khoản TOS"}</span>
     {authorizedCenters.length>1&&<label className={shell.homeCenterLabel}>Trung tâm
      <select value={selectedCenterId} disabled={busy} onChange={e=>{onCenterChange(e.target.value);setSettingsOpen(false)}}>
@@ -84,7 +82,9 @@ export function TosVNextHome({profileLabel,centerName,authorizedCenters,selected
      </select>
     </label>}
     <LogoutButton className={shell.homeLogout}/>
-   </section>}
+     </section>}
+    </div>
+   </header>
    <button type="button" className={home.shiftCard} disabled={busy||!allowed("shift")}
     aria-label={busy||!allowed("shift")?"Chưa xác minh tài khoản hoặc cơ sở":"Mở Ca Làm"}
     onClick={()=>onOpen("shift")}>

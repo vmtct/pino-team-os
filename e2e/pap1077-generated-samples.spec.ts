@@ -57,7 +57,7 @@ for (const surface of ["bo", "ho"] as const) {
     const opener = page.getByRole("row", { name: "Mở Quick View SYNTHETIC DEMO 001", exact: true });
     await expect(opener).toBeVisible(); await opener.press("Enter");
     await expect(page.locator('[data-tdd-shell="drawer"]')).toBeVisible(); await expect(page.getByRole("button", { name: /Full Detail/ })).toBeEnabled();
-    const controls = await page.locator('[data-tdd-properties="drawer"] .property-control').evaluateAll(nodes => nodes.map(node => node.getBoundingClientRect().width));
+    const controls = await page.locator('[data-tdd-properties="drawer"] :is(.property-control, .v24-prop-value)').evaluateAll(nodes => nodes.map(node => node.getBoundingClientRect().width));
     expect(controls.length).toBeGreaterThan(0); expect(Math.min(...controls)).toBeGreaterThanOrEqual(105);
     await page.getByRole("button", { name: /Full Detail/ }).click();
     await expect(page.getByRole("tab", { name: "Tổng quan", exact: true })).toBeVisible();

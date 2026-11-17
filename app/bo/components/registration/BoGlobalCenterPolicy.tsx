@@ -16,6 +16,8 @@ const CENTER_WORKFORCE_ROUTES: Record<string, string> = {
   "workforce-availability": "/bo/workforce-availability",
   "workforce-assignments": "/bo/workforce-assignments",
   "payroll-periods": "/bo/payroll-periods",
+  "payroll-daily": "/bo/payroll-daily",
+  "payroll-exceptions": "/bo/payroll-exceptions",
 };
 // PAP-1545 / PAP-1316: Core dispatchBoAccessAdminControlPlane
 // GET access/audit authorizes access.audit.view against GLOBAL resource {}.

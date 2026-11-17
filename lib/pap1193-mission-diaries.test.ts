@@ -19,8 +19,10 @@ test("PAP-1193 TDD Diary tab uses a source-backed adapter; no custom shell",()=>
  const ui=readFileSync("app/bo/missions/BoMissionsTdd.tsx","utf8");
  assert.match(ui,/function missionLinkedDiaryContent/);
  assert.match(ui,/Nhật Ký đã liên kết/);
- assert.match(ui,/Diary ID/);
- assert.match(ui,/teachingContextKey/);
+ assert.doesNotMatch(ui,/header:\s*["']Diary ID["']/,"PAP-1875 forbids raw Diary ID display");
+ assert.match(ui,/header:\s*["']Ngày học["']/,"Show source-validated human date instead");
+ assert.match(ui,/missionContextDay\(row\.teachingContextKey\)/);
+ assert.match(ui,/rowKey=\{row=>row\.linkId\}/,"Keep machine keys internally for linked row identity");
  assert.match(ui,/Chưa có Nhật Ký nào liên kết trực tiếp/);
  assert.doesNotMatch(ui,/<TddRenderer[^>]*Nhật Ký/);
 });

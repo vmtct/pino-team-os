@@ -389,7 +389,7 @@ export function BillingWorkspace({ lifecycle, paths, classes, onChanged, replayS
       </div>
     </section> : null}
 
-    {!latestSale && pendingRegistrationEntries.length ? <section className={styles.registrationPending}>
+    {createOnly && !latestSale && pendingRegistrationEntries.length ? <section className={styles.registrationPending}>
       <strong>Pending Running Class placement</strong>
       <p>Canonical Subscription đã tồn tại nhưng chưa có Enrollment. Resume placement hiện hữu; không tạo sale thứ hai.</p>
       {pendingRegistrationEntries.map((entry) => <button key={entry.subscription.id} type="button" disabled={Boolean(busy || pending)} onClick={() => void resumePendingRegistration(entry)}>
@@ -397,7 +397,7 @@ export function BillingWorkspace({ lifecycle, paths, classes, onChanged, replayS
       </button>)}
     </section> : null}
 
-    <form className={createOnly ? styles.createFormShell : styles.createCard} onSubmit={(event) => void submitRegistration(event)}>
+    {createOnly ? <form className={styles.createFormShell} onSubmit={(event) => void submitRegistration(event)}>
       <div className={styles.sectionHead}><div><span>New registration</span><h3>Tạo Subscription + Running Class placement</h3></div><small>Cadence từ Product Plan · chỉ complete sau bulk placement</small></div>
       <div className={createOnly ? styles.createFormGrid : styles.formGrid}>
         <label>Product Plan<select className={createOnly ? "edit-input" : undefined} required disabled={Boolean(busy || pending || commercialLocked)} value={planId} onChange={(event) => setPlanId(event.target.value)}>
@@ -463,7 +463,7 @@ export function BillingWorkspace({ lifecycle, paths, classes, onChanged, replayS
         ? <button className={createOnly ? "primary-btn" : styles.primary} disabled={Boolean(busy || pending || !placementsReady)} type="button" onClick={() => void retryPlacement()}>{busy?.startsWith("placement:") ? "Đang preflight/placement…" : `Hoàn tất placement ${selectedPlacementCount}/${selectedPlan?.cadence ?? 0}`}</button>
         : <button className={createOnly ? "primary-btn" : styles.primary} disabled={Boolean(busy || pending || !placementsReady || registrationComplete)} type="submit">{busy === "registration" ? "Đang tạo + preflight + placement…" : registrationComplete ? "Đăng ký hoàn tất" : `Confirm registration ${selectedPlacementCount}/${selectedPlan?.cadence ?? 0}`}</button>}
       {latestSale ? <p className={styles.saleResult}>Bill {latestSale.bill.bill.id.slice(0,8)}… · {latestSale.purchasedUnits} units · contract {latestSale.contractualStartsOn} → {latestSale.contractualEndsOn}</p> : null}
-    </form>
+    </form> : null}
 
     {!createOnly && billIds.length ? <section className={styles.section}>
       <div className={styles.sectionHead}><div><span>Financial ledger</span><h3>Bills</h3></div><small>Payment/Refund là transaction riêng; Subscription không phụ thuộc trạng thái PAID</small></div>

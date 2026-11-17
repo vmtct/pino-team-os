@@ -90,10 +90,104 @@
 .mobileBlock{display:none}
 .toast{left:calc(50% + 128px);bottom:25px}
 @media(max-width:1240px){.desktopShell{grid-template-columns:220px minmax(0,1fr)}.workspaceContent{padding:var(--tos-space-8) var(--tos-space-5)}.topbar{padding:var(--tos-space-3) var(--tos-space-5)}.stationCenter{display:none}.dashboardGrid{grid-template-columns:1fr}.dashboardAside{display:grid;grid-template-columns:1fr 1fr}.metricGrid{grid-template-columns:repeat(2,1fr)}.twoColumn{grid-template-columns:1fr 1.25fr}}
-@media(max-width:1023px){.desktopShell{display:none}.mobileBlock{display:flex;min-height:100svh;align-items:center;justify-content:center;padding:var(--tos-space-5);background:var(--tos-color-canvas)}.mobileCard{max-width:400px;background:var(--tos-color-surface);border:1px solid var(--tos-color-border);border-radius:var(--tos-radius-sheet);padding:var(--tos-space-8) var(--tos-space-6);display:flex;align-items:center;text-align:center;flex-direction:column;gap:var(--tos-space-4);box-shadow:var(--tos-shadow-card)}.mobileCard img{width:75px;height:75px;object-fit:contain}.mobileCard strong{font-size:var(--tos-text-heading-lg);color:var(--tos-color-ink)}.mobileCard p{font-size:var(--tos-text-secondary);color:var(--tos-color-soft);line-height:1.6;margin:0}.mobileCard button{padding:var(--tos-space-3) var(--tos-space-5);border-radius:var(--tos-radius-control);background:var(--tos-color-accent);color:var(--tos-color-surface);border:0;cursor:pointer;font-size:var(--tos-text-secondary);font-weight:var(--tos-weight-strong)}.toast{left:50%}}
+
 .studentSummary{margin-top:var(--tos-space-4)}
 .deviceFilter{max-width:340px;margin-bottom:var(--tos-space-4)}
 .tableName .deviceAvatar{background:var(--tos-color-info-bg);color:var(--tos-color-accent)}
 .tvStatus .tvPlaybackButton{width:auto;min-width:200px}}
 
 .liveDot[data-state="unknown"] { background: var(--tos-color-muted); box-shadow: none; }
+
+/* PAP-2000 · Station responsive shell (PAP-938 TOS Runtime). */
+@layer tos.apps {
+.mobileNav,.mobileSearch,.mobileStudentList{display:none}
+.stationFrame{max-width:none;background:var(--tos-color-canvas);padding-bottom:0}
+.stationFrame > :global([data-tos-app-header="station"]){display:none}
+@media(max-width:1023px){
+ .stationFrame{max-width:var(--tos-mobile-max);padding-bottom:calc(var(--tos-nav-height) + var(--tos-space-4) + env(safe-area-inset-bottom,0))}
+ .stationFrame[data-tos-scroll-chrome="hidden"]{padding-bottom:0}
+ .stationFrame > :global([data-tos-app-header="station"]){display:flex;position:sticky;top:0}
+ .desktopRoot,.desktopShell{min-height:0}
+ .desktopShell{display:block}
+ .sidebar,.topbar,.pageKicker,.demoChip,.heroStrip,.studentTable{display:none}
+ .mobileNav,.mobileStudentList{display:block}
+ .workspaceContent{padding:var(--tos-inset-page);min-width:0}
+ .pageIntro{margin-bottom:var(--tos-space-3)}
+ .pageIntro h1{margin:0;font-size:var(--tos-text-heading-lg)}
+ .viewBody,.dashboardMain,.dashboardAside,.wideColumn{gap:var(--tos-space-3)}
+ .desktopRoot [data-tos-ops="panel"]{padding:var(--tos-inset-card);min-width:0}
+ .desktopRoot [data-tos-ops="panelTitle"]{flex-wrap:wrap;gap:var(--tos-space-2)}
+ .metricGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--tos-space-2)}
+ .metricCard{padding:var(--tos-space-3)}
+ .dashboardGrid,.dashboardAside,.twoColumn,.actionGridDesktop{grid-template-columns:minmax(0,1fr);gap:var(--tos-space-3)}
+ .quickTile{padding:var(--tos-space-3);min-height:var(--tos-hit-min)}
+ .quickTile>svg:first-child{flex:none}
+ .studentChoice{width:100%;min-height:var(--tos-hit-min)}
+ .studentChoice strong,.tableName strong{font-size:var(--tos-text-secondary)}
+ .studentCards{max-height:260px}
+ .previewArtwork{min-height:180px;padding:var(--tos-space-4)}
+ .mobileSearch{display:flex;align-items:center;gap:var(--tos-space-2);color:var(--tos-color-soft);margin-bottom:var(--tos-space-3)}
+ .mobileSearch input{width:100%;min-width:0;flex:1}
+ .studentDetail{border-bottom:1px solid var(--tos-color-border);padding:var(--tos-space-2) 0}
+ .studentDetail summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:var(--tos-space-2);cursor:pointer;min-height:var(--tos-hit-min)}
+ .studentDetail summary::-webkit-details-marker{display:none}
+ .studentDetail summary:focus-visible{outline:var(--tos-focus-ring)}
+ .studentDetail summary:after{content:"+";color:var(--tos-color-soft)}
+ .studentDetail[open] summary:after{content:"−"}
+ .studentDetail summary .tableName{flex:1;min-width:0}
+ .studentDetail summary .tableName span{min-width:0;overflow-wrap:anywhere}
+ .studentDetail dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:var(--tos-space-2);font-size:var(--tos-text-secondary);margin:var(--tos-space-2) 0}
+ .studentDetail dt{color:var(--tos-color-soft)}
+ .studentDetail dd{margin:0;overflow-wrap:anywhere}
+ .statusPill{white-space:normal;text-align:center}
+ .dataTableWrap{overflow:visible}
+ .dataTable[data-station-device-table]{min-width:0;display:block}
+ .dataTable[data-station-device-table] thead{display:none}
+ .dataTable[data-station-device-table] tbody{display:grid;gap:var(--tos-space-2);width:100%}
+ .dataTable[data-station-device-table] tr{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:var(--tos-space-2);border:1px solid var(--tos-color-border);border-radius:var(--tos-radius-card);padding:var(--tos-space-3)}
+ .dataTable[data-station-device-table] td{border:0;padding:0;min-width:0}
+ .dataTable[data-station-device-table] td:first-child{grid-column:1/-1}
+ .dataTable[data-station-device-table] td:last-child{justify-self:end}
+ .dataTable[data-station-device-table] button{min-height:var(--tos-hit-min)}
+ .desktopRoot [data-pnr-tv-logical-id]{grid-template-columns:40px minmax(0,1fr)}
+ .desktopRoot [data-pnr-tv-logical-id] :is(button,a){grid-column:1/-1;width:100%;min-height:var(--tos-hit-min)}
+ .toast{left:50%;bottom:calc(var(--tos-nav-height) + var(--tos-space-4))}
+}
+@media(min-width:768px) and (max-width:1023px){
+ .stationFrame{max-width:100%}
+ .stationFrame :global([data-tos-shared="bottom-nav"]){width:100%}
+ .dashboardAside,.actionGridDesktop{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .twoColumn{grid-template-columns:minmax(0,1fr) minmax(0,1.35fr)}
+}
+}
+
+/* PAP-2000 — Station layout overrides must follow the DS component/layout cascade.
+   Preserve document geometry during auto-hide so scroll-up reliably restores chrome. */
+@layer tos.layout {
+ .stationFrame[data-tos-phone-frame="station"] {
+  max-width:none;background:var(--tos-color-canvas);padding-bottom:0;
+ }
+ .stationFrame[data-tos-phone-frame="station"] > :global([data-tos-app-header="station"]) {display:none}
+ @media(max-width:1023px){
+  .stationFrame[data-tos-phone-frame="station"],
+  .stationFrame[data-tos-phone-frame="station"][data-tos-scroll-chrome="hidden"] {
+   max-width:var(--tos-mobile-max);
+   padding-bottom:calc(var(--tos-nav-height) + var(--tos-space-4) + env(safe-area-inset-bottom,0));
+  }
+  .stationFrame[data-tos-phone-frame="station"] > :global([data-tos-app-header="station"]) {
+   display:flex;position:sticky;top:0;
+  }
+  .stationFrame[data-tos-phone-frame="station"][data-tos-scroll-chrome="hidden"] > :global([data-tos-app-header="station"]) {margin-bottom:0}
+  /* PAP-2010: use the scrollbar-excluding fixed containing block, not 100vw. */
+  .mobileNav :global([data-tos-shared="bottom-nav"]) {width:min(var(--tos-mobile-max),100%)}
+  .mobileNav :global([data-tos-shared="bottom-nav"]) button {padding:0 var(--tos-space-1)}
+  .mobileNav :global([data-tos-shared="bottom-nav"]) button span {
+   white-space:normal;overflow:visible;text-overflow:clip;text-align:center;font-size:var(--tos-text-caption);
+  }
+ }
+ @media(min-width:768px) and (max-width:1023px){
+  .stationFrame[data-tos-phone-frame="station"],
+  .stationFrame[data-tos-phone-frame="station"][data-tos-scroll-chrome="hidden"] {max-width:100%}
+  .mobileNav :global([data-tos-shared="bottom-nav"]) {width:100%}
+ }
+}

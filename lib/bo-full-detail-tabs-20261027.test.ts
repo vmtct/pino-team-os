@@ -32,8 +32,8 @@ test("PAP-1496 / SPEC-UNLOCK: Student Full Detail preserves Subscription and add
   assert.deepEqual(tabs("students", true), ["Thông tin", "Subscription", "Chuyên đề", "Lịch Sử"]);
 });
 
-test("Subscription Full Detail uses canonical Thông Tin and preserves Enrollment", () => {
-  assert.deepEqual(tabs("subscriptions"), ["Thông Tin", "Enrollment", "Lịch Sử"]);
+test("PAP-1496 / SPEC-UNLOCK: Subscription Full Detail preserves canonical Thông Tin and Enrollment, adds Chuyên đề before History", () => {
+  assert.deepEqual(tabs("subscriptions"), ["Thông Tin", "Enrollment", "Chuyên đề", "Lịch Sử"]);
 });
 
 test("Payroll period Full Detail preserves Quyết Toán", () => {

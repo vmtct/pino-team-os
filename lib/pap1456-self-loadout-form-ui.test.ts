@@ -28,10 +28,10 @@ test("PAP-1456 preserves approved 9:16 Core-only preview and DS responsive grid"
   assert.match(preview, /className="pds-property-grid"/);
   assert.match(preview, /width=\{WIDTH\} height=\{HEIGHT\}/);
   assert.match(preview, /className="pds-property-text"/);
-  assert.match(editor, /<section aria-label="Pinoria Self Loadout">/);
+  assert.match(editor, /<section aria-label="Pinoria Avatar Loadout">/);
   assert.doesNotMatch(preview, /localStorage|sessionStorage|mockItem|fabricated/i);
   assert.match(preview, /<figure className="pds-property-section"/);
-  assert.match(editor, /<h3 className="pds-property-heading">Trang bị Self<\/h3>/);
+  assert.match(editor, /<h3 className="pds-property-heading">Trang bị Avatar<\/h3>/);
   assert.ok(editor.indexOf('id="self-loadout-set"') < editor.indexOf('options.map'));
 });
 
@@ -53,8 +53,8 @@ function environment(fetch: (...args: unknown[])=>unknown) {
   const loadout={version:4,slots:{HAIR:"saved-item"}};
   const state:Record<string,unknown>={chosen,loadout,reason:"Keep this reason",refresh:0,conflict:false};
   const context:Record<string,unknown>={fetch,selfId,loadout,chosen,centerId:"center",reason:state.reason,canEdit:true,validSelection:true,dirty:true,crypto:{randomUUID:()=>"request-key"},TypeError,Error,
-    parseLoadout:(raw:{data:unknown})=>raw.data,slotIds:(value:{slots:unknown})=>value.slots,onSaved:()=>{state.saved=true;}};
-  for(const field of ["Chosen","Loadout","Reason","Refresh","Conflict","Error","Notice","Saving"]){
+    parseSet:(raw:{data:unknown})=>raw.data,parseLoadout:(raw:{data:unknown})=>raw.data,slotIds:(value:{slots:unknown})=>value.slots,onSaved:()=>{state.saved=true;}};
+  for(const field of ["Chosen","Loadout","Reason","Refresh","Conflict","Error","Notice","Saving","SelfSet","ActiveSetError","ActiveSetConflict","SelectedSetId","SelectedStarterId","ConfirmStarter"]){
     const key=field[0].toLowerCase()+field.slice(1);
     context["set"+field]=(value:unknown)=>{state[key]=typeof value==="function"?value(state[key]):value;};
   }
@@ -77,9 +77,20 @@ for(const failure of ["network",403,409,500] as const)test(`PAP-1456 ${failure} 
 });
 
 test("PAP-1456 success sends CAS, reason and idempotency; adopts server snapshot",async()=>{
-  const snapshot={version:5,slots:{HAIR:"saved-item"}};
+  const snapshot={version:5,slots:{HAIR:"saved-item"},ready:true};
+  const freshSet={version:3,selfVersion:4,setItemId:null,ready:true};
   let request:Record<string,unknown>={};
-  const env=environment(async(_url,init)=>{request=init as Record<string,unknown>;return {ok:true,json:async()=>({data:snapshot})};});
+  let reads=0;
+  const env=environment(async(url,init)=>{
+    if(String(url).includes("/set?")){
+      reads++;
+      assert.equal((init as RequestInit).cache,"no-store");
+      return {ok:true,json:async()=>({data:freshSet})};
+    }
+    request=init as Record<string,unknown>;
+    return {ok:true,json:async()=>({data:snapshot})};
+  });
+  env.state.selfSet={ready:false};
   await runInNewContext(handler("submit")+"\nsubmit({preventDefault(){}})",env.context);
   assert.deepEqual(JSON.parse(String(request.body)),{expectedVersion:4,itemIdsBySlot:env.chosen,reason:"Keep this reason"});
   assert.equal((request.headers as Record<string,string>)["idempotency-key"],"request-key");
@@ -87,6 +98,8 @@ test("PAP-1456 success sends CAS, reason and idempotency; adopts server snapshot
   assert.equal(env.state.chosen,snapshot.slots);
   assert.equal(env.state.reason,"");
   assert.equal(env.state.saved,true);
+  assert.equal(reads,1);
+  assert.equal(env.state.selfSet,freshSet);
 });
 
 test("PAP-1456 invalid/unavailable inventory blocks save; reset clears stale reason and notice",async()=>{
@@ -230,4 +243,37 @@ test("PAP-1456 unavailable network, unreadable alpha and opaque media have disti
   assert.match(preview,/mediaWarnings\.opaque\.join\(", "\)/);
   assert.match(preview,/<p role="alert">Không kiểm tra được độ trong suốt/);
   assert.doesNotMatch(preview,/style=\{|crossOrigin|\.assetKey/);
+});
+
+for(const failure of ["network",403,500,"invalid","mismatch"] as const)test(`PAP-2066 confirmed save with ${failure} readiness read hides stale projection without repeating POST`,async()=>{
+  const snapshot={version:5,slots:{HAIR:"saved-item"},ready:true};
+  let posts=0;
+  const env=environment(async(url)=>{
+    if(String(url).includes("/set?")){
+      if(failure==="network")throw new TypeError("Failed to fetch");
+      if(failure==="invalid")return {ok:true,json:async()=>{throw Error("invalid");}};
+      if(failure==="mismatch")return {ok:true,json:async()=>({data:{setItemId:null,ready:false}})};
+      return {ok:false,status:failure};
+    }
+    posts++;
+    return {ok:true,json:async()=>({data:snapshot})};
+  });
+  env.state.selfSet={ready:false};
+  await runInNewContext(handler("submit")+"\nsubmit({preventDefault(){}})",env.context);
+  assert.equal(posts,1);
+  assert.equal(env.state.loadout,snapshot);
+  assert.equal(env.state.reason,"");
+  assert.equal(env.state.selfSet,null);
+  assert.match(String(env.state.activeSetError),/tải lại/i);
+  assert.match(String(env.state.notice),/Đã lưu Loadout/);
+  assert.equal(env.state.saved,true);
+});
+
+test("PAP-2066 active overlay readiness may legitimately differ from personal loadout",async()=>{
+  const snapshot={version:5,slots:{HAIR:"saved-item"},ready:false};
+  const overlay={setItemId:"overlay",ready:true};
+  const env=environment(async(url)=>({ok:true,json:async()=>({data:String(url).includes("/set?")?overlay:snapshot})}));
+  await runInNewContext(handler("submit")+"\nsubmit({preventDefault(){}})",env.context);
+  assert.equal(env.state.selfSet,overlay);
+  assert.equal(env.state.loadout,snapshot);
 });

@@ -5,13 +5,13 @@ import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 
 import { BoActionButton } from "@pino/design-system/react";
 import { DrawerFrame } from "@/app/components/workspace-renderer/DrawerFrame";
 import { PropertySections } from "@/app/components/workspace-renderer/Properties";
-import { toLegacyModule } from "@/lib/workspace-schema";
 import type { BoRecord } from "@/lib/bo-registration";
-import { selfDefinition, selfSchema } from "./schema";
+import { avatarFields, avatarSections } from "./avatar-dsa-model";
 import {
  candidateHasAvatar,isEligibleAvatarCandidate,matchingAvatarCandidates,
  type AvatarCandidate
 } from "./avatar-picker";
+import {parseStarterCatalog,verifyCreatedStarter,retryKey,type StarterChoice,type Receipt} from "./starter-personal-contract";
 import styles from "./CreateAvatarDrawer.module.css";
 
 type DirectoryPage={items:AvatarCandidate[];nextCursor:string|null};
@@ -38,6 +38,22 @@ export function CreateSelfDrawer({centerId,onClose,onCreated}:{centerId:string;o
  const [retry,setRetry]=useState(0);
  const [saving,setSaving]=useState(false);
  const [nickname,setNickname]=useState("");
+ const [starterCatalog,setStarterCatalog]=useState<StarterChoice[]>([]);
+ const [starterId,setStarterId]=useState("");
+ const [starterError,setStarterError]=useState("");
+ const [starterLoading,setStarterLoading]=useState(true);
+ const [catalogRetry,setCatalogRetry]=useState(0);
+ const starterRetry=useRef<{signature:string;key:string}|null>(null);
+ useEffect(()=>{
+  const ctl=new AbortController();
+  queueMicrotask(()=>{if(!ctl.signal.aborted){setStarterCatalog([]);setStarterId("");setStarterError("");setStarterLoading(true);}});
+  void fetch("/api/bo/pinoria/avatars/starter-sets?"+new URLSearchParams({centerId}),{credentials:"same-origin",cache:"no-store",signal:ctl.signal})
+   .then(async r=>{if(!r.ok)throw Error("Không tải được Starter Set.");return parseStarterCatalog(await r.json());})
+   .then(items=>{if(!ctl.signal.aborted)setStarterCatalog(items);})
+   .catch(()=>{if(!ctl.signal.aborted)setStarterError("Không tải được Starter Set. Có thể tạo Avatar không kèm Starter.");})
+   .finally(()=>{if(!ctl.signal.aborted)setStarterLoading(false);});
+  return ()=>ctl.abort();
+ },[centerId,catalogRetry]);
  const [duplicateConflict,setDuplicateConflict]=useState(false);
  const listId=useId();
  const inputRef=useRef<HTMLInputElement>(null);
@@ -83,7 +99,8 @@ export function CreateSelfDrawer({centerId,onClose,onCreated}:{centerId:string;o
  // PAP-1754: scrolling the bounded listbox must also expose the keyboard-active option.
  useEffect(()=>{if(open)optionRefs.current[active]?.scrollIntoView({block:"nearest"});},[active,open,query,candidates]);
  const duplicate=!!person&&(duplicateConflict||candidateHasAvatar(person));
- const canCreate=!!person&&!duplicate&&!saving&&!loading&&!loadError;
+ const choice=starterCatalog.find(s=>s.setItemId===starterId);
+ const canCreate=!!person&&!duplicate&&!saving&&!loading&&!loadError&&(!starterId||!!choice);
  function choose(option:AvatarCandidate){
   if(saving)return;
   setPerson(option);
@@ -117,13 +134,25 @@ export function CreateSelfDrawer({centerId,onClose,onCreated}:{centerId:string;o
   const chosen=person;
   setSaving(true);setError("");
   try{
+   const payload={personId:chosen.personId,...(nickname.trim()?{nickname:nickname.trim()}:{}),...(choice?{starter:{setItemId:choice.setItemId,expectedMembershipRevision:choice.membershipRevision}}:{})};
+   const attempt=choice?retryKey(starterRetry.current,JSON.stringify([centerId,payload]),()=>crypto.randomUUID()):null;
+   if(attempt)starterRetry.current=attempt;
    const response=await fetch("/api/bo/pinoria/avatars?"+new URLSearchParams({centerId}),{
-    method:"POST",headers:{"content-type":"application/json"},credentials:"same-origin",
-    body:JSON.stringify({personId:chosen.personId,...(nickname.trim()?{nickname:nickname.trim()}:{} )}),cache:"no-store"
+    method:"POST",headers:{"content-type":"application/json",...(attempt?{"idempotency-key":attempt.key}:{})},credentials:"same-origin",
+    body:JSON.stringify(payload),cache:"no-store"
    });
-   if(response.status===409){setDuplicateConflict(true);setError("");return;}
+   if(response.status===409){if(choice){setError("Starter hoặc Avatar đã thay đổi. Kiểm tra danh sách trước khi thử lại.");}else{setDuplicateConflict(true);setError("");}return;}
    if(response.status!==201){setError(errorFor(response.status));return;}
    const body:unknown=await response.json();
+   if(choice){
+    const receipt=(body as {data?:Receipt})?.data;
+    if(!receipt||receipt.starterOrigin!=="CREATE_AVATAR"||typeof receipt.selfId!=="string"||!/^[0-9a-f-]{36}$/i.test(receipt.selfId))throw Error("Chưa xác nhận được Avatar vừa tạo.");
+    const root="/api/bo/pinoria/selfs/"+receipt.selfId,qs="?"+new URLSearchParams({centerId});
+    const read=async(path:string)=>{const r=await fetch(root+path+qs,{credentials:"same-origin",cache:"no-store"});if(!r.ok)throw Error("Chưa đọc lại được trang bị đã lưu.");return r.json();};
+    const [set,base]=await Promise.all([read("/set"),read("/loadout")]);
+    verifyCreatedStarter(choice,receipt,set.data,base.data);
+    onCreated();return;
+   }
    const data=body&&typeof body==="object"&&"data" in body?(body as {data?:{id?:unknown;personId?:unknown}}).data:null;
    if(!data||typeof data.id!=="string"||data.personId!==chosen.personId)
     throw Error("Chưa xác nhận được Avatar vừa tạo. Kiểm tra danh sách trước khi thử lại.");
@@ -131,13 +160,13 @@ export function CreateSelfDrawer({centerId,onClose,onCreated}:{centerId:string;o
   }catch(e){setError(e instanceof Error?e.message:"Không thể xác nhận thao tác.");}
   finally{setSaving(false);}
  }
- const drawerFields=toLegacyModule(selfSchema as unknown as Parameters<typeof toLegacyModule>[0]).fields;
+ const drawerFields=avatarFields;
  const drawerEditableFields=drawerFields.filter(field=>field.key==="name"||field.key==="nickname");
  const auditFields=drawerFields.filter(field=>["createdAt","createdBy","updatedAt","updatedBy"].includes(field.key));
  const draft:BoRecord={id:"",name:inputValue,nickname,createdAt:null,createdBy:null,updatedAt:null,updatedBy:null};
  const personPicker=(
      <div className={styles.picker}>
-      <input id="ps-create-person" ref={inputRef} autoFocus type="text" role="combobox"
+      <input id="ps-create-person" ref={inputRef} type="text" role="combobox"
        aria-autocomplete="list" aria-expanded={open} aria-controls={listId}
        aria-activedescendant={open&&visibleMatches[active]?listId+"-"+active:undefined}
        aria-describedby="ps-create-person-hint" aria-invalid={!!inputValue&&!person}
@@ -182,7 +211,7 @@ export function CreateSelfDrawer({centerId,onClose,onCreated}:{centerId:string;o
  </>;
  return <DrawerFrame title="Tạo Avatar" path="Pinoria · Avatar" onClose={close} footer={footer}>
   <div className={styles.body} data-jira="PAP-1734" data-avatar-schema="PAP-1734" data-avatar-mode="CREATE">
-   <PropertySections variant="drawer" fields={drawerEditableFields} record={draft} sections={selfDefinition.drawer.sections} createFields={{
+   <PropertySections variant="drawer" fields={drawerEditableFields} record={draft} sections={avatarSections} createFields={{
      name: {id:"ps-create-person",label:"Person *",required:true,value:inputValue,onChange:changeQuery,control:personPicker},
      nickname: {id:"ps-create-nickname",label:"Nickname Avatar (tùy chọn)",value:nickname,onChange:value=>{setNickname(value);setError("");},control:nicknameControl},
    }}/>
@@ -190,8 +219,18 @@ export function CreateSelfDrawer({centerId,onClose,onCreated}:{centerId:string;o
     Chỉ chọn Person thuộc cơ sở hiện tại. Người đã có Avatar được đánh dấu để tránh tạo trùng.
    </p>
    {duplicate?<p role="status" className="pino-avatar-duplicate">Person này đã có Avatar. Không thể tạo bản ghi trùng.</p>:null}
-   <p className="pino-avatar-hint">Nickname không đổi tên Person. Avatar không tự nhận Starter Set hay Item.</p>
-   <PropertySections variant="drawer" fields={auditFields} record={draft} sections={selfDefinition.drawer.sections}/>
+   <div className="pds-property-row">
+    <label className="pds-property-label" htmlFor="ps-create-starter">Starter Set (tùy chọn)</label>
+    <select id="ps-create-starter" className="pds-property-input" value={starterId} disabled={saving||starterLoading}
+      onChange={e=>{setStarterId(e.target.value);setError("");}}>
+     <option value="">Không chọn Starter Set</option>
+     {starterCatalog.map(item=><option key={item.setItemId} value={item.setItemId}>{item.displayName} · {item.memberCount} Item</option>)}
+    </select>
+   </div>
+   {starterLoading?<p role="status" className="pino-avatar-hint">Đang tải Starter Set…</p>:null}
+   {starterError?<p role="status" className="pino-avatar-hint">{starterError} <button type="button" onClick={e=>{ /* PAP-2108: the focused retry button unmounts as loading begins. */ if(document.activeElement===e.currentTarget)nicknameRef.current?.focus();setCatalogRetry(n=>n+1); }} disabled={saving}>Thử lại</button></p>:null}
+   <p className="pino-avatar-hint">Nickname không đổi tên Person. Starter Set được nhận một lần và trang bị từng Item; có thể chọn sau.</p>
+   <PropertySections variant="drawer" fields={auditFields} record={draft} sections={avatarSections}/>
    {error?<p className="pino-avatar-error" role="alert">{error}</p>:null}
   </div>
  </DrawerFrame>;

@@ -7,13 +7,13 @@ const read = (path: string) => readFileSync(path, "utf8");
 const centerA = { id: "0199f001-0000-7000-8000-000000000001", displayName: "Center A" };
 const centerB = { id: "0199f001-0000-7000-8000-000000000002", displayName: "Center B" };
 
-test("PAP-1301/PAP-1327: one global BO shell switcher retains canonical Center-scoped Parents TDD", () => {
+test("PAP-1301/PAP-1327: one global BO shell switcher retains canonical Center-scoped Parents native DSA", () => {
   const runtime = read("app/bo/components/registration/BoRuntimeBoundary.tsx");
   const shell = read("app/bo/components/registration/BoCenterSwitcher.tsx");
-  const pilot = read("app/bo/parents/ParentTdd.tsx");
+  const native = read("app/bo/parents/ParentDirectoryDsa.tsx");
   assert.match(runtime, /if \(moduleKey === "parents"\) return <BoRegistrationWorkspace currentUser=\{currentUser\}/);
   assert.match(runtime, /source=\{unifiedBoWorkspaceSource\} moduleKey="parents" options=\{options\}/);
-  assert.match(runtime, /content=\{<ParentTdd \/>\} \/>;/);
+  assert.match(runtime, /content=\{<ParentDirectoryDsa \/>\} \/>;/);
   assert.match(runtime, /RuntimeContext.Provider value=\{staging \? currentUser : null\}><BoCenterSelectionProvider>\{children\}<\/BoCenterSelectionProvider>/);
   assert.equal((runtime.match(/<BoCenterSelectionProvider>/g) ?? []).length, 1);
   assert.match(shell, /useBoCenterSelection\(\)/);
@@ -34,12 +34,12 @@ test("PAP-1301/PAP-1327: one global BO shell switcher retains canonical Center-s
   assert.match(shell, /ArrowUp/);
   assert.match(shell, /pointerdown/);
   assert.match(shell, /disabled/);
-  assert.doesNotMatch(pilot, /tdd-parent-center|<select|<option/);
-  assert.match(pilot, /useBoCenterSelection\(\)/);
-  assert.match(pilot, /useContext\(TddHostMenu\)/);
-  assert.match(pilot, /!current \? mobileMenu\("parent-pilot-menu-btn"\) : null/);
-  assert.match(pilot, /ready\?\.centerId === selected/);
-  assert.match(pilot, /active\?\.dispose\(\)/);
+  assert.doesNotMatch(native, /tdd-parent-center|TddRegistry|SurfaceWorkspace/);
+  assert.match(native, /useBoCenterSelection\(\)/);
+  assert.match(native, /useContext\(BoApplicationShellContext\)/);
+  assert.match(native, /menu\?\.\("menu-btn"\)/);
+  assert.match(native, /loadNativeParentContext\(centerId,ctl.signal\)/);
+  assert.match(native, /return\(\)=>ctl.abort\(\)/);
 });
 
 test("PAP-1301: selection is restricted to Core-authorized candidate list and clears prior record state", () => {
@@ -64,13 +64,13 @@ test("PAP-1301: selection is restricted to Core-authorized candidate list and cl
   assert.equal(restoreParentCenter([centerA, centerB], initial), "");
 });
 
-test("PAP-1301/PAP-1327: canonical Parent TDD is always Center-scoped; unrelated unverified adapters are not auto-admitted", () => {
+test("PAP-1301/PAP-1327: canonical Parent native DSA is always Center-scoped; unrelated unverified adapters are not auto-admitted", () => {
   const page = read("app/bo/page.tsx");
   const runtime = read("app/bo/components/registration/BoRuntimeBoundary.tsx");
   assert.doesNotMatch(page, /query\.pilot === "tdd"|parentTddPilot/);
   assert.match(runtime, /if \(moduleKey === "parents"\) return <BoRegistrationWorkspace currentUser=\{currentUser\}/);
   assert.match(runtime, /source=\{unifiedBoWorkspaceSource\} moduleKey="parents" options=\{options\}/);
-  assert.match(runtime, /content=\{<ParentTdd \/>\} \/>;/);
+  assert.match(runtime, /content=\{<ParentDirectoryDsa \/>\} \/>;/);
   assert.match(runtime, /boCenterModuleScope\(moduleKey\) === "CENTER"/);
   assert.match(runtime, /scopedBoReadFetcher\(key, fetcher, selected\)/);
   const policy = read("app/bo/components/registration/BoGlobalCenterPolicy.tsx");

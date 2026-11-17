@@ -62,13 +62,13 @@ export default function TosVNextIntegrationPreview(){
  const center=ctx?.centers.find(c=>c.id===centerId);
  const zone=center?.timeZone||"Asia/Ho_Chi_Minh";
  const fromDate=today(zone);
- // Enforce identity, Center and desktop requirements. Shift clock and API health
+ // Enforce identity and Center requirements. Shift clock and API health
  // never eject a user; Core still checks authorization on each action.
  useEffect(()=>{
   if(app==="home"||loading||ctx?.founderMode)return;
   if(!ctx||!centerId||!canOpenVNextApp(app,{authenticated:!!ctx,centerReady:!!centerId,desktop})){
    setApp("home");setClassDetailOpen(false);
-   setHomeNotice(app==="station"?"Trạm TOS cần màn hình desktop.":"Tài khoản hoặc cơ sở chưa sẵn sàng.");
+   setHomeNotice("Tài khoản hoặc cơ sở chưa sẵn sàng.");
   }
  },[app,loading,ctx,centerId,desktop]);
  useEffect(()=>{
@@ -123,13 +123,13 @@ export default function TosVNextIntegrationPreview(){
   if(!ctx||!centerId||loading){setHomeNotice("Cần xác thực nhân viên và cơ sở trước khi mở ứng dụng.");return}
   if(!canOpenVNextApp(next,{authenticated:!!ctx,centerReady:!!centerId,
    desktop})){
-   setHomeNotice(next==="station"?"Trạm TOS cần màn hình desktop.":"Tài khoản hoặc cơ sở chưa sẵn sàng.");return;
+   setHomeNotice("Tài khoản hoặc cơ sở chưa sẵn sàng.");return;
   }
   setApp(next);setError("");
  }
  const nowLocalTime=new Intl.DateTimeFormat("en-GB",{timeZone:zone,hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).format(clockNow);
  const nextAssignment=nextConfirmedAssignment(data.shift?.assignments??[],centerId,fromDate,nowLocalTime);
- // Render-guard only for session/Center and desktop. Core independently checks
+ // Render-guard only for session/Center. Core independently checks
  // every sensitive read/write; scheduling data remains advisory.
  const appRenderable=app!=="home"&&!loading&&canOpenVNextApp(app,{
   authenticated:!!ctx,centerReady:!!centerId,desktop
@@ -138,7 +138,7 @@ export default function TosVNextIntegrationPreview(){
  // a client-supplied email or StaffMember ID. All panels here are strictly
  // read-only presentations; Staff self actions still fail closed at Core.
  if(ctx?.founderMode){
-  const canBrowse=(id:TosVNextAppId)=>id!=="station"||desktop;
+  const canBrowse=(id:TosVNextAppId)=>canOpenVNextApp(id,{authenticated:!!ctx,centerReady:!!centerId,desktop});
   const browseHome=()=> <TosVNextHome founderMode profileLabel="Founder" centerName={center?.displayName}
    authorizedCenters={ctx.centers} selectedCenterId={centerId}
    onCenterChange={id=>{
@@ -147,15 +147,15 @@ export default function TosVNextIntegrationPreview(){
    }}
    nextAssignment={null} busy={loading||!centerId} scheduleLoading={shiftLoading}
    allowed={canBrowse}
-   onOpen={id=>{if(canBrowse(id)&&centerId)setApp(id);else setHomeNotice("Trạm TOS cần màn hình desktop.")}}
+   onOpen={id=>{if(canBrowse(id)&&centerId)setApp(id);else setHomeNotice("Tài khoản hoặc cơ sở chưa sẵn sàng.")}}
    onNotify={()=>setHomeNotice("Thông báo chưa sẵn sàng.")}
    notice={homeNotice||error}/>;
-  if(app==="home"||loading||!centerId||(app==="station"&&!desktop))return browseHome();
+  if(app==="home"||loading||!centerId)return browseHome();
   const names:Record<TosVNextAppId,string>={
    shift:"Ca Làm",reception:"Tiếp Tân",station:"Trạm TOS",
    "shift-lead":"Trưởng Ca",classroom:"Lớp Học",training:"Thăng Tiến"
   };
-  return <TosVNextFrame app={app} mode={app==="station"?"desktop":"mobile"}>
+  return <TosVNextFrame app={app} mode={app==="station"&&desktop?"desktop":"mobile"}>
    <TosVNextAppHeader app={app} station={center?.displayName} onHome={()=>setApp("home")}/>
    <TosVNextContent>
     <TosVNextCard>
@@ -266,7 +266,9 @@ export default function TosVNextIntegrationPreview(){
    desktop})}
   onOpen={id=>void choose(id)} onNotify={()=>setHomeNotice("Thông báo chưa sẵn sàng.")}
   notice={homeNotice||error}/>;
- if(app==="station")return <TosVNextFrame app="station" mode="desktop"><TosVNextStation desktop={desktop} centerName={center?.displayName||""} onHome={()=>void choose("home")}/></TosVNextFrame>;
+ if(app==="station")return <TosVNextFrame app="station" mode="desktop"><TosVNextStation desktop={desktop} centerName={center?.displayName||""}
+   centerId={center?.id??null} authorizedCenterIds={ctx?.founderMode?[]:ctx?.centers.map(c=>c.id)??[]}
+   onHome={()=>void choose("home")}/></TosVNextFrame>;
  return <TosVNextFrame app={app} mode="mobile">
   {(app!=="classroom"||!classDetailOpen)&&<TosVNextAppHeader app={app} station={center?.displayName} onHome={()=>void choose("home")}/> }
   {app==="reception"?<TosVNextReception centerId={centerId} centerName={center?.displayName||""} profileLabel={profileLabel||""} workDate={today(zone)} assignments={data.shift?.assignments??[]} currentSession={data.shift?.current??null}/>:app==="training"?<TosVNextTraining/>:app==="classroom"?<div className={frameLayout.nativeBody}><TosVNextClassroom centerId={centerId} localDate={fromDate} profileLabel={profileLabel} onDetailChange={setClassDetailOpen}/></div>:app==="shift"&&data.shift?<div className={frameLayout.nativeBody}><TosVNextShift data={data.shift} localDate={fromDate} centerId={centerId} centerName={center?.displayName||""} profileLabel={profileLabel} key={centerId+":"+fromDate}/></div>:<TosVNextContent>

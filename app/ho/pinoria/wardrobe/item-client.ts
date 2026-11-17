@@ -1,13 +1,14 @@
 /** PAP-1119 S1 + PAP-1253 S2: Founder-only HO Item + SET projection. */
 export type Slot="HAIR"|"FACE"|"HEADWEAR"|"OUTFIT"|"BACK"|"AURA_BACK"|"AURA_GROUND"|"PATH_MARK";
 export type ItemAsset={key:string;mimeType:"image/png"|"image/webp";byteSize:number;sha256:string};
-export type ItemInput={key:string;displayName:string;type:"WEARABLE"|"ACCESSORY";slot:Slot;asset:ItemAsset;positionX:number;positionY:number;scale:number;rotationDegrees:number|null;variantOfItemId?:string|null};
-export type SetInput={key:string;displayName:string;type:"SET";starterEligible:boolean;memberItemIds:string[];variantOfItemId?:string|null};
+export type ItemInput={key:string;displayName:string;type:"WEARABLE"|"ACCESSORY";slot:Slot;asset:ItemAsset;positionX:number;positionY:number;scale:number;rotationDegrees:number|null;variantOfItemId?:string|null;checkInItem?:boolean};
+export type SetInput={key:string;displayName:string;type:"SET";starterEligible:boolean;memberItemIds:string[];description?:string|null;variantOfItemId?:string|null};
 type Common={id:string;key:string;displayName:string;status:"DRAFT"|"PUBLISHED"|"UNPUBLISHED";revision:number;createdAt:string;updatedAt:string;publishedAt:string|null;unpublishedAt:string|null;variantOfItemId?:string|null};
 export type HoItem=Common&ItemInput&{pendingDraft?:ItemInput&{revision:number}};
 /** Core GET SET members are immutable ordered, underscored R2/slot projections. */
 export type SetMember={id:string;ordinal:number;item_type:"WEARABLE"|"ACCESSORY"|"SET";status:Common["status"];slot:Slot|null;asset_key:string|null;position_x:number;position_y:number;scale:number;rotation_degrees:number|null};
-export type HoSetItem=Common&{type:"SET";slot:null;asset:null;positionX:number;positionY:number;scale:number;rotationDegrees:null;starterEligible?:boolean;members?:SetMember[];pendingDraft?:SetInput&{revision:number}};
+export type SetHistoryEntry={revision:number;action:string;actorUserId:string;requestId:string;createdAt:string};
+export type HoSetItem=Common&{type:"SET";slot:null;asset:null;positionX:number;positionY:number;scale:number;rotationDegrees:null;starterEligible?:boolean;members?:SetMember[];description?:string|null;memberCount?:number|null;createdByUserId?:string|null;updatedByUserId?:string|null;history?:SetHistoryEntry[];pendingDraft?:SetInput&{revision:number}};
 export type ItemRecord=HoItem|HoSetItem;
 export const slots:readonly Slot[]=["HAIR","FACE","HEADWEAR","OUTFIT","BACK","AURA_BACK","AURA_GROUND","PATH_MARK"];
 export const slotNames:Record<Slot,string>={HAIR:"Tóc",FACE:"Khuôn mặt",HEADWEAR:"Phụ kiện đầu",OUTFIT:"Trang phục",BACK:"Phụ kiện lưng",AURA_BACK:"Hào quang sau",AURA_GROUND:"Hào quang nền",PATH_MARK:"Dấu ấn Path"};
@@ -26,11 +27,17 @@ export function validateItem(value:unknown):ItemRecord{
   !Number.isSafeInteger(i.revision)||Number(i.revision)<1||
   (i.variantOfItemId!==undefined&&i.variantOfItemId!==null&&!uuid.test(String(i.variantOfItemId))))throw Error("Invalid Item projection");
  if(i.type==="SET"){
+  if(i.checkInItem!==undefined||(i.pendingDraft&&typeof i.pendingDraft==="object"&&"checkInItem" in i.pendingDraft))throw Error("Check-in Item is not a SET field");
   if(i.slot!==null||i.asset!==null||i.starterEligible!==undefined&&typeof i.starterEligible!=="boolean"||
     i.members!==undefined&&(!Array.isArray(i.members)||i.members.some(m=>!m||typeof m!=="object"||!uuid.test(String((m as SetMember).id)))))throw Error("Invalid SET projection");
-  if(i.pendingDraft){const draft=i.pendingDraft as SetInput;if(draft.type!=="SET"||!Array.isArray(draft.memberItemIds)||draft.memberItemIds.some(k=>!uuid.test(k)))throw Error("Invalid pending SET");}
+  if((i.description!==undefined&&i.description!==null&&typeof i.description!=="string")||
+    (i.memberCount!==undefined&&i.memberCount!==null&&(!Number.isSafeInteger(i.memberCount)||Number(i.memberCount)<0||Number(i.memberCount)>8))||
+    [i.createdByUserId,i.updatedByUserId].some(v=>v!==undefined&&v!==null&&!uuid.test(String(v)))||
+    (i.history!==undefined&&(!Array.isArray(i.history)||i.history.some(h=>!h||!Number.isSafeInteger(h.revision)||h.revision<1||!["CREATED","UPDATED","PUBLISHED","UNPUBLISHED"].includes(h.action)||!uuid.test(h.actorUserId)||typeof h.requestId!=="string"||!Number.isFinite(Date.parse(h.createdAt))))))throw Error("Invalid SET metadata");
+  if(i.pendingDraft){const draft=i.pendingDraft as SetInput;if(draft.type!=="SET"||(draft.description!==undefined&&draft.description!==null&&typeof draft.description!=="string")||!Array.isArray(draft.memberItemIds)||draft.memberItemIds.some(k=>!uuid.test(k)))throw Error("Invalid pending SET");}
   return i as unknown as HoSetItem;
  }
+ if(i.checkInItem!==undefined&&typeof i.checkInItem!=="boolean")throw Error("Invalid Check-in Item projection");
  if(!slots.includes(i.slot as Slot)||!i.asset||typeof i.asset!=="object"||Array.isArray(i.asset))throw Error("Invalid Item media");
  const a=i.asset as ItemAsset;
  if(typeof a.key!=="string"||!["image/png","image/webp"].includes(a.mimeType)||
@@ -39,7 +46,7 @@ export function validateItem(value:unknown):ItemRecord{
   (i.rotationDegrees!==null&&!Number.isFinite(i.rotationDegrees)))throw Error("Invalid Item projection");
  if(i.pendingDraft){
   const d=i.pendingDraft as ItemInput&{revision:number};
-  if(d.revision!==i.revision||d.type!==i.type||!slots.includes(d.slot)||
+  if((d.checkInItem!==undefined&&typeof d.checkInItem!=="boolean")||d.revision!==i.revision||d.type!==i.type||!slots.includes(d.slot)||
    !Number.isFinite(d.positionX)||!Number.isFinite(d.positionY)||d.positionX < -1||d.positionX > 1||
    d.positionY < -1||d.positionY > 1||!Number.isFinite(d.scale)||d.scale<=0||d.scale>10||
    !d.asset||!assetUrl(d.asset,String(i.id),true)||typeof d.key!=="string"||!d.key.trim()||
@@ -70,11 +77,27 @@ export async function getWearableItem(id:string,signal?:AbortSignal):Promise<HoI
  const result=await getItem(id,signal);if(result.type==="SET")throw Error("SET does not have Item Calibration");return result;
 }
 function requestKey(){return crypto.randomUUID()}
-export async function writeItem(path:string,method:"POST"|"PATCH",body:object):Promise<ItemRecord>{
- return validateItem(await api<unknown>(path,{method,headers:{"content-type":"application/json","idempotency-key":requestKey()},body:JSON.stringify(body)}));
+export async function writeItem(path:string,method:"POST"|"PATCH",body:object,signal?:AbortSignal):Promise<ItemRecord>{
+ return validateItem(await api<unknown>(path,{method,signal,headers:{"content-type":"application/json","idempotency-key":requestKey()},body:JSON.stringify(body)}));
+}
+export async function deleteItemDraft(id:string,expectedRevision:number,idempotencyKey:string):Promise<unknown>{
+ if(!uuid.test(id)||!Number.isSafeInteger(expectedRevision)||expectedRevision<1)throw Error("Invalid Draft revision");
+ return api<unknown>("/"+id+"/delete-draft",{method:"POST",headers:{"content-type":"application/json","idempotency-key":idempotencyKey},body:JSON.stringify({expectedRevision})});
 }
 export async function writeWearableItem(path:string,method:"POST"|"PATCH",body:object):Promise<HoItem>{
  const result=await writeItem(path,method,body);if(result.type==="SET")throw Error("Unexpected SET response");return result;
+}
+/** PAP-2073: the read-only HO TDD adapter stays untouched; use existing Item domain CAS. */
+export async function saveCheckInItem(id:string,expectedRevision:number,value:boolean,signal:AbortSignal):Promise<HoItem>{
+ if(typeof value!=="boolean"||!Number.isSafeInteger(expectedRevision)||expectedRevision<1)throw Error("Invalid Check-in Item edit");
+ const current=await getWearableItem(id,signal);signal.throwIfAborted();
+ if(current.revision!==expectedRevision)throw new ItemApiError(409,"CONFLICT");
+ const draft=current.pendingDraft??current;
+ const effectiveBefore=current.checkInItem===true;
+ const result=await writeItem("/"+id,"PATCH",{key:draft.key,displayName:draft.displayName,type:draft.type,slot:draft.slot,asset:draft.asset,positionX:draft.positionX,positionY:draft.positionY,scale:draft.scale,rotationDegrees:draft.rotationDegrees,variantOfItemId:draft.variantOfItemId??null,checkInItem:value,expectedRevision},signal);
+ signal.throwIfAborted();
+ if(result.type==="SET"||result.id!==id||result.revision!==expectedRevision+1||result.status!==current.status||(result.pendingDraft?result.pendingDraft.checkInItem!==value:result.checkInItem!==value)||(current.status==="PUBLISHED"&&(result.checkInItem===true)!==effectiveBefore))throw Error("Check-in Item update could not be verified");
+ return result;
 }
 export async function uploadItem(file:File):Promise<ItemAsset>{
  if(!["image/png","image/webp"].includes(file.type)||!file.size||file.size>10*1024*1024)throw Error("Ảnh phải là PNG hoặc WebP, tối đa 10 MB.");

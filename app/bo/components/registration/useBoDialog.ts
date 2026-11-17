@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, type RefObject } from "react";
-import { handleDialogKey } from "@/app/components/workspace-renderer/dialog";
+import { editorOwnsDialogKey, handleDialogKey } from "@/app/components/workspace-renderer/dialog";
 /** One dialog policy for Quick View/settings. Restore the actual invoker. */
 export function useBoDialog(open: boolean, close: () => void, panel: RefObject<HTMLElement | null>) {
   const closeRef = useRef(close);
@@ -13,7 +13,9 @@ export function useBoDialog(open: boolean, close: () => void, panel: RefObject<H
     const focusables = () => [...panel.current!.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]')].filter(e => e.tabIndex >= 0 && e.getClientRects().length);
     focusables()[0]?.focus();
     const handler = (e: KeyboardEvent) => {
-      const editorOpen = Boolean(document.querySelector('.edit-popover:not(.hidden)'));
+      // PAP-1821: React may unmount the editor during this same keydown.
+      // Preserve the original event's editor ownership even if the live DOM lost it.
+      const editorOpen = editorOwnsDialogKey(e) || Boolean(document.querySelector('.edit-popover:not(.hidden)'));
       const items = !editorOpen && e.key === "Tab" ? focusables() : [];
       handleDialogKey(e, { editorOpen, first: items[0], last: items.at(-1), active: document.activeElement, containsActive: Boolean(panel.current?.contains(document.activeElement)), close: () => closeRef.current() });
     };

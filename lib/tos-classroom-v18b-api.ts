@@ -8,7 +8,7 @@ export interface V18bClassroomRosterMember {
  expectedSources:Array<{kind:"ENROLLMENT"|"RENEWAL_GRACE";id:string;subscriptionId:string;enrollmentId:string}>;
 }
 export interface V18bClassroomOccurrence {
- teachingContextKey:string;runningClassId:string;operationalName:string;
+ teachingContextKey:string;runningClassId:string;operationalName:string;pathDisplayName?:string|null;
  occurrence:{occurrenceKey:string;pathProgramId:string;localDate:string;status:string;localInterval:{startsAt:string;endsAt:string}|null};
  roster:V18bClassroomRosterMember[];rosterCoverage:"ENROLLMENTS_AND_GRACE_ONLY";
 }
@@ -129,6 +129,9 @@ export function createV18bApiTransport(canWrite:boolean,transport:typeof fetch=(
     return data;
    });
   },
+  diariesForOccurrence:(scope:{centerId:string;runningClassId:string;pathKey:string;localDate:string})=>
+   get<{centerId:string;localDate:string;teachingContextKey:string;diaries:V18bPathDiary[]}>(
+    "/learning/path-diaries?"+new URLSearchParams(scope).toString()),
   diary:(diaryId:string,centerId:string)=>get<V18bPathDiary>(
    "/learning/path-diaries/"+requireValue(diaryId,"DIARY")+"?centerId="+requireValue(centerId,"CENTER")),
   evidence:(diaryId:string,centerId:string)=>get<unknown>(

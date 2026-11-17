@@ -1,14 +1,18 @@
 @layer tos.layout{
 .phoneFrame{width:100%;max-width:var(--tos-mobile-max);min-height:100svh;margin-inline:auto;display:flex;flex-direction:column;position:relative;background:var(--tos-color-surface);color:var(--tos-color-ink);font-family:var(--tos-font-family)}
+/* PAP-1960: bounded Classroom viewport preserves the internal three-tab nav after Diary scroll. */
+.phoneFrame[data-tos-mobile-frame="classroom"]{height:100svh;height:100dvh;min-height:0;max-height:100dvh;overflow:hidden}
 .nativeBody{position:relative;flex:1;min-height:0;overflow:hidden;width:100%}
+.phoneFrame[data-tos-mobile-frame="shift"] .nativeBody{overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.phoneFrame[data-tos-mobile-frame="shift"] .nativeBody :global([data-tos-slot~="content"]){overflow-y:visible;overscroll-behavior:auto}
 .nativeBody :global([data-tos-slot~="phone"]){height:100%;min-height:0;max-width:var(--tos-mobile-max);width:100%;margin-inline:auto;overflow:hidden}
 .nativeBody :global([data-tos-slot~="header"]){display:none}
 .nativeBody :global([data-tos-slot~="shell"]){width:100%;height:100%;min-height:0;overflow:hidden}
 .nativeBody :global([data-tos-slot~="page"]){width:100%;max-width:var(--tos-mobile-max);height:100%;min-height:0;overflow:hidden;display:flex;flex-direction:column}
 .nativeBody :global([data-tos-slot~="content"]){min-height:0;flex:1;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
-.nativeBody :global([data-tos-slot~="nav"]){flex:0 0 76px;min-height:76px;max-height:76px;position:relative;bottom:auto;z-index:12;padding-bottom:max(var(--tos-space-2),env(safe-area-inset-bottom))}
+.nativeBody :global([data-tos-slot~="nav"]){flex:0 0 var(--tos-nav-height);min-height:var(--tos-nav-height);max-height:var(--tos-nav-height);position:relative;bottom:auto;z-index:12;padding-bottom:env(safe-area-inset-bottom,0px)}
 .nativeBody :global([data-tos-slot~="nav"]) button{min-height:var(--tos-hit-min)}
-.nativeBody :global([data-tos-slot~="bottomNav"]){flex:0 0 76px;min-height:76px;padding-bottom:max(var(--tos-space-2),env(safe-area-inset-bottom))}
+.nativeBody :global([data-tos-slot~="bottomNav"]){flex:0 0 var(--tos-nav-height);min-height:var(--tos-nav-height);padding-bottom:env(safe-area-inset-bottom,0px)}
 .nativeBody :global([data-tos-slot~="bottomNav"]) button{min-height:var(--tos-hit-min)}
 .nativeBody :global([data-tos-slot~="sheet"]){max-width:var(--tos-mobile-max)}
 .nativeBody :global([data-tos-slot~="toast"]){bottom:max(86px,env(safe-area-inset-bottom) + 78px);max-width:min(390px,calc(100vw - 28px))}
@@ -194,3 +198,38 @@
 .phoneFrame[data-tos-phone-frame="reception"]{background:var(--tos-color-canvas)}
 
 .phoneFrame[data-tos-phone-frame="classroom"]{--tone:var(--tos-color-classroom-action);--tint:var(--tos-color-warning-bg)}}
+
+/* PAP-1936 · shared TOS frame chrome; no domain or Station desktop mutation. */
+@layer tos.layout {
+ .phoneFrame > :global([data-tos-app-header]) {
+  transition:transform .18s ease,opacity .18s ease,margin-bottom .18s ease;
+ }
+ .phoneFrame[data-tos-scroll-chrome="hidden"] > :global([data-tos-app-header]) {
+  transform:translateY(-100%);opacity:0;margin-bottom:calc(-1 * var(--tos-header-height));pointer-events:none;
+ }
+ .phoneFrame :global([data-tos-shared="bottom-nav"]) { transition:transform .18s ease,opacity .18s ease; }
+ .phoneFrame[data-tos-scroll-chrome="hidden"] :global([data-tos-shared="bottom-nav"]) {
+  transform:translate(-50%,120%);opacity:0;pointer-events:none;visibility:hidden;
+ }
+ .phoneFrame[data-tos-scroll-chrome="hidden"][data-tos-frame-navigation]{padding-bottom:0}
+ .phoneFrame :global([data-tos-slot~="nav"]),
+ .phoneFrame :global([data-tos-slot~="bottomNav"]) {
+  transition:flex-basis .18s ease,max-height .18s ease,min-height .18s ease,opacity .18s ease;
+ }
+ .phoneFrame[data-tos-scroll-chrome="hidden"] :global([data-tos-slot~="nav"]),
+ .phoneFrame[data-tos-scroll-chrome="hidden"] :global([data-tos-slot~="bottomNav"]) {
+  flex-basis:0;min-height:0;max-height:0;opacity:0;overflow:hidden;pointer-events:none;visibility:hidden;padding:0;
+ }
+ .phoneFrame :global([data-tos-slot~="nav"] button svg),
+ .phoneFrame :global([data-tos-slot~="nav"] button img),
+ .phoneFrame :global([data-tos-slot~="nav"] button i),
+ .phoneFrame :global([data-tos-slot~="bottomNav"] button svg),
+ .phoneFrame :global([data-tos-slot~="bottomNav"] button img),
+ .phoneFrame :global([data-tos-slot~="bottomNav"] button i) {display:none}
+ @media(prefers-reduced-motion:reduce) {
+  .phoneFrame > :global([data-tos-app-header]),
+  .phoneFrame :global([data-tos-shared="bottom-nav"]),
+  .phoneFrame :global([data-tos-slot~="nav"]),
+  .phoneFrame :global([data-tos-slot~="bottomNav"]) {transition:none}
+ }
+}

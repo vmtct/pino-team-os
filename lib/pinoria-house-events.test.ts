@@ -92,8 +92,30 @@ test("event page cursor cannot skip payload sequences", () => {
   assert.equal(result.lastSequence, 10);
 });
 
+test("event page cursor cannot lag behind delivered sequences", () => {
+  const result = selectUnseenHouseEvents([arrival, departure], 10, 11);
+  assert.equal(result.hasGap, true);
+});
+
 test("contiguous event page remains eligible for presentation", () => {
   const result = selectUnseenHouseEvents([arrival, departure], 10, 12);
   assert.equal(result.hasGap, false);
   assert.equal(result.lastSequence, 12);
+});
+
+
+test("PAP-2016 conflicting unseen duplicate sequences fail closed in either delivery order", () => {
+  const conflict: Event = {...arrival, learner: "b"};
+  for (const pair of [[arrival, conflict], [conflict, arrival]]) {
+    assert.equal(selectUnseenHouseEvents([...pair, departure], 10, 12).hasGap, true);
+  }
+  assert.equal(selectUnseenHouseEvents([arrival, conflict, departure], 11, 12).hasGap, false);
+});
+
+test("PAP-2016 identical JSON events deduplicate despite key order", () => {
+  const a = {...arrival, details: {path: "a", labels: ["x","y"]}};
+  const b = {details: {labels: ["x","y"], path: "a"}, learner: "a", type: "ARRIVAL", sequence: 11} as const;
+  assert.equal(selectUnseenHouseEvents([a, {...b, details: {...b.details, labels: [...b.details.labels]}}], 10, 11).hasGap, false);
+  const different = {...a, details: {...a.details, labels: ["y","x"]}};
+  assert.equal(selectUnseenHouseEvents([a, different], 10, 11).hasGap, true);
 });

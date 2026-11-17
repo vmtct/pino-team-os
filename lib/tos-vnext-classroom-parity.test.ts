@@ -7,7 +7,7 @@ test("PAP-945 complete V4 classroom screen tree renders without changing its rea
  const model=classroomFixture(),before=JSON.stringify(model),id=model.classes[0].id;
  const launcher=await renderClassroom(model);assert.match(launcher,/Mỹ thuật sáng tạo/);assert.match(launcher,/Mở lớp/);
  for(const tab of ["students","missions","diaries"] as const){const html=await renderClassroom(model,{classId:id,tab});assert.equal((html.match(/data-tos-vnext="classroom-detail-header"/g)||[]).length,1);assert.match(html,/Học viên/);assert.match(html,/Nhiệm vụ/);assert.match(html,/Nhật ký/)}
- const missions=await renderClassroom(model,{classId:id,tab:"missions"});assert.match(missions,/Đang tải nhiệm vụ đã giao/);assert.match(buttonTags(missions,"+ Thêm")[0],/disabled/);
+ const missions=await renderClassroom(model,{classId:id,tab:"missions"});assert.match(missions,/Đang tải nhiệm vụ đã giao/);assert.match(buttonTags(missions,"Thêm")[0],/disabled/);
  assert.doesNotMatch(missions,/data-mission-diary-id|1 Diary|Đã hoàn thành/);
  assert.equal(JSON.stringify(model),before,"rendering must not mutate business records");
 });

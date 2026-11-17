@@ -2,6 +2,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { isFounderMigratedBoAvatarNativeDsaRoute } from "./verify-tdd-authority.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const POLICY = "app/bo/architecture/bo-staging-route-policy.ts";
@@ -47,6 +48,73 @@ function tddRoutes(root, issues) {
   }
   return routes;
 }
+const nativePayrollEntries = [
+ {key:"payroll-daily",view:"BoPayrollDailyReadView",detail:"[staffMemberId]/[workDate]/BoPayrollDailyDetail.tsx",client:"lib/bo-payroll-daily-api.ts",test:"lib/bo-payroll-daily-read-contract.test.ts"},
+ {key:"payroll-exceptions",view:"BoPayrollExceptionsReadView",detail:"[requestId]/BoPayrollExceptionDetail.tsx",client:"lib/bo-payroll-exceptions-read.ts",test:"lib/bo-payroll-exceptions-model.test.ts"},
+];
+function nativePayrollRoutes(root,issues){
+ const out=new Set();
+ for(const e of nativePayrollEntries){
+  const base="app/bo/"+e.key+"/",page=base+"page.tsx";
+  if(!fs.existsSync(path.join(root,page)))continue;
+  const files=[page,base+e.view+".tsx",base+e.detail,e.client,e.test,"lib/bo-native-payroll-route.ts","lib/pap1970-native-payroll-route.test.ts"];
+  if(files.some(f=>!fs.existsSync(path.join(root,f)))){issues.push(e.key+": missing native read-only route contract");continue;}
+  const [p,v,d,c]=files.map(f=>read(root,f));
+  if(!p.includes("<"+e.view)||!p.includes("PAP-1970")||!v.includes("BoDataGrid")||!v.includes("BoDataGridSidePeek")||
+     !v.includes("useBoCenterSelection")||!d.includes("BoFullDetail")||!d.includes("useBoCenterSelection")||
+     !c.includes("same-origin")||!c.includes("no-store")||[p,v,d].some(x=>/BoModuleFactory|BoWorkforceRoute|defineTddModule|SurfaceWorkspace/.test(x))||
+     /method:\s*["'](?:POST|PATCH|PUT|DELETE)["']/.test(c)){issues.push(e.key+": invalid native read-only route contract");continue;}
+  out.add("/bo/"+e.key);
+ }
+ return out;
+}
+/** PAP-1886: exact read-only Accounts page using shared native BO DSA primitives. */
+function nativeAfterschoolAccountsRoute(root, issues) {
+  const base = "app/bo/afterschool-accounts/";
+  const page = base + "page.tsx";
+  if (!fs.existsSync(path.join(root, page))) return false;
+  const files = [page, base + "AfterschoolAccounts.tsx", "lib/host-boundary.ts", "lib/host-boundary.test.ts"];
+  if (files.some(file => !fs.existsSync(path.join(root, file)))) {
+    issues.push("/bo/afterschool-accounts: missing native read-only route contract");
+    return false;
+  }
+  const [entry, view, host, test] = files.map(file => read(root, file));
+  if (!entry.includes("<AfterschoolAccounts />") || !view.includes("PAP-1886") ||
+      !view.includes("<BoDataTable") || !view.includes("<BoQuickView") ||
+      !view.includes("useBoCenterSelection") || !view.includes("/api/bo/identity/afterschool-users?") ||
+      !view.includes("data?.scopeCenterId !== centerId") || !view.includes('cache: "no-store"') ||
+      !host.includes('pathname === "/bo/afterschool-accounts"') ||
+      !test.includes("PAP-1886 native Accounts page is BO Staging and session gated") ||
+      [entry, view].some(source => /BoModuleFactory|BoWorkforceRoute|defineTddModule|SurfaceWorkspace/.test(source)) ||
+      /method:\s*["'](?:POST|PATCH|PUT|DELETE)["']/.test(view)) {
+    issues.push("/bo/afterschool-accounts: invalid native read-only route contract");
+    return false;
+  }
+  return true;
+}
+
+/** PAP-767 exact native opening-evidence contract, never a wildcard exemption. */
+function nativeOpeningEvidenceRoute(root,issues){
+ const base="app/bo/opening-evidence/";
+ const files=[base+"page.tsx",base+"OpeningEvidenceStageGate.tsx",base+"[subjectType]/[receiptId]/page.tsx",
+   base+"[subjectType]/[receiptId]/OpeningEvidenceDetail.tsx","lib/bo-opening-evidence-api.ts",
+   "lib/bo-opening-evidence-handler.ts","lib/opening-evidence-host-contract.ts","lib/opening-evidence-host-contract.test.ts",
+   "lib/pap764-opening-evidence-nav.test.ts","lib/host-boundary.ts","app/bo/shell/BoApplicationShell.tsx"];
+ const policy=read(root,POLICY);
+ if(!policy.includes('"/bo/opening-evidence"'))return false;
+ if(files.some(f=>!fs.existsSync(path.join(root,f)))){issues.push("opening-evidence: missing exact native route contract");return false;}
+ const [p,v,dp,d,c,h,host,,,boundary,shell]=files.map(f=>read(root,f));
+ const ok=p.includes("PAP-764")&&p.includes("<OpeningEvidenceStageGate")&&p.includes('host !== "bo.staging.pinohouse.art"')&&
+   v.includes("BoDataGrid")&&v.includes("BoDataGridSidePeek")&&v.includes("useBoCenterSelection")&&v.includes("openingEvidenceApi.list")&&
+   dp.includes('host!=="bo.staging.pinohouse.art"')&&dp.includes("<OpeningEvidenceDetail")&&
+   d.includes("BoFullDetail")&&d.includes("useBoCenterSelection")&&d.includes("openingEvidenceApi.review")&&
+   c.includes("same-origin")&&c.includes("no-store")&&h.includes("teamCredential")&&h.includes("callBoAccessCoreWithCredential")&&
+   host.includes("openingEvidenceBoModule")&&boundary.includes("openingEvidenceHostDecision(hostname, pathname, method)")&&
+   shell.includes('"opening-evidence":')&&shell.includes("openingEvidenceBoModule(pathname)")&&policy.includes("openingEvidenceBoModule(path)")&&
+   [p,v,dp,d].every(x=>!/BoModuleFactory|BoWorkforceRoute|defineTddModule|SurfaceWorkspace/.test(x));
+ if(!ok)issues.push("opening-evidence: invalid native scoped route contract");
+ return ok;
+}
 function canonicalRoutes(root, issues) {
   const base = path.join(root, "app/bo");
   const routes = new Set();
@@ -63,14 +131,31 @@ function canonicalRoutes(root, issues) {
   visit(base);
   const tdd=tddRoutes(root,issues);
   for(const route of tdd)routes.add(route);
-  return {routes,tdd};
+  // PAP-1810 / PNR-AVATAR-CRUD: exact Founder-directed native BO DSA
+  // migration; only the validated existing Avatar route is admitted.
+  const native=new Set();
+  if(!tdd.has("/bo/pinoria-avatars") &&
+    isFounderMigratedBoAvatarNativeDsaRoute(root,{
+      file:"app/bo/pinoria-avatars/page.tsx",
+      route:"/bo/pinoria-avatars",key:"pinoria-avatars",surface:"BO",profile:"TDD_DEFAULT"
+    })) {
+    routes.add("/bo/pinoria-avatars");
+    native.add("/bo/pinoria-avatars");
+  }
+  for(const route of nativePayrollRoutes(root,issues)){routes.add(route);native.add(route);}
+  if (nativeAfterschoolAccountsRoute(root,issues)) {
+    routes.add("/bo/afterschool-accounts");
+    native.add("/bo/afterschool-accounts");
+  }
+  if(nativeOpeningEvidenceRoute(root,issues)){routes.add("/bo/opening-evidence");native.add("/bo/opening-evidence");}
+  return {routes,tdd,native};
 }
 
 export function verifyBoStagingRoutePolicy(root = ROOT) {
   const issues = [];
   const admitted = policyRoutes(read(root, POLICY), "boStagingAdmittedRoutes", issues);
   const deferred = policyRoutes(read(root, POLICY), "boStagingDeferredRoutes", issues);
-  const {routes:canonical,tdd} = canonicalRoutes(root,issues);
+  const {routes:canonical,tdd,native} = canonicalRoutes(root,issues);
   for (const route of canonical) {
     if (admitted.has(route) === deferred.has(route))
       issues.push(`${route}: canonical BO route needs exactly one staging decision (admitted or deferred)`);
@@ -108,6 +193,11 @@ export function verifyBoStagingRoutePolicy(root = ROOT) {
     issues.push("Workforce pages must retain production fallback and staging BO workspace");
   for (const route of admitted) {
     if (!canonical.has(route)) continue;
+    if(native.has(route)){
+      // Exact native DSA feature keeps the same BO shell, staging policy,
+      // real Core Center-scoped API and PINO DS; not the legacy Factory grid.
+      continue;
+    }
     if(tdd.has(route)){
       const file=read(root,"app/bo/"+route.slice("/bo/".length)+"/page.tsx");
       if(!/<[A-Za-z]*Tdd\b/.test(file)||/<\s*(table|BoDataGrid|BoDataGridSidePeek)(?=[\s/>])/.test(file))

@@ -3,7 +3,7 @@ import { createContext, useContext, useMemo, useState } from "react";
 import type { BoShellContext } from "@/lib/bo-shell-gate";
 import { BoRegistrationWorkspace, type BoWorkspaceSource } from "./BoRegistrationWorkspace";
 import { BoStaffsViews, type StaffsView } from "./BoStaffsViews";
-import { readStaffCenterApplications } from "@/lib/bo-staff-center-registration-adapter";
+import { StaffRegistrationSection } from "../../staff/StaffRegistrationSection";
 import { unifiedBoWorkspaceSource } from "../../architecture/bo-unified-workspace-source";
 import { BoOperationalView } from "../../BoOperationalView";
 import dynamic from "next/dynamic";
@@ -12,7 +12,11 @@ import { BoCenterSelectionProvider, useBoCenterSelection } from "./BoCenterSelec
 import { TddHostMenu } from "@/app/components/workspace-adapters/SurfaceWorkspace";
 import { boCenterModuleScope, boScopedModuleHref, scopedBoReadFetcher } from "./BoGlobalCenterPolicy";
 
-const ParentTdd = dynamic(() => import("../../parents/ParentTdd").then(module => module.ParentTdd), { ssr: false });
+// PAP-1814 / SCH-PARENTS-GUARDIANS: Parent route now uses native PINO BO DSA.
+const ParentDirectoryDsa = dynamic(() => import("../../parents/ParentDirectoryDsa").then(module => module.ParentDirectoryDsa), { ssr: false });
+// PAP-1334 / PAP-1491: new Center-owned Subscription Table/Drawer/Detail,
+// not the retired legacy global Learner/Sale/Enrollment workspace.
+const SubscriptionDirectoryDsa = dynamic(() => import("../../subscriptions/SubscriptionDirectoryDsa").then(module => module.SubscriptionDirectoryDsa), { ssr: false });
 const MissionsTdd = dynamic(() => import("../../missions/BoMissionsTdd").then(module => module.BoMissionsTdd), { ssr: false });
 const RuntimeContext = createContext<Pick<BoShellContext, "displayName" | "email"> | null>(null);
 // PAP-1545 / PAP-1316: Access audit is a Core GLOBAL collection. Keep the
@@ -61,10 +65,7 @@ function CenterReadWorkspace({ moduleKey, options, currentUser }: {
     content={blocked ? <CenterReadPending message={message} denied={Boolean(center?.error)} /> : undefined} />;
 }
 
-/** PAP-1407: local Staffs business views atop the existing, unmodified shared TDD host.
- * The registration tab is intentionally NOT wired to the unscoped legacy queue.
- * PAP-1406 is responsible for the explicit Center-bound Core contract.
- */
+/** PAP-2004 / PAP-220: canonical Staffs registration tab uses the Center review capability; unrelated directory stays fail-closed. */
 function BoStaffsEntry({ currentUser, options }: {
   currentUser: Pick<BoShellContext, "displayName" | "email">;
   options: Record<string, string>;
@@ -75,27 +76,11 @@ function BoStaffsEntry({ currentUser, options }: {
   const scopedOptions = useMemo(() => ({ ...options, centerId: selected }), [options, selected]);
   const source = useMemo<BoWorkspaceSource>(() => ({
     ...unifiedBoWorkspaceSource,
-    modules: view === "register" ? {
-      ...unifiedBoWorkspaceSource.modules,
-      staffs: {
-        ...unifiedBoWorkspaceSource.modules.staffs!,
-        fields: [
-          { key: "name", label: "Người đăng ký", type: "text", icon: "Aa", w: 235 },
-          { key: "submittedAt", label: "Ngày đăng ký", type: "datetime", icon: "▦", w: 175 },
-          { key: "status", label: "Trạng thái", type: "select", icon: "▣", w: 145 },
-          { key: "id", label: "Mã đăng ký", type: "id", icon: "#", w: 145 },
-        ],
-      },
-    } : unifiedBoWorkspaceSource.modules,
     isModuleReadOnly: (key) => key === "staffs" || unifiedBoWorkspaceSource.isModuleReadOnly?.(key) === true,
     scopeLabel: (key, requestedOptions) => key === "staffs" && view === "register"
       ? "Cơ sở đã chọn" : unifiedBoWorkspaceSource.scopeLabel(key, requestedOptions),
     async load(key, fetcher, requestedOptions) {
       if (key === "staffs") {
-        if (view === "register") {
-          // The existing registration queue has a verified Center-bound API.
-          return readStaffCenterApplications(fetcher, selected);
-        }
         // PAP-1544 / PAP-1316: the legacy staff-records API is unscoped.
         // Refuse all regular Staff directory tabs until Core exposes an
         // independently authorized Center-bound read. Never client-filter PII.
@@ -103,36 +88,41 @@ function BoStaffsEntry({ currentUser, options }: {
       }
       return unifiedBoWorkspaceSource.load(key, fetcher, requestedOptions);
     },
-  }), [view, selected]);
-  const blocked = view === "register" && (!center || center.loading || Boolean(center.error) || !selected);
-  const message = center?.error || (center?.loading ? "Đang xác thực danh sách cơ sở…" : "Chọn cơ sở để xem đơn đăng ký.");
+  }), [view]);
+  const registrationContent = view === "register" ? <StaffsRegistrationContent view={view} onSelect={setView} /> : undefined;
   return <BoRegistrationWorkspace key={"staffs:" + view + ":" + selected} currentUser={currentUser}
     source={source} moduleKey="staffs" options={scopedOptions}
-    content={blocked ? <CenterReadPending message={message} denied={Boolean(center?.error)} /> : undefined}
+    content={registrationContent}
     headerContent={<BoStaffsViews selected={view} onSelect={setView} />} />;
+}
+
+function StaffsRegistrationContent({view,onSelect}: {view: StaffsView; onSelect: (view: StaffsView) => void}) {
+  const menu = useContext(TddHostMenu);
+  return <>
+    <div className="page-heading"><div className="page-heading-left">{menu("staff-register-menu-btn")}<h1>Nhân sự</h1></div></div>
+    <BoStaffsViews selected={view} onSelect={onSelect} />
+    <StaffRegistrationSection embedded />
+  </>;
 }
 
 export function BoRuntimeEntry({ moduleKey, options }: { moduleKey: string; options: Record<string, string> }) {
   const currentUser = useContext(RuntimeContext);
   if (moduleKey === "missions") return <MissionsTdd />;
   if (!currentUser) return <BoOperationalView view="overview" />;
-  // PAP-1543 / Epic PAP-1316: default Parents must never reach the legacy
-  // unscoped directory. The Parent TDD adapter requires a Core-attested Center.
+  // PAP-1814 / Epic PAP-1384: native DSA Parent owns its Core-attested Center scope.
+  // Never fall through to the unscoped legacy Directory.
   if (moduleKey === "parents") return <BoRegistrationWorkspace currentUser={currentUser}
     source={unifiedBoWorkspaceSource} moduleKey="parents" options={options}
-    content={<ParentTdd />} />;
+    content={<ParentDirectoryDsa />} />;
   if (moduleKey === "staffs") return <BoStaffsEntry currentUser={currentUser} options={options} />;
   if (moduleKey === "audits") return <BoRegistrationWorkspace currentUser={currentUser}
     source={globalAuditWorkspaceSource} moduleKey="audits" options={options} />;
-  // PAP-1334 / Epic PAP-1316: legacy Subscription writer is NOT Center-admitted.
-  // PAP-1100 v1.9 replaces this with independent Center-owned Sales, not Renewal.
-  // Keep shell navigation, but mount no embedded legacy reader/writer and provide
-  // real content so BoWorkspace does not fetch an unscoped generic directory.
+  // PAP-1334 / PAP-1491: real Center-scoped native read-only Subscription
+  // Table/Drawer/Detail. Do NOT mount old unscoped Learners/Sale/Renew/Enrollment
+  // component: PAP-1350 must first land an independently authorized Center writer.
   if (moduleKey === "subscriptions") return <BoRegistrationWorkspace currentUser={currentUser}
     source={unifiedBoWorkspaceSource} moduleKey="subscriptions" options={options}
-    content={<section role="status" aria-label="Quản lý gói học" data-testid="bo-subscription-center-contract-pending">
-      Quản lý gói học tạm thời chưa khả dụng.
-    </section>} />;
+    content={<SubscriptionDirectoryDsa />} />;
   // Stage 1 of the shared BO context: Parent TDD plus legacy Visits and Timekeeping
   // whose Core adapters already enforce explicit centerId and verify response identity.
   if (boCenterModuleScope(moduleKey) === "CENTER") return <CenterReadWorkspace moduleKey={moduleKey} options={options} currentUser={currentUser} />;

@@ -17,3 +17,8 @@ Jira: https://vmtct97.atlassian.net/browse/PAP-1073
 ## Approved successor — 2026-10-31 (PAP-1229)
 
 Founder approved only HO Table 390/320 from [run 41071808375](https://github.com/vmtct/pino-team-os/actions/runs/41071808375), PR #1060 source `877d578ef00334617043e09d14f851717fa25329`, artifact `12984978572`. Approval receipt: [PAP-1073 comment 18831](https://vmtct97.atlassian.net/browse/PAP-1073?focusedCommentId=18831). Exact original CI PNG bytes are retained under `successor-41071808375/`, with provenance and SHA-256/byte pins in its manifest and the verifier's code-owned allowlist. The original 40-file archive and manifest remain immutable and are still validated; the other 28 image references remain the original run. The 1% pixel limit and geometry/negative checks remain unchanged. This approval does not accept live Staging, G4, Production or future images.
+
+## Founder-approved successor — 2026-11-12 (PAP-1890, Epic PAP-1676)
+
+Founder approved ONLY six Full Detail PNGs (BO/HO 320, 390, 768 px) from [G3 run #43133601626](https://github.com/vmtct/pino-team-os/actions/runs/43133601626), PR #1345 original head 727ef5b76bb2676f075e8d503d02efd3d02fb6d9, artifact #13905078452. Approval: [PAP-1890 #27411](https://vmtct97.atlassian.net/browse/PAP-1890?focusedCommentId=27411).
+The exact reviewed PNG bytes and SHA-256 are stored append-only under successor-43133601626/. The immutable run #40811677302 baseline, prior successors, the 1% threshold and geometry checks remain UNCHANGED. This does not approve other screens, FSG7, or Production.

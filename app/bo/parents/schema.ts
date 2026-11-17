@@ -3,11 +3,12 @@ import type { SurfaceDefinition } from "@/lib/workspace-adapters";
 import { parentDirectoryProvider } from "./provider";
 
 export const PARENT_VIEW = "identity.parent_directory.view";
+export const PARENT_EDIT = "identity.parent.edit";
 const base = { display: true, search: false, filter: false, sort: false, group: false, inlineEdit: false } as const;
 const named = { ...base, search: true, sort: true };
 const sortable = { ...base, sort: true, filter: true };
 export const parentFields = [
-  { key: "name", label: "Phụ huynh", icon: "Aa", width: 235, type: "text", permission: PARENT_VIEW, readOnly: true, capabilities: named },
+  { key: "name", label: "Phụ huynh", icon: "Aa", width: 235, type: "text", permission: PARENT_VIEW, readOnly: false, required: true, validation: { minLength: 1, maxLength: 160 }, capabilities: { ...named, inlineEdit: true } },
   { key: "id", label: "Parent ID", icon: "#", width: 160, type: "id", permission: PARENT_VIEW, readOnly: true, capabilities: base },
   { key: "maskedContact", label: "Liên hệ (đã che)", icon: "Aa", width: 180, type: "text", permission: PARENT_VIEW, readOnly: true, capabilities: base, sensitive: true },
   { key: "studentCount", label: "Số học viên", icon: "#", width: 120, type: "number", permission: PARENT_VIEW, readOnly: true, capabilities: sortable },
@@ -37,7 +38,7 @@ const detailSections = [
 export const parentDefinition = {
   version: 1, classification: "TDD_DEFAULT", surface: "BO", key: "parents",
   label: "Parents & Guardians", group: "SCHOOL", fields: parentFields,
-  capabilities: { read: PARENT_VIEW, history: "access.audit.view" },
+  capabilities: { read: PARENT_VIEW, edit: PARENT_EDIT, history: "access.audit.view" },
   table: {
     identity: { field: "name", pinned: "left", hideable: false, reorderable: false },
     columns: parentQuery.order.map(field => ({ field, visible: parentQuery.visible.includes(field as typeof parentQuery.visible[number]) })),

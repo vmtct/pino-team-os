@@ -2,8 +2,8 @@
 /** PAP-1488 / PAP-1676: approved TOS Classroom Nhiệm Vụ tab,
  * Core Assignment IDs (not Diary child records). Approved card and sheet CSS only.
  */
-import {useEffect,useRef,useState} from "react";
-import {FontAwesomeIcon,faBookOpen,faCheck,faPlus,faRotate,faXmark} from "./classroom-icons";
+import {useCallback,useEffect,useRef,useState} from "react";
+import {FontAwesomeIcon,faBookOpen,faCheck,faRotate,faXmark} from "./classroom-icons";
 import styles from "./classroom.module.css";
 import {AppModalRoot,createSlotKeys} from "../tos-ds";
 import {
@@ -11,55 +11,94 @@ import {
   type MissionTabReadState,type MissionTabScope,
 } from "@/lib/tos-mission-assignment-tab-read";
 import type {TosMissionAssignmentCard} from "@/lib/tos-mission-assignment-card-model";
-import type {TosEligibleMissionChoice} from "@/lib/tos-mission-assignment-choices";
+import {filterTosScopedMissions,describeTosMissionLocks,type TosScopedMissionChoice,type TosMissionAvailabilityFilter} from "@/lib/tos-specialty-mission-availability";
+import {readTosNewMissionGuard} from "@/lib/tos-mission-completion-read";
 import {
   getTosMissionCommandChoices,createTosMissionAssignmentVerified,
   replaceTosMissionAssignmentVerified,
 } from "@/lib/tos-mission-assignment-command-runtime";
 
 const slot=createSlotKeys(styles);
+type MissionCreateRequest={id:number;studentId:string};
 type Editor={studentId:string;old:TosMissionAssignmentCard|null};
-type Choices={phase:"loading"|"ready"|"error";items:readonly TosEligibleMissionChoice[]};
+type Choices={phase:"loading"|"ready"|"error";items:readonly TosScopedMissionChoice[]};
+type CreateGate="loading"|"clear"|"unfinished"|"unavailable";
 export default function MissionAssignmentTab({
-  scope,readOnly=false,
-}:{scope:MissionTabScope;readOnly?:boolean}){
+  scope,readOnly=false,visible=true,createRequest=null,onCreateRequestConsumed,
+}:{scope:MissionTabScope & {pathProgramId?:string;pathLabel?:string};readOnly?:boolean;visible?:boolean;
+  createRequest?:MissionCreateRequest|null;onCreateRequestConsumed?:(requestId:number)=>void}){
   const [read,setRead]=useState<MissionTabReadState>({state:"LOADING",groups:[]});
   const [attempt,setAttempt]=useState(0);
   const [editor,setEditor]=useState<Editor|null>(null);
   const [choices,setChoices]=useState<Choices>({phase:"loading",items:[]});
   const [chosen,setChosen]=useState("");
+  const [query,setQuery]=useState("");
+  const [filter,setFilter]=useState<TosMissionAvailabilityFilter>("all");
+  const shown=filterTosScopedMissions(choices.items,filter,query);
+  const selectedAvailable=choices.items.some(x=>x.missionId===chosen&&x.available);
+  const [createGate,setCreateGate]=useState<CreateGate>("loading");
   const [busy,setBusy]=useState(false);
   const submitting=useRef(false);
+  const consumedCreateRequest=useRef<number|null>(null);
   const [error,setError]=useState("");
-  const {centerId,localDate,runningClassId,teachingContextKey}=scope;
+  const {centerId,localDate,runningClassId,teachingContextKey,pathProgramId}=scope;
   const groups=read.state==="READY"||read.state==="EMPTY"?read.groups:[];
   const count=read.state==="READY"||read.state==="EMPTY"?
     groups.reduce((n,g)=>n+g.cards.length,0):"—";
-  const canWrite=!readOnly&&read.state!=="UNAVAILABLE"&&read.state!=="LOADING"&&
+  const canWrite=!!pathProgramId&&!readOnly&&read.state!=="UNAVAILABLE"&&read.state!=="LOADING"&&
     groups.length>0;
   useEffect(()=>startMissionAssignmentTabRead({
     centerId,localDate,runningClassId,teachingContextKey,
   },setRead),[centerId,localDate,runningClassId,teachingContextKey,attempt]);
   const scopeFor=(studentId:string)=>({...scope,studentId});
   useEffect(()=>{
-    if(!editor)return;
+    if(!editor||!pathProgramId)return;
     let active=true;
-    void getTosMissionCommandChoices({centerId,localDate,runningClassId,teachingContextKey,studentId:editor.studentId}).then(
-      items=>{if(active)setChoices({phase:"ready",items})},
-      ()=>{if(active)setChoices({phase:"error",items:[]})},
-    );
-    return()=>{active=false};
-    // The page/occurrence is fixed by the parent key; changing editor is a new read.
-  },[editor,centerId,localDate,runningClassId,teachingContextKey]);
-  const open=(studentId:string,old:TosMissionAssignmentCard|null=null)=>{
+    const controller=new AbortController();
+    // PAP-1851: do NOT request or show eligible Mission choices on new Create until
+    // every current-context Assignment has independent Core C1 completion proof.
+    setChoices({phase:"loading",items:[]});
+    setQuery("");setFilter("all");
+    setCreateGate(editor.old?"clear":"loading");
+    const load=async()=>{
+      if(!editor.old){
+        const state=await readTosNewMissionGuard(
+          {centerId,localDate,runningClassId,teachingContextKey,studentId:editor.studentId},
+          undefined,controller.signal,
+        );
+        if(!active)return;
+        if(state==="UNFINISHED"){setCreateGate("unfinished");return;}
+        setCreateGate("clear");
+      }
+      const items=await getTosMissionCommandChoices(
+        {centerId,localDate,runningClassId,teachingContextKey,studentId:editor.studentId,pathProgramId},
+      );
+      if(active)setChoices({phase:"ready",items});
+    };
+    void load().catch(()=>{
+      if(!active)return;
+      if(editor.old)setChoices({phase:"error",items:[]});
+      else setCreateGate("unavailable");
+    });
+    return()=>{active=false;controller.abort()};
+  },[editor,centerId,localDate,runningClassId,teachingContextKey,pathProgramId]);
+  const open=useCallback((studentId:string,old:TosMissionAssignmentCard|null=null)=>{
     if(!canWrite||submitting.current)return;
     if(!groups.some(g=>g.studentId===studentId))return;
     setChoices({phase:"loading",items:[]});setChosen("");setError("");setEditor({studentId,old});
-  };
+  },[canWrite,groups]);
+  // PAP-1850: Student-tab action reuses this editor; consume only after Core roster read.
+  useEffect(()=>{
+    if(!createRequest||consumedCreateRequest.current===createRequest.id||!canWrite||
+      !groups.some(g=>g.studentId===createRequest.studentId))return;
+    consumedCreateRequest.current=createRequest.id;
+    open(createRequest.studentId);
+    onCreateRequestConsumed?.(createRequest.id);
+  },[createRequest,canWrite,groups,open,onCreateRequestConsumed]);
   const close=()=>{if(!submitting.current){setEditor(null);setError("")}};
   const submit=async()=>{
-    if(!editor||submitting.current||readOnly||choices.phase!=="ready"||
-       !choices.items.some(x=>x.missionId===chosen))return;
+    if(!editor||submitting.current||readOnly||(!editor.old&&createGate!=="clear")||choices.phase!=="ready"||
+       !selectedAvailable)return;
     submitting.current=true;setBusy(true);setError("");
     try{
       if(editor.old){
@@ -91,23 +130,22 @@ export default function MissionAssignmentTab({
     }finally{submitting.current=false;setBusy(false)}
   };
   const studentName=editor?groups.find(g=>g.studentId===editor.studentId)?.studentName:"";
-  return <section role="tabpanel" id="tos-classroom-panel-missions"
+  return <><section hidden={!visible} role={visible?"tabpanel":undefined} id="tos-classroom-panel-missions"
     aria-labelledby="tos-classroom-tab-missions" aria-busy={read.state==="LOADING"}>
     <div className={styles.sectionHead} data-tos-slot={slot(styles.sectionHead)}>
       <div><h2>Nhiệm vụ hôm nay ({count})</h2></div>
-      <button type="button" aria-label="Thêm Nhiệm Vụ" disabled={!canWrite}
+      <button type="button" className={styles.missionAddAction} aria-label="Thêm Nhiệm Vụ" disabled={!canWrite}
         onClick={()=>{if(groups.length===1)open(groups[0]!.studentId);
           else if(groups.length>1)open(groups[0]!.studentId)}}>
-        <FontAwesomeIcon icon={faPlus}/> + Thêm
+        Thêm
       </button>
     </div>
     {read.state==="LOADING"&&<p role="status" className={styles.empty}
       data-tos-slot={slot(styles.empty)}>Đang tải nhiệm vụ đã giao…</p>}
     {read.state==="UNAVAILABLE"&&<p role="alert" className={styles.empty}
       data-tos-slot={slot(styles.empty)}>{missionTabReadMessage(read.error)}</p>}
-    {(read.state==="UNAVAILABLE"||attempt>0)&&<button type="button"
-      aria-disabled={read.state==="LOADING"}
-      onClick={()=>{if(read.state!=="LOADING")setAttempt(x=>x+1)}}>Thử lại</button>}
+    {read.state==="UNAVAILABLE"&&<button type="button" className={styles.missionReadRetry}
+      onClick={()=>setAttempt(x=>x+1)}>Tải lại nhiệm vụ</button>}
     {read.state==="EMPTY"&&<p role="status" className={styles.empty}
       data-tos-slot={slot(styles.empty)}>Chưa có nhiệm vụ được giao.</p>}
     {groups.filter(g=>g.cards.length>0).map(group=><section className={styles.missionBatch}
@@ -125,6 +163,9 @@ export default function MissionAssignmentTab({
             <strong>{card.missionCodeSnapshot} · {card.missionNameSnapshot}</strong>
             <span>Đã giao</span>
           </div>
+          {pathProgramId && card.missionDefinitionPathId &&
+            pathProgramId.toLowerCase() !== card.missionDefinitionPathId.toLowerCase() &&
+            <small>Nhiệm vụ khác Path của lớp</small>}
           {card.contextLabel&&<small>{card.contextLabel}</small>}
         </div>
         <div className={styles.missionCompactActions} data-tos-slot={slot(styles.missionCompactActions)}>
@@ -138,7 +179,7 @@ export default function MissionAssignmentTab({
             data-tos-slot={slot(styles.missionNextCta)}
             aria-label={"Thêm nhiệm vụ sau "+card.missionCodeSnapshot}
             disabled={!canWrite} onClick={()=>open(group.studentId)}>
-            <FontAwesomeIcon icon={faPlus}/> + Thêm
+            Thêm
           </button>
           <button type="button" className={styles.missionSwapCta}
             data-tos-slot={slot(styles.missionSwapCta)}
@@ -149,7 +190,17 @@ export default function MissionAssignmentTab({
         </div>
       </article>)}
     </section>)}
-    {editor&&<AppModalRoot className={styles.scrim} data-tos-slot={slot(styles.scrim)}
+    </section>
+    {!visible&&createRequest&&read.state==="UNAVAILABLE"&&<div role="alert"
+      className={styles.missionReadError}>
+      <p>{missionTabReadMessage(read.error)}</p>
+      <button type="button" className={styles.missionReadRetry}
+        onClick={()=>setAttempt(x=>x+1)}>Tải lại nhiệm vụ</button>
+    </div>}
+    {!visible&&createRequest&&(read.state==="READY"||read.state==="EMPTY")&&
+      !groups.some(g=>g.studentId===createRequest.studentId)&&<p role="alert"
+      className={styles.missionReadError}>Học viên chưa đủ điều kiện giao nhiệm vụ tại lớp này.</p>}
+    {editor&&<AppModalRoot className={styles.scrim+" "+styles.missionEditorScrim} data-tos-slot={slot(styles.scrim)}
       onClose={close}>
       <section className={styles.sheet} data-tos-slot={slot(styles.sheet)}
         role="dialog" aria-modal="true" aria-label={editor.old?"Đổi nhiệm vụ":"Thêm Nhiệm Vụ"}>
@@ -167,37 +218,58 @@ export default function MissionAssignmentTab({
             {groups.map(g=><option value={g.studentId} key={g.studentId}>{g.studentName}</option>)}
           </select>
         </label>
+        {scope.pathLabel&&scope.pathLabel!=="—"&&<p>Path lớp: {scope.pathLabel}</p>}
         {editor.old&&<p className={styles.smallMuted} data-tos-slot={slot(styles.smallMuted)}>
           Thay {editor.old.missionCodeSnapshot} · {editor.old.missionNameSnapshot} của {studentName}.
         </p>}
+        {!editor.old&&createGate==="loading"&&<p role="status">
+          Đang kiểm tra nhiệm vụ chưa hoàn thành…
+        </p>}
+        {!editor.old&&createGate==="unfinished"&&<div role="status"
+          className={styles.missionReadError}>
+          <strong>Còn nhiệm vụ chưa hoàn thành</strong>
+        </div>}
+        {!editor.old&&createGate==="unavailable"&&<p role="alert"
+          className={styles.missionReadError}>
+          Chưa xác minh được trạng thái nhiệm vụ. Vui lòng đóng và mở lại.
+        </p>}
+        {(!!editor.old||createGate==="clear")&&<>
         {choices.phase==="loading"&&<p role="status">Đang tải Mission đủ điều kiện…</p>}
         {choices.phase==="error"&&<p role="alert">
           Chưa tải được Mission đủ điều kiện từ Core. Vui lòng đóng và thử lại.
         </p>}
-        {choices.phase==="ready"&&choices.items.length===0&&<p role="status">
-          Không có Mission đủ điều kiện để giao.
-        </p>}
-        {choices.phase==="ready"&&choices.items.map(item=><button type="button"
-          className={chosen===item.missionId?styles.missionChoiceActive:styles.missionChoice}
-          data-tos-slot={slot(chosen===item.missionId?
-            styles.missionChoiceActive:styles.missionChoice)}
-          disabled={busy} aria-pressed={chosen===item.missionId} key={item.missionId}
-          onClick={()=>setChosen(item.missionId)}>
-          <div><strong>{item.code} · {item.name}</strong>
-            <small>Cấp {item.level}</small>
-          </div><span aria-hidden="true">{chosen===item.missionId?"◉":"○"}</span>
-        </button>)}
+        {choices.phase==="ready"&&<>
+          <label className={styles.field} data-tos-slot={slot(styles.field)}>Tìm nhiệm vụ
+            <input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Tên hoặc mã nhiệm vụ" disabled={busy}/>
+          </label>
+          <label className={styles.field} data-tos-slot={slot(styles.field)}>Hiển thị
+            <select value={filter} onChange={e=>setFilter(e.target.value as TosMissionAvailabilityFilter)} disabled={busy}>
+              <option value="all">Tất cả</option><option value="available">Có thể chọn</option><option value="locked">Đang khóa</option>
+            </select>
+          </label>
+          {shown.length===0&&<p role="status">Không có nhiệm vụ phù hợp.</p>}
+          {shown.map(item=>{
+            const rowStyle=!item.available?styles.missionChoiceDisabled:chosen===item.missionId?styles.missionChoiceActive:styles.missionChoice;
+            return <button type="button" className={rowStyle} data-tos-slot={slot(rowStyle)}
+              disabled={busy||!item.available} aria-pressed={chosen===item.missionId} key={item.missionId}
+              onClick={()=>{if(item.available)setChosen(item.missionId)}}>
+              <div><strong>{item.code} · {item.name}</strong><small>Cấp {item.level}</small>
+                {!item.available&&<em>{describeTosMissionLocks({...item,lockReasons:item.lockReasons.map(({code})=>({code}))}).join(" · ")}</em>}
+              </div><span aria-hidden="true">{!item.available?"🔒":chosen===item.missionId?"◉":"○"}</span>
+            </button>;
+          })}
+        </>}
         {error&&<p role="alert" className={styles.amberText}>{error}</p>}
         <div className={styles.assignFooter} data-tos-slot={slot(styles.assignFooter)}>
           <button type="button" className={styles.primaryButtonWide}
             data-tos-slot={slot(styles.primaryButtonWide)}
-            disabled={busy||!chosen||choices.phase!=="ready"||!!error}
+            disabled={busy||!selectedAvailable||choices.phase!=="ready"||!!error}
             onClick={()=>{void submit()}}>
             <FontAwesomeIcon icon={editor.old?faRotate:faCheck}/>
             {busy?"Đang xác minh…":editor.old?"Đổi Nhiệm Vụ":"Tạo Nhiệm Vụ"}
           </button>
-        </div>
+        </div></>}
       </section>
     </AppModalRoot>}
-  </section>;
+  </>;
 }

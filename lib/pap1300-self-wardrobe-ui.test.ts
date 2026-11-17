@@ -40,11 +40,18 @@ test("PAP-1300 runtime has Owned/Catalog label, Core source, explicit reason and
   assert.match(ui, /Core sẽ tháo trang bị và thu hồi đồng thời/);
   assert.doesNotMatch(ui, /Tủ đồ của Lê Minh An|Danh mục Item|6 Item đang sở hữu/);
 });
-test("PAP-1300 admitted TDD_DEFAULT and using only existing BO DS classes", () => {
+test("PAP-1300/PAP-1810 native Avatar Wardrobe retains Core BFF and existing BO DS", () => {
   assert.equal((route.match(/if \(isBoSelfItemPath\(joined\)\)/g) ?? []).length, 5);
-  const m=admission.modules.find((x: {key:string})=>x.key==="pinoria-avatars");
-  assert.ok(m.files.includes("app/bo/pinoria-avatars/SelfWardrobeDetail.tsx"));
-  assert.ok(m.tests.includes("lib/pap1300-self-wardrobe-ui.test.ts"));
+  // PAP-1810 retired the Avatar TDD manifest; live route now owns native DSA.
+  assert.equal(admission.modules.some((x: {key:string})=>x.key==="pinoria-avatars"), false);
+  const nativePage=readFileSync(new URL("../app/bo/pinoria-avatars/page.tsx",import.meta.url),"utf8");
+  const native=readFileSync(new URL("../app/bo/pinoria-avatars/AvatarDirectoryDsa.tsx",import.meta.url),"utf8");
+  assert.match(nativePage, /<AvatarDirectoryDsa\s*\/>/);
+  assert.match(native, /<SelfWardrobeDetail/);
+  assert.match(native, /canView=\{grants\.has\("pinoria\.self\.item\.view"\)\}/);
+  assert.match(native, /canManage=\{grants\.has\("pinoria\.self\.item\.manage"\)\}/);
+  assert.match(native, /centerId=\{centerId\}/);
+  assert.doesNotMatch(nativePage+native, /SelfDirectoryTdd|createBoTddAdapter|SurfaceWorkspace/);
   assert.match(ui, /className="view-tabs"/);
   assert.match(ui, /className="secondary-btn"/);
   assert.match(ui, /<DrawerFrame title=/);
