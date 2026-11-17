@@ -10,6 +10,7 @@ import {TddRegistry,type Approval} from "@/lib/workspace-schema";
 import type {SlotLoaders} from "@/app/components/workspace-renderer/Slots";
 import {HoItemCalibration} from "@/app/components/pinoria-item/HoItemCalibration";
 import {HoItemCreate} from "./HoItemCreate";
+import {HoCheckInOverview} from "./HoCheckInOverview";
 import {HoItemVariants,HoItemMembers} from "./HoItemRelations";
 import {itemDefinition,itemFields,itemProvider,itemQuery,extensionVerifier} from "./schema";
 type F=typeof itemFields;
@@ -34,7 +35,7 @@ export function HoItemsTdd(){
  const content=error?<p role="alert">Không tải được Items. <button onClick={()=>{setError(false);setReady(null);setRetry(x=>x+1)}}>Thử lại</button></p>:
  ready?<section className="ho-pinoria-items" aria-label="Pinoria Items">
   {ready.adapter.context.authorize("pinoria.item.manage")?<HoItemCreate onCreated={()=>setGeneration(g=>g+1)}/>:null}
-  <SurfaceWorkspace key={generation} adapter={ready.adapter} navigation={ready.navigation} initialQuery={itemQuery} businessLoaders={loaders}/>
+  <SurfaceWorkspace key={generation} adapter={ready.adapter} navigation={ready.navigation} initialQuery={itemQuery} businessLoaders={loaders} drawerReadOnly detailProperties={(properties,context,_principalId,onSaved)=><HoCheckInOverview key={properties.record.id+":"+String(properties.record.revision)} properties={properties} context={context} onSaved={onSaved}/>}/>
  </section>:<p role="status">Đang tải Items được cấp quyền…</p>;
  return <HoWorkspace module="wardrobe" content={content}/>;
 }
