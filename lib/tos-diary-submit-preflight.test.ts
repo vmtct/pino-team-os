@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {prepareDiarySubmission} from "./tos-diary-submit-preflight";
+import {prepareDiarySubmission,prepareSpecialtyDiarySubmission} from "./tos-diary-submit-preflight";
 import {V18bCoreError,type V18bEligibleMissionsRead} from "./tos-classroom-v18b-api";
 import type {ClassroomV4ViewModel,ScheduledClass} from "./tos-classroom-v4-view-model";
 const day="2026-11-02",center="center-a",run="running-class-a",ctx=run+":"+day,student="student-a",other="student-b";
@@ -62,4 +62,30 @@ test("PAP-945 Assignment must exactly come from chosen Core eligibility item",()
 test("PAP-945 blank/missing submission key is never synthesized by preflight",()=>{
  fail(()=>prepareDiarySubmission({...input,submissionKey:""}),"DIARY_SUBMISSION_KEY_INVALID");
  fail(()=>prepareDiarySubmission({...input,submissionKey:" ".repeat(4)}),"DIARY_SUBMISSION_KEY_INVALID");
+});
+
+test("PAP-1497 Diary new selection accepts only explicitly available source rows",()=>{
+ const ready=eligibility.items.map(row=>({...row,available:true,lockReasons:[],
+  assignmentDefinitionEligible:true,assignmentDefinitionBlockReason:null}));
+ const locked={...ready[1]!,available:false,lockReasons:[{code:"NO_EFFECTIVE_SPECIALTY_GRANT"}]};
+ const all={...eligibility,items:[ready[0]!,locked]};
+ const scoped={...input,classroom:{...classroom,pathProgramId:all.pathProgramId},eligibility:all};
+ const result=prepareSpecialtyDiarySubmission(scoped);
+ assert.deepEqual(result.eligibleMissionIds,["mission-a"]);
+ fail(()=>prepareSpecialtyDiarySubmission({...scoped,selected:[{missionId:"mission-b"}]}),"DIARY_MISSION_NOT_ELIGIBLE");
+ fail(()=>prepareSpecialtyDiarySubmission({...scoped,selected:[{missionId:"mission-a",assignmentId:"wrong"}]}),"DIARY_ASSIGNMENT_MISMATCH");
+ assert.deepEqual(prepareDiarySubmission({...input,eligibility:all,selected:[{missionId:"mission-b"}]}).selected,[{missionId:"mission-b"}]);
+ fail(()=>prepareSpecialtyDiarySubmission({...scoped,eligibility:{...all,items:ready},selected:[{missionId:"mission-b"}]}),"DIARY_MISSION_NOT_ELIGIBLE");
+ fail(()=>prepareSpecialtyDiarySubmission({...scoped,classroom:{...classroom,pathProgramId:"wrong"}}),"DIARY_SCOPE_MISMATCH");
+});
+test("PAP-1497 Diary rejects legacy, mixed, contradictory or incomplete new selection evidence",()=>{
+ const ready={...eligibility.items[0]!,available:true,lockReasons:[],
+  assignmentDefinitionEligible:true,assignmentDefinitionBlockReason:null};
+ for(const items of [eligibility.items,[ready,eligibility.items[1]!],
+  [{...ready,assignmentDefinitionEligible:false,assignmentDefinitionBlockReason:"MISSION_INELIGIBLE"}],
+  [{...ready,lockReasons:[{code:"NO_EFFECTIVE_SPECIALTY_GRANT"}]}]]){
+  fail(()=>prepareSpecialtyDiarySubmission({...input,eligibility:{...eligibility,items}}),"DIARY_SPECIALTY_ELIGIBILITY_UNVERIFIED");
+ }
+ fail(()=>prepareSpecialtyDiarySubmission({...input,eligibility:{...eligibility,items:[ready],hasMore:true}}),"DIARY_ELIGIBILITY_INCOMPLETE");
+ fail(()=>prepareDiarySubmission({...input,eligibility:{...eligibility,hasMore:true}}),"DIARY_ELIGIBILITY_INCOMPLETE");
 });

@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {blankWorldDraft,worldDrawerModule,worldCreateEditable,setWorldDraft,worldCreatePayload,assertWorldCreated} from "./world-drawer-contract";
+import {blankWorldDraft,worldDrawerModule,worldCreateDrawerModule,worldCreateEditable,setWorldDraft,worldCreatePayload,assertWorldCreated} from "./world-drawer-contract";
 const draft=()=>({...blankWorldDraft(),name:" Chromia ",key:"chromia",worldType:"CORE"});
-test("exact approved Create View schema, three editable fields",()=>{assert.equal(worldDrawerModule.fields.length,11);assert.deepEqual(worldDrawerModule.fields.filter(worldCreateEditable).map(x=>x.key),["name","worldType","key"]);assert(worldDrawerModule.fields.every(x=>x.readonly));});
+test("exact approved Create View schema, three editable fields",()=>{assert.equal(worldCreateDrawerModule.label,"World");assert.equal(worldDrawerModule.label,"Danh mục thế giới");assert.strictEqual(worldCreateDrawerModule.fields,worldDrawerModule.fields);assert.equal(worldDrawerModule.fields.length,11);assert.deepEqual(worldDrawerModule.fields.filter(worldCreateEditable).map(x=>x.key),["name","worldType","key"]);assert(worldDrawerModule.fields.every(x=>x.readonly));});
 test("default derived values are never authored",()=>{let d=blankWorldDraft();for(const k of ["id","status","sceneCount","layerCount","createdAt","createdByUser","updatedAt","updatedByUser"])assert.strictEqual(setWorldDraft(d,k,"forged"),d);assert.equal(d.status,"DRAFT");assert.equal(d.createdAt,null);assert.equal(d.createdByUser,"—");assert.equal(d.updatedByUser,"—");});
 test("payload exact whitelist, trimmed display name",()=>assert.deepEqual(worldCreatePayload({...draft(),id:"forged",status:"ACTIVE",description:"forged"}),{key:"chromia",displayName:"Chromia",worldType:"CORE",descriptionText:""}));
 test("approved key normalization",()=>assert.equal(worldCreatePayload({...draft(),key:" CHROMIA "}).key,"chromia"));

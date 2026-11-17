@@ -6,6 +6,7 @@ const field=(key:string,label:string,type:BoField["type"]="text",w=150):BoField=
 export const worldTypes=["CORE","SUMMER","SPECIAL","OTHER"] as const;
 export type WorldType=typeof worldTypes[number];
 export const worldDrawerModule:BoModule={label:"Danh mục thế giới",group:"Pinoria",fields:[field("name","World","text",220),{...field("worldType","Loại","select"),options:[...worldTypes]},field("status","Trạng thái","select"),field("sceneCount","Số cảnh","number"),field("layerCount","Số lớp","number"),field("key","Key"),field("id","ID","id"),field("createdAt","Created Time","datetime",185),field("createdByUser","Created By","text",180),field("updatedAt","Last Modified Time","datetime",185),field("updatedByUser","Last Modified By","text",190)]};
+export const worldCreateDrawerModule:BoModule={...worldDrawerModule,label:"World"};
 const createKeys=new Set(["name","key","worldType"]);
 export function worldCreateEditable(f:BoField):boolean{return createKeys.has(f.key);}
 export const blankWorldDraft=():BoRecord=>({id:"",name:"",worldType:"CORE",key:"",status:"DRAFT",sceneCount:0,layerCount:0,createdAt:null,createdByUser:"—",updatedAt:null,updatedByUser:"—"});

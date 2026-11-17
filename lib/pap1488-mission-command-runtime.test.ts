@@ -29,6 +29,7 @@ const original:TosMissionAssignmentRecord={
 const choice=(id:string,assignmentId:string|null=null)=>({
   missionId:id,code:"ART-1",name:"Sáng tạo",level:1,assignmentId,
   assignmentDefinitionEligible:true,assignmentDefinitionBlockReason:null as null,
+  available:true,lockReasons:[],
 });
 function setup(initial:TosMissionAssignmentRecord[]=[],withCandidate=true){
   const records=[...initial];const calls:string[]=[];
@@ -89,6 +90,28 @@ test("PAP-1488: incomplete eligibility or duplicate active Mission never writes"
  assert.equal(calls.some(c=>c.startsWith("create:")),false);
  mock.eligible=async()=>[{...choice(next),assignmentDefinitionEligible:undefined}];
  await assert.rejects(createTosMissionAssignmentVerified(scope,next,"pap1488-key-valid",mock));
+ assert.equal(calls.some(c=>c.startsWith("create:")),false);
+});
+
+test("PAP-1497: Specialty lock prevents new Assignment and replacement CANCEL even if definition is ready",async()=>{
+ const {mock,calls}=setup([original]);
+ mock.eligible=async()=>[{...choice(next),available:false,lockReasons:[{code:"NO_EFFECTIVE_SPECIALTY_GRANT"}]}];
+ const rows=await getTosMissionCommandChoices(scope,mock);
+ assert.equal(rows.length,1);assert.equal(rows[0]?.available,false);
+ await assert.rejects(createTosMissionAssignmentVerified(scope,next,"pap1497-create-0001",mock));
+ await assert.rejects(replaceTosMissionAssignmentVerified(scope,recordId,1,next,
+   "Đổi nhiệm vụ","pap1497-cancel-0001","pap1497-create-0002",mock));
+ assert.equal(calls.some(c=>c.startsWith("cancel:")||c.startsWith("create:")),false);
+});
+
+test("PAP-1497: incomplete legacy or contradictory projection fails closed before any write",async()=>{
+ const {mock,calls}=setup();
+ const {available,lockReasons,...legacy}=choice(mission);
+ void available;void lockReasons;
+ mock.eligible=async()=>[legacy];
+ await assert.rejects(createTosMissionAssignmentVerified(scope,mission,"pap1497-create-0001",mock));
+ mock.eligible=async()=>[{...choice(mission),available:true,lockReasons:[{code:"NO_EFFECTIVE_SPECIALTY_GRANT"}]}];
+ await assert.rejects(createTosMissionAssignmentVerified(scope,mission,"pap1497-create-0002",mock));
  assert.equal(calls.some(c=>c.startsWith("create:")),false);
 });
 
