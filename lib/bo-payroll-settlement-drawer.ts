@@ -100,6 +100,20 @@ export function validatedAdjustmentInput(amount:string,reason:string){
  return {amountMinor,reason:text};
 }
 
+/** Local draft estimate only; Core must authorize and compute the actual adjustment. */
+export function projectAdjustmentDraft(source:ReturnType<typeof settlementDrawerSource>,capability:unknown,centerId:string,amount:string,reason:string){
+ if(!verifiedFinancialCapabilities(capability,centerId).canManageSettlement||source.preview.centerId!==centerId||
+  source.period.status!=="ACTIVE"||source.frozen||!["DRAFT","PENDING"].includes(source.staff.status)||
+  !/^[a-f0-9]{64}$/.test(source.preview.sourceFingerprint))
+  throw Error("Không đủ điều kiện điều chỉnh thu nhập.");
+ const entry=validatedAdjustmentInput(amount,reason);
+ const current=source.preview.amountMinor,projected=current+entry.amountMinor;
+ if(!Number.isSafeInteger(current)||current<0||current>1_000_000_000_000||
+  !Number.isSafeInteger(projected)||projected<0||projected>1_000_000_000_000)
+  throw Error("Tổng thu nhập sau điều chỉnh phải không âm và trong giới hạn Core.");
+ return {...entry,currentAmountMinor:current,projectedAmountMinor:projected};
+}
+
 export function settlementDrawerHref(centerId:string,periodId:string,staffId:string){
  return "/bo/payroll-periods?"+new URLSearchParams({centerId,record:periodId,tab:"settlements",incomeDrawer:staffId});
 }

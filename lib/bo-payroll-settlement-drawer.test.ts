@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {settlementDrawerSource,settlementDrawerExceptions,pendingSettlementException,settlementReadiness,canReviewSettlementException,validatedAdjustmentInput,verifiedSettlementPreview,settlementExceptionDetail,settlementDrawerHref,settlementExceptionHref} from "./bo-payroll-settlement-drawer";
+import {settlementDrawerSource,settlementDrawerExceptions,pendingSettlementException,settlementReadiness,canReviewSettlementException,validatedAdjustmentInput,projectAdjustmentDraft,verifiedSettlementPreview,settlementExceptionDetail,settlementDrawerHref,settlementExceptionHref} from "./bo-payroll-settlement-drawer";
 import type {IncomePeriod} from "./bo-payroll-income-read";
 import type {NativeReviewedException} from "./bo-payroll-exceptions-read";
 const period={id:"period",name:"P",startDate:"2026-10-01",endDate:"2026-10-31",status:"ACTIVE" as const};
@@ -93,4 +93,17 @@ test("PAP-1956 adjustment input preserves exact signed VND and Core reason bound
  for(const bad of ["","0","-0","+0","1.2","1e3","1,000","1 000","1000000000001","-1000000000001","Infinity"])
   assert.throws(()=>validatedAdjustmentInput(bad,"abc"));
  for(const bad of [""," a ","x".repeat(501)])assert.throws(()=>validatedAdjustmentInput("100",bad));
+});
+
+test("PAP-1956 adjustment draft estimate enforces approved prototype nonnegative total and exact scope",()=>{
+ const src=settlementDrawerSource({...row,staff:{...row.staff,preview:{...preview,sourceFingerprint:"a".repeat(64)}}},"center","period","staff");
+ const rights={centerId:"center",canManageSettlement:true,canReviewExtraTime:false};
+ assert.deepEqual(projectAdjustmentDraft(src,rights,"center","-123","abc"),{amountMinor:-123,reason:"abc",currentAmountMinor:123,projectedAmountMinor:0});
+ assert.equal(projectAdjustmentDraft(src,rights,"center","+1","abc").projectedAmountMinor,124);
+ assert.throws(()=>projectAdjustmentDraft(src,rights,"center","-124","abc"));
+ assert.throws(()=>projectAdjustmentDraft(src,rights,"center","1000000000000","abc"));
+ assert.throws(()=>projectAdjustmentDraft(src,{...rights,centerId:"other"},"center","1","abc"));
+ assert.throws(()=>projectAdjustmentDraft(src,{...rights,canManageSettlement:false},"center","1","abc"));
+ assert.throws(()=>projectAdjustmentDraft({...src,frozen:true},rights,"center","1","abc"));
+ assert.throws(()=>projectAdjustmentDraft({...src,preview:{...src.preview,sourceFingerprint:"bad"}},rights,"center","1","abc"));
 });
