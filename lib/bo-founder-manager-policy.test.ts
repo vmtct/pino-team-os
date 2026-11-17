@@ -62,7 +62,7 @@ test("rejects wrong environment, host, origin, authentication, query, verb, revi
 });
 
 test("PAP-2065 exact revision2 expansion only on authenticated BO Staging",async()=>{
- const path=root+"/expand",v2="PAP-2065-OPERATIONAL-V2",body={policy:v2,expectedRevision:1};
+ const path=root+"/expand",v2="PAP-2065-OPERATIONAL-V2-PLT-ATTR-2090",body={policy:v2,expectedRevision:1};
  assert.equal(decideHostBoundary(host,"/api/bo/"+path,"POST").action,"next");
  for(const wrong of ["bo.pinohouse.art","ho.staging.pinohouse.art","tos.staging.pinohouse.art","localhost"])assert.equal(decideHostBoundary(wrong,"/api/bo/"+path,"POST").action,"not_found");
  for(const method of ["GET","PATCH","DELETE","PUT","OPTIONS"])assert.equal(decideHostBoundary(host,"/api/bo/"+path,method).action,"not_found");
@@ -72,7 +72,7 @@ test("PAP-2065 exact revision2 expansion only on authenticated BO Staging",async
   assert.equal(token,"synthetic-token");forwarded.push(req);return {status:200,body:{data:{revision:2,status:"active"}},requestId:"pap2065"};
  }}};
  const call=(b:unknown,opts:Parameters<typeof request>[2]={},e=env)=>handleBoWriteRequest(request(path,b,opts),e,path);
- for(const invalid of [{...body,policy},{...body,expectedRevision:0},{...body,expectedRevision:2},{...body,expectedRevision:"1"},{...body,permissionKeys:["*"]},{...body,roleId:"forged"}])assert.equal((await call(invalid)).status,400);
+ for(const invalid of [{...body,policy},{...body,policy:"PAP-2065-OPERATIONAL-V2"},{...body,expectedRevision:0},{...body,expectedRevision:2},{...body,expectedRevision:"1"},{...body,permissionKeys:["*"]},{...body,roleId:"forged"}])assert.equal((await call(invalid)).status,400);
  assert.equal((await call(body,{origin:"https://attacker.invalid"})).status,403);
  assert.equal((await call(body,{auth:false})).status,401);
  assert.equal((await call(body,{query:"?roleId=forged"})).status,404);
