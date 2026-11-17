@@ -138,6 +138,8 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   if (/^\/bo\/tvs(?:\/|$)/i.test(pathname)) return { action: "not_found" };
   // PAP-1385 / PNR-TV: only logical visibility GET/PATCH, Founder HO Staging.
   // The private BFF and Core still enforce Founder, selected-Center, CAS and audit.
+  if(pathname==="/api/ho/pinoria/worlds"||pathname.startsWith("/api/ho/pinoria/worlds/"))
+    return {action:hostname===HO_STAGING_HOSTNAME&&pathname==="/api/ho/pinoria/worlds"&&(method==="GET"||method==="POST")?"next":"not_found"};
   if(pathname.startsWith("/api/ho/pinoria/tv-policies/visibility"))
     return {action:hostname===HO_STAGING_HOSTNAME&&isHoTvVisibilityRequest(pathname,method)?"next":"not_found"};
   // PAP-1418 / PNR-TV: all other TV paths remain exact read-only.

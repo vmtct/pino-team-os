@@ -1,0 +1,12 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {blankWorldDraft,worldDrawerModule,worldCreateEditable,setWorldDraft,worldCreatePayload,assertWorldCreated} from "./world-drawer-contract";
+const draft=()=>({...blankWorldDraft(),name:" Chromia ",key:"chromia",worldType:"CORE"});
+test("exact approved Create View schema, three editable fields",()=>{assert.equal(worldDrawerModule.fields.length,11);assert.deepEqual(worldDrawerModule.fields.filter(worldCreateEditable).map(x=>x.key),["name","worldType","key"]);assert(worldDrawerModule.fields.every(x=>x.readonly));});
+test("default derived values are never authored",()=>{let d=blankWorldDraft();for(const k of ["id","status","sceneCount","layerCount","createdAt","createdByUser","updatedAt","updatedByUser"])assert.strictEqual(setWorldDraft(d,k,"forged"),d);assert.equal(d.status,"DRAFT");assert.equal(d.createdAt,null);assert.equal(d.createdByUser,"—");assert.equal(d.updatedByUser,"—");});
+test("payload exact whitelist, trimmed display name",()=>assert.deepEqual(worldCreatePayload({...draft(),id:"forged",status:"ACTIVE",description:"forged"}),{key:"chromia",displayName:"Chromia",worldType:"CORE",descriptionText:""}));
+test("approved key normalization",()=>assert.equal(worldCreatePayload({...draft(),key:" CHROMIA "}).key,"chromia"));
+test("invalid names",()=>{for(const n of [" ","a".repeat(141)])assert.throws(()=>worldCreatePayload({...draft(),name:n}));});
+test("invalid keys",()=>{for(const k of ["x","foo.bar","foo_bar","foo bar","-world","x".repeat(65)])assert.throws(()=>worldCreatePayload({...draft(),key:k}));});
+test("world type enum fail closed",()=>{for(const kind of ["CORE","SUMMER","SPECIAL","OTHER"])assert.equal(worldCreatePayload({...draft(),worldType:kind}).worldType,kind);assert.throws(()=>worldCreatePayload({...draft(),worldType:"UNKNOWN"}));});
+test("readback exact server result required",()=>{const p=worldCreatePayload(draft()),r={...draft(),id:"019d1000-0001-7000-8000-000000000001",name:"Chromia"};assert.doesNotThrow(()=>assertWorldCreated(r,p));for(const delta of [{id:"fake"},{status:"ACTIVE"},{key:"wrong"},{sceneCount:1},{name:"other"}])assert.throws(()=>assertWorldCreated({...r,...delta},p));});
