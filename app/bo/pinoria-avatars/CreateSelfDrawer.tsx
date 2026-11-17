@@ -166,7 +166,7 @@ export function CreateSelfDrawer({centerId,onClose,onCreated}:{centerId:string;o
  const draft:BoRecord={id:"",name:inputValue,nickname,createdAt:null,createdBy:null,updatedAt:null,updatedBy:null};
  const personPicker=(
      <div className={styles.picker}>
-      <input id="ps-create-person" ref={inputRef} autoFocus type="text" role="combobox"
+      <input id="ps-create-person" ref={inputRef} type="text" role="combobox"
        aria-autocomplete="list" aria-expanded={open} aria-controls={listId}
        aria-activedescendant={open&&visibleMatches[active]?listId+"-"+active:undefined}
        aria-describedby="ps-create-person-hint" aria-invalid={!!inputValue&&!person}
@@ -228,7 +228,7 @@ export function CreateSelfDrawer({centerId,onClose,onCreated}:{centerId:string;o
     </select>
    </div>
    {starterLoading?<p role="status" className="pino-avatar-hint">Đang tải Starter Set…</p>:null}
-   {starterError?<p role="status" className="pino-avatar-hint">{starterError} <button type="button" onClick={()=>setCatalogRetry(n=>n+1)} disabled={saving}>Thử lại</button></p>:null}
+   {starterError?<p role="status" className="pino-avatar-hint">{starterError} <button type="button" onClick={e=>{ /* PAP-2108: the focused retry button unmounts as loading begins. */ if(document.activeElement===e.currentTarget)nicknameRef.current?.focus();setCatalogRetry(n=>n+1); }} disabled={saving}>Thử lại</button></p>:null}
    <p className="pino-avatar-hint">Nickname không đổi tên Person. Starter Set được nhận một lần và trang bị từng Item; có thể chọn sau.</p>
    <PropertySections variant="drawer" fields={auditFields} record={draft} sections={avatarSections}/>
    {error?<p className="pino-avatar-error" role="alert">{error}</p>:null}
