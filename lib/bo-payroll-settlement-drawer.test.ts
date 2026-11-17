@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {settlementDrawerSource,settlementDrawerExceptions,pendingSettlementException,settlementReadiness,verifiedSettlementPreview,settlementExceptionDetail,settlementDrawerHref,settlementExceptionHref} from "./bo-payroll-settlement-drawer";
+import {settlementDrawerSource,settlementDrawerExceptions,pendingSettlementException,settlementReadiness,canReviewSettlementException,verifiedSettlementPreview,settlementExceptionDetail,settlementDrawerHref,settlementExceptionHref} from "./bo-payroll-settlement-drawer";
 import type {IncomePeriod} from "./bo-payroll-income-read";
 import type {NativeReviewedException} from "./bo-payroll-exceptions-read";
 const period={id:"period",name:"P",startDate:"2026-10-01",endDate:"2026-10-31",status:"ACTIVE" as const};
@@ -72,4 +72,16 @@ test("PAP-1956 fresh Core preview must retain exact selected source before confi
  for(const bad of [{...fresh,centerId:"other"},{...fresh,staffMemberId:"other"},{...fresh,periodVersion:2},{...fresh,amountMinor:124},{...fresh,sourceFingerprint:"b".repeat(64)},{...fresh,warnings:["EXTRA_TIME_PENDING:2026-10-02:1"]}])
   assert.throws(()=>verifiedSettlementPreview(source,bad),/tải lại/);
  assert.throws(()=>verifiedSettlementPreview({...source,frozen:true},fresh),/tải lại/);
+});
+
+test("PAP-1956 integrated review eligibility is exact Center, PTE, request and pending state",()=>{
+ const source=settlementDrawerSource(row,"center","period","staff");
+ const rights={centerId:"center",canManageSettlement:false,canReviewExtraTime:true};
+ assert.equal(canReviewSettlementException(source,rights,"center","r1",request),true);
+ for(const invalid of [{...request,id:"other"},{...request,centerId:"other"},{...request,staffMemberId:"other"},{...request,workDate:"2026-11-01"},{...request,status:"WITHDRAWN" as const}])
+  assert.equal(canReviewSettlementException(source,rights,"center","r1",invalid),false);
+ assert.equal(canReviewSettlementException(source,{...rights,canReviewExtraTime:false},"center","r1",request),false);
+ assert.equal(canReviewSettlementException(source,{...rights,centerId:"other"},"center","r1",request),false);
+ assert.equal(canReviewSettlementException({...source,frozen:true},rights,"center","r1",request),false);
+ assert.equal(canReviewSettlementException({...source,period:{...source.period,status:"ARCHIVED"}},rights,"center","r1",request),false);
 });

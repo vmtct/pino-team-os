@@ -81,6 +81,14 @@ export function verifiedSettlementPreview(source:ReturnType<typeof settlementDra
  throw Error("Dữ liệu quyết toán đã thay đổi hoặc chưa đủ điều kiện. Vui lòng tải lại.");
  return next;
 }
+/** Advisory action eligibility, never a substitute for Core's authenticated ACL. */
+export function canReviewSettlementException(source:ReturnType<typeof settlementDrawerSource>,capability:unknown,centerId:string,requestId:string,row:NativeReviewedException){
+ return verifiedFinancialCapabilities(capability,centerId).canReviewExtraTime&&source.preview.centerId===centerId&&
+  source.period.status==="ACTIVE"&&!source.frozen&&["DRAFT","PENDING"].includes(source.staff.status)&&
+  row.id===requestId&&row.centerId===centerId&&row.staffMemberId===source.staff.staffMemberId&&
+  row.workDate>=source.period.startDate&&row.workDate<=source.period.endDate&&row.status==="PENDING"&&row.decision===null;
+}
+
 export function settlementDrawerHref(centerId:string,periodId:string,staffId:string){
  return "/bo/payroll-periods?"+new URLSearchParams({centerId,record:periodId,tab:"settlements",incomeDrawer:staffId});
 }
