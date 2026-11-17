@@ -40,16 +40,18 @@ export function parseBoWishDetail(raw:unknown,centerId:string,eventId:string){
  return {...event,outcomes};
 }
 export type BoWishDetail=ReturnType<typeof parseBoWishDetail>;
+export const wishImmutableIdentity=(e:BoWishDetail)=>JSON.stringify([e.eventId,e.centerId,e.learnerId,e.selfId,e.visitId,e.actorUserId,e.createdAt,e.policyRevisionId,e.bannerRevisionId,e.familyId,e.count,e.unitCost,e.spent,e.balanceBefore,e.balanceAfter,e.highestRarity,e.outcomes.map(o=>[o.ordinal,o.itemId,o.itemRevision,o.rarity,o.duplicate,o.grantEventId,o.provenance])]);
 // Impact summary is advisory only; Core revalidates dependencies atomically.
 export function prepareWishInvalidation(event:BoWishDetail,reason:string,key:string=crypto.randomUUID()){
  if(event.status!=="COMMITTED"||key!==key.trim()||!key||key.length>256)return fail();
  const body=Object.freeze({eventId:event.eventId,centerId:event.centerId,reason:text(reason.trim(),1000)});
- return Object.freeze({key,body,expectedRefund:event.spent,affectedGrants:Object.freeze(event.outcomes.filter(o=>!o.duplicate).map(o=>o.grantEventId))});
+ return Object.freeze({key,body,originalIdentity:wishImmutableIdentity(event),expectedRefund:event.spent,affectedGrants:Object.freeze(event.outcomes.filter(o=>!o.duplicate).map(o=>o.grantEventId))});
 }
-export function confirmWishInvalidation(attempt:ReturnType<typeof prepareWishInvalidation>,receipt:unknown,readback:unknown){
+export function confirmWishInvalidation(attempt:ReturnType<typeof prepareWishInvalidation>,receipt:unknown,readback:unknown,original:BoWishDetail){
  const r=object(receipt);
  if(id(r.eventId)!==attempt.body.eventId||integer(r.refund)!==attempt.expectedRefund||r.reason!==attempt.body.reason||typeof r.replayed!=="boolean")return fail();
  const detail=parseBoWishDetail(readback,attempt.body.centerId,attempt.body.eventId);
  if(detail.status!=="INVALIDATED"||detail.reversalReason!==attempt.body.reason||detail.spent!==attempt.expectedRefund)return fail();
+ if(wishImmutableIdentity(detail)!==attempt.originalIdentity||wishImmutableIdentity(original)!==attempt.originalIdentity||JSON.stringify(detail.outcomes.filter(o=>!o.duplicate).map(o=>o.grantEventId))!==JSON.stringify(attempt.affectedGrants))return fail();
  return detail;
 }

@@ -4,7 +4,8 @@ type Scope="policy"|"banner";
 type Base={name:string;actorUserId:string;createdAt:string};
 type Draft<T>=Base&{version:number;basePointerVersion:number;value:T};
 type Published<T>=Base&{id:string;sequence:number;value:T};
-export type WishConfigHead<T>=Readonly<{recordId:string;pointerVersion:number;active:boolean;published:Published<T>|null;latestDraft:Draft<T>|null;pendingDraft:Draft<T>|null;staleDraft:boolean}>;
+export type WishConfigAudit=Readonly<{createdAt:string;updatedAt:string;createdByUserId:string;updatedByUserId:string;createdByUser:string|null;updatedByUser:string|null}>;
+export type WishConfigHead<T>=Readonly<{audit:WishConfigAudit|null;recordId:string;pointerVersion:number;active:boolean;published:Published<T>|null;latestDraft:Draft<T>|null;pendingDraft:Draft<T>|null;staleDraft:boolean}>;
 const invalid=():never=>{throw Error("Dữ liệu cấu hình Wish không hợp lệ hoặc đã thay đổi.");};
 function object(v:unknown):JsonRecord{if(!v||typeof v!=="object"||Array.isArray(v))return invalid();return v as JsonRecord;}
 function id(v:unknown):string{if(typeof v!=="string"||!/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(v))return invalid();return v;}
@@ -14,7 +15,29 @@ function flag(v:unknown):boolean{if(typeof v!=="boolean")return invalid();return
 function iso(v:unknown):string{if(typeof v!=="string"||!Number.isFinite(Date.parse(v))||new Date(v).toISOString()!==v)return invalid();return v;}
 function json(v:unknown):unknown{if(typeof v!=="string")return invalid();try{return JSON.parse(v) as unknown;}catch{return invalid();}}
 function finite(v:unknown,min:number,max:number):number{if(typeof v!=="number"||!Number.isFinite(v)||v<min||v>max)return invalid();return v;}
-export type PolicyValue={centerId:string;cost:number;definition:{rates:[number,number,number];hard4:number;hard5:number;soft5:number;curve:{position:number;rate:number}[];featuredGuarantee:boolean}};
+export type WishRevealMedia=Readonly<{"3":string|null;"4":string|null;"5":string|null}>;
+function media(v:unknown):WishRevealMedia{
+ const r=object(v);
+ if(Object.keys(r).length!==3||!["3","4","5"].every(k=>Object.hasOwn(r,k)))return invalid();
+ function url(x:unknown):string|null{
+  if(x===null)return null;
+  if(typeof x!=="string"||x!==x.trim()||x.length>2048)return invalid();
+  let u:URL;try{u=new URL(x);}catch{return invalid();}
+  if(u.origin!=="https://assets.pinohouse.art"||u.username||u.password||u.search||u.hash||u.href!==x||!/^\/[A-Za-z0-9_/-]+\.(mp4|webm)$/i.test(u.pathname))return invalid();
+  return x;
+ }
+ return {"3":url(r["3"]),"4":url(r["4"]),"5":url(r["5"])};
+}
+function audit(r:JsonRecord):WishConfigAudit|null{
+ const keys=["createdAt","updatedAt","createdByUserId","updatedByUserId","createdByUser","updatedByUser"];
+ if(!keys.some(k=>Object.hasOwn(r,k)))return null;
+ if(!keys.every(k=>Object.hasOwn(r,k)))return invalid();
+ const name=(v:unknown)=>v===null?null:text(v,512);
+ const createdAt=iso(r.createdAt),updatedAt=iso(r.updatedAt);
+ if(updatedAt<createdAt)return invalid();
+ return {createdAt,updatedAt,createdByUserId:id(r.createdByUserId),updatedByUserId:id(r.updatedByUserId),createdByUser:name(r.createdByUser),updatedByUser:name(r.updatedByUser)};
+}
+export type PolicyValue={centerId:string;cost:number;definition:{rates:[number,number,number];hard4:number;hard5:number;soft5:number;curve:{position:number;rate:number}[];featuredGuarantee:boolean;media?:WishRevealMedia}};
 export type BannerPoolItem={itemId:string;revision:number;weight:number;featured:boolean};
 export type BannerValue={bannerId:string;centerId:string|null;familyId:string;startsAt:string;endsAt:string;pool:readonly (BannerPoolItem&{rarity?:3|4|5})[]};
 function policy(r:JsonRecord,recordId:string):PolicyValue{
@@ -27,7 +50,8 @@ function policy(r:JsonRecord,recordId:string):PolicyValue{
  let prior=parsed[2];
  const curve=d.curve.map((v,i)=>{const s=object(v),position=integer(s.position,1),rate=finite(s.rate,0,1);if(position!==soft5+i||rate<prior)return invalid();prior=rate;return {position,rate};});
  if(prior!==1)return invalid();
- return {centerId:recordId,cost:integer(r.unit_cost,1,1000000),definition:{rates:parsed,hard4,hard5,soft5,curve,featuredGuarantee:flag(d.featuredGuarantee)}};
+ const reveal=Object.hasOwn(d,"media")?media(d.media):null;
+ return {centerId:recordId,cost:integer(r.unit_cost,1,1000000),definition:{rates:parsed,hard4,hard5,soft5,curve,featuredGuarantee:flag(d.featuredGuarantee),...(reveal&&Object.values(reveal).some(v=>v!==null)?{media:reveal}:{})}};
 }
 function banner(r:JsonRecord,recordId:string,published:boolean):BannerValue{
  if(id(r.banner_id)!==recordId)return invalid();
@@ -47,7 +71,7 @@ function parse<T>(raw:unknown,recordValue:(r:JsonRecord,id:string,published:bool
  const latestDraft=draft(r.latestDraft),pendingDraft=draft(r.pendingDraft);
  const published=r.published===null?null:(()=>{const p=object(r.published);return {...base(p),id:id(p.id),sequence:integer(p.sequence,1),value:recordValue(p,recordId,true)};})();
  if((pointerVersion===0&&!pendingDraft)||(pointerVersion===0)!==(published===null)||active&&!published||!latestDraft||latestDraft.basePointerVersion>pointerVersion||pendingDraft&&JSON.stringify(pendingDraft)!==JSON.stringify(latestDraft)||staleDraft!==!!(pendingDraft&&pendingDraft.basePointerVersion!==pointerVersion))return invalid();
- return {recordId,pointerVersion,active,published,latestDraft,pendingDraft,staleDraft};
+ return {audit:audit(r),recordId,pointerVersion,active,published,latestDraft,pendingDraft,staleDraft};
 }
 export const parsePolicyHead=(raw:unknown)=>parse(raw,policy);
 export const parseBannerHead=(raw:unknown)=>parse(raw,banner);
@@ -92,5 +116,24 @@ export function confirmSavedWishDraft(command:SaveDraft,receipt:unknown,readback
  const {name: _name,expectedDraftVersion: _draft,expectedPointerVersion: _pointer,...value}=body;
  void _name;void _draft;void _pointer;
  if(JSON.stringify(h.pendingDraft.value)!==JSON.stringify(value))return invalid();
+ return h;
+}
+
+/** Verify immutable publication/retirement against the exact captured head and actual Core readback. */
+export type WishLifecycleCommand=ReturnType<typeof publishWishDraft>|ReturnType<typeof retireWishRevision>;
+export function confirmWishLifecycle(command:WishLifecycleCommand,before:WishConfigHead<PolicyValue>|WishConfigHead<BannerValue>,receipt:unknown,readback:unknown){
+ const r=object(receipt),b=command.body,isPolicy=command.action==="publishPolicy"||command.action==="retirePolicy";
+ const key=isPolicy?"centerId":"bannerId",recordId="centerId" in b?b.centerId:b.bannerId;
+ const version=integer(r.version,1),revisionId=id(r.revisionId);
+ if(recordId!==before.recordId||id(r[key])!==recordId||version!==b.expectedPointerVersion+1||before.pointerVersion!==b.expectedPointerVersion)return invalid();
+ const h=isPolicy?parsePolicyHead(readback):parseBannerHead(readback);
+ if(h.recordId!==recordId||h.pointerVersion!==version||!h.published||h.published.id!==revisionId)return invalid();
+ const strip=(v:PolicyValue|BannerValue)=>"pool" in v?{...v,pool:v.pool.map(i=>({itemId:i.itemId,revision:i.revision,weight:i.weight,featured:i.featured}))}:v;
+ if("draftVersion" in b){
+  const p=before.pendingDraft;
+  if(!p||before.staleDraft||p.version!==b.draftVersion||p.basePointerVersion!==before.pointerVersion||!h.active||h.pendingDraft!==null||h.staleDraft||h.latestDraft?.version!==p.version||h.published.sequence!==(before.published?.sequence??0)+1||h.published.name!==p.name||revisionId===before.published?.id||JSON.stringify(strip(h.published.value))!==JSON.stringify(strip(p.value)))return invalid();
+ }else{
+  if(!before.active||!before.published||b.revisionId!==before.published.id||revisionId!==b.revisionId||r.active!==false||h.active||JSON.stringify(h.published)!==JSON.stringify(before.published))return invalid();
+ }
  return h;
 }

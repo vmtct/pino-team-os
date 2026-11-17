@@ -29,8 +29,10 @@ test("invalidation exact refund, immutable reason, committed readback and no dou
  assert.deepEqual(attempt.affectedGrants,[id(11)]);assert.equal(attempt.expectedRefund,20);
  const receipt={eventId:id(1),refund:20,reason:"QA reason",replayed:false};
  const reversed={...detail,status:"INVALIDATED",reversedAt:"2026-11-17T00:01:00.000Z",reversedBy:id(12),reversalReason:"QA reason"};
- assert.equal(confirmWishInvalidation(attempt,receipt,reversed).status,"INVALIDATED");
- assert.throws(()=>confirmWishInvalidation(attempt,{...receipt,refund:19},reversed));
- assert.throws(()=>confirmWishInvalidation(attempt,receipt,detail));
+ assert.equal(confirmWishInvalidation(attempt,receipt,reversed,parseBoWishDetail(detail,id(4),id(1))).status,"INVALIDATED");
+ assert.throws(()=>confirmWishInvalidation(attempt,{...receipt,refund:19},reversed,parseBoWishDetail(detail,id(4),id(1))));
+ assert.throws(()=>confirmWishInvalidation(attempt,receipt,detail,parseBoWishDetail(detail,id(4),id(1))));
+ assert.throws(()=>confirmWishInvalidation(attempt,receipt,{...reversed,actorUserId:id(99)},parseBoWishDetail(detail,id(4),id(1))));
+ assert.throws(()=>confirmWishInvalidation(attempt,receipt,{...reversed,outcomes:[{...first,item_revision:2},{...second,item_revision:2}]},parseBoWishDetail(detail,id(4),id(1))));
  assert.throws(()=>prepareWishInvalidation(parseBoWishDetail(reversed,id(4),id(1)),"Again","other"));
 });
