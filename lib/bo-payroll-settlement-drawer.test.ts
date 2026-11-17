@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {settlementDrawerSource,settlementDrawerExceptions,pendingSettlementException,settlementReadiness,canReviewSettlementException,verifiedSettlementPreview,settlementExceptionDetail,settlementDrawerHref,settlementExceptionHref} from "./bo-payroll-settlement-drawer";
+import {settlementDrawerSource,settlementDrawerExceptions,pendingSettlementException,settlementReadiness,canReviewSettlementException,validatedAdjustmentInput,verifiedSettlementPreview,settlementExceptionDetail,settlementDrawerHref,settlementExceptionHref} from "./bo-payroll-settlement-drawer";
 import type {IncomePeriod} from "./bo-payroll-income-read";
 import type {NativeReviewedException} from "./bo-payroll-exceptions-read";
 const period={id:"period",name:"P",startDate:"2026-10-01",endDate:"2026-10-31",status:"ACTIVE" as const};
@@ -84,4 +84,13 @@ test("PAP-1956 integrated review eligibility is exact Center, PTE, request and p
  assert.equal(canReviewSettlementException(source,{...rights,centerId:"other"},"center","r1",request),false);
  assert.equal(canReviewSettlementException({...source,frozen:true},rights,"center","r1",request),false);
  assert.equal(canReviewSettlementException({...source,period:{...source.period,status:"ARCHIVED"}},rights,"center","r1",request),false);
+});
+
+test("PAP-1956 adjustment input preserves exact signed VND and Core reason bounds without a transport",()=>{
+ assert.deepEqual(validatedAdjustmentInput("+1200","  Bổ sung  "),{amountMinor:1200,reason:"Bổ sung"});
+ assert.deepEqual(validatedAdjustmentInput("-1200","Điều chỉnh"),{amountMinor:-1200,reason:"Điều chỉnh"});
+ assert.equal(validatedAdjustmentInput("1000000000000","abc").amountMinor,1000000000000);
+ for(const bad of ["","0","-0","+0","1.2","1e3","1,000","1 000","1000000000001","-1000000000001","Infinity"])
+  assert.throws(()=>validatedAdjustmentInput(bad,"abc"));
+ for(const bad of [""," a ","x".repeat(501)])assert.throws(()=>validatedAdjustmentInput("100",bad));
 });

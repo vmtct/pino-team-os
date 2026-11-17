@@ -89,6 +89,17 @@ export function canReviewSettlementException(source:ReturnType<typeof settlement
   row.workDate>=source.period.startDate&&row.workDate<=source.period.endDate&&row.status==="PENDING"&&row.decision===null;
 }
 
+/** Product input validation only. No transport or permission decision. VND is an integer unit. */
+export function validatedAdjustmentInput(amount:string,reason:string){
+ const signed=amount.trim(),text=reason.trim();
+ if(!/^[+-]?[0-9]{1,13}$/.test(signed))throw Error("Số tiền điều chỉnh phải là số nguyên có dấu.");
+ const amountMinor=Number(signed);
+ if(!Number.isSafeInteger(amountMinor)||amountMinor===0||Math.abs(amountMinor)>1_000_000_000_000)
+  throw Error("Số tiền điều chỉnh không hợp lệ.");
+ if(text.length<3||text.length>500)throw Error("Lý do phải từ 3 đến 500 ký tự.");
+ return {amountMinor,reason:text};
+}
+
 export function settlementDrawerHref(centerId:string,periodId:string,staffId:string){
  return "/bo/payroll-periods?"+new URLSearchParams({centerId,record:periodId,tab:"settlements",incomeDrawer:staffId});
 }
