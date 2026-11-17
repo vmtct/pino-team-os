@@ -1,8 +1,4 @@
-/* PAP-2119: feature-local private photo preview + existing BO Full Detail profile. */
+/* PAP-2119: layout only; canonical BO media and Full Detail own presentation. */
 .gallery { display: grid; gap: 16px; min-width: 0; }
-.gallery > article { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; min-width: 0; }
-.gallery > article > h3, .gallery > article > p { margin: 0; overflow-wrap: anywhere; }
-.photoPreview { display: block; width: min(100%, 320px); aspect-ratio: 4 / 3; object-fit: contain; border: 1px solid #eceaf2; border-radius: 8px; background: #f6f5f8; box-sizing: border-box; }
-.detail { min-width: 0; }
-.detail [role="tablist"] { flex-wrap: wrap; column-gap: 16px; row-gap: 0; }
-.detail [role="tab"] { white-space: normal; overflow-wrap: anywhere; }
+.round { display: grid; gap: 8px; min-width: 0; }
+.photoPreview { width: 100%; max-width: 320px; }

@@ -6,7 +6,6 @@ import {useBoCenterSelection} from "@/app/bo/components/registration/BoCenterSel
 import {openingEvidenceApi,newReviewRequestKey,type OpeningEvidenceRow,type EvidenceDetail,type SubjectType} from "@/lib/bo-opening-evidence-api";
 import {evidenceProperties,evidenceTime,detailHref,statusLabels,subjectLabels} from "../../OpeningEvidenceStageGate";
 import {OpeningEvidenceGallery} from "../../OpeningEvidenceGallery";
-import styles from "../../OpeningEvidencePresentation.module.css";
 
 function Review({row,onSaved}:{row:OpeningEvidenceRow;onSaved:()=>void}){
   const [reason,setReason]=useState(""),[busy,setBusy]=useState(false),[message,setMessage]=useState("");
@@ -49,7 +48,7 @@ function DetailScope({centerId,subjectType,receiptId,activeTab}:{centerId:string
   if(!data)return <p role="status">Đang tải bằng chứng…</p>;
   const {row,history}=data;
   const reload=()=>{setData(null);setRefresh(v=>v+1);};
-  return <div className={styles.detail}><BoFullDetail designVariant="business-v25" title={row.subjectLabel} description={subjectLabels[row.subjectType]}
+  return <BoFullDetail designVariant="business-v25" title={row.subjectLabel} description={subjectLabels[row.subjectType]}
     currentUrl={detailHref(row)} returnTo={"/bo/opening-evidence?centerId="+encodeURIComponent(centerId)}
     activeTab={activeTab} tabs={[
       {id:"overview",label:"Tổng quan",content:<BoProperties items={evidenceProperties(row)}/>},
@@ -66,5 +65,5 @@ function DetailScope({centerId,subjectType,receiptId,activeTab}:{centerId:string
           {key:"reason",label:e.kind==="SUBMISSION"?"Ghi chú":"Lý do",value:(e.kind==="SUBMISSION"?e.note:e.reason)||"—"},
         ]}/></article>)}
       </section>},
-    ]}/></div>;
+    ]}/>;
 }
