@@ -1,5 +1,6 @@
 "use client";
 import {useEffect,useState} from "react";
+import styles from "./OpeningEvidencePresentation.module.css";
 import {openingEvidenceApi,type OpeningEvidenceRow,type EvidenceDetail} from "@/lib/bo-opening-evidence-api";
 
 function PhotoPreview({row,assetId}:{row:OpeningEvidenceRow;assetId:string}){
@@ -13,12 +14,12 @@ function PhotoPreview({row,assetId}:{row:OpeningEvidenceRow;assetId:string}){
   },[row,assetId]);
   // Private object URL from a checked same-origin response, never a public bucket URL.
   // eslint-disable-next-line @next/next/no-img-element
-  return url?<img src={url} alt="Ảnh setup" style={{maxWidth:"100%",maxHeight:320,objectFit:"contain"}}/>:<p role="status">{error||"Đang tải ảnh…"}</p>;
+  return url?<img src={url} alt="Ảnh setup" className={styles.photoPreview}/>:<p role="status">{error||"Đang tải ảnh…"}</p>;
 }
 /** PAP-764/PAP-767: the same scoped private gallery in Quick Drawer and Full Detail. */
 export function OpeningEvidenceGallery({data,formatTime}:{data:EvidenceDetail;formatTime:(value:string)=>string}){
   const {row,history}=data;
-  return <section aria-label="Ảnh setup">
+  return <section className={styles.gallery} aria-label="Ảnh setup">
     {history.filter(e=>e.kind==="SUBMISSION"&&e.privateAssetId).map(e=><article key={e.eventId}>
       <h3>Vòng {e.version}</h3><p>{e.actorLegalFullName??"—"} · {formatTime(e.occurredAt)}</p>
       {e.note?<p>Ghi chú: {e.note}</p>:null}
