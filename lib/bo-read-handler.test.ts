@@ -211,3 +211,22 @@ test("PAP-1886: Afterschool directory forwards bounded pagination and requires C
   scopeCenterId = afterParentId;
   assert.equal((await read(query)).status, 502);
 });
+
+ test("PAP-1886 History forwards authenticated exact selected Center GET and rejects malformed Core data",async()=>{
+  const centerId="01a0b29a-3acd-7a18-a0f2-cf6016548ab5",parentId="01a0b29a-3acd-7a18-a0f2-cf6016548ab6";
+  const path="identity/afterschool-users/"+parentId+"/history";
+  const forwarded:BoAccessRequest[]=[];
+  let data:unknown={events:[],nextCursor:null};
+  const binding:BoAccessCoreBinding={async executeWithStaffPassword(request){forwarded.push(request);return {status:200,body:{data},requestId:"history"};}};
+  const call=(query:string,method="GET",authenticated=true,host="bo.staging.pinohouse.art")=>handleBoOperationalReadRequest(new Request("https://"+host+"/api/bo/"+path+query,{method,headers:authenticated?{cookie:"pino_staff_password_session="+token}:{}}),env(binding),path);
+  const q="?centerId="+centerId+"&limit=25&cursor=opaque_1";
+  const res=await call(q);
+  assert.equal(res.status,200);assert.equal(res.headers.get("cache-control"),"no-store");
+  assert.deepEqual(forwarded,[{method:"GET",path:path+"?limit=25&cursor=opaque_1",resource:{centerId}}]);
+  for(const bad of ["","?centerId=wrong",q+"&limit=2",q+"&actorId=spoof",q+"&centerId="+centerId,q.replace("opaque_1","bad%2Fcursor")]) assert.equal((await call(bad)).status,400);
+  assert.equal((await call(q,"POST")).status,405);assert.equal((await call(q,"GET",false)).status,401);
+  assert.equal((await call(q,"GET",true,"bo.pinohouse.art")).status,404);
+  assert.equal(forwarded.length,1);
+  data={events:[],nextCursor:"opaque_1",payload:"private"};
+  const denied=await call(q);assert.equal(denied.status,502);assert.equal((await denied.text()).includes("private"),false);
+ });
