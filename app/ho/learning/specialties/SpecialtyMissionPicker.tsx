@@ -1,4 +1,5 @@
 "use client";
+import styles from "./SpecialtyMissionPicker.module.css";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   searchLinkableSpecialtyMissions,
@@ -51,10 +52,10 @@ export function SpecialtyMissionPicker({
     setOpen(false);
     setActive(0);
   };
-  return <div className="v25-form-field" ref={field} onBlur={event => {
+  return <div className={styles.field} ref={field} onBlur={event => {
     if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOpen(false);
   }}>
-    <label htmlFor={inputId}>Nhiệm vụ</label>
+    <label className="pds-property-label" htmlFor={inputId}>Nhiệm vụ</label>
     <input id={inputId} type="search" role="combobox" autoComplete="off"
       className="edit-input edit-search" disabled={disabled}
       aria-haspopup="listbox" aria-autocomplete="list"
