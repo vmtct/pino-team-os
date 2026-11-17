@@ -18,3 +18,9 @@ test("PAP-1886: loaded, loading, empty and error states remain explicit", () => 
   assert.match(source, /type="checkbox" required/);
   assert.match(source, /disabled=\{!selected \|\| busy\}/);
 });
+
+test("PAP-1886: empty custom input controls use canonical visible edit-input affordance", () => {
+  for (const id of ["afterschool-parent-search", "afterschool-parent", "afterschool-confirmed-phone"]) {
+    assert.ok(source.includes(`id="${id}" className="edit-input"`));
+  }
+});

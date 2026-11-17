@@ -116,15 +116,15 @@ export function AfterschoolPinDrawer({ centerId, parent, onClose, onChanged, onE
         createFields={{
           ...(!parent ? {
             search: { id: "afterschool-parent-search", value: search, onChange: setSearch,
-              control: <input id="afterschool-parent-search" className="property-control" type="search" value={search} disabled={busy || !parents} onChange={event => { setSearch(event.target.value); setSelectedId(""); }} /> },
+              control: <input id="afterschool-parent-search" className="edit-input" type="search" value={search} disabled={busy || !parents} onChange={event => { setSearch(event.target.value); setSelectedId(""); }} /> },
             parent: { id: "afterschool-parent", value: selectedId, onChange: setSelectedId,
-              control: <select id="afterschool-parent" className="property-control" value={selectedId} required disabled={busy || !parents || parents.length === 0} onChange={event => setSelectedId(event.target.value)}>
+              control: <select id="afterschool-parent" className="edit-input" value={selectedId} required disabled={busy || !parents || parents.length === 0} onChange={event => setSelectedId(event.target.value)}>
                 <option value="">Chọn phụ huynh</option>
                 {filtered?.map(item => <option key={item.id} value={item.id}>{item.name}{item.maskedContact ? " · " + item.maskedContact : ""}</option>)}
               </select> },
           } : {}),
           phone: { id: "afterschool-confirmed-phone", value: "", onChange: () => {},
-            control: <input id="afterschool-confirmed-phone" className="property-control" name="confirmedPhone" type="tel" autoComplete="off" maxLength={32} required disabled={!selected || busy} /> },
+            control: <input id="afterschool-confirmed-phone" className="edit-input" name="confirmedPhone" type="tel" autoComplete="off" maxLength={32} required disabled={!selected || busy} /> },
           confirmation: { id: "afterschool-confirmation", value: "", onChange: () => {},
             label: parent ? "Xác nhận danh tính và thu hồi các phiên hiện tại." : "Đã xác minh danh tính phụ huynh.",
             control: <input id="afterschool-confirmation" type="checkbox" required disabled={!selected || busy} /> },
