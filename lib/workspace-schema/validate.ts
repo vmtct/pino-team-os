@@ -24,7 +24,7 @@ const operations = ["display", "search", "filter", "sort", "group", "inlineEdit"
 export function validateFields(value: unknown): asserts value is readonly FieldSchema[] {
   array(value); check(value.length > 0, "fields required");
   for (const field of value) {
-    object(field, ["key", "label", "type", "icon", "width", "permission", "readOnly", "capabilities", "options", "required", "sensitive", "hint", "validation"], ["key", "label", "type", "icon", "width", "permission", "readOnly", "capabilities"]);
+    object(field, ["key", "label", "type", "icon", "width", "permission", "readOnly", "capabilities", "options", "required", "sensitive", "hint", "validation", "omitWhenAbsent"], ["key", "label", "type", "icon", "width", "permission", "readOnly", "capabilities"]);
     for (const k of ["key", "label", "icon", "permission"]) nonempty(field[k]);
     check(FIELD_TYPES.includes(field.type as FieldSchema["type"]), "unsupported field type");
     check(typeof field.width === "number" && Number.isFinite(field.width) && field.width > 0, "invalid width");
@@ -38,6 +38,7 @@ export function validateFields(value: unknown): asserts value is readonly FieldS
     check(!field.sensitive || (!caps.search && !caps.filter && !caps.sort && !caps.group), "sensitive field query capability");
     for (const k of ["required", "sensitive"]) check(field[k] === undefined || typeof field[k] === "boolean", "invalid field flag");
     check(field.hint === undefined || typeof field.hint === "string", "invalid hint");
+    check(field.omitWhenAbsent === undefined || (field.omitWhenAbsent === true && field.readOnly === true && caps.display && !caps.search && !caps.filter && !caps.sort && !caps.group && !caps.inlineEdit), "absent omission requires read-only property-only field");
     if (field.validation !== undefined) {
       const numeric = ["number", "currency", "formula"].includes(String(field.type));
       const multi = ["multiselect", "multirelation"].includes(String(field.type));
@@ -163,7 +164,7 @@ export function validateModule(input: unknown): asserts input is ModuleSchema {
   check(t.identity.pinned === "left" && t.identity.hideable === false && t.identity.reorderable === false, "protected identity configuration");
   array(t.columns); check(t.columns.length > 0, "columns required");
   t.columns.forEach(c => { object(c, ["field", "visible"]); check(typeof c.visible === "boolean", "invalid column visibility"); });
-  refs(t.columns.map(c => c.field)); check(t.columns[0].field === t.identity.field && t.columns[0].visible, "identity must be first and visible");
+  refs(t.columns.map(c => c.field)); check(t.columns.every(c => !m.fields.find(f => f.key === c.field)?.omitWhenAbsent), "absent omission is property-only"); check(t.columns[0].field === t.identity.field && t.columns[0].visible, "identity must be first and visible");
   object(t.search, ["fields", "normalization"]); refs(t.search.fields, "search"); check(t.search.normalization === "vi-diacritic-insensitive", "invalid search mode");
   object(t.filters, ["fields", "mode", "logic"]); refs(t.filters.fields, "filter"); check(t.filters.mode === "flat" && ["AND", "OR"].includes(t.filters.logic), "flat filters required");
   object(t.sort, ["fields", "mode", "nulls", "tieBreak"]); refs(t.sort.fields, "sort"); check(t.sort.mode === "single" && t.sort.nulls === "last" && t.sort.tieBreak === "record-id", "single deterministic sort required");
