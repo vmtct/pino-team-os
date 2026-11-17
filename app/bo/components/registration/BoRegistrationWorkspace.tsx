@@ -168,7 +168,7 @@ function BoWorkspace({ moduleKey, options, currentUser, source, content, headerC
   useEffect(() => {
     if (!mobileOpen) return;
     const origin = document.activeElement as HTMLElement | null, prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden"; sidebar.current?.querySelector<HTMLInputElement>("input")?.focus();
+    document.body.style.overflow = "hidden"; sidebar.current?.querySelector<HTMLButtonElement>(".nav-collapse-actions button:not(:disabled)")?.focus({ preventScroll: true });
     const key = (e: KeyboardEvent) => { if (e.key === "Escape") setMobileOpen(false); if (e.key === "Tab") { const items = [...sidebar.current!.querySelectorAll<HTMLElement>('button:not(:disabled), input, a[href]')].filter(e => e.getClientRects().length); if (e.shiftKey && document.activeElement === items[0]) { e.preventDefault(); items.at(-1)?.focus(); } else if (!e.shiftKey && document.activeElement === items.at(-1)) { e.preventDefault(); items[0]?.focus(); } } };
     document.addEventListener("keydown", key); return () => { document.removeEventListener("keydown", key); document.body.style.overflow = prev; origin?.focus(); };
   }, [mobileOpen]);
@@ -182,7 +182,7 @@ function BoWorkspace({ moduleKey, options, currentUser, source, content, headerC
     : source.modules;
   const groups = [...new Set(Object.values(navModules).map(m => m.group))];
   const allCollapsed = groups.length > 0 && groups.every(group => collapsed.includes(group));
-  function menu(id: string) { if (inApplicationShell) return applicationMenu!(id); return <button type="button" className="mobile-menu lab-menu" id={id} aria-label="Mở menu" aria-expanded={mobileOpen} aria-controls="sidebar" onClick={() => setMobileOpen(v => !v)}>☰</button>; }
+  function menu(id: string) { if (inApplicationShell) return applicationMenu!(id); return <button type="button" className="mobile-menu lab-menu" id={id} aria-label="Mở menu" aria-expanded={mobileOpen} aria-controls="sidebar" onClick={event => { event.currentTarget.focus({ preventScroll: true }); setMobileOpen(v => !v); }}>☰</button>; }
   function back() { restorePending.current = true; setDetail(null); setRecordUrl(null); }
   useLayoutEffect(() => { if (detail || !restorePending.current) return; restorePending.current = false; window.scrollTo(0, returnScroll.current); const scroll = document.getElementById("table-scroll"); if (scroll) { scroll.scrollLeft = returnTableScroll.current.left; scroll.scrollTop = returnTableScroll.current.top; } document.querySelector<HTMLElement>('[data-open="' + returnSubject.current + '"]')?.focus({ preventScroll: true }); }, [detail]);
   const userLabel = currentUser.displayName || "Tài khoản";

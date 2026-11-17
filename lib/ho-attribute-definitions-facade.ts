@@ -11,7 +11,7 @@ import { validateAttributeDirectoryParams } from "./pap1841-attribute-directory-
 export interface HoAttributeEnv extends HoEnv { PINO_CORE?: PinoCoreBinding }
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const keyPattern = /^[a-zA-Z0-9][a-zA-Z0-9_-]{7,119}$/;
-const pathPattern = /^\/api\/ho\/custom-attributes\/definitions(?:\/([0-9a-f-]+)(\/history)?)?$/;
+const pathPattern = /^\/api\/ho\/custom-attributes\/definitions(?:\/([0-9a-f-]+)(\/(?:history|lifecycle))?)?$/;
 const allowed = new Set(["displayName","attributeKey","entityType","valueType","scope","centerId","required","visibility","options"]);
 const respond = (status:number,code:string) => Response.json({error:{code}},{
   status,headers:{"cache-control":"no-store","x-content-type-options":"nosniff"}
@@ -23,7 +23,7 @@ export function validHoDefinitionMetadataPatch(raw:unknown):boolean{
  const fields=["displayName","required","visibility","options"];
  const chosen=fields.filter(k=>Object.prototype.hasOwnProperty.call(o,k));
  if(keys.length!==3||chosen.length!==1||keys.some(k=>!["selectedCenterId","expectedRevision",...fields].includes(k)))return false;
- if(typeof o.selectedCenterId!=="string"||!uuid.test(o.selectedCenterId))return false;
+ if(o.selectedCenterId!==null&&(typeof o.selectedCenterId!=="string"||!uuid.test(o.selectedCenterId)))return false;
  if(!Number.isSafeInteger(o.expectedRevision)||(o.expectedRevision as number)<1)return false;
  switch(chosen[0]){
   case "displayName":return typeof o.displayName==="string"&&o.displayName.length>0&&o.displayName.length<=120&&
@@ -38,6 +38,16 @@ export function validHoDefinitionMetadataPatch(raw:unknown):boolean{
   default:return false;
  }
 }
+/** PAP-1906: closed-world lifecycle command, distinct from metadata PATCH/create. */
+export function validHoLifecycleCommand(raw:unknown):boolean {
+ if(!raw||typeof raw!=="object"||Array.isArray(raw))return false;
+ const o=raw as Record<string,unknown>;
+ return Object.keys(o).every(k=>["selectedCenterId","expectedRevision","targetStatus","confirmGlobalActivation"].includes(k))&&
+  (o.selectedCenterId===null||(typeof o.selectedCenterId==="string"&&uuid.test(o.selectedCenterId)))&&
+  Number.isSafeInteger(o.expectedRevision)&&(o.expectedRevision as number)>0&&
+  typeof o.targetStatus==="string"&&["PILOT","ACTIVE","DEPRECATED","ARCHIVED"].includes(o.targetStatus)&&
+  (!Object.prototype.hasOwnProperty.call(o,"confirmGlobalActivation")||o.confirmGlobalActivation===true);
+}
 export async function hoAttributeDefinitions(request:Request,env:HoAttributeEnv):Promise<Response> {
   const url=new URL(request.url);
   if(env.APP_ENV!=="staging"||url.protocol!=="https:"||url.port||
@@ -47,10 +57,12 @@ export async function hoAttributeDefinitions(request:Request,env:HoAttributeEnv)
   if(!route)return respond(404,"PLATFORM_NOT_FOUND");
   const id=route[1];
   const history=route[2]==="/history";
+  const lifecycle=route[2]==="/lifecycle";
   const method=request.method.toUpperCase();
   if(method!=="GET"&&method!=="POST"&&method!=="PATCH")return respond(405,"PLATFORM_METHOD_NOT_ALLOWED");
-  if(method==="PATCH"&&(!id||history||url.search))return respond(id&&url.search?400:404,"ATTRIBUTE_PATCH_ROUTE_INVALID");
-  if(method==="POST"&&(id||url.search))return respond(404,"PLATFORM_NOT_FOUND");
+  if(method==="PATCH"&&(!id||history||lifecycle||url.search))return respond(id&&url.search?400:404,"ATTRIBUTE_PATCH_ROUTE_INVALID");
+  if(lifecycle&&(method!=="POST"||url.search))return respond(url.search?400:405,"ATTRIBUTE_LIFECYCLE_ROUTE_INVALID");
+  if(method==="POST"&&((id&&!lifecycle)||url.search))return respond(404,"PLATFORM_NOT_FOUND");
   if(id&&!uuid.test(id))return respond(404,"ATTRIBUTE_NOT_FOUND");
   if(method==="GET"&&!id&&!validateAttributeDirectoryParams(url.searchParams))
     return respond(400,"ATTRIBUTE_QUERY_INVALID");
@@ -70,7 +82,7 @@ export async function hoAttributeDefinitions(request:Request,env:HoAttributeEnv)
     if(request.headers.get("origin")!=="https://"+HO_STAGING_HOSTNAME||
       !/^application\/json(?:;|$)/i.test(request.headers.get("content-type")??""))
       return respond(403,"HO_REQUEST_DENIED");
-    if(method==="POST"){
+    if(method==="POST"&&!lifecycle){
       replayKey=request.headers.get("idempotency-key")??undefined;
       if(!replayKey||!keyPattern.test(replayKey))return respond(400,"ATTRIBUTE_IDEMPOTENCY_REQUIRED");
     }
@@ -79,6 +91,7 @@ export async function hoAttributeDefinitions(request:Request,env:HoAttributeEnv)
     if(new TextEncoder().encode(raw).length>12288)return respond(413,"ATTRIBUTE_BODY_TOO_LARGE");
     try{body=JSON.parse(raw) as unknown;}catch{return respond(400,"ATTRIBUTE_BODY_INVALID");}
     if(method==="PATCH"?!validHoDefinitionMetadataPatch(body):
+      lifecycle?!validHoLifecycleCommand(body):
       (!body||typeof body!=="object"||Array.isArray(body)||
       Object.keys(body).some(k=>!allowed.has(k))))
       return respond(400,"ATTRIBUTE_BODY_INVALID");
@@ -89,7 +102,7 @@ export async function hoAttributeDefinitions(request:Request,env:HoAttributeEnv)
     const credential=await teamCredential(request,env,"BO");
     if(credential.kind!=="password")return respond(401,"IDENTITY_UNAUTHORIZED");
     if(!env.PINO_CORE?.executeWithStaffPassword)return respond(503,"ATTRIBUTE_CORE_UNAVAILABLE");
-    const corePath=id?"custom-attributes/definitions/"+id+(history?"/history"+url.search:""):
+    const corePath=id?"custom-attributes/definitions/"+id+(history?"/history"+url.search:lifecycle?"/lifecycle":""):
       "custom-attributes/definitions"+(method==="GET"?url.search:"");
     const core=await callFounderCoreWithStaffPassword(env.PINO_CORE,{
       method,path:corePath,...(body===undefined?{}:{body}),

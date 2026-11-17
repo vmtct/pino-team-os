@@ -3,7 +3,7 @@ import type {V18bClassroomToday} from "./tos-classroom-v18b-api";
 export type ReviewStatus="PENDING"|"APPROVED"|"REJECTED";
 export type OpeningPhoto={id:string;fileName:string;preview:string;uploadedAt:string;uploadedBy:string};
 export type OpeningRound={id:string;submittedAt:string;submittedBy:string;note:string;photos:OpeningPhoto[];status:ReviewStatus;reviewedAt?:string;reviewedBy?:string;reason?:string};
-export type OpeningRecord={openedAt:string;openedBy:string;image:string;fileName:string;version:number;rounds?:OpeningRound[]};
+export type OpeningRecord={receiptId?:string;canAppend?:boolean;openedAt:string;openedBy:string;image:string;fileName:string;version:number;rounds?:OpeningRound[]};
 export type Tab="students"|"missions"|"diaries";
 export type Domain="art"|"piano"|"unknown";
 export type Gender="Nữ"|"Nam"|"Khác / chưa cung cấp";

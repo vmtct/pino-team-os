@@ -182,3 +182,32 @@ test("PAP-1220 Diary BO BFF: bounded Center/date reads and negative scope gate",
  assert.equal((await call(list,"?centerId="+center+"&localDate=2026-10-31","GET",false)).status,401);
  assert.equal(forwarded.length,2,"invalid/unauthenticated requests did not reach Core");
 });
+
+test("PAP-1886: Afterschool directory forwards bounded pagination and requires Core Center receipt", async () => {
+  const centerId = "01a0b29a-3acd-7a18-a0f2-cf6016548ab5";
+  const afterParentId = "01a0b29a-3acd-7a18-a0f2-cf6016548ab6";
+  const path = "identity/afterschool-users";
+  const forwarded: BoAccessRequest[] = [];
+  let scopeCenterId = centerId;
+  const binding: BoAccessCoreBinding = {
+    async executeWithStaffPassword(request) {
+      forwarded.push(request);
+      return { status: 200, body: { data: { items: [], scopeCenterId } }, requestId: "afterschool" };
+    },
+  };
+  const read = (query: string) => handleBoOperationalReadRequest(new Request(
+    "https://bo.staging.pinohouse.art/api/bo/" + path + query,
+    { headers: { cookie: "pino_staff_password_session=" + token } },
+  ), env(binding), path);
+  const query = "?centerId=" + centerId + "&limit=25&afterParentId=" + afterParentId;
+  const success = await read(query);
+  assert.equal(success.status, 200);
+  assert.equal(success.headers.get("cache-control"), "no-store");
+  assert.deepEqual(forwarded, [{ method: "GET", path: path + "?limit=25&afterParentId=" + afterParentId, resource: { centerId } }]);
+  for (const invalid of ["", "?centerId=forged", query + "&limit=2", query + "&centerId=" + centerId, query + "&userId=spoofed"]) {
+    assert.equal((await read(invalid)).status, 400);
+  }
+  assert.equal(forwarded.length, 1);
+  scopeCenterId = afterParentId;
+  assert.equal((await read(query)).status, 502);
+});

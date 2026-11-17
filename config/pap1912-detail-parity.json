@@ -9,6 +9,28 @@
   },
   "consumers": [
     {
+      "file": "app/bo/afterschool-accounts/AfterschoolAccounts.tsx",
+      "uses": 1,
+      "mode": "static-single-tab",
+      "jira": "PAP-1886",
+      "tabSource": "literal",
+      "tabs": [
+        [
+          "overview",
+          "Tổng quan"
+        ]
+      ],
+      "g4": {
+        "surface": "BO",
+        "module": "afterschoolAccounts",
+        "authPort": 9337,
+        "route": "/bo/afterschool-accounts",
+        "tableSelector": "#list-screen table tbody tr",
+        "detailSelector": "#detail-screen",
+        "runner": "scripts/pap1886-afterschool-detail-live-cdp.mjs"
+      }
+    },
+    {
       "file": "app/bo/components/BoFullDetail.tsx",
       "uses": 1,
       "mode": "href-tabs",
@@ -87,6 +109,36 @@
       "uses": 1,
       "mode": "tabbed",
       "jira": "PAP-1077"
+    },
+    {
+      "file": "app/ho/pinoria/starter-sets/HoStarterSets.tsx",
+      "uses": 1,
+      "mode": "tabbed",
+      "jira": "PAP-1978",
+      "tabSource": "literal",
+      "tabs": [
+        [
+          "overview",
+          "Tổng quan"
+        ],
+        [
+          "members",
+          "Thành viên"
+        ],
+        [
+          "history",
+          "Lịch sử"
+        ]
+      ],
+      "g4": {
+        "surface": "HO",
+        "module": "starterSets",
+        "authPort": 9337,
+        "route": "/ho/pinoria/starter-sets",
+        "tableSelector": "#list-screen table tbody tr",
+        "detailSelector": "#detail-screen",
+        "runner": "scripts/pap1978-starter-detail-live-cdp.mjs"
+      }
     }
   ],
   "grandfatheredLegacyContent": [

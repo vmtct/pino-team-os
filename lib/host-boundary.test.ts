@@ -4,6 +4,30 @@ import { BO_HOSTNAME, decideHostBoundary, requiresBoStaffPasswordSession, requir
 
 const roleId = "0198d050-56c1-7ac5-b9ab-b0e45d912345";
 
+test("PAP-1886 native Accounts page is BO Staging and session gated", () => {
+  const staging = "bo.staging.pinohouse.art";
+  const path = "/bo/afterschool-accounts";
+  assert.deepEqual(decideHostBoundary(staging, path, "GET"), { action: "next" });
+  assert.deepEqual(decideHostBoundary(staging, path, "HEAD"), { action: "next" });
+  assert.equal(requiresBoStaffPasswordSession(staging, path), true);
+  assert.deepEqual(decideHostBoundary(staging, path, "POST"), { action: "not_found" });
+  assert.deepEqual(decideHostBoundary(BO_HOSTNAME, path, "GET"), { action: "not_found" });
+  assert.deepEqual(decideHostBoundary("ho.staging.pinohouse.art", path, "GET"), { action: "not_found" });
+});
+
+test("PAP-1886 Afterschool directory admits only BO Staging GET", () => {
+  const staging = "bo.staging.pinohouse.art";
+  const path = "/api/bo/identity/afterschool-users";
+  assert.deepEqual(decideHostBoundary(staging, path, "GET"), { action: "next" });
+  for (const host of [BO_HOSTNAME, "ho.staging.pinohouse.art", "tos.staging.pinohouse.art"]) {
+    assert.deepEqual(decideHostBoundary(host, path, "GET"), { action: "not_found" });
+  }
+  for (const method of ["HEAD", "POST", "PATCH", "DELETE"]) {
+    assert.deepEqual(decideHostBoundary(staging, path, method), { action: "not_found" });
+  }
+  assert.deepEqual(decideHostBoundary(staging, path + "/other", "GET"), { action: "not_found" });
+});
+
 test("PAP-938 canonical staging root enters DS V4 without changing production", () => {
   const staging = "tos.staging.pinohouse.art";
   assert.deepEqual(decideHostBoundary(staging, "/"), { action: "redirect", pathname: "/tos-v4" });
@@ -474,3 +498,28 @@ test("PAP-1486 admits exact Self Set Starter/Apply/Clear and member media only o
   ])for(const method of ["GET","POST"])
     assert.deepEqual(decideHostBoundary(bo,path,method),{action:"not_found"},path+" "+method);
 });
+
+test("PAP-1979 exact published Starter catalog is GET on BO Staging only",()=>{
+ const path="/api/bo/pinoria/avatars/starter-sets";
+ assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art",path,"GET"),{action:"next"});
+ for(const host of [BO_HOSTNAME,"ho.staging.pinohouse.art","tos.staging.pinohouse.art","unknown.invalid"])
+  assert.deepEqual(decideHostBoundary(host,path,"GET"),{action:"not_found"});
+ for(const method of ["HEAD","POST","PATCH","DELETE"])assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art",path,method),{action:"not_found"});
+ assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art",path+"/extra","GET"),{action:"not_found"});
+});
+
+test("PAP-2067 Afterschool PIN commands are exact BO Staging POST routes", () => {
+  const staging = "bo.staging.pinohouse.art";
+  const root = "/api/bo/identity/afterschool-users/" + roleId + "/pin/";
+  for (const command of ["issue-initial", "reset"]) {
+    assert.deepEqual(decideHostBoundary(staging, root + command, "POST"), { action: "next" });
+    assert.deepEqual(decideHostBoundary(staging, root + command, "GET"), { action: "not_found" });
+    assert.deepEqual(decideHostBoundary(BO_HOSTNAME, root + command, "POST"), { action: "not_found" });
+    assert.deepEqual(decideHostBoundary("ho.staging.pinohouse.art", root + command, "POST"), { action: "not_found" });
+  }
+  assert.deepEqual(decideHostBoundary(staging, root + "reset/extra", "POST"), { action: "not_found" });
+  assert.deepEqual(decideHostBoundary(staging, root.replace(roleId, "invalid") + "reset", "POST"), { action: "not_found" });
+});
+
+// PAP-2097 — only exact HO Staging definition catalog GET/POST.
+test("HO World private facade host and method fence",()=>{const path="/api/ho/pinoria/worlds",host="ho.staging.pinohouse.art";for(const method of ["GET","POST"])assert.deepEqual(decideHostBoundary(host,path,method),{action:"next"});for(const method of ["PATCH","PUT","DELETE","HEAD"])assert.deepEqual(decideHostBoundary(host,path,method),{action:"not_found"});for(const other of ["bo.staging.pinohouse.art","tos.staging.pinohouse.art","ho.pinohouse.art",BO_HOSTNAME])for(const method of ["GET","POST"])assert.deepEqual(decideHostBoundary(other,path,method),{action:"not_found"});for(const suffix of ["/","/media","/instances","/"+roleId])assert.deepEqual(decideHostBoundary(host,path+suffix,"POST"),{action:"not_found"});});

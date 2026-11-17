@@ -16,16 +16,17 @@ export const SELF_LOADOUT_SLOTS = ["AURA_GROUND","AURA_BACK","BACK","OUTFIT","HA
 
 export function isBoSelfLoadoutPath(path: string): boolean { return PATH.test(path) || MEDIA.test(path) || SET.test(path) || SET_MEDIA.test(path) || SET_COMMAND.test(path); }
 class InvalidInput extends Error {}
-async function setBody(request: Request, apply: boolean) {
+async function setBody(request: Request, apply: boolean, starter: boolean) {
   if ((request.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase() !== "application/json") throw new InvalidInput("JSON content type required");
   let raw: unknown;
   try { raw = await request.json(); } catch { throw new InvalidInput("Invalid JSON"); }
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new InvalidInput("Object body required");
   const r = raw as Record<string, unknown>;
-  const keys = ["expectedVersion", "expectedSelfVersion", "reason", ...(apply ? ["setItemId"] : [])];
+  const keys = ["expectedVersion", "expectedSelfVersion", "reason", ...(apply ? ["setItemId"] : []), ...(starter ? ["expectedMembershipRevision","expectedLoadoutVersion"] : [])];
   if (Object.keys(r).sort().join(",") !== keys.sort().join(",") ||
       !Number.isSafeInteger(r.expectedVersion) || Number(r.expectedVersion) < 0 ||
       !Number.isSafeInteger(r.expectedSelfVersion) || Number(r.expectedSelfVersion) < 1 ||
+      (starter && (!Number.isSafeInteger(r.expectedMembershipRevision) || Number(r.expectedMembershipRevision)<1 || !Number.isSafeInteger(r.expectedLoadoutVersion) || Number(r.expectedLoadoutVersion)<0)) ||
       typeof r.reason !== "string" || !r.reason.trim() || r.reason.trim().length > 1000 ||
       (apply && (typeof r.setItemId !== "string" || !ID.test(r.setItemId)))) throw new InvalidInput("Invalid Set command");
   return { ...r, reason: r.reason.trim() };
@@ -83,7 +84,7 @@ export async function handleBoSelfLoadoutRequest(request:Request,env:BoSelfLoado
     if((isMedia && request.method!=="GET") || (request.method!=="GET" && request.method!=="POST")) return json({error:{code:"PLATFORM_METHOD_NOT_ALLOWED"}},405);
     const centerId=centerIdOf(request);
     const key=request.method==="POST"?idempotencyKeyOf(request):undefined;
-    const body=request.method==="POST"?(SET_COMMAND.test(path)?await setBody(request,path.endsWith("/apply") || path.endsWith("/starter")):await saveBody(request)):undefined;
+    const body=request.method==="POST"?(SET_COMMAND.test(path)?await setBody(request,path.endsWith("/apply") || path.endsWith("/starter"),path.endsWith("/starter")):await saveBody(request)):undefined;
     const credential=await teamCredential(request,env,"BO",keyResolver);
     const coreRequest:BoAccessRequest={method:request.method,path,resource:{centerId},...(body?{body}:{}),...(key?{idempotencyKey:key}:{})};
     const result=await callBoAccessCoreWithCredential(env.PINO_BO_CORE,coreRequest,credential);

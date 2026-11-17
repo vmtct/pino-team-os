@@ -1,8 +1,10 @@
 import { callBoAccessCoreWithCredential, type BoAccessCoreBinding, type BoAccessRequest } from "./bo-core";
 import { teamCredential, TeamAuthError, type TeamAccessEnv } from "./team-auth";
+import { BO_STAGING_HOSTNAME, normalizeHostname } from "./host-boundary";
 
 export interface BoWriteEnv extends TeamAccessEnv {
   PINO_BO_CORE: BoAccessCoreBinding;
+  APP_ENV?: string;
 }
 
 const STAFF_ONBOARDING_PATH = "workforce/staff-onboarding";
@@ -26,6 +28,9 @@ const ACCESS_ROLE_UPDATE_PATH = /^access\/roles\/[0-9a-f-]{36}\/update$/;
 const ACCESS_ROLE_ARCHIVE_PATH = /^access\/roles\/[0-9a-f-]{36}\/archive$/;
 const ACCESS_ASSIGNMENT_PATH = "access/assignments";
 const ACCESS_ASSIGNMENT_REMOVE_PATH = "access/assignments/remove";
+const FOUNDER_MANAGER_POLICY_PATHS = new Set(["access/founder-manager-policy/admit","access/founder-manager-policy/revoke","access/founder-manager-policy/expand"]);
+const FOUNDER_MANAGER_POLICY = "PAP-2025-STUDENT-OPERATIONAL-V1";
+const FOUNDER_MANAGER_POLICY_V2 = "PAP-2065-OPERATIONAL-V2-PLT-ATTR-2090";
 const ACCESS_USER_STATUS_PATH = "access/users/status";
 const ACCESS_SUPPORT_SESSION_PATH = "access/support-sessions";
 const STAFF_PASSWORD_RESET_PATH = /^access\/users\/[0-9a-f-]{36}\/staff-password\/reset$/;
@@ -56,6 +61,7 @@ const LEARNING_OWNER_PATH = /^sessions\/[0-9a-f-]{36}\/learning-owner$/;
 const SESSION_SYLLABUS_BINDING_PATH = /^delivery\/sessions\/[0-9a-f-]{36}\/syllabus-binding$/;
 const CALENDAR_EXCLUSION_COMMAND = /^delivery\/calendar-exclusions\/[0-9a-f-]{36}$/;
 const PARENT_PIN_PATH = /^identity\/parents\/[0-9a-f-]{36}\/pin\/(issue-initial|reset)$/;
+const AFTERSCHOOL_PIN_PATH = /^identity\/afterschool-users\/[0-9a-f-]{36}\/pin\/(issue-initial|reset)$/;
 const STUDENT_COMPANION_FEED_PATH = /^students\/[0-9a-f-]{36}\/pinoria\/companions\/[0-9a-f-]{36}\/feed$/;
 const STUDENT_VISIT_CHECK_IN = "student-visits/check-in";
 const STUDENT_VISIT_COMMAND = /^student-visits\/[0-9a-f-]{36}\/(check-out|correct)$/;
@@ -149,6 +155,43 @@ export async function handleBoWriteRequest(
   _legacyKeyResolver?: unknown,
 ): Promise<Response> {
   try {
+    // PAP-2050: narrow private service-binding transport; Core authenticates
+    // the canonical Founder and owns policy admission, CAS and audit.
+    if (/^access\/founder-manager-policy(?:\/|$)/i.test(path)) {
+      const url = new URL(request.url);
+      if (!FOUNDER_MANAGER_POLICY_PATHS.has(path) || env.APP_ENV !== "staging" ||
+          url.protocol !== "https:" || url.host !== BO_STAGING_HOSTNAME ||
+          normalizeHostname(request.headers.get("host") || url.hostname) !== BO_STAGING_HOSTNAME ||
+          url.pathname !== "/api/bo/"+path || url.search || url.hash || url.username || url.password) {
+        return json({error:{code:"PLATFORM_NOT_FOUND",message:"Not found"}},404);
+      }
+      if (request.method !== "POST") return json({error:{code:"PLATFORM_METHOD_NOT_ALLOWED",message:"Method not allowed"}},405);
+      if (request.headers.get("origin") !== "https://"+BO_STAGING_HOSTNAME ||
+          request.headers.get("content-type")?.split(";")[0].trim().toLowerCase() !== "application/json") {
+        return json({error:{code:"PLATFORM_FORBIDDEN",message:"Same-origin JSON required"}},403);
+      }
+      const credential=await teamCredential(request,env,"BO");
+      if (credential.kind !== "password") return json({error:{code:"PLATFORM_FORBIDDEN",message:"Authenticated session required"}},403);
+      let raw:unknown;
+      try {
+        const text=await request.text();
+        if(text.length>512) return json({error:{code:"PLATFORM_INVALID_INPUT",message:"Invalid policy command"}},400);
+        raw=JSON.parse(text);
+      } catch {return json({error:{code:"PLATFORM_INVALID_INPUT",message:"Invalid policy command"}},400);}
+      if (!raw || typeof raw !== "object" || Array.isArray(raw)) return json({error:{code:"PLATFORM_INVALID_INPUT",message:"Invalid policy command"}},400);
+      const form=raw as Record<string,unknown>;
+      const expansion=path==="access/founder-manager-policy/expand";
+      const exactPolicy=expansion ? FOUNDER_MANAGER_POLICY_V2 : FOUNDER_MANAGER_POLICY;
+      if(Object.keys(form).length!==2 || form.policy!==exactPolicy ||
+         typeof form.expectedRevision!=="number" || !Number.isSafeInteger(form.expectedRevision) ||
+         (expansion ? form.expectedRevision!==1 : path.endsWith("/admit") ? form.expectedRevision!==0 : form.expectedRevision<1)) {
+        return json({error:{code:"PLATFORM_INVALID_INPUT",message:"Exact policy and expected revision required"}},400);
+      }
+      const result=await callBoAccessCoreWithCredential(env.PINO_BO_CORE,{
+        method:"POST",path,body:{policy:exactPolicy,expectedRevision:form.expectedRevision},
+      },credential);
+      return json(result.body,result.status,{"x-request-id":result.requestId});
+    }
     if (PINORIA_WORLD_WRITE.test(path) && !isAllowedPinoriaWorldMethod(request.method, path)) {
       return json({ error: { code: "PLATFORM_METHOD_NOT_ALLOWED", message: "Method not allowed" } }, 405);
     }
@@ -211,6 +254,20 @@ export async function handleBoWriteRequest(
       }
       studentProfileResource = { centerId: ids[0]! };
     }
+    let afterschoolPinResource: { centerId: string } | undefined;
+    if (request.method === "POST" && AFTERSCHOOL_PIN_PATH.test(path)) {
+      const query = new URL(request.url).searchParams;
+      const ids = query.getAll("centerId");
+      if ([...query.keys()].length !== 1 || ids.length !== 1 ||
+          !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ids[0]!))
+        return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Exactly one selected Center is required" } }, 400);
+      if (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body).length !== 1 ||
+          !Object.hasOwn(body, "confirmedPhone") ||
+          typeof (body as Record<string, unknown>).confirmedPhone !== "string")
+        return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Only confirmedPhone is accepted" } }, 400);
+      afterschoolPinResource = { centerId: ids[0]! };
+    }
+
     // PAP-1763: selected Center required on name-only Parent PATCH.
     let parentNameResource: { centerId: string } | undefined;
     if (request.method === "PATCH" && PARENT_NAME_PATCH.test(path)) {
@@ -272,6 +329,22 @@ export async function handleBoWriteRequest(
       }
       studentIntakeCenterResource = { centerId: ids[0]! };
     }
+    let staffRegistrationResource: {centerId:string}|undefined;
+    if (STAFF_REGISTRATION_REVIEW_PATH.test(path)) {
+      const query=new URL(request.url).searchParams;
+      if(query.size) {
+        const ids=query.getAll("centerId");
+        if(query.size!==1||ids.length!==1||!/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(ids[0]!))
+          return json({error:{code:"PLATFORM_INVALID_INPUT",message:"Exactly one selected Center is required"}},400);
+        if(!body||typeof body!=="object"||Array.isArray(body)) return json({error:{code:"PLATFORM_INVALID_INPUT",message:"Invalid review payload"}},400);
+        const form=body as Record<string,unknown>;
+        const approve=path.endsWith("/approve");
+        if(Object.keys(form).some(k=>!(approve?["assignments","pinoriaIdentity","expectedVersion"]:["reason","expectedVersion"]).includes(k))||
+            !Number.isSafeInteger(form.expectedVersion)||Number(form.expectedVersion)<1)
+          return json({error:{code:"PLATFORM_INVALID_INPUT",message:"Invalid Center review version or payload"}},400);
+        staffRegistrationResource={centerId:ids[0]!};
+      }
+    }
     const coreRequest: BoAccessRequest = billingPlanConfig ? {
       method: "PATCH",
       path: `billing/product-plans/${billingPlanConfig[1]}`,
@@ -288,6 +361,8 @@ export async function handleBoWriteRequest(
       ...(studentIntakeCenterResource ? { resource: studentIntakeCenterResource } : {}),
       ...(parentCreateResource ? { resource: parentCreateResource } : {}),
       ...(parentNameResource ? { resource: parentNameResource } : {}),
+      ...(afterschoolPinResource ? { resource: afterschoolPinResource } : {}),
+      ...(staffRegistrationResource ? { resource: staffRegistrationResource } : {}),
       ...(idempotencyKey ? { idempotencyKey } : {}),
 
     };
@@ -371,6 +446,7 @@ export function isAllowedPostPath(path: string): boolean {
     || SESSION_SYLLABUS_BINDING_PATH.test(path)
     || CALENDAR_EXCLUSION_COMMAND.test(path)
     || PARENT_PIN_PATH.test(path)
+    || AFTERSCHOOL_PIN_PATH.test(path)
     || STUDENT_COMPANION_FEED_PATH.test(path)
     || path === PARENT_CREATE_PATH || path === STUDENT_INTAKE_PATH || path === STUDENT_INTAKE_CENTER_PATH
     || path === STAGING_CENTER_AFFILIATION_FIXTURE_PATH

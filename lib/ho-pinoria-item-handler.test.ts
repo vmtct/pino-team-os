@@ -33,7 +33,7 @@ function req(url:string,method="GET",token="valid",body?:unknown) {
   return new Request(url,{method,headers:{host:new URL(url).hostname,cookie:"pino_staff_password_session="+token,"content-type":"application/json","idempotency-key":"pap1126-test"},body:body===undefined?undefined:JSON.stringify(body)});
 }
 test("PAP-1126 HO route admission is exact and never available on BO/TOS/prod",()=>{
-  const allowed=[["GET",path],["POST",path],["POST",path+"/uploads"],["GET",path+"/"+id],["PATCH",path+"/"+id],["POST",path+"/"+id+"/publish"],["POST",path+"/"+id+"/unpublish"],["GET",path+"/"+id+"/media"],["GET",path+"/"+id+"/draft-media"]] as const;
+  const allowed=[["GET",path],["POST",path],["POST",path+"/uploads"],["GET",path+"/"+id],["PATCH",path+"/"+id],["POST",path+"/"+id+"/publish"],["POST",path+"/"+id+"/unpublish"],["POST",path+"/"+id+"/delete-draft"],["GET",path+"/"+id+"/media"],["GET",path+"/"+id+"/draft-media"]] as const;
   for(const [verb,p] of allowed)assert.equal(decideHostBoundary(host,p,verb).action,"next",verb+" "+p);
   for(const [verb,p] of [["PUT",path],["DELETE",path],["POST",path+"/malformed"],["POST",path+"/"+id+"/asset"],["GET",path+"/uploads"],["PATCH",path+"/uploads"]] as const)assert.equal(decideHostBoundary(host,p,verb).action,"not_found",verb+" "+p);
   for(const other of [BO_STAGING_HOSTNAME,"bo.pinohouse.art","tos.staging.pinohouse.art","ho.pinohouse.art","pino-team-os.minhtri-van42.workers.dev"]){
@@ -58,6 +58,17 @@ test("HO Item private binding receives bounded path, credential and idempotency 
   assert.equal(response.status,200);
   assert.equal(response.headers.get("x-request-id"),"ho-item");
   assert.deepEqual(forwarded,[{method:"PATCH",path:"pinoria/items/"+id,body,token:"valid",idempotencyKey:"pap1126-test"}]);
+});
+test("Starter Draft deletion exact staging route and manage permission",async()=>{
+ const p=path+"/"+id+"/delete-draft",body={expectedRevision:7};
+ forwarded.length=0;
+ for(const verb of ["GET","PATCH","DELETE"])assert.equal(decideHostBoundary(host,p,verb).action,"not_found");
+ for(const h of [BO_STAGING_HOSTNAME,"ho.pinohouse.art","tos.staging.pinohouse.art"])assert.equal(decideHostBoundary(h,p,"POST").action,"not_found");
+ assert.equal((await handleHoPinoriaItemRequest(req(base+p,"POST","valid",body),env({grant:false}))).status,403);
+ assert.equal((await handleHoPinoriaItemRequest(req(base+p,"PATCH","valid",body),env())).status,405);
+ assert.equal(forwarded.length,0);
+ assert.equal((await handleHoPinoriaItemRequest(req(base+p,"POST","valid",body),env())).status,200);
+ assert.deepEqual(forwarded,[{method:"POST",path:"pinoria/items/"+id+"/delete-draft",body,token:"valid",idempotencyKey:"pap1126-test"}]);
 });
 test("HO Item API returns HTTP 400 for malformed JSON and invalid media instead of leaking a 503",async()=>{
   forwarded.length=0;

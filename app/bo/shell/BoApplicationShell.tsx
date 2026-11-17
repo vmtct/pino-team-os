@@ -1,5 +1,6 @@
 "use client";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { canOpenAfterschoolAccounts } from "../afterschool-accounts/accounts-nav-access";
 import { usePathname, useSearchParams } from "next/navigation";
 import type { BoShellContext } from "@/lib/bo-shell-gate";
 import { BoRegistrationWorkspace, type BoWorkspaceSource } from "../components/registration/BoRegistrationWorkspace";
@@ -7,6 +8,7 @@ import { boScopedModuleHref } from "../components/registration/BoGlobalCenterPol
 import { BoContentCenterBoundary, useBoCenterSelection } from "../components/registration/BoCenterSelection";
 import { unifiedBoWorkspaceSource } from "../architecture/bo-unified-workspace-source";
 import { boNavigation } from "../navigation";
+import {openingEvidenceBoModule} from "@/lib/opening-evidence-host-contract";
 import { nativePayrollModule } from "@/lib/bo-native-payroll-route";
 
 // Keep Production's existing destinations and content dispatch. Staging-only
@@ -26,6 +28,7 @@ const productionSource: BoWorkspaceSource = {
 // These existing admitted direct pages have their own content adapters. Register
 // presentation destinations only; never call those adapters from the outer shell.
 const directModules = {
+  "opening-evidence": { label: "Mở lớp & ca", group: "SCHOOL", fields: [] },
   "classroom-diaries": { label: "Nhật ký lớp học", group: "SCHOOL", fields: [] },
   "open-studio-passes": { label: "Pass Trạm Nghệ Thuật", group: "Open Studio", fields: [] },
   "payroll-daily": { label: "Bảng lương ngày", group: "WORKFORCE", fields: [] },
@@ -46,18 +49,38 @@ export function BoApplicationShell({ currentUser, staging, children }: {
   const pathname = usePathname();
   const query = useSearchParams();
   const center = useBoCenterSelection();
+  const centerId = staging && !center?.loading && !center?.error ? center?.selected ?? "" : "";
+  const [accountsCenter, setAccountsCenter] = useState<string | null>(null);
+  useEffect(() => {
+    if (!centerId) return;
+    const controller = new AbortController();
+    void canOpenAfterschoolAccounts(centerId, controller.signal).then(allowed => {
+      if (!controller.signal.aborted) setAccountsCenter(allowed ? centerId : null);
+    });
+    return () => {
+      controller.abort();
+      setAccountsCenter(null);
+    };
+  }, [centerId]);
+  const showAccounts = Boolean(centerId && accountsCenter === centerId);
   const scopedSource = useMemo<BoWorkspaceSource>(() => ({
     ...stagingSource,
-    routeForModule: key => boScopedModuleHref(stagingSource.routeForModule!(key), key,
-      center?.selected ?? "", center?.centers.map(item => item.id) ?? []),
-  }), [center?.selected, center?.centers]);
+    modules: showAccounts ? {
+      ...stagingSource.modules,
+      "afterschool-accounts": { label: "Tài khoản", group: "SCHOOL", fields: [] },
+    } : stagingSource.modules,
+    routeForModule: key => key === "afterschool-accounts" && showAccounts
+      ? "/bo/afterschool-accounts?" + new URLSearchParams({ centerId })
+      : boScopedModuleHref(stagingSource.routeForModule!(key), key,
+        center?.selected ?? "", center?.centers.map(item => item.id) ?? []),
+  }), [center?.selected, center?.centers, centerId, showAccounts]);
   const productionDestination = destinations.find(item => item.href === pathname)
     ?? destinations.filter(item => item.href !== "/bo" && pathname.startsWith(item.href + "/"))
       .sort((left, right) => right.href.length - left.href.length)[0];
   const productionKey = destinationKey(productionDestination?.href ?? "/bo");
   const stagingKey = pathname === "/bo" || pathname === "/bo/"
     ? query.get("module") ?? "students"
-    : nativePayrollModule(pathname) ?? pathname.slice("/bo/".length);
+    : nativePayrollModule(pathname) ?? openingEvidenceBoModule(pathname) ?? pathname.slice("/bo/".length);
   return <BoRegistrationWorkspace shellOnly currentUser={currentUser}
     moduleKey={staging ? stagingKey : productionKey}
     source={staging ? scopedSource : productionSource}

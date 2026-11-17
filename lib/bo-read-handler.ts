@@ -37,6 +37,7 @@ const PAP1871_ELIGIBLE_PAYER_READ = "billing/sales/eligible-payers";
 const S3_ENROLLMENT_RECORD_READ = /^enrollments\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const S3_ENROLLMENT_CAPACITY_READ = "enrollments/capacity";
 const S3_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const AFTERSCHOOL_DIRECTORY_READ = "identity/afterschool-users";
 const S3_LOCAL_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 const BILLING_BILL_READ = /^billing\/bills\/[0-9a-f-]{36}$/;
@@ -45,6 +46,31 @@ const STUDENT_VISIT_DETAIL_READ = /^student-visits\/[0-9a-f-]{36}$/;
 const SPECIALTY_POLICY_READ = /^policies\/specialty\/(purchase\.v1|session_settlement\.v1|completion\.v1|reward\.v1)\/(effective|stream)$/;
 /** PAP-1407 / PAP-220: exact BO Center Staff application list and pending Drawer detail. */
 const STAFF_CENTER_APPLICATION_READ = /^workforce\/staff-center-registration-requests(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$/i;
+
+function afterschoolDirectoryRequest(url: URL): BoAccessRequest {
+  const params = url.searchParams;
+  for (const key of params.keys()) {
+    if (!["centerId", "limit", "afterParentId"].includes(key) || params.getAll(key).length !== 1) {
+      throw new RangeError("Invalid Afterschool directory query");
+    }
+  }
+  const centerId = params.get("centerId");
+  const limit = params.get("limit");
+  const afterParentId = params.get("afterParentId");
+  if (!centerId || !S3_UUID.test(centerId) ||
+      (limit !== null && !/^(?:[1-9]|[1-4][0-9]|50)$/.test(limit)) ||
+      (afterParentId !== null && !S3_UUID.test(afterParentId))) {
+    throw new RangeError("Invalid Afterschool directory scope or cursor");
+  }
+  const paging = new URLSearchParams();
+  if (limit !== null) paging.set("limit", limit);
+  if (afterParentId !== null) paging.set("afterParentId", afterParentId);
+  return {
+    method: "GET",
+    path: AFTERSCHOOL_DIRECTORY_READ + (paging.size ? "?" + paging.toString() : ""),
+    resource: { centerId },
+  };
+}
 
 export async function handleBoOperationalReadRequest(
   request: Request,
@@ -64,6 +90,16 @@ export async function handleBoOperationalReadRequest(
     }
     const credential = await teamCredential(request, env, "BO");
     const url = new URL(request.url);
+    // PAP-1886 · BO Users TDD / PAP-1832 Piner Identity.
+    if (path === AFTERSCHOOL_DIRECTORY_READ) {
+      const directoryRequest = afterschoolDirectoryRequest(url);
+      const result = await callBoAccessCoreWithCredential(env.PINO_BO_CORE, directoryRequest, credential);
+      const body = result.body as { data?: { scopeCenterId?: unknown } } | null;
+      if (result.status === 200 && body?.data?.scopeCenterId !== directoryRequest.resource?.centerId) {
+        return json({ error: { code: "PLATFORM_INTERNAL_ERROR", message: "Unverified Center scope" } }, 502);
+      }
+      return json(result.body, result.status, { "x-request-id": result.requestId });
+    }
     const readBody = readQueryBody(path, url);
     const readResource = readQueryResource(path, url);
     // PAP-1536 / PAP-220: Core currently ignores resource.centerId for this
@@ -96,7 +132,7 @@ export function isOpenStudioReadPath(path: string): boolean {
 }
 
 export function isStaffRegistrationProtectedReadPath(path: string): boolean {
-  return path === "workforce/staff-registration-settings" || path === "workforce/staff-registration-requests";
+  return path === "workforce/staff-registration-settings" || path === "workforce/staff-registration-requests" || path === "workforce/staff-registration-eligible-roles";
 }
 
 export function isStaffCompensationPath(path: string): boolean {
@@ -163,6 +199,7 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "workforce/timekeeping/centers"
     || path === "workforce/staff-registration-settings"
     || path === "workforce/staff-registration-requests"
+    || path === "workforce/staff-registration-eligible-roles"
     || TV_SPATIAL_CONFIG_READ.has(path) || TV_DIALOGUE_CONFIG_READ.has(path)
     || path === "pinoria/avatars"
     || path === "pinoria/effects/catalog"
@@ -186,6 +223,7 @@ export function isOperationalReadPath(path: string): boolean {
     || STUDENT_VISIT_DETAIL_READ.test(path)
     || path === "identity/parents"
     || path === "identity/parents/center-search"
+    || path === AFTERSCHOOL_DIRECTORY_READ
     || path === "identity/parents/directory"
     || /^identity\/parents\/[0-9a-f-]{36}\/detail$/.test(path)
     || path === "practice/authoring-context"
@@ -337,6 +375,13 @@ export function readCorePath(path: string, url: URL): string {
 }
 
 export function readQueryResource(path: string, url: URL): BoAccessRequest["resource"] | undefined {
+  if (path === "workforce/staff-registration-requests" || path === "workforce/staff-registration-eligible-roles") {
+    const params=url.searchParams;
+    if (!params.size && path==="workforce/staff-registration-requests") return undefined; // Founder-only legacy in Core.
+    const ids=params.getAll("centerId");
+    if(params.size!==1 || ids.length!==1 || !S3_UUID.test(ids[0]!)) throw new RangeError("Exactly one selected Center is required");
+    return {centerId:ids[0]!};
+  }
   if (path === "classroom/day-headcounts") {
     // PAP-1939: this scope is a selector only; Core independently reauthorizes.
     const body = readQueryBody(path, url);

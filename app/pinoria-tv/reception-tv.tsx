@@ -27,6 +27,8 @@ import { CompanionRitualScene, COMPANION_RITUAL_SCENE_MS } from "./companion-rit
 import { OnboardingCeremonyScene, OnboardingPreviewScene, ONBOARDING_CEREMONY_SCENE_MS } from "./onboarding-ceremony-scene";
 import type { OnboardingPreview } from "./onboarding-ceremony-types";
 import { eligibleTvEvent, readSafeTvPolicy, displayNameForSharedTv, defaultSharedTvPolicy, redactTvPresentationName } from "@/lib/pinoria-tv-policy-runtime";
+import { DressingAvatarScene } from "./dressing-avatar-scene";
+import { dressingReadUrl, parseDressingProjection, type DressingItem } from "@/lib/pinoria-tv-dressing-read";
 import styles from "./reception-tv.module.css";
 
 
@@ -40,12 +42,13 @@ type Scene = {
   pinoriaSelfId: string;
   sourceType: PresenceSourceType;
   sourceId: string;
-  phase: "transition" | "performance" | "handoff";
+  phase: "transition" | "performance" | "dressing" | "handoff";
 };
 
 const CENTER_STORAGE = "pino.arrival.centerId";
 const ARRIVAL_PERFORMANCE_MS = 5200;
 const ARRIVAL_HANDOFF_MS = 1800;
+const DRESSING_MS = 8000;
 const DEPARTURE_TRANSITION_MS = 1200;
 const DEPARTURE_PERFORMANCE_MS = 5200;
 
@@ -491,6 +494,34 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
   const visibleArrivalCompanionAsset = arrivalCompanionIdentity !== failedArrivalCompanionIdentity ? arrivalCompanionAsset : null;
   // If the learner has re-entered via another presence source, discard the stale farewell.
   const sceneIsCurrent = !scene || (scene.kind === "departure" && sceneActor && !sceneHasMatchingSource ? false : housePresenceSceneIsCurrent(scene.kind, Boolean(sceneActor), sceneHasMatchingSource));
+  // PAP-2041: only a current learner arrival on a logical Staff TV; never a physical player or ward session.
+  const dressingVisit = staffPolicyRef && connected && !revoked && sceneIsCurrent &&
+    scene?.kind === "arrival" && scene.actorType === "LEARNER" && scene.sourceType === "STUDENT_VISIT" &&
+    (scene.phase === "performance" || scene.phase === "dressing") &&
+    eligibleTvEvent(policy,"ARRIVAL",scene.occurredAt,new Date()) ? scene.sourceId : null;
+  const dressingKey = dressingVisit ? centerId + ":" + staffPolicyRef + ":" + scene?.id + ":" + dressingVisit : null;
+  const [dressing,setDressing]=useState<{key:string;items:DressingItem[]}|null>(null);
+  const dressingReady=useRef<{key:string;items:DressingItem[]}|null>(null);
+  useEffect(()=>{
+    dressingReady.current=null;
+    setDressing(null);
+    if(!dressingKey||!dressingVisit||!staffPolicyRef)return;
+    const scope={centerId,policyRef:staffPolicyRef,visitId:dressingVisit};
+    const url=dressingReadUrl(scope);
+    if(!url)return;
+    const controller=new AbortController();
+    void (async()=>{
+      try{
+        const response=await fetch(url,{cache:"no-store",credentials:"same-origin",signal:controller.signal});
+        if(!response.ok||controller.signal.aborted)return;
+        const items=parseDressingProjection(await response.json(),scope);
+        if(items===null||controller.signal.aborted)return;
+        const result={key:dressingKey,items};
+        dressingReady.current=result;setDressing(result);
+      }catch{/* Optional scene fails closed; ordinary arrival continues. */}
+    })();
+    return()=>{controller.abort();dressingReady.current=null;};
+  },[centerId,staffPolicyRef,dressingVisit,dressingKey]);
 
   useEffect(() => {
     if (!scene || presentation) return;
@@ -498,11 +529,24 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
       setScenes((queue) => queue[0]?.id === scene.id ? queue.slice(1) : queue);
       return;
     }
+    // Never resume a stale dressing projection after connection/Visit loss.
+    if (scene.phase === "dressing" && !dressingKey) {
+      setScenes((queue) => queue[0]?.id === scene.id
+        ? [{ ...queue[0], phase: "handoff" }, ...queue.slice(1)]
+        : queue);
+      return;
+    }
     const duration = scene.kind === "arrival"
-      ? scene.phase === "performance" ? ARRIVAL_PERFORMANCE_MS : ARRIVAL_HANDOFF_MS
+      ? scene.phase === "performance" ? ARRIVAL_PERFORMANCE_MS : scene.phase === "dressing" ? DRESSING_MS : ARRIVAL_HANDOFF_MS
       : scene.phase === "transition" ? DEPARTURE_TRANSITION_MS : DEPARTURE_PERFORMANCE_MS;
     const timer = window.setTimeout(() => {
       if (scene.kind === "arrival" && scene.phase === "performance") {
+        setScenes((queue) => queue[0]?.id === scene.id
+          ? [{ ...queue[0], phase: dressingKey && dressingReady.current?.key === dressingKey ? "dressing" : "handoff" }, ...queue.slice(1)]
+          : queue);
+        return;
+      }
+      if (scene.kind === "arrival" && scene.phase === "dressing") {
         setScenes((queue) => queue[0]?.id === scene.id
           ? [{ ...queue[0], phase: "handoff" }, ...queue.slice(1)]
           : queue);
@@ -521,7 +565,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
       setScenes((queue) => queue[0]?.id === scene.id ? queue.slice(1) : queue);
     }, duration);
     return () => window.clearTimeout(timer);
-  }, [presentation, scene, sceneIsCurrent]);
+  }, [presentation, scene, sceneIsCurrent, dressingKey]);
 
   useLayoutEffect(() => {
     if (!scene || scene.kind !== "departure") { setDepartureOrigin(null); return; }
@@ -660,7 +704,8 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
     "--arrival-target-height": arrivalHandoffTarget.height,
   } as CSSProperties) : undefined;
   const visiblePresentation = presentation && eligibleTvEvent(policy,presentation.kind,presentation.claimedAt,new Date()) ? presentation : null;
-  const active = Boolean(visualScene || visiblePresentation || onboardingPreview);
+  const visibleDressing = scene?.phase === "dressing" && dressingKey && dressing?.key === dressingKey ? dressing : null;
+  const active = Boolean(visualScene || visiblePresentation || onboardingPreview || visibleDressing);
   const arrivalActive = visualScene?.kind === "arrival";
   return <main ref={stageRef} onErrorCapture={(event) => { if (event.target instanceof HTMLImageElement || event.target instanceof HTMLVideoElement) setAssetEvidence(previous => recordAssetFailure(previous, "renderer-media")); }} data-tv-asset-evidence={observedAssetStatus} data-tv-build-manifest-provenance={manifestDigest ? "VALID" : "UNKNOWN"} data-tv-connection-state={connected ? "online" : "offline"} className={`${styles.stage} ${active ? styles.active : ""} ${arrivalActive ? styles.arrivalActive : ""}`}>
     <div className={styles.sky} />
@@ -687,6 +732,7 @@ export function ReceptionTv({ fixedCenterId, apiBase = "/api/pinoria-tv", approv
       <LayeredCharacter className={styles.character} config={visualScene.kind === "arrival" && sceneHasMatchingSource && sceneActor?.character ? sceneActor.character : visualScene.config} wardRender={visualScene.kind === "arrival" && sceneHasMatchingSource ? sceneActor?.wardRender ?? undefined : undefined} />
       {visibleArrivalCompanionAsset ? <><div className={styles.moriShadow} /><img className={styles.mori} src={visibleArrivalCompanionAsset} onError={() => { setFailedArrivalCompanionIdentity(arrivalCompanionIdentity);setAssetEvidence(previous=>recordAssetFailure(previous,"arrival-companion")); }} alt="" /></> : null}
     </section> : null}
+    {visibleDressing && scene ? <DressingAvatarScene key={visibleDressing.key} name={scene.name} items={visibleDressing.items} /> : null}
     {visiblePresentation?.kind === "WISH_REVEAL" ? <WishRevealScene key={replaySceneKey && replayedPresentationId === visiblePresentation.id ? replaySceneKey : visiblePresentation.id} reveal={visiblePresentation.projection} /> : null}
     {visiblePresentation?.kind === "EGG_HATCH" ? <EggHatchScene key={replaySceneKey && replayedPresentationId === visiblePresentation.id ? replaySceneKey : visiblePresentation.id} hatch={visiblePresentation.projection} /> : null}
     {visiblePresentation?.kind === "COMPANION_RITUAL" ? <CompanionRitualScene key={replaySceneKey && replayedPresentationId === visiblePresentation.id ? replaySceneKey : visiblePresentation.id} ritual={visiblePresentation.projection} /> : null}

@@ -43,7 +43,9 @@ test("PAP-1710 canonical Dsa Drawer with one combobox and correct preserved Core
  assert.match(c,/if\(e\.key==="Enter"&&open\)/);
  assert.match(c,/document\.activeElement!==inputRef\.current/);
  assert.match(c,/method:"POST"/);
- assert.match(c,/JSON\.stringify\(\{personId:chosen\.personId/);
+ assert.match(c,/const payload=\{personId:chosen\.personId/);
+ assert.match(c,/\.\.\.\(choice\?\{starter:\{setItemId:choice\.setItemId,expectedMembershipRevision:choice\.membershipRevision\}\}:\{\}\)/);
+ assert.match(c,/body:JSON\.stringify\(payload\)/);
  assert.match(c,/r\.status===409|response\.status===409/);
  assert.match(c,/response\.status!==201/);
  assert.match(c,/credentials:"same-origin"/);

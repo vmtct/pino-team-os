@@ -71,3 +71,13 @@ test("PAP-1912 ACL live runner uses a real second Center, not a malformed sentin
   assert.match(source,/foreign:await get\(prefix\+"\?centerId="\+encodeURIComponent\(foreignCenter\.id\)\)/);
   assert.doesNotMatch(source,/00000000-0000-4000-8000-000000000001/);
 });
+
+test("PAP-1978 Starter literal tabs are validated on actual DetailFrame",()=>{
+ const f="app/ho/pinoria/starter-sets/HoStarterSets.tsx",source=read(f);
+ const manifest=JSON.parse(read("config/pap1912-detail-parity.json"));
+ const entry=manifest.consumers.find(x=>x.file===f);
+ assert.ok(entry);
+ assert.deepEqual(inspectConsumer(f,source,entry,[]),[]);
+ assert.ok(inspectConsumer(f,source.replace('label:"Thành viên"','label:"Drift"'),entry,[]).some(e=>e.includes("business tab IDs/labels drift")));
+ assert.ok(inspectConsumer(f,source.replace('tabs={[{id:"overview",label:"Tổng quan"},{id:"members",label:"Thành viên"},{id:"history",label:"Lịch sử"}]}','tabs={[]}'),entry,[]).some(e=>e.includes("business tab IDs/labels drift")));
+});

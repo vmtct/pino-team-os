@@ -7,11 +7,12 @@ export const CLIENT=String.raw`
  var last=scroller.scrollTop,travel=0,locked=0;
  function setHidden(hidden){
    shell.dataset.chromeCollapsed=hidden?"true":"false";
-   header.inert=!!hidden;footer.inert=!!hidden;
-   header.setAttribute("aria-hidden",String(!!hidden));footer.setAttribute("aria-hidden",String(!!hidden));
+   header.inert=hidden;
+   header.setAttribute("aria-hidden",String(hidden));
  }
  function onScroll(){
    var y=scroller.scrollTop,delta=y-last;last=y;
+   if(delta!==0)footer.dataset.pastCollapseThreshold=String(y>80);
    if(y<=8){travel=0;locked=0;setHidden(false);return;}
    if(performance.now()<locked||Math.abs(delta)<.75)return;
    if(Math.sign(travel)!==Math.sign(delta))travel=0;

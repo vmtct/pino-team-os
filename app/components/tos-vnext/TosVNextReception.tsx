@@ -30,6 +30,8 @@ export function TosVNextReception({
     profileLabel={profileLabel}
     workDate={workDate}
     shiftTime={shiftTime}
+    slots={Array.from(new Map(today.map(a=>[a.shiftTemplateId,{centerId,workDate,shiftTemplateId:a.shiftTemplateId,
+      label:(a.shift?.displayLabel??"Ca tiếp tân")+" · "+(a.shift?.startLocalTime??"")+" — "+(a.shift?.endLocalTime??"")}])).values())}
     visitLookup={<>
       <ReceptionHouseCheckIn centerId={centerId} />
       <OpenStudioReceptionPanel

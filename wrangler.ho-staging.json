@@ -51,6 +51,11 @@
       "entrypoint": "HoPinoriaItemControlPlane"
     },
     {
+      "binding": "PINO_HO_WORLD_CORE",
+      "service": "pino-core-staging",
+      "entrypoint": "HoWorldControlPlane"
+    },
+    {
       "binding": "PINO_STAFF_REGISTRATION_CORE",
       "service": "pino-core-staging",
       "entrypoint": "StaffRegistrationControlPlane"
