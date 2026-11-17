@@ -118,10 +118,13 @@ export function validatedAdjustmentInput(amount:string,reason:string){
 }
 
 /** Local draft estimate only; Core must authorize and compute the actual adjustment. */
+export function canPreviewAdjustment(source:ReturnType<typeof settlementDrawerSource>,capability:unknown,centerId:string){
+ return verifiedFinancialCapabilities(capability,centerId).canManageSettlement&&source.preview.centerId===centerId&&
+  source.period.status==="ACTIVE"&&!source.frozen&&["DRAFT","PENDING"].includes(source.staff.status)&&
+  /^[a-f0-9]{64}$/.test(source.preview.sourceFingerprint);
+}
 export function projectAdjustmentDraft(source:ReturnType<typeof settlementDrawerSource>,capability:unknown,centerId:string,amount:string,reason:string){
- if(!verifiedFinancialCapabilities(capability,centerId).canManageSettlement||source.preview.centerId!==centerId||
-  source.period.status!=="ACTIVE"||source.frozen||!["DRAFT","PENDING"].includes(source.staff.status)||
-  !/^[a-f0-9]{64}$/.test(source.preview.sourceFingerprint))
+ if(!canPreviewAdjustment(source,capability,centerId))
   throw Error("Không đủ điều kiện điều chỉnh thu nhập.");
  const entry=validatedAdjustmentInput(amount,reason);
  const current=source.preview.amountMinor,projected=current+entry.amountMinor;

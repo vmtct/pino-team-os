@@ -5,7 +5,7 @@ import {DrawerFrame} from "@/app/components/workspace-renderer/DrawerFrame";
 import {BoProperties} from "@/app/bo/components/BoProperties";
 import {BoPill} from "@/app/bo/components/registration/BoValue";
 import {money,periodApi,type PeriodStaffPage,type SettlementPreview} from "@/lib/bo-payroll-period-api";
-import {settlementDrawerSource,settlementDrawerExceptions,settlementReadiness,pendingSettlementException,verifiedSettlementPreview,settlementExceptionHref} from "@/lib/bo-payroll-settlement-drawer";
+import {settlementDrawerSource,settlementDrawerExceptions,settlementReadiness,pendingSettlementException,verifiedSettlementPreview,settlementExceptionHref,canPreviewAdjustment,projectAdjustmentDraft} from "@/lib/bo-payroll-settlement-drawer";
 import {loadIncomeHistory} from "@/lib/bo-payroll-income-read";
 import {toExceptionReadRow} from "@/lib/bo-payroll-exceptions-model";
 import {payrollVerifiedName} from "@/lib/bo-payroll-safe-read-metadata";
@@ -18,6 +18,7 @@ export function SettlementIncomeDrawer({centerId,period,staffId,onClose,onFinali
  const [result,setResult]=useState<{source:ReturnType<typeof settlementDrawerSource>;exceptions:NativeReviewedException[];exceptionError:string;capability:unknown}|null>(null);
  const [error,setError]=useState("");
  const [confirmation,setConfirmation]=useState<SettlementPreview|null>(null),[ack,setAck]=useState(false),[actionError,setActionError]=useState(""),[busy,setBusy]=useState(false),[uncertain,setUncertain]=useState(false);
+ const [adjustmentAmount,setAdjustmentAmount]=useState(""),[adjustmentReason,setAdjustmentReason]=useState(""),[adjustmentDraft,setAdjustmentDraft]=useState<ReturnType<typeof projectAdjustmentDraft>|null>(null),[adjustmentError,setAdjustmentError]=useState("");
  const inFlight=useRef(false),mounted=useRef(false);
  useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;};},[]);
  useEffect(()=>{
@@ -35,10 +36,11 @@ export function SettlementIncomeDrawer({centerId,period,staffId,onClose,onFinali
  },[centerId,period.id,period.startDate,period.endDate,period.status,staffId]);
  const source=result?.source;
  const readiness=source&&result?settlementReadiness(source,result.capability,centerId,result.exceptions,result.exceptionError):null;
+ const adjustmentEligible=!!source&&!!result&&canPreviewAdjustment(source,result.capability,centerId)&&source.staff.staffMemberId===staffId&&source.period.id===period.id&&!uncertain;
  const pending=!!source&&!source.frozen&&!!result&&pendingSettlementException(source.preview.warnings,result.exceptions);
  async function previewSettlement(){
   if(!source||readiness!=="PREVIEW_REQUIRED"||inFlight.current||uncertain)return;
-  inFlight.current=true;setBusy(true);setActionError("");setAck(false);setConfirmation(null);
+  inFlight.current=true;setBusy(true);setActionError("");setAck(false);setConfirmation(null);setAdjustmentDraft(null);
   try{
    const {data}=await periodApi.preview(centerId,period.id,staffId);
    const verified=verifiedSettlementPreview(source,data);
@@ -99,6 +101,13 @@ export function SettlementIncomeDrawer({centerId,period,staffId,onClose,onFinali
     <section className="property-section" aria-label="Điều chỉnh"><h3>Điều chỉnh</h3>
      {source.preview.adjustments.length?<div className="pay-card-list">{source.preview.adjustments.map(a=><div className="pay-staff-card" key={a.id}><div><strong>{a.reason||"—"}</strong></div><div className="pay-staff-money"><strong>{a.amountMinor>0?"+":""}{money(a.amountMinor)}</strong></div></div>)}</div>:<p>Không có điều chỉnh trong kỳ.</p>}
     </section>
+     {adjustmentEligible?<section className="property-section" aria-label="Xem trước điều chỉnh"><h3>Xem trước điều chỉnh</h3>
+      <div className="property-row"><label className="property-label" htmlFor="pay-adjustment-amount"><small aria-hidden="true">≡</small>Số tiền điều chỉnh (VND)</label><div className="property-control"><input id="pay-adjustment-amount" className="edit-input" type="text" value={adjustmentAmount} maxLength={14} placeholder="+100000 hoặc -100000" disabled={busy||uncertain||!!confirmation} onChange={e=>{setAdjustmentAmount(e.target.value);setAdjustmentDraft(null);setAdjustmentError("");}}/></div></div>
+      <div className="property-row"><label className="property-label" htmlFor="pay-adjustment-reason"><small aria-hidden="true">≡</small>Lý do</label><div className="property-control"><textarea id="pay-adjustment-reason" className="edit-input" rows={3} value={adjustmentReason} minLength={3} maxLength={500} required disabled={busy||uncertain||!!confirmation} onChange={e=>{setAdjustmentReason(e.target.value);setAdjustmentDraft(null);setAdjustmentError("");}}/></div></div>
+      <div className="editor-actions"><button type="button" className="secondary-btn" disabled={busy||uncertain||!!confirmation} onClick={()=>{setAdjustmentAmount("");setAdjustmentReason("");setAdjustmentDraft(null);setAdjustmentError("");}}>Hủy</button><button type="button" className="save" disabled={busy||uncertain||!!confirmation||!adjustmentAmount.trim()||!adjustmentReason.trim()} onClick={()=>{try{setAdjustmentDraft(projectAdjustmentDraft(source,result.capability,centerId,adjustmentAmount,adjustmentReason));setAdjustmentError("");}catch(e){setAdjustmentDraft(null);setAdjustmentError(e instanceof Error?e.message:"Không thể xem trước điều chỉnh.");}}}>Xem trước</button></div>
+      {adjustmentError?<p role="alert">{adjustmentError}</p>:null}
+      {adjustmentDraft?<><BoProperties authority compact items={[{key:"current",label:"Thu nhập hiện tại",value:money(adjustmentDraft.currentAmountMinor)},{key:"delta",label:"Điều chỉnh",value:(adjustmentDraft.amountMinor>0?"+":"")+money(adjustmentDraft.amountMinor)},{key:"projected",label:"Thu nhập dự kiến",value:money(adjustmentDraft.projectedAmountMinor)},{key:"reason",label:"Lý do",value:adjustmentDraft.reason}]}/><p role="status">Chỉ xem trước. Chưa ghi nhận điều chỉnh vào Core.</p></>:null}
+     </section>:null}
     <section className="property-section" aria-label="Ngoại lệ và thêm giờ"><h3>Ngoại lệ &amp; thêm giờ</h3>
      {result.exceptionError?<p role="alert">{result.exceptionError}</p>:result.exceptions.length?<div className="pay-card-list">{result.exceptions.map(raw=>{
       const r=toExceptionReadRow(raw,centerId);

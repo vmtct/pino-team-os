@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {settlementDrawerSource,settlementDrawerExceptions,pendingSettlementException,settlementReadiness,canReviewSettlementException,verifiedReviewReceipt,validatedAdjustmentInput,projectAdjustmentDraft,verifiedSettlementPreview,settlementExceptionDetail,settlementDrawerHref,settlementExceptionHref} from "./bo-payroll-settlement-drawer";
+import {settlementDrawerSource,settlementDrawerExceptions,pendingSettlementException,settlementReadiness,canReviewSettlementException,verifiedReviewReceipt,validatedAdjustmentInput,canPreviewAdjustment,projectAdjustmentDraft,verifiedSettlementPreview,settlementExceptionDetail,settlementDrawerHref,settlementExceptionHref} from "./bo-payroll-settlement-drawer";
 import {decisionPayload} from "./bo-payroll-extra-review-api";
 import type {IncomePeriod} from "./bo-payroll-income-read";
 import type {NativeReviewedException} from "./bo-payroll-exceptions-read";
@@ -99,6 +99,10 @@ test("PAP-1956 adjustment input preserves exact signed VND and Core reason bound
 test("PAP-1956 adjustment draft estimate enforces approved prototype nonnegative total and exact scope",()=>{
  const src=settlementDrawerSource({...row,staff:{...row.staff,preview:{...preview,sourceFingerprint:"a".repeat(64)}}},"center","period","staff");
  const rights={centerId:"center",canManageSettlement:true,canReviewExtraTime:false};
+ assert.equal(canPreviewAdjustment(src,rights,"center"),true);
+ assert.equal(canPreviewAdjustment(src,{...rights,centerId:"other"},"center"),false);
+ assert.equal(canPreviewAdjustment({...src,frozen:true},rights,"center"),false);
+ assert.equal(canPreviewAdjustment({...src,period:{...src.period,status:"ARCHIVED"}},rights,"center"),false);
  assert.deepEqual(projectAdjustmentDraft(src,rights,"center","-123","abc"),{amountMinor:-123,reason:"abc",currentAmountMinor:123,projectedAmountMinor:0});
  assert.equal(projectAdjustmentDraft(src,rights,"center","+1","abc").projectedAmountMinor,124);
  assert.throws(()=>projectAdjustmentDraft(src,rights,"center","-124","abc"));
