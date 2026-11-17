@@ -1,4 +1,5 @@
 "use client";
+import styles from "./HoSpecialtyMissionsTab.module.css";
 import { useMemo, useState } from "react";
 import { SpecialtyMissionPicker } from "./SpecialtyMissionPicker";
 import type { SpecialtyMissionOption } from "@/lib/specialty-mission-picker";
@@ -46,47 +47,47 @@ export function HoSpecialtyMissionsTab({
       setError("Không thể xác minh thay đổi liên kết. Vui lòng tải lại dữ liệu từ Core.");
     }finally{setBusy(false);}
   }
-  return <section aria-label="Nhiệm vụ của Chuyên Đề" className="ho-specialty-missions">
-    <section aria-label="Liên kết nhiệm vụ" className="ho-specialty-mission-card">
+  return <section aria-label="Nhiệm vụ của Chuyên Đề" className={styles.stack}>
+    <section aria-label="Liên kết nhiệm vụ" className="detail-panel"><div className={styles.stack}>
       <h3>Liên kết nhiệm vụ</h3>
-      <div className="ho-specialty-link-form">
-        <label className="ho-specialty-level-field"><span className="pds-property-label">Cấp</span>
-          <select className="edit-input" value={activeLevel} disabled={busy||disabled||!ordered.length}
+      <div className={styles.form} data-specialty-link-form>
+        <label className={styles.field}><span className="pds-property-label">Cấp</span>
+          <select className="pds-property-input" value={activeLevel} disabled={busy||disabled||!ordered.length}
             onChange={event=>{setLevelId(event.target.value);setSelected(null);setError("");}}>
             {ordered.map(level=><option key={level.id} value={level.id}>{level.name}</option>)}
           </select>
         </label>
-        <SpecialtyMissionPicker missions={missionCatalog} pathProgramId={pathProgramId}
+        <div className={styles.field}><SpecialtyMissionPicker missions={missionCatalog} pathProgramId={pathProgramId}
           linkedMissionIds={linked} value={selected} onChange={setSelected}
-          disabled={busy||disabled||!ordered.length}/>
-        <button type="button" className="primary-btn" disabled={!canLink}
+          disabled={busy||disabled||!ordered.length}/></div>
+        <div className={styles.field}><span className="pds-property-label" aria-hidden="true">&nbsp;</span><button type="button" className="primary-btn" disabled={!canLink}
           onClick={()=>{if(!canLink||!selected)return;
             const targetId=activeLevel,missionId=selected.id;
             void call(()=>onLink(targetId,missionId),"Đã xác minh liên kết nhiệm vụ.");
-          }}>Liên kết</button>
+          }}>Liên kết</button></div>
       </div>
       {!ordered.length?<p role="status">Chuyên Đề chưa có Cấp để liên kết.</p>:null}
-    </section>
-    <section aria-label="Nhiệm vụ liên kết" className="ho-specialty-mission-card">
-      <div className="ho-specialty-mission-heading"><h3>Nhiệm vụ liên kết <span className="ho-specialty-count">{linked.size}</span></h3><a className="secondary-btn" href="/ho/learning/missions">Danh mục Nhiệm vụ ↗</a></div>
-      {ordered.map(level=><section key={level.id} aria-label={"Nhiệm vụ "+level.name}>
-        <h4>{level.name} <span className="ho-specialty-count">{level.missionIds.length}</span></h4>
-        {level.missionIds.length ? <ul className="ho-specialty-mission-list" aria-label={"Danh sách nhiệm vụ "+level.name}>
+    </div></section>
+    <section aria-label="Nhiệm vụ liên kết" className="detail-panel"><div className={styles.stack}>
+      <div className={styles.heading}><h3>Nhiệm vụ liên kết <span className="chip">{linked.size}</span></h3><a className="option-item" href="/ho/learning/missions">Danh mục Nhiệm vụ ↗</a></div>
+      {ordered.map(level=><section key={level.id} className={styles.list} aria-label={"Nhiệm vụ "+level.name}>
+        <h4>{level.name} <span className="chip">{level.missionIds.length}</span></h4>
+        {level.missionIds.length ? <div role="list" className={styles.list} aria-label={"Danh sách nhiệm vụ "+level.name}>
           {level.missionIds.map(missionId=>{
             const mission=catalog.get(missionId);
             const open=()=>{if(mission)onOpenMission(missionId);};
-            return <li key={missionId}>
-              <div className="ho-specialty-mission-identity"><strong>{mission?.code??missionId}</strong>
-              <button type="button" className="secondary-btn ho-specialty-mission-open" disabled={!mission} onClick={open}>{mission?.name??"Nhiệm vụ không tồn tại"}</button></div>
+            return <div role="listitem" className={styles.row} key={missionId}>
+              <div className={styles.identity}><strong>{mission?.code??missionId}</strong>
+              <button type="button" className="option-item" disabled={!mission} onClick={open}>{mission?.name??"Nhiệm vụ không tồn tại"}</button></div>
               <span>{mission?.status==="ACTIVE"&&mission.reconciliation==="READY"?"Đang áp dụng":"Không khả dụng"}</span>
               <button type="button" className="secondary-btn" disabled={busy||disabled}
                 aria-label={"Gỡ liên kết "+(mission?.name??missionId)}
                 onClick={()=>void call(()=>onUnlink(level.id,missionId),"Đã xác minh gỡ liên kết.")}>Gỡ</button>
-            </li>;
+            </div>;
           })}
-        </ul>:<p className="ho-specialty-mission-empty">Chưa liên kết nhiệm vụ.</p>}
+        </div>:<p className="pds-state">Chưa liên kết nhiệm vụ.</p>}
       </section>)}
-    </section>
+    </div></section>
     {error?<p role="alert">{error}</p>:null}
     {success?<p role="status">{success}</p>:null}
   </section>;
