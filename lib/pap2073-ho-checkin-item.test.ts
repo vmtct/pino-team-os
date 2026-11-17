@@ -43,3 +43,8 @@ test("PAP-2073 uses native DSA Detail and keeps generic HO adapter read-only",()
  assert.match(file("lib/workspace-adapters/adapter.ts"),/session\.scope\.surface === "HO" && provider\.mutation/);
  assert.match(file("app/ho/pinoria/wardrobe/HoItemCreate.tsx"),/setCheckInItem\(false\)/);
 });
+test("PAP-2073 Create leaves initial focus to the canonical DrawerFrame to restore the invoker",()=>{
+ const source=readFileSync(new URL("../app/ho/pinoria/wardrobe/HoItemCreate.tsx",import.meta.url),"utf8");
+ assert.match(source,/<DrawerFrame title="Tạo Item"/);
+ assert.doesNotMatch(source,/\bautoFocus\b/);
+});
