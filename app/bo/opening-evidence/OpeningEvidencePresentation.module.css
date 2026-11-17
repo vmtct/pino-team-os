@@ -1,0 +1,4 @@
+/* PAP-2119: layout only; canonical BO media and Full Detail own presentation. */
+.gallery { display: grid; gap: 16px; min-width: 0; }
+.round { display: grid; gap: 8px; min-width: 0; }
+.photoPreview { width: 100%; max-width: 320px; }
