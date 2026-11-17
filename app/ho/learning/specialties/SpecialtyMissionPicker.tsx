@@ -1,4 +1,5 @@
 "use client";
+import styles from "./SpecialtyMissionPicker.module.css";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   searchLinkableSpecialtyMissions,
@@ -12,12 +13,11 @@ export interface SpecialtyMissionPickerProps {
   value: SpecialtyMissionOption | null;
   onChange: (selected: SpecialtyMissionOption | null) => void;
   disabled?: boolean;
-  className?: string;
 }
 
 /** PAP-1495: approved HO relation search; parent performs the Core link command. */
 export function SpecialtyMissionPicker({
-  missions, pathProgramId, linkedMissionIds, value, onChange, disabled = false, className,
+  missions, pathProgramId, linkedMissionIds, value, onChange, disabled = false,
 }: SpecialtyMissionPickerProps) {
   const id = useId().replace(/:/g, "");
   const inputId = id + "-mission-search";
@@ -52,7 +52,7 @@ export function SpecialtyMissionPicker({
     setOpen(false);
     setActive(0);
   };
-  return <div className={className ?? "v25-form-field"} ref={field} onBlur={event => {
+  return <div className={styles.field} ref={field} onBlur={event => {
     if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOpen(false);
   }}>
     <label className="pds-property-label" htmlFor={inputId}>Nhiệm vụ</label>

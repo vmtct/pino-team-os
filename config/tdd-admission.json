@@ -839,7 +839,8 @@
         "app/ho/learning/specialties/SpecialtyMissionPicker.tsx",
         "app/ho/learning/specialties/HoSpecialtyCreate.module.css",
         "app/ho/learning/specialties/HoSpecialtyMissionsTab.module.css",
-        "app/ho/learning/specialties/HoSpecialtyMissionsRead.module.css"
+        "app/ho/learning/specialties/HoSpecialtyMissionsRead.module.css",
+        "app/ho/learning/specialties/SpecialtyMissionPicker.module.css"
       ],
       "businessStyles": [
         {
@@ -859,6 +860,12 @@
           "owner": "PAP-1495",
           "consumer": "app/ho/learning/specialties/HoSpecialtyMissionsRead.tsx",
           "classes": ["stack","list","row","identity"]
+        },
+        {
+          "file": "app/ho/learning/specialties/SpecialtyMissionPicker.module.css",
+          "owner": "PAP-1495",
+          "consumer": "app/ho/learning/specialties/SpecialtyMissionPicker.tsx",
+          "classes": ["field"]
         }
       ],
       "schema": {
