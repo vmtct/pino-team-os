@@ -2,8 +2,9 @@
  * No write permit. Existing Assignment/Diary callers must retain their own
  * server-side guards and must not mount this reader until the cutover is proven.
  */
-import {readTosEligibleMissions} from "./tos-mission-assignment-choices";
+import {readTosEligibleMissions,type TosEligibleMissionChoice} from "./tos-mission-assignment-choices";
 import type {TosMissionAssignmentScope} from "./tos-mission-assignment-api";
+import type {V18bEligibleMissionsInput,V18bEligibleMissionsRead} from "./tos-classroom-v18b-api";
 import {
   filterTosScopedMissions,validateTosScopedMissionChoices,
   type TosScopedMissionChoice,
@@ -20,7 +21,11 @@ export async function readTosSpecialtyPickerChoices(
 ):Promise<readonly TosScopedMissionChoice[]>{
  if(!scope||typeof scope.pathProgramId!=="string"||!id.test(scope.pathProgramId))
   throw new TypeError("SPECIALTY_PICKER_PATH_UNVERIFIED");
- const raw=await readTosEligibleMissions({...scope},transport);
+ return projectTosSpecialtyPickerChoices(await readTosEligibleMissions({...scope},transport));
+}
+
+/** A complete source verdict is required for every new selection, including command preflight. */
+export function projectTosSpecialtyPickerChoices(raw:readonly TosEligibleMissionChoice[]):readonly TosScopedMissionChoice[]{
  const choices=validateTosScopedMissionChoices(raw);
  for(const [index,choice] of choices.entries()){
   const entry=raw[index];
@@ -39,4 +44,18 @@ export async function readTosSpecialtyPickerChoices(
    throw new TypeError("SPECIALTY_PICKER_PREREQUISITE_EVIDENCE_MISSING");
  }
  return filterTosScopedMissions(choices);
+}
+
+// Preserve raw definition metadata for new-selection preflight and the exact
+// scoped catalog for separate read-only historical reconciliation.
+export async function readDiarySpecialtyCatalog(
+ scope:V18bEligibleMissionsInput,pathProgramId:string|undefined,
+ transport:typeof fetch=(...args)=>fetch(...args),
+):Promise<V18bEligibleMissionsRead>{
+ if(!pathProgramId||!id.test(pathProgramId))throw new TypeError("SPECIALTY_PICKER_PATH_UNVERIFIED");
+ const exact={centerId:scope.centerId,studentId:scope.studentId,runningClassId:scope.runningClassId,
+  localDate:scope.localDate,teachingContextKey:scope.teachingContextKey,pathProgramId};
+ const items=await readTosEligibleMissions(exact,transport);
+ projectTosSpecialtyPickerChoices(items);
+ return {...exact,items:[...items],hasMore:false};
 }

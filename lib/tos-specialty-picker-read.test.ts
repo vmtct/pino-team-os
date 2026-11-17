@@ -1,7 +1,7 @@
 /** PAP-1497 / SPEC-UNLOCK: exact Core PR2141 candidate wire, not live G4. */
 import assert from "node:assert/strict";
 import test from "node:test";
-import {readTosSpecialtyPickerChoices,type SpecialtyPickerScope} from "./tos-specialty-picker-read";
+import {readTosSpecialtyPickerChoices,readDiarySpecialtyCatalog,type SpecialtyPickerScope} from "./tos-specialty-picker-read";
 import {requiresSpecialtySelectionGuard} from "./tos-specialty-mission-availability";
 const id=(n:number)=>"01900000-0000-7000-8000-"+String(n).padStart(12,"0");
 const scope:SpecialtyPickerScope={centerId:id(1),studentId:id(2),runningClassId:id(3),
@@ -72,4 +72,23 @@ test("PAP-1497 duplicate across pages and denied read reject entire result",asyn
  await assert.rejects(readTosSpecialtyPickerChoices(scope,r.transport),/trùng/);
  const denied=reader([new Response(JSON.stringify({error:{code:"ACCESS_PERMISSION_DENIED",message:"Denied"}}),{status:403})]);
  await assert.rejects(readTosSpecialtyPickerChoices(scope,denied.transport),/Denied/);
+});
+
+test("PAP-1497 Diary catalog keeps raw authority metadata and locked history across every page",async()=>{
+ const first=Array.from({length:100},(_,i)=>item(i+1,false));
+ const r=reader([page(first,true),page([item(101)])]);
+ const actual=await readDiarySpecialtyCatalog(scope,scope.pathProgramId,r.transport);
+ assert.equal(actual.items.length,101);assert.equal(actual.hasMore,false);
+ assert.deepEqual(actual.items[0],first[0]);assert.deepEqual(actual.items[100],item(101));
+ assert.deepEqual(r.offsets,["0","100"]);assert.equal(actual.pathProgramId,scope.pathProgramId);
+});
+test("PAP-1497 Diary catalog rejects missing or wrong Path and mixed contract",async()=>{
+ const missing=reader([]);
+ await assert.rejects(readDiarySpecialtyCatalog(scope,undefined,missing.transport),/PATH_UNVERIFIED/);
+ assert.deepEqual(missing.offsets,[]);
+ const wrong=reader([page([item(1)],false,{pathProgramId:id(88)})]);
+ await assert.rejects(readDiarySpecialtyCatalog(scope,scope.pathProgramId,wrong.transport),/khớp Path/);
+ const legacy={missionId:id(999),code:"ART-999",name:"Legacy",level:1,assignmentId:null};
+ const mixed=reader([page(Array.from({length:100},(_,i)=>item(i+1)),true),page([legacy])]);
+ await assert.rejects(readDiarySpecialtyCatalog(scope,scope.pathProgramId,mixed.transport),/MISSION_AVAILABILITY_CONTRACT_INVALID/);
 });

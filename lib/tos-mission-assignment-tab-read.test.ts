@@ -168,6 +168,10 @@ test("PAP-1488: existing tab mounts approved Assignment card and shared sheet wi
     "assignFooter"]) assert.ok(component.includes("styles."+name),name);
   assert.match(component,/createTosMissionAssignmentVerified/);
   assert.match(component,/replaceTosMissionAssignmentVerified/);
+  assert.match(component,/filterTosScopedMissions\(choices.items,filter,query\)/);
+  assert.match(component,/describeTosMissionLocks/);
+  assert.match(component,/disabled=\{busy\|\|!item.available\}/);
+  assert.match(component,/!selectedAvailable/);
   assert.match(component,/disabled=\{!canWrite\}/);
   assert.match(component,/disabled=\{readOnly\|\|busy\|\|!!editor.old\}/);
   assert.doesNotMatch(component,/currentDiaries|DiaryMission|saveDiaryDraft|\.diaries\b/);
