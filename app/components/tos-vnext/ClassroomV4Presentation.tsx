@@ -406,7 +406,7 @@ export default function ClassroomV4Presentation({model,initialView,onDetailChang
 
       {overlay==="photo"&&proofOpening&&proofClass&&<div className={styles.proofDetail} data-tos-slot={tosSlotKeys(styles.proofDetail)}>
     <div className={styles.proofHeading} data-tos-slot={tosSlotKeys(styles.proofHeading)}>
-     <div><strong>{proofClass.name}</strong><p>{proofClass.time} · {proofClass.room}</p><p>Mở bởi {proofOpening.openedBy} · {dateLabel(proofOpening.openedAt)} {timeLabel(proofOpening.openedAt)}</p></div>
+     <div><strong>{proofClass.name}</strong><p>{proofClass.time} · {proofClass.room}</p><p>Mở bởi {proofOpening.openedBy} · {formatPinoDateTime(proofOpening.openedAt)}</p></div>
      <span className={styles.badgeGood} data-tos-slot={tosSlotKeys(styles.badgeGood)}>Lớp đã mở</span>
     </div>
     <div className={styles.proofStatusRow} data-tos-slot={tosSlotKeys(styles.proofStatusRow)}><span className={reviewState(proofOpening)==="REJECTED"?styles.badgeBad:reviewState(proofOpening)==="APPROVED"?styles.badgeGood:styles.badgePending} data-tos-slot={tosSlotKeys(reviewState(proofOpening)==="REJECTED"?styles.badgeBad:reviewState(proofOpening)==="APPROVED"?styles.badgeGood:styles.badgePending)}>Bằng chứng: {reviewText(reviewState(proofOpening))}</span><span>{evidenceRounds(proofOpening).reduce((n,r)=>n+r.photos.length,0)} ảnh · {evidenceRounds(proofOpening).length} lượt gửi</span></div>
@@ -414,12 +414,12 @@ export default function ClassroomV4Presentation({model,initialView,onDetailChang
     <h3>Bằng chứng và lịch sử duyệt</h3>
     {evidenceRounds(proofOpening).slice().reverse().map((round,index)=><article className={styles.proofRound} data-tos-slot={tosSlotKeys(styles.proofRound)} key={round.id} data-review-round-id={round.id}>
       <div className={styles.proofRoundHead} data-tos-slot={tosSlotKeys(styles.proofRoundHead)}><strong>{index===evidenceRounds(proofOpening).length-1?"Ảnh mở lớp ban đầu":"Lượt bằng chứng #"+(evidenceRounds(proofOpening).length-index)}</strong><span className={round.status==="REJECTED"?styles.badgeBad:round.status==="APPROVED"?styles.badgeGood:styles.badgePending} data-tos-slot={tosSlotKeys(round.status==="REJECTED"?styles.badgeBad:round.status==="APPROVED"?styles.badgeGood:styles.badgePending)}>{reviewText(round.status)}</span></div>
-      <p>{dateLabel(round.submittedAt)} {timeLabel(round.submittedAt)} · Người gửi: {round.submittedBy}</p>
+      <p>{formatPinoDateTime(round.submittedAt)} · Người gửi: {round.submittedBy}</p>
       {round.note&&<p>Ghi chú: {round.note}</p>}
       <div className={styles.proofGallery} data-tos-slot={tosSlotKeys(styles.proofGallery)}>
-      {round.photos.map((photo,index)=><figure key={photo.id}>{proofOpening.receiptId?<PrivateClassOpeningImage key={proofOpening.receiptId+":"+photo.id} scope={classScope(proofClass)} receiptId={proofOpening.receiptId} assetId={photo.id} alt={index===0&&round.id===evidenceRounds(proofOpening)[0].id?"Ảnh setup đã lưu":"Ảnh setup "+photo.fileName}/>:<p>Chưa xác minh ảnh.</p>}<figcaption>{photo.fileName}<small>{photo.uploadedBy} · {timeLabel(photo.uploadedAt)}</small></figcaption></figure>)}
+      {round.photos.map((photo,index)=><figure key={photo.id}>{proofOpening.receiptId?<PrivateClassOpeningImage key={proofOpening.receiptId+":"+photo.id} scope={classScope(proofClass)} receiptId={proofOpening.receiptId} assetId={photo.id} alt={index===0&&round.id===evidenceRounds(proofOpening)[0].id?"Ảnh setup đã lưu":"Ảnh setup "+photo.fileName}/>:<p>Chưa xác minh ảnh.</p>}<figcaption>{photo.fileName}<small>{photo.uploadedBy} · {formatPinoDateTime(photo.uploadedAt)}</small></figcaption></figure>)}
       </div>
-      {round.reviewedAt&&<p className={styles.proofReviewNote} data-tos-slot={tosSlotKeys(styles.proofReviewNote)}>Duyệt bởi {round.reviewedBy} · {dateLabel(round.reviewedAt)} {timeLabel(round.reviewedAt)}</p>}
+      {round.reviewedAt&&<p className={styles.proofReviewNote} data-tos-slot={tosSlotKeys(styles.proofReviewNote)}>Duyệt bởi {round.reviewedBy} · {formatPinoDateTime(round.reviewedAt)}</p>}
       {round.status==="REJECTED"&&<div className={styles.proofReason} data-tos-slot={tosSlotKeys(styles.proofReason)}>Lý do từ chối: {round.reason||"Chưa cung cấp lý do"}</div>}
       {round.status==="APPROVED"&&round.reason&&<p className={styles.proofReviewNote} data-tos-slot={tosSlotKeys(styles.proofReviewNote)}>{round.reason}</p>}
     </article>)}
