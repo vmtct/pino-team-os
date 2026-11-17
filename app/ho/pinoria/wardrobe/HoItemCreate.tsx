@@ -45,7 +45,7 @@ export function HoItemCreate({onCreated}:{onCreated:()=>void}){
    <form id="pap1700-ho-create-item" className="pino-item-create-form" aria-label="Tạo Item" onSubmit={event=>{void submit(event);}} noValidate>
     <section className="pino-item-create-section" aria-label="Thông tin Item">
      <h3>THÔNG TIN ITEM</h3>
-     <label>Tên Item *<input autoFocus required maxLength={160} value={name} onChange={e=>{setName(e.target.value);setError("");}} placeholder="Ví dụ: Mũ Sao Biển"/></label>
+     <label>Tên Item *<input required maxLength={160} value={name} onChange={e=>{setName(e.target.value);setError("");}} placeholder="Ví dụ: Mũ Sao Biển"/></label>
      <label>Item Key *<input required maxLength={120} value={key} onChange={e=>{setKey(e.target.value);setError("");}} placeholder="mu-sao-bien"/><small>Chữ thường, số, dấu chấm, gạch ngang hoặc gạch dưới.</small></label>
      <label>Loại *<select value={kind} onChange={e=>{setKind(e.target.value as ItemKind);setCheckInItem(false);setFile(null);setError("");}}><option value="WEARABLE">Wearable</option><option value="ACCESSORY">Accessory</option><option value="SET">Set</option></select></label>
      {kind!=="SET"?<>
