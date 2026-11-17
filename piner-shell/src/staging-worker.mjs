@@ -35,7 +35,7 @@ export default {
     const allowedMethods = isLogin || isAsset ? ["GET", "HEAD"] : method ? [method] : null;
     const response = allowedMethods
       ? await forwardAfterschoolPin(request, env?.AFTERSCHOOL_PIN_WORKER, allowedMethods)
-      : isPinRoute ? new Response(null, { status: 404 }) : await base.fetch(request, env, ctx);
+      : isPinRoute ? new Response(null, { status: 404 }) : await base.fetch(request, env, ctx, { afterschoolLoginAvailable: typeof env?.AFTERSCHOOL_PIN_WORKER?.fetch === "function" });
     const headers = new Headers(response.headers);
     headers.set("X-Piner-Environment", "staging");
     if (isPinRoute || isLogin || isAsset) {

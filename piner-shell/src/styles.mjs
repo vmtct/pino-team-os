@@ -54,6 +54,7 @@ button,a{-webkit-tap-highlight-color:transparent}
 .empty-state strong{font-size:15px;font-weight:650}
 .empty-state p{font-size:13px;line-height:1.55;color:#65736a;max-width:270px;margin:0}
 .empty-state small{font-size:11px;letter-spacing:.01em;color:#889790}
+.empty-state [data-afterschool-login]{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 8px;font-weight:650;text-decoration:underline;text-underline-offset:3px}
 .post-skeleton{border:1px solid #eff0ec;border-radius:17px;padding:13px;margin-bottom:17px}
 .skeleton-heading{height:15px;width:36%;border-radius:12px;background:#eaeceb;margin-bottom:13px}
 .skeleton-picture{height:268px;border-radius:12px;background:linear-gradient(125deg,#e8ebeb,#f4f5f3 52%,#e8ebeb)}

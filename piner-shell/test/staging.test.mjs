@@ -87,3 +87,28 @@ test("PAP-2044 serves only read-only PIN login and Next static asset requests", 
  assert.equal((await staging.fetch(req("/_next/data/private.json"), env)).status, 404);
  assert.deepEqual(seen, [[login, "GET"], [asset, "HEAD"]]);
 });
+
+test("PAP-2044 exposes same-origin login only in bound Afterschool staging shell", async () => {
+ const calls = [];
+ const env = { AFTERSCHOOL_PIN_WORKER: { fetch: async request => {
+  calls.push([new URL(request.url).pathname, request.method]);
+  return new Response("PIN form", { headers: { "content-type": "text/html" } });
+ } } };
+ const login = "/piner-space/afterschool/login";
+ const marker = /<a href="\/piner-space\/afterschool\/login" data-afterschool-login>/;
+ for (const path of ["/piner/house", "/piner/house/grid", "/piner/house/reels", "/piner/house/community"]) {
+  const response = await staging.fetch(req(path), env);
+  assert.equal(response.status, 200);
+  assert.match(await response.text(), marker);
+  assert.match(response.headers.get("Content-Security-Policy"), /connect-src 'none'/);
+  assert.doesNotMatch(await (await staging.fetch(req(path))).text(), marker);
+ }
+ for (const path of ["/", "/piner", "/piner/mytime", "/piner/mytime/community"]) {
+  assert.doesNotMatch(await (await staging.fetch(req(path), env)).text(), marker);
+ }
+ const { handleRequest } = await import("../src/worker.mjs");
+ assert.doesNotMatch(await (await handleRequest(req("/piner/house"), env)).text(), marker);
+ assert.equal(calls.length, 0);
+ assert.equal((await staging.fetch(req(login), env)).status, 200);
+ assert.deepEqual(calls, [[login, "GET"]]);
+});
