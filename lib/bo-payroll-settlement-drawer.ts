@@ -1,4 +1,5 @@
 import type {SettlementPreview} from "./bo-payroll-period-api";
+import type {ReviewedException,decisionPayload} from "./bo-payroll-extra-review-api";
 import type {IncomePeriod} from "./bo-payroll-income-read";
 import {scopedIncomeRow,scopedIncomeDay,verifiedFinancialCapabilities} from "./bo-payroll-income-read";
 import {exceptionReadApi,type NativeReviewedException} from "./bo-payroll-exceptions-read";
@@ -87,6 +88,22 @@ export function canReviewSettlementException(source:ReturnType<typeof settlement
   source.period.status==="ACTIVE"&&!source.frozen&&["DRAFT","PENDING"].includes(source.staff.status)&&
   row.id===requestId&&row.centerId===centerId&&row.staffMemberId===source.staff.staffMemberId&&
   row.workDate>=source.period.startDate&&row.workDate<=source.period.endDate&&row.status==="PENDING"&&row.decision===null;
+}
+
+/** Validate an existing command receipt against the fresh request and independent readback. */
+export function verifiedReviewReceipt(before:NativeReviewedException,receipt:ReviewedException,readback:NativeReviewedException,payload:ReturnType<typeof decisionPayload>){
+ const fail=()=>{throw Error("PAYROLL_REVIEW_READBACK_UNVERIFIED");};
+ if(before.status!=="PENDING"||before.decision!==null||before.centerId!==payload.centerId||before.id!==payload.requestId)fail();
+ const sameRequest=(r:ReviewedException)=>r.id===before.id&&r.centerId===before.centerId&&r.staffMemberId===before.staffMemberId&&r.assignmentId===before.assignmentId&&r.workDate===before.workDate&&r.requestedStartAt===before.requestedStartAt&&r.requestedEndAt===before.requestedEndAt&&r.requestReason===before.requestReason;
+ const a=receipt.decision,b=readback.decision;
+ if(!sameRequest(receipt)||!sameRequest(readback)||receipt.status!==payload.decision||readback.status!==payload.decision||
+    !a||!b||!a.id||a.id!==b.id||a.type!==payload.decision||b.type!==payload.decision||a.reason!==payload.reason||b.reason!==payload.reason)throw Error("PAYROLL_REVIEW_READBACK_UNVERIFIED");
+ if(a.amountMinor!==b.amountMinor||a.minutes!==b.minutes||a.hourlyRateMinor!==b.hourlyRateMinor||a.rateEntryId!==b.rateEntryId||a.rateVersion!==b.rateVersion||a.sourceFingerprint!==b.sourceFingerprint||!a.reviewerId||a.reviewerId!==b.reviewerId||a.reviewedAt!==b.reviewedAt)fail();
+ if(payload.decision==="APPROVED"){
+  const start=Date.parse(payload.approvedStartAt??""),end=Date.parse(payload.approvedEndAt??"");
+  if(!Number.isFinite(start)||!Number.isFinite(end)||start>=end||[a,b].some(x=>Date.parse(x.startAt??"")!==start||Date.parse(x.endAt??"")!==end))fail();
+ }else if([a,b].some(x=>x.startAt!==null||x.endAt!==null))fail();
+ return readback;
 }
 
 /** Product input validation only. No transport or permission decision. VND is an integer unit. */

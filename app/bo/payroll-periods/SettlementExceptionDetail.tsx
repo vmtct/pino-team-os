@@ -5,7 +5,7 @@ import {BoFullDetail} from "@/app/bo/components/BoFullDetail";
 import {BoProperties} from "@/app/bo/components/BoProperties";
 import {loadIncomeHistory} from "@/lib/bo-payroll-income-read";
 import {decisionPayload,localClock,reviewApi} from "@/lib/bo-payroll-extra-review-api";
-import {settlementDrawerSource,canReviewSettlementException,settlementExceptionDetail,settlementDrawerHref,settlementExceptionHref} from "@/lib/bo-payroll-settlement-drawer";
+import {settlementDrawerSource,canReviewSettlementException,verifiedReviewReceipt,settlementExceptionDetail,settlementDrawerHref,settlementExceptionHref} from "@/lib/bo-payroll-settlement-drawer";
 import {toExceptionReadRow,minorVnd,type ExceptionReadRow} from "@/lib/bo-payroll-exceptions-model";
 import {exceptionProperties} from "../payroll-exceptions/BoPayrollExceptionsReadView";
 
@@ -49,9 +49,7 @@ export function SettlementExceptionDetail({centerId,periodId,staffId,requestId,t
    const receipt=(await reviewApi.decide(payload,"pay-review-"+crypto.randomUUID())).data;
    const after=await loadIncomeHistory(centerId,periodId,staffId);
    const verified=await settlementExceptionDetail(after.current,centerId,periodId,staffId,requestId);
-   if(verified.id!==receipt.id||!verified.decision||verified.decision.id!==receipt.decision?.id||verified.status!==payload.decision||verified.decision.type!==payload.decision||verified.decision.reason!==payload.reason||
-     (payload.decision==="APPROVED"&&(Date.parse(verified.decision.startAt??"")!==Date.parse(payload.approvedStartAt??"")||Date.parse(verified.decision.endAt??"")!==Date.parse(payload.approvedEndAt??""))))
-    throw Error("PAYROLL_REVIEW_READBACK_UNVERIFIED");
+   verifiedReviewReceipt(fresh,receipt,verified,payload);
    if(mounted.current){setRow(toExceptionReadRow(verified,centerId));setEligible(false);setNotice("Core đã xác nhận quyết định.");}
   }catch(e){
    if(mounted.current){setUncertain(submitted);setEligible(false);setActionError(submitted?"Chưa xác nhận được kết quả. Tải lại trước khi thao tác tiếp.":e instanceof Error?e.message:"Không xác minh được ngoại lệ.");}

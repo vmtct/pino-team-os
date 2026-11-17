@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {settlementDrawerSource,settlementDrawerExceptions,pendingSettlementException,settlementReadiness,canReviewSettlementException,validatedAdjustmentInput,projectAdjustmentDraft,verifiedSettlementPreview,settlementExceptionDetail,settlementDrawerHref,settlementExceptionHref} from "./bo-payroll-settlement-drawer";
+import {settlementDrawerSource,settlementDrawerExceptions,pendingSettlementException,settlementReadiness,canReviewSettlementException,verifiedReviewReceipt,validatedAdjustmentInput,projectAdjustmentDraft,verifiedSettlementPreview,settlementExceptionDetail,settlementDrawerHref,settlementExceptionHref} from "./bo-payroll-settlement-drawer";
+import {decisionPayload} from "./bo-payroll-extra-review-api";
 import type {IncomePeriod} from "./bo-payroll-income-read";
 import type {NativeReviewedException} from "./bo-payroll-exceptions-read";
 const period={id:"period",name:"P",startDate:"2026-10-01",endDate:"2026-10-31",status:"ACTIVE" as const};
@@ -106,4 +107,18 @@ test("PAP-1956 adjustment draft estimate enforces approved prototype nonnegative
  assert.throws(()=>projectAdjustmentDraft(src,{...rights,canManageSettlement:false},"center","1","abc"));
  assert.throws(()=>projectAdjustmentDraft({...src,frozen:true},rights,"center","1","abc"));
  assert.throws(()=>projectAdjustmentDraft({...src,preview:{...src.preview,sourceFingerprint:"bad"}},rights,"center","1","abc"));
+});
+
+test("PAP-1956 review receipt verifies exact request, scope, decision and independently read back values",()=>{
+ const payload=decisionPayload(request,"FULL","","","Synthetic approved");
+ const decided:NativeReviewedException={...request,status:"APPROVED",decision:{id:"decision",type:"APPROVED",startAt:request.requestedStartAt,endAt:request.requestedEndAt,minutes:30,hourlyRateMinor:40,rateEntryId:"rate",rateVersion:1,amountMinor:20,reason:payload.reason,reviewerId:"reviewer",reviewedAt:"2026-10-02T04:00:00Z",sourceFingerprint:"x"}};
+ assert.equal(verifiedReviewReceipt(request,decided,decided,payload),decided);
+ for(const bad of [{...decided,centerId:"other"},{...decided,staffMemberId:"other"},{...decided,assignmentId:"other"},{...decided,workDate:"2026-10-03"},{...decided,id:"other"},{...decided,decision:null},{...decided,decision:{...decided.decision!,amountMinor:21}},{...decided,decision:{...decided.decision!,endAt:"2026-10-02T10:20:00+07:00"}}]){
+  assert.throws(()=>verifiedReviewReceipt(request,decided,bad,payload),/READBACK_UNVERIFIED/);
+  assert.throws(()=>verifiedReviewReceipt(request,bad,decided,payload),/READBACK_UNVERIFIED/);
+ }
+ const rejectedPayload=decisionPayload(request,"REJECTED","","","Synthetic rejected");
+ const rejected:NativeReviewedException={...request,status:"REJECTED",decision:{...decided.decision!,type:"REJECTED",reason:rejectedPayload.reason,startAt:null,endAt:null,minutes:null,amountMinor:null,hourlyRateMinor:null,rateEntryId:null,rateVersion:null,sourceFingerprint:null}};
+ assert.equal(verifiedReviewReceipt(request,rejected,rejected,rejectedPayload),rejected);
+ assert.throws(()=>verifiedReviewReceipt(request,rejected,{...rejected,decision:{...rejected.decision!,startAt:request.requestedStartAt}},rejectedPayload),/READBACK_UNVERIFIED/);
 });
