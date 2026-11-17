@@ -256,7 +256,7 @@ function ScopedAvatarDirectory({centerId,menu}:{centerId:string;menu?:React.Reac
         }} reset={reset} undo={()=>{}} canUndo={false}/>}
     </section>}
     {drawer&&!detail&&<AvatarDrawer record={drawer} onClose={closeDrawer} onDetail={switchToDetail}/>}
-    {creating&&canCreate&&<CreateSelfDrawer centerId={centerId} onClose={()=>setCreating(false)}
+    {creating&&canCreate&&<CreateSelfDrawer centerId={centerId} canUseStarter={grants.has("pinoria.self.loadout.manage")} onClose={()=>setCreating(false)}
       onCreated={()=>{setCreating(false);setNotice("Đã tạo Avatar.");setPage(1);cursors.current=new Map([[1,null]]);refreshAfterWrite();}}/>}
     {settings&&<BoTableSettings screen={settings} setScreen={setSettings} onClose={()=>setSettings(null)}
       fields={avatarModule.fields} rows={rows} value={table} update={update} views={views} setViews={setViews}

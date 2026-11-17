@@ -57,9 +57,9 @@ export function HoSpecialtyMissionsTab({
             {ordered.map(level=><option key={level.id} value={level.id}>{level.name}</option>)}
           </select>
         </label>
-        <div className={styles.field}><SpecialtyMissionPicker missions={missionCatalog} pathProgramId={pathProgramId}
+        <SpecialtyMissionPicker missions={missionCatalog} pathProgramId={pathProgramId}
           linkedMissionIds={linked} value={selected} onChange={setSelected}
-          disabled={busy||disabled||!ordered.length}/></div>
+          disabled={busy||disabled||!ordered.length}/>
         <div className={styles.field}><span className="pds-property-label" aria-hidden="true">&nbsp;</span><button type="button" className="primary-btn" disabled={!canLink}
           onClick={()=>{if(!canLink||!selected)return;
             const targetId=activeLevel,missionId=selected.id;
