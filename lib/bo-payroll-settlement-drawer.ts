@@ -155,3 +155,22 @@ export async function settlementExceptionDetail(row:IncomePeriod,centerId:string
  }
  return r;
 }
+
+/** PAP-1956: compare the Core command receipt to an independent selected Staff/Period preview.
+ * A concurrent unrelated source change is not a verified confirmation of the displayed estimate.
+ * This pure verifier is not authorization or transport admission.
+ */
+export function verifiedAdjustmentReceipt(before:SettlementPreview,receipt:unknown,after:SettlementPreview,input:{amountMinor:number;reason:string}):SettlementPreview{
+ const fail=()=>{throw Error("PAYROLL_ADJUSTMENT_READBACK_UNVERIFIED");};
+ if(!receipt||typeof receipt!=="object")return fail();
+ const r=receipt as Record<string,unknown>;
+ const sameScope=after.centerId===before.centerId&&after.periodId===before.periodId&&after.staffMemberId===before.staffMemberId&&after.periodVersion===before.periodVersion&&after.periodStartDate===before.periodStartDate&&after.periodEndDate===before.periodEndDate;
+ if(!sameScope||r.centerId!==before.centerId||r.periodId!==before.periodId||r.staffMemberId!==before.staffMemberId||typeof r.id!=="string"||!r.id||r.amountMinor!==input.amountMinor||r.reason!==input.reason||r.category!==null||r.reversesAdjustmentId!==null||typeof r.createdByUserId!=="string"||!r.createdByUserId||typeof r.createdAt!=="string"||!Number.isFinite(Date.parse(r.createdAt)))return fail();
+ if(!Number.isSafeInteger(input.amountMinor)||input.amountMinor===0||!Number.isSafeInteger(before.amountMinor)||!Number.isSafeInteger(before.adjustmentsMinor)||!Number.isSafeInteger(after.amountMinor)||!Number.isSafeInteger(after.adjustmentsMinor)||after.amountMinor!==before.amountMinor+input.amountMinor||after.adjustmentsMinor!==before.adjustmentsMinor+input.amountMinor||after.amountMinor<0||!/^[a-f0-9]{64}$/.test(before.sourceFingerprint)||!/^[a-f0-9]{64}$/.test(after.sourceFingerprint)||after.sourceFingerprint===before.sourceFingerprint)return fail();
+ if(!Array.isArray(before.adjustments)||!Array.isArray(after.adjustments)||after.adjustments.length!==before.adjustments.length+1||before.adjustments.some(a=>a.id===r.id)||new Set(after.adjustments.map(a=>a.id)).size!==after.adjustments.length)return fail();
+ const byId=new Map(after.adjustments.map(a=>[a.id,a]));
+ if(before.adjustments.some(a=>{const b=byId.get(a.id);return !b||a.amountMinor!==b.amountMinor||a.reason!==b.reason;}))return fail();
+ const entry=byId.get(r.id);
+ if(!entry||entry.amountMinor!==input.amountMinor||entry.reason!==input.reason||after.extraTimeMinor!==before.extraTimeMinor||JSON.stringify(after.days)!==JSON.stringify(before.days)||JSON.stringify(after.extraTimeDecisions)!==JSON.stringify(before.extraTimeDecisions)||JSON.stringify(after.warnings)!==JSON.stringify(before.warnings))return fail();
+ return after;
+}

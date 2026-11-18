@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {settlementDrawerSource,settlementDrawerExceptions,pendingSettlementException,settlementReadiness,canReviewSettlementException,verifiedReviewReceipt,validatedAdjustmentInput,canPreviewAdjustment,projectAdjustmentDraft,verifiedSettlementPreview,settlementExceptionDetail,settlementDrawerHref,settlementExceptionHref} from "./bo-payroll-settlement-drawer";
+import {settlementDrawerSource,settlementDrawerExceptions,pendingSettlementException,settlementReadiness,canReviewSettlementException,verifiedReviewReceipt,validatedAdjustmentInput,canPreviewAdjustment,projectAdjustmentDraft,verifiedAdjustmentReceipt,verifiedSettlementPreview,settlementExceptionDetail,settlementDrawerHref,settlementExceptionHref} from "./bo-payroll-settlement-drawer";
 import {decisionPayload} from "./bo-payroll-extra-review-api";
 import type {IncomePeriod} from "./bo-payroll-income-read";
 import type {NativeReviewedException} from "./bo-payroll-exceptions-read";
@@ -125,4 +125,14 @@ test("PAP-1956 review receipt verifies exact request, scope, decision and indepe
  const rejected:NativeReviewedException={...request,status:"REJECTED",decision:{...decided.decision!,type:"REJECTED",reason:rejectedPayload.reason,startAt:null,endAt:null,minutes:null,amountMinor:null,hourlyRateMinor:null,rateEntryId:null,rateVersion:null,sourceFingerprint:null}};
  assert.equal(verifiedReviewReceipt(request,rejected,rejected,rejectedPayload),rejected);
  assert.throws(()=>verifiedReviewReceipt(request,rejected,{...rejected,decision:{...rejected.decision!,startAt:request.requestedStartAt}},rejectedPayload),/READBACK_UNVERIFIED/);
+});
+
+test("PAP-1956 adjustment receipt matches exact signed VND, scope and append-only independent preview",()=>{
+ const before={...preview,sourceFingerprint:"a".repeat(64)};
+ const input={amountMinor:-23,reason:"Synthetic deduction"};
+ const receipt={id:"adjustment",centerId:before.centerId,periodId:before.periodId,staffMemberId:before.staffMemberId,...input,category:null,reversesAdjustmentId:null,createdByUserId:"founder",createdAt:"2026-10-02T04:00:00Z"};
+ const after={...before,amountMinor:100,adjustmentsMinor:-23,adjustments:[{id:receipt.id,...input}],sourceFingerprint:"b".repeat(64)};
+ assert.equal(verifiedAdjustmentReceipt(before,receipt,after,input),after);
+ for(const bad of [{...receipt,centerId:"other"},{...receipt,staffMemberId:"other"},{...receipt,periodId:"other"},{...receipt,amountMinor:23},{...receipt,reason:"changed"},{...receipt,reversesAdjustmentId:"old"},{...receipt,createdByUserId:""}])assert.throws(()=>verifiedAdjustmentReceipt(before,bad,after,input),/READBACK_UNVERIFIED/);
+ for(const bad of [{...after,centerId:"other"},{...after,periodVersion:2},{...after,amountMinor:99},{...after,adjustmentsMinor:23},{...after,adjustments:[]},{...after,adjustments:[...after.adjustments,...after.adjustments]},{...after,sourceFingerprint:before.sourceFingerprint},{...after,warnings:["new"]}])assert.throws(()=>verifiedAdjustmentReceipt(before,receipt,bad,input),/READBACK_UNVERIFIED/);
 });
