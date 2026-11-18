@@ -29,21 +29,30 @@ test("PAP-764 native staging entry admits only exact scoped pages and no product
 test("PAP-764 placeholder cannot create a second Center provider or authorizer", () => {
   assert.doesNotMatch(stage, /BoCenterSelectionProvider|loadAuthorizedDirectoryCenters/);
   assert.match(stage, /useBoCenterSelection/);
-  assert.match(stage, /scope\.centers\.some\(center => center\.id === scope\.selected\)/);
+  assert.match(stage, /scope\.centers\.some\(center\s*=>\s*center\.id\s*===\s*scope\.selected\)/);
 });
 
 test("PAP-764 native grid/drawer use real scoped Core; no local or synthetic data",()=>{
-  assert.match(stage,/BoDataGridSidePeek/);
-  assert.match(stage,/BoProperties/);
+  assert.match(stage,/<BoDataTable\b/);
+  assert.match(stage,/<BoQuickView\b/);
+  const quick=read("app/bo/components/registration/BoQuickView.tsx");
+  assert.match(quick,/<DrawerFrame\b/);
+  assert.match(quick,/<PropertySections\b/);
+  assert.doesNotMatch(stage,/BoDataGridSidePeek|BoCenterSelectionProvider|opening-shell-data|installOpeningFixture/);
+  assert.match(stage,/openingEvidenceApi\.list\(\{centerId,offset,limit/);
+  assert.match(stage,/response\?\.key===key/);
+  assert.match(stage,/allowed&&validRange/);
   assert.match(stage,/openingEvidenceApi\.list/);
   assert.match(stage,/NATIVE_STAGING_CANDIDATE/);
   assert.doesNotMatch(stage,/localStorage|sessionStorage|syntheticRows|demoRows/);
   assert.match(stage,/controller\.abort/);
 });
 test("PAP-1946 list skeleton uses one heading, one native grid and no KPI cards",()=>{
-  assert.equal((stage.match(/<BoDataGrid rows=/g)??[]).length,1);
+  assert.equal((stage.match(/<BoDataTable\b/g)??[]).length,1);
   assert.equal((stage.match(/<h1>/g)??[]).length,1);
-  assert.match(stage,/className="view-tabs"/);
+  assert.match(stage,/data-tdd-shell="table"/);
+  assert.match(stage,/builtInViews=\{builtIn\}/);
+  assert.match(stage,/serverTotal=\{current\?\.total\?\?0\}/);
   assert.doesNotMatch(stage,/kpi-card|<table/);
 });
 
