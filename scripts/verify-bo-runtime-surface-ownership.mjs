@@ -128,7 +128,11 @@ export function verifyBoRuntimeSurfaceOwnership(root=ROOT,overrides={}) {
     const admittedSpecialty=Boolean(specialtyAdmission && specialtyMounts===1 &&
       ui.includes('import {BoSubscriptionSpecialtyTab} from "./BoSubscriptionSpecialtyTab"') &&
       ui.includes('detailTab==="Chuyên đề" ?') &&
-      ui.includes('<BoSubscriptionSpecialtyTab key={detail.id+":"+centerId} subscriptionId={detail.id} centerId={centerId} centerReady={detail.row.centerId===centerId}/>'));
+      ui.includes('<BoSubscriptionSpecialtyTab key={detail.id+":"+centerId} subscriptionId={detail.id} centerId={centerId} centerReady={detail.row.centerId===centerId} linkedSpecialty={linkedSpecialty??runtimeLinked}/>') &&
+      ui.includes('if(!detail||detail.row.centerId!==centerId)return undefined;') &&
+      ui.includes('if(subject.subscriptionId!==detail.id||subject.centerId!==centerId||subject.pathProgramId!==pathProgramId)') &&
+      ui.includes('assertScope(subject);') &&
+      ui.includes('return openLinkedSpecialtyAdapter({...subject,pathLabel},signal,centerSource);'));
     if((specialtyMounts||ui.includes("BoSubscriptionSpecialtyTab")||c.specialtyAdmission) && !admittedSpecialty)
       issues.push("PAP-1496 exact Center-attested Specialty mount missing or unsafe");
     if(specialtyAdmission){
