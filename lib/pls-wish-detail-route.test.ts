@@ -21,3 +21,13 @@ test("Detail denies duplicate, malformed, foreign Center, policy Item tab, and p
  assert.throws(()=>readWishDetailRoute(q,"event",record));assert.throws(()=>readWishDetailRoute("?record="+record,"event",centerId));
  assert.equal(readWishDetailRoute("?unrelated=1","banner"),null);
 });
+
+test("reward links pin exact event, Center, ordinal, Item identity and immutable revision; close preserves parent tab",()=>{
+ const href="https://bo.staging.pinohouse.art/bo/pinoria-wish-events?other=1";const itemId="019a0000-0000-7000-8000-000000000003";
+ const parent={record,tab:"items" as const,centerId},route={...parent,reward:{ordinal:10,itemId,revision:7}};
+ const url=new URL(wishDetailUrl(href,"event",route),href);assert.deepEqual(readWishDetailRoute(url.search,"event",centerId),route);
+ assert.deepEqual(readWishDetailRoute(new URL(wishDetailUrl(url.href,"event",parent),href).search,"event",centerId),parent);
+ for(const [key,value] of [["rewardOrdinal","11"],["rewardOrdinal","01"],["rewardRevision","9007199254740992"],["rewardItem","bad"],["tab","history"]]){const bad=new URL(url);bad.searchParams.set(key,value);assert.throws(()=>readWishDetailRoute(bad.search,"event",centerId));}
+ for(const key of ["rewardOrdinal","rewardItem","rewardRevision"]){const bad=new URL(url);bad.searchParams.delete(key);assert.throws(()=>readWishDetailRoute(bad.search,"event",centerId));const duplicate=new URL(url);duplicate.searchParams.append(key,url.searchParams.get(key)!);assert.throws(()=>readWishDetailRoute(duplicate.search,"event",centerId));}
+ assert.throws(()=>readWishDetailRoute(url.search,"event",record));assert.throws(()=>readWishDetailRoute("?rewardOrdinal=1","policy"));
+});
