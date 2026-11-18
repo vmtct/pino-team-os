@@ -67,7 +67,7 @@ export function PropertySections({ fields, record, sections, variant, canEdit, o
   };
   const visibleSections = sections.filter(section => section.fields.some(key => fields.some(f => f.key === key)));
   if (!visibleSections.length) return <p role="status">Không có thuộc tính được phép xem.</p>;
-  return <>{visibleSections.map(section => {
+  const groups=visibleSections.map(section => {
     // PAP-1743: metadata-driven native disclosure; one shared typed row renderer.
     const Shell = variant === "drawer" && section.collapsed ? "details" : "section";
     return <Shell key={section.id} className={variant === "drawer" ? "property-section" : "v24-prop-section"} data-tdd-create={createFields ? "" : undefined} data-tdd-properties={variant} data-tdd-detail-resize={variant === "detail" ? "" : undefined}
@@ -114,5 +114,6 @@ export function PropertySections({ fields, record, sections, variant, canEdit, o
       </div>;
     })}</div>
   </Shell>;
-  })}</>;
+  });
+  return variant === "detail" ? <div className="dsa-detail-group-container"><div className="dsa-detail-group-grid" data-dsa-detail-group-grid="">{groups}</div></div> : <>{groups}</>;
 }
