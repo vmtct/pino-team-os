@@ -202,6 +202,20 @@ test("PAP-767 native Opening Evidence requires exact authorized entry, detail an
  for(const file of files)write(file,fs.readFileSync(path.join(repo,file),"utf8"));
  write(policy,read(policy).replace('  "/bo/payroll-periods",','  "/bo/payroll-periods",\n  "/bo/opening-evidence",'));
  assert.deepEqual(verifyBoStagingRoutePolicy(root).issues,[]);
+ const stage=files[1],stageOriginal=read(stage);
+ for(const [needle,replacement] of [
+  ['<BoDataTable ', '<div '],
+  ['<BoQuickView ', '<div '],
+  ['import {BoQuickView} from "@/app/bo/components/registration/BoQuickView"', 'import {BoQuickView} from "./fake"'],
+  ['scope.centers.some(center=>center.id===scope.selected)', 'true'],
+  ['openingEvidenceApi.list({centerId,offset,limit', 'openingEvidenceApi.list({centerId:"other",offset,limit'],
+  ['response?.key===key', 'true'],
+ ]){
+  assert.ok(stageOriginal.includes(needle),needle);
+  write(stage,stageOriginal.replace(needle,replacement));
+  assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/opening-evidence.*invalid native scoped route contract/);
+ }
+ write(stage,stageOriginal);
  const boundary=files[9],original=read(boundary);
  write(boundary,original.replace("openingEvidenceHostDecision(hostname, pathname, method)","null"));
  assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/opening-evidence.*invalid native scoped route contract/);
