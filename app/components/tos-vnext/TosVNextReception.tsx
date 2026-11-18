@@ -4,6 +4,7 @@ import { ownReceptionAssignments } from "@/lib/tos-vnext-reception";
 import ReceptionV4Presentation from "./ReceptionV4Presentation";
 import { OpenStudioReceptionPanel } from "./OpenStudioReceptionPanel";
 import { ReceptionHouseCheckIn } from "./ReceptionHouseCheckIn";
+import { tosReceptionHouseApi } from "@/lib/tos-reception-house-api";
 
 /** PAP-942 shell, PAP-1239 CP1 physical House check-in.
  * Never use the session Day-of-Learning check-in as an unprojected Presence writer.
@@ -32,8 +33,9 @@ export function TosVNextReception({
     shiftTime={shiftTime}
     slots={Array.from(new Map(today.map(a=>[a.shiftTemplateId,{centerId,workDate,shiftTemplateId:a.shiftTemplateId,
       label:(a.shift?.displayLabel??"Ca tiếp tân")+" · "+(a.shift?.startLocalTime??"")+" — "+(a.shift?.endLocalTime??"")}])).values())}
+    compactArrivalIntro
     visitLookup={<>
-      <ReceptionHouseCheckIn centerId={centerId} />
+      <ReceptionHouseCheckIn key={centerId} centerId={centerId} loadRecentLearners={tosReceptionHouseApi.recent} />
       <OpenStudioReceptionPanel
         key={centerId + ":" + workDate} centerId={centerId}
         workDate={workDate} assignments={assignments} session={currentSession}
