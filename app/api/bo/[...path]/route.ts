@@ -12,6 +12,7 @@ import { handleBoWriteRequest, type BoWriteEnv } from "@/lib/bo-write-handler";
 import {handleBoCustomAttributeValueRequest,isBoCustomAttributeValuePath,type BoCustomAttributeValueEnv} from "@/lib/bo-custom-attribute-value-facade";
 import {handleBoCutoverRequest,isBoCutoverPath} from "@/lib/bo-custom-attribute-cutover-facade";
 import {handleBoSubscriptionSpecialtyRequest,isBoSubscriptionSpecialtyPath,type BoSubscriptionSpecialtyEnv} from "@/lib/bo-subscription-specialty-facade";
+import {handleBoScopedEnrollment,isBoScopedEnrollmentPath} from "@/lib/bo-subscription-enrollment-facade";
 import { handleBoPracticeMediaUpload, type BoPracticeMediaEnv } from "@/lib/bo-practice-media-handler";
 import { handleBoSyllabusMediaRequest, type BoSyllabusMediaEnv } from "@/lib/bo-syllabus-media-handler";
 import { handleBoStaffPrivateDocumentRequest, isBoStaffPrivateDocumentPath, type BoStaffPrivateEnv } from "@/lib/bo-staff-private-handler";
@@ -36,6 +37,7 @@ export async function GET(request: Request, context: RouteContext): Promise<Resp
   const joined = path.join("/");
   if (isBoCutoverPath(joined)) return handleBoCutoverRequest(request,env,joined);
   if (isBoCustomAttributeValuePath(joined)) return handleBoCustomAttributeValueRequest(request,env,joined);
+  if (isBoScopedEnrollmentPath(joined)) return handleBoScopedEnrollment(request,env,joined);
   if (isBoSubscriptionSpecialtyPath(joined)) return handleBoSubscriptionSpecialtyRequest(request,env,joined);
   if (isBoMissionCompletionPath(joined)) return handleBoMissionCompletionRequest(request, env, joined);
   if (isBoBillsPath(joined)) return handleBoBillsRequest(request, env, joined);
@@ -59,6 +61,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
   const joined = path.join("/");
   if (isBoCutoverPath(joined)) return handleBoCutoverRequest(request,env,joined);
   if (isBoCustomAttributeValuePath(joined)) return handleBoCustomAttributeValueRequest(request,env,joined);
+  if (isBoScopedEnrollmentPath(joined)) return handleBoScopedEnrollment(request,env,joined);
   if (isBoSubscriptionSpecialtyPath(joined)) return handleBoSubscriptionSpecialtyRequest(request,env,joined);
   if (isBoMissionCompletionPath(joined)) return handleBoMissionCompletionRequest(request, env, joined);
   if (isBoBillsPath(joined)) return handleBoBillsRequest(request, env, joined);
@@ -87,6 +90,7 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
   if (isBoCutoverPath(joined)) return handleBoCutoverRequest(request,env,joined);
   if (isBoCustomAttributeValuePath(joined)) return handleBoCustomAttributeValueRequest(request,env,joined);
   if (isBoAvatarNicknamePath(joined)) return handleBoAvatarNicknameRequest(request,env,joined);
+  if (isBoScopedEnrollmentPath(joined)) return handleBoScopedEnrollment(request,env,joined);
   if (isBoSubscriptionSpecialtyPath(joined)) return handleBoSubscriptionSpecialtyRequest(request,env,joined);
   if (isBoBillsPath(joined)) return handleBoBillsRequest(request, env, joined);
   if (isBoSelfLoadoutPath(joined)) return handleBoSelfLoadoutRequest(request, env, joined);

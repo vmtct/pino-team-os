@@ -166,8 +166,12 @@ test("PAP-1496 native Specialty tab cannot disappear or mount outside the exact 
    assert.equal(verifyBoRuntimeSurfaceOwnership(undefined,{[manifest]:JSON.stringify(altered)}).ok,false);
  }
  for(const altered of [
-  source.replace('<BoSubscriptionSpecialtyTab key={detail.id+":"+centerId} subscriptionId={detail.id} centerId={centerId} centerReady={detail.row.centerId===centerId}/>','<p>Unconnected</p>'),
+  source.replace('<BoSubscriptionSpecialtyTab key={detail.id+":"+centerId} subscriptionId={detail.id} centerId={centerId} centerReady={detail.row.centerId===centerId} linkedSpecialty={linkedSpecialty??runtimeLinked}/>','<p>Unconnected</p>'),
   source.replace('centerReady={detail.row.centerId===centerId}','centerReady={true}'),
+  source.replace('linkedSpecialty={linkedSpecialty??runtimeLinked}','linkedSpecialty={undefined}'),
+  source.replace('if(!detail||detail.row.centerId!==centerId)return undefined;','if(!detail)return undefined;'),
+  source.replace('if(subject.subscriptionId!==detail.id||subject.centerId!==centerId||subject.pathProgramId!==pathProgramId)','if(subject.subscriptionId!==detail.id)'),
+  source.replace('return openLinkedSpecialtyAdapter({...subject,pathLabel},signal,centerSource);','return unsafeAdapter(subject);'),
   source.replace('detailTab==="Chuyên đề" ?', 'detailTab==="Enrollment" ?'),
   source+'\n<BoSubscriptionSpecialtyTab />',
  ])assert.equal(verifyBoRuntimeSurfaceOwnership(undefined,{[native]:altered}).ok,false);

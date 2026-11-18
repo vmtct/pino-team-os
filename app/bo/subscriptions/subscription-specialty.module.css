@@ -1,18 +1,14 @@
-/* PAP-1496 / PAP-1491 SPEC-UNLOCK — layout-only CSS module.
-   PINO Design System owns typography, color, controls, detail and drawer shell. */
+/* PAP-1496 / PAP-2132 — layout only; existing PINO controls own visual style. */
 .root{display:block;width:100%;min-width:0}
-.heading{display:flex;gap:16px}
-.stack{display:grid;gap:20px;min-width:0}
-.grant{display:grid;gap:12px;min-width:0}
-.grantHead{display:flex;gap:12px}
-.checkbox{display:flex;gap:8px}
-.audit{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-.actions{display:flex;gap:12px}
+.stack{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;min-width:0;width:100%}
+.actions{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr) max-content max-content;gap:12px;min-width:0}
+.field{display:grid;gap:6px;min-width:0}
+.control{width:100%;min-width:0}
 .error{display:flex;gap:12px}
 .notice{display:block}
 .disabled{display:block}
-.full{display:block;width:100%;min-width:0}
-@media(max-width:600px){
- .audit{grid-template-columns:minmax(0,1fr)}
- .actions{display:grid;grid-template-columns:minmax(0,1fr)}
+.tableWrap{min-width:0;width:100%;max-width:100%}
+.prerequisiteWarning{display:block}
+@media(max-width:768px){
+ .actions{grid-template-columns:minmax(0,1fr)}
 }
