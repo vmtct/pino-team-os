@@ -8,7 +8,7 @@ import {ownIncome,formatPayrollVnd,type OwnIncomePeriod} from "@/lib/tos-own-inc
 import styles from "./earnings.module.css";
 
 type Center=WorkforceContext["centers"][number];
-const money=(minor:number|null)=>formatPayrollVnd(minor,"Ch\u01b0a kh\u1ea3 d\u1ee5ng");
+const money=(minor:number|null)=>formatPayrollVnd(minor,"Chưa khả dụng");
 const date=(s:string)=>s.slice(8,10)+"/"+s.slice(5,7)+"/"+s.slice(0,4);
 const label=(row:OwnIncomePeriod)=>row.status==="PAID"?"Đã thanh toán":
   row.status==="FINALIZED"?"Đã chốt":row.status==="DRAFT"?"Chưa chốt":"Không khả dụng";
