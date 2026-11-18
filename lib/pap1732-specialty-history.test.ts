@@ -133,3 +133,17 @@ void describe("PAP-1732 / PAP-1491 SPEC-UNLOCK HO transport History ingress regr
   }finally{session.dispose();}
  });
 });
+
+void describe("PAP-1732 HO History visible action regression",()=>{
+ void it("preserves every verified Specialty label through the shared renderer mapper; unknown labels remain protected",async()=>{
+  const {auditActionLabel}=await import("./bo-registration");
+  const labels=["Tạo chuyên đề","Cập nhật chuyên đề","Cập nhật tổng quan","Gắn nhiệm vụ","Gỡ nhiệm vụ","Xuất bản","Chuyển về bản nháp","Lưu trữ","Khôi phục"];
+  const result=projectSpecialtyHistoryPage({events:labels.map((label,i)=>event(i+2,label)),nextCursor:null},subject);
+  assert.equal(result.status,"authorized");
+  if(result.status!=="authorized")throw Error("never");
+  assert.deepEqual(result.events.map(e=>auditActionLabel(e.action)),labels);
+  assert.ok(result.events.every(e=>e.redacted===true&&e.actor==="Đã ẩn"));
+  assert.equal(auditActionLabel("RAW_UNKNOWN_EVENT"),"Thao tác hồ sơ");
+  assert.equal(auditActionLabel("Gỡ nhiệm vụ unexpected payload"),"Thao tác hồ sơ");
+ });
+});
