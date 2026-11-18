@@ -22,3 +22,6 @@ export async function ownIncome(centerId:string,limit=20,offset=0):Promise<OwnIn
     :body.error?.message??"Không thể tải lịch sử thu nhập.");
   return body.data;
 }
+
+/** PAP-2136: Core Payroll uses integer VND (zero decimal places); do not scale. */
+export function formatPayrollVnd(amount:number|null|undefined,unknown="—"):string{return amount==null?unknown:new Intl.NumberFormat("vi-VN",{style:"currency",currency:"VND",maximumFractionDigits:0}).format(amount)}
