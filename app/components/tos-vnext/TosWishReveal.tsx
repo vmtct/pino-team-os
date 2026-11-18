@@ -1,6 +1,7 @@
 "use client";
 /** PAP-2031 / PNR-WISH — committed-result media is optional, never a second draw. */
 import {useEffect,useState} from "react";
+import styles from "./wish-reveal.module.css";
 import {TosVNextButton,TosVNextCard} from "../tos-ds";
 import {parseCommittedWishReveal,type CommittedWish,type WishRevealScope} from "@/lib/pls-wish-reveal-contract";
 export type WishRevealLoader=(scope:WishRevealScope,signal:AbortSignal)=>Promise<unknown>;
@@ -11,7 +12,7 @@ export function TosWishReveal({receipt,centerId,learnerId,load,onDone}:{receipt:
  return()=>{c.abort();window.clearTimeout(timeout);};
  },[load,receipt,centerId,learnerId]);
  return <TosVNextCard aria-label="Kết quả Wish">
- {!finished?<><p role="status">Wish đã được Core xác nhận.</p>{media&&<video src={media} autoPlay playsInline controls style={{width:"100%",maxHeight:"50vh"}} onEnded={()=>setFinished(true)} onError={()=>setFinished(true)}/>}<TosVNextButton type="button" onClick={()=>setFinished(true)}>Bỏ qua hiệu ứng</TosVNextButton></>:<>
+ {!finished?<><p role="status">Wish đã được Core xác nhận.</p>{media&&<video src={media} autoPlay playsInline controls className={styles.revealVideo} onEnded={()=>setFinished(true)} onError={()=>setFinished(true)}/>}<TosVNextButton type="button" onClick={()=>setFinished(true)}>Bỏ qua hiệu ứng</TosVNextButton></>:<>
  <strong>Kết quả {receipt.count} Wish</strong><p>Số dư còn lại: {receipt.balanceAfter} PLS</p>
  <ol aria-label="Item nhận được">{receipt.outcomes.map(o=><li key={o.ordinal}><strong>{o.rarity}★</strong> · {o.itemId} · r{o.itemRevision} {o.duplicate?"· Trùng Item — không cấp thêm":"· Đã cấp Item"}</li>)}</ol>
  <TosVNextButton type="button" onClick={onDone}>Hoàn tất</TosVNextButton></>}
