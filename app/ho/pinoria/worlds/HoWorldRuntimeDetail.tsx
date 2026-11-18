@@ -12,9 +12,9 @@ import {projectRuntimeWorld,createRuntimeScene,saveRuntimeScene,WorldMutationJou
 import {SceneBuilder} from "./WorldDetailPanels";
 import styles from "./WorldUiShell.module.css";
 const fields:BoField[]=[...worldDrawerModule.fields,{key:"description",label:"Mô tả",type:"textarea",w:240,icon:"Aa",readonly:true}];
-const tabs=[{id:"overview",label:"Tổng quan"},{id:"scenes",label:"Cảnh"},{id:"preview",label:"Preview"},{id:"history",label:"Lịch sử"}];
-export function HoWorldRuntimeDetail({record,canManage,onBack,onConfirmed}:{record:BoRecord;canManage:boolean;onBack:()=>void;onConfirmed:(row:BoRecord)=>void}){
- const menu=useContext(TddHostMenu),[tab,setTab]=useState("overview"),[sceneId,setScene]=useState(""),[retry,setRetry]=useState(0);
+
+export function HoWorldRuntimeDetail({record,canManage,onBack,onConfirmed,tab,onTab}:{tab:string;onTab:(id:string)=>void;record:BoRecord;canManage:boolean;onBack:()=>void;onConfirmed:(row:BoRecord)=>void}){
+ const menu=useContext(TddHostMenu),[sceneId,setScene]=useState(""),[retry,setRetry]=useState(0);
  const [result,setResult]=useState<{world:CoreWorld|null;error:string}>({world:null,error:""});
  const [edit,setEdit]=useState<{field:BoField;anchor:HTMLElement}|null>(null),[notice,setNotice]=useState(""),[busy,setBusy]=useState(false);
  const journal=useRef(new WorldMutationJournal()),flight=useRef(false),mounted=useRef(false);
@@ -31,7 +31,7 @@ export function HoWorldRuntimeDetail({record,canManage,onBack,onConfirmed}:{reco
   finally{flight.current=false;if(mounted.current)setBusy(false)}
  }
  function update(key:string,value:BoValue){if(!world||typeof value!=="string"||!["name","description","worldType"].includes(key))return;const patch=key==="name"?{displayName:value}:key==="description"?{descriptionText:value}:{worldType:value as CoreWorld["worldType"]};void mutate(()=>patchWorld(world.id,{expectedVersion:world.version,...patch})).catch(()=>{})}
- return <DetailFrame title={world?.displayName??record.name} subtitle={record.id} mobileMenu={menu("detail-menu-btn")} tabs={tabs} selected={tab} onSelect={id=>{if(!flight.current)setTab(id)}} onBack={()=>{if(!flight.current)onBack()}}>
+ return <DetailFrame title={world?.displayName??record.name} subtitle={record.id} mobileMenu={menu("detail-menu-btn")} tabs={[{id:"overview",label:"Tổng quan"},{id:"scenes",label:"Cảnh"},{id:"preview",label:"Preview"},{id:"history",label:"Lịch sử"}]} selected={tab} onSelect={id=>{if(!flight.current)onTab(id)}} onBack={()=>{if(!flight.current)onBack()}}>
  {notice&&<p role="alert">{notice}</p>}
  {!model||!world?<div role={result.error?"alert":"status"}>{result.error||"Đang tải World…"} {result.error&&<button type="button" className="secondary-btn" onClick={()=>{setResult({world:null,error:""});setRetry(n=>n+1)}}>Thử lại</button>}</div>:
  tab==="overview"?<><PropertySections fields={fields} record={mergeRow(world)} sections={[{id:"overview",label:"Thông tin World",fields:fields.map(f=>f.key)}]} variant="detail" canEdit={f=>canManage&&!busy&&["name","worldType","description"].includes(f.key)} onEdit={(f,anchor)=>setEdit({field:f,anchor})}/>{edit&&<BoTypedEditor field={{...edit.field,readonly:false}} value={mergeRow(world)[edit.field.key]} anchor={edit.anchor} onClose={closeEdit} onSave={v=>update(edit.field.key,v)}/>}</>:
