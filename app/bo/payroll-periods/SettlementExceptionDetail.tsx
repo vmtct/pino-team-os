@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import {PayrollExceptionDecisionForm} from "../payroll-exceptions/PayrollExceptionDecisionForm";
 import {useEffect,useState,useRef} from "react";
 import {BoFullDetail} from "@/app/bo/components/BoFullDetail";
 import {BoProperties} from "@/app/bo/components/BoProperties";
@@ -60,7 +61,7 @@ export function SettlementExceptionDetail({centerId,periodId,staffId,requestId,t
  return <BoFullDetail title={"Ngoại lệ & thêm giờ · "+row.workDate} description={row.statusLabel+" · "+row.staffLegalName}
   currentUrl={settlementExceptionHref(centerId,periodId,staffId,requestId)} returnTo={back} designVariant="business-v25" activeTab={tab}
   tabs={[
-  {id:"overview",label:"Thông tin",content:<><section className="property-section"><BoProperties authority compact items={exceptionProperties.map(([label,render])=>({key:label,label,value:render(row)}))}/></section>{actionError?<p role="alert">{actionError}</p>:null}{notice?<p role="status">{notice}</p>:null}{eligible?<section className="property-section" aria-label="Duyệt ngoại lệ"><h3>Duyệt ngoại lệ</h3><label><input type="checkbox" checked={partial} disabled={busy} onChange={e=>setPartial(e.target.checked)}/> Duyệt một phần</label>{partial?<div className="property-row"><label>Từ giờ<input type="time" value={from} disabled={busy} onChange={e=>setFrom(e.target.value)}/></label><label>Đến giờ<input type="time" value={to} disabled={busy} onChange={e=>setTo(e.target.value)}/></label></div>:null}<label>Lý do<textarea value={reason} minLength={10} maxLength={1000} required disabled={busy} onChange={e=>setReason(e.target.value)}/></label><div className="editor-actions"><button type="button" className="primary-btn" disabled={busy||uncertain||reason.trim().length<10} onClick={()=>void decide(partial?"PARTIAL":"FULL")}>Duyệt</button><button type="button" className="secondary-btn" disabled={busy||uncertain||reason.trim().length<10} onClick={()=>void decide("REJECTED")}>Từ chối</button></div></section>:null}</>},
+  {id:"overview",label:"Thông tin",content:<><section className="property-section"><BoProperties authority compact items={exceptionProperties.map(([label,render])=>({key:label,label,value:render(row)}))}/></section>{actionError?<p role="alert">{actionError}</p>:null}{notice?<p role="status">{notice}</p>:null}{eligible?<PayrollExceptionDecisionForm partial={partial} from={from} to={to} reason={reason} busy={busy} uncertain={uncertain} onPartial={setPartial} onFrom={setFrom} onTo={setTo} onReason={setReason} onDecision={mode=>void decide(mode)}/>:null}</>},
   {id:"history",label:"Lịch Sử",content:<section className="property-section"><h3>Quyết định Core</h3>{row.source.decision?<BoProperties authority compact items={[
    {key:"status",label:"Quyết định",value:row.statusLabel},{key:"minutes",label:"Phút duyệt",value:row.reviewedMinutes??"—"},
    {key:"amount",label:"Tiền Core duyệt",value:minorVnd(row.reviewedAmountMinor)},{key:"reason",label:"Lý do",value:row.decisionReason},
