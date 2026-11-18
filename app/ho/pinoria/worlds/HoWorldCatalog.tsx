@@ -3,7 +3,7 @@
 import {useContext,useEffect,useRef,useState} from "react";
 import {TddHostMenu} from "@/app/components/workspace-adapters/SurfaceWorkspace";
 import {BoDataTable} from "@/app/bo/components/registration/BoDataTable";
-import {BoFullDetail} from "@/app/bo/components/registration/BoFullDetail";
+import {HoWorldRuntimeDetail} from "./HoWorldRuntimeDetail";
 import {defaultTable,type BoRecord,type BoTableState} from "@/lib/bo-registration";
 import type {BoSavedView} from "@/app/bo/components/registration/BoTableSettings";
 import {hoA1Modules} from "@/lib/ho-a1";
@@ -38,7 +38,7 @@ export function HoWorldCatalog({canManage}:{canManage:boolean}){
  function close(){setMode(null);setSelected(null);writeRef(null);requestAnimationFrame(()=>opener.current?.focus({preventScroll:true}));}
  function created(record:BoRecord){setSelected(record);setMode("view");writeRef(record.id);setNotice("Đã tạo bản nháp và xác minh Core readback.");setRefresh(x=>x+1);}
  function reload(){setLoad("loading");setRefresh(x=>x+1);}
- if(mode==="detail"&&selected)return <BoFullDetail module={legacyModule} moduleKey="worlds" record={selected} mobileMenu={menu("detail-menu-btn")} onBack={()=>setMode("view")}/>;
+ if(mode==="detail"&&selected)return <HoWorldRuntimeDetail key={selected.id} record={selected} canManage={canManage} onBack={()=>setMode("view")} onConfirmed={row=>{setSelected(row);setRows(old=>old.map(r=>r.id===row.id?row:r))}}/>;
  return <section id="list-screen" data-pap2096-native-dsa="">
   <div className="page-heading"><div className="page-heading-left">{menu("menu-btn")}<h1>Danh mục thế giới</h1></div><div className="heading-actions">{canManage&&load==="ready"&&<button id="add-record" type="button" className="primary-btn" onClick={e=>{opener.current=e.currentTarget;setNotice("");setSelected(null);setMode("create");}}>Tạo World</button>}</div></div>
   {notice&&<p role="status" className="settings-hint">{notice}</p>}
