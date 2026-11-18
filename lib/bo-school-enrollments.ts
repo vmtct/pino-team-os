@@ -2,6 +2,10 @@ import { handleBoOperationalReadRequest, type BoReadEnv } from "./bo-read-handle
 import { boSkeletonEnabled } from "./bo-skeleton";
 import type { BoSubscriptionDirectoryPage, BoLearnerLifecycle } from "./bo-model";
 
+// Additive rollout: older Core receipts do not carry these projection fields.
+const localTime = (value: unknown) => typeof value === 'string' && /^(?:[01][0-9]|2[0-3]):[0-5][0-9]$/.test(value) ? value : null;
+const timestamp = (value: unknown) => typeof value === 'string' && Number.isFinite(Date.parse(value)) ? value : null;
+
 type Env = BoReadEnv & { APP_ENV?: string; BO_UI_ONLY?: string };
 const uuid = (value: unknown): value is string => typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 const json = (body: unknown, status = 200) => Response.json(body, { status, headers: { "cache-control": "private, no-store" } });
@@ -59,7 +63,11 @@ export async function handleBoSchoolEnrollments(request: Request, env: Env): Pro
         seen.add(enrollment.id);
         items.push({ id: enrollment.id, subscriptionId: subscription.id, studentProfileId: studentId, studentDisplayName: subscription.studentDisplayName, pathDisplayName: subscription.pathDisplayName,
           runningClassId: enrollment.runningClassId, runningClassName: enrollment.runningClassName, effectiveFromLocalDate: enrollment.effectiveFromLocalDate,
-          effectiveUntilExclusiveLocalDate: enrollment.effectiveUntilExclusiveLocalDate, plannedEntryLocalTime: enrollment.plannedEntryLocalTime, plannedDurationMinutes: enrollment.plannedDurationMinutes });
+          effectiveUntilExclusiveLocalDate: enrollment.effectiveUntilExclusiveLocalDate, plannedEntryLocalTime: enrollment.plannedEntryLocalTime, plannedDurationMinutes: enrollment.plannedDurationMinutes,
+          subscriptionDisplayName: [subscription.pathDisplayName, subscription.termWeeks ? `${subscription.termWeeks} tuần` : null, subscription.weeklyCommitment ? `${subscription.weeklyCommitment} buổi/tuần` : null, subscription.commercialReference || null].filter(Boolean).join(" · "),
+          weekdayIso: Number.isInteger(enrollment.weekdayIso) && enrollment.weekdayIso! >= 1 && enrollment.weekdayIso! <= 7 ? enrollment.weekdayIso : null,
+          scheduleStartsLocal: localTime(enrollment.scheduleStartsLocal), scheduleEndsLocal: localTime(enrollment.scheduleEndsLocal),
+          createdAt: timestamp(enrollment.createdAt), updatedAt: timestamp(enrollment.updatedAt) });
       }
     }
     return json({ data: { items, limit: page.limit, nextCursor: page.nextCursor } });

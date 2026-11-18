@@ -8,7 +8,7 @@ function fixture(denyPath?:string,status=403){
  const calls:BoAccessRequest[]=[];
  const env={APP_ENV:"staging",BO_UI_ONLY:"enabled",PINO_BO_CORE:{async executeWithStaffPassword(r:BoAccessRequest){calls.push(r);if(r.path===denyPath)return {status,requestId:"denied",body:{error:{code:"DENIED"}}};
   const body=r.path==="subscriptions"?{items:[{id:id(1),studentProfileId:id(2),studentDisplayName:"Fixture Student",pathDisplayName:"Art"}],limit:100,nextCursor:{createdAt:"2026-10-25T00:00:00Z",id:id(1)}}:
-  {student:{id:id(2)},guardians:[{secret:"DO_NOT_EXPOSE"}],subscriptions:[{subscription:{id:id(1)},enrollments:[{id:id(3),subscriptionId:id(1),runningClassId:id(4),runningClassName:"Fixture Class",effectiveFromLocalDate:"2026-10-25",effectiveUntilExclusiveLocalDate:null,plannedEntryLocalTime:null,plannedDurationMinutes:null,internalSecret:"DO_NOT_EXPOSE"}]},{subscription:{id:id(99)},enrollments:[{id:id(98),subscriptionId:id(99)}]}]};
+  {student:{id:id(2)},guardians:[{secret:"DO_NOT_EXPOSE"}],subscriptions:[{subscription:{id:id(1)},enrollments:[{id:id(3),subscriptionId:id(1),runningClassId:id(4),runningClassName:"Fixture Class",effectiveFromLocalDate:"2026-10-25",effectiveUntilExclusiveLocalDate:null,plannedEntryLocalTime:null,plannedDurationMinutes:null,weekdayIso:3,scheduleStartsLocal:"09:00",scheduleEndsLocal:"10:00",createdAt:"2026-10-25T00:00:00Z",updatedAt:"2026-10-26T00:00:00Z",internalSecret:"DO_NOT_EXPOSE"}]},{subscription:{id:id(99)},enrollments:[{id:id(98),subscriptionId:id(99)}]}]};
   return {status:200,requestId:"fixture",body:{data:body}};
  }}};return {env,calls};
 }
@@ -16,7 +16,8 @@ const centerId=id(88);
 const request=(query="",cookie=true)=>new Request(`https://${BO_SKELETON_HOST}/api/bo/school/enrollments?centerId=${centerId}${query?"&"+query.replace(/^\?/,""):""}`,{headers:cookie?{cookie:"pino_staff_password_session=fixture"}:{}});
 test("enrollment projection binds subscription/class IDs, preserves cursor and redacts lifecycle private data",async()=>{
  const {env,calls}=fixture();const r=await handleBoSchoolEnrollments(request(),env);assert.equal(r.status,200);const body=await r.json();
- assert.equal(body.data.items.length,1);assert.equal(body.data.items[0].subscriptionId,id(1));assert.equal(body.data.items[0].runningClassId,id(4));assert.equal(body.data.nextCursor.id,id(1));assert.doesNotMatch(JSON.stringify(body),/DO_NOT_EXPOSE|guardians|internalSecret/);
+ assert.equal(body.data.items.length,1);
+ assert.equal(body.data.items[0].weekdayIso,3);assert.equal(body.data.items[0].scheduleStartsLocal,'09:00');assert.equal(body.data.items[0].scheduleEndsLocal,'10:00');assert.equal(body.data.items[0].createdAt,'2026-10-25T00:00:00Z');assert.equal(body.data.items[0].updatedAt,'2026-10-26T00:00:00Z');assert.equal(body.data.items[0].subscriptionDisplayName,'Art');assert.equal(body.data.items[0].subscriptionId,id(1));assert.equal(body.data.items[0].runningClassId,id(4));assert.equal(body.data.nextCursor.id,id(1));assert.doesNotMatch(JSON.stringify(body),/DO_NOT_EXPOSE|guardians|internalSecret/);
  assert.deepEqual(calls.map(r=>[r.method,r.path]),[["GET","subscriptions"],["GET",`students/${id(2)}/lifecycle`]]);
  assert.equal((calls[0]?.body as {centerId?:string}|undefined)?.centerId,centerId);
  assert.equal(calls[1]?.resource?.centerId,centerId);
