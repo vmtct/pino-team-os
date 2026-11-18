@@ -38,7 +38,9 @@ function fixture() {
     .replace(/\s*\{label:"TÀI CHÍNH",items:\[\{href:"\/bo\/bills",label:"Bills"\}\]\},/,"")
     // Strip newly admitted Diary nav from the frozen-baseline-only synthetic fixture;
     // real main + its TDD admission are still verified by the first test.
-    .replace(/\s*\{ href: "\/bo\/classroom-diaries", label: "Nhật ký lớp học" \},/,""));
+    .replace(/\s*\{ href: "\/bo\/classroom-diaries", label: "Nhật ký lớp học" \},/,"")
+    // PAP-2134: new Post TDD is checked in the real repo, not in the baseline-only fixture.
+    .replace(/\s*\{\s*label: "Piner App",\s*items: \[\{ href: "\/bo\/piner-posts", label: "Posts" \}\],\s*\},/,""));
   // Recreate frozen baseline pages as inert fixtures so receipt tests can
   // assert a clean migration transition without carrying 47 real modules.
   const baseline=JSON.parse(fs.readFileSync(path.join(tmp,baselineFile),"utf8"));

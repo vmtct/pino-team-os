@@ -928,6 +928,73 @@
           "owner": "PAP-1221"
         }
       ]
+    },
+    {
+      "profile": "TDD_DEFAULT",
+      "surface": "BO",
+      "key": "piner-posts",
+      "route": "/bo/piner-posts",
+      "file": "app/bo/piner-posts/page.tsx",
+      "files": [
+        "app/bo/piner-posts/BoPostsDraftEntry.tsx",
+        "app/bo/piner-posts/BoPostsDraftRuntime.tsx",
+        "app/bo/piner-posts/core-draft-client.ts",
+        "app/bo/piner-posts/data-port.ts",
+        "app/bo/piner-posts/draft-controller.ts",
+        "app/bo/piner-posts/draft-retry-journal.ts",
+        "app/bo/piner-posts/native-draft-binding.ts",
+        "app/bo/piner-posts/native-draft-session.ts",
+        "app/bo/piner-posts/page.tsx",
+        "app/bo/piner-posts/schema.ts"
+      ],
+      "schema": {
+        "file": "app/bo/piner-posts/native-draft-binding.ts",
+        "export": "draftSchema"
+      },
+      "binding": {
+        "kind": "SURFACE_WORKSPACE_ADAPTER",
+        "file": "app/bo/piner-posts/BoPostsDraftRuntime.tsx"
+      },
+      "tests": [
+        "lib/pap2134-native-draft-binding.test.ts",
+        "lib/pap2134-native-draft-session.test.ts",
+        "lib/pap2134-posts-nav-access.test.ts",
+        "lib/pap2134-posts-url.test.ts"
+      ],
+      "externalReferences": [
+        {
+          "file": "lib/host-boundary.ts",
+          "owner": "PAP-2134"
+        },
+        {
+          "file": "lib/workspace-adapters/session.ts",
+          "owner": "PAP-1221"
+        },
+        {
+          "file": "app/bo/components/registration/BoCenterSelection.tsx",
+          "owner": "PAP-1598"
+        },
+        {
+          "file": "app/bo/components/registration/BoQuickView.tsx",
+          "owner": "PAP-1669"
+        },
+        {
+          "file": "lib/bo-registration.ts",
+          "owner": "PAP-1732"
+        },
+        {
+          "file": "lib/bo-mission-assignment-options.ts",
+          "owner": "PAP-1210"
+        },
+        {
+          "file": "lib/bo-student-center-api.ts",
+          "owner": "PAP-1426"
+        },
+        {
+          "file": "lib/bo-url-contract.ts",
+          "owner": "PAP-1089"
+        }
+      ]
     }
   ],
   "approvals": []
