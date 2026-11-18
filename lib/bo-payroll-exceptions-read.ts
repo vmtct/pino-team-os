@@ -5,6 +5,7 @@ export type {ReviewedException,ReviewPage,ReviewStatus};
 export type NativeReviewedException=Omit<ReviewedException,"decision">&{
  staffLegalFullName?:string|null;createdAt?:string|null;createdBy?:string|null;submittedBy?:string|null;
  updatedAt?:null;updatedBy?:null;
+ reviewEligibility?:{centerId:string;requestId:string;canReview:boolean};
  decision:(NonNullable<ReviewedException["decision"]>&{reviewerLegalFullName?:string|null})|null;
 };
 export type NativeReviewPage=Omit<ReviewPage,"data">&{data:NativeReviewedException[]};
@@ -30,3 +31,13 @@ export const exceptionReadApi={
  detail:(centerId:string,requestId:string,fetcher?:typeof fetch)=>
   coreGet<{data:NativeReviewedException}>(ROOT+"/"+encodeURIComponent(requestId)+"?centerId="+encodeURIComponent(centerId),fetcher),
 } as const;
+
+/** PAP-1955: server advisory is fail closed, never inferred from a role or selected Center. */
+export function canReviewStandalone(row:NativeReviewedException,centerId:string,requestId:string):boolean{
+ const e=row.reviewEligibility;
+ return row.centerId===centerId&&row.id===requestId&&row.status==="PENDING"&&row.decision===null&&
+  !!e&&e.centerId===centerId&&e.requestId===requestId&&e.canReview===true;
+}
+export function sameStandaloneRequest(a:NativeReviewedException,b:NativeReviewedException){
+ return a.id===b.id&&a.centerId===b.centerId&&a.staffMemberId===b.staffMemberId&&a.assignmentId===b.assignmentId&&a.workDate===b.workDate&&a.requestedStartAt===b.requestedStartAt&&a.requestedEndAt===b.requestedEndAt&&a.requestReason===b.requestReason;
+}

@@ -1,12 +1,15 @@
 "use client";
 /** PAP-1955 · BO Exception immutable read-only Detail/Chuyên Sâu/Lịch Sử. */
-import {useEffect,useState} from "react";
+import {useEffect,useState,useRef} from "react";
 import {BoFullDetail} from "@/app/bo/components/BoFullDetail";
 import {BoProperties} from "@/app/bo/components/BoProperties";
 import {useBoCenterSelection} from "@/app/bo/components/registration/BoCenterSelection";
-import {exceptionReadApi,ExceptionReadError} from "@/lib/bo-payroll-exceptions-read";
+import {exceptionReadApi,ExceptionReadError,canReviewStandalone,sameStandaloneRequest} from "@/lib/bo-payroll-exceptions-read";
 import {toExceptionReadRow,minorVnd,type ExceptionReadRow} from "@/lib/bo-payroll-exceptions-model";
 import {exceptionProperties} from "../BoPayrollExceptionsReadView";
+import {PayrollExceptionDecisionForm} from "../PayrollExceptionDecisionForm";
+import {decisionPayload,localClock,reviewApi} from "@/lib/bo-payroll-extra-review-api";
+import {verifiedReviewReceipt} from "@/lib/bo-payroll-settlement-drawer";
 type ExceptionDetailProps={requestId:string;activeTab?:string};
 export default function BoPayrollExceptionDetail(props:ExceptionDetailProps){
  const scope=useBoCenterSelection(),centerId=scope?.selected??"";
@@ -40,18 +43,9 @@ function ExceptionDetailScope({requestId,activeTab}:ExceptionDetailProps){
   return <p role="status">Đang tải yêu cầu từ Core…</p>;
  const r=record.row;
  const tabs=[
-  {id:"detail",label:"Detail",
-   content:<BoProperties items={exceptionProperties.map(([name,render])=>({
-    key:name,label:name,value:render(r)}))}/>},
-  {id:"specialized",label:"Chuyên Sâu",content:<section>
-   <h2>Nguồn yêu cầu</h2>
-   <p>Đây là khoảng yêu cầu; không được hiểu là số phút hay tiền lương đã duyệt.</p>
-   <BoProperties items={[
-    {key:"assignment",label:"Mã phân công",value:r.assignmentId},
-    {key:"requested",label:"Khoảng giờ yêu cầu",value:r.requestedWindow},
-    {key:"reason",label:"Lý do nhân viên",value:r.requestReason},
-    {key:"submittedBy",label:"Người gửi được xác thực",value:r.submittedBy},
-   ]}/></section>},
+  {id:"detail",label:"Th\u00f4ng tin",
+   content:<><BoProperties authority compact items={exceptionProperties.map(([name,render])=>({
+    key:name,label:name,value:render(r)}))}/>{canReviewStandalone(r.source,centerId,requestId)?<StandaloneReview key={r.id} row={r} onReviewed={row=>setRecord({centerId,row})}/>:null}</>},
   {id:"history",label:"Lịch Sử",content:<section>
    <h2>Quyết định Core</h2>
    {r.source.decision?<BoProperties items={[
@@ -67,7 +61,33 @@ function ExceptionDetailScope({requestId,activeTab}:ExceptionDetailProps){
  ];
  const url="/bo/payroll-exceptions/"+encodeURIComponent(requestId)+"?centerId="+encodeURIComponent(centerId);
  return <BoFullDetail title={"Ngoại lệ & thêm giờ · "+r.workDate}
-  description={r.statusLabel+" · Chỉ đọc từ Core"}
+  description={r.statusLabel+" · "+r.staffLegalName}
   currentUrl={url} returnTo={"/bo/payroll-exceptions?centerId="+encodeURIComponent(centerId)}
-  designVariant="v25" activeTab={activeTab} tabs={tabs}/>;
+  designVariant="business-v25" activeTab={activeTab} tabs={tabs}/>;
+}
+
+function StandaloneReview({row,onReviewed}:{row:ExceptionReadRow;onReviewed:(row:ExceptionReadRow)=>void}){
+ const [partial,setPartial]=useState(false),[from,setFrom]=useState(localClock(row.source.requestedStartAt)),[to,setTo]=useState(localClock(row.source.requestedEndAt)),[reason,setReason]=useState("");
+ const [busy,setBusy]=useState(false),[uncertain,setUncertain]=useState(false),[error,setError]=useState("");
+ const active=useRef(false),inFlight=useRef(false);
+ useEffect(()=>{active.current=true;return()=>{active.current=false}},[]);
+ async function decide(mode:"FULL"|"PARTIAL"|"REJECTED"){
+  if(inFlight.current||uncertain||!canReviewStandalone(row.source,row.source.centerId,row.id))return;
+  let payload:ReturnType<typeof decisionPayload>;
+  try{payload=decisionPayload(row.source,mode,from,to,reason)}catch(e){setError(e instanceof Error?e.message:"Invalid input");return}
+  inFlight.current=true;setBusy(true);setError("");let submitted=false;
+  try{
+   const fresh=(await exceptionReadApi.detail(row.source.centerId,row.id)).data;
+   if(!canReviewStandalone(fresh,row.source.centerId,row.id)||!sameStandaloneRequest(row.source,fresh))throw Error("Ngo\u1ea1i l\u1ec7 \u0111\u00e3 thay \u0111\u1ed5i. T\u1ea3i l\u1ea1i tr\u01b0\u1edbc khi thao t\u00e1c.");
+   if(!active.current)return;
+   submitted=true;
+   const receipt=(await reviewApi.decide(payload,"pay-review-"+crypto.randomUUID())).data;
+   const after=(await exceptionReadApi.detail(row.source.centerId,row.id)).data;
+   verifiedReviewReceipt(fresh,receipt,after,payload);
+   if(active.current)onReviewed(toExceptionReadRow(after,row.source.centerId));
+  }catch(e){
+   if(active.current){setUncertain(true);setError(submitted?"Ch\u01b0a x\u00e1c nh\u1eadn \u0111\u01b0\u1ee3c k\u1ebft qu\u1ea3. T\u1ea3i l\u1ea1i tr\u01b0\u1edbc khi thao t\u00e1c ti\u1ebfp.":e instanceof Error?e.message:"Cannot verify request");}
+  }finally{inFlight.current=false;if(active.current)setBusy(false)}
+ }
+ return <>{error?<p role="alert">{error}</p>:null}<PayrollExceptionDecisionForm partial={partial} from={from} to={to} reason={reason} busy={busy} uncertain={uncertain} onPartial={setPartial} onFrom={setFrom} onTo={setTo} onReason={setReason} onDecision={mode=>void decide(mode)}/></>;
 }
