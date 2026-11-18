@@ -1,9 +1,10 @@
+import {openingReviewActorLabel,validRecordedReviewAccount} from "./opening-review-actor-label";
 import type {OpeningRecord,OpeningRound} from "./tos-classroom-v4-view-model";
 
 /** PAP-1991 / PAP-759. Core receipt is the only OPEN truth. */
 export type ClassOpeningScope={centerId:string;runningClassId:string;localDate:string};
 export type ClassOpeningSnapshot={opening:OpeningRecord|null;canConfirm:boolean};
-type History={eventId:string;roundId:string;version:number;kind:"SUBMISSION"|"REVIEW";actorLegalFullName:string|null;
+type History={eventId:string;roundId:string;version:number;kind:"SUBMISSION"|"REVIEW";actorLegalFullName:string|null;reviewAccountRecorded?:true;
   occurredAt:string;privateAssetId:string|null;privateAssetIds?:string[];note?:string;verdict:"APPROVED"|"REJECTED"|null;reason:string|null};
 const ROOT="/api/workforce/class-opening";
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -25,7 +26,7 @@ export function parseClassOpening(value:unknown,scope:ClassOpeningScope):ClassOp
   let previous:History|undefined;
   for(const e of x.history){
     if(!e||e.version!==(previous?.version??0)+1||!uuid.test(e.eventId)||!uuid.test(e.roundId)||ids.has(e.eventId)||
-       !name(e.actorLegalFullName)||!validTime(e.occurredAt)||previous&&e.occurredAt<previous.occurredAt)throw error();
+       !name(e.actorLegalFullName)||!validRecordedReviewAccount(e.reviewAccountRecorded,e.kind,e.actorLegalFullName)||!validTime(e.occurredAt)||previous&&e.occurredAt<previous.occurredAt)throw error();
     ids.add(e.eventId);
     if(e.kind==="SUBMISSION"){
       if(e.eventId!==e.roundId||!e.privateAssetId||!uuid.test(e.privateAssetId)||assets.has(e.privateAssetId)||e.verdict!==null||e.reason!==null)throw error();
@@ -39,7 +40,7 @@ export function parseClassOpening(value:unknown,scope:ClassOpeningScope):ClassOp
       const last=rounds.at(-1);
       if(!last||last.id!==e.roundId||previous?.kind!=="SUBMISSION"||e.privateAssetId!==null||(e.privateAssetIds!==undefined&&(!Array.isArray(e.privateAssetIds)||e.privateAssetIds.length!==0))||(e.note!==undefined&&e.note!=="")||
         (e.verdict!=="APPROVED"&&e.verdict!=="REJECTED")||typeof e.reason!=="string")throw error();
-      last.status=e.verdict;last.reviewedAt=e.occurredAt;last.reviewedBy=e.actorLegalFullName??"—";last.reason=e.reason;
+      last.status=e.verdict;last.reviewedAt=e.occurredAt;last.reviewedBy=openingReviewActorLabel(e.actorLegalFullName,e.reviewAccountRecorded);last.reason=e.reason;
     }else throw error();
     previous=e;
   }
