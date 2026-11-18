@@ -65,7 +65,8 @@ void test("PAP-1496 UI reuses shared Drawer/Detail and never invokes legacy Stud
  assert.match(native,/openLinkedSpecialtyAdapter\(\{\.\.\.subject,pathLabel\},signal,centerSource\)/);
  assert.match(native,/return <BoLinkedSpecialtyDrawer[^>]*mode="detail"/);
  assert.match(linked,/binding\.openAuthorized\(\{specialtyId,pathProgramId,subscriptionId,centerId\}/);
- assert.match(linked,/if\(!binding\)\{setState\(\{status:"denied"\}\)/);
+ assert.match(linked,/!binding\?\{status:"denied"\}/);
+ assert.match(linked,/resultState\?\.key===loadKey&&resultState.binding===binding/);
  assert.match(linked,/detail\.row\.id!==specialtyId/);
  assert.match(linked,/onDetail=\{\(\)=>binding\.openDetail\(subject\)\}/);
  assert.match(native,/<DetailFrame\b/);

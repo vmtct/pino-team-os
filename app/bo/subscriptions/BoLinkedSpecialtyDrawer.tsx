@@ -14,10 +14,13 @@ export type LinkedSpecialtySubject={specialtyId:string;pathProgramId:string;subs
 export type LinkedSpecialtyBinding={openAuthorized:(subject:LinkedSpecialtySubject,signal:AbortSignal)=>Promise<AuthenticatedSurfaceAdapter<F>>;openDetail:(subject:LinkedSpecialtySubject)=>void};
 type State={status:"loading"|"error"|"denied"|"not-found"}|{status:"ready";adapter:AuthenticatedSurfaceAdapter<F>;row:ModuleRow<F>};
 export function BoLinkedSpecialtyDrawer({subject,binding,onClose,mode="drawer",mobileMenu}:{subject:LinkedSpecialtySubject;binding?:LinkedSpecialtyBinding;onClose:()=>void;mode?:"drawer"|"detail";mobileMenu?:React.ReactNode}){
- const [state,setState]=useState<State>({status:"loading"}),[retry,setRetry]=useState(0);
+ const [resultState,setResultState]=useState<{key:string;binding:LinkedSpecialtyBinding;state:State}|null>(null),[retry,setRetry]=useState(0);
  const {specialtyId,pathProgramId,subscriptionId,centerId}=subject;
+ const loadKey=[specialtyId,pathProgramId,subscriptionId,centerId,retry].join(":");
+ const state:State=!binding?{status:"denied"}:resultState?.key===loadKey&&resultState.binding===binding?resultState.state:{status:"loading"};
  useEffect(()=>{const controller=new AbortController();let adapter:AuthenticatedSurfaceAdapter<F>|undefined;
-  if(!binding){setState({status:"denied"});return;}setState({status:"loading"});
+  if(!binding)return;
+  const setState=(state:State)=>{if(!controller.signal.aborted)setResultState({key:loadKey,binding,state});};
   void binding.openAuthorized({specialtyId,pathProgramId,subscriptionId,centerId},controller.signal).then(async result=>{
    adapter=result;if(controller.signal.aborted){result.dispose();return;}
    if(result.schema.key!=="specialties"||result.schema.surface!=="BO"||result.scope.surface!=="BO"||result.scope.centerId!==centerId||!result.capabilities.read||result.capabilities.edit)throw new BoApiError(403,"Không có quyền xem Chuyên đề.",null);
@@ -26,7 +29,7 @@ export function BoLinkedSpecialtyDrawer({subject,binding,onClose,mode="drawer",m
    setState({status:"ready",adapter:result,row:detail.row});
   }).catch(error=>{if(!controller.signal.aborted)setState({status:error instanceof BoApiError&&[401,403].includes(error.status)?"denied":error instanceof BoApiError&&error.status===404?"not-found":"error"});});
   return()=>{controller.abort();adapter?.dispose();};
- },[binding,specialtyId,pathProgramId,subscriptionId,centerId,retry]);
+ },[binding,specialtyId,pathProgramId,subscriptionId,centerId,loadKey]);
  if(mode==="detail"){
   if(state.status==="ready")return <TddDetail registry={state.adapter.registry} schema={state.adapter.schema} context={state.adapter.context} record={state.row} subject={state.adapter.subject(specialtyId)} onBack={onClose} mobileMenu={mobileMenu}/>;
   return <section aria-label="Chuyên đề"><button type="button" className="secondary-btn" onClick={onClose}>← Quay lại</button><RecordState status={state.status} onRetry={()=>setRetry(n=>n+1)}/></section>;

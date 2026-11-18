@@ -24,32 +24,34 @@ export function BoSubscriptionEnrollmentTab({subscriptionId,centerId,onChanged}:
 function ScopedEnrollmentTab({subscriptionId,centerId,onChanged}:{subscriptionId:string;centerId:string;onChanged?:()=>void}){
  const client=useMemo(()=>scopedEnrollmentClient({subscriptionId,centerId}),[subscriptionId,centerId]);
  const [asOf]=useState(()=>todayInHouseTimeZone()),[tick,setTick]=useState(0);
- const [load,setLoad]=useState<Load>({state:"loading"}),[active,setActive]=useState<BoEnrollmentRecord|null>(null);
+ const [loadResult,setLoadResult]=useState<{tick:number;load:Load}|null>(null),[active,setActive]=useState<BoEnrollmentRecord|null>(null);
  const [action,setAction]=useState<Action|null>(null),[classId,setClassId]=useState(""),[date,setDate]=useState(()=>todayInHouseTimeZone());
  const [time,setTime]=useState("18:00"),[minutes,setMinutes]=useState("90"),[reason,setReason]=useState("");
- const [capacity,setCapacity]=useState<{state:"loading"|"ready"|"error";value?:BoEnrollmentCapacity;message?:string}|null>(null);
+ const [capacityResult,setCapacityResult]=useState<{key:string;state:"ready"|"error";value?:BoEnrollmentCapacity;message?:string}|null>(null);
  const [pending,setPending]=useState<Pending|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState("");
- const fence=useRef(0),lock=useRef(false),panel=useRef<HTMLElement>(null);
+ const lock=useRef(false),panel=useRef<HTMLElement>(null);
  const close=()=>{if(!busy){setAction(null);setActive(null);}};
  useBoDialog(Boolean(action),close,panel);
  const refresh=useCallback(()=>setTick(n=>n+1),[]);
- useEffect(()=>{const id=++fence.current,ctl=new AbortController();void Promise.all([
+ useEffect(()=>{const ctl=new AbortController();
+ const setLoad=(load:Load)=>{if(!ctl.signal.aborted)setLoadResult({tick,load});};void Promise.all([
    readSubscriptionCenterDetail(subscriptionId,centerId,ctl.signal),client.list(ctl.signal),
    client.placement(asOf,ctl.signal),boApi.scopeCatalog()
  ]).then(([subscription,enrollments,placement,scope])=>{
-   if(ctl.signal.aborted||id!==fence.current)return;
+   if(ctl.signal.aborted)return;
    const canonical=assertCenterDetail(subscription,subscriptionId,centerId);
    const centers=scope.centers.filter(c=>c.id===centerId&&isActiveCenter(c));
    if(centers.length!==1)throw new Error("Cơ sở chưa được xác thực.");
    setLoad({state:"ready",subscription:canonical,enrollments,placement,classes:scope.classes.filter(c=>c.centerId===centerId&&c.pathProgramId===canonical.pathProgramId),centers});
- }).catch(e=>{if(!ctl.signal.aborted&&id===fence.current)setLoad({state:e instanceof BoApiError&&[401,403].includes(e.status)?"permission":"error",message:problem(e)});});
- return()=>{ctl.abort();fence.current++};},[subscriptionId,centerId,client,asOf,tick]);
+ }).catch(e=>{if(!ctl.signal.aborted)setLoad({state:e instanceof BoApiError&&[401,403].includes(e.status)?"permission":"error",message:problem(e)});});
+ return()=>{ctl.abort();};},[subscriptionId,centerId,client,asOf,tick]);
+ const load:Load=loadResult?.tick===tick?loadResult.load:{state:"loading"};
  const ready=load.state==="ready"?load:null;
  const clsById=useMemo(()=>new Map(ready?.classes.map(c=>[c.id,c])??[]),[ready]);
  const center=ready?centerId:undefined;
  const available=ready?.classes.filter(c=>c.centerId===centerId&&isEligibleClass(c,ready.subscription.pathProgramId,centerId))??[];
  const chosen=clsById.get(classId),flex=chosen?.deliveryTopology==="FLEXIBLE_STUDIO";
- const columns:readonly BoDataGridColumn<BoEnrollmentRecord>[]=useMemo(()=>[
+ const columns:readonly BoDataGridColumn<BoEnrollmentRecord>[]=[
   {key:"runningClassId",header:"Running Class",sticky:true,width:225,render:r=>{
     const cls=clsById.get(r.runningClassId);
     const weekday=cls?.recurrenceWeekdays?.map(d=>["CN","T2","T3","T4","T5","T6","T7"][d===7?0:d]??String(d)).join(", ");
@@ -64,20 +66,23 @@ function ScopedEnrollmentTab({subscriptionId,centerId,onChanged}:{subscriptionId
   {key:"actions",header:"Thao tác",width:145,render:r=>enrollmentStatus(r,asOf)==="CURRENT"
    ? <button type="button" className="secondary-btn" disabled={busy||!!pending} onClick={()=>open("transfer",r)}>Chuyển lớp</button>
    : <span aria-label="Không có thao tác">—</span>}
- ],[clsById,asOf,busy,pending]);
+ ];
  function open(next:Action,row?:BoEnrollmentRecord){
   if(pending||busy)return;setActive(row??null);setAction(next);setError("");setNotice("");
   const first=available.find(c=>c.id!==row?.runningClassId);
   setClassId(first?.id??"");setDate(asOf);setReason("");setTime(first?.startLocalTime??"18:00");
-  setMinutes(String(first?.defaultParticipationMinutes??90));setCapacity(null);
+  setMinutes(String(first?.defaultParticipationMinutes??90));setCapacityResult(null);
  }
- useEffect(()=>{if(!action||!classId||!date||!ready)return;
-  const ctl=new AbortController();let alive=true;setCapacity({state:"loading"});
+ const readyId=ready?.subscription.id;
+ const capacityKey=JSON.stringify([action,classId,date,readyId,tick,flex,time,minutes]);
+ const capacity=capacityResult?.key===capacityKey?capacityResult:{state:"loading" as const,value:undefined,message:undefined};
+ useEffect(()=>{if(!action||!classId||!date||!readyId)return;
+  const ctl=new AbortController();let alive=true;
   void client.capacity({runningClassId:classId,targetLocalDate:date,
    ...(flex?{plannedEntryLocalTime:time,plannedDurationMinutes:Number(minutes)}:{})},ctl.signal)
-  .then(v=>{if(alive)setCapacity({state:"ready",value:v});}).catch(e=>{if(alive)setCapacity({state:"error",message:problem(e)});});
+  .then(v=>{if(alive)setCapacityResult({key:capacityKey,state:"ready",value:v});}).catch(e=>{if(alive)setCapacityResult({key:capacityKey,state:"error",message:problem(e)});});
   return()=>{alive=false;ctl.abort();};
- },[action,classId,date,client,ready?.subscription.id,flex,time,minutes]);
+ },[action,classId,date,client,readyId,flex,time,minutes,capacityKey]);
  function createAttempt():Pending|null{
   if(!ready||!action)return null;
   if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){setError("Ngày hiệu lực không hợp lệ.");return null;}
