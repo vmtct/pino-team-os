@@ -20,11 +20,11 @@ const rows: BoRecord[] = [
   { id: "old", name: "Student A", start: "2026-01-01", path: "ART" },
   { id: "new", name: "Student A", start: "2026-09-01", path: "PIANO" },
 ];
-function render(showChrome: boolean): string {
+function render(showChrome: boolean, data = rows, loadState = "ready"): string {
   return renderToStaticMarkup(createElement(BoDataTable, {
     module: moduleConfig,
-    rows,
-    loadState: "ready",
+    rows: data,
+    loadState,
     value: studentSubscriptionTableState(moduleConfig.fields),
     update: () => {},
     page: 1,
@@ -60,4 +60,16 @@ test("the independent Subscription table retains its existing controls", () => {
   assert.match(html, /class="view-tabs"/);
   assert.match(html, /class="toolbar"/);
   assert.match(html, /id="active-chips"/);
+});
+
+test("native table status occupies only the measured scroll viewport; populated rows are unchanged", () => {
+  const populated = render(true);
+  assert.doesNotMatch(populated, /class="empty-table"/);
+  for (const [state, role, text] of [["ready", "", "Không có bản ghi phù hợp"], ["loading", "status", "Đang tải dữ liệu"], ["Không tải được", "alert", "Không tải được"]]) {
+    const html = render(true, [], state);
+    const status = html.match(/<div class="empty-table"[^>]*>/)?.[0] ?? "";
+    assert.match(status, /position:sticky;left:0;width:var\(--bo-native-status-width, 100%\);max-width:100%;box-sizing:border-box/);
+    if (role) assert.ok(status.includes('role="' + role + '"'));
+    assert.ok(html.includes(text));
+  }
 });
