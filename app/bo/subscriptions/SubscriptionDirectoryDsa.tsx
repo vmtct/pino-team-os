@@ -18,6 +18,7 @@ import {boApi} from "@/lib/bo-api";
 import type {BoPathProgram} from "@/lib/bo-model";
 import {SubscriptionCreateDrawer} from "./SubscriptionCreateDrawer";
 import {BoSubscriptionSpecialtyTab} from "./BoSubscriptionSpecialtyTab";
+import type {LinkedSpecialtyBinding} from "./BoLinkedSpecialtyDrawer";
 import type {OwnedSubscriptionItem} from "@/lib/pap1334-native-subscription-read";
 import {readSubscriptionCenterDetail} from "@/lib/bo-subscription-center-detail-client";
 import {readSubscriptionDetailRoute,subscriptionDetailUrl,type SubscriptionDetailTab} from "@/lib/bo-subscription-detail-url";
@@ -45,7 +46,8 @@ function failure(error:unknown):string {
 }
 type Attested={row:BoRecord;id:string};
 
-export function SubscriptionDirectoryDsa(){
+export type SubscriptionEnrollmentContent = (subject:{subscriptionId:string;centerId:string})=>React.ReactNode;
+export function SubscriptionDirectoryDsa({enrollmentContent,linkedSpecialty}:{enrollmentContent?:SubscriptionEnrollmentContent;linkedSpecialty?:LinkedSpecialtyBinding}={}){
   const center=useBoCenterSelection();
   const menu=useContext(BoApplicationShellContext);
   const selected=center&&!center.loading&&!center.error?center.selected:"";
@@ -69,12 +71,12 @@ export function SubscriptionDirectoryDsa(){
       !selected?<p role="status">Chọn cơ sở được cấp quyền để xem gói học.</p>:
       <ScopedSubscriptions key={selected+":"+center.source} centerId={selected}
         centerName={center.centers.find(item=>item.id===selected)?.displayName}
-        menu={menu?.("menu-btn")}/>}
+        menu={menu?.("menu-btn")} enrollmentContent={enrollmentContent} linkedSpecialty={linkedSpecialty}/> }
   </section>;
 }
 
-function ScopedSubscriptions({centerId,centerName,menu}:{
-  centerId:string;centerName?:string;menu?:React.ReactNode;
+function ScopedSubscriptions({centerId,centerName,menu,enrollmentContent,linkedSpecialty}:{
+  centerId:string;centerName?:string;menu?:React.ReactNode;enrollmentContent?:SubscriptionEnrollmentContent;linkedSpecialty?:LinkedSpecialtyBinding;
 }){
   const [table,setTable]=useState<BoTableState>(initial);
   const [items,setItems]=useState<OwnedSubscriptionItem[]>([]);
@@ -218,7 +220,9 @@ function ScopedSubscriptions({centerId,centerName,menu}:{
           fields={nativeSubscriptionModule.fields}
           sections={detailTab==="Detail"?[detailSections[0]]:[detailSections[1]]}
           canEdit={()=>false}/> : detailTab==="Chuyên đề" ?
-        <BoSubscriptionSpecialtyTab key={detail.id+":"+centerId} subscriptionId={detail.id} centerId={centerId} centerReady={detail.row.centerId===centerId}/> :
+        <BoSubscriptionSpecialtyTab key={detail.id+":"+centerId} subscriptionId={detail.id} centerId={centerId} centerReady={detail.row.centerId===centerId} linkedSpecialty={linkedSpecialty}/> :
+        detailTab==="Enrollment"&&detail.row.centerId===centerId&&enrollmentContent ?
+        enrollmentContent({subscriptionId:detail.id,centerId}) :
         <section className="empty-table" data-pap1907-center-safe-business-tab={detailTab}
           role="status" aria-label={detailTab}>
           <strong>{detailTab}</strong>

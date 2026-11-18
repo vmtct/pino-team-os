@@ -7,9 +7,10 @@
 import {useCallback,useEffect,useMemo,useRef,useState} from "react";
 import {subscriptionSpecialtyClient,BoApiError} from "@/lib/bo-subscription-specialty-client";
 import type {BoSubscriptionSpecialtyRead,BoSubscriptionSpecialtyCatalogItem,BoSubscriptionSpecialtyGrant} from "@/lib/bo-subscription-specialty-model";
-import type {BoModule,BoRecord} from "@/lib/bo-registration";
-import {BoQuickView} from "@/app/bo/components/registration/BoQuickView";
-import {DetailFrame} from "@/app/components/workspace-renderer/DetailFrame";
+import {defaultTable,type BoModule,type BoRecord,type BoTableState} from "@/lib/bo-registration";
+import {BoDataTable} from "@/app/bo/components/registration/BoDataTable";
+import {BoTableSettings,type BoSavedView} from "@/app/bo/components/registration/BoTableSettings";
+import {BoLinkedSpecialtyDrawer,type LinkedSpecialtyBinding} from "./BoLinkedSpecialtyDrawer";
 import styles from "./subscription-specialty.module.css";
 
 type Load={state:"loading"}|{state:"error";error:string}|{state:"ready";data:BoSubscriptionSpecialtyRead};
@@ -18,24 +19,19 @@ type Command={
  grant?:{specialtyId:string;effectiveFrom:string;expectedVersion:0};
  completion?:{grantId:string;completed:boolean;expectedVersion:number};
 };
-const previewModule:BoModule={label:"Chuyên đề",group:"Học tập",fields:[
- {key:"name",label:"Tên chuyên đề",type:"text",icon:"◇",w:2,readonly:true},
- {key:"id",label:"Mã chuyên đề",type:"id",icon:"#",w:2,readonly:true},
- {key:"pathProgramId",label:"Lộ trình",type:"id",icon:"↗",w:2,readonly:true},
- {key:"status",label:"Trạng thái",type:"text",icon:"●",w:1,readonly:true},
- {key:"createdAt",label:"Ngày tạo",type:"datetime",icon:"◷",w:1,readonly:true},
- {key:"createdBy",label:"Người tạo",type:"text",icon:"♙",w:1,readonly:true},
- {key:"updatedAt",label:"Cập nhật lúc",type:"datetime",icon:"◷",w:1,readonly:true},
- {key:"updatedBy",label:"Người cập nhật",type:"text",icon:"♙",w:1,readonly:true},
+const grantModule:BoModule={label:"Chuyên đề đã cấp",group:"Học tập",fields:[
+ {key:"name",label:"Chuyên đề",type:"text",icon:"Aa",w:220,readonly:true},
+ {key:"completed",label:"Hoàn thành",type:"boolean",icon:"✓",w:120},
+ {key:"effectiveFrom",label:"Ngày hiệu lực",type:"date",icon:"◷",w:145,readonly:true},
+ {key:"status",label:"Trạng thái",type:"select",icon:"●",w:145,readonly:true},
+ {key:"version",label:"Phiên bản",type:"number",icon:"#",w:90,readonly:true},
+ {key:"createdAt",label:"Ngày tạo",type:"datetime",icon:"◷",w:160,readonly:true},
+ {key:"createdBy",label:"Người tạo",type:"text",icon:"Aa",w:150,readonly:true},
+ {key:"updatedAt",label:"Chỉnh sửa lúc",type:"datetime",icon:"◷",w:165,readonly:true},
+ {key:"updatedBy",label:"Người chỉnh sửa",type:"text",icon:"Aa",w:150,readonly:true}
 ]};
 const localDate=()=>new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Ho_Chi_Minh",
  year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
-const vnTime=(value:string|null|undefined)=>{
- if(!value)return "—";
- const parsed=new Date(value);
- return Number.isFinite(parsed.getTime())
-  ?new Intl.DateTimeFormat("vi-VN",{timeZone:"Asia/Ho_Chi_Minh",dateStyle:"short",timeStyle:"short"}).format(parsed):"—";
-};
 const message=(error:unknown)=>error instanceof BoApiError
  ?`${error.message}${error.requestId?` · ${error.requestId}`:""}`
  :error instanceof Error?error.message:"Không thể tải dữ liệu Chuyên đề.";
@@ -44,13 +40,8 @@ function accessible(data:BoSubscriptionSpecialtyRead,today:string){
  return sub.lifecycle==="ACTIVE"&&Boolean(sub.serviceStartsOn)&&
   sub.serviceStartsOn!<=today&&(!sub.contractualEndsOn||sub.contractualEndsOn>=today);
 }
-function previewRecord(item:BoSubscriptionSpecialtyCatalogItem):BoRecord{
- // Read projection does not include publisher audit or a legal name. Never invent.
- return {id:item.id,name:item.name,pathProgramId:item.pathProgramId,status:"ACTIVE",
-  createdAt:null,createdBy:null,updatedAt:null,updatedBy:null};
-}
-export function BoSubscriptionSpecialtyTab({subscriptionId,centerId,centerReady}:{
- subscriptionId:string;centerId:string;centerReady:boolean;
+export function BoSubscriptionSpecialtyTab({subscriptionId,centerId,centerReady,linkedSpecialty}:{
+ subscriptionId:string;centerId:string;centerReady:boolean;linkedSpecialty?:LinkedSpecialtyBinding;
 }){
  const [load,setLoad]=useState<Load>({state:"loading"});
  const [revision,setRevision]=useState(0);
@@ -61,11 +52,12 @@ export function BoSubscriptionSpecialtyTab({subscriptionId,centerId,centerReady}
  const [error,setError]=useState<string|null>(null);
  const [notice,setNotice]=useState<string|null>(null);
  const [preview,setPreview]=useState<BoSubscriptionSpecialtyCatalogItem|null>(null);
- const [fullPreview,setFullPreview]=useState(false);
+ const [table,setTable]=useState<BoTableState>(()=>defaultTable(grantModule.fields));
+ const [page,setPage]=useState(1),[filterOpen,setFilterOpen]=useState(false),[settings,setSettings]=useState<string|null>(null);
+ const [views,setViews]=useState<BoSavedView[]>([]),[activeView,setActiveView]=useState<string|null>(null);
 
  const nextRequest=useRef(0);
  const previewReturn=useRef<HTMLButtonElement|null>(null);
- const fullRef=useRef<HTMLDivElement|null>(null);
  const today=localDate();
  const refresh=useCallback(async()=>{
   if(!centerReady||!centerId){setLoad({state:"error",error:"Hãy chọn Center có quyền để xem Subscription."});return;}
@@ -90,6 +82,8 @@ export function BoSubscriptionSpecialtyTab({subscriptionId,centerId,centerReady}
  const catalog=useMemo(()=>data?.catalog??[],[data]);
  const byId=useMemo(()=>new Map(catalog.map(item=>[item.id,item])),[catalog]);
  const canAct=Boolean(centerReady&&data&&data.subject.id===subscriptionId&&data.subject.centerId===centerId&&accessible(data,today));
+ const grantRows:BoRecord[]=(data?.grants??[]).map(g=>({id:g.id,name:byId.get(g.specialtyId)?.name??"Chuyên đề không còn trong Catalog ACTIVE",completed:g.completed,effectiveFrom:g.effectiveFrom,status:g.effectiveFrom<=today?"Đã hiệu lực":"Chưa hiệu lực",version:g.version,createdAt:g.createdAt,createdBy:null,updatedAt:g.updatedAt,updatedBy:null}));
+ const updateTable=(patch:Partial<BoTableState>)=>{setTable(v=>({...v,...patch}));setPage(1);};
  const chosen=catalog.find(item=>item.id===choice)??null;
  const chosenEligible=Boolean(chosen?.eligibleForNewGrant&&!chosen?.alreadyGranted);
  const run=async(command:Command)=>{
@@ -127,27 +121,12 @@ export function BoSubscriptionSpecialtyTab({subscriptionId,centerId,centerReady}
   void run({kind:"completion",key:crypto.randomUUID(),subscriptionId,centerId,
    completion:{grantId:grant.id,completed:!grant.completed,expectedVersion:grant.version}});
  };
- const showPreview=(item:BoSubscriptionSpecialtyCatalogItem,origin:HTMLButtonElement)=>{
-  previewReturn.current=origin;setPreview(item);setFullPreview(false);
+ const showPreview=(item:BoSubscriptionSpecialtyCatalogItem,origin:HTMLButtonElement|null)=>{
+  previewReturn.current=origin;setPreview(item);
  };
- const closePreview=()=>{setPreview(null);setFullPreview(false);
-  requestAnimationFrame(()=>previewReturn.current?.focus());};
- useEffect(()=>{
-  if(!preview)return;
-  const onKey=(event:KeyboardEvent)=>{if(event.key==="Escape"){event.preventDefault();
-   if(fullPreview)setFullPreview(false);
-   else{setPreview(null);setFullPreview(false);requestAnimationFrame(()=>previewReturn.current?.focus());}
-  }};
-  window.addEventListener("keydown",onKey);
-  return()=>window.removeEventListener("keydown",onKey);
- },[preview,fullPreview]);
+ const closePreview=()=>{setPreview(null);requestAnimationFrame(()=>previewReturn.current?.focus());};
  return <section aria-label="Chuyên đề theo Subscription" data-pap1496-subscription={subscriptionId}
  className={styles.root}>
-  <div className={styles.heading}>
-   <div><h2>Chuyên đề</h2><p>Gắn với Subscription này · Không kế thừa giữa các Subscription</p></div>
-   <button type="button" className="secondary-btn" disabled={!centerReady||busy}
-    onClick={()=>{setPendingCommand(null);setRevision(x=>x+1);}}>Tải lại</button>
-  </div>
   {error?<div className={styles.error} role="alert">{error}
     {pendingCommand?<button type="button" className="secondary-btn" disabled={busy}
      onClick={()=>{const pending=pendingCommand;if(pending)void run(pending);}}>Thử lại lệnh</button>:null}
@@ -158,39 +137,13 @@ export function BoSubscriptionSpecialtyTab({subscriptionId,centerId,centerReady}
    <button type="button" className="secondary-btn" onClick={()=>setRevision(x=>x+1)}>Thử lại</button></div>:null}
   {data?<div className={styles.stack}>
    <section className="v24-prop-section">
-    <h3>Chuyên đề đã cấp</h3>
-    {data.grants.length?data.grants.map(grant=>{
-      const item=byId.get(grant.specialtyId);
-      const effective=grant.effectiveFrom<=today;
-      return <article key={grant.id} className={styles.grant} aria-label={item?.name??grant.specialtyId}>
-       <div className={styles.grantHead}><div>
-        <strong>{item?.name??"Chuyên đề không còn trong Catalog ACTIVE"}</strong>
-        <span>{grant.effectiveFrom} · v{grant.version} · {effective?"Đã hiệu lực":"Chưa hiệu lực"}</span>
-       </div><label className={styles.checkbox}>
-        <input type="checkbox" aria-label={`Hoàn thành ${item?.name??grant.specialtyId}`}
-         checked={grant.completed} onChange={()=>toggle(grant)}
-         disabled={!canAct||!effective||busy||Boolean(pendingCommand)}/>
-        Hoàn thành
-       </label></div>
-       <div className={styles.audit}>
-        <span>Ngày tạo: <b>{vnTime(grant.createdAt)}</b></span>
-        <span>Người tạo: <b>—</b></span>
-        <span>Chỉnh sửa lúc: <b>{vnTime(grant.updatedAt)}</b></span>
-        <span>Người chỉnh sửa: <b>—</b></span>
-       </div>
-       {item?<button type="button" className="secondary-btn"
-        onClick={event=>showPreview(item,event.currentTarget)}>Xem chuyên đề</button>:null}
-      </article>;
-    }):<p>Chưa có chuyên đề nào được cấp trong Subscription này.</p>}
-   </section>
-   <section className="v24-prop-section">
     <h3>Thêm chuyên đề</h3>
     {!canAct?<p className={styles.disabled} role="status">
      Subscription chưa ACTIVE, chưa có hiệu lực hoặc chưa xác nhận Center. Không thể thêm/đánh dấu hoàn thành.
     </p>:null}
     <div className={styles.actions}>
      <label>Chọn chuyên đề
-      <select value={choice} onChange={event=>setChoice(event.target.value)}
+      <select className="edit-input" value={choice} onChange={event=>setChoice(event.target.value)}
        disabled={!canAct||busy||Boolean(pendingCommand)}>
        <option value="">Chọn chuyên đề cùng Path</option>
        {catalog.filter(item=>!item.alreadyGranted).map(item=><option key={item.id} value={item.id}>
@@ -199,7 +152,7 @@ export function BoSubscriptionSpecialtyTab({subscriptionId,centerId,centerReady}
       </select>
      </label>
      <label>Ngày hiệu lực
-      <input type="date" value={effectiveFrom} min={today} onChange={event=>setEffectiveFrom(event.target.value)}
+      <input className="edit-input" type="date" value={effectiveFrom} min={today} onChange={event=>setEffectiveFrom(event.target.value)}
        disabled={!canAct||busy||Boolean(pendingCommand)}/>
      </label>
      <button type="button" className="secondary-btn" disabled={!chosen}
@@ -207,29 +160,19 @@ export function BoSubscriptionSpecialtyTab({subscriptionId,centerId,centerReady}
      <button type="button" className="primary-btn" disabled={!canAct||!chosenEligible||effectiveFrom<today||busy||Boolean(pendingCommand)}
        onClick={create}>Thêm chuyên đề</button>
     </div>
-    {chosen&&!chosenEligible?<p role="status" className={styles.disabled}>
-     {chosen.alreadyGranted?"Chuyên đề đã được cấp.":`Cần hoàn thành chuyên đề tiền đề trong cùng Subscription: ${chosen.missingPrerequisiteIds.map(id=>byId.get(id)?.name??id).join(", ")||"Chưa đủ điều kiện"}`}
-    </p>:null}
+    {chosen&&!chosenEligible?<div role="status" className={styles.prerequisiteWarning}>
+     {chosen.alreadyGranted?"Chuyên đề đã được cấp.":<><strong>Cần hoàn thành chuyên đề tiền đề trong cùng Subscription:</strong>{" "}{chosen.missingPrerequisiteIds.length?chosen.missingPrerequisiteIds.map((id,index)=>{const item=byId.get(id);return <span key={id}>{index?", ":""}{item?<button type="button" className={styles.prerequisiteLink} onClick={event=>showPreview(item,event.currentTarget)}>{item.name}</button>:id}</span>;}):"Chưa đủ điều kiện"}</>}
+    </div>:null}
     {!catalog.length?<p>Không có Chuyên đề ACTIVE cùng Path để chọn.</p>:null}
    </section>
+   <section className="v24-prop-section">
+    <h3>Chuyên đề đã cấp</h3>
+    <div data-tdd-shell="" data-tdd-table="" data-tdd-freeze-controls="" className={styles.tableWrap}>
+     <BoDataTable minimal showChrome={false} totalKnown={false} module={grantModule} rows={grantRows} loadState="ready" value={{...table,pageSize:Math.max(1,grantRows.length)}} update={updateTable} page={page} setPage={setPage} onOpen={row=>{const g=data.grants.find(x=>x.id===row.id),item=g&&byId.get(g.specialtyId);if(item)showPreview(item,document.activeElement instanceof HTMLButtonElement?document.activeElement:null);}} onCellEdit={row=>{const g=data.grants.find(x=>x.id===row.id);if(g)toggle(g);}} policy={{identity:"name",search:grantModule.fields.map(f=>f.key),filter:grantModule.fields.map(f=>f.key),sort:grantModule.fields.map(f=>f.key),group:[],edit:canAct&&!busy&&!pendingCommand?["completed"]:[],viewActions:[]}} onSettings={setSettings} filterOpen={filterOpen} setFilterOpen={setFilterOpen} views={views} changeViews={setViews} activeView={activeView} applyView={v=>{setTable(v?.state??defaultTable(grantModule.fields));setActiveView(v?.id??null);setPage(1);}} reset={()=>{setTable(defaultTable(grantModule.fields));setPage(1);setActiveView(null);}} undo={()=>{}} canUndo={false}/>
+    </div>
+    {settings?<BoTableSettings screen={settings} setScreen={setSettings} onClose={()=>setSettings(null)} fields={grantModule.fields} rows={grantRows} value={table} update={updateTable} views={views} setViews={setViews} applyView={v=>{setTable(v.state);setActiveView(v.id);setPage(1);}}/>:null}
+   </section>
   </div>:null}
-  {preview&&!fullPreview?<BoQuickView key={preview.id} module={previewModule} record={previewRecord(preview)}
-   onClose={closePreview} onDetail={()=>setFullPreview(true)} />:null}
-  {preview&&fullPreview?<div className={styles.full} role="dialog" aria-modal="true"
-   aria-label={`Chi tiết chuyên đề ${preview.name}`}>
-   <DetailFrame title={preview.name} subtitle={preview.id}
-    onBack={()=>setFullPreview(false)} tabs={[{id:"Detail",label:"Thông tin"}]} selected="Detail">
-    <section className="v24-prop-section"><h3>Thông tin chuyên đề</h3>
-     <div className="v24-prop-grid">
-      {previewModule.fields.map(field=><div key={field.key} className="v24-prop-item">
-       <div className="v24-prop-key">{field.label}</div>
-       <div className="v24-prop-value readonly">
-        {String(previewRecord(preview)[field.key]??"—")}
-       </div>
-      </div>)}
-     </div><p>Chỉ xem trước — không thực hiện cấp chuyên đề.</p>
-    </section>
-   </DetailFrame>
-  </div>:null}
+  {preview?<BoLinkedSpecialtyDrawer key={preview.id} subject={{specialtyId:preview.id,pathProgramId:preview.pathProgramId,subscriptionId,centerId}} binding={linkedSpecialty} onClose={closePreview}/>:null}
  </section>;
 }

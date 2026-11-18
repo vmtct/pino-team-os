@@ -56,8 +56,18 @@ void test("PAP-1496 UI reuses shared Drawer/Detail and never invokes legacy Stud
  const component=readFileSync(new URL("subscriptions/BoSubscriptionSpecialtyTab.tsx",root),"utf8");
  const detail=readFileSync(new URL("components/registration/BoFullDetail.tsx",root),"utf8");
  const facade=readFileSync(new URL("api/bo/[...path]/route.ts",new URL("../app/",import.meta.url)),"utf8");
- assert.match(component,/BoQuickView/);
- assert.match(component,/DetailFrame/);
+ const linked=readFileSync(new URL("subscriptions/BoLinkedSpecialtyDrawer.tsx",root),"utf8");
+ const native=readFileSync(new URL("subscriptions/SubscriptionDirectoryDsa.tsx",root),"utf8");
+ assert.match(component,/<BoLinkedSpecialtyDrawer\b/);
+ assert.match(linked,/<TddDrawer\b/);
+ assert.match(linked,/binding\.openAuthorized\(\{specialtyId,pathProgramId,subscriptionId,centerId\}/);
+ assert.match(linked,/if\(!binding\)\{setState\(\{status:"denied"\}\)/);
+ assert.match(linked,/detail\.row\.id!==specialtyId/);
+ assert.match(linked,/onDetail=\{\(\)=>binding\.openDetail\(subject\)\}/);
+ assert.match(native,/<DetailFrame\b/);
+ assert.doesNotMatch(component,/<(?:BoQuickView|DetailFrame)\b|previewModule/);
+ assert.match(component,/<BoDataTable minimal showChrome=\{false\} totalKnown=\{false\}/);
+ assert.match(component,/pageSize:Math\.max\(1,grantRows\.length\)/);
  assert.match(component,/subscriptionSpecialtyClient[.]create/);
  assert.match(component,/subscriptionSpecialtyClient[.]complete/);
  assert.doesNotMatch(component,/createSpecialtyPurchase|completeSpecialtyAllocation|student-specialty-grants/);
@@ -67,7 +77,7 @@ void test("PAP-1496 UI reuses shared Drawer/Detail and never invokes legacy Stud
 
 void test("PAP-1496 canonical native Subscription Detail actually mounts Specialty consumer",()=>{
  const native=readFileSync(new URL("../app/bo/subscriptions/SubscriptionDirectoryDsa.tsx",import.meta.url),"utf8");
- assert.match(native,/detailTab==="Chuyên đề" \?\s*<BoSubscriptionSpecialtyTab key=\{detail.id\+":"\+centerId\} subscriptionId=\{detail.id\} centerId=\{centerId\} centerReady=\{detail.row.centerId===centerId\}\/>/);
+ assert.match(native,/detailTab==="Chuyên đề" \?\s*<BoSubscriptionSpecialtyTab key=\{detail.id\+":"\+centerId\} subscriptionId=\{detail.id\} centerId=\{centerId\} centerReady=\{detail.row.centerId===centerId\} linkedSpecialty=\{linkedSpecialty\}\/>/);
  assert.match(native,/assertCenterDetail\(/);
  assert.doesNotMatch(native,/<BoSubscriptionsView\b/);
 });
