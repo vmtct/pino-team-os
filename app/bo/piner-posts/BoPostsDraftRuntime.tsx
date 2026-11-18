@@ -22,26 +22,32 @@ export function BoPostsDraftRuntime({session,centerLabel}:{session:NativeDraftSe
 }
 function ScopedDraft({session,centerLabel}:{session:NativeDraftSession;centerLabel:string}){
  const {registry,context,controller,mutation}=session,menu=useContext(TddHostMenu);
- const navigation=useMemo(()=>browserTddNavigation("BO","piner-posts",draftQuery),[session]);
+ const navigation=useMemo(()=>browserTddNavigation("BO","piner-posts",draftQuery),[]);
  const [position,setPosition]=useState(()=>navigation.read());
- const [rows,setRows]=useState<readonly Row[]>([]),[status,setStatus]=useState<State>("loading"),[reload,setReload]=useState(0);
- const [record,setRecord]=useState<CoreDraftRow|null>(null),[recordStatus,setRecordStatus]=useState<State>("loading"),[recordRetry,setRecordRetry]=useState(0);
+ const [reload,setReload]=useState(0);
+ const [listResult,setListResult]=useState<{generation:number;rows:readonly Row[];status:State}|null>(null);
+ const listCurrent=listResult?.generation===reload?listResult:null;
+ const rows=listCurrent?.rows??[],status=listCurrent?.status??"loading";
+ const [recordRetry,setRecordRetry]=useState(0);
+ const [detailResult,setDetailResult]=useState<{id:string;generation:number;record:CoreDraftRow|null;status:State}|null>(null);
  const [draft,setDraft]=useState<BoRecord|null>(null),[choices,setChoices]=useState<readonly StudentChoice[]>([]),[busy,setBusy]=useState(false),[error,setError]=useState("");
  const active=useRef<AbortController|null>(null),previousStage=useRef(position.kind),restore=useRef(false);
  const allowed=context.authorize("piner.post.view");
  const selected=position.kind==="table"?undefined:position.recordId;
+ const currentDetail=detailResult?.id===selected&&detailResult?.generation===recordRetry?detailResult:null;
+ const record=currentDetail?.record??null,recordStatus=currentDetail?.status??"loading";
  const resetDraft=()=>{active.current?.abort();active.current=null;setDraft(null);setChoices([]);setBusy(false);setError("");};
  useEffect(()=>navigation.subscribe(()=>{
    const next=navigation.read();
    if(previousStage.current!=="table"&&next.kind==="table")restore.current=true;
-   previousStage.current=next.kind;resetDraft();setPosition(next);
+   previousStage.current=next.kind;resetDraft();setRecordRetry(n=>n+1);setPosition(next);
  }),[navigation]);
- useEffect(()=>{const ctl=new AbortController();if(!allowed){setRows([]);setStatus("denied");return;}
-  setStatus("loading");void draftSchema.data.list(draftQuery,context,ctl.signal).then(x=>{if(!ctl.signal.aborted){setRows(x.rows);setStatus("ready");}},e=>{if(!ctl.signal.aborted){setRows([]);setStatus(e instanceof CoreDraftRequestError&&[401,403].includes(e.status)?"denied":"error");}});
+ useEffect(()=>{const ctl=new AbortController();if(!allowed)return()=>ctl.abort();
+  void draftSchema.data.list(draftQuery,context,ctl.signal).then(x=>{if(!ctl.signal.aborted)setListResult({generation:reload,rows:x.rows,status:"ready"});},e=>{if(!ctl.signal.aborted)setListResult({generation:reload,rows:[],status:e instanceof CoreDraftRequestError&&[401,403].includes(e.status)?"denied":"error"});});
   return()=>ctl.abort();
  },[session,reload,allowed,context]);
- useEffect(()=>{const ctl=new AbortController();setRecord(null);setRecordStatus("loading");if(!selected||!allowed)return()=>ctl.abort();
-  void controller.detail(selected,ctl.signal).then(value=>{if(!ctl.signal.aborted){setRecord(value);setRecordStatus("ready");}},e=>{if(!ctl.signal.aborted)setRecordStatus(e instanceof CoreDraftRequestError&&[401,403].includes(e.status)?"denied":"error");});
+ useEffect(()=>{const ctl=new AbortController();if(!selected||!allowed)return()=>ctl.abort();
+  void controller.detail(selected,ctl.signal).then(value=>{if(!ctl.signal.aborted)setDetailResult({id:selected,generation:recordRetry,record:value,status:"ready"});},e=>{if(!ctl.signal.aborted)setDetailResult({id:selected,generation:recordRetry,record:null,status:e instanceof CoreDraftRequestError&&[401,403].includes(e.status)?"denied":"error"});});
   return()=>ctl.abort();
  },[controller,selected,allowed,recordRetry]);
  useEffect(()=>{if(restore.current&&position.kind==="table"&&status==="ready"){restore.current=false;navigation.restore();}},[position.kind,status,navigation]);
@@ -56,7 +62,7 @@ function ScopedDraft({session,centerLabel}:{session:NativeDraftSession;centerLab
  const create=()=>{if(active.current||!session.canCreate())return;setDraft(blank(centerLabel));perform(async signal=>{const data=await session.studentChoices(signal);signal.throwIfAborted();setChoices(data);});};
  const change=(key:string,value:BoValue)=>{if(key==="name"||key==="caption"){setDraft(old=>old?{...old,[key]:String(value??"")}:old);setError("");}};
  const submit=()=>{if(!draft||!session.canCreate())return;const student=resolveStudent(choices,draft.name);if(!student){setError("Chọn học viên có định danh duy nhất.");return;}perform(async signal=>{const row=await controller.createDraft(student.id,String(draft.caption??""),signal);signal.throwIfAborted();setReload(n=>n+1);move("drawer",row.id);});};
- const saved=(row:Row,version:string)=>{if(!record||record.id!==row.id||typeof row.name!=="string"||!row.name.trim())return;const nextVersion=Number(version);if(!Number.isSafeInteger(nextVersion)||nextVersion<=record.version)return;setRecord({...record,...row,name:row.name,version:nextVersion});setReload(n=>n+1);};
+ const saved=(row:Row,version:string)=>{if(!record||record.id!==row.id||typeof row.name!=="string"||!row.name.trim())return;const nextVersion=Number(version);if(!Number.isSafeInteger(nextVersion)||nextVersion<=record.version)return;setDetailResult({id:record.id,generation:recordRetry,record:{...record,...row,name:row.name,version:nextVersion},status:"ready"});setReload(n=>n+1);};
  const updateQuery=(query:TableQuery<DraftFields>)=>navigation.change({...position,query},true);
  const visibleRecord=record?.id===selected&&recordStatus==="ready"?record:null;
  if(!allowed)return <RecordState status="denied"/>;
