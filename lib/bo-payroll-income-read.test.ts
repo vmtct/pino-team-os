@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {scopedIncomeRow,loadIncomeHistory,scopedIncomeDay,historicalDayRate,verifiedCompensationRows,type IncomePage} from "./bo-payroll-income-read";
+import {scopedIncomeRow,loadIncomeHistory,scopedIncomeDay,historicalDayRate,verifiedCompensationRows,verifiedFinancialCapabilities,type IncomePage} from "./bo-payroll-income-read";
 import type {PeriodStaffPage,PayPeriod} from "./bo-payroll-period-api";
 const period={id:"p",centerId:"c",name:"P",startDate:"2026-10-01",endDate:"2026-10-31",status:"ACTIVE"} as PayPeriod;
 const page={period,totalsScope:"FULL_PERIOD",offset:0,nextOffset:null,rows:[{staffMemberId:"s",staffName:"Name",status:"FINALIZED",settlementId:"f",amountMinor:100,preview:{centerId:"c",periodId:"p",staffMemberId:"s",periodStartDate:period.startDate,periodEndDate:period.endDate,amountMinor:100,days:[]}}]} as unknown as PeriodStaffPage;
@@ -45,4 +45,21 @@ test("PAP-2012 historical day rate requires exact authorized snapshot match",()=
  assert.equal(historicalDayRate(day,[{...rate,periodUntilExclusive:"2026-10-04"}]),null);
  const row={period,staff:{...page.rows[0],preview:{...page.rows[0].preview!,days:[{...day,base:{...day.base,centerId:"other"}}]}}};
  assert.equal(scopedIncomeDay(row,day.workDate),null);
+});
+
+test("PAP-1956 read-only financial capability is exact Center and fails closed",()=>{
+ const denied={centerId:"c",canManageSettlement:false,canReviewExtraTime:false};
+ for(const bad of [undefined,null,[],{}, {centerId:"other",canManageSettlement:true,canReviewExtraTime:true},{centerId:"c",canManageSettlement:true},{centerId:"c",canManageSettlement:"true",canReviewExtraTime:true}]){
+  assert.deepEqual(verifiedFinancialCapabilities(bad,"c"),denied);
+ }
+ const partial={centerId:"c",canManageSettlement:true,canReviewExtraTime:false};
+ assert.deepEqual(verifiedFinancialCapabilities(partial,"c"),partial);
+});
+test("PAP-1956 income history normalizes missing or foreign capability without altering snapshot",async()=>{
+ const data:IncomePage={centerId:"c",staffMemberId:"s",anchorPeriodId:"p",current:{period,staff:page.rows[0]},rows:[],offset:0,nextOffset:null};
+ for(const capability of [undefined,{centerId:"other",canManageSettlement:true,canReviewExtraTime:true}]){
+  const result=await loadIncomeHistory("c","p","s",0,{incomeHistory:async()=>({data:{...data,financialCapabilities:capability}})});
+  assert.deepEqual(result.financialCapabilities,{centerId:"c",canManageSettlement:false,canReviewExtraTime:false});
+  assert.equal(result.current.staff.amountMinor,100);
+ }
 });

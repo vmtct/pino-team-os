@@ -1,3 +1,4 @@
+import {formatPayrollVnd} from "./tos-own-income-api";
 import type {Assignment} from "./workforce-api";
 /** Calendar-only arithmetic; localDate has already been resolved in the authorized center's timezone. */
 export function shiftWeek(localDate:string){
@@ -21,7 +22,7 @@ export function assignmentHours(row:Assignment){
  const start=clock(row.effectiveStartLocal??row.shift?.startLocalTime),end=clock(row.effectiveEndLocal??row.shift?.endLocalTime);
  return start&&end?`${start}–${end}`:"Chưa xác định giờ ca";
 }
-export function formatIncome(minor:number|null|undefined){return minor==null?"—":new Intl.NumberFormat("vi-VN",{style:"currency",currency:"VND"}).format(minor/100)}
+export function formatIncome(minor:number|null|undefined){return formatPayrollVnd(minor)}
 export function shiftRoleLabel(row:Assignment){
  const labels={FRONT_DESK:"Tiếp tân",TEACHER:"Giáo viên",TEACHING_ASSISTANT:"Trợ giảng",SHIFT_LEADER:"Trưởng ca"} as const;
  return [...new Set(row.roleAssignments?.map(role=>labels[role.roleType])??[])].join(" · ")||"Chưa có vai trò được phân công";

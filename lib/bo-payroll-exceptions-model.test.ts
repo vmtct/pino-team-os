@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {toExceptionReadRow,validExceptionRange,minorVnd} from "./bo-payroll-exceptions-model";
-import {exceptionReadApi} from "./bo-payroll-exceptions-read";
+import {exceptionReadApi,canReviewStandalone,sameStandaloneRequest} from "./bo-payroll-exceptions-read";
 import type {ReviewedException} from "./bo-payroll-extra-review-api";
 const center="0199f001-0000-7000-8000-000000000001";
 const sample:ReviewedException={
@@ -73,4 +73,14 @@ test("PAP-1959 verified request actor and timestamp, no decision-as-request upda
  assert.deepEqual([p.updatedAt,p.updatedBy],["—","—"]);
  assert.equal(p.reviewedAmountMinor,12500);
  assert.equal(toExceptionReadRow({...sample,staffLegalFullName:null,createdAt:"invalid",createdBy:null},center).createdAt,"—");
+});
+
+test("PAP-1955 standalone eligibility is exact server Center/request/pending, fail closed",()=>{
+ const row={...sample,reviewEligibility:{centerId:center,requestId:sample.id,canReview:true}};
+ assert.equal(canReviewStandalone(row,center,sample.id),true);
+ for(const denied of [sample,{...row,reviewEligibility:{...row.reviewEligibility,canReview:false}},{...row,reviewEligibility:{...row.reviewEligibility,centerId:"other"}},{...row,reviewEligibility:{...row.reviewEligibility,requestId:"other"}},{...row,status:"WITHDRAWN" as const}])assert.equal(canReviewStandalone(denied,center,sample.id),false);
+ assert.equal(canReviewStandalone(row,"other",sample.id),false);
+ assert.equal(canReviewStandalone(row,center,"other"),false);
+ assert.equal(sameStandaloneRequest(row,{...row,requestedEndAt:"2026-11-13T12:30:00Z"}),false);
+ assert.equal(sameStandaloneRequest(row,{...row}),true);
 });
