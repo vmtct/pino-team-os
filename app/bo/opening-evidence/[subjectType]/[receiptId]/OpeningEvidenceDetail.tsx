@@ -25,10 +25,12 @@ function Review({row,onSaved}:{row:OpeningEvidenceRow;onSaved:()=>void}){
     finally{setBusy(false);}
   }
   return <section className={styles.review} aria-label="Duyệt bằng chứng">
-    <h3>Duyệt bằng chứng</h3>
-    <label className={styles.reason}>Lý do từ chối<textarea placeholder="Nhập lý do cần bổ sung ảnh…" maxLength={1000} value={reason} disabled={busy} onChange={e=>setReason(e.target.value)}/><small>Ít nhất 8 ký tự khi từ chối.</small></label>
+    <div className="v24-section-heading"><h4>Duyệt bằng chứng</h4></div>
+    <form className={styles.reviewForm} onSubmit={e=>{e.preventDefault();if((e.nativeEvent as SubmitEvent).submitter?.getAttribute("data-evidence-approve")==="true")void decide("APPROVED");}}>
+    <label className={styles.reason}>Lý do từ chối<textarea className="edit-input" placeholder="Nhập lý do cần bổ sung ảnh…" maxLength={1000} value={reason} disabled={busy} onChange={e=>setReason(e.target.value)}/><small>Ít nhất 8 ký tự khi từ chối.</small></label>
     <div className={styles.actions}><button className="secondary-btn" type="button" disabled={busy||reason.trim().length<8} onClick={()=>void decide("REJECTED")}>Từ chối</button>
-      <button className="primary-btn" type="button" disabled={busy} onClick={()=>void decide("APPROVED")}>{busy?"Đang xử lý…":"Duyệt"}</button></div>
+      <button className="primary-btn" type="submit" data-evidence-approve="true" disabled={busy}>{busy?"Đang xử lý…":"Duyệt"}</button></div>
+    </form>
     {message?<p role="alert">{message}</p>:null}
   </section>;
 }
@@ -56,7 +58,7 @@ function DetailScope({centerId,subjectType,receiptId,activeTab}:{centerId:string
     activeTab={activeTab} tabs={[
       {id:"overview",label:"Tổng quan",content:<BoProperties items={evidenceProperties(row)}/>},
       {id:"evidence",label:"Ảnh setup & vòng duyệt",content:<section className={styles.evidenceTab} aria-label="Ảnh setup và vòng duyệt">
-        <header className={styles.sectionHeading}><h2>Ảnh setup &amp; vòng duyệt</h2><EvidenceStatusPill status={row.status}/></header>
+        <header className="v24-section-heading"><h4>Ảnh setup &amp; vòng duyệt</h4><EvidenceStatusPill status={row.status}/></header>
         <OpeningEvidenceGallery data={data} formatTime={evidenceTime}/>
         <Review key={row.version} row={row} onSaved={reload}/>
       </section>},

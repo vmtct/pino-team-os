@@ -22,6 +22,9 @@ void test("PAP-2119 Full Detail selects existing business-v25 profile without sh
  assert.match(detail,/openingEvidenceApi\.review\(row,verdict,note,key\)/);
  assert.match(detail,/className="primary-btn"/);
  assert.match(detail,/className="secondary-btn"/);
+ assert.match(detail,/className="edit-input"/);
+ assert.match(detail,/type="submit" data-evidence-approve="true"/);
+ assert.doesNotMatch(css,/(?:^|[;{])\s*(?:color|background|border(?:-radius)?|padding|margin|font(?:-size|-weight)?)\s*:/m);
  const gallery=readFileSync(root+"OpeningEvidenceGallery.tsx","utf8");
  assert.match(gallery,/r\.roundId===e\.roundId&&r\.version>e\.version/);
  assert.match(gallery,/openingReviewActorLabel\(review\.actorLegalFullName,review\.reviewAccountRecorded\)/);

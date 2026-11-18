@@ -32,11 +32,11 @@ export function OpeningEvidenceGallery({data,formatTime}:{data:EvidenceDetail;fo
     {submissions.length===0?<p role="status">Chưa có ảnh setup.</p>:null}
     {submissions.map((e,index)=>{
       const review=history.filter(r=>r.kind==="REVIEW"&&r.roundId===e.roundId&&r.version>e.version).sort((a,b)=>b.version-a.version)[0];
-      return <article className={styles.round} key={e.eventId}>
-        <header className={styles.roundHeader}><div><h3>Vòng {index+1}</h3><p className={styles.metadata}>{e.actorLegalFullName??"—"} · {formatTime(e.occurredAt)}</p></div><EvidenceStatusPill status={review?.verdict??"PENDING"}/></header>
+      return <article className={"v24-prop-section "+styles.round} key={e.eventId}>
+        <header className="v24-section-heading"><div><h4>Vòng {index+1}</h4><p>{e.actorLegalFullName??"—"} · {formatTime(e.occurredAt)}</p></div><EvidenceStatusPill status={review?.verdict??"PENDING"}/></header>
         <div className={styles.photos}>{(e.privateAssetIds??[e.privateAssetId!]).map(assetId=><PhotoPreview key={JSON.stringify([row.centerId,row.subjectType,row.openingReceiptId,row.version,assetId])} row={row} assetId={assetId}/>)}</div>
         {e.note?<div className={styles.note}><strong>Ghi chú</strong><p>{e.note}</p></div>:null}
-        {review?<div className={styles.decision}><p className={styles.metadata}>{openingReviewActorLabel(review.actorLegalFullName,review.reviewAccountRecorded)} · {formatTime(review.occurredAt)}</p>{review.reason?<div className={styles.note}><strong>Lý do</strong><p>{review.reason}</p></div>:null}</div>:null}
+        {review?<div className={styles.decision}><p>{openingReviewActorLabel(review.actorLegalFullName,review.reviewAccountRecorded)} · {formatTime(review.occurredAt)}</p>{review.reason?<div className={styles.note}><strong>Lý do</strong><p>{review.reason}</p></div>:null}</div>:null}
       </article>;
     })}
   </section>;
