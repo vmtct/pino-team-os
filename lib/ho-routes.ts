@@ -1,3 +1,4 @@
+import {readWishDetailRoute,wishDetailUrl} from "./pls-wish-detail-route";
 /** Single public-page manifest for the staging Head Office surface. No BO or production routes. */
 export const HO_PAGE_PATHS = {
   bills: "/ho/billing/bills",
@@ -17,6 +18,8 @@ export const HO_PAGE_PATHS = {
   wardrobe: "/ho/pinoria/wardrobe",
   wardrobeSets: "/ho/pinoria/wardrobe-sets",
   starterSets: "/ho/pinoria/starter-sets",
+  wishPolicies: "/ho/pinoria/wish-policies",
+  wishBanners: "/ho/pinoria/wish-banners",
   effects: "/ho/pinoria/effects",
   tvPolicies: "/ho/pinoria/tv-policies",
  customAttributes: "/ho/system/custom-attributes",
@@ -40,6 +43,12 @@ export function safeHoReturnTo(raw: string | null | undefined): string | null {
     // PAP-1645 / PAP-1491: strip harmless campaign metadata before validating
     // returnTo, without allowing arbitrary query keys or an off-host target.
     const functionalKeys = [...parsed.searchParams.keys()].filter(key => !ignoredTrackingKeys.has(key));
+    if(parsed.pathname===HO_PAGE_PATHS.wishPolicies||parsed.pathname===HO_PAGE_PATHS.wishBanners){
+      if(functionalKeys.some(k=>!["record","tab","wishSelection","wishRevision"].includes(k)))return null;
+      const kind=parsed.pathname===HO_PAGE_PATHS.wishPolicies?"policy":"banner";
+      const route=readWishDetailRoute(parsed.search,kind);
+      return wishDetailUrl(parsed.origin+parsed.pathname,kind,route);
+    }
     if(parsed.pathname===HO_PAGE_PATHS.starterSets && functionalKeys.length===2 && functionalKeys.includes("record") && functionalKeys.includes("tab")){
       const record=parsed.searchParams.get("record")??"",tab=parsed.searchParams.get("tab")??"";
       if(!recordId.test(record)||!["overview","members","history"].includes(tab))return null;

@@ -544,3 +544,11 @@ test("PAP-2134 private BO Post Draft exact host and method fence",()=>{
  assert.equal(requiresBoStaffPasswordSession(BO_STAGING_HOSTNAME,page),true);
  for(const path of [base+"/",base+"/publish",record+"/media",base+"/01912345-6789-4abc-8def-0123456789ab",base+"%2f",base.toUpperCase(),page+"/extra",page+"/"])assert.deepEqual(decideHostBoundary(BO_STAGING_HOSTNAME,path,"GET"),{action:"not_found"});
 });
+
+test("PAP-2030 exact historical Wish Item record is HO staging GET only",()=>{
+ const p="/api/ho/pinoria/pls-wish/config/item-record/"+roleId+"/3";
+ assert.deepEqual(decideHostBoundary("ho.staging.pinohouse.art",p,"GET"),{action:"next"});
+ for(const host of ["ho.staging.pinohouse.art","bo.staging.pinohouse.art","tos.staging.pinohouse.art",BO_HOSTNAME])for(const method of ["POST","PATCH","DELETE"])assert.deepEqual(decideHostBoundary(host,p,method),{action:"not_found"});
+ for(const host of ["bo.staging.pinohouse.art","tos.staging.pinohouse.art",BO_HOSTNAME])assert.deepEqual(decideHostBoundary(host,p,"GET"),{action:"not_found"});
+ for(const suffix of ["/x","/0","/3/extra"])assert.deepEqual(decideHostBoundary("ho.staging.pinohouse.art","/api/ho/pinoria/pls-wish/config/item-record/"+roleId+suffix,"GET"),{action:"not_found"});
+});

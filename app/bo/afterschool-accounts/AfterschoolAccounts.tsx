@@ -21,6 +21,8 @@ const directory: BoModule = {
   fields: [
     { key: "name", label: "Phụ huynh", type: "text", icon: "Aa", w: 230, readonly: true },
     { key: "maskedPhone", label: "Số điện thoại", type: "text", icon: "Aa", w: 155, readonly: true },
+    { key: "center", label: "Chi nhánh", type: "text", icon: "Aa", w: 170, readonly: true },
+    { key: "lastLoginAt", label: "Đăng nhập gần nhất", type: "datetime", icon: "▦", w: 175, readonly: true },
     { key: "pinStatus", label: "Trạng thái PIN", type: "text", icon: "Aa", w: 150, readonly: true },
     { key: "temporaryPinExpiresAt", label: "PIN tạm hết hạn", type: "datetime", icon: "▦", w: 170, readonly: true },
     { key: "createdAt", label: "Created Time", type: "datetime", icon: "▦", w: 170, readonly: true },
@@ -47,6 +49,7 @@ function accountRecord(item: Record<string, unknown>): BoRecord {
     id: item.parentId, name: label(item.parentName),
     maskedPhone: typeof item.maskedPhone === "string" && /^\+?\d{0,2}••••\d{0,2}$/.test(item.maskedPhone)
       ? item.maskedPhone : "—",
+    center: label(item.centerName), lastLoginAt: timestamp(item.lastLoginAt),
     pinStatus: pinLabels[item.pinStatus]!,
     temporaryPinExpiresAt: timestamp(item.temporaryPinExpiresAt),
     createdAt: timestamp(item.createdAt), createdBy: label(item.createdBy),
@@ -163,10 +166,12 @@ function ScopedAccounts({ centerId }: { centerId: string }) {
 
   if (detail) return <DetailFrame title={detail.name} mobileMenu={menu?.("detail-menu-btn")}
     onBack={() => {setDetail(null);setHistoryTab("overview");}} tabs={[{ id: "overview", label: "Tổng quan" },{id:"history",label:"Lịch sử"}]} selected={historyTab} onSelect={setHistoryTab}
-    actions={actionsEnabled && <button type="button" className="secondary-btn"
-      onClick={() => setPinDrawer({ parent: { id: detail.id, name: detail.name } })}>Cấp lại PIN</button>}
     after={pinActionDrawer}>
     {historyTab==="history" ? <AfterschoolHistory parentId={detail.id} centerId={centerId} revision={retry}/> : <PropertySections variant="detail" fields={directory.fields} record={detail} sections={overview} />}
+    {actionsEnabled && <div className="afterschool-detail-actions" style={{ display: "flex", justifyContent: "flex-start", flexWrap: "wrap", gap: "8px", marginTop: "24px" }}>
+      <button type="button" className="secondary-btn"
+      onClick={() => setPinDrawer({ parent: { id: detail.id, name: detail.name } })}>Cấp lại PIN</button>
+    </div>}
   </DetailFrame>;
 
   return <section id="list-screen" aria-label="Tài khoản" data-bo-afterschool-directory="PAP-1886">
