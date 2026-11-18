@@ -28,7 +28,7 @@ function fixture(run) {
     const content=fs.readFileSync(path.join(repo,file),"utf8");
     // Existing PAP-901 factory fixtures have no TDD manifest; keep scopes independent.
     write(file,file===policy?content.replace(/\r\n/g,"\n").replace('  "/bo/payroll-daily",\n',"").replace('  "/bo/payroll-exceptions",\n',"").replace('  "/bo/pinoria-avatars",\n',"").replace('  "/bo/afterschool-accounts",\n',"").replace('  "/bo/open-studio-passes",\n',"")
-      .replace(/\s*"\/bo\/classroom-diaries",\r?\n/,"\n").replace('  "/bo/bills",\n',"").replace('  "/bo/missions",\n',"").replace('  "/bo/tvs",\n',"").replace('  "/bo/opening-evidence",\n',"").replace('  "/bo/piner-posts",\n',"").replace('  "/bo/mytime-guests",\n',""):content);
+      .replace(/\s*"\/bo\/classroom-diaries",\r?\n/,"\n").replace('  "/bo/bills",\n',"").replace('  "/bo/missions",\n',"").replace('  "/bo/tvs",\n',"").replace('  "/bo/opening-evidence",\n',"").replace('  "/bo/piner-posts",\n',"").replace('  "/bo/pinoria-wish-events",\n',"").replace('  "/bo/mytime-guests",\n',""):content);
   }
   try { return run({ root, read, write }); }
   finally { fs.rmSync(root, { recursive: true, force: true }); }
@@ -262,4 +262,15 @@ test("PAP-2134 native Posts requires exact TDD manifest, schema and explicit sta
  write("config/tdd-admission.json",JSON.stringify({modules:[entry]}));
  fs.unlinkSync(path.join(root,entry.schema.file));
  assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/Invalid exact BO TDD route admission|TDD entry/);
+}));
+
+test("PAP-2032 native Wish Events requires exact authorized runtime and Center/actor fences",()=>fixture(({root,read,write})=>{
+ const files=["app/bo/pinoria-wish-events/page.tsx","app/bo/pinoria-wish-events/BoWishRuntime.tsx","app/bo/pinoria-wish/BoWishEventCatalog.tsx","app/bo/pinoria-wish/BoWishEventDetail.tsx","lib/bo-pls-wish-handler.ts","lib/bo-pls-wish-host-contract.ts","lib/host-boundary.ts","lib/bo-pls-wish-handler.test.ts","app/api/bo/pinoria/pls-wish/events/[[...path]]/route.ts"];
+ for(const f of files)write(f,fs.readFileSync(path.join(repo,f),"utf8"));
+ write(policy,read(policy).replace('  "/bo/payroll-periods",','  "/bo/payroll-periods",\n  "/bo/pinoria-wish-events",'));
+ assert.deepEqual(verifyBoStagingRoutePolicy(root).issues,[]);
+ for(const [index,needle] of [[0,"!==\"bo.staging.pinohouse.art\")notFound()"],[1,"s.centers.some(c=>c.id===s.selected)"],[1,"current.actor!==cap.actor"],[4,"credential.kind===\"support\""],[4,"const outbound:BoAccessRequest={method:m,path:[\"pinoria/pls-wish/events\",...path].join(\"/\"),resource:{centerId}};"],[6,"boPlsWishHostDecision(hostname,pathname,method)"]]){
+  const f=files[index],original=read(f);assert.ok(original.includes(needle));write(f,original.replace(needle,"BROKEN_CONTRACT"));assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/Wish Events: invalid native scoped route contract/);write(f,original);
+ }
+ fs.unlinkSync(path.join(root,files[8]));assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/Wish Events: missing native scoped route contract/);
 }));

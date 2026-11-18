@@ -5,6 +5,7 @@ import { TosVNextButton, TosVNextCard, TosVNextStatus } from "../tos-ds";
 import {
   ReceptionHouseError, tosReceptionHouseApi, type ReceptionLearner,
 } from "@/lib/tos-reception-house-api";
+import {TosWishRuntime} from "./TosWishRuntime";
 import styles from "./reception-house.module.css";
 
 type Intent = { learnerId: string; centerId: string; key: string; checkedInAt: string };
@@ -38,11 +39,9 @@ export function ReceptionHouseCheckIn({ centerId, loadRecentLearners }: {
   useEffect(() => {
     const term = query.trim();
     const recent = term.length === 0 && Boolean(loadRecentLearners);
-    setLoading(false);
-    if (!centerId || (!recent && term.length < 2)) return;
     const controller = new AbortController();
-    setLoading(true);
     const timeout = window.setTimeout(async () => {
+      if (!centerId || (!recent && term.length < 2)) { setLoading(false); return; }
       setLoading(true);
       try {
         const results = recent && loadRecentLearners
@@ -104,7 +103,7 @@ export function ReceptionHouseCheckIn({ centerId, loadRecentLearners }: {
     } finally { setSubmitting(false); }
   }
 
-  return <TosVNextCard className={styles.panel} aria-label="Check-in học viên PINO House">
+  return <><TosVNextCard className={styles.panel} aria-label="Check-in học viên PINO House">
     <div className={styles.heading}>
       <strong>Check-in học viên</strong>
 
@@ -114,7 +113,7 @@ export function ReceptionHouseCheckIn({ centerId, loadRecentLearners }: {
       onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOptionsOpen(false); }}
       onKeyDown={event => { if (event.key === "Escape") { event.preventDefault(); searchInput.current?.focus(); setOptionsOpen(false); } }}>
       <input ref={searchInput} className={styles.searchInput} type="search" value={query} autoComplete="off"
-        placeholder="Tìm Học Viên" aria-label="Tìm Học Viên" aria-expanded={optionsOpen}
+        placeholder="Tìm Học Viên" aria-label="Tìm Học Viên" aria-controls={optionsOpen && learners.length > 0 ? "reception-learner-options" : undefined}
         onFocus={() => setOptionsOpen(true)} onClick={() => setOptionsOpen(true)}
         onChange={event => { const value = event.target.value; setQuery(value); setOptionsOpen(true); setError(""); setNotice(""); intent.current = null; setLearners([]); setSelectedId(null); setLoading(false); }}
         />
@@ -122,7 +121,7 @@ export function ReceptionHouseCheckIn({ centerId, loadRecentLearners }: {
 
     {optionsOpen && (query.trim().length >= 2 || (!query.trim() && loadRecentLearners)) && (loading || query.trim().length >= 2) &&
       <div className={styles.summary}><span aria-live="polite">{loading ? "Đang tải…" : `${learners.length} học viên`}</span></div>}
-    {optionsOpen && learners.length > 0 && <div className={styles.list} aria-label={!query.trim() && loadRecentLearners ? "Học viên check-in gần đây" : "Học viên tìm thấy"}>
+    {optionsOpen && learners.length > 0 && <div id="reception-learner-options" role="group" className={styles.list} aria-label={!query.trim() && loadRecentLearners ? "Học viên check-in gần đây" : "Học viên tìm thấy"}>
       {learners.map(learner => <button type="button" key={learner.studentProfileId}
         className={styles.row} aria-pressed={learner.studentProfileId === selectedId}
         onClick={() => choose(learner)} disabled={submitting}>
@@ -145,5 +144,5 @@ export function ReceptionHouseCheckIn({ centerId, loadRecentLearners }: {
             {submitting ? "Đang xác nhận…" : "Xác nhận đã đến"}
           </TosVNextButton></>}
     </div>}
-  </TosVNextCard>;
+  </TosVNextCard>{selected && <TosWishRuntime centerId={centerId} learnerId={selected.studentProfileId} legalName={selected.displayName} gender={null}/>}</>;
 }

@@ -154,6 +154,114 @@
         "detailSelector": "#detail-screen",
         "runner": "scripts/pap1978-starter-detail-live-cdp.mjs"
       }
+    },
+    {
+      "file": "app/ho/pinoria/wish-policies/HoWishPolicyDetail.tsx",
+      "uses": 1,
+      "jira": "PAP-2030",
+      "mode": "tabbed",
+      "tabSource": "literal",
+      "tabs": [
+        [
+          "overview",
+          "Tổng quan"
+        ],
+        [
+          "history",
+          "Lịch sử"
+        ]
+      ],
+      "g4": {
+        "surface": "HO",
+        "module": "wishPolicies",
+        "authPort": 9337,
+        "route": "/ho/pinoria/wish-policies",
+        "tableSelector": "#list-screen table tbody tr",
+        "detailSelector": "#detail-screen",
+        "runner": "scripts/pap2033-wish-detail-live-cdp.mjs"
+      }
+    },
+    {
+      "file": "app/ho/pinoria/wish-banners/HoWishBannerDetail.tsx",
+      "uses": 1,
+      "jira": "PAP-2030",
+      "mode": "tabbed",
+      "tabSource": "literal",
+      "tabs": [
+        [
+          "overview",
+          "Tổng quan"
+        ],
+        [
+          "items",
+          "Item"
+        ],
+        [
+          "history",
+          "Lịch sử"
+        ]
+      ],
+      "g4": {
+        "surface": "HO",
+        "module": "wishBanners",
+        "authPort": 9337,
+        "route": "/ho/pinoria/wish-banners",
+        "tableSelector": "#list-screen table tbody tr",
+        "detailSelector": "#detail-screen",
+        "runner": "scripts/pap2033-wish-detail-live-cdp.mjs"
+      }
+    },
+    {
+      "file": "app/bo/pinoria-wish/BoWishEventDetail.tsx",
+      "uses": 1,
+      "jira": "PAP-2032",
+      "mode": "tabbed",
+      "tabSource": "literal",
+      "tabs": [
+        [
+          "overview",
+          "Tổng quan"
+        ],
+        [
+          "items",
+          "Item"
+        ],
+        [
+          "history",
+          "Lịch sử"
+        ]
+      ],
+      "g4": {
+        "surface": "BO",
+        "module": "wishEvents",
+        "authPort": 9335,
+        "route": "/bo/pinoria-wish-events",
+        "tableSelector": "#list-screen table tbody tr",
+        "detailSelector": "#detail-screen",
+        "runner": "scripts/pap2033-wish-detail-live-cdp.mjs"
+      }
+    },
+    {
+      "file": "app/bo/pinoria-wish/BoWishRewardSurface.tsx",
+      "uses": 1,
+      "jira": "PAP-2032",
+      "mode": "static-single-tab",
+      "tabSource": "literal",
+      "tabs": [
+        [
+          "overview",
+          "Tổng quan"
+        ]
+      ],
+      "g4": {
+        "surface": "BO",
+        "module": "wishRewardContext",
+        "authPort": 9335,
+        "route": "/bo/pinoria-wish-events",
+        "tableSelector": "#list-screen table tbody tr",
+        "detailSelector": "#detail-screen",
+        "runner": "scripts/pap2033-wish-detail-live-cdp.mjs"
+      }
     }
   ],
   "grandfatheredLegacyContent": [

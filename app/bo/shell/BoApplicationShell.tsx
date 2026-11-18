@@ -30,6 +30,7 @@ const productionSource: BoWorkspaceSource = {
 // These existing admitted direct pages have their own content adapters. Register
 // presentation destinations only; never call those adapters from the outer shell.
 const directModules = {
+  "pinoria-wish-events": { label: "Wish Events", group: "Pinoria", fields: [] },
   "opening-evidence": { label: "Mở lớp & ca", group: "SCHOOL", fields: [] },
   "classroom-diaries": { label: "Nhật ký lớp học", group: "SCHOOL", fields: [] },
   "open-studio-passes": { label: "Pass Trạm Nghệ Thuật", group: "Open Studio", fields: [] },

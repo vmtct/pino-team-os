@@ -962,6 +962,10 @@
         "lib/pap2134-posts-url.test.ts"
       ],
       "externalReferences": [
+          {
+            "file": "lib/ho-routes.ts",
+            "owner": "PAP-1221"
+          },
         {
           "file": "lib/host-boundary.ts",
           "owner": "PAP-2134"
