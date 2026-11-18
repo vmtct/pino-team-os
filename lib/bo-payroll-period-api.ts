@@ -12,10 +12,18 @@ export interface PeriodStaff{
  /** Authoritative Core flag; optional during cross-repo staggered staging release. */
  hasTimekeepingEvidence?:boolean;
 }
+export interface SettlementDay{
+ workDate:string;status:string;paidMinutes:number|null;amountMinor:number|null;
+ source?:{attendance:{sessionId:string;status:string;effectiveCheckInAt:string;effectiveCheckOutAt:string|null;correctionId:string|null}[];
+ coverage:{assignmentId:string;coverageMode:string;startLocal:string|null;endLocal:string|null}[]};
+ base?:{centerId:string;staffMemberId:string;workDate:string;hourlyRateMinor:number|null;rateEntryId:string|null;rateVersion:number|null;assignmentIds:string[];sessionIds:string[]};
+ override?:{id:string;version:number;createdByUserId:string;createdAt:string;paidMinutes:number;amountMinor:number;reason:string}|null;
+ overrideStale?:boolean;
+}
 export interface SettlementPreview{
  centerId:string;periodId:string;periodVersion:number;periodStartDate:string;periodEndDate:string;
  staffMemberId:string;amountMinor:number;adjustmentsMinor:number;extraTimeMinor:number;
- days:{workDate:string;status:string;paidMinutes:number|null;amountMinor:number|null}[];
+ days:SettlementDay[];
  adjustments:{id:string;amountMinor:number;reason:string}[];
  extraTimeDecisions:{id:string;decision:"APPROVED"|"REJECTED";amountMinor:number|null}[];
  warnings:string[];sourceFingerprint:string;
@@ -48,6 +56,7 @@ export type PeriodCancellation={id:string;centerId:string;status:"CANCELLED";ver
 export type PeriodHistoryEvent={id:string;action:string;occurredAt:string;actorName:string|null};
 export type PeriodHistoryPage={centerId:string;periodId:string;offset:number;nextOffset:number|null;events:PeriodHistoryEvent[]};
 export const periodApi={
+ incomeHistory:(centerId:string,id:string,staffId:string,offset=0)=>call<{data:import("./bo-payroll-income-read").IncomePage}>(ROOT+"/"+id+"/staff/"+staffId+"/income-history"+qs(centerId,{limit:"5",offset:String(offset)})),
  history:(centerId:string,id:string,offset=0)=>call<{data:PeriodHistoryPage}>(ROOT+"/"+id+"/history"+qs(centerId,{limit:"50",offset:String(offset)})),
  cancel:(centerId:string,period:Pick<PayPeriod,"id"|"version">,key:string)=>
   call<{data:PeriodCancellation}>(ROOT+"/"+period.id+"/cancel"+qs(centerId),{

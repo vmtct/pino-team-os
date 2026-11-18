@@ -5,6 +5,9 @@
   "compatibility_date": "2026-11-13",
   "workers_dev": true,
   "observability": { "enabled": true },
+  "services": [
+    { "binding": "AFTERSCHOOL_PIN_WORKER", "service": "piner-space-staging" }
+  ],
   "r2_buckets": [
     { "binding": "PINER_BRAND_R2", "bucket_name": "app-piner" }
   ]

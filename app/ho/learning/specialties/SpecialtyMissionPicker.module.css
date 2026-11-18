@@ -1,0 +1,2 @@
+/* PAP-1495: layout only; preserve DS focus styling. */
+.field { display:grid; gap:10px; min-width:0; }

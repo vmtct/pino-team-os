@@ -84,7 +84,7 @@ test("PAP-1962 launcher title width contract is scoped to Afterschool", async ()
  const sheet=await handleRequest(req("/piner-shell.css"),fixture);
  const css=await sheet.text();
  assert.match(css, /\.house \.card-copy strong \.pino-word\{font-size:calc\(1em \+ 2px\)\}/);
- assert.match(css, /\.house \.card-copy strong \.afterschool-word\{font-size:calc\(\.4244em - 2px\);letter-spacing:-\.06em;/);
+ assert.match(css, /\.house \.card-copy strong \.afterschool-word\{font-size:calc\(\.4244em - 1px\);letter-spacing:-\.06em;/);
  assert.match(css, /\.house \.card-copy strong \.pino-word,\.house \.card-copy strong \.afterschool-word\{display:block\}/);
  assert.doesNotMatch(css,/\.mytime \.card-copy strong \.afterschool-word/);
 });

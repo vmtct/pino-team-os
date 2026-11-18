@@ -19,6 +19,7 @@ import styles from "./bo-learners.module.css";
 import { StudentPinoriaPanel } from "./StudentPinoriaPanel";
 import { StudentProperties } from "./StudentProperties";
 import { StudentFullDetail } from "./StudentFullDetail";
+import { NativeCustomAttributeValues } from "@/app/components/custom-attributes/NativeCustomAttributeValues";
 import { useStudentCenterEditCapability } from "./useStudentCenterEditCapability";
 import { useBoCenterSelection } from "../components/registration/BoCenterSelection";
 
@@ -204,7 +205,7 @@ function CenterScopedLearnersView({ activeCenter }: { activeCenter: string }) {
       pagination={{ page: range.page, pageSize: grid.state.pageSize, total: pilotFiltered.length, pageSizeOptions: STUDENT_GRID_OPTIONS.allowedPageSizes, onPageChange: grid.setPage, onPageSizeChange: grid.setPageSize }}
     />
     {selectedId ? <BoDataGridSidePeek title={selectedRow?.displayName ?? "Học viên"} eyebrow="School · Student detail" onClose={() => selectStudent(null)} footer={<Link href={(() => { const query = new URLSearchParams(searchParams.toString()); query.delete("tab"); query.set("detail", selectedId); return `/bo/learners?${query}`; })()}>↗ Full Detail</Link>}>
-      <div className={styles.peekDetail}>{detail?.state === "ready" ? <StudentProperties compact record={detail.data} /> : null}<LearnerDetail load={detail} catalog={catalog.data} onNeutralize={setNeutralizeTarget} /></div>
+      <div className={styles.peekDetail}>{detail?.state === "ready" ? <><StudentProperties compact record={detail.data} />{detail.data.student.id===selectedId&&activeCenter?<NativeCustomAttributeValues entity="Student" entityId={selectedId} centerId={activeCenter} variant="drawer"/>:null}</> : null}<LearnerDetail load={detail} catalog={catalog.data} onNeutralize={setNeutralizeTarget} /></div>
     </BoDataGridSidePeek> : null}
     {showCreate ? <CreateStudentIntake onClose={() => setShowCreate(false)} onCreated={async (studentId) => { setShowCreate(false); await loadDirectory(); selectStudent(studentId); }} /> : null}
     {neutralizeTarget ? <NeutralizeStudentIntake lifecycle={neutralizeTarget} onClose={() => setNeutralizeTarget(null)} onNeutralized={async () => {

@@ -1,8 +1,9 @@
 "use client";
 /** PAP-1985 / PAP-1063 native Kỳ lương view. Core is the only money authority. */
 import Link from "next/link";
+import {PayrollIncomeDetail} from "./PayrollIncomeDetail";
 import {useEffect,useState,useRef} from "react";
-import {useSearchParams} from "next/navigation";
+import {useRouter,useSearchParams} from "next/navigation";
 import {BoDataGrid,BoDataGridBadge,type BoDataGridColumn} from "@/app/bo/components/data-grid";
 import {BoFullDetail} from "@/app/bo/components/BoFullDetail";
 import {DrawerFrame} from "@/app/components/workspace-renderer/DrawerFrame";
@@ -10,7 +11,8 @@ import {PeriodProperties,CreatePeriod,periodFields,periodRecord} from "./PeriodP
 import {useBoCenterSelection} from "@/app/bo/components/registration/BoCenterSelection";
 import {periodApi,money,type PeriodStaffPage} from "@/lib/bo-payroll-period-api";
 import {nativePeriodRow,nativePeriodHistory,type NativePeriodRow} from "@/lib/bo-payroll-native-period-model";
-import {staffWithWorkEvidence} from "@/lib/bo-payroll-read-model";
+import {staffWithWorkEvidence,periodSummaries} from "@/lib/bo-payroll-read-model";
+import {BoPill} from "@/app/bo/components/registration/BoValue";
 import {payrollVerifiedName} from "@/lib/bo-payroll-safe-read-metadata";
 
 const ROOT="/bo/payroll-periods";
@@ -30,6 +32,13 @@ export default function BoNativePayrollPeriods(){
  const record=query.get("record");
  if(!allowed||!center)return scope?.loading?<p role="status">Đang xác thực cơ sở…</p>:<p role="alert">{scope?.error||"Chọn cơ sở được cấp quyền."}</p>;
  if(query.getAll("record").length>1||(query.has("record")&&(!record||!uuid.test(record))))return <p role="alert">Kỳ lương không hợp lệ.</p>;
+ const incomeStaff=query.get("incomeStaff");
+ if(query.has("incomeStaff")){
+  if(!record||!incomeStaff||query.getAll("incomeStaff").length!==1||!uuid.test(incomeStaff))return <p role="alert">PTE không hợp lệ.</p>;
+  const incomeDay=query.get("incomeDay");
+  if(query.has("incomeDay")&&(query.getAll("incomeDay").length!==1||!incomeDay||!/^\d{4}-\d{2}-\d{2}$/.test(incomeDay)))return <p role="alert">Ngày công không hợp lệ.</p>;
+  return <PayrollIncomeDetail dayDate={incomeDay} key={JSON.stringify([center.id,record,incomeStaff,incomeDay])} centerId={center.id} centerName={center.displayName} id={record} staffId={incomeStaff} tab={query.get("tab")}/>;
+ }
  if(record)return <PeriodDetail key={JSON.stringify([center.id,record])} centerId={center.id} centerName={center.displayName} id={record} tab={query.get("tab")}/>;
  return <PeriodTable key={center.id} centerId={center.id} centerName={center.displayName}/>;
 }
@@ -60,11 +69,10 @@ function PeriodTable({centerId,centerName}:{centerId:string;centerName:string}){
  const rows=current?.rows??[];
  const row=rows.find(r=>r.id===selected);
  return <section aria-label="Kỳ lương" data-pap-ticket="PAP-1985">
-  <header><h1>Kỳ lương</h1></header>
+  <header className="page-heading"><div className="page-heading-left"><h1>Kỳ lương</h1></div><div className="heading-actions">{current?.canCreate?<button type="button" className="primary-btn" onClick={()=>{setSelected(null);setCreating(true);}}>Tạo mới</button>:null}</div></header>
   <BoDataGrid rows={rows} columns={columns} rowKey={r=>r.id} caption="Kỳ lương"
    state={!current?"loading":current.error?"error":"ready"} stateMessage={current?.error}
    onRefresh={()=>{setCreating(false);setSelected(null);setRefresh(r=>r+1);}}
-   toolbarActions={current?.canCreate?<button type="button" className="primary-btn" onClick={()=>{setSelected(null);setCreating(true);}}>Tạo mới</button>:null}
    onRowOpen={r=>{setCreating(false);setSelected(r.id);}} selectedRowKey={selected} quickViewOpener
    pagination={{page:Math.floor(offset/50)+1,pageSize:50,total:current?.total??0,onPageChange:n=>{setSelected(null);setOffset((n-1)*50);}}}
    emptyTitle="Chưa có kỳ lương" emptyMessage="Core không trả về kỳ lương tại cơ sở này."/>
@@ -91,17 +99,30 @@ function PeriodDetail({centerId,centerName,id,tab}:{centerId:string;centerName:s
  if(error)return <p role="alert">{error}</p>;
  if(!data||data.refresh!==refresh)return <p role="status">Đang tải kỳ lương…</p>;
  const {row,rollup}=data;
- return <BoFullDetail title={row.name} currentUrl={detailUrl(centerId,id)} returnTo={tableUrl(centerId)} activeTab={tab}
+ return <BoFullDetail designVariant="business-v25" title={row.name} description={"Kỳ lương · "+centerName} currentUrl={detailUrl(centerId,id)} returnTo={tableUrl(centerId)} activeTab={tab}
   tabs={[
    {id:"overview",label:"Tổng quan",content:<PeriodProperties key={row.id+":"+row.version} row={row} variant="detail" onSaved={()=>setRefresh(r=>r+1)}/>},
    {id:"settlements",label:"Quyết Toán",content:<Settlements key={id} centerId={centerId} id={id} initial={rollup}/>},
    {id:"history",label:"Lịch sử",content:<PeriodHistory key={centerId+":"+id+":"+row.version} centerId={centerId} id={id}/>},
   ]}/>;
 }
+function settlementStatus(status:PeriodStaffPage["rows"][number]["status"]){
+ switch(status){
+  case "DRAFT":return {text:"Bản nháp",color:"gray"};
+  case "PENDING":return {text:"Chờ duyệt",color:"orange"};
+  case "FINALIZED":return {text:"Đã chốt",color:"blue"};
+  case "PAID":return {text:"Đã thanh toán",color:"green"};
+  case "ARCHIVED_UNAVAILABLE":return {text:"Không đủ dữ liệu",color:"gray"};
+  default:return {text:"Không đủ dữ liệu",color:"gray"};
+ }
+}
 function Settlements({centerId,id,initial}:{centerId:string;id:string;initial:PeriodStaffPage}){
+ const router=useRouter();
  const [page,setPage]=useState(initial),[rows,setRows]=useState(initial.rows);
  const [busy,setBusy]=useState(false),[error,setError]=useState("");
  const visible=staffWithWorkEvidence(rows);
+ const totals=periodSummaries(page.periodTotals);
+ const fullCount=page.staffWithWorkEvidenceCount;
  async function more(){
   if(busy||page.nextOffset===null)return;
   setBusy(true);setError("");
@@ -116,13 +137,25 @@ function Settlements({centerId,id,initial}:{centerId:string;id:string;initial:Pe
    setRows(old=>[...old,...next.rows]);setPage(next);
   }catch(e){setError(errorText(e));}finally{setBusy(false);}
  }
- return <section aria-label="Quyết toán theo PTE">
+ return <>
+  <div className="pay-kpi-grid" role="group" aria-label="Tổng lương kỳ">
+   <div className="pay-kpi"><span>Tổng Dự Kiến</span><strong data-pay-total-expected>{money(totals.expected)}</strong></div>
+   <div className="pay-kpi"><span>Tổng Quyết Toán</span><strong data-pay-total-finalized>{money(totals.finalized)}</strong></div>
+  </div>
+  {page.periodTotals.hasPending||page.periodTotals.hasUnavailable?<p role="status">Tổng dự kiến chỉ gồm khoản đã đủ dữ liệu; còn khoản chưa xác định.</p>:null}
+  <section aria-label="Quyết toán theo PTE">
+  <div className="property-section pay-section-heading"><h3>Quyết toán theo PTE</h3>{typeof fullCount==="number"?<span>{fullCount} PTE có ghi nhận giờ công hoặc đã chốt</span>:null}</div>
   <BoDataGrid showToolbar={false} rows={visible} rowKey={r=>r.staffMemberId} caption="Quyết toán theo PTE"
-   columns={[{key:"staff",header:"PTE",render:r=>payrollVerifiedName(r.staffName)},{key:"amount",header:"Thành tiền",render:r=>money(r.amountMinor)},{key:"status",header:"Trạng thái",render:r=>r.status}]}
+   columns={[
+    {key:"staff",header:"PTE",minWidth:190,render:r=><><strong>{payrollVerifiedName(r.staffName)}</strong><div className="id-code">{r.staffMemberId}</div></>},
+    {key:"amount",header:"Thành tiền",minWidth:150,render:r=><strong className="payroll-ro-amount">{money(r.amountMinor)}</strong>},
+    {key:"status",header:"Trạng thái",minWidth:140,render:r=><BoPill {...settlementStatus(r.status)}/>},
+    {key:"income",header:"Thao tác",minWidth:130,align:"right",render:r=><div className="pay-settlement-actions"><button type="button" className="secondary-btn" onClick={()=>router.push(ROOT+"?"+new URLSearchParams({centerId,record:id,incomeStaff:r.staffMemberId}))}>Xem thu nhập</button></div>},
+   ]}
    emptyTitle="Chưa có giờ công" emptyMessage="Không có bản ghi đủ điều kiện trong trang hiện tại."/>
   {page.nextOffset!==null?<button type="button" disabled={busy} onClick={()=>void more()}>Tải thêm PTE</button>:null}
   {error?<p role="alert">{error}</p>:null}
- </section>;
+ </section></>;
 }
 
 function PeriodHistory({centerId,id}:{centerId:string;id:string}){

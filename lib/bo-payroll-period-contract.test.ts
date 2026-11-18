@@ -34,7 +34,7 @@ test("PAP-808 facade rejects missing center before credential or Core",async()=>
 test("PAP-1998 duplicates on collection and detail fail before credential or Core",async()=>{
  const root="workforce/payroll/periods";
  for(const second of [center,period]){
-  for(const [path,method] of [[root,"GET"],[root,"POST"],[root+"/"+period,"GET"],[root+"/"+period,"PATCH"]]){
+  for(const [path,method] of [[root,"GET"],[root,"POST"],[root+"/"+period,"GET"],[root+"/"+period,"PATCH"],[root+"/"+period+"/staff-rollup","GET"]]){
    const body=method==="GET"?undefined:JSON.stringify({centerId:center,startDate:"2026-10-01",endDate:"2026-10-31",expectedVersion:1});
    const response=await handleBoPayrollPeriodRequest(new Request(base+path+"?centerId="+center+"&centerId="+second,{
     method,headers:{"content-type":"application/json","idempotency-key":"pap1998-test-key"},...(body?{body}:{})
@@ -146,5 +146,18 @@ test("PAP-1985 native period entry is exact existing Staging route with unchange
  assert.equal(decideHostBoundary("bo.pinohouse.art","/bo/payroll-periods").action,"next");
  for(const host of ["ho.staging.pinohouse.art","tos.staging.pinohouse.art"]){
   assert.equal(decideHostBoundary(host,"/bo/payroll-periods").action,"not_found");
+ }
+});
+test("PAP-2012 income history exact BO Staging GET only; ambiguous query denied",async()=>{
+ const path="workforce/payroll/periods/"+period+"/staff/"+staff+"/income-history";
+ assert.equal(isBoPayrollPeriodPath(path),true);
+ assert.equal(isBoPayrollPeriodPath(path+"/all"),false);
+ assert.equal(decideHostBoundary("bo.staging.pinohouse.art","/api/bo/"+path,"GET").action,"next");
+ for(const host of ["bo.pinohouse.art","ho.staging.pinohouse.art","tos.staging.pinohouse.art"])
+  assert.equal(decideHostBoundary(host,"/api/bo/"+path,"GET").action,"not_found");
+ assert.equal(decideHostBoundary("bo.staging.pinohouse.art","/api/bo/"+path,"POST").action,"not_found");
+ for(const [method,query,status] of [["POST","centerId="+center,405],["GET","centerId="+center+"&centerId="+center,400],["GET","centerId="+center+"&limit=11",400],["GET","centerId="+center+"&staffId="+staff,400]] as const){
+  const res=await handleBoPayrollPeriodRequest(new Request(base+path+"?"+query,{method}),env,path);
+  assert.equal(res.status,status);
  }
 });

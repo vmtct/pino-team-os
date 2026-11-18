@@ -32,6 +32,8 @@ type Metadata = {
   readonly required?: boolean;
   readonly sensitive?: boolean;
   readonly hint?: string;
+  /** Property-only opt-in: omit an inapplicable absent value, not false or null. No authorization effect. */
+  readonly omitWhenAbsent?: true;
 };
 export type FieldValidation<T extends FieldType> =
   T extends "number" | "currency" | "formula" ? { readonly min?: number; readonly max?: number; readonly integer?: boolean } :

@@ -11,7 +11,7 @@ import {
   type MissionTabReadState,type MissionTabScope,
 } from "@/lib/tos-mission-assignment-tab-read";
 import type {TosMissionAssignmentCard} from "@/lib/tos-mission-assignment-card-model";
-import type {TosEligibleMissionChoice} from "@/lib/tos-mission-assignment-choices";
+import {filterTosScopedMissions,describeTosMissionLocks,type TosScopedMissionChoice,type TosMissionAvailabilityFilter} from "@/lib/tos-specialty-mission-availability";
 import {readTosNewMissionGuard} from "@/lib/tos-mission-completion-read";
 import {
   getTosMissionCommandChoices,createTosMissionAssignmentVerified,
@@ -21,7 +21,7 @@ import {
 const slot=createSlotKeys(styles);
 type MissionCreateRequest={id:number;studentId:string};
 type Editor={studentId:string;old:TosMissionAssignmentCard|null};
-type Choices={phase:"loading"|"ready"|"error";items:readonly TosEligibleMissionChoice[]};
+type Choices={phase:"loading"|"ready"|"error";items:readonly TosScopedMissionChoice[]};
 type CreateGate="loading"|"clear"|"unfinished"|"unavailable";
 export default function MissionAssignmentTab({
   scope,readOnly=false,visible=true,createRequest=null,onCreateRequestConsumed,
@@ -32,6 +32,10 @@ export default function MissionAssignmentTab({
   const [editor,setEditor]=useState<Editor|null>(null);
   const [choices,setChoices]=useState<Choices>({phase:"loading",items:[]});
   const [chosen,setChosen]=useState("");
+  const [query,setQuery]=useState("");
+  const [filter,setFilter]=useState<TosMissionAvailabilityFilter>("all");
+  const shown=filterTosScopedMissions(choices.items,filter,query);
+  const selectedAvailable=choices.items.some(x=>x.missionId===chosen&&x.available);
   const [createGate,setCreateGate]=useState<CreateGate>("loading");
   const [busy,setBusy]=useState(false);
   const submitting=useRef(false);
@@ -54,6 +58,7 @@ export default function MissionAssignmentTab({
     // PAP-1851: do NOT request or show eligible Mission choices on new Create until
     // every current-context Assignment has independent Core C1 completion proof.
     setChoices({phase:"loading",items:[]});
+    setQuery("");setFilter("all");
     setCreateGate(editor.old?"clear":"loading");
     const load=async()=>{
       if(!editor.old){
@@ -93,7 +98,7 @@ export default function MissionAssignmentTab({
   const close=()=>{if(!submitting.current){setEditor(null);setError("")}};
   const submit=async()=>{
     if(!editor||submitting.current||readOnly||(!editor.old&&createGate!=="clear")||choices.phase!=="ready"||
-       !choices.items.some(x=>x.missionId===chosen))return;
+       !selectedAvailable)return;
     submitting.current=true;setBusy(true);setError("");
     try{
       if(editor.old){
@@ -233,24 +238,32 @@ export default function MissionAssignmentTab({
         {choices.phase==="error"&&<p role="alert">
           Chưa tải được Mission đủ điều kiện từ Core. Vui lòng đóng và thử lại.
         </p>}
-        {choices.phase==="ready"&&choices.items.length===0&&<p role="status">
-          Không có Mission đủ điều kiện để giao.
-        </p>}
-        {choices.phase==="ready"&&choices.items.map(item=><button type="button"
-          className={chosen===item.missionId?styles.missionChoiceActive:styles.missionChoice}
-          data-tos-slot={slot(chosen===item.missionId?
-            styles.missionChoiceActive:styles.missionChoice)}
-          disabled={busy} aria-pressed={chosen===item.missionId} key={item.missionId}
-          onClick={()=>setChosen(item.missionId)}>
-          <div><strong>{item.code} · {item.name}</strong>
-            <small>Cấp {item.level}</small>
-          </div><span aria-hidden="true">{chosen===item.missionId?"◉":"○"}</span>
-        </button>)}
+        {choices.phase==="ready"&&<>
+          <label className={styles.field} data-tos-slot={slot(styles.field)}>Tìm nhiệm vụ
+            <input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Tên hoặc mã nhiệm vụ" disabled={busy}/>
+          </label>
+          <label className={styles.field} data-tos-slot={slot(styles.field)}>Hiển thị
+            <select value={filter} onChange={e=>setFilter(e.target.value as TosMissionAvailabilityFilter)} disabled={busy}>
+              <option value="all">Tất cả</option><option value="available">Có thể chọn</option><option value="locked">Đang khóa</option>
+            </select>
+          </label>
+          {shown.length===0&&<p role="status">Không có nhiệm vụ phù hợp.</p>}
+          {shown.map(item=>{
+            const rowStyle=!item.available?styles.missionChoiceDisabled:chosen===item.missionId?styles.missionChoiceActive:styles.missionChoice;
+            return <button type="button" className={rowStyle} data-tos-slot={slot(rowStyle)}
+              disabled={busy||!item.available} aria-pressed={chosen===item.missionId} key={item.missionId}
+              onClick={()=>{if(item.available)setChosen(item.missionId)}}>
+              <div><strong>{item.code} · {item.name}</strong><small>Cấp {item.level}</small>
+                {!item.available&&<em>{describeTosMissionLocks({...item,lockReasons:item.lockReasons.map(({code})=>({code}))}).join(" · ")}</em>}
+              </div><span aria-hidden="true">{!item.available?"🔒":chosen===item.missionId?"◉":"○"}</span>
+            </button>;
+          })}
+        </>}
         {error&&<p role="alert" className={styles.amberText}>{error}</p>}
         <div className={styles.assignFooter} data-tos-slot={slot(styles.assignFooter)}>
           <button type="button" className={styles.primaryButtonWide}
             data-tos-slot={slot(styles.primaryButtonWide)}
-            disabled={busy||!chosen||choices.phase!=="ready"||!!error}
+            disabled={busy||!selectedAvailable||choices.phase!=="ready"||!!error}
             onClick={()=>{void submit()}}>
             <FontAwesomeIcon icon={editor.old?faRotate:faCheck}/>
             {busy?"Đang xác minh…":editor.old?"Đổi Nhiệm Vụ":"Tạo Nhiệm Vụ"}

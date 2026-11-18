@@ -5,6 +5,7 @@ import { readReceptionReady,confirmReceptionReady,appendReceptionEvidence,newRec
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCamera, faCheckCircle, faCloudArrowUp, faImage, faShieldHalved, faTrash } from "@fortawesome/free-solid-svg-icons";
 import { OpsFrame } from "./OpsV4Body";
+import { formatPinoDateTime } from "@/lib/pino-datetime";
 async function shrinkPhoto(file:File):Promise<string>{
  if(!["image/jpeg","image/png","image/webp"].includes(file.type))throw new Error("Chọn ảnh JPEG, PNG hoặc WebP.");
  if(file.size>2*1024*1024)throw new Error("Ảnh vượt quá 2 MB.");
@@ -47,7 +48,7 @@ function ReadyEvidence({slot,server,onSaved}:{slot:ReceptionReadySlot;server:Ext
     <div className={css.panelTitle}><h3>Ảnh setup đã lưu</h3><span>{latest?.verdict==="REJECTED"?"Từ chối":latest?.verdict==="APPROVED"?"Đã duyệt":latest?"Chờ duyệt":"Chưa xác minh"}</span></div>
     {latest?.verdict==="REJECTED"?<p className={css.validationError} role="status">{latest.reason}</p>:null}
     {server.history?.map(e=><div key={e.eventId}>
-      <p className={css.meta}>{e.kind==="SUBMISSION"?"Gửi ảnh":e.verdict==="APPROVED"?"Đã duyệt":"Từ chối"} · {e.actorLegalFullName??"—"} · {e.occurredAt}</p>
+      <p className={css.meta}>{e.kind==="SUBMISSION"?"Gửi ảnh":e.verdict==="APPROVED"?"Đã duyệt":"Từ chối"} · {e.actorLegalFullName??"—"} · {formatPinoDateTime(e.occurredAt)}</p>
       {e.note?<p>{e.note}</p>:null}{e.reason?<p>{e.reason}</p>:null}
       {e.privateAssetIds.map(assetId=><PrivateReceptionImage key={assetId} slot={slot} receiptId={server.receipt.receipt_id} assetId={assetId}/>)}
     </div>)}
@@ -60,11 +61,17 @@ function ReadyEvidence({slot,server,onSaved}:{slot:ReceptionReadySlot;server:Ext
     {error?<p className={css.validationError} role="alert">{error}</p>:null}
   </section>;
 }
-export default function ReceptionOpenShift(props: {
+type OpeningProps={
   centerName:string;shiftTime:string;
   onBypass:()=>void;
   slots?:readonly ReceptionReadySlot[]; initialTemplateId?:string; onReady?:(receipt:ReceptionReadyReceipt)=>void;
-}) {
+};
+export default function ReceptionOpenShift(props:OpeningProps) {
+  const [selected,setSelected]=useState(props.initialTemplateId??"");
+  const slot=props.slots?.find(s=>s.shiftTemplateId===selected)??props.slots?.[0];
+  return <ReceptionOpenShiftContent key={JSON.stringify([slot?.centerId,slot?.workDate,slot?.shiftTemplateId])} {...props} slot={slot} onSlotChange={setSelected}/>;
+}
+function ReceptionOpenShiftContent(props:OpeningProps & {slot?:ReceptionReadySlot;onSlotChange:(value:string)=>void}) {
   const input=useRef<HTMLInputElement|null>(null);
   const [photo,setPhoto]=useState("");
   const [filename,setFilename]=useState("");
@@ -72,8 +79,7 @@ export default function ReceptionOpenShift(props: {
   const [busy,setBusy]=useState(false);
   const [notice,setNotice]=useState("");
   const [error,setError]=useState("");
-  const [selected,setSelected]=useState(props.initialTemplateId??props.slots?.[0]?.shiftTemplateId??"");
-  const slot=props.slots?.find(s=>s.shiftTemplateId===selected);
+  const slot=props.slot;
   const [server,setServer]=useState<ReceptionReadyState|null>(null);
   const [refresh,setRefresh]=useState(0);
   const centerId=slot?.centerId,workDate=slot?.workDate,shiftTemplateId=slot?.shiftTemplateId;
@@ -85,9 +91,7 @@ export default function ReceptionOpenShift(props: {
     }).catch(e=>{if(!controller.signal.aborted)setError(e instanceof Error?e.message:"Không thể xác minh ca.");});
     return ()=>controller.abort();
   },[centerId,workDate,shiftTemplateId,refresh]);
-  function choose(value:string){
-    setSelected(value);setPhoto("");setFilename("");setConfirmed(false);setServer(null);setError("");
-  }
+
   async function confirmReady(){
     if(busy||!slot||!props.onReady)return;
     if(server?.state==="READY"){props.onReady(server.receipt);return;}
@@ -120,7 +124,7 @@ export default function ReceptionOpenShift(props: {
       <div><small>CA TRỰC CỦA BẠN</small><strong>{props.centerName}</strong><span>Tiếp tân · {props.shiftTime}</span></div>
       <span className={css.badge} data-state="waiting">{server?.state==="READY"?"Đã mở ca":server?.state==="NOT_READY"?"Chưa mở ca":"Chưa xác minh"}</span>
     </div>
-    {props.slots&&props.slots.length>1?<label className={css.confirmRow}><span>Ca trực</span><select aria-label="Chọn ca tiếp tân" value={selected} disabled={busy} onChange={e=>choose(e.target.value)}>{props.slots.map(s=><option key={s.shiftTemplateId} value={s.shiftTemplateId}>{s.label}</option>)}</select></label>:null}
+    {props.slots&&props.slots.length>1?<label className={css.confirmRow}><span>Ca trực</span><select aria-label="Chọn ca tiếp tân" value={slot?.shiftTemplateId??""} disabled={busy} onChange={e=>props.onSlotChange(e.target.value)}>{props.slots.map(s=><option key={s.shiftTemplateId} value={s.shiftTemplateId}>{s.label}</option>)}</select></label>:null}
     {!slot?<p className={css.meta}>Không có ca tiếp tân đã được phân công.</p>:null}
     {server?.state==="READY"&&slot?<ReadyEvidence key={JSON.stringify([slot.centerId,slot.workDate,slot.shiftTemplateId,server.receipt.receipt_id])} slot={slot} server={server} onSaved={setServer}/>:<>
     <section className={css.panel}>

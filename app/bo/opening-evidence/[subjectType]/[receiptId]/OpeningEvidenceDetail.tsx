@@ -48,7 +48,7 @@ function DetailScope({centerId,subjectType,receiptId,activeTab}:{centerId:string
   if(!data)return <p role="status">Đang tải bằng chứng…</p>;
   const {row,history}=data;
   const reload=()=>{setData(null);setRefresh(v=>v+1);};
-  return <BoFullDetail title={row.subjectLabel} description={subjectLabels[row.subjectType]}
+  return <BoFullDetail designVariant="business-v25" title={row.subjectLabel} description={subjectLabels[row.subjectType]}
     currentUrl={detailHref(row)} returnTo={"/bo/opening-evidence?centerId="+encodeURIComponent(centerId)}
     activeTab={activeTab} tabs={[
       {id:"overview",label:"Tổng quan",content:<BoProperties items={evidenceProperties(row)}/>},

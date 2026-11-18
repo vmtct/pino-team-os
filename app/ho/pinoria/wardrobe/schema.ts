@@ -2,7 +2,10 @@ import {type Approval,type FieldSchema,type ModuleRow,type TableQuery} from "@/l
 import type {SurfaceDefinition,SurfaceProvider} from "@/lib/workspace-adapters/contracts";
 import {getItem,listItems,slotNames,type ItemRecord} from "./item-client";
 const read={display:true,search:true,filter:true,sort:true,group:true,inlineEdit:false} as const;
+const propertyOnly={display:true,search:false,filter:false,sort:false,group:false,inlineEdit:false} as const;
 export const itemFields=[
+ {key:"checkInItem",label:"Check-in Item",type:"boolean",icon:"✓",width:120,permission:"pinoria.item.view",readOnly:true,capabilities:propertyOnly,omitWhenAbsent:true},
+ {key:"publishedCheckInItem",label:"Published Check-in Item",type:"boolean",icon:"✓",width:120,permission:"pinoria.item.view",readOnly:true,capabilities:propertyOnly,omitWhenAbsent:true},
  {key:"displayName",label:"Tên Item",type:"text",icon:"Aa",width:240,permission:"pinoria.item.view",readOnly:true,capabilities:read},
  {key:"key",label:"Item Key",type:"text",icon:"⌘",width:170,permission:"pinoria.item.view",readOnly:true,capabilities:read},
  {key:"type",label:"Loại",type:"text",icon:"▣",width:130,permission:"pinoria.item.view",readOnly:true,capabilities:read},
@@ -16,7 +19,7 @@ export const itemFields=[
 ] as const satisfies readonly FieldSchema[];
 type F=typeof itemFields;
 const auditKeys=["createdAt","createdBy","updatedAt","updatedBy"] as const;
-const sections=[{id:"item-definition",label:"Item Definition",fields:["displayName","key","type","slot","status","revision",...auditKeys]}] as const;
+const sections=[{id:"item-definition",label:"Item Definition",fields:["displayName","key","type","slot","checkInItem","publishedCheckInItem","status","revision",...auditKeys]}] as const;
 export const itemQuery:TableQuery<F>={search:"",filters:{logic:"AND",rules:[]},sort:{field:"displayName",direction:"asc"},
  group:null,order:["displayName","key","type","slot","status","revision",...auditKeys],visible:["displayName","type","slot","status","revision",...auditKeys],page:1,pageSize:15};
 const extensionApproval={
@@ -72,6 +75,8 @@ export function formatItemAuditTime(value:unknown):string{
 }
 export const projectItemRow=(i:ItemRecord):ModuleRow<F>=>({
  id:i.id,displayName:i.displayName,key:i.key,type:i.type,slot:i.type==="SET"?"—":slotNames[i.slot],status:i.status,revision:i.revision,
+ checkInItem:i.type==="SET"?undefined:i.pendingDraft?i.pendingDraft.checkInItem===true:i.checkInItem===true,
+ publishedCheckInItem:i.type!=="SET"&&i.status==="PUBLISHED"&&i.pendingDraft?i.checkInItem===true:undefined,
  createdAt:formatItemAuditTime(i.createdAt),createdBy:"—",updatedAt:formatItemAuditTime(i.updatedAt),updatedBy:"—"
 });
 export const itemProvider:SurfaceProvider<F>={

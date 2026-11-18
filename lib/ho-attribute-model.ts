@@ -41,13 +41,6 @@ export const draft=():AttributeDraft=>({
  scope:"GLOBAL",centerId:null,required:false,visibility:["BO"],options:[]
 });
 export const needsOptions=(value:ValueType)=>value==="select"||value==="multiselect";
-const date=(v:string)=>{
- const dt=new Date(v);
- if(!Number.isFinite(dt.getTime()))return "—";
- const s=new Intl.DateTimeFormat("en-GB",{timeZone:"Asia/Ho_Chi_Minh",
-  day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).format(dt);
- return s.replace(",", " ·");
-};
 const center=(id:string|null,centers:CenterOption[])=>id===null?"—":
  centers.find(c=>c.id===id)?.label??"—";
 export function asRecord(item:AttributeDefinition,centers:CenterOption[]):BoRecord{
@@ -55,7 +48,8 @@ export function asRecord(item:AttributeDefinition,centers:CenterOption[]):BoReco
   entityType:item.entityType,valueType:item.valueType,scope:item.scope,
   center:center(item.centerId,centers),lifecycleState:item.status,
   required:item.required,visibility:item.visibility,revision:item.revision,
-  createdAt:date(item.createdAt),updatedAt:date(item.updatedAt),
+  // PAP-2005: preserve Core RFC3339; shared BoValue formats PINO_DATETIME_V1 once.
+  createdAt:item.createdAt,updatedAt:item.updatedAt,
   // Never infer legal name from opaque Core access_user ID.
   createdByUser:"—",updatedByUser:"—"};
 }

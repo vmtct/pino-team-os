@@ -1,4 +1,5 @@
 "use client";
+import {openingEvidencePageHref} from "@/lib/opening-evidence-page-route";
 import Link from "next/link";
 import {useEffect,useState} from "react";
 import {OpeningEvidenceDrawerGallery} from "./OpeningEvidenceGallery";
@@ -33,7 +34,7 @@ const columns:BoDataGridColumn<OpeningEvidenceRow>[]=[
   {key:"lastModifiedBy",header:"Last Modified By",render:r=>r.lastModifiedByLegalFullName??"—",minWidth:160},
 ];
 const rowKey=(r:OpeningEvidenceRow)=>r.subjectType+":"+r.openingReceiptId;
-export const detailHref=(r:OpeningEvidenceRow)=>"/bo/opening-evidence/"+r.subjectType+"/"+encodeURIComponent(r.openingReceiptId)+"?centerId="+encodeURIComponent(r.centerId);
+export const detailHref=openingEvidencePageHref;
 export function OpeningEvidenceStageGate(){
   const scope=useBoCenterSelection();
   const allowed=Boolean(scope&&!scope.loading&&!scope.error&&scope.selected&&scope.centers.some(center => center.id === scope.selected));

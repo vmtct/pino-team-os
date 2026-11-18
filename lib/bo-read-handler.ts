@@ -1,10 +1,11 @@
 import { authorizeHoShell, type HoEnv } from "./ho-auth";
 import { BoShellGateError } from "./bo-shell-gate";
-import { HO_STAGING_HOSTNAME } from "./host-boundary";
+import { BO_STAGING_HOSTNAME, HO_STAGING_HOSTNAME } from "./host-boundary";
 import { hoAccessReadAllowed, validateHoAuditQuery, projectHoAuditResponse } from "./ho-access-guard";
 import {validateHoA1Query} from "./ho-a1-query";
 import { callBoAccessCoreWithCredential, type BoAccessCoreBinding, type BoAccessRequest } from "./bo-core";
 import { teamCredential, TeamAuthError, type TeamAccessEnv } from "./team-auth";
+import { AFTERSCHOOL_HISTORY_READ, afterschoolHistoryCoreRequest, validateAfterschoolHistoryPage } from "./bo-afterschool-history";
 import { boPublicViewCoreRoute } from "./bo-public-view-route-guard";
 
 export interface BoReadEnv extends TeamAccessEnv {
@@ -100,6 +101,20 @@ export async function handleBoOperationalReadRequest(
       }
       return json(result.body, result.status, { "x-request-id": result.requestId });
     }
+    if (AFTERSCHOOL_HISTORY_READ.test(path)) {
+      if (url.hostname !== BO_STAGING_HOSTNAME) return json({error:{code:"PLATFORM_NOT_FOUND"}},404);
+      const history=afterschoolHistoryCoreRequest(path,url);
+      const result=await callBoAccessCoreWithCredential(env.PINO_BO_CORE,history.request,credential);
+      if(result.status!==200) return json({error:{code:"AFTERSCHOOL_HISTORY_UNAVAILABLE",message:"History unavailable"}},result.status,{"x-request-id":result.requestId});
+      try {
+        const body=result.body as {data?:unknown}|null;
+        const page=validateAfterschoolHistoryPage(body?.data,history.parentId,[],history.cursor,history.limit);
+        return json({data:page},200,{"x-request-id":result.requestId});
+      } catch {
+        return json({error:{code:"PLATFORM_INTERNAL_ERROR",message:"Unverified History response"}},502);
+      }
+    }
+
     const readBody = readQueryBody(path, url);
     const readResource = readQueryResource(path, url);
     // PAP-1536 / PAP-220: Core currently ignores resource.centerId for this
@@ -132,7 +147,7 @@ export function isOpenStudioReadPath(path: string): boolean {
 }
 
 export function isStaffRegistrationProtectedReadPath(path: string): boolean {
-  return path === "workforce/staff-registration-settings" || path === "workforce/staff-registration-requests";
+  return path === "workforce/staff-registration-settings" || path === "workforce/staff-registration-requests" || path === "workforce/staff-registration-eligible-roles";
 }
 
 export function isStaffCompensationPath(path: string): boolean {
@@ -199,6 +214,7 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "workforce/timekeeping/centers"
     || path === "workforce/staff-registration-settings"
     || path === "workforce/staff-registration-requests"
+    || path === "workforce/staff-registration-eligible-roles"
     || TV_SPATIAL_CONFIG_READ.has(path) || TV_DIALOGUE_CONFIG_READ.has(path)
     || path === "pinoria/avatars"
     || path === "pinoria/effects/catalog"
@@ -223,6 +239,7 @@ export function isOperationalReadPath(path: string): boolean {
     || path === "identity/parents"
     || path === "identity/parents/center-search"
     || path === AFTERSCHOOL_DIRECTORY_READ
+    || AFTERSCHOOL_HISTORY_READ.test(path)
     || path === "identity/parents/directory"
     || /^identity\/parents\/[0-9a-f-]{36}\/detail$/.test(path)
     || path === "practice/authoring-context"
@@ -374,6 +391,13 @@ export function readCorePath(path: string, url: URL): string {
 }
 
 export function readQueryResource(path: string, url: URL): BoAccessRequest["resource"] | undefined {
+  if (path === "workforce/staff-registration-requests" || path === "workforce/staff-registration-eligible-roles") {
+    const params=url.searchParams;
+    if (!params.size && path==="workforce/staff-registration-requests") return undefined; // Founder-only legacy in Core.
+    const ids=params.getAll("centerId");
+    if(params.size!==1 || ids.length!==1 || !S3_UUID.test(ids[0]!)) throw new RangeError("Exactly one selected Center is required");
+    return {centerId:ids[0]!};
+  }
   if (path === "classroom/day-headcounts") {
     // PAP-1939: this scope is a selector only; Core independently reauthorizes.
     const body = readQueryBody(path, url);

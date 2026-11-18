@@ -29,7 +29,7 @@ const center="019d1000-0001-7000-8000-000000000002";
 const payload={selectedCenterId:center,expectedRevision:1,displayName:"Nguồn giới thiệu"};
 test("PAP-1905 closed-world metadata CAS, no lifecycle or mass assignment",()=>{
  for(const patch of [
-  payload,{selectedCenterId:center,expectedRevision:1,required:true},
+  payload,{...payload,selectedCenterId:null},{selectedCenterId:center,expectedRevision:1,required:true},
   {selectedCenterId:center,expectedRevision:1,visibility:["BO","HO"]},
   {selectedCenterId:center,expectedRevision:1,options:["School","PINO"]}
  ])assert.equal(validHoDefinitionMetadataPatch(patch),true);
@@ -70,12 +70,12 @@ test("PAP-1905 synthetic Founder BFF forwards metadata PATCH exactly; Core 409 r
      {error:{code:"ATTRIBUTE_REVISION_CONFLICT"}}};
   }}
  }) as Parameters<typeof hoAttributeDefinitions>[1];
- const make=()=>new Request("https://ho.staging.pinohouse.art"+route,{
+ const make=(body:unknown=payload)=>new Request("https://ho.staging.pinohouse.art"+route,{
   method:"PATCH",headers:{host:"ho.staging.pinohouse.art",
    origin:"https://ho.staging.pinohouse.art",
    cookie:"pino_staff_password_session=synthetic",
    "content-type":"application/json"},
-  body:JSON.stringify(payload)
+  body:JSON.stringify(body)
  });
  const first=await hoAttributeDefinitions(make(),env());
  assert.equal(first.status,200);
@@ -83,5 +83,8 @@ test("PAP-1905 synthetic Founder BFF forwards metadata PATCH exactly; Core 409 r
  assert.deepEqual(forwarded,[{method:"PATCH",path:"custom-attributes/definitions/"+id,body:payload}]);
  assert.equal((await hoAttributeDefinitions(make(),env(409))).status,409);
  assert.equal((await hoAttributeDefinitions(make(),env(200,false))).status,403);
- assert.equal(forwarded.length,2);
+ const global={...payload,selectedCenterId:null};
+ assert.equal((await hoAttributeDefinitions(make(global),env())).status,200);
+ assert.deepEqual(forwarded[2],{method:"PATCH",path:"custom-attributes/definitions/"+id,body:global});
+ assert.equal(forwarded.length,3);
 });

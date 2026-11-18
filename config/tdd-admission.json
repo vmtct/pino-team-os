@@ -837,7 +837,11 @@
         "app/ho/learning/specialties/HoSpecialtyMissionsEdit.tsx",
         "app/ho/learning/specialties/HoSpecialtyOverviewEdit.tsx",
         "app/ho/learning/specialties/SpecialtyMissionPicker.tsx",
-        "app/ho/learning/specialties/HoSpecialtyCreate.module.css"
+        "app/ho/learning/specialties/HoSpecialtyCreate.module.css",
+        "app/ho/learning/specialties/HoSpecialtyMissionsTab.module.css",
+        "app/ho/learning/specialties/HoSpecialtyMissionsRead.module.css",
+        "app/ho/learning/specialties/SpecialtyMissionPicker.module.css",
+        "lib/bo-registration.ts"
       ],
       "businessStyles": [
         {
@@ -845,6 +849,24 @@
           "owner": "PAP-1495",
           "consumer": "app/ho/learning/specialties/HoSpecialties.tsx",
           "classes": ["createForm", "field"]
+        },
+        {
+          "file": "app/ho/learning/specialties/HoSpecialtyMissionsTab.module.css",
+          "owner": "PAP-1495",
+          "consumer": "app/ho/learning/specialties/HoSpecialtyMissionsTab.tsx",
+          "classes": ["stack","form","field","heading","list","row","identity"]
+        },
+        {
+          "file": "app/ho/learning/specialties/HoSpecialtyMissionsRead.module.css",
+          "owner": "PAP-1495",
+          "consumer": "app/ho/learning/specialties/HoSpecialtyMissionsRead.tsx",
+          "classes": ["stack","list","row","identity"]
+        },
+        {
+          "file": "app/ho/learning/specialties/SpecialtyMissionPicker.module.css",
+          "owner": "PAP-1495",
+          "consumer": "app/ho/learning/specialties/SpecialtyMissionPicker.tsx",
+          "classes": ["field"]
         }
       ],
       "schema": {
@@ -865,6 +887,7 @@
         "lib/pap1495-specialty-s5-overview.test.ts",
         "lib/pap1695-specialty-publish.test.ts",
         "lib/specialty-mission-picker.test.ts",
+        "lib/pap1732-specialty-history.test.ts",
         "lib/ho-routes.test.ts"
       ],
       "externalReferences": [

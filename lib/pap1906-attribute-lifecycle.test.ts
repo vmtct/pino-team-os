@@ -14,12 +14,12 @@ test("PAP-1906 only one forward target; GLOBAL activation explicitly selected an
  assert.deepEqual(["DRAFT","PILOT","ACTIVE","DEPRECATED","ARCHIVED"].map(s=>nextLifecycle("CENTER",s as AttributeDefinition["status"])),["PILOT","ACTIVE","DEPRECATED","ARCHIVED",null]);
  assert.equal(nextLifecycle("GLOBAL","PILOT"),null);
  assert.equal(lifecyclePayload(def("GLOBAL","DRAFT"),center,""),null);
- assert.deepEqual(lifecyclePayload(def("GLOBAL","DRAFT"),center,"ACTIVE"),{selectedCenterId:center,expectedRevision:1,targetStatus:"ACTIVE",confirmGlobalActivation:true});
+ assert.deepEqual(lifecyclePayload(def("GLOBAL","DRAFT"),null,"ACTIVE"),{selectedCenterId:null,expectedRevision:1,targetStatus:"ACTIVE",confirmGlobalActivation:true});
  assert.equal(lifecyclePayload(def("CENTER","DRAFT"),center,"ACTIVE"),null);
  assert.equal(lifecyclePayload(def("CENTER","DRAFT"),id,"PILOT"),null);
  assert.equal(lifecyclePayload(def("GLOBAL","DRAFT"),"","ACTIVE"),null);
 });
-const payload={selectedCenterId:center,expectedRevision:1,targetStatus:"ACTIVE",confirmGlobalActivation:true};
+const payload={selectedCenterId:null,expectedRevision:1,targetStatus:"ACTIVE",confirmGlobalActivation:true};
 test("PAP-1906 closed-world command rejects extra metadata, zero revision, false confirmation",()=>{
  assert.equal(validHoLifecycleCommand(payload),true);
  for(const body of [{...payload,required:true},{...payload,expectedRevision:0},{...payload,confirmGlobalActivation:false},{...payload,targetStatus:"DRAFT"},{...payload,selectedCenterId:"bad"}])assert.equal(validHoLifecycleCommand(body),false);
@@ -48,7 +48,7 @@ test("PAP-1906 existing single native editor and explicit Core readback retained
  const src=readFileSync("app/ho/system/custom-attributes/HoAttributeFullDetail.tsx","utf8");
  assert.equal((src.match(/<BoTypedEditor/g)||[]).length,1);
  assert.match(src,/lifecyclePayload\(detail,selectedCenterId,raw\)/);
- assert.match(src,/Kích hoạt toàn hệ thống/);
+ assert.match(src,/Kích hoạt toàn hệ thống/);assert.doesNotMatch(src,/attribute-selected-center|setSelectedCenter/);
  assert.match(src,/changed.data.status!==body.targetStatus/);
  assert.match(src,/read.data.status!==body.targetStatus/);
  assert.match(src,/editor.field.key==="lifecycleState"\?"":/);

@@ -10,8 +10,11 @@ test("PAP-1544 / PAP-1316: Staffs default tabs never call unscoped staff-records
   const staff = source.slice(start, end);
 
   assert.match(staff, /if \(key === "staffs"\) \{/);
-  assert.match(staff, /if \(view === "register"\)/);
-  assert.match(staff, /return readStaffCenterApplications\(fetcher, selected\)/);
+  assert.match(staff, /view === "register" \? <StaffsRegistrationContent/);
+  assert.match(staff, /content=\{registrationContent\}/);
+  assert.match(staff, /<StaffRegistrationSection embedded \/>/);
+  assert.match(staff, /<BoStaffsViews selected=\{view\} onSelect=\{onSelect\}/);
+  assert.doesNotMatch(staff, /readStaffCenterApplications\(/);
   assert.match(staff, /throw Error\("Danh sách nhân sự theo cơ sở tạm thời chưa khả dụng\."\)/);
   const denied = staff.indexOf("throw Error(");
   const legacy = staff.indexOf("unifiedBoWorkspaceSource.load(key, fetcher, requestedOptions)");

@@ -27,6 +27,32 @@ export type HostBoundaryDecision =
 
 export function decideHostBoundary(host: string, pathname: string, method = "GET"): HostBoundaryDecision {
   const hostname = normalizeHostname(host);
+  // PAP-1671 / PLT-ATTR: exact native value operations, BO Staging only.
+  // An entity or selected Center in the path/query is not an authorization grant.
+  if (/^\/api\/bo\/(?:students|identity\/parents)\/[^/]*\/custom-attributes(?:\/|$)/i.test(pathname)) {
+    const uuid = "[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
+    const route = new RegExp("^/api/bo/(?:students|identity/parents)/"+uuid+"/custom-attributes(?:/("+uuid+"))?$").exec(pathname);
+    return {action:hostname===BO_STAGING_HOSTNAME && route && (route[1]===undefined ? method==="GET" : method==="PATCH") ? "next" : "not_found"};
+  }
+  // PAP-2098 / PLT-ATTR: exact authenticated cutover routes, never other hosts.
+  if (/^\/api\/bo\/access\/custom-attribute-cutover(?:\/|$)/i.test(pathname)) {
+    return {action:hostname===BO_STAGING_HOSTNAME &&
+      ((pathname==="/api/bo/access/custom-attribute-cutover/preview"&&method==="GET")||
+       (pathname==="/api/bo/access/custom-attribute-cutover/execute"&&method==="POST")) ? "next" : "not_found"};
+  }
+  // PAP-2050 / PLT-ACCESS: exact authenticated BO Staging operations only.
+  // Never admit generic policy administration or this namespace on other hosts.
+  if (/^\/api\/bo\/access\/founder-manager-policy(?:\/|$)/i.test(pathname)) {
+    return {action:hostname===BO_STAGING_HOSTNAME && method==="POST" &&
+      (pathname==="/api/bo/access/founder-manager-policy/admit" ||
+       pathname==="/api/bo/access/founder-manager-policy/revoke" ||
+       pathname==="/api/bo/access/founder-manager-policy/expand") ? "next" : "not_found"};
+  }
+  // PAP-2012: exact single-PTE income history read, BO Staging only.
+  if (/^\/api\/bo\/workforce\/payroll\/periods\/.*\/income-history(?:\/|$)/i.test(pathname)) {
+    const exact = /^\/api\/bo\/workforce\/payroll\/periods\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/staff\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/income-history$/.test(pathname);
+    return {action:hostname===BO_STAGING_HOSTNAME&&method==="GET"&&exact?"next":"not_found"};
+  }
   // PAP-1970 / PAP-1990: new period history/cancel ingress, BO Staging only.
   // Fence malformed descendants before legacy host fallthrough. Keep existing
   // period, settlement and adjustment routes unchanged; BFF/Core own ACL/CAS.
@@ -39,6 +65,11 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   // PAP-1886 · BO Users TDD: keep the Afterschool account directory in BO Staging.
   if (pathname === "/bo/afterschool-accounts") {
     return { action: hostname === BO_STAGING_HOSTNAME && (method === "GET" || method === "HEAD") ? "next" : "not_found" };
+  }
+  if (pathname.startsWith("/api/bo/identity/afterschool-users/")) {
+    const command = /^\/api\/bo\/identity\/afterschool-users\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/pin\/(issue-initial|reset)$/.test(pathname);
+    const history = /^\/api\/bo\/identity\/afterschool-users\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/history$/.test(pathname);
+    return { action: hostname === BO_STAGING_HOSTNAME && ((method === "POST" && command) || (method === "GET" && history)) ? "next" : "not_found" };
   }
   if (pathname === "/api/bo/identity/afterschool-users") {
     return { action: hostname === BO_STAGING_HOSTNAME && method === "GET" ? "next" : "not_found" };
@@ -114,6 +145,8 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   if (/^\/bo\/tvs(?:\/|$)/i.test(pathname)) return { action: "not_found" };
   // PAP-1385 / PNR-TV: only logical visibility GET/PATCH, Founder HO Staging.
   // The private BFF and Core still enforce Founder, selected-Center, CAS and audit.
+  if(pathname==="/api/ho/pinoria/worlds"||pathname.startsWith("/api/ho/pinoria/worlds/"))
+    return {action:hostname===HO_STAGING_HOSTNAME&&pathname==="/api/ho/pinoria/worlds"&&(method==="GET"||method==="POST")?"next":"not_found"};
   if(pathname.startsWith("/api/ho/pinoria/tv-policies/visibility"))
     return {action:hostname===HO_STAGING_HOSTNAME&&isHoTvVisibilityRequest(pathname,method)?"next":"not_found"};
   // PAP-1418 / PNR-TV: all other TV paths remain exact read-only.
@@ -346,6 +379,9 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
     if (spatialPath) {
       const read=["head","versions","version","active"].includes(spatialPath[1]);
       return hostname===BO_STAGING_HOSTNAME && (read?method==="GET":method==="POST") ? {action:"next"} : {action:"not_found"};
+    }
+    if (pathname === "/api/bo/workforce/staff-registration-eligible-roles") {
+      return hostname === BO_STAGING_HOSTNAME && method === "GET" ? {action:"next"} : {action:"not_found"};
     }
     if (pathname === "/api/bo/tv/operator-health") {
       return hostname === BO_STAGING_HOSTNAME && method === "GET" ? { action: "next" } : { action: "not_found" };

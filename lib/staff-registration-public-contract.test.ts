@@ -3,12 +3,12 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 
-test("public Staff registration status exposes only the intake decision", () => {
+test("public Staff registration status exposes only intake decision and minimal Center options", () => {
   const source = fs.readFileSync(
     path.join(process.cwd(), "app/api/staff-registration/route.ts"),
     "utf8",
   );
-  assert.match(source, /data: \{ enabled: state\.enabled \}/);
+  assert.match(source, /data: \{ enabled: state\.enabled, centers: centers\.map/);
   assert.doesNotMatch(source, /data: state/);
   assert.doesNotMatch(source, /updatedByUserId|version: state\.version|updatedAt: state\.updatedAt/);
 });
@@ -20,7 +20,7 @@ test("public Staff registration forwards the Founder-approved local password con
   assert.match(binding, /email: string;\s+password: string;\s+mobile: string \\| null;/);
   assert.match(route, /password !== confirmPassword/);
   assert.match(route, /value\.length < 10 \|\| value\.length > 128/);
-  assert.match(route, /return \{ displayLabel, email, password, mobile,/);
+  assert.match(route, /return \{ selectedCenterId, displayLabel, email, password, mobile,/);
   assert.match(page, /name="password" type="password" autoComplete="new-password" minLength=\{10\} maxLength=\{128\}/);
   assert.match(page, /name="confirmPassword" type="password" autoComplete="new-password" minLength=\{10\} maxLength=\{128\}/);
 });
@@ -39,4 +39,14 @@ test("registration PII requiredness lives in the form, not Core transport",()=>{
    assert.ok(page.includes('name="'+field+'"'));
  }
  assert.match(route,/form\.get\("confirmAccuracy"\) !== "yes"/);
+});
+
+test("Center picker is required with no default, exact one canonical value forwarded, no private directory fields",()=>{
+ const route=fs.readFileSync(path.join(process.cwd(),"app/api/staff-registration/route.ts"),"utf8");
+ const page=fs.readFileSync(path.join(process.cwd(),"app/staff/register/page.tsx"),"utf8");
+ assert.match(route,/form\.getAll\("selectedCenterId"\)\.length !== 1/);
+ assert.match(route,/centers\.map\(\(\{id,displayName\}\)=>\(\{id,displayName\}\)\)/);
+ assert.match(page,/name="selectedCenterId"[^>]*required/);
+ assert.match(page,/<option value="">Chọn cơ sở<\/option>/);
+ assert.match(page,/useState\(""\)/);
 });
