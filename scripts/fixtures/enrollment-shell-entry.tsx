@@ -4,6 +4,7 @@ import {createRoot} from "react-dom/client";
 import {BoRegistrationWorkspace} from "@/app/bo/components/registration/BoRegistrationWorkspace";
 import {BoEnrollmentDirectory,type EnrollmentRow} from "@/app/bo/enrollments/BoEnrollmentDirectory";
 import {enrollmentModule,READ} from "@/app/bo/enrollments/schema";
+import {BoCenterSelectionProvider,useBoCenterSelection} from "@/app/bo/components/registration/BoCenterSelection";
 import type {AuthorizationContext} from "@/lib/workspace-schema";
 import "@pino/design-system/bo-tokens.css";
 import "@pino/design-system/components.css";
@@ -22,10 +23,8 @@ const a:EnrollmentRow[]=[
 ];
 const b:EnrollmentRow[]=[{id:id(4),name:"Lê Hoàng Nam",subscription:"Art · 12 buổi",runningClass:"Art · CN sáng",path:"Artchitect",schedule:"Chủ nhật · 09:00–10:30",start:"2026-11-01",end:null,...common}];
 const q=new URLSearchParams(location.search);
-const selected=q.get("centerId")===centerB?centerB:centerA;
-const allowed=q.get("state")!=="denied"&&(!q.has("centerId")||[centerA,centerB].includes(q.get("centerId")!));
-const context:AuthorizationContext={surface:"BO",centerId:selected,authorize:permission=>allowed&&permission===READ};
-const source={modules:{enrollments:enrollmentModule},readOnly:true,ephemeral:true,scopeLabel:()=>"",load:async()=>{throw Error("Unexpected generic load")}};
+const source={modules:{enrollments:enrollmentModule},readOnly:true,ephemeral:true,scopeLabel:()=>"",routeForModule:()=>"/bo/enrollments",load:async()=>{throw Error("Unexpected generic load")}};
 if(location.pathname!=="/bo/enrollments"||!["127.0.0.1","192.168.1.6"].includes(location.hostname))throw Error("Local review only");
-window.fetch=async()=>new Response(null,{status:403});
-createRoot(document.getElementById("root")!).render(<BoRegistrationWorkspace currentUser={{displayName:"Manager"}} moduleKey="enrollments" source={source} content={<BoEnrollmentDirectory context={context} rows={q.get("state")==="empty"?[]:selected===centerA?a:b}/>}/>);
+window.fetch=async(input,init)=>{const url=new URL(typeof input==="string"?input:input instanceof URL?input.href:input.url,location.origin);if(url.origin===location.origin&&url.pathname==="/api/bo/centers"&&(init?.method??"GET")==="GET")return Response.json({data:[{id:centerA,displayName:"Cần Thơ"},{id:centerB,displayName:"Cơ sở B"}]});return new Response(null,{status:403});};
+function Shell(){const selection=useBoCenterSelection();const selected=selection?.selected??"";const allowed=!!selected&&!selection?.loading&&!selection?.error&&q.get("state")!=="denied";const context:AuthorizationContext={surface:"BO",centerId:selected,authorize:p=>allowed&&p===READ};return <BoRegistrationWorkspace currentUser={{displayName:"Manager"}} moduleKey="enrollments" source={source} content={selection?.loading?<p role="status">Đang tải cơ sở…</p>:<BoEnrollmentDirectory key={selected} context={context} rows={q.get("state")==="empty"?[]:selected===centerA?a:b}/>}/>;}
+createRoot(document.getElementById("root")!).render(<BoCenterSelectionProvider><Shell/></BoCenterSelectionProvider>);
