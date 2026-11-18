@@ -1,3 +1,4 @@
+import {validRecordedReviewAccount} from "./opening-review-actor-label";
 /** PAP-763: Core receipts alone establish READY; no localStorage or optimistic OPEN. */
 export type ReceptionReadyScope={centerId:string;workDate:string;shiftTemplateId:string};
 export type ReceptionReadySlot=ReceptionReadyScope & {label:string};
@@ -46,7 +47,7 @@ export async function confirmReceptionReady(scope:ReceptionReadyScope,photoData:
   return receipt(value.receipt,scope);
 }
 
-export type ReceptionEvidenceEvent={eventId:string;roundId:string;version:number;kind:"SUBMISSION"|"REVIEW";actorLegalFullName:string|null;occurredAt:string;privateAssetIds:readonly string[];note:string;verdict:"APPROVED"|"REJECTED"|null;reason:string|null};
+export type ReceptionEvidenceEvent={eventId:string;roundId:string;version:number;kind:"SUBMISSION"|"REVIEW";actorLegalFullName:string|null;reviewAccountRecorded?:true;occurredAt:string;privateAssetIds:readonly string[];note:string;verdict:"APPROVED"|"REJECTED"|null;reason:string|null};
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 export function parseReceptionHistory(value:unknown):ReceptionEvidenceEvent[]{
  if(!Array.isArray(value)||!value.length)throw new Error("Lịch sử mở ca không hợp lệ.");
@@ -56,7 +57,7 @@ export function parseReceptionHistory(value:unknown):ReceptionEvidenceEvent[]{
   if(!e||!uuid.test(e.eventId)||seen.has(e.eventId)||!uuid.test(e.roundId)||e.version!==i+1||
      !Number.isFinite(Date.parse(e.occurredAt))||(previous&&e.occurredAt<previous.occurredAt)||
      (e.actorLegalFullName!==null&&(typeof e.actorLegalFullName!=="string"||!e.actorLegalFullName.trim()||e.actorLegalFullName.length>160))||
-     !Array.isArray(e.privateAssetIds)||typeof e.note!=="string"||e.note.length>1000)throw new Error("Lịch sử mở ca không hợp lệ.");
+     !validRecordedReviewAccount(e.reviewAccountRecorded,e.kind,e.actorLegalFullName)||!Array.isArray(e.privateAssetIds)||typeof e.note!=="string"||e.note.length>1000)throw new Error("Lịch sử mở ca không hợp lệ.");
   if(e.kind==="SUBMISSION"){
     if(e.roundId!==e.eventId||e.privateAssetIds.length<1||e.privateAssetIds.length>10||e.verdict!==null||e.reason!==null)throw new Error("Lịch sử mở ca không hợp lệ.");
     for(const asset of e.privateAssetIds){if(!uuid.test(asset)||assets.has(asset))throw new Error("Lịch sử mở ca không hợp lệ.");assets.add(asset);}

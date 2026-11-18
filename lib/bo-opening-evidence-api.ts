@@ -1,13 +1,14 @@
+import {validRecordedReviewAccount} from "./opening-review-actor-label";
 /** PAP-764 / PAP-759 draft Core contract. No optimistic UI or local fixtures. */
 export type SubjectType="CLASS"|"RECEPTION";
 export type EvidenceStatus="PENDING"|"APPROVED"|"REJECTED";
 export type OpeningEvidenceRow={
   subjectType:SubjectType;openingReceiptId:string;centerId:string;workDate:string;subjectLabel:string;
   openedAt:string;submittedByLegalFullName:string|null;status:EvidenceStatus;latestRoundId:string;
-  version:number;lastModifiedAt:string;lastModifiedByLegalFullName:string|null;canReview:boolean;
+  version:number;lastModifiedAt:string;lastModifiedByLegalFullName:string|null;lastModifiedReviewAccountRecorded?:true;canReview:boolean;
 };
 export type EvidenceEvent={
-  eventId:string;version:number;kind:"SUBMISSION"|"REVIEW";roundId:string;actorLegalFullName:string|null;
+  eventId:string;version:number;kind:"SUBMISSION"|"REVIEW";roundId:string;actorLegalFullName:string|null;reviewAccountRecorded?:true;
   occurredAt:string;privateAssetId:string|null;privateAssetIds?:string[];note?:string;verdict:"APPROVED"|"REJECTED"|null;reason:string|null;
 };
 export type EvidenceDetail={row:OpeningEvidenceRow;history:EvidenceEvent[]};
@@ -22,7 +23,7 @@ export function parseEvidenceRow(value:unknown,centerId:string):OpeningEvidenceR
   if(!r||r.centerId!==centerId||!uuid.test(r.openingReceiptId??"")||!uuid.test(r.latestRoundId??"")||
      (r.subjectType!=="CLASS"&&r.subjectType!=="RECEPTION")||!text(r.workDate)||!/^\d{4}-\d{2}-\d{2}$/.test(r.workDate)||
      !text(r.subjectLabel)||!instant(r.openedAt)||!instant(r.lastModifiedAt)||!name(r.submittedByLegalFullName)||
-     !name(r.lastModifiedByLegalFullName)||!Number.isSafeInteger(r.version)||r.version!<1||
+     !name(r.lastModifiedByLegalFullName)||!validRecordedReviewAccount(r.lastModifiedReviewAccountRecorded,r.status==="PENDING"?"SUBMISSION":"REVIEW",r.lastModifiedByLegalFullName)||(r.lastModifiedReviewAccountRecorded===true&&r.version===1)||!Number.isSafeInteger(r.version)||r.version!<1||
      !["PENDING","APPROVED","REJECTED"].includes(r.status??"")||typeof r.canReview!=="boolean"||
      (r.canReview&&r.status!=="PENDING"))throw new Error("Biên nhận mở lớp/ca không hợp lệ.");
   return r as OpeningEvidenceRow;
@@ -46,14 +47,14 @@ export function parseEvidenceDetail(value:unknown,centerId:string,subjectType:Su
       throw new Error("Lịch sử bằng chứng không hợp lệ.");
     for(const asset of photoIds){if(!uuid.test(asset)||assets.has(asset))throw new Error("Lịch sử bằng chứng không hợp lệ.");assets.add(asset);}
     e.privateAssetIds=photoIds;
-    if(!e||e.version!==i+1||!uuid.test(e.eventId)||!uuid.test(e.roundId)||!name(e.actorLegalFullName)||!instant(e.occurredAt)||
+    if(!e||e.version!==i+1||!uuid.test(e.eventId)||!uuid.test(e.roundId)||!name(e.actorLegalFullName)||!validRecordedReviewAccount(e.reviewAccountRecorded,e.kind,e.actorLegalFullName)||!instant(e.occurredAt)||
        (e.kind==="SUBMISSION"?(!e.privateAssetId||!uuid.test(e.privateAssetId)||e.roundId!==e.eventId||e.verdict!==null||e.reason!==null):
        (e.kind!=="REVIEW"||e.privateAssetId!==null||!["APPROVED","REJECTED"].includes(e.verdict??"")||
        typeof e.reason!=="string"||history[i-1]?.kind!=="SUBMISSION"||history[i-1]?.roundId!==e.roundId)))
       throw new Error("Lịch sử bằng chứng không hợp lệ.");
   }
   const last=history.at(-1);
-  if(!last||last.roundId!==row.latestRoundId||(last.kind==="SUBMISSION"?"PENDING":last.verdict)!==row.status)
+  if(!last||last.roundId!==row.latestRoundId||last.reviewAccountRecorded!==row.lastModifiedReviewAccountRecorded||(last.kind==="SUBMISSION"?"PENDING":last.verdict)!==row.status)
     throw new Error("Trạng thái duyệt không khớp lịch sử.");
   return {row,history};
 }
