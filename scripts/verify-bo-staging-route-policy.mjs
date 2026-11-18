@@ -105,7 +105,10 @@ function nativeOpeningEvidenceRoute(root,issues){
  if(files.some(f=>!fs.existsSync(path.join(root,f)))){issues.push("opening-evidence: missing exact native route contract");return false;}
  const [p,v,dp,d,c,h,host,,,boundary,shell]=files.map(f=>read(root,f));
  const ok=p.includes("PAP-764")&&p.includes("<OpeningEvidenceStageGate")&&p.includes('host !== "bo.staging.pinohouse.art"')&&
-   v.includes("BoDataGrid")&&v.includes("BoDataGridSidePeek")&&v.includes("useBoCenterSelection")&&v.includes("openingEvidenceApi.list")&&
+   v.includes('import {BoDataTable} from "@/app/bo/components/registration/BoDataTable"')&&v.includes('import {BoQuickView} from "@/app/bo/components/registration/BoQuickView"')&&
+   /<BoDataTable\b/.test(v)&&/<BoQuickView\b/.test(v)&&v.includes("useBoCenterSelection")&&v.includes("scope.centers.some(center=>center.id===scope.selected)")&&
+   v.includes("openingEvidenceApi.list({centerId,offset,limit")&&v.includes("response?.key===key")&&v.includes("allowed&&validRange")&&
+   !/BoDataGridSidePeek|BoCenterSelectionProvider|opening-shell-data|installOpeningFixture/.test(v)&&
    dp.includes('host!=="bo.staging.pinohouse.art"')&&dp.includes("<OpeningEvidenceDetail")&&
    d.includes("BoFullDetail")&&d.includes("useBoCenterSelection")&&d.includes("openingEvidenceApi.review")&&
    c.includes("same-origin")&&c.includes("no-store")&&h.includes("teamCredential")&&h.includes("callBoAccessCoreWithCredential")&&
