@@ -24,7 +24,7 @@ function errorFor(status:number):string{
  return "Không thể xác nhận kết quả. Hãy kiểm tra lại danh sách trước khi thử lại.";
 }
 
-export function CreateSelfDrawer({centerId,onClose,onCreated}:{centerId:string;onClose:()=>void;onCreated:()=>void}){
+export function CreateSelfDrawer({centerId,canUseStarter,onClose,onCreated}:{centerId:string;canUseStarter:boolean;onClose:()=>void;onCreated:()=>void}){
  const [query,setQuery]=useState("");
  const [inputValue,setInputValue]=useState("");
  const [candidates,setCandidates]=useState<AvatarCandidate[]>([]);
@@ -41,19 +41,21 @@ export function CreateSelfDrawer({centerId,onClose,onCreated}:{centerId:string;o
  const [starterCatalog,setStarterCatalog]=useState<StarterChoice[]>([]);
  const [starterId,setStarterId]=useState("");
  const [starterError,setStarterError]=useState("");
- const [starterLoading,setStarterLoading]=useState(true);
+ const [starterLoading,setStarterLoading]=useState(canUseStarter);
+ const [starterDenied,setStarterDenied]=useState(false);
  const [catalogRetry,setCatalogRetry]=useState(0);
  const starterRetry=useRef<{signature:string;key:string}|null>(null);
  useEffect(()=>{
+  if(!canUseStarter)return;
   const ctl=new AbortController();
-  queueMicrotask(()=>{if(!ctl.signal.aborted){setStarterCatalog([]);setStarterId("");setStarterError("");setStarterLoading(true);}});
+  queueMicrotask(()=>{if(!ctl.signal.aborted){setStarterCatalog([]);setStarterId("");setStarterError("");setStarterDenied(false);setStarterLoading(true);}});
   void fetch("/api/bo/pinoria/avatars/starter-sets?"+new URLSearchParams({centerId}),{credentials:"same-origin",cache:"no-store",signal:ctl.signal})
-   .then(async r=>{if(!r.ok)throw Error("Không tải được Starter Set.");return parseStarterCatalog(await r.json());})
+   .then(async r=>{if(r.status===403){if(!ctl.signal.aborted)setStarterDenied(true);return [];}if(!r.ok)throw Error("Không tải được Starter Set.");return parseStarterCatalog(await r.json());})
    .then(items=>{if(!ctl.signal.aborted)setStarterCatalog(items);})
    .catch(()=>{if(!ctl.signal.aborted)setStarterError("Không tải được Starter Set. Có thể tạo Avatar không kèm Starter.");})
    .finally(()=>{if(!ctl.signal.aborted)setStarterLoading(false);});
   return ()=>ctl.abort();
- },[centerId,catalogRetry]);
+ },[centerId,canUseStarter,catalogRetry]);
  const [duplicateConflict,setDuplicateConflict]=useState(false);
  const listId=useId();
  const inputRef=useRef<HTMLInputElement>(null);
@@ -99,7 +101,7 @@ export function CreateSelfDrawer({centerId,onClose,onCreated}:{centerId:string;o
  // PAP-1754: scrolling the bounded listbox must also expose the keyboard-active option.
  useEffect(()=>{if(open)optionRefs.current[active]?.scrollIntoView({block:"nearest"});},[active,open,query,candidates]);
  const duplicate=!!person&&(duplicateConflict||candidateHasAvatar(person));
- const choice=starterCatalog.find(s=>s.setItemId===starterId);
+ const choice=canUseStarter&&!starterDenied?starterCatalog.find(s=>s.setItemId===starterId):undefined;
  const canCreate=!!person&&!duplicate&&!saving&&!loading&&!loadError&&(!starterId||!!choice);
  function choose(option:AvatarCandidate){
   if(saving)return;
@@ -166,7 +168,7 @@ export function CreateSelfDrawer({centerId,onClose,onCreated}:{centerId:string;o
  const draft:BoRecord={id:"",name:inputValue,nickname,createdAt:null,createdBy:null,updatedAt:null,updatedBy:null};
  const personPicker=(
      <div className={styles.picker}>
-      <input id="ps-create-person" ref={inputRef} autoFocus type="text" role="combobox"
+      <input id="ps-create-person" ref={inputRef} type="text" role="combobox"
        aria-autocomplete="list" aria-expanded={open} aria-controls={listId}
        aria-activedescendant={open&&visibleMatches[active]?listId+"-"+active:undefined}
        aria-describedby="ps-create-person-hint" aria-invalid={!!inputValue&&!person}
@@ -219,7 +221,7 @@ export function CreateSelfDrawer({centerId,onClose,onCreated}:{centerId:string;o
     Chỉ chọn Person thuộc cơ sở hiện tại. Người đã có Avatar được đánh dấu để tránh tạo trùng.
    </p>
    {duplicate?<p role="status" className="pino-avatar-duplicate">Person này đã có Avatar. Không thể tạo bản ghi trùng.</p>:null}
-   <div className="pds-property-row">
+   {canUseStarter&&!starterDenied?<><div className="pds-property-row">
     <label className="pds-property-label" htmlFor="ps-create-starter">Starter Set (tùy chọn)</label>
     <select id="ps-create-starter" className="pds-property-input" value={starterId} disabled={saving||starterLoading}
       onChange={e=>{setStarterId(e.target.value);setError("");}}>
@@ -228,7 +230,8 @@ export function CreateSelfDrawer({centerId,onClose,onCreated}:{centerId:string;o
     </select>
    </div>
    {starterLoading?<p role="status" className="pino-avatar-hint">Đang tải Starter Set…</p>:null}
-   {starterError?<p role="status" className="pino-avatar-hint">{starterError} <button type="button" onClick={()=>setCatalogRetry(n=>n+1)} disabled={saving}>Thử lại</button></p>:null}
+   {starterError?<p role="status" className="pino-avatar-hint">{starterError} <button type="button" onClick={e=>{ /* PAP-2108: the focused retry button unmounts as loading begins. */ if(document.activeElement===e.currentTarget)nicknameRef.current?.focus();setCatalogRetry(n=>n+1); }} disabled={saving}>Thử lại</button></p>:null}
+   </>:<p role="status" className="pino-avatar-hint">Bạn chưa có quyền chọn Starter Set tại cơ sở này. Có thể tạo Avatar không kèm Starter.</p>}
    <p className="pino-avatar-hint">Nickname không đổi tên Person. Starter Set được nhận một lần và trang bị từng Item; có thể chọn sau.</p>
    <PropertySections variant="drawer" fields={auditFields} record={draft} sections={avatarSections}/>
    {error?<p className="pino-avatar-error" role="alert">{error}</p>:null}

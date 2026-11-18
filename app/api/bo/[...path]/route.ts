@@ -10,6 +10,7 @@ import { handleBoMissionAssignmentWrite, isBoMissionAssignmentWritePath, type Bo
 import { handleBoMissionCompletionRequest, isBoMissionCompletionPath, type BoMissionCompletionEnv } from "@/lib/bo-mission-completion-facade";
 import { handleBoWriteRequest, type BoWriteEnv } from "@/lib/bo-write-handler";
 import {handleBoCustomAttributeValueRequest,isBoCustomAttributeValuePath,type BoCustomAttributeValueEnv} from "@/lib/bo-custom-attribute-value-facade";
+import {handleBoCutoverRequest,isBoCutoverPath} from "@/lib/bo-custom-attribute-cutover-facade";
 import {handleBoSubscriptionSpecialtyRequest,isBoSubscriptionSpecialtyPath,type BoSubscriptionSpecialtyEnv} from "@/lib/bo-subscription-specialty-facade";
 import { handleBoPracticeMediaUpload, type BoPracticeMediaEnv } from "@/lib/bo-practice-media-handler";
 import { handleBoSyllabusMediaRequest, type BoSyllabusMediaEnv } from "@/lib/bo-syllabus-media-handler";
@@ -33,6 +34,7 @@ export async function GET(request: Request, context: RouteContext): Promise<Resp
   const { env } = await getCloudflareContext({ async: true }) as unknown as { env: BoEnv };
   const { path } = await context.params;
   const joined = path.join("/");
+  if (isBoCutoverPath(joined)) return handleBoCutoverRequest(request,env,joined);
   if (isBoCustomAttributeValuePath(joined)) return handleBoCustomAttributeValueRequest(request,env,joined);
   if (isBoSubscriptionSpecialtyPath(joined)) return handleBoSubscriptionSpecialtyRequest(request,env,joined);
   if (isBoMissionCompletionPath(joined)) return handleBoMissionCompletionRequest(request, env, joined);
@@ -55,6 +57,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
   const { env } = await getCloudflareContext({ async: true }) as unknown as { env: BoEnv };
   const { path } = await context.params;
   const joined = path.join("/");
+  if (isBoCutoverPath(joined)) return handleBoCutoverRequest(request,env,joined);
   if (isBoCustomAttributeValuePath(joined)) return handleBoCustomAttributeValueRequest(request,env,joined);
   if (isBoSubscriptionSpecialtyPath(joined)) return handleBoSubscriptionSpecialtyRequest(request,env,joined);
   if (isBoMissionCompletionPath(joined)) return handleBoMissionCompletionRequest(request, env, joined);
@@ -81,6 +84,7 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
   const { env } = await getCloudflareContext({ async: true }) as unknown as { env: BoEnv };
   const { path } = await context.params;
   const joined = path.join("/");
+  if (isBoCutoverPath(joined)) return handleBoCutoverRequest(request,env,joined);
   if (isBoCustomAttributeValuePath(joined)) return handleBoCustomAttributeValueRequest(request,env,joined);
   if (isBoAvatarNicknamePath(joined)) return handleBoAvatarNicknameRequest(request,env,joined);
   if (isBoSubscriptionSpecialtyPath(joined)) return handleBoSubscriptionSpecialtyRequest(request,env,joined);
@@ -96,6 +100,7 @@ export async function PUT(request: Request, context: RouteContext): Promise<Resp
   const { env } = await getCloudflareContext({ async: true }) as unknown as { env: BoEnv };
   const { path } = await context.params;
   const joined = path.join("/");
+  if (isBoCutoverPath(joined)) return handleBoCutoverRequest(request,env,joined);
   if (isBoCustomAttributeValuePath(joined)) return handleBoCustomAttributeValueRequest(request,env,joined);
   if (isBoBillsPath(joined)) return handleBoBillsRequest(request, env, joined);
   if (isBoSelfLoadoutPath(joined)) return handleBoSelfLoadoutRequest(request, env, joined);
@@ -109,6 +114,7 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
   const { env } = await getCloudflareContext({ async: true }) as unknown as { env: BoEnv };
   const { path } = await context.params;
   const joined = path.join("/");
+  if (isBoCutoverPath(joined)) return handleBoCutoverRequest(request,env,joined);
   if (isBoCustomAttributeValuePath(joined)) return handleBoCustomAttributeValueRequest(request,env,joined);
   if (isBoBillsPath(joined)) return handleBoBillsRequest(request, env, joined);
   if (isBoSelfLoadoutPath(joined)) return handleBoSelfLoadoutRequest(request, env, joined);

@@ -1,9 +1,10 @@
 "use client";
 /** PAP-1978 / PAP-1974 native DSA module; host must supply confirmed Founder manage authority. */
-import {useCallback,useEffect,useRef,useState,type ReactNode} from "react";
+import {useCallback,useContext,useEffect,useRef,useState,type ReactNode} from "react";
+import {TddHostMenu} from "@/app/components/workspace-adapters/SurfaceWorkspace";
 import {formatPinoDateTime} from "@/lib/pino-datetime";
 import {BoDataTable} from "@/app/bo/components/registration/BoDataTable";
-import {BoQuickView} from "@/app/bo/components/registration/BoQuickView";
+// PAP-2117: both modes use the canonical DrawerFrame and PropertySections.
 import {BoTableSettings,type BoSavedView} from "@/app/bo/components/registration/BoTableSettings";
 import {BoTypedEditor} from "@/app/bo/components/registration/BoTypedEditor";
 import {DrawerFrame} from "@/app/components/workspace-renderer/DrawerFrame";
@@ -30,8 +31,8 @@ const sections=[{id:"info",label:"Thông tin Starter Set",fields:["name","key","
 const emptyDraft=():StarterSetDraft=>({key:"",displayName:"",description:"",memberItemIds:[]});
 const concrete=(items:ItemRecord[]):HoItem[]=>items.filter((r):r is HoItem=>r.type!=="SET"&&r.status==="PUBLISHED");
 const stack:Record<Slot,number>={AURA_GROUND:6,AURA_BACK:12,BACK:30,OUTFIT:60,HAIR:70,FACE:80,HEADWEAR:90,PATH_MARK:100};
-const toRow=(r:HoSetItem):BoRecord=>({id:r.id,name:r.displayName,key:r.key,preview:"Xem chi tiết",description:r.description??"",count:r.memberCount??r.members?.length??0,status:r.status,createdAt:r.createdAt,updatedAt:r.updatedAt,createdBy:r.createdByUserId??null,updatedBy:r.updatedByUserId??null});
-const toDraftRow=(d:StarterSetDraft):BoRecord=>({id:"",name:d.displayName,key:d.key,description:d.description,count:d.memberItemIds.length,status:"DRAFT"});
+const toRow=(r:HoSetItem):BoRecord=>({id:r.id,name:r.displayName,key:r.key,preview:"Xem chi tiết",description:r.description??"",count:r.memberCount??r.members?.length??0,status:r.status,createdAt:r.createdAt,updatedAt:r.updatedAt,createdBy:"—",updatedBy:"—"});
+const toDraftRow=(d:StarterSetDraft):BoRecord=>({id:"",name:d.displayName,key:d.key,description:d.description,count:d.memberItemIds.length,status:"DRAFT",createdBy:"—",updatedBy:"—"});
 const message=(e:unknown)=>e instanceof Error?e.message:"Không thể xử lý Starter Set.";
 function Preview({ids,items}:{ids:string[];items:HoItem[]}){
  const found=ids.map(id=>items.find(r=>r.id===id)).filter((r):r is HoItem=>Boolean(r));
@@ -60,6 +61,7 @@ function Members({draft,items,disabled,onChange}:{draft:StarterSetDraft;items:Ho
  </section>;
 }
 export function HoStarterSets({canManage=false,mobileMenu}:{canManage?:boolean;mobileMenu?:ReactNode}){
+ const hostMenu=useContext(TddHostMenu);
  const [rows,setRows]=useState<HoSetItem[]>([]),[items,setItems]=useState<HoItem[]>([]);
  const [load,setLoad]=useState("loading"),[refresh,setRefresh]=useState(0);
  const [table,setTable]=useState<BoTableState>(()=>defaultTable(starterModule.fields)),[page,setPage]=useState(1);
@@ -103,7 +105,7 @@ export function HoStarterSets({canManage=false,mobileMenu}:{canManage?:boolean;m
  const fields=detailFields;
  if(mode==="detail"&&selected){
   const row:BoRecord={...toRow(selected),name:starterDraft(selected).displayName,key:starterDraft(selected).key,description:starterDraft(selected).description};
-  return <DetailFrame title={selected.displayName} subtitle={selected.key+" · "+selected.status} mobileMenu={mobileMenu} onBack={close}
+  return <DetailFrame title={selected.displayName} subtitle={selected.key+" · "+selected.status} mobileMenu={mobileMenu??hostMenu("detail-menu-btn")} onBack={close}
    tabs={[{id:"overview",label:"Tổng quan"},{id:"members",label:"Thành viên"},{id:"history",label:"Lịch sử"}]} selected={tab} onSelect={selectDetailTab}>
    {notice&&<p role="status">{notice}</p>}{error&&<p role="alert">{error}</p>}
    {tab==="overview"?<>
@@ -128,13 +130,17 @@ export function HoStarterSets({canManage=false,mobileMenu}:{canManage?:boolean;m
  }
  const records=rows.map(toRow);
  return <section id="list-screen" data-pap1978-native-dsa="">
-  <div className="page-heading"><div className="page-heading-left">{mobileMenu}<h1>Starter Set</h1></div>
+  <div className="page-heading"><div className="page-heading-left">{mobileMenu??hostMenu("menu-btn")}<h1>Starter Set</h1></div>
    {canManage&&load==="ready"&&<button className="primary-btn" onClick={e=>{opener.current=e.currentTarget;setDraft(emptyDraft());setError("");setMode("create")}}>Tạo Starter Set</button>}
   </div>
   {notice&&<p role="status">{notice}</p>}{load!=="ready"&&load!=="loading"&&<button className="secondary-btn" onClick={()=>setRefresh(v=>v+1)}>Thử lại</button>}
   <BoDataTable module={starterModule} rows={records} loadState={load} value={table} update={update} page={page} setPage={setPage} onOpen={choose} selected={selected?.id} onSettings={setSettings} filterOpen={filter} setFilterOpen={setFilter} views={views} changeViews={setViews} activeView={activeView} applyView={v=>{if(v){setTable(v.state);setActiveView(v.id);setPage(1)}else reset()}} reset={reset} undo={()=>{}} canUndo={false} nativeAvatarOpener/>
   {settings&&<BoTableSettings screen={settings} setScreen={setSettings} onClose={()=>setSettings(null)} fields={starterModule.fields} rows={records} value={table} update={update} views={views} setViews={setViews} applyView={v=>{setTable(v.state);setActiveView(v.id);setPage(1)}}/>}
-  {mode==="view"&&selected&&<BoQuickView module={{...starterModule,fields}} record={toRow(selected)} onClose={close} onDetail={()=>{window.history.pushState(null,"",starterDetailUrl(window.location.href,selected.id));setTab("overview");setMode("detail")}} extraSection={<Preview ids={starterDraft(selected).memberItemIds} items={items}/>}/>}
+  {mode==="view"&&selected&&<DrawerFrame title={selected.displayName} path="Pinoria · Starter Set" onClose={close}
+    footer={<button type="button" id="full-detail" className="primary-btn" onClick={()=>{window.history.pushState(null,"",starterDetailUrl(window.location.href,selected.id));setTab("overview");setMode("detail")}}>↗ Full Detail</button>}>
+    <PropertySections fields={fields} record={toRow(selected)} sections={sections} variant="drawer"/>
+    <Preview ids={starterDraft(selected).memberItemIds} items={items}/>
+   </DrawerFrame>}
   {mode==="create"&&canManage&&<DrawerFrame title="Tạo Starter Set" path="Pinoria · Starter Set" onClose={close}
     footer={<><button className="secondary-btn" disabled={busy} onClick={close}>Hủy</button><button className="primary-btn" disabled={busy||!draft.displayName.trim()||!draft.key.trim()} onClick={()=>void apply(()=>createStarter(draft),"view")}>Tạo bản nháp</button></>}>
     <PropertySections fields={fields} record={toDraftRow(draft)} sections={sections} variant="drawer" createFields={{

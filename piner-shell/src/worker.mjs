@@ -15,13 +15,13 @@ function out(body,status,kind,method,more={}){
  for(const [k,v] of Object.entries(more))headers.set(k,v);
  return new Response(method==="HEAD"?null:body,{status,headers});
 }
-export async function handleRequest(request,env={}){
+export async function handleRequest(request,env={},ctx,options={}){
  const u=new URL(request.url),method=request.method;
  if(method!=="GET"&&method!=="HEAD")return out("Method Not Allowed",405,"text/plain; charset=utf-8",method,{"Allow":"GET, HEAD"});
  if(u.pathname==="/piner-shell.css")return out(CSS,200,"text/css; charset=utf-8",method);
  if(u.pathname==="/piner-shell.js")return out(CLIENT,200,"application/javascript; charset=utf-8",method);
  const route=parseRoute(u.pathname);
- if(route)return out(renderHtml(route,assertFailClosed(getShellAdapter())),200,"text/html; charset=utf-8",method);
+ if(route)return out(renderHtml(route,assertFailClosed(getShellAdapter()),options),200,"text/html; charset=utf-8",method);
  // Preserve the same public R2 bucket object URLs when routing app.pinohouse.art through a Worker.
  // No list/write and no private media access; do not detach the existing R2 custom domain.
  const key=decodeURIComponent(u.pathname.slice(1));

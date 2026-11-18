@@ -11,13 +11,17 @@
     {
       "file": "app/bo/afterschool-accounts/AfterschoolAccounts.tsx",
       "uses": 1,
-      "mode": "static-single-tab",
+      "mode": "tabbed",
       "jira": "PAP-1886",
       "tabSource": "literal",
       "tabs": [
         [
           "overview",
           "Tổng quan"
+        ],
+        [
+          "history",
+          "Lịch sử"
         ]
       ],
       "g4": {

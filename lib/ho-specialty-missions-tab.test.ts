@@ -2,7 +2,20 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { HoSpecialtyMissionsTab } from "../app/ho/learning/specialties/HoSpecialtyMissionsTab";
+import { createRequire } from "node:module";
+const requireCss = createRequire(import.meta.url);
+const cssPath = requireCss.resolve("../app/ho/learning/specialties/HoSpecialtyMissionsTab.module.css");
+const pickerCssPath = requireCss.resolve("../app/ho/learning/specialties/SpecialtyMissionPicker.module.css");
+const previousCss = requireCss.extensions[".css"];
+requireCss.extensions[".css"] = (module, file) => {
+  if (file === pickerCssPath) { module.exports = {field:"field"}; return; }
+  if (file !== cssPath) { if (previousCss) return previousCss(module, file); throw new Error("Unexpected CSS import: "+file); }
+  module.exports = {"stack":"stack","form":"form","field":"field","heading":"heading","list":"list","row":"row","identity":"identity"};
+};
+const { HoSpecialtyMissionsTab } = (() => {
+  try { return requireCss("../app/ho/learning/specialties/HoSpecialtyMissionsTab") as typeof import("../app/ho/learning/specialties/HoSpecialtyMissionsTab"); }
+  finally { if (previousCss) requireCss.extensions[".css"] = previousCss; else delete requireCss.extensions[".css"]; }
+})();
 import type { SpecialtyMissionOption } from "./specialty-mission-picker";
 
 const mission:SpecialtyMissionOption={
@@ -28,6 +41,10 @@ test("PAP-1495: approved HO relation form is above the linked Mission table",()=
   assert.match(text,/ART-208/);
   assert.match(text,/Vẽ vật thể 3D/);
   assert.match(text,/Gỡ liên kết Vẽ vật thể 3D/);
+  assert.match(text,/class="primary-btn"[^>]*disabled=""/);
+  assert.match(text,/class="option-item"[^>]*>Vẽ vật thể 3D/);
+  assert.match(text,/class="form" data-specialty-link-form="true"/);
+  assert.match(text,/<div class="field"><label class="pds-property-label"[^>]*>Nhiệm vụ<\/label><input[^>]*role="combobox"/);
 });
 test("PAP-1495: canonical Mission missing from catalog is not opened as valid",()=>{
   const text=html(false,true);

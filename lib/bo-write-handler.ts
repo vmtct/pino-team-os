@@ -30,7 +30,7 @@ const ACCESS_ASSIGNMENT_PATH = "access/assignments";
 const ACCESS_ASSIGNMENT_REMOVE_PATH = "access/assignments/remove";
 const FOUNDER_MANAGER_POLICY_PATHS = new Set(["access/founder-manager-policy/admit","access/founder-manager-policy/revoke","access/founder-manager-policy/expand"]);
 const FOUNDER_MANAGER_POLICY = "PAP-2025-STUDENT-OPERATIONAL-V1";
-const FOUNDER_MANAGER_POLICY_V2 = "PAP-2065-OPERATIONAL-V2";
+const FOUNDER_MANAGER_POLICY_V2 = "PAP-2065-OPERATIONAL-V2-PLT-ATTR-2090";
 const ACCESS_USER_STATUS_PATH = "access/users/status";
 const ACCESS_SUPPORT_SESSION_PATH = "access/support-sessions";
 const STAFF_PASSWORD_RESET_PATH = /^access\/users\/[0-9a-f-]{36}\/staff-password\/reset$/;
@@ -131,20 +131,10 @@ const PINORIA_WORLD_WRITE = /^(?:pinoria\/worlds|pinoria\/worlds\/[0-9a-f-]{36}|
 const PINORIA_WORLD_MEDIA = "pinoria/worlds/media";
 
 function isAllowedPinoriaWorldMethod(method: string, path: string): boolean {
-  if (method === "POST") return path === "pinoria/worlds"
-    || /^pinoria\/worlds\/[0-9a-f-]{36}\/scenes$/.test(path)
-    || /^pinoria\/worlds\/scenes\/[0-9a-f-]{36}\/layers$/.test(path)
-    || /^pinoria\/worlds\/learners\/[0-9a-f-]{36}\/instances$/.test(path)
-    || /^pinoria\/worlds\/instances\/[0-9a-f-]{36}\/(?:set-live|revoke|reactivate)$/.test(path)
-    || path === PINORIA_WORLD_MEDIA;
-  if (method === "PATCH") return /^pinoria\/worlds\/[0-9a-f-]{36}$/.test(path)
-    || /^pinoria\/worlds\/scenes\/[0-9a-f-]{36}$/.test(path)
-    || /^pinoria\/worlds\/layers\/[0-9a-f-]{36}$/.test(path);
+  if (method === "POST") return /^pinoria\/worlds\/learners\/[0-9a-f-]{36}\/instances$/.test(path)
+    || /^pinoria\/worlds\/instances\/[0-9a-f-]{36}\/(?:set-live|revoke|reactivate)$/.test(path);
   if (method === "PUT") return /^pinoria\/worlds\/instances\/[0-9a-f-]{36}\/(?:scenes|layers)\/[0-9a-f-]{36}$/.test(path);
-  if (method === "DELETE") return /^pinoria\/worlds\/[0-9a-f-]{36}$/.test(path)
-    || /^pinoria\/worlds\/scenes\/[0-9a-f-]{36}$/.test(path)
-    || /^pinoria\/worlds\/layers\/[0-9a-f-]{36}$/.test(path)
-    || /^pinoria\/worlds\/instances\/[0-9a-f-]{36}$/.test(path);
+  if (method === "DELETE") return /^pinoria\/worlds\/instances\/[0-9a-f-]{36}$/.test(path);
   return false;
 }
 
@@ -155,6 +145,10 @@ export async function handleBoWriteRequest(
   _legacyKeyResolver?: unknown,
 ): Promise<Response> {
   try {
+    // PAP-2097 / PNR-WORLD: definition writes belong to HO. Reject before body, auth or RPC.
+    if (/^pinoria\/worlds(?:\/|$)/.test(path) && !isAllowedPinoriaWorldMethod(request.method, path)) {
+      return json({ error: { code: "ACCESS_PERMISSION_DENIED", message: "World definition writes are restricted to Head Office" } }, 403);
+    }
     // PAP-2050: narrow private service-binding transport; Core authenticates
     // the canonical Founder and owns policy admission, CAS and audit.
     if (/^access\/founder-manager-policy(?:\/|$)/i.test(path)) {
@@ -192,9 +186,7 @@ export async function handleBoWriteRequest(
       },credential);
       return json(result.body,result.status,{"x-request-id":result.requestId});
     }
-    if (PINORIA_WORLD_WRITE.test(path) && !isAllowedPinoriaWorldMethod(request.method, path)) {
-      return json({ error: { code: "PLATFORM_METHOD_NOT_ALLOWED", message: "Method not allowed" } }, 405);
-    }
+
     if ((path === MISSION_CATALOG_CREATE && request.method !== "POST")
       || (MISSION_CATALOG_UPDATE.test(path) && request.method !== "PUT")
       || (TV_POLICY_POST.has(path) && request.method !== "POST")) {

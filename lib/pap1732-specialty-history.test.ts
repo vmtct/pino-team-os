@@ -98,3 +98,52 @@ void describe("PAP-1732 HO History middleware fail-closed admission",()=>{
   assert.deepEqual(decideHostBoundary("ho.staging.pinohouse.art",base+"/commands","POST"),{action:"next"});
  });
 });
+
+void describe("PAP-1732 / PAP-1491 SPEC-UNLOCK HO transport History ingress regression",()=>{
+ void it("allows only same-origin HO GET UUIDv7 History with bounded query before BFF",async()=>{
+  const {surfaceSession}=await import("./workspace-adapters/session");
+  const seen:string[]=[];
+  const fetcher=(async(input:RequestInfo|URL)=>{
+   seen.push(String(input));return Response.json({data:{events:[],nextCursor:null}});
+  }) as typeof fetch;
+  const session=surfaceSession("HO","https://ho.staging.pinohouse.art",fetcher);
+  const id="01a1bfda-fc7c-7481-991e-60ccba5e6666";
+  const root="/api/ho/learning/specialties/"+id+"/history";
+  try{
+   for(const path of [root,root+"?limit=20",root+"?limit=50&beforeVersion=3"]){
+    const response=await session.transport(path,{method:"GET"});
+    assert.equal(response.status,200,path);
+   }
+   assert.equal(seen.length,3);
+   const blocked=[
+    root+"?limit=0",root+"?limit=51",root+"?beforeVersion=0",root+"?beforeVersion=99999999999999999",
+    root+"?limit=20&limit=30",root+"?extra=1",root+"/",root+"/raw",
+    "/api/ho/learning/specialties/00000000-0000-0000-0000-000000000000/history",
+    "https://evil.example"+root,
+   ];
+   for(const path of blocked)await assert.rejects(
+    ()=>session.transport(path,{method:"GET"}),
+    (e:unknown)=>e instanceof BoApiError&&e.status===404,path
+   );
+   for(const method of ["POST","PUT","PATCH","DELETE","HEAD","OPTIONS"])await assert.rejects(
+    ()=>session.transport(root,{method}),
+    (e:unknown)=>e instanceof BoApiError&&e.status===404,method
+   );
+   assert.equal(seen.length,3,"denied paths must never reach network");
+  }finally{session.dispose();}
+ });
+});
+
+void describe("PAP-1732 HO History visible action regression",()=>{
+ void it("preserves every verified Specialty label through the shared renderer mapper; unknown labels remain protected",async()=>{
+  const {auditActionLabel}=await import("./bo-registration");
+  const labels=["Tạo chuyên đề","Cập nhật chuyên đề","Cập nhật tổng quan","Gắn nhiệm vụ","Gỡ nhiệm vụ","Xuất bản","Chuyển về bản nháp","Lưu trữ","Khôi phục"];
+  const result=projectSpecialtyHistoryPage({events:labels.map((label,i)=>event(i+2,label)),nextCursor:null},subject);
+  assert.equal(result.status,"authorized");
+  if(result.status!=="authorized")throw Error("never");
+  assert.deepEqual(result.events.map(e=>auditActionLabel(e.action)),labels);
+  assert.ok(result.events.every(e=>e.redacted===true&&e.actor==="Đã ẩn"));
+  assert.equal(auditActionLabel("RAW_UNKNOWN_EVENT"),"Thao tác hồ sơ");
+  assert.equal(auditActionLabel("Gỡ nhiệm vụ unexpected payload"),"Thao tác hồ sơ");
+ });
+});

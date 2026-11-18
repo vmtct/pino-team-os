@@ -34,7 +34,8 @@ test("PAP-1756 preserves PAP-945/PAP-1429 source writer and fail-closed host gat
  assert.match(file,/createDiaryObservationWithLinks/);
  assert.match(file,/resumeDiaryMissionLinks/);
  assert.match(file,/diaryWriteView/);
- assert.match(file,/requiresSpecialtySelectionGuard/);
+ assert.match(file,/prepareSpecialtyDiarySubmission/);
+ assert.match(file,/availableIds.has\(item.missionId\)/);
  assert.match(file,/TosSpecialtyMissionChoiceList/);
  assert.doesNotMatch(file,/(createMissionResult|saveMissionResult|postMissionResult)\(/);
 });
