@@ -139,6 +139,8 @@ function ScopedSubscriptions({centerId,centerName,centerSource,menu,enrollmentCo
   const verify=useCallback(async(item:OwnedSubscriptionItem,pushUrl:boolean)=>{
     detailController.current?.abort();
     const ctl=new AbortController();detailController.current=ctl;
+    // Unmount previous subject actions before asynchronous Center reattestation.
+    setLinkedRecord(null);setDrawer(null);setDetail(null);setNotice("");
     setBusy(item.id);setError("");
     try{
       const canonical=assertCenterDetail(
@@ -193,7 +195,7 @@ function ScopedSubscriptions({centerId,centerName,centerSource,menu,enrollmentCo
       setLinkedRecord(null);
       const record=new URL(window.location.href).searchParams.get("record");
       if(!record){detailController.current?.abort();setDrawer(null);setDetail(null);setBusy(null);setDetailTab("Detail");}
-      else {const matching=items.find(item=>item.id===record);if(matching)void verify(matching,false);else{detailController.current?.abort();setDrawer(null);setDetail(null);setError("Gói học không thuộc cơ sở được cấp quyền hoặc không tồn tại.");}}
+      else {const matching=items.find(item=>item.id===record);if(matching)void verify(matching,false);else{detailController.current?.abort();setDrawer(null);setDetail(null);setBusy(null);setNotice("");setError("Gói học không thuộc cơ sở được cấp quyền hoặc không tồn tại.");}}
     };
     window.addEventListener("popstate",onBack);
     return()=>window.removeEventListener("popstate",onBack);
