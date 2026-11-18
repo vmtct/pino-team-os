@@ -38,11 +38,13 @@ export function MyTimeGuestsRuntime(){
      if(!active.context.authorize(READ)||!active.context.authorize(CREATE))throw adapterError(403);
      const result=await createGuest(centerId,input,key,active.transport,ctl.signal);
      // Reattest same actor, scope and view/create grant before showing the result.
-     await active.refresh(ctl.signal);
-     if(!active.context.authorize(READ)||!active.context.authorize(CREATE))throw adapterError(403);
-     const actual=await adapter.detail(result.row.id,ctl.signal);
-     if(!actual?.version)throw adapterError(502);
-     return {row:actual.row,version:actual.version};
+     try{
+      await active.refresh(ctl.signal);
+      if(!active.context.authorize(READ)||!active.context.authorize(CREATE))throw adapterError(403);
+      const actual=await adapter.detail(result.row.id,ctl.signal);
+      if(!actual?.version)throw adapterError(502);
+      return {row:actual.row,version:actual.version};
+     }catch{throw Error("Guest command accepted; authoritative readback not confirmed.");}
     }
    };
    ctl.signal.throwIfAborted();
