@@ -7,10 +7,12 @@ import {BoApiError} from "./bo-api-error";
 import {recoverInvalidStaffPasswordSession} from "./staff-session-recovery";
 import type {BoSubscriptionSpecialtyGrant,BoSubscriptionSpecialtyRead} from "./bo-subscription-specialty-model";
 
+import type {SpecialtyV2Detail} from "./ho-specialty-v2-reader";
+
 type Reply<T>={data?:T;error?:{message?:string;requestId?:string}};
-async function call<T>(method:"GET"|"POST"|"PATCH",path:string,body?:unknown,key?:string):Promise<T>{
+async function call<T>(method:"GET"|"POST"|"PATCH",path:string,body?:unknown,key?:string,signal?:AbortSignal):Promise<T>{
  const response=await fetch("/api/bo/"+path,{
-  method,cache:"no-store",
+  method,cache:"no-store",signal,
   ...(method!=="GET"?{
    headers:{"content-type":"application/json","idempotency-key":key??""},
    body:JSON.stringify(body),
@@ -33,6 +35,8 @@ const prefix=(subscriptionId:string,centerId:string)=>
 const route=(subscriptionId:string,centerId:string,suffix:string)=>
  "subscriptions/"+encodeURIComponent(subscriptionId)+"/"+suffix+"?centerId="+encodeURIComponent(centerId);
 export const subscriptionSpecialtyClient={
+ linkedDetail:(subscriptionId:string,specialtyId:string,centerId:string,signal?:AbortSignal)=>
+  call<SpecialtyV2Detail>("GET",route(subscriptionId,centerId,"specialties/"+encodeURIComponent(specialtyId)),undefined,undefined,signal),
  read:(subscriptionId:string,centerId:string)=>
   call<BoSubscriptionSpecialtyRead>("GET",route(subscriptionId,centerId,"specialties")),
  create:(subscriptionId:string,centerId:string,body:{specialtyId:string;effectiveFrom:string;expectedVersion:0},key:string)=>

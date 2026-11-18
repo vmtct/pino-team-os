@@ -11,6 +11,7 @@ export interface BoSubscriptionSpecialtyEnv extends TeamAccessEnv {
 }
 const uuid='[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const list=new RegExp('^subscriptions/'+uuid+'/specialties$','i');
+const detail=new RegExp('^subscriptions/'+uuid+'/specialties/'+uuid+'$','i');
 const create=new RegExp('^subscriptions/'+uuid+'/specialty-grants$','i');
 const complete=new RegExp('^subscriptions/'+uuid+'/specialty-grants/'+uuid+'/completion$','i');
 const id=new RegExp('^'+uuid+'$','i');
@@ -23,14 +24,14 @@ function json(payload:unknown,status=200,requestId?:string):Response {
 }
 const err=(status:number,code:string,message:string)=>json({error:{code,message}},status);
 export function isBoSubscriptionSpecialtyPath(path:string):boolean {
- return list.test(path)||create.test(path)||complete.test(path);
+ return list.test(path)||detail.test(path)||create.test(path)||complete.test(path);
 }
 export function validateSubscriptionSpecialtyScope(path:string,request:Request):{centerId:string;isRead:boolean}|null{
  if(!isBoSubscriptionSpecialtyPath(path))return null;
  const query=new URL(request.url).searchParams;
  const ids=query.getAll('centerId');
  if([...query.keys()].length!==1||ids.length!==1||!id.test(ids[0]!))return null;
- return {centerId:ids[0]!,isRead:list.test(path)};
+ return {centerId:ids[0]!,isRead:list.test(path)||detail.test(path)};
 }
 function exact(body:unknown,keys:string[]):body is Record<string,unknown>{
  return Boolean(body&&typeof body==='object'&&!Array.isArray(body))&&
@@ -61,7 +62,7 @@ export async function handleBoSubscriptionSpecialtyRequest(
  if(!isBoSubscriptionSpecialtyPath(path))return err(404,'PLATFORM_NOT_FOUND','BO operation not found');
  if(new URL(request.url).hostname===HO_STAGING_HOSTNAME)
   return err(404,'PLATFORM_NOT_FOUND','BO operation not found');
- if((list.test(path)&&request.method!=='GET')||(create.test(path)&&request.method!=='POST')||
+ if(((list.test(path)||detail.test(path))&&request.method!=='GET')||(create.test(path)&&request.method!=='POST')||
     (complete.test(path)&&request.method!=='PATCH'))return err(405,'PLATFORM_METHOD_NOT_ALLOWED','Method not allowed');
  const scope=validateSubscriptionSpecialtyScope(path,request);
  if(!scope)return err(400,'PLATFORM_INVALID_INPUT','Exactly one valid selected Center is required');
