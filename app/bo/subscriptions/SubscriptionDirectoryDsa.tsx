@@ -5,7 +5,7 @@
  */
 import "@pino/design-system/bo-tokens.css";
 import "@pino/design-system/components.css";
-import {useCallback,useContext,useEffect,useRef,useState} from "react";
+import {useCallback,useContext,useEffect,useMemo,useRef,useState} from "react";
 import {BoDataTable} from "@/app/bo/components/registration/BoDataTable";
 import {BoQuickView} from "@/app/bo/components/registration/BoQuickView";
 import {BoTableSettings,type BoSavedView} from "@/app/bo/components/registration/BoTableSettings";
@@ -17,10 +17,14 @@ import {defaultTable,type BoRecord,type BoTableState} from "@/lib/bo-registratio
 import {boApi} from "@/lib/bo-api";
 import type {BoPathProgram} from "@/lib/bo-model";
 import {SubscriptionCreateDrawer} from "./SubscriptionCreateDrawer";
+import {BoSubscriptionEnrollmentTab} from "./BoSubscriptionEnrollmentTab";
 import {BoSubscriptionSpecialtyTab} from "./BoSubscriptionSpecialtyTab";
+import {BoLinkedSpecialtyDrawer,type LinkedSpecialtyBinding,type LinkedSpecialtySubject} from "./BoLinkedSpecialtyDrawer";
+import {openLinkedSpecialtyAdapter} from "@/lib/bo-linked-specialty-projection";
+import type {DirectoryCenterSource} from "../pinoria-avatars/centers";
 import type {OwnedSubscriptionItem} from "@/lib/pap1334-native-subscription-read";
 import {readSubscriptionCenterDetail} from "@/lib/bo-subscription-center-detail-client";
-import {readSubscriptionDetailRoute,subscriptionDetailUrl,type SubscriptionDetailTab} from "@/lib/bo-subscription-detail-url";
+import {readSubscriptionDetailRoute,subscriptionDetailUrl,linkedSpecialtyDetailUrl,readLinkedSpecialtyRoute,type SubscriptionDetailTab} from "@/lib/bo-subscription-detail-url";
 import {assertCenterDetail,loadCenterSubscriptionDirectory,nativeSubscriptionModule,
   subscriptionRecord,subscriptionUuid} from "@/lib/pap1334-native-subscription-read";
 
@@ -45,7 +49,8 @@ function failure(error:unknown):string {
 }
 type Attested={row:BoRecord;id:string};
 
-export function SubscriptionDirectoryDsa(){
+export type SubscriptionEnrollmentContent = (subject:{subscriptionId:string;centerId:string})=>React.ReactNode;
+export function SubscriptionDirectoryDsa({enrollmentContent,linkedSpecialty}:{enrollmentContent?:SubscriptionEnrollmentContent;linkedSpecialty?:LinkedSpecialtyBinding}={}){
   const center=useBoCenterSelection();
   const menu=useContext(BoApplicationShellContext);
   const selected=center&&!center.loading&&!center.error?center.selected:"";
@@ -57,6 +62,8 @@ export function SubscriptionDirectoryDsa(){
       const url=new URL(window.location.href);
       if(url.searchParams.has("record")){
         url.searchParams.delete("record");
+        url.searchParams.delete("specialtyRecord");
+        url.searchParams.delete("tab");
         window.history.replaceState(null,"",url.pathname+url.search+url.hash);
       }
     }
@@ -68,13 +75,13 @@ export function SubscriptionDirectoryDsa(){
       center.error?<p role="alert">{center.error}</p>:
       !selected?<p role="status">Chọn cơ sở được cấp quyền để xem gói học.</p>:
       <ScopedSubscriptions key={selected+":"+center.source} centerId={selected}
-        centerName={center.centers.find(item=>item.id===selected)?.displayName}
-        menu={menu?.("menu-btn")}/>}
+        centerName={center.centers.find(item=>item.id===selected)?.displayName} centerSource={center.source}
+        menu={menu?.("menu-btn")} enrollmentContent={enrollmentContent} linkedSpecialty={linkedSpecialty}/> }
   </section>;
 }
 
-function ScopedSubscriptions({centerId,centerName,menu}:{
-  centerId:string;centerName?:string;menu?:React.ReactNode;
+function ScopedSubscriptions({centerId,centerName,centerSource,menu,enrollmentContent,linkedSpecialty}:{
+  centerId:string;centerName?:string;centerSource:DirectoryCenterSource;menu?:React.ReactNode;enrollmentContent?:SubscriptionEnrollmentContent;linkedSpecialty?:LinkedSpecialtyBinding;
 }){
   const [table,setTable]=useState<BoTableState>(initial);
   const [items,setItems]=useState<OwnedSubscriptionItem[]>([]);
@@ -84,6 +91,20 @@ function ScopedSubscriptions({centerId,centerName,menu}:{
   const [drawer,setDrawer]=useState<Attested|null>(null);
   const [detail,setDetail]=useState<Attested|null>(null);
   const [detailTab,setDetailTab]=useState<SubscriptionDetailTab>("Detail");
+  const [linkedRecord,setLinkedRecord]=useState<LinkedSpecialtySubject|null>(null);
+  const runtimeLinked=useMemo<LinkedSpecialtyBinding|undefined>(()=>{
+    if(!detail||detail.row.centerId!==centerId)return undefined;
+    const pathProgramId=detail.row.pathProgramId,pathLabel=detail.row.path;
+    if(typeof pathProgramId!=="string"||typeof pathLabel!=="string")return undefined;
+    const assertScope=(subject:LinkedSpecialtySubject)=>{
+      if(subject.subscriptionId!==detail.id||subject.centerId!==centerId||subject.pathProgramId!==pathProgramId)
+        throw new Error("Chuyên đề không thuộc gói học đã xác thực.");
+    };
+    return {openAuthorized:(subject,signal)=>{
+      assertScope(subject);
+      return openLinkedSpecialtyAdapter({...subject,pathLabel},signal,centerSource);
+    },openDetail:subject=>{assertScope(subject);window.history.pushState(null,"",linkedSpecialtyDetailUrl(window.location.href,subject.subscriptionId,subject.specialtyId));setLinkedRecord(subject);}};
+  },[detail,centerId,centerSource]);
   const [revision,setRevision]=useState(0);
   const [page,setPage]=useState(1);
   const [settings,setSettings]=useState<string|null>(null);
@@ -125,6 +146,7 @@ function ScopedSubscriptions({centerId,centerName,menu}:{
       if(ctl.signal.aborted)return;
       const row:BoRecord={...subscriptionRecord(item),
         path:canonical.pathDisplayName,
+        pathProgramId:canonical.pathProgramId,
         status:canonical.lifecycle,
         start:canonical.serviceStartsOn||"",
         end:canonical.contractualEndsOn||"",
@@ -138,13 +160,16 @@ function ScopedSubscriptions({centerId,centerName,menu}:{
       setDetailTab(nextTab);
       // PAP-1907: a direct immutable record URL must restore Full Detail, not Quick View.
       // Only a Table row click opens the Drawer. Both flows require the Center attestation above.
+      setLinkedRecord(null);setNotice("");
       if(pushUrl){
         setDetail(null);setDrawer({id:item.id,row});
         window.history.pushState(null,"",scopedHref(item.id,nextTab));
       }else{
         setDrawer(null);setDetail({id:item.id,row});
+        const linked=readLinkedSpecialtyRoute(window.location.search);
+        if(linked.invalid){setNotice("Liên kết Chuyên đề không hợp lệ.");window.history.replaceState(null,"",scopedHref(item.id,nextTab));}
+        else if(linked.id&&route.id===item.id)setLinkedRecord({specialtyId:linked.id,subscriptionId:item.id,centerId,pathProgramId:canonical.pathProgramId});
       }
-      setNotice("");
     }catch(cause){
       if(!ctl.signal.aborted){setError(failure(cause));setDrawer(null);setDetail(null);}
     }finally{if(!ctl.signal.aborted)setBusy(null);}
@@ -165,17 +190,18 @@ function ScopedSubscriptions({centerId,centerName,menu}:{
 
   useEffect(()=>{
     const onBack=()=>{
+      setLinkedRecord(null);
       const record=new URL(window.location.href).searchParams.get("record");
       if(!record){detailController.current?.abort();setDrawer(null);setDetail(null);setBusy(null);setDetailTab("Detail");}
-      else setDetailTab(readSubscriptionDetailRoute(window.location.search).tab);
+      else {const matching=items.find(item=>item.id===record);if(matching)void verify(matching,false);else{detailController.current?.abort();setDrawer(null);setDetail(null);setError("Gói học không thuộc cơ sở được cấp quyền hoặc không tồn tại.");}}
     };
     window.addEventListener("popstate",onBack);
     return()=>window.removeEventListener("popstate",onBack);
-  },[]);
+  },[items,verify]);
   const rows=items.map(subscriptionRecord);
   const close=()=>{
     detailController.current?.abort();
-    setDetail(null);setDrawer(null);setBusy(null);setDetailTab("Detail");
+    setLinkedRecord(null);setDetail(null);setDrawer(null);setBusy(null);setDetailTab("Detail");
     window.history.replaceState(null,"",scopedHref(null));
     requestAnimationFrame(()=>invoker.current?.focus({preventScroll:true}));
   };
@@ -208,17 +234,22 @@ function ScopedSubscriptions({centerId,centerName,menu}:{
     requestAnimationFrame(()=>invoker.current?.focus({preventScroll:true}));
   };
 
+  if(linkedRecord&&runtimeLinked&&detail?.id===linkedRecord.subscriptionId&&linkedRecord.centerId===centerId)
+    return <BoLinkedSpecialtyDrawer key={linkedRecord.specialtyId+":"+linkedRecord.subscriptionId+":"+centerId} subject={linkedRecord} binding={runtimeLinked} mode="detail" mobileMenu={menu} onClose={()=>{window.history.replaceState(null,"",scopedHref(linkedRecord.subscriptionId,"Chuyên đề"));setLinkedRecord(null);}}/>;
   return <>
     {detail ? <DetailFrame title={String(detail.row.path||"Gói học")+" · "+detail.row.name}
       subtitle={"Gói học · "+(centerName||"Cơ sở đã chọn")}
       mobileMenu={menu} onBack={close} tabs={subscriptionDetailTabs}
       selected={detailTab} onSelect={selectDetailTab}>
+      {notice?<p role="status">{notice}</p>:null}
       {detailTab==="Detail"||detailTab==="Lịch Sử" ?
         <PropertySections variant="detail" record={detail.row}
           fields={nativeSubscriptionModule.fields}
           sections={detailTab==="Detail"?[detailSections[0]]:[detailSections[1]]}
           canEdit={()=>false}/> : detailTab==="Chuyên đề" ?
-        <BoSubscriptionSpecialtyTab key={detail.id+":"+centerId} subscriptionId={detail.id} centerId={centerId} centerReady={detail.row.centerId===centerId}/> :
+        <BoSubscriptionSpecialtyTab key={detail.id+":"+centerId} subscriptionId={detail.id} centerId={centerId} centerReady={detail.row.centerId===centerId} linkedSpecialty={linkedSpecialty??runtimeLinked}/> :
+        detailTab==="Enrollment"&&detail.row.centerId===centerId ?
+        (enrollmentContent?enrollmentContent({subscriptionId:detail.id,centerId}):<BoSubscriptionEnrollmentTab key={detail.id+":"+centerId} subscriptionId={detail.id} centerId={centerId}/>) :
         <section className="empty-table" data-pap1907-center-safe-business-tab={detailTab}
           role="status" aria-label={detailTab}>
           <strong>{detailTab}</strong>

@@ -81,3 +81,16 @@ test("PAP-1978 Starter literal tabs are validated on actual DetailFrame",()=>{
  assert.ok(inspectConsumer(f,source.replace('label:"Thành viên"','label:"Drift"'),entry,[]).some(e=>e.includes("business tab IDs/labels drift")));
  assert.ok(inspectConsumer(f,source.replace('tabs={[{id:"overview",label:"Tổng quan"},{id:"members",label:"Thành viên"},{id:"history",label:"Lịch sử"}]}','tabs={[]}'),entry,[]).some(e=>e.includes("business tab IDs/labels drift")));
 });
+
+test("PAP-1491 retired nested Specialty Detail remains unregistered; shared canonical renderer retains registered shell",()=>{
+ const file="app/bo/subscriptions/BoSubscriptionSpecialtyTab.tsx";
+ const linked=read("app/bo/subscriptions/BoLinkedSpecialtyDrawer.tsx");
+ const registry=JSON.parse(read("config/pap1912-detail-parity.json"));
+ assert.ok(!registry.consumers.some(e=>e.file===file));
+ assert.ok(registry.consumers.some(e=>e.file==="app/components/workspace-renderer/Record.tsx"));
+ assert.ok(registry.consumers.some(e=>e.file===moduleFile&&e.mode==="center-attested-record-url"));
+ assert.match(read(file),/<BoLinkedSpecialtyDrawer\b/);
+ assert.match(linked,/<TddDetail\b/);
+ assert.match(moduleSource,/<BoLinkedSpecialtyDrawer[^>]*mode="detail"/);
+ assert.ok(audit(ROOT,{overrides:{[file]:read(file)+'\nconst rogue=<DetailFrame tabs={[{id:"info",label:"Info"}]} selected="info"/>;'}}).some(e=>e.includes(file)&&e.includes("unregistered")));
+});
