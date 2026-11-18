@@ -1,35 +1,14 @@
-/* PAP-1496 / PAP-1491 SPEC-UNLOCK — layout-only CSS module.
-   PINO Design System owns typography, color, controls, detail and drawer shell. */
+/* PAP-1496 / PAP-2132 — layout only; existing PINO controls own visual style. */
 .root{display:block;width:100%;min-width:0}
-.heading{display:flex;gap:16px}
 .stack{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;min-width:0;width:100%}
-.grant{display:grid;gap:12px;min-width:0}
-.grantHead{display:flex;gap:12px}
-.checkbox{display:flex;gap:8px}
-.audit{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-.actions{display:flex;gap:12px}
+.actions{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr) max-content max-content;gap:12px;min-width:0}
+.field{display:grid;gap:6px;min-width:0}
+.control{width:100%;min-width:0}
 .error{display:flex;gap:12px}
 .notice{display:block}
 .disabled{display:block}
-@media(max-width:600px){
- .audit{grid-template-columns:minmax(0,1fr)}
- .actions{display:grid;grid-template-columns:minmax(0,1fr)}
+.tableWrap{min-width:0;width:100%;max-width:100%}
+.prerequisiteWarning{display:block}
+@media(max-width:768px){
+ .actions{grid-template-columns:minmax(0,1fr)}
 }
-
-/* PAP-2132: layout and existing PINO controls, no new palette. */
-.heading{justify-content:space-between;align-items:flex-start;flex-wrap:wrap}
-.grantHead{justify-content:space-between;align-items:flex-start;flex-wrap:wrap}
-.grantHead>div{display:grid;gap:5px;min-width:0}
-.grantHead>div>span{overflow-wrap:anywhere}
-.checkbox{align-items:center;white-space:nowrap}
-.actions{align-items:end;flex-wrap:wrap}
-.actions>label{display:grid;gap:6px;min-width:0}
-.actions>label:first-child{flex:1 1 220px}
-.actions>label>select,.actions>label>input{width:100%;min-width:0}
-@media(max-width:600px){.actions>label,.actions>button{width:100%}}
-.stack>section{min-width:0;max-width:100%}.tableWrap{min-width:0;width:100%;max-width:100%}.tableWrap :global(.grid-card){min-width:0;max-width:100%}.tableWrap :global(.table-scroll){min-width:0;max-width:100%;overflow-x:auto}
-/* PAP-2132: compact adjacent sections and prerequisite callout using BO authority tokens. */
-.stack>section{margin:0;padding:0}
-.prerequisiteWarning{margin:8px 0 0;padding:10px 12px;border:1px solid var(--bo-color-border);border-left:3px solid var(--bo-color-accent);border-radius:8px;background:var(--bo-color-accent-soft);color:var(--bo-color-accent-strong);line-height:1.5;font-size:var(--bo-font-body)}
-.prerequisiteLink{display:inline;border:0;background:transparent;padding:0;color:var(--bo-color-accent-strong);font:inherit;font-weight:700;text-decoration:underline;text-underline-offset:2px;cursor:pointer;text-align:left;white-space:normal;overflow-wrap:anywhere}
-.prerequisiteLink:focus-visible{outline:2px solid var(--bo-color-accent);outline-offset:2px}

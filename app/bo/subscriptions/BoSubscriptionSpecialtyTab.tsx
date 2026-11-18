@@ -142,8 +142,8 @@ export function BoSubscriptionSpecialtyTab({subscriptionId,centerId,centerReady,
      Subscription chưa ACTIVE, chưa có hiệu lực hoặc chưa xác nhận Center. Không thể thêm/đánh dấu hoàn thành.
     </p>:null}
     <div className={styles.actions}>
-     <label>Chọn chuyên đề
-      <select className="edit-input" value={choice} onChange={event=>setChoice(event.target.value)}
+     <label className={styles.field}>Chọn chuyên đề
+      <select className={"edit-input "+styles.control} value={choice} onChange={event=>setChoice(event.target.value)}
        disabled={!canAct||busy||Boolean(pendingCommand)}>
        <option value="">Chọn chuyên đề cùng Path</option>
        {catalog.filter(item=>!item.alreadyGranted).map(item=><option key={item.id} value={item.id}>
@@ -151,8 +151,8 @@ export function BoSubscriptionSpecialtyTab({subscriptionId,centerId,centerReady,
        </option>)}
       </select>
      </label>
-     <label>Ngày hiệu lực
-      <input className="edit-input" type="date" value={effectiveFrom} min={today} onChange={event=>setEffectiveFrom(event.target.value)}
+     <label className={styles.field}>Ngày hiệu lực
+      <input className={"edit-input "+styles.control} type="date" value={effectiveFrom} min={today} onChange={event=>setEffectiveFrom(event.target.value)}
        disabled={!canAct||busy||Boolean(pendingCommand)}/>
      </label>
      <button type="button" className="secondary-btn" disabled={!chosen}
@@ -160,8 +160,8 @@ export function BoSubscriptionSpecialtyTab({subscriptionId,centerId,centerReady,
      <button type="button" className="primary-btn" disabled={!canAct||!chosenEligible||effectiveFrom<today||busy||Boolean(pendingCommand)}
        onClick={create}>Thêm chuyên đề</button>
     </div>
-    {chosen&&!chosenEligible?<div role="status" className={styles.prerequisiteWarning}>
-     {chosen.alreadyGranted?"Chuyên đề đã được cấp.":<><strong>Cần hoàn thành chuyên đề tiền đề trong cùng Subscription:</strong>{" "}{chosen.missingPrerequisiteIds.length?chosen.missingPrerequisiteIds.map((id,index)=>{const item=byId.get(id);return <span key={id}>{index?", ":""}{item?<button type="button" className={styles.prerequisiteLink} onClick={event=>showPreview(item,event.currentTarget)}>{item.name}</button>:id}</span>;}):"Chưa đủ điều kiện"}</>}
+    {chosen&&!chosenEligible?<div role="status" className={"edit-error "+styles.prerequisiteWarning}>
+     {chosen.alreadyGranted?"Chuyên đề đã được cấp.":<><strong>Cần hoàn thành chuyên đề tiền đề trong cùng Subscription:</strong>{" "}{chosen.missingPrerequisiteIds.length?chosen.missingPrerequisiteIds.map((id,index)=>{const item=byId.get(id);return <span key={id}>{index?", ":""}{item?<button type="button" className="secondary-btn" onClick={event=>showPreview(item,event.currentTarget)}>{item.name}</button>:id}</span>;}):"Chưa đủ điều kiện"}</>}
     </div>:null}
     {!catalog.length?<p>Không có Chuyên đề ACTIVE cùng Path để chọn.</p>:null}
    </section>
