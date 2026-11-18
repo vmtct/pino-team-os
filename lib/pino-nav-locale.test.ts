@@ -61,3 +61,12 @@ test("PAP-1684 HO module-owned H1 retains canonical aliases and synthetic warnin
   assert.equal(pinoLocalizedLabel("ho", "Module Title", "tddReference", "TDD Reference — DEMO", "en"), "TDD Reference — DEMO");
   assert.equal(pinoLocalizedLabel("ho", "Module Title", "tddReference", "TDD Reference — DEMO", "vi"), "Tham chiếu TDD — DEMO");
 });
+
+test("PAP-2155 HO Workforce has one canonical group in both locales", () => {
+  assert.equal(hoModules.staffs.group, hoModules.shiftTemplates.group);
+  assert.equal(hoModules.staffs.group, hoModules.termWeeks.group);
+  const rows = pinoBuildHoLocaleRows(hoModules).filter(row => row.kind === "Nav Group");
+  assert.equal(rows.filter(row => row.vi === "Nhân sự").length, 1);
+  assert.equal(rows.filter(row => row.en === "Workforce").length, 1);
+  assert.equal(HO_PAGE_PATHS.staffs, "/ho/staff");
+});
