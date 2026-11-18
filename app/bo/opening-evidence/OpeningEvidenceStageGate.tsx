@@ -1,4 +1,5 @@
 "use client";
+import {openingReviewActorLabel} from "@/lib/opening-review-actor-label";
 import {openingEvidencePageHref} from "@/lib/opening-evidence-page-route";
 import Link from "next/link";
 import {useEffect,useState} from "react";
@@ -19,7 +20,7 @@ export function evidenceProperties(r:OpeningEvidenceRow){
     ["Loại",subjectLabels[r.subjectType]],["Lớp / Ca",r.subjectLabel],["Ngày",r.workDate],
     ["Mở lúc",evidenceTime(r.openedAt)],["Submitted By",r.submittedByLegalFullName??"—"],["Trạng thái",statusLabels[r.status]],
     ["Created Time",evidenceTime(r.openedAt)],["Created By","Hệ thống"],["Last Modified Time",evidenceTime(r.lastModifiedAt)],
-    ["Last Modified By",r.lastModifiedByLegalFullName??"—"],
+    ["Last Modified By",openingReviewActorLabel(r.lastModifiedByLegalFullName,r.lastModifiedReviewAccountRecorded)],
   ].map(([label,value])=>({key:label!,label:label!,value}));
 }
 const columns:BoDataGridColumn<OpeningEvidenceRow>[]=[
@@ -31,7 +32,7 @@ const columns:BoDataGridColumn<OpeningEvidenceRow>[]=[
   {key:"openedAt",header:"Created Time",render:r=>evidenceTime(r.openedAt),minWidth:150},
   {key:"createdBy",header:"Created By",render:()=>"Hệ thống",minWidth:120},
   {key:"lastModifiedAt",header:"Last Modified Time",render:r=>evidenceTime(r.lastModifiedAt),minWidth:150},
-  {key:"lastModifiedBy",header:"Last Modified By",render:r=>r.lastModifiedByLegalFullName??"—",minWidth:160},
+  {key:"lastModifiedBy",header:"Last Modified By",render:r=>openingReviewActorLabel(r.lastModifiedByLegalFullName,r.lastModifiedReviewAccountRecorded),minWidth:160},
 ];
 const rowKey=(r:OpeningEvidenceRow)=>r.subjectType+":"+r.openingReceiptId;
 export const detailHref=openingEvidencePageHref;

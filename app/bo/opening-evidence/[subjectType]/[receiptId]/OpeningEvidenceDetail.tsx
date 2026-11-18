@@ -1,4 +1,5 @@
 "use client";
+import {openingReviewActorLabel} from "@/lib/opening-review-actor-label";
 import {useEffect,useState} from "react";
 import {BoFullDetail} from "@/app/bo/components/BoFullDetail";
 import {BoProperties} from "@/app/bo/components/BoProperties";
@@ -60,7 +61,7 @@ function DetailScope({centerId,subjectType,receiptId,activeTab}:{centerId:string
       {id:"history",label:"Lịch sử",content:<section aria-label="Lịch sử bằng chứng">
         {history.map(e=><article key={e.eventId}><BoProperties compact items={[
           {key:"time",label:"Thời gian",value:evidenceTime(e.occurredAt)},
-          {key:"actor",label:"Nhân viên",value:e.actorLegalFullName??"—"},
+          {key:"actor",label:"Người thực hiện",value:openingReviewActorLabel(e.actorLegalFullName,e.reviewAccountRecorded)},
           {key:"action",label:"Sự kiện",value:e.kind==="SUBMISSION"?"Gửi ảnh":statusLabels[e.verdict!]},
           {key:"reason",label:e.kind==="SUBMISSION"?"Ghi chú":"Lý do",value:(e.kind==="SUBMISSION"?e.note:e.reason)||"—"},
         ]}/></article>)}
