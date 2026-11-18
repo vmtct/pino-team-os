@@ -18,7 +18,7 @@ void test("PAP-2119 Full Detail selects existing business-v25 profile without sh
  // Every content selector stays scoped to a local module class, including nested variants.
  const selectors=[...css.replace(/\/\*[\s\S]*?\*\//g,"").matchAll(/(?:^|[{}])\s*([^{}]+)\{/g)].map(m=>m[1].trim()).filter(s=>!s.startsWith("@"));
  assert.ok(selectors.length>8);
- for(const selector of selectors)assert.match(selector,/^\.(?:evidenceTab|sectionHeading|gallery|round|roundHeader|metadata|photos|photoPreview|note|decision|review|reason|actions)\b/);
+ for(const selector of selectors)assert.match(selector,/^\.(?:evidenceTab|gallery|round|photos|photoPreview|note|decision|review|reviewForm|reason|actions)$/);
  assert.match(detail,/openingEvidenceApi\.review\(row,verdict,note,key\)/);
  assert.match(detail,/className="primary-btn"/);
  assert.match(detail,/className="secondary-btn"/);
