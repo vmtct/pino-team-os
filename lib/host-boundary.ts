@@ -121,6 +121,12 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
     const exact = /^\/api\/bo\/subscriptions\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/center-detail$/i.test(pathname);
     return {action:hostname===BO_STAGING_HOSTNAME&&method==="GET"&&exact?"next":"not_found"};
   }
+  // PAP-1035: exact native Enrollment aperture, staging-only; no legacy writer expansion.
+  if (/^\/api\/bo\/subscriptions\/[^/]+\/enrollment(?:\/|$)/i.test(pathname)) {
+    const uuid = "[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
+    const exact = new RegExp("^/api/bo/subscriptions/" + uuid + "/enrollment/(list|placement|capacity|attach|transfer/" + uuid + ")$").exec(pathname);
+    return {action:hostname===BO_STAGING_HOSTNAME && exact && (["list","placement","capacity"].includes(exact[1]!) ? method==="GET" : method==="POST") ? "next":"not_found"};
+  }
   // PAP-1496 / PAP-1491 SPEC-UNLOCK: admit only Subscription-owned
   // Specialty requests at BO Staging. The BFF and Core retain actor/Center
   // ACL, Subscription status, CAS, idempotency and prerequisite enforcement.
@@ -130,10 +136,11 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
     const id = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
     const base = "^/api/bo/subscriptions/" + id;
     const list = new RegExp(base + "/specialties$", "i").test(pathname);
+    const detail = new RegExp(base + "/specialties/" + id + "$", "i").test(pathname);
     const grant = new RegExp(base + "/specialty-grants$", "i").test(pathname);
     const completion = new RegExp(base + "/specialty-grants/" + id + "/completion$", "i").test(pathname);
     const allowed = hostname === BO_STAGING_HOSTNAME &&
-      ((method === "GET" && list) || (method === "POST" && grant) ||
+      ((method === "GET" && (list || detail)) || (method === "POST" && grant) ||
        (method === "PATCH" && completion));
     return { action: allowed ? "next" : "not_found" };
   }

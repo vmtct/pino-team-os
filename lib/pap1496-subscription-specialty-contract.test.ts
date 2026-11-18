@@ -60,6 +60,10 @@ void test("PAP-1496 UI reuses shared Drawer/Detail and never invokes legacy Stud
  const native=readFileSync(new URL("subscriptions/SubscriptionDirectoryDsa.tsx",root),"utf8");
  assert.match(component,/<BoLinkedSpecialtyDrawer\b/);
  assert.match(linked,/<TddDrawer\b/);
+ assert.match(linked,/<TddDetail\b/);
+ assert.match(linked,/result\.scope\.surface!=="BO"\|\|result\.scope\.centerId!==centerId/);
+ assert.match(native,/openLinkedSpecialtyAdapter\(\{\.\.\.subject,pathLabel\},signal,centerSource\)/);
+ assert.match(native,/return <BoLinkedSpecialtyDrawer[^>]*mode="detail"/);
  assert.match(linked,/binding\.openAuthorized\(\{specialtyId,pathProgramId,subscriptionId,centerId\}/);
  assert.match(linked,/if\(!binding\)\{setState\(\{status:"denied"\}\)/);
  assert.match(linked,/detail\.row\.id!==specialtyId/);
@@ -77,7 +81,23 @@ void test("PAP-1496 UI reuses shared Drawer/Detail and never invokes legacy Stud
 
 void test("PAP-1496 canonical native Subscription Detail actually mounts Specialty consumer",()=>{
  const native=readFileSync(new URL("../app/bo/subscriptions/SubscriptionDirectoryDsa.tsx",import.meta.url),"utf8");
- assert.match(native,/detailTab==="Chuyên đề" \?\s*<BoSubscriptionSpecialtyTab key=\{detail.id\+":"\+centerId\} subscriptionId=\{detail.id\} centerId=\{centerId\} centerReady=\{detail.row.centerId===centerId\} linkedSpecialty=\{linkedSpecialty\}\/>/);
+ assert.match(native,/detailTab==="Chuyên đề" \?\s*<BoSubscriptionSpecialtyTab key=\{detail.id\+":"\+centerId\} subscriptionId=\{detail.id\} centerId=\{centerId\} centerReady=\{detail.row.centerId===centerId\} linkedSpecialty=\{linkedSpecialty\?\?runtimeLinked\}\/>/);
  assert.match(native,/assertCenterDetail\(/);
  assert.doesNotMatch(native,/<BoSubscriptionsView\b/);
+});
+
+void test("PAP-1496 linked detail facade is exact GET only with selected Center",async()=>{
+ const path=list+"/"+grant;
+ const env={} as Parameters<typeof handleBoSubscriptionSpecialtyRequest>[1];
+ assert.equal(isBoSubscriptionSpecialtyPath(path),true);
+ assert.equal(isBoSubscriptionSpecialtyPath(path+"/history"),false);
+ assert.equal(isBoSubscriptionSpecialtyPath(list+"/invalid"),false);
+ const url=base+path;
+ assert.deepEqual(validateSubscriptionSpecialtyScope(path,new Request(url+"?centerId="+center)),{centerId:center,isRead:true});
+ for(const method of ["POST","PATCH","DELETE"]){
+  assert.equal((await handleBoSubscriptionSpecialtyRequest(new Request(url+"?centerId="+center,{method}),env,path)).status,405);
+ }
+ assert.equal((await handleBoSubscriptionSpecialtyRequest(new Request(url),env,path)).status,400);
+ assert.equal((await handleBoSubscriptionSpecialtyRequest(new Request(url+"?centerId="+center+"&centerId="+center),env,path)).status,400);
+ assert.equal((await handleBoSubscriptionSpecialtyRequest(new Request("https://ho.staging.pinohouse.art/api/bo/"+path+"?centerId="+center),env,path)).status,404);
 });

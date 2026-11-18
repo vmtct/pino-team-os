@@ -1,6 +1,9 @@
 "use client";
 import {useCallback,useEffect,useMemo,useRef,useState,type FormEvent} from "react";
 import {boApi,BoApiError} from "@/lib/bo-api";
+import {scopedEnrollmentClient} from "@/lib/bo-subscription-enrollment-client";
+import {readSubscriptionCenterDetail} from "@/lib/bo-subscription-center-detail-client";
+import {assertCenterDetail} from "@/lib/pap1334-native-subscription-read";
 import type {BoLearnerSubscription,BoRunningClass,BoCenter} from "@/lib/bo-model";
 import {BoDataGrid,BoDataGridCanonicalId,BoDataGridStatus,type BoDataGridColumn} from "@/app/bo/components/data-grid";
 import {useBoDialog} from "@/app/bo/components/registration/useBoDialog";
@@ -14,29 +17,37 @@ type Action="attach"|"transfer";
 type Pending={action:Action;rowId?:string;classId?:string;date:string;reason:string;time?:string;minutes?:number;key:string;policyEffectiveAt:string};
 const enrollmentModule={...subscriptionModule,label:"Enrollment",fields:subscriptionModule.fields.filter(f=>f.key==="id").map(f=>({...f,label:"Enrollment ID"}))};
 function problem(error:unknown){if(error instanceof BoApiError&&[401,403].includes(error.status))return "Không đủ quyền trên Path/Center (401/403).";if(error instanceof BoApiError&&error.status===409)return "Core trả 409: dữ liệu, capacity hoặc version đã thay đổi.";return error instanceof Error?error.message:"Không thể xử lý Enrollment.";}
-export function BoSubscriptionEnrollmentTab({subscriptionId,onChanged}:{subscriptionId:string;onChanged?:()=>void}){
+export function BoSubscriptionEnrollmentTab({subscriptionId,centerId,onChanged}:{subscriptionId:string;centerId?:string;onChanged?:()=>void}){
+ if(!centerId)return <p role="status">Gói học chưa được xác thực theo cơ sở.</p>;
+ return <ScopedEnrollmentTab key={subscriptionId+":"+centerId} subscriptionId={subscriptionId} centerId={centerId} onChanged={onChanged}/>;
+}
+function ScopedEnrollmentTab({subscriptionId,centerId,onChanged}:{subscriptionId:string;centerId:string;onChanged?:()=>void}){
+ const client=useMemo(()=>scopedEnrollmentClient({subscriptionId,centerId}),[subscriptionId,centerId]);
  const [asOf]=useState(()=>todayInHouseTimeZone()),[tick,setTick]=useState(0);
  const [load,setLoad]=useState<Load>({state:"loading"}),[active,setActive]=useState<BoEnrollmentRecord|null>(null);
  const [action,setAction]=useState<Action|null>(null),[classId,setClassId]=useState(""),[date,setDate]=useState(()=>todayInHouseTimeZone());
- const [selectedCenterId,setSelectedCenterId]=useState(""),[time,setTime]=useState("18:00"),[minutes,setMinutes]=useState("90"),[reason,setReason]=useState("");
+ const [time,setTime]=useState("18:00"),[minutes,setMinutes]=useState("90"),[reason,setReason]=useState("");
  const [capacity,setCapacity]=useState<{state:"loading"|"ready"|"error";value?:BoEnrollmentCapacity;message?:string}|null>(null);
  const [pending,setPending]=useState<Pending|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState("");
  const fence=useRef(0),lock=useRef(false),panel=useRef<HTMLElement>(null);
  const close=()=>{if(!busy){setAction(null);setActive(null);}};
  useBoDialog(Boolean(action),close,panel);
  const refresh=useCallback(()=>setTick(n=>n+1),[]);
- useEffect(()=>{const id=++fence.current;void Promise.all([
-   boApi.subscriptionById(subscriptionId),boApi.subscriptionEnrollments(subscriptionId),
-   boApi.subscriptionPlacement(subscriptionId,asOf),boApi.scopeCatalog()
- ]).then(([subscription,enrollments,placement,scope])=>{if(id===fence.current)setLoad({state:"ready",subscription,enrollments,placement,classes:scope.classes,centers:scope.centers});})
- .catch(e=>{if(id===fence.current)setLoad({state:e instanceof BoApiError&&[401,403].includes(e.status)?"permission":"error",message:problem(e)});});
- return()=>{fence.current++};},[subscriptionId,asOf,tick]);
+ useEffect(()=>{const id=++fence.current,ctl=new AbortController();void Promise.all([
+   readSubscriptionCenterDetail(subscriptionId,centerId,ctl.signal),client.list(ctl.signal),
+   client.placement(asOf,ctl.signal),boApi.scopeCatalog()
+ ]).then(([subscription,enrollments,placement,scope])=>{
+   if(ctl.signal.aborted||id!==fence.current)return;
+   const canonical=assertCenterDetail(subscription,subscriptionId,centerId);
+   const centers=scope.centers.filter(c=>c.id===centerId&&isActiveCenter(c));
+   if(centers.length!==1)throw new Error("Cơ sở chưa được xác thực.");
+   setLoad({state:"ready",subscription:canonical,enrollments,placement,classes:scope.classes.filter(c=>c.centerId===centerId&&c.pathProgramId===canonical.pathProgramId),centers});
+ }).catch(e=>{if(!ctl.signal.aborted&&id===fence.current)setLoad({state:e instanceof BoApiError&&[401,403].includes(e.status)?"permission":"error",message:problem(e)});});
+ return()=>{ctl.abort();fence.current++};},[subscriptionId,centerId,client,asOf,tick]);
  const ready=load.state==="ready"?load:null;
  const clsById=useMemo(()=>new Map(ready?.classes.map(c=>[c.id,c])??[]),[ready]);
- const authorizedCenters=ready?.centers.filter(isActiveCenter).map(c=>c.id)??[];
- const historicalCenters=[...new Set(ready?.enrollments.map(e=>clsById.get(e.runningClassId)?.centerId).filter((id):id is string=>Boolean(id))??[])];
- const center=historicalCenters.length===1&&authorizedCenters.includes(historicalCenters[0])?historicalCenters[0]:authorizedCenters.length===1?authorizedCenters[0]:authorizedCenters.includes(selectedCenterId)?selectedCenterId:undefined;
- const available=ready?.classes.filter(c=>Boolean(center)&&authorizedCenters.includes(c.centerId??"")&&isEligibleClass(c,ready.subscription.pathProgramId,center))??[];
+ const center=ready?centerId:undefined;
+ const available=ready?.classes.filter(c=>c.centerId===centerId&&isEligibleClass(c,ready.subscription.pathProgramId,centerId))??[];
  const chosen=clsById.get(classId),flex=chosen?.deliveryTopology==="FLEXIBLE_STUDIO";
  const columns:readonly BoDataGridColumn<BoEnrollmentRecord>[]=useMemo(()=>[
   {key:"runningClassId",header:"Running Class",sticky:true,width:225,render:r=>{
@@ -61,12 +72,12 @@ export function BoSubscriptionEnrollmentTab({subscriptionId,onChanged}:{subscrip
   setMinutes(String(first?.defaultParticipationMinutes??90));setCapacity(null);
  }
  useEffect(()=>{if(!action||!classId||!date||!ready)return;
-  let alive=true;setCapacity({state:"loading"});
-  void boApi.enrollmentCapacity({runningClassId:classId,targetLocalDate:date,subscriptionId,
-   ...(flex?{plannedEntryLocalTime:time,plannedDurationMinutes:Number(minutes)}:{})})
+  const ctl=new AbortController();let alive=true;setCapacity({state:"loading"});
+  void client.capacity({runningClassId:classId,targetLocalDate:date,
+   ...(flex?{plannedEntryLocalTime:time,plannedDurationMinutes:Number(minutes)}:{})},ctl.signal)
   .then(v=>{if(alive)setCapacity({state:"ready",value:v});}).catch(e=>{if(alive)setCapacity({state:"error",message:problem(e)});});
-  return()=>{alive=false;};
- },[action,classId,date,subscriptionId,ready?.subscription.id,flex,time,minutes]);
+  return()=>{alive=false;ctl.abort();};
+ },[action,classId,date,client,ready?.subscription.id,flex,time,minutes]);
  function createAttempt():Pending|null{
   if(!ready||!action)return null;
   if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){setError("Ngày hiệu lực không hợp lệ.");return null;}
@@ -82,19 +93,14 @@ export function BoSubscriptionEnrollmentTab({subscriptionId,onChanged}:{subscrip
  async function execute(attempt:Pending){
   if(lock.current)return;lock.current=true;setBusy(true);setError("");setNotice("");
   try{
-   // After an ambiguous network failure, read canonical state before replaying the SAME key.
-   if(pending){
-    const records=await boApi.subscriptionEnrollments(subscriptionId);
-    const done=attempt.action==="transfer"?records.some(r=>r.predecessorEnrollmentId===attempt.rowId&&r.runningClassId===attempt.classId&&r.effectiveFromLocalDate===attempt.date)
-     :records.some(r=>r.runningClassId===attempt.classId&&r.effectiveFromLocalDate===attempt.date);
-    if(done){setPending(null);setAction(null);setNotice("Core xác nhận thao tác đã được thực hiện.");refresh();onChanged?.();return;}
-   }
+   // Only Core's idempotency receipt confirms this command; matching rows alone are not proof.
+   if(pending)await client.list();
    const context={commandEffectiveLocalDate:attempt.date,policyEffectiveAt:attempt.policyEffectiveAt};
-   if(attempt.action==="attach")await boApi.placeEnrollment({
-    subscriptionId,runningClassId:attempt.classId!,effectiveFromLocalDate:attempt.date,
+   if(attempt.action==="attach")await client.attach({
+    runningClassId:attempt.classId!,effectiveFromLocalDate:attempt.date,
     ...(attempt.time?{plannedEntryLocalTime:attempt.time,plannedDurationMinutes:attempt.minutes}:{}),...context
    },attempt.key);
-   if(attempt.action==="transfer")await boApi.transferEnrollment(attempt.rowId!,{
+   if(attempt.action==="transfer")await client.transfer(attempt.rowId!,{
     destinationRunningClassId:attempt.classId!,transferLocalDate:attempt.date,reason:attempt.reason,
     ...(attempt.time?{plannedEntryLocalTime:attempt.time,plannedDurationMinutes:attempt.minutes}:{}),...context
    },attempt.key);
@@ -113,7 +119,6 @@ export function BoSubscriptionEnrollmentTab({subscriptionId,onChanged}:{subscrip
     </div>:null}
    </div>
    <div className={styles.buttons}>
-    {ready&&!center&&authorizedCenters.length>1?<label>Center <select className="edit-input" value={selectedCenterId} disabled={busy||!!pending} onChange={e=>setSelectedCenterId(e.target.value)}><option value="">Chọn Center</option>{ready.centers.filter(isActiveCenter).map(c=><option key={c.id} value={c.id}>{c.displayName}</option>)}</select></label>:null}
     <button className="primary-btn" type="button" disabled={!ready||!center||busy||!!pending||!["DRAFT","ACTIVE"].includes(ready.subscription.lifecycle)||ready.placement.effectiveEnrollmentCount>=ready.placement.weeklySessionCommitment} onClick={()=>open("attach")}>＋ Gắn lớp</button>
    </div>
   </div>
