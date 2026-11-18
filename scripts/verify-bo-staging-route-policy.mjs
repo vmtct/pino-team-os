@@ -118,6 +118,19 @@ function nativeOpeningEvidenceRoute(root,issues){
  if(!ok)issues.push("opening-evidence: invalid native scoped route contract");
  return ok;
 }
+/** PAP-2032: exact native Wish Event Staging entry and authorized Center-scoped Core adapter. */
+function nativeWishEventRoute(root,issues){
+ const route="/bo/pinoria-wish-events";
+ if(!read(root,POLICY).includes('"'+route+'"'))return false;
+ const files=["app/bo/pinoria-wish-events/page.tsx","app/bo/pinoria-wish-events/BoWishRuntime.tsx","app/bo/pinoria-wish/BoWishEventCatalog.tsx","app/bo/pinoria-wish/BoWishEventDetail.tsx","lib/bo-pls-wish-handler.ts","lib/bo-pls-wish-host-contract.ts","lib/host-boundary.ts","lib/bo-pls-wish-handler.test.ts","app/api/bo/pinoria/pls-wish/events/[[...path]]/route.ts"];
+ if(files.some(f=>!fs.existsSync(path.join(root,f)))){issues.push("Wish Events: missing native scoped route contract");return false;}
+ const sources=files.map(f=>read(root,f));
+ const required=[[0,"!==\"bo.staging.pinohouse.art\")notFound()"],[0,"<BoWishRuntime/>"],[1,"useBoCenterSelection"],[1,"s.centers.some(c=>c.id===s.selected)"],[1,"credentials:\"same-origin\""],[1,"cache:\"no-store\""],[1,"r.permissionKeys.includes(\"pinoria.wish_event.view\")"],[1,"current.actor!==actor||!current.invalidate"],[1,"current.actor!==cap.actor"],[1,"attempt.body.centerId!==centerId"],[1,"<BoWishEventCatalog"],[2,"import {BoDataTable} from \"@/app/bo/components/registration/BoDataTable\""],[2,"<BoDataTable"],[2,"parseBoWishDetail(raw,centerId,detailId)"],[3,"import {BoQuickView} from \"@/app/bo/components/registration/BoQuickView\""],[3,"<BoQuickView"],[3,"<DetailFrame"],[4,"env.APP_ENV!==\"staging\""],[4,"teamCredential(r,env,\"BO\")"],[4,"credential.kind===\"support\""],[4,"callBoAccessCoreWithCredential"],[4,"value.userId!==r.headers.get(\"x-pino-expected-actor\")"],[4,"const outbound:BoAccessRequest={method:m,path:[\"pinoria/pls-wish/events\",...path].join(\"/\"),resource:{centerId}};"],[5,"host===\"bo.staging.pinohouse.art\""],[5,"path===\"/bo/pinoria-wish-events\""],[6,"boPlsWishHostDecision(hostname,pathname,method)"],[7,"BO reward media is GET-only, actor fenced, event and ordinal scoped"],[8,"handleBoPlsWishEvent"]];
+ const valid=required.every(([index,needle])=>sources[index].includes(needle))&&sources.slice(0,4).every(x=>!/BoModuleFactory|BoWorkforceRoute|defineTddModule|BoDataGridSidePeek|BoCenterSelectionProvider/.test(x));
+ if(!valid)issues.push("Wish Events: invalid native scoped route contract");
+ return valid;
+}
+
 function canonicalRoutes(root, issues) {
   const base = path.join(root, "app/bo");
   const routes = new Set();
@@ -151,6 +164,7 @@ function canonicalRoutes(root, issues) {
     native.add("/bo/afterschool-accounts");
   }
   if(nativeOpeningEvidenceRoute(root,issues)){routes.add("/bo/opening-evidence");native.add("/bo/opening-evidence");}
+  if(nativeWishEventRoute(root,issues)){routes.add("/bo/pinoria-wish-events");native.add("/bo/pinoria-wish-events");}
   return {routes,tdd,native};
 }
 
