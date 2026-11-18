@@ -4,12 +4,11 @@ import {useEffect,useState} from "react";
 import {TosShell} from "@/app/components/tos-shell";
 import {TOS_SHIFT_FOOTER} from "@/app/components/tos-shell/navigation";
 import {workforceApi,type WorkforceContext} from "@/lib/workforce-api";
-import {ownIncome,type OwnIncomePeriod} from "@/lib/tos-own-income-api";
+import {ownIncome,formatPayrollVnd,type OwnIncomePeriod} from "@/lib/tos-own-income-api";
 import styles from "./earnings.module.css";
 
 type Center=WorkforceContext["centers"][number];
-const money=(minor:number|null)=>minor===null?"Chưa khả dụng":
-  new Intl.NumberFormat("vi-VN",{style:"currency",currency:"VND",maximumFractionDigits:0}).format(minor/100);
+const money=(minor:number|null)=>formatPayrollVnd(minor,"Chưa khả dụng");
 const date=(s:string)=>s.slice(8,10)+"/"+s.slice(5,7)+"/"+s.slice(0,4);
 const label=(row:OwnIncomePeriod)=>row.status==="PAID"?"Đã thanh toán":
   row.status==="FINALIZED"?"Đã chốt":row.status==="DRAFT"?"Chưa chốt":"Không khả dụng";
