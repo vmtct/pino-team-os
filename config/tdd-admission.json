@@ -840,7 +840,8 @@
         "app/ho/learning/specialties/HoSpecialtyCreate.module.css",
         "app/ho/learning/specialties/HoSpecialtyMissionsTab.module.css",
         "app/ho/learning/specialties/HoSpecialtyMissionsRead.module.css",
-        "app/ho/learning/specialties/SpecialtyMissionPicker.module.css"
+        "app/ho/learning/specialties/SpecialtyMissionPicker.module.css",
+        "lib/bo-registration.ts"
       ],
       "businessStyles": [
         {
@@ -886,6 +887,7 @@
         "lib/pap1495-specialty-s5-overview.test.ts",
         "lib/pap1695-specialty-publish.test.ts",
         "lib/specialty-mission-picker.test.ts",
+        "lib/pap1732-specialty-history.test.ts",
         "lib/ho-routes.test.ts"
       ],
       "externalReferences": [
