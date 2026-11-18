@@ -12,7 +12,7 @@ import {BoMyTimeGuests,type GuestPort,type VersionedGuest} from "./BoMyTimeGuest
 import {definition,READ,EDIT,CREATE,queryDefault,type GuestFields} from "./schema";
 import {createGuest,guestProvider} from "./provider";
 type Ready={scopeKey:string;adapter:AuthenticatedSurfaceAdapter<GuestFields>;rows:VersionedGuest[];port:GuestPort;canCreate:boolean};
-export function MyTimeGuestsRuntime(){
+export function BoMyTimeGuestsTdd(){
  const selection=useBoCenterSelection(),menu=useContext(TddHostMenu);
  const centerId=!selection?.loading&&!selection?.error&&selection?.centers.some(c=>c.id===selection.selected)?selection.selected:"",source=selection?.source??"centers";
  const [retry,setRetry]=useState(0),[ready,setReady]=useState<Ready|null>(null),[failed,setFailed]=useState("");
