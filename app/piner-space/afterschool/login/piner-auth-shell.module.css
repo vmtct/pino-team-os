@@ -1,0 +1,13 @@
+/* Canonical Piner shell rules from PINER-SPACE launcher.module.css; auth uses the same launcher background. */
+.unifiedBackdrop{display:flex;justify-content:center;align-items:stretch;width:100%;height:100dvh;min-height:100svh;background:#f0eef2}
+.unifiedShell{
+ --tone:#805a7b;--tint:#f5eaf0;--canvas:#fbf9fb;--line:#e8e0e9;--ink:#33303c;--muted:#77717d;--surface:#fff;
+ font:15px/1.45 "Segoe UI",Roboto,"Noto Sans",Arial,sans-serif;
+ display:flex;flex-direction:column;position:relative;isolation:isolate;
+ width:100%;max-width:430px;height:100dvh;min-height:100svh;overflow:hidden;
+ background:var(--canvas);color:var(--ink);
+}
+.unifiedShell *{box-sizing:border-box}
+.unifiedContent{flex:1;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:20px 24px;scrollbar-width:thin;display:flex;flex-direction:column;align-items:center}
+.unifiedShell[data-piner-space="house"]{--tone:#805a7b;--tint:#f5eaf0;--canvas:#fbf9fb;--line:#e8e0e9;--ink:#33303c;--muted:#77717d;--surface:#fff}
+.launcherMockShell{--canvas:#fffaf5;--ink:#263140;--muted:#667075;background:#fffaf5 url("/piner_mobile_shell_background.png") center center/cover no-repeat}
