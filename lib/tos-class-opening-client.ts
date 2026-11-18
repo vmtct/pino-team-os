@@ -4,6 +4,15 @@ import type {OpeningRecord,OpeningRound} from "./tos-classroom-v4-view-model";
 /** PAP-1991 / PAP-759. Core receipt is the only OPEN truth. */
 export type ClassOpeningScope={centerId:string;runningClassId:string;localDate:string};
 export type ClassOpeningSnapshot={opening:OpeningRecord|null;canConfirm:boolean};
+export type ClassOpeningCheck={key:string;state:"loading"}|{key:string;state:"ready";snapshot:ClassOpeningSnapshot}|{key:string;state:"error";message:string};
+export function classOpeningAdmissionKey(scope:ClassOpeningScope){return JSON.stringify([scope.centerId,scope.runningClassId,scope.localDate]);}
+/** The active entry never borrows permission from a previous occurrence or a stale launcher snapshot. */
+export function classOpeningAdmission(check:ClassOpeningCheck|null,key:string):{snapshot:ClassOpeningSnapshot|null;message:string;retry:boolean}{
+ if(!key||!check||check.key!==key||check.state==="loading")return{snapshot:null,message:"Đang kiểm tra điều kiện mở lớp…",retry:false};
+ if(check.state==="error")return{snapshot:null,message:check.message,retry:true};
+ if(!check.snapshot.opening&&!check.snapshot.canConfirm)return{snapshot:check.snapshot,message:"Hiện chưa đủ điều kiện mở lớp. Kiểm tra phân công và quyền mở lớp với Quản lý.",retry:true};
+ return{snapshot:check.snapshot,message:"",retry:false};
+}
 type History={eventId:string;roundId:string;version:number;kind:"SUBMISSION"|"REVIEW";actorLegalFullName:string|null;reviewAccountRecorded?:true;
   occurredAt:string;privateAssetId:string|null;privateAssetIds?:string[];note?:string;verdict:"APPROVED"|"REJECTED"|null;reason:string|null};
 const ROOT="/api/workforce/class-opening";
