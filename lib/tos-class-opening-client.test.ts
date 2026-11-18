@@ -70,10 +70,19 @@ void test("PAP-2156 second class cannot borrow first class admission; denial and
  const responses=[{...notOpened,...second,canConfirm:false},{...notOpened,...second,canConfirm:true}];
  t.mock.method(globalThis,"fetch",(_url:string)=>Promise.resolve(new Response(JSON.stringify({data:responses.shift()}))));
  const denied=classOpeningAdmission({key:two,state:"ready",snapshot:await readClassOpening(second)},two);
- assert.equal(denied.snapshot?.canConfirm,false);assert.equal(denied.retry,true);assert.match(denied.message,/chưa đủ điều kiện/);
+ assert.equal(denied.snapshot?.canConfirm,false);assert.equal(denied.retry,true);assert.match(denied.message,/chưa đủ điều kiện/i);
  const failed=classOpeningAdmission({key:two,state:"error",message:"Bạn chưa có quyền thao tác mở lớp."},two);
  assert.equal(failed.snapshot,null);assert.equal(failed.retry,true);
  const ready=classOpeningAdmission({key:two,state:"ready",snapshot:await readClassOpening(second)},two);
  assert.equal(ready.snapshot?.canConfirm,true);assert.equal(ready.message,"");
  assert.equal(classOpeningAdmission({key:two,state:"ready",snapshot:ready.snapshot!},classOpeningAdmissionKey({...second,localDate:"2026-11-15"})).snapshot,null);
+});
+
+void test("PAP-2156 only typed authorized denial reasons map to specific copy on GET and POST",async t=>{
+ const payload=(reason:string,code="ACCESS_PERMISSION_DENIED")=>new Response(JSON.stringify({error:{code,details:{openingDenialReason:reason},message:"private raw message"}}),{status:403});
+ const replies=[payload("CLASS_OPENING_NOT_ASSIGNED"),payload("CLASS_OPENING_SHIFT_COVERAGE"),payload("UNKNOWN"),payload("CLASS_OPENING_NOT_ASSIGNED","ACCESS_SURFACE_DENIED"),new Response("bad json",{status:403})];
+ t.mock.method(globalThis,"fetch",()=>Promise.resolve(replies.shift()!));
+ await assert.rejects(readClassOpening(scope),/chưa được phân công phụ trách lớp này/);
+ await assert.rejects(confirmClassOpening(scope,data),/không bao phủ toàn bộ giờ học/);
+ for(let i=0;i<3;i++)await assert.rejects(readClassOpening(scope),/Bạn chưa có quyền mở lớp/);
 });
