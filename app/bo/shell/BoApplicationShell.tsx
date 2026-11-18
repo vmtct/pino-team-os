@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { canOpenAfterschoolAccounts } from "../afterschool-accounts/accounts-nav-access";
+import { canOpenPosts } from "../piner-posts/posts-nav-access";
 import { usePathname, useSearchParams } from "next/navigation";
 import type { BoShellContext } from "@/lib/bo-shell-gate";
 import { BoRegistrationWorkspace, type BoWorkspaceSource } from "../components/registration/BoRegistrationWorkspace";
@@ -14,7 +15,7 @@ import { nativePayrollModule } from "@/lib/bo-native-payroll-route";
 // Keep Production's existing destinations and content dispatch. Staging-only
 // adapters and aliases are not enabled by adopting the shared presentation.
 const destinations = boNavigation.flatMap(group => group.items.flatMap(item => [
-  ...(item.href && item.href !== "/bo/open-studio-passes" ? [{ href: item.href, label: item.label, group: group.label }] : []),
+  ...(item.href && item.href !== "/bo/open-studio-passes" && item.href !== "/bo/piner-posts" ? [{ href: item.href, label: item.label, group: group.label }] : []),
   ...(item.children ?? []).filter(child => child.href !== item.href).map(child => ({ ...child, group: group.label })),
 ]));
 const destinationKey = (href: string) => href === "/bo" ? "overview" : href.slice("/bo/".length);
@@ -52,6 +53,7 @@ export function BoApplicationShell({ currentUser, staging, children }: {
   const center = useBoCenterSelection();
   const centerId = staging && !center?.loading && !center?.error ? center?.selected ?? "" : "";
   const [accountsCenter, setAccountsCenter] = useState<string | null>(null);
+  const [postsCenter, setPostsCenter] = useState<string | null>(null);
   useEffect(() => {
     if (!centerId) return;
     const controller = new AbortController();
@@ -64,17 +66,28 @@ export function BoApplicationShell({ currentUser, staging, children }: {
     };
   }, [centerId]);
   const showAccounts = Boolean(centerId && accountsCenter === centerId);
+  useEffect(() => {
+    if (!centerId) return;
+    const controller = new AbortController();
+    void canOpenPosts(centerId, controller.signal).then(allowed => {
+      if (!controller.signal.aborted) setPostsCenter(allowed ? centerId : null);
+    });
+    return () => { controller.abort(); setPostsCenter(null); };
+  }, [centerId]);
+  const showPosts = Boolean(centerId && postsCenter === centerId);
   const scopedSource = useMemo<BoWorkspaceSource>(() => ({
     ...stagingSource,
-    modules: showAccounts ? {
+    modules: {
       ...stagingSource.modules,
-      "afterschool-accounts": { label: "Tài khoản", group: "SCHOOL", fields: [] },
-    } : stagingSource.modules,
+      ...(showAccounts ? {"afterschool-accounts": { label: "Tài khoản", group: "SCHOOL", fields: [] }} : {}),
+      ...(showPosts ? {"piner-posts": { label: "Posts", group: "Piner App", fields: [] }} : {}),
+    },
     routeForModule: key => key === "afterschool-accounts" && showAccounts
       ? "/bo/afterschool-accounts?" + new URLSearchParams({ centerId })
+      : key === "piner-posts" && showPosts ? "/bo/piner-posts?" + new URLSearchParams({ centerId })
       : boScopedModuleHref(stagingSource.routeForModule!(key), key,
         center?.selected ?? "", center?.centers.map(item => item.id) ?? []),
-  }), [center?.selected, center?.centers, centerId, showAccounts]);
+  }), [center?.selected, center?.centers, centerId, showAccounts, showPosts]);
   const productionDestination = destinations.find(item => item.href === pathname)
     ?? destinations.filter(item => item.href !== "/bo" && pathname.startsWith(item.href + "/"))
       .sort((left, right) => right.href.length - left.href.length)[0];

@@ -28,7 +28,7 @@ function fixture(run) {
     const content=fs.readFileSync(path.join(repo,file),"utf8");
     // Existing PAP-901 factory fixtures have no TDD manifest; keep scopes independent.
     write(file,file===policy?content.replace(/\r\n/g,"\n").replace('  "/bo/payroll-daily",\n',"").replace('  "/bo/payroll-exceptions",\n',"").replace('  "/bo/pinoria-avatars",\n',"").replace('  "/bo/afterschool-accounts",\n',"").replace('  "/bo/open-studio-passes",\n',"")
-      .replace(/\s*"\/bo\/classroom-diaries",\r?\n/,"\n").replace('  "/bo/bills",\n',"").replace('  "/bo/missions",\n',"").replace('  "/bo/tvs",\n',"").replace('  "/bo/opening-evidence",\n',""):content);
+      .replace(/\s*"\/bo\/classroom-diaries",\r?\n/,"\n").replace('  "/bo/bills",\n',"").replace('  "/bo/missions",\n',"").replace('  "/bo/tvs",\n',"").replace('  "/bo/opening-evidence",\n',"").replace('  "/bo/piner-posts",\n',""):content);
   }
   try { return run({ root, read, write }); }
   finally { fs.rmSync(root, { recursive: true, force: true }); }
@@ -246,4 +246,20 @@ test("PAP-767 and PAP-1886 native routes coexist without weakening either guard"
  const evidence=files[4],good=read(evidence);
  write(evidence,good.replaceAll("same-origin","omit"));
  assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/opening-evidence.*invalid native scoped route contract/);
+}));
+
+// PAP-2134: exact native Post admission, not a factory or fixture-only route.
+test("PAP-2134 native Posts requires exact TDD manifest, schema and explicit staging policy",()=>fixture(({root,read,write})=>{
+ const entry=JSON.parse(fs.readFileSync(path.join(repo,"config/tdd-admission.json"),"utf8")).modules.find(e=>e.key==="piner-posts");
+ assert.ok(entry);
+ for(const file of [...entry.files,...entry.tests])write(file,fs.readFileSync(path.join(repo,file),"utf8"));
+ write("config/tdd-admission.json",JSON.stringify({modules:[entry]}));
+ assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/piner-posts.*exactly one staging decision/);
+ write(policy,read(policy).replace('  "/bo/payroll-periods",','  "/bo/payroll-periods",\n  "/bo/piner-posts",'));
+ assert.deepEqual(verifyBoStagingRoutePolicy(root).issues,[]);
+ write("config/tdd-admission.json",JSON.stringify({modules:[]}));
+ assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/piner-posts.*canonical BoModuleFactory page/);
+ write("config/tdd-admission.json",JSON.stringify({modules:[entry]}));
+ fs.unlinkSync(path.join(root,entry.schema.file));
+ assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/Invalid exact BO TDD route admission|TDD entry/);
 }));
