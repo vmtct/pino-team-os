@@ -1,4 +1,6 @@
+import {guestHostDecision} from "./bo-mytime-guest-host-contract";
 import {postDraftHostDecision} from "./bo-post-draft-host-contract";
+import {boPlsWishHostDecision} from "./bo-pls-wish-host-contract";
 import {openingEvidenceHostDecision} from "./opening-evidence-host-contract";
 import {isNativePayrollNamespace,nativePayrollModule,isNativePayrollApi} from "./bo-native-payroll-route";
 import {matchesProductPayrollAdjustmentPath} from "./bo-payroll-adjustment-host-contract";
@@ -29,6 +31,8 @@ export type HostBoundaryDecision =
 
 export function decideHostBoundary(host: string, pathname: string, method = "GET"): HostBoundaryDecision {
   const hostname = normalizeHostname(host);
+  const guest = guestHostDecision(hostname, pathname, method);
+  if (guest) return {action:guest};
   const postDraft = postDraftHostDecision(hostname, pathname, method);
   if (postDraft) return {action:postDraft};
   // PAP-1671 / PLT-ATTR: exact native value operations, BO Staging only.
@@ -86,6 +90,8 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   if (isNativePayrollNamespace(pathname)) return {action:hostname===BO_STAGING_HOSTNAME &&
     ((Boolean(nativePayrollModule(pathname))&&(method==="GET"||method==="HEAD")) || (isNativePayrollApi(pathname)&&method==="GET"))?"next":"not_found"};
   // PAP-767: exact Opening Evidence admission before generic TOS/BO host fallthrough.
+  const plsWishBo=boPlsWishHostDecision(hostname,pathname,method);
+  if(plsWishBo)return {action:plsWishBo};
   const openingEvidence = openingEvidenceHostDecision(hostname, pathname, method);
   if (openingEvidence) return { action: openingEvidence };
   // PAP-1939 / PAP-1934: exact BO Staging read admission only. No HO/TOS/Production.
@@ -130,6 +136,12 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
     const exact = /^\/api\/bo\/subscriptions\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/center-detail$/i.test(pathname);
     return {action:hostname===BO_STAGING_HOSTNAME&&method==="GET"&&exact?"next":"not_found"};
   }
+  // PAP-1035: exact native Enrollment aperture, staging-only; no legacy writer expansion.
+  if (/^\/api\/bo\/subscriptions\/[^/]+\/enrollment(?:\/|$)/i.test(pathname)) {
+    const uuid = "[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
+    const exact = new RegExp("^/api/bo/subscriptions/" + uuid + "/enrollment/(list|placement|capacity|attach|transfer/" + uuid + ")$").exec(pathname);
+    return {action:hostname===BO_STAGING_HOSTNAME && exact && (["list","placement","capacity"].includes(exact[1]!) ? method==="GET" : method==="POST") ? "next":"not_found"};
+  }
   // PAP-1496 / PAP-1491 SPEC-UNLOCK: admit only Subscription-owned
   // Specialty requests at BO Staging. The BFF and Core retain actor/Center
   // ACL, Subscription status, CAS, idempotency and prerequisite enforcement.
@@ -139,10 +151,11 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
     const id = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
     const base = "^/api/bo/subscriptions/" + id;
     const list = new RegExp(base + "/specialties$", "i").test(pathname);
+    const detail = new RegExp(base + "/specialties/" + id + "$", "i").test(pathname);
     const grant = new RegExp(base + "/specialty-grants$", "i").test(pathname);
     const completion = new RegExp(base + "/specialty-grants/" + id + "/completion$", "i").test(pathname);
     const allowed = hostname === BO_STAGING_HOSTNAME &&
-      ((method === "GET" && list) || (method === "POST" && grant) ||
+      ((method === "GET" && (list || detail)) || (method === "POST" && grant) ||
        (method === "PATCH" && completion));
     return { action: allowed ? "next" : "not_found" };
   }
@@ -154,8 +167,20 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   if (/^\/bo\/tvs(?:\/|$)/i.test(pathname)) return { action: "not_found" };
   // PAP-1385 / PNR-TV: only logical visibility GET/PATCH, Founder HO Staging.
   // The private BFF and Core still enforce Founder, selected-Center, CAS and audit.
+  if(pathname==="/api/ho/pinoria/pls-wish"||pathname.startsWith("/api/ho/pinoria/pls-wish/")){
+    const read=/^\/api\/ho\/pinoria\/pls-wish\/config\/(?:policies|banners|items|item-(?:preview|record)\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/[1-9][0-9]*)$/.test(pathname);
+    const write=/^\/api\/ho\/pinoria\/pls-wish\/config\/(?:savePolicy|publishPolicy|retirePolicy|saveBanner|publishBanner|retireBanner)$/.test(pathname);
+    return {action:hostname===HO_STAGING_HOSTNAME&&((method==="GET"&&read)||(method==="POST"&&write))?"next":"not_found"};
+  }
   if(pathname==="/api/ho/pinoria/worlds"||pathname.startsWith("/api/ho/pinoria/worlds/"))
-    return {action:hostname===HO_STAGING_HOSTNAME&&pathname==="/api/ho/pinoria/worlds"&&(method==="GET"||method==="POST")?"next":"not_found"};
+    return {action:hostname===HO_STAGING_HOSTNAME&&(
+      pathname==="/api/ho/pinoria/worlds"&&(method==="GET"||method==="POST")||
+      method==="GET"&&/^\/api\/ho\/pinoria\/worlds\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/history$/.test(pathname)||
+      method==="POST"&&pathname==="/api/ho/pinoria/worlds/media"||
+      method==="PATCH"&&/^\/api\/ho\/pinoria\/worlds\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(pathname)||
+      method==="POST"&&/^\/api\/ho\/pinoria\/worlds\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/scenes$/.test(pathname)||
+      method==="PUT"&&/^\/api\/ho\/pinoria\/worlds\/scenes\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/save$/.test(pathname)
+    )?"next":"not_found"};
   if(pathname.startsWith("/api/ho/pinoria/tv-policies/visibility"))
     return {action:hostname===HO_STAGING_HOSTNAME&&isHoTvVisibilityRequest(pathname,method)?"next":"not_found"};
   // PAP-1418 / PNR-TV: all other TV paths remain exact read-only.

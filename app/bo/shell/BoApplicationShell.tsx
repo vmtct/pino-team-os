@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { canOpenAfterschoolAccounts } from "../afterschool-accounts/accounts-nav-access";
 import { canOpenPosts } from "../piner-posts/posts-nav-access";
+import { canOpenGuests } from "../mytime-guests/nav-access";
 import { usePathname, useSearchParams } from "next/navigation";
 import type { BoShellContext } from "@/lib/bo-shell-gate";
 import { BoRegistrationWorkspace, type BoWorkspaceSource } from "../components/registration/BoRegistrationWorkspace";
@@ -15,7 +16,7 @@ import { nativePayrollModule } from "@/lib/bo-native-payroll-route";
 // Keep Production's existing destinations and content dispatch. Staging-only
 // adapters and aliases are not enabled by adopting the shared presentation.
 const destinations = boNavigation.flatMap(group => group.items.flatMap(item => [
-  ...(item.href && item.href !== "/bo/open-studio-passes" && item.href !== "/bo/piner-posts" ? [{ href: item.href, label: item.label, group: group.label }] : []),
+  ...(item.href && item.href !== "/bo/open-studio-passes" && item.href !== "/bo/piner-posts" && item.href !== "/bo/mytime-guests" ? [{ href: item.href, label: item.label, group: group.label }] : []),
   ...(item.children ?? []).filter(child => child.href !== item.href).map(child => ({ ...child, group: group.label })),
 ]));
 const destinationKey = (href: string) => href === "/bo" ? "overview" : href.slice("/bo/".length);
@@ -29,6 +30,7 @@ const productionSource: BoWorkspaceSource = {
 // These existing admitted direct pages have their own content adapters. Register
 // presentation destinations only; never call those adapters from the outer shell.
 const directModules = {
+  "pinoria-wish-events": { label: "Wish Events", group: "Pinoria", fields: [] },
   "opening-evidence": { label: "Mở lớp & ca", group: "SCHOOL", fields: [] },
   "classroom-diaries": { label: "Nhật ký lớp học", group: "SCHOOL", fields: [] },
   "open-studio-passes": { label: "Pass Trạm Nghệ Thuật", group: "Open Studio", fields: [] },
@@ -74,19 +76,29 @@ export function BoApplicationShell({ currentUser, staging, children }: {
     return () => { controller.abort(); setPostsCenter(null); };
   }, [centerId]);
   const showPosts = Boolean(centerId && postsCenter === centerId);
+  const [guestsCenter,setGuestsCenter]=useState<string|null>(null);
+  useEffect(()=>{
+    if(!centerId)return;
+    const ctl=new AbortController();
+    void canOpenGuests(centerId,ctl.signal).then(allowed=>{if(!ctl.signal.aborted)setGuestsCenter(allowed?centerId:null);});
+    return ()=>{ctl.abort();setGuestsCenter(null);};
+  },[centerId]);
+  const showGuests=Boolean(centerId&&guestsCenter===centerId);
   const scopedSource = useMemo<BoWorkspaceSource>(() => ({
     ...stagingSource,
     modules: {
       ...stagingSource.modules,
       ...(showAccounts ? {"afterschool-accounts": { label: "Tài khoản", group: "SCHOOL", fields: [] }} : {}),
       ...(showPosts ? {"piner-posts": { label: "Posts", group: "Piner App", fields: [] }} : {}),
+      ...(showGuests ? {"mytime-guests": {label:"Khách MyTime",group:"Operations",fields:[]}} : {}),
     },
     routeForModule: key => key === "afterschool-accounts" && showAccounts
       ? "/bo/afterschool-accounts?" + new URLSearchParams({ centerId })
       : key === "piner-posts" && showPosts ? "/bo/piner-posts?" + new URLSearchParams({ centerId })
+      : key==="mytime-guests"&&showGuests ? "/bo/mytime-guests?"+new URLSearchParams({centerId})
       : boScopedModuleHref(stagingSource.routeForModule!(key), key,
         center?.selected ?? "", center?.centers.map(item => item.id) ?? []),
-  }), [center?.selected, center?.centers, centerId, showAccounts, showPosts]);
+  }), [center?.selected, center?.centers, centerId, showAccounts, showPosts, showGuests]);
   const productionDestination = destinations.find(item => item.href === pathname)
     ?? destinations.filter(item => item.href !== "/bo" && pathname.startsWith(item.href + "/"))
       .sort((left, right) => right.href.length - left.href.length)[0];

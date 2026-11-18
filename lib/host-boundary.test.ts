@@ -522,7 +522,7 @@ test("PAP-2067 Afterschool PIN commands are exact BO Staging POST routes", () =>
 });
 
 // PAP-2097 — only exact HO Staging definition catalog GET/POST.
-test("HO World private facade host and method fence",()=>{const path="/api/ho/pinoria/worlds",host="ho.staging.pinohouse.art";for(const method of ["GET","POST"])assert.deepEqual(decideHostBoundary(host,path,method),{action:"next"});for(const method of ["PATCH","PUT","DELETE","HEAD"])assert.deepEqual(decideHostBoundary(host,path,method),{action:"not_found"});for(const other of ["bo.staging.pinohouse.art","tos.staging.pinohouse.art","ho.pinohouse.art",BO_HOSTNAME])for(const method of ["GET","POST"])assert.deepEqual(decideHostBoundary(other,path,method),{action:"not_found"});for(const suffix of ["/","/media","/instances","/"+roleId])assert.deepEqual(decideHostBoundary(host,path+suffix,"POST"),{action:"not_found"});});
+test("HO World private facade host and method fence",()=>{const path="/api/ho/pinoria/worlds",host="ho.staging.pinohouse.art";for(const method of ["GET","POST"])assert.deepEqual(decideHostBoundary(host,path,method),{action:"next"});for(const method of ["PATCH","PUT","DELETE","HEAD"])assert.deepEqual(decideHostBoundary(host,path,method),{action:"not_found"});for(const other of ["bo.staging.pinohouse.art","tos.staging.pinohouse.art","ho.pinohouse.art",BO_HOSTNAME])for(const method of ["GET","POST"])assert.deepEqual(decideHostBoundary(other,path,method),{action:"not_found"});for(const suffix of ["/","/instances","/"+roleId])assert.deepEqual(decideHostBoundary(host,path+suffix,"POST"),{action:"not_found"});const id="019a0000-0000-7000-8000-000000000001";for(const [suffix,allowed] of [["/media","POST"],["/"+id,"PATCH"],["/"+id+"/scenes","POST"],["/scenes/"+id+"/save","PUT"]]){for(const m of ["GET","POST","PATCH","PUT","DELETE","HEAD"]){assert.deepEqual(decideHostBoundary(host,path+suffix,m),{action:m===allowed?"next":"not_found"});for(const other of ["bo.staging.pinohouse.art","tos.staging.pinohouse.art","ho.pinohouse.art",BO_HOSTNAME])assert.deepEqual(decideHostBoundary(other,path+suffix,m),{action:"not_found"});}}for(const suffix of ["/bad/scenes","/scenes/"+id+"/save/extra","/"+id+"/layers","/instances/"+id+"/save", "/"+id+"/scenes/"])for(const m of ["POST","PATCH","PUT"])assert.deepEqual(decideHostBoundary(host,path+suffix,m),{action:"not_found"});});
 
  test("PAP-1886 History exact host and method fence",()=>{
   const p="/api/bo/identity/afterschool-users/"+roleId+"/history";
@@ -543,4 +543,12 @@ test("PAP-2134 private BO Post Draft exact host and method fence",()=>{
  }
  assert.equal(requiresBoStaffPasswordSession(BO_STAGING_HOSTNAME,page),true);
  for(const path of [base+"/",base+"/publish",record+"/media",base+"/01912345-6789-4abc-8def-0123456789ab",base+"%2f",base.toUpperCase(),page+"/extra",page+"/"])assert.deepEqual(decideHostBoundary(BO_STAGING_HOSTNAME,path,"GET"),{action:"not_found"});
+});
+
+test("PAP-2030 exact historical Wish Item record is HO staging GET only",()=>{
+ const p="/api/ho/pinoria/pls-wish/config/item-record/"+roleId+"/3";
+ assert.deepEqual(decideHostBoundary("ho.staging.pinohouse.art",p,"GET"),{action:"next"});
+ for(const host of ["ho.staging.pinohouse.art","bo.staging.pinohouse.art","tos.staging.pinohouse.art",BO_HOSTNAME])for(const method of ["POST","PATCH","DELETE"])assert.deepEqual(decideHostBoundary(host,p,method),{action:"not_found"});
+ for(const host of ["bo.staging.pinohouse.art","tos.staging.pinohouse.art",BO_HOSTNAME])assert.deepEqual(decideHostBoundary(host,p,"GET"),{action:"not_found"});
+ for(const suffix of ["/x","/0","/3/extra"])assert.deepEqual(decideHostBoundary("ho.staging.pinohouse.art","/api/ho/pinoria/pls-wish/config/item-record/"+roleId+suffix,"GET"),{action:"not_found"});
 });

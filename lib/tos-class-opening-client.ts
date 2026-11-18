@@ -4,6 +4,15 @@ import type {OpeningRecord,OpeningRound} from "./tos-classroom-v4-view-model";
 /** PAP-1991 / PAP-759. Core receipt is the only OPEN truth. */
 export type ClassOpeningScope={centerId:string;runningClassId:string;localDate:string};
 export type ClassOpeningSnapshot={opening:OpeningRecord|null;canConfirm:boolean};
+export type ClassOpeningCheck={key:string;state:"loading"}|{key:string;state:"ready";snapshot:ClassOpeningSnapshot}|{key:string;state:"error";message:string};
+export function classOpeningAdmissionKey(scope:ClassOpeningScope){return JSON.stringify([scope.centerId,scope.runningClassId,scope.localDate]);}
+/** The active entry never borrows permission from a previous occurrence or a stale launcher snapshot. */
+export function classOpeningAdmission(check:ClassOpeningCheck|null,key:string):{snapshot:ClassOpeningSnapshot|null;message:string;retry:boolean}{
+ if(!key||!check||check.key!==key||check.state==="loading")return{snapshot:null,message:"Đang kiểm tra điều kiện mở lớp…",retry:false};
+ if(check.state==="error")return{snapshot:null,message:check.message,retry:true};
+ if(!check.snapshot.opening&&!check.snapshot.canConfirm)return{snapshot:check.snapshot,message:"Chưa đủ điều kiện mở lớp. Vui lòng liên hệ Quản lý.",retry:true};
+ return{snapshot:check.snapshot,message:"",retry:false};
+}
 type History={eventId:string;roundId:string;version:number;kind:"SUBMISSION"|"REVIEW";actorLegalFullName:string|null;reviewAccountRecorded?:true;
   occurredAt:string;privateAssetId:string|null;privateAssetIds?:string[];note?:string;verdict:"APPROVED"|"REJECTED"|null;reason:string|null};
 const ROOT="/api/workforce/class-opening";
@@ -57,7 +66,16 @@ async function request(path:string,scope:ClassOpeningScope,body?:object,signal?:
   const res=await fetch(ROOT+path+(body?"":"?"+new URLSearchParams(scope)),{
     method:body?"POST":"GET",cache:"no-store",credentials:"same-origin",...(signal?{signal}:{}),
     ...(body?{headers:{"content-type":"application/json"},body:JSON.stringify({...scope,...body})}:{})});
-  if(!res.ok)throw new Error(res.status===403?"Bạn chưa có quyền thao tác mở lớp.":res.status===409?"Thông tin đã thay đổi. Tải lại trước khi thử lại.":"Chưa thể xác minh mở lớp.");
+  if(!res.ok){
+    if(res.status===403){
+      const payload=await res.json().catch(()=>null) as {error?:{code?:unknown;details?:{openingDenialReason?:unknown}}}|null;
+      const reason=path===""&&payload?.error?.code==="ACCESS_PERMISSION_DENIED"?payload.error.details?.openingDenialReason:null;
+      if(reason==="CLASS_OPENING_NOT_ASSIGNED")throw new Error("Bạn chưa được phân công phụ trách lớp này.");
+      if(reason==="CLASS_OPENING_SHIFT_COVERAGE")throw new Error("Ca làm của bạn không bao phủ toàn bộ giờ học của lớp này.");
+      throw new Error("Bạn chưa có quyền mở lớp.");
+    }
+    throw new Error(res.status===409?"Thông tin đã thay đổi. Tải lại trước khi thử lại.":"Chưa thể xác minh mở lớp.");
+  }
   return (await res.json() as {data?:unknown}).data;
 }
 export async function readClassOpening(scope:ClassOpeningScope,signal?:AbortSignal){

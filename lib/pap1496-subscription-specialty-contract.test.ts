@@ -4,7 +4,7 @@ import {strict as assert} from "node:assert";
 import {readFileSync} from "node:fs";
 import {isBoSubscriptionSpecialtyPath,validateSubscriptionSpecialtyScope,
  handleBoSubscriptionSpecialtyRequest} from "./bo-subscription-specialty-facade";
-import {readSubscriptionDetailRoute,subscriptionDetailUrl} from "./bo-subscription-detail-url";
+import {readSubscriptionDetailRoute,subscriptionDetailUrl,linkedSpecialtyDetailUrl,readLinkedSpecialtyRoute} from "./bo-subscription-detail-url";
 
 const sub="019a0f22-1111-7111-8111-000000000005";
 const grant="019a0f22-1111-7111-8111-000000000008";
@@ -56,8 +56,23 @@ void test("PAP-1496 UI reuses shared Drawer/Detail and never invokes legacy Stud
  const component=readFileSync(new URL("subscriptions/BoSubscriptionSpecialtyTab.tsx",root),"utf8");
  const detail=readFileSync(new URL("components/registration/BoFullDetail.tsx",root),"utf8");
  const facade=readFileSync(new URL("api/bo/[...path]/route.ts",new URL("../app/",import.meta.url)),"utf8");
- assert.match(component,/BoQuickView/);
- assert.match(component,/DetailFrame/);
+ const linked=readFileSync(new URL("subscriptions/BoLinkedSpecialtyDrawer.tsx",root),"utf8");
+ const native=readFileSync(new URL("subscriptions/SubscriptionDirectoryDsa.tsx",root),"utf8");
+ assert.match(component,/<BoLinkedSpecialtyDrawer\b/);
+ assert.match(linked,/<TddDrawer\b/);
+ assert.match(linked,/<TddDetail\b/);
+ assert.match(linked,/result\.scope\.surface!=="BO"\|\|result\.scope\.centerId!==centerId/);
+ assert.match(native,/openLinkedSpecialtyAdapter\(\{\.\.\.subject,pathLabel\},signal,centerSource\)/);
+ assert.match(native,/return <BoLinkedSpecialtyDrawer[^>]*mode="detail"/);
+ assert.match(linked,/binding\.openAuthorized\(\{specialtyId,pathProgramId,subscriptionId,centerId\}/);
+ assert.match(linked,/!binding\?\{status:"denied"\}/);
+ assert.match(linked,/resultState\?\.key===loadKey&&resultState.binding===binding/);
+ assert.match(linked,/detail\.row\.id!==specialtyId/);
+ assert.match(linked,/onDetail=\{\(\)=>binding\.openDetail\(subject\)\}/);
+ assert.match(native,/<DetailFrame\b/);
+ assert.doesNotMatch(component,/<(?:BoQuickView|DetailFrame)\b|previewModule/);
+ assert.match(component,/<BoDataTable minimal showChrome=\{false\} totalKnown=\{false\}/);
+ assert.match(component,/pageSize:Math\.max\(1,grantRows\.length\)/);
  assert.match(component,/subscriptionSpecialtyClient[.]create/);
  assert.match(component,/subscriptionSpecialtyClient[.]complete/);
  assert.doesNotMatch(component,/createSpecialtyPurchase|completeSpecialtyAllocation|student-specialty-grants/);
@@ -67,7 +82,50 @@ void test("PAP-1496 UI reuses shared Drawer/Detail and never invokes legacy Stud
 
 void test("PAP-1496 canonical native Subscription Detail actually mounts Specialty consumer",()=>{
  const native=readFileSync(new URL("../app/bo/subscriptions/SubscriptionDirectoryDsa.tsx",import.meta.url),"utf8");
- assert.match(native,/detailTab==="Chuyên đề" \?\s*<BoSubscriptionSpecialtyTab key=\{detail.id\+":"\+centerId\} subscriptionId=\{detail.id\} centerId=\{centerId\} centerReady=\{detail.row.centerId===centerId\}\/>/);
+ assert.match(native,/detailTab==="Chuyên đề" \?\s*<BoSubscriptionSpecialtyTab key=\{detail.id\+":"\+centerId\} subscriptionId=\{detail.id\} centerId=\{centerId\} centerReady=\{detail.row.centerId===centerId\} linkedSpecialty=\{linkedSpecialty\?\?runtimeLinked\}\/>/);
  assert.match(native,/assertCenterDetail\(/);
  assert.doesNotMatch(native,/<BoSubscriptionsView\b/);
+});
+
+void test("PAP-1496 linked detail facade is exact GET only with selected Center",async()=>{
+ const path=list+"/"+grant;
+ const env={} as Parameters<typeof handleBoSubscriptionSpecialtyRequest>[1];
+ assert.equal(isBoSubscriptionSpecialtyPath(path),true);
+ assert.equal(isBoSubscriptionSpecialtyPath(path+"/history"),false);
+ assert.equal(isBoSubscriptionSpecialtyPath(list+"/invalid"),false);
+ const url=base+path;
+ assert.deepEqual(validateSubscriptionSpecialtyScope(path,new Request(url+"?centerId="+center)),{centerId:center,isRead:true});
+ for(const method of ["POST","PATCH","DELETE"]){
+  assert.equal((await handleBoSubscriptionSpecialtyRequest(new Request(url+"?centerId="+center,{method}),env,path)).status,405);
+ }
+ assert.equal((await handleBoSubscriptionSpecialtyRequest(new Request(url),env,path)).status,400);
+ assert.equal((await handleBoSubscriptionSpecialtyRequest(new Request(url+"?centerId="+center+"&centerId="+center),env,path)).status,400);
+ assert.equal((await handleBoSubscriptionSpecialtyRequest(new Request("https://ho.staging.pinohouse.art/api/bo/"+path+"?centerId="+center),env,path)).status,404);
+});
+
+void test("PAP-1496 immutable linked detail URL rejects duplicate or invalid identifiers and clears on parent navigation",()=>{
+ const origin="https://bo.staging.pinohouse.art";
+ const href=linkedSpecialtyDetailUrl(origin+"/bo?module=subscriptions&foo=bar",sub,grant);
+ const query=new URL(href,origin).search;
+ assert.deepEqual(readLinkedSpecialtyRoute(query),{id:grant,invalid:false});
+ assert.match(href,/foo=bar/);
+ assert.equal(readSubscriptionDetailRoute(query).id,sub);
+ for(const q of [query+"&specialtyRecord="+grant,query+"&record="+sub,query+"&tab=specialty","?specialtyRecord="+grant,"?record="+sub+"&tab=overview&specialtyRecord="+grant,query.replace(grant,"invalid")])
+  assert.deepEqual(readLinkedSpecialtyRoute(q),{id:null,invalid:true});
+ assert.throws(()=>linkedSpecialtyDetailUrl(origin+"/bo",sub,"invalid"));
+ assert.doesNotMatch(subscriptionDetailUrl(origin+href,sub,"Chuyên đề"),/specialtyRecord/);
+ assert.doesNotMatch(subscriptionDetailUrl(origin+href,null),/specialtyRecord/);
+ const native=readFileSync(new URL("../app/bo/subscriptions/SubscriptionDirectoryDsa.tsx",import.meta.url),"utf8");
+ assert.match(native,/pathProgramId:canonical.pathProgramId/);
+ assert.match(native,/linked.id&&route.id===item.id\)setLinkedRecord\(\{specialtyId:linked.id,subscriptionId:item.id,centerId,pathProgramId:canonical.pathProgramId\}/);
+ assert.match(native,/linkedSpecialtyDetailUrl\(window.location.href,subject.subscriptionId,subject.specialtyId\)/);
+});
+
+void test("PAP-1496 record navigation unmounts previous detail actions before reattesting next subject",()=>{
+ const native=readFileSync(new URL("../app/bo/subscriptions/SubscriptionDirectoryDsa.tsx",import.meta.url),"utf8");
+ const verify=native.slice(native.indexOf("const verify=useCallback"),native.indexOf("const canonical=assertCenterDetail"));
+ assert.match(verify,/detailController\.current\?\.abort\(\)/);
+ assert.match(verify,/setLinkedRecord\(null\);setDrawer\(null\);setDetail\(null\);setNotice\(""\);/);
+ assert.match(verify,/setBusy\(item\.id\)/);
+ assert.match(native,/if\(matching\)void verify\(matching,false\);else\{detailController\.current\?\.abort\(\);setDrawer\(null\);setDetail\(null\);setBusy\(null\);setNotice\(""\)/);
 });

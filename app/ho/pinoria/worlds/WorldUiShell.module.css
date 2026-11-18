@@ -1,0 +1,18 @@
+/* PAP-2143 / PAP-8: business-tab layout only. PINO DS owns table, control, and panel cosmetics. */
+.builder,.worldTab{display:grid;gap:12px;min-width:0}
+.panel{display:grid;gap:10px;min-width:0}
+.panelHead,.inlineAction,.builderActions,.layerOrder,.mediaCell{display:flex;gap:8px;min-width:0}
+.compactScroll{width:100%;min-width:0;max-width:100%}
+.compactTable{width:100%;min-width:900px}
+.layerGrid{min-width:2300px}
+.input{width:100%;min-width:0;max-width:100%}
+.mediaThumb{width:32px;height:32px}
+.mediaPicker{display:grid;gap:4px;max-width:180px}
+.stage{display:block;width:100%;max-width:960px}
+.composite,.layerMedia{display:block;width:100%;height:100%}
+.anchor{display:grid;width:100%;height:100%}
+.worldLayout{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,.85fr);gap:12px;min-width:0}
+.sceneChecks{display:grid;gap:8px}
+.layerCheck{display:block}
+.empty{display:block}
+@media(max-width:850px){.worldLayout{grid-template-columns:minmax(0,1fr)}.panelHead,.inlineAction,.builderActions,.mediaCell{display:grid}}

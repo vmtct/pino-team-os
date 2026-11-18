@@ -19,3 +19,37 @@ test("exact staging HO catalog path and GET/POST only",async()=>{calls.length=0;
 test("Founder, session, global action permission and private binding fail closed",async()=>{calls.length=0;for(const options of [{founder:false},{grant:false},{configured:false},{binding:false}])assert.equal((await handleHoWorldRequest(req("POST",base+path,"valid",body),env(options))).status,options.configured===false?404:options.binding===false?503:403);assert.equal((await handleHoWorldRequest(req("GET",base+path,"expired"),env())).status,401);assert.equal(calls.length,0);});
 test("valid read and create use bounded exact private RPC",async()=>{calls.length=0;assert.equal((await handleHoWorldRequest(req(),env())).status,200);const r=await handleHoWorldRequest(req("POST",base+path,"valid",body),env());assert.equal(r.status,201);assert.equal(r.headers.get("x-request-id"),"world-qa");assert.deepEqual(calls,[{r:{method:"GET",path:"pinoria/worlds"},token:"valid"},{r:{method:"POST",path:"pinoria/worlds",body,idempotencyKey:"create-qa-1"},token:"valid"}]);});
 test("missing key, malformed/oversize and overposted values never reach Core",async()=>{calls.length=0;assert.equal((await handleHoWorldRequest(req("POST",base+path,"valid",body,""),env())).status,400);assert.equal((await handleHoWorldRequest(req("POST",base+path,"valid",{...body,status:"ACTIVE"}),env())).status,400);assert.equal((await handleHoWorldRequest(req("POST",base+path,"valid",{...body,displayName:"a".repeat(5000)}),env())).status,413);assert.equal(calls.length,0);});
+
+test("PAP-2143 exact nested routes, method and session fence",async()=>{
+ calls.length=0;const id="019a0000-0000-7000-8000-000000000001";
+ const patch={expectedVersion:1,displayName:"New"},scene={expectedWorldVersion:1,key:"scene",displayName:"Scene",canvasWidth:1920,canvasHeight:1080,baseAssetKey:"pinoria/world/uploads/"+"a".repeat(64)+".png"},save={expectedVersion:1,expectedLayers:[],layers:[]};
+ for(const [method,suffix,payload,expected] of [["PATCH","/"+id,patch,200],["POST","/"+id+"/scenes",scene,201],["PUT","/scenes/"+id+"/save",save,200]] as const){
+  const request=req(method,base+path+suffix,"valid",payload);
+  assert.equal((await handleHoWorldRequest(request,env())).status,expected);
+  assert.equal((await handleHoWorldRequest(req(method,base+path+suffix,"valid",payload),env({founder:false}))).status,403);
+ }
+ assert.deepEqual(calls,[{r:{method:"PATCH",path:"pinoria/worlds/"+id,body:patch},token:"valid"},{r:{method:"POST",path:"pinoria/worlds/"+id+"/scenes",body:scene,idempotencyKey:"create-qa-1"},token:"valid"},{r:{method:"PUT",path:"pinoria/worlds/scenes/"+id+"/save",body:save,idempotencyKey:"create-qa-1"},token:"valid"}]);
+ calls.length=0;
+ for(const [method,suffix] of [["PUT","/"+id],["PATCH","/scenes/"+id+"/save"],["POST","/not-an-id/scenes"],["POST","/"+id+"/scenes/extra"],["DELETE","/"+id],["PUT","/instances/"+id+"/save"]])assert.equal((await handleHoWorldRequest(req(method,base+path+suffix,"valid",{}),env())).status,404);
+ assert.equal((await handleHoWorldRequest(req("PUT",base+path+"/scenes/"+id+"/save","valid",{...save,unknown:true}),env())).status,400);
+ assert.equal((await handleHoWorldRequest(req("PUT",base+path+"/scenes/"+id+"/save","valid",{...save,descriptionText:"a".repeat(70000)}),env())).status,413);
+ assert.equal(calls.length,0);
+});
+test("PAP-2143 bounded private multipart, raw bytes and replay key; reject extras/oversize",async()=>{
+ calls.length=0;
+ const make=(extra=false,size=3)=>{const f=new FormData();f.set("file",new File([new Uint8Array(size)],"motion.gif",{type:"image/gif"}));if(extra)f.set("extra","bad");return new Request(base+path+"/media",{method:"POST",headers:{host:"ho.staging.pinohouse.art",cookie:"pino_staff_password_session=valid","idempotency-key":"upload-key"},body:f})};
+ assert.equal((await handleHoWorldRequest(make(),env())).status,201);
+ assert.deepEqual(calls,[{r:{method:"POST",path:"pinoria/worlds/media",body:{fileName:"motion.gif",mimeType:"image/gif",bytes:new Uint8Array(3).buffer},idempotencyKey:"upload-key"},token:"valid"}]);
+ calls.length=0;assert.equal((await handleHoWorldRequest(make(true),env())).status,400);
+ const oversized=new Request(base+path+"/media",{method:"POST",headers:{host:"ho.staging.pinohouse.art",cookie:"pino_staff_password_session=valid","idempotency-key":"upload-key","content-type":"multipart/form-data; boundary=qa"},body:new Uint8Array(8*1024*1024+8193)});assert.equal((await handleHoWorldRequest(oversized,env())).status,413);
+ assert.equal((await handleHoWorldRequest(make(),env({founder:false}))).status,403);
+ assert.equal(calls.length,0);
+});
+test("PAP-2165 exact GET history only, Founder view required",async()=>{
+ calls.length=0;const id="019a0000-0000-7000-8000-000000000001",url=base+path+"/"+id+"/history";
+ assert.equal((await handleHoWorldRequest(req("GET",url),env())).status,200);
+ assert.deepEqual(calls,[{r:{method:"GET",path:"pinoria/worlds/"+id+"/history"},token:"valid"}]);calls.length=0;
+ for(const m of ["POST","PATCH","PUT","DELETE"])assert.equal((await handleHoWorldRequest(req(m,url),env())).status,404);
+ for(const options of [{founder:false},{grant:false}])assert.equal((await handleHoWorldRequest(req("GET",url),env(options))).status,403);
+ assert.equal((await handleHoWorldRequest(req("GET",url+"?limit=1000"),env())).status,404);assert.equal(calls.length,0);
+});

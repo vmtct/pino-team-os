@@ -1,6 +1,6 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
-import {parseClassOpening,readClassOpening,confirmClassOpening,appendClassOpening,classOpeningPhoto,newOpeningRequestKey} from "./tos-class-opening-client";
+import {parseClassOpening,readClassOpening,confirmClassOpening,appendClassOpening,classOpeningPhoto,newOpeningRequestKey,classOpeningAdmission,classOpeningAdmissionKey} from "./tos-class-opening-client";
 const id=(n:number)=>"00000000-0000-7000-8000-"+String(n).padStart(12,"0");
 const scope={centerId:id(1),runningClassId:id(2),localDate:"2026-11-14"};
 const at="2026-11-14T01:00:00.000Z";
@@ -60,4 +60,29 @@ void test("PAP-1991 correction sends and reads all photos and note in one versio
  const body=JSON.parse(String(calls[0]?.body));
  assert.equal(body.photos.length,2);assert.equal(body.note,"Bổ sung góc bàn");assert.equal(body.expectedVersion,2);
  assert.throws(()=>parseClassOpening({...corrected,history:[first,review,{...corrected.history[2],privateAssetIds:[id(8),id(5)]}]},scope),/không hợp lệ/);
+});
+
+void test("PAP-2156 second class cannot borrow first class admission; denial and retry remain fail closed",async t=>{
+ const second={...scope,runningClassId:id(10)},one=classOpeningAdmissionKey(scope),two=classOpeningAdmissionKey(second);
+ const firstSnapshot=parseClassOpening(opened,scope);
+ assert.equal(classOpeningAdmission({key:one,state:"ready",snapshot:firstSnapshot},two).snapshot,null);
+ assert.equal(classOpeningAdmission({key:two,state:"loading"},two).retry,false);
+ const responses=[{...notOpened,...second,canConfirm:false},{...notOpened,...second,canConfirm:true}];
+ t.mock.method(globalThis,"fetch",(_url:string)=>Promise.resolve(new Response(JSON.stringify({data:responses.shift()}))));
+ const denied=classOpeningAdmission({key:two,state:"ready",snapshot:await readClassOpening(second)},two);
+ assert.equal(denied.snapshot?.canConfirm,false);assert.equal(denied.retry,true);assert.match(denied.message,/chưa đủ điều kiện/i);
+ const failed=classOpeningAdmission({key:two,state:"error",message:"Bạn chưa có quyền thao tác mở lớp."},two);
+ assert.equal(failed.snapshot,null);assert.equal(failed.retry,true);
+ const ready=classOpeningAdmission({key:two,state:"ready",snapshot:await readClassOpening(second)},two);
+ assert.equal(ready.snapshot?.canConfirm,true);assert.equal(ready.message,"");
+ assert.equal(classOpeningAdmission({key:two,state:"ready",snapshot:ready.snapshot!},classOpeningAdmissionKey({...second,localDate:"2026-11-15"})).snapshot,null);
+});
+
+void test("PAP-2156 only typed authorized denial reasons map to specific copy on GET and POST",async t=>{
+ const payload=(reason:string,code="ACCESS_PERMISSION_DENIED")=>new Response(JSON.stringify({error:{code,details:{openingDenialReason:reason},message:"private raw message"}}),{status:403});
+ const replies=[payload("CLASS_OPENING_NOT_ASSIGNED"),payload("CLASS_OPENING_SHIFT_COVERAGE"),payload("UNKNOWN"),payload("CLASS_OPENING_NOT_ASSIGNED","ACCESS_SURFACE_DENIED"),new Response("bad json",{status:403})];
+ t.mock.method(globalThis,"fetch",()=>Promise.resolve(replies.shift()!));
+ await assert.rejects(readClassOpening(scope),/chưa được phân công phụ trách lớp này/);
+ await assert.rejects(confirmClassOpening(scope,data),/không bao phủ toàn bộ giờ học/);
+ for(let i=0;i<3;i++)await assert.rejects(readClassOpening(scope),/Bạn chưa có quyền mở lớp/);
 });
