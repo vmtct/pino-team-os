@@ -29,7 +29,7 @@ export default function AfterschoolStudentPicker({
   useEffect(() => {
     let current = true;
     listAfterschoolStudents().then(
-      (students) => { if (current) setResult({ status: "ready", students }); },
+      (students) => { if (current) { setResult({ status: "ready", students }); if (students.length === 1) setStudentId(students[0].id); } },
       (error: unknown) => {
         if (!current) return;
         const expired = error instanceof AfterschoolPinError && [401, 409].includes(error.status);

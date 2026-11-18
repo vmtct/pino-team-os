@@ -91,26 +91,32 @@ export default function AfterschoolPinForm() {
     return <AfterschoolStudentPicker csrfToken={memberCsrf} onSignedOut={() => setMemberCsrf(null)} />;
   }
 
-  return <section className={css.card}>
-    <h1>{csrf ? "Tạo PIN mới" : "PINO Afterschool"}</h1>
+  return <section className={css.card+" "+css.authLayout} aria-label={csrf ? "Tạo PIN mới" : "Đăng nhập Piner APP"}>
+    <div className={css["launch-brand"]} data-piner-canonical-brand="true">
+      <img className={css["launch-sigil"]} src="https://assets.pinohouse.art/site/core/Pino%20Sigil.png" alt="PINO" width={45} height={45} loading="eager" decoding="async" />
+      <img className={css["launch-wordmark"]} src="/piner_app_logo_no_yellow_transparent.png" alt="Piner APP" width={160} height={70} loading="eager" decoding="async" />
+    </div>
+    <div className={css.formBlock} data-piner-form-block="true">
+    {csrf && <h2 className={css.formTitle}>Tạo PIN mới</h2>}
     {csrf && <p className={css.notice}>Đổi PIN tạm trước khi truy cập thông tin học viên.</p>}
     <form key={csrf ? "change" : "login"} className={css.form} onSubmit={submit} aria-busy={busy}>
-      {!csrf && <label>Số điện thoại phụ huynh
-        <input name="phone" type="tel" autoComplete="tel" required />
+      {!csrf && <label>
+        <input name="phone" aria-label="Số điện thoại" placeholder="Số điện thoại" type="tel" autoComplete="tel" required />
       </label>}
-      <label>{csrf ? "PIN mới" : "PIN"}
-        <input name="pin" type="password" inputMode="numeric" pattern="[0-9]{6}" maxLength={6}
+      <label>
+        <input name="pin" aria-label={csrf ? "PIN mới" : "PIN"} placeholder={csrf ? "PIN mới" : "PIN"} type="password" inputMode="numeric" pattern="[0-9]{6}" maxLength={6}
           autoComplete={csrf ? "new-password" : "current-password"} required />
       </label>
-      {csrf && <label>Nhập lại PIN mới
-        <input name="confirm" type="password" inputMode="numeric" pattern="[0-9]{6}" maxLength={6}
+      {csrf && <label>
+        <input name="confirm" aria-label="Nhập lại PIN mới" placeholder="Nhập lại PIN mới" type="password" inputMode="numeric" pattern="[0-9]{6}" maxLength={6}
           autoComplete="new-password" required />
       </label>}
       <button type="submit" className={css.submit} disabled={busy}>
-        {csrf ? "Lưu PIN mới" : "Tiếp tục"}
+        {csrf ? "Lưu PIN mới" : "Đăng nhập"}
       </button>
     </form>
     {message && <p role="alert" className={css.error}>{message}</p>}
     <small>Quên PIN hoặc PIN tạm hết hạn? Liên hệ PINO để được cấp lại.</small>
+    </div>
   </section>;
 }
