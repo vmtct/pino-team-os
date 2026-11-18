@@ -2,6 +2,9 @@
 /** PAP-1985 / PAP-1063 native Kỳ lương view. Core is the only money authority. */
 import Link from "next/link";
 import {PayrollIncomeDetail} from "./PayrollIncomeDetail";
+import {SettlementIncomeDrawer} from "./SettlementIncomeDrawer";
+import {canSubmitPayrollAdjustmentScope,submitPayrollAdjustment} from "@/lib/bo-payroll-adjustment-client";
+import {SettlementExceptionDetail} from "./SettlementExceptionDetail";
 import {useEffect,useState,useRef} from "react";
 import {useRouter,useSearchParams} from "next/navigation";
 import {BoDataGrid,BoDataGridBadge,type BoDataGridColumn} from "@/app/bo/components/data-grid";
@@ -33,13 +36,18 @@ export default function BoNativePayrollPeriods(){
  if(!allowed||!center)return scope?.loading?<p role="status">Đang xác thực cơ sở…</p>:<p role="alert">{scope?.error||"Chọn cơ sở được cấp quyền."}</p>;
  if(query.getAll("record").length>1||(query.has("record")&&(!record||!uuid.test(record))))return <p role="alert">Kỳ lương không hợp lệ.</p>;
  const incomeStaff=query.get("incomeStaff");
+ const incomeException=query.get("incomeException");
+ if(query.has("incomeException")&&(!record||!incomeStaff||!uuid.test(incomeStaff)||query.getAll("incomeStaff").length!==1||!incomeException||!uuid.test(incomeException)||query.getAll("incomeException").length!==1||query.has("incomeDay")||query.has("incomeDrawer")||query.has("fromSettlement")))return <p role="alert">Ngoại lệ không hợp lệ.</p>;
+ const incomeDrawer=query.get("incomeDrawer");
+ if(query.has("incomeDrawer")&&(!record||!incomeDrawer||!uuid.test(incomeDrawer)||query.getAll("incomeDrawer").length!==1||query.has("incomeStaff")||query.get("tab")!=="settlements"))return <p role="alert">PTE không hợp lệ.</p>;
  if(query.has("incomeStaff")){
   if(!record||!incomeStaff||query.getAll("incomeStaff").length!==1||!uuid.test(incomeStaff))return <p role="alert">PTE không hợp lệ.</p>;
+  if(incomeException)return <SettlementExceptionDetail key={JSON.stringify([center.id,record,incomeStaff,incomeException])} centerId={center.id} periodId={record} staffId={incomeStaff} requestId={incomeException} tab={query.get("tab")}/>;
   const incomeDay=query.get("incomeDay");
   if(query.has("incomeDay")&&(query.getAll("incomeDay").length!==1||!incomeDay||!/^\d{4}-\d{2}-\d{2}$/.test(incomeDay)))return <p role="alert">Ngày công không hợp lệ.</p>;
-  return <PayrollIncomeDetail dayDate={incomeDay} key={JSON.stringify([center.id,record,incomeStaff,incomeDay])} centerId={center.id} centerName={center.displayName} id={record} staffId={incomeStaff} tab={query.get("tab")}/>;
+  return <PayrollIncomeDetail dayDate={incomeDay} key={JSON.stringify([center.id,record,incomeStaff,incomeDay])} centerId={center.id} centerName={center.displayName} id={record} staffId={incomeStaff} tab={query.get("tab")} fromSettlement={query.getAll("fromSettlement").length===1&&query.get("fromSettlement")==="1"}/>;
  }
- if(record)return <PeriodDetail key={JSON.stringify([center.id,record])} centerId={center.id} centerName={center.displayName} id={record} tab={query.get("tab")}/>;
+ if(record)return <PeriodDetail key={JSON.stringify([center.id,record])} centerId={center.id} centerName={center.displayName} id={record} tab={query.get("tab")} incomeDrawer={incomeDrawer}/>;
  return <PeriodTable key={center.id} centerId={center.id} centerName={center.displayName}/>;
 }
 function PeriodTable({centerId,centerName}:{centerId:string;centerName:string}){
@@ -83,7 +91,7 @@ function PeriodTable({centerId,centerName}:{centerId:string;centerName:string}){
   </DrawerFrame>:null}
  </section>;
 }
-function PeriodDetail({centerId,centerName,id,tab}:{centerId:string;centerName:string;id:string;tab:string|null}){
+function PeriodDetail({centerId,centerName,id,tab,incomeDrawer}:{centerId:string;centerName:string;id:string;tab:string|null;incomeDrawer:string|null}){
  const [data,setData]=useState<{row:NativePeriodRow;rollup:PeriodStaffPage;refresh:number}|null>(null);
  const [refresh,setRefresh]=useState(0);
  const [error,setError]=useState("");
@@ -102,7 +110,7 @@ function PeriodDetail({centerId,centerName,id,tab}:{centerId:string;centerName:s
  return <BoFullDetail designVariant="business-v25" title={row.name} description={"Kỳ lương · "+centerName} currentUrl={detailUrl(centerId,id)} returnTo={tableUrl(centerId)} activeTab={tab}
   tabs={[
    {id:"overview",label:"Tổng quan",content:<PeriodProperties key={row.id+":"+row.version} row={row} variant="detail" onSaved={()=>setRefresh(r=>r+1)}/>},
-   {id:"settlements",label:"Quyết Toán",content:<Settlements key={id} centerId={centerId} id={id} initial={rollup}/>},
+   {id:"settlements",label:"Quyết Toán",content:<Settlements key={id+":"+refresh} centerId={centerId} id={id} initial={rollup} incomeDrawer={incomeDrawer} onFinalized={()=>setRefresh(r=>r+1)}/>},
    {id:"history",label:"Lịch sử",content:<PeriodHistory key={centerId+":"+id+":"+row.version} centerId={centerId} id={id}/>},
   ]}/>;
 }
@@ -116,11 +124,12 @@ function settlementStatus(status:PeriodStaffPage["rows"][number]["status"]){
   default:return {text:"Không đủ dữ liệu",color:"gray"};
  }
 }
-function Settlements({centerId,id,initial}:{centerId:string;id:string;initial:PeriodStaffPage}){
+function Settlements({centerId,id,initial,incomeDrawer,onFinalized}:{centerId:string;id:string;initial:PeriodStaffPage;incomeDrawer:string|null;onFinalized:()=>void}){
  const router=useRouter();
  const [page,setPage]=useState(initial),[rows,setRows]=useState(initial.rows);
  const [busy,setBusy]=useState(false),[error,setError]=useState("");
  const visible=staffWithWorkEvidence(rows);
+
  const totals=periodSummaries(page.periodTotals);
  const fullCount=page.staffWithWorkEvidenceCount;
  async function more(){
@@ -146,15 +155,17 @@ function Settlements({centerId,id,initial}:{centerId:string;id:string;initial:Pe
   <section aria-label="Quyết toán theo PTE">
   <div className="property-section pay-section-heading"><h3>Quyết toán theo PTE</h3>{typeof fullCount==="number"?<span>{fullCount} PTE có ghi nhận giờ công hoặc đã chốt</span>:null}</div>
   <BoDataGrid showToolbar={false} rows={visible} rowKey={r=>r.staffMemberId} caption="Quyết toán theo PTE"
+   quickViewOpener onRowOpen={r=>router.push(detailUrl(centerId,id)+"&tab=settlements&incomeDrawer="+encodeURIComponent(r.staffMemberId))} selectedRowKey={incomeDrawer}
    columns={[
     {key:"staff",header:"PTE",minWidth:190,render:r=><><strong>{payrollVerifiedName(r.staffName)}</strong><div className="id-code">{r.staffMemberId}</div></>},
     {key:"amount",header:"Thành tiền",minWidth:150,render:r=><strong className="payroll-ro-amount">{money(r.amountMinor)}</strong>},
     {key:"status",header:"Trạng thái",minWidth:140,render:r=><BoPill {...settlementStatus(r.status)}/>},
-    {key:"income",header:"Thao tác",minWidth:130,align:"right",render:r=><div className="pay-settlement-actions"><button type="button" className="secondary-btn" onClick={()=>router.push(ROOT+"?"+new URLSearchParams({centerId,record:id,incomeStaff:r.staffMemberId}))}>Xem thu nhập</button></div>},
+
    ]}
    emptyTitle="Chưa có giờ công" emptyMessage="Không có bản ghi đủ điều kiện trong trang hiện tại."/>
   {page.nextOffset!==null?<button type="button" disabled={busy} onClick={()=>void more()}>Tải thêm PTE</button>:null}
   {error?<p role="alert">{error}</p>:null}
+  {incomeDrawer?<SettlementIncomeDrawer key={JSON.stringify([centerId,id,initial.period.startDate,initial.period.endDate,initial.period.status,incomeDrawer])} centerId={centerId} period={initial.period} staffId={incomeDrawer} submitAdjustment={canSubmitPayrollAdjustmentScope(centerId,id,incomeDrawer)?submitPayrollAdjustment:undefined} onAdjusted={onFinalized} onClose={()=>router.replace(detailUrl(centerId,id)+"&tab=settlements")} onFinalized={()=>{router.replace(detailUrl(centerId,id)+"&tab=settlements");onFinalized();}}/>:null}
  </section></>;
 }
 

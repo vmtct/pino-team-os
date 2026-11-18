@@ -1,5 +1,7 @@
+import {postDraftHostDecision} from "./bo-post-draft-host-contract";
 import {openingEvidenceHostDecision} from "./opening-evidence-host-contract";
 import {isNativePayrollNamespace,nativePayrollModule,isNativePayrollApi} from "./bo-native-payroll-route";
+import {matchesProductPayrollAdjustmentPath} from "./bo-payroll-adjustment-host-contract";
 import {isHoTvReadRequest} from "./ho-tv-read-contract";
 import {isHoTvVisibilityRequest} from "./ho-tv-visibility-contract";
 import {billMethodAllowed} from "./bo-bills-paths";
@@ -27,6 +29,8 @@ export type HostBoundaryDecision =
 
 export function decideHostBoundary(host: string, pathname: string, method = "GET"): HostBoundaryDecision {
   const hostname = normalizeHostname(host);
+  const postDraft = postDraftHostDecision(hostname, pathname, method);
+  if (postDraft) return {action:postDraft};
   // PAP-1671 / PLT-ATTR: exact native value operations, BO Staging only.
   // An entity or selected Center in the path/query is not an authorization grant.
   if (/^\/api\/bo\/(?:students|identity\/parents)\/[^/]*\/custom-attributes(?:\/|$)/i.test(pathname)) {
@@ -47,6 +51,11 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
       (pathname==="/api/bo/access/founder-manager-policy/admit" ||
        pathname==="/api/bo/access/founder-manager-policy/revoke" ||
        pathname==="/api/bo/access/founder-manager-policy/expand") ? "next" : "not_found"};
+  }
+  // PAP-1956: separate product adjustment ingress; never broaden PAP-1211.
+  // BFF and Core independently recheck auth, Center, Founder, CAS and audit.
+  if (/^\/api\/bo\/workforce\/payroll\/periods\/.*\/financial-adjustments(?:\/|$)/i.test(pathname)) {
+    return {action:hostname===BO_STAGING_HOSTNAME&&method==="POST"&&matchesProductPayrollAdjustmentPath(pathname)?"next":"not_found"};
   }
   // PAP-2012: exact single-PTE income history read, BO Staging only.
   if (/^\/api\/bo\/workforce\/payroll\/periods\/.*\/income-history(?:\/|$)/i.test(pathname)) {

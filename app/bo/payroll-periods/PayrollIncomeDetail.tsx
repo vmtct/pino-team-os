@@ -17,7 +17,7 @@ const incomeHref=(centerId:string,id:string,staffId:string)=>ROOT+"?"+new URLSea
 const instant=(v:string|null|undefined)=>v&&Number.isFinite(Date.parse(v))?new Intl.DateTimeFormat("vi-VN",{timeZone:"Asia/Ho_Chi_Minh",dateStyle:"short",timeStyle:"short"}).format(new Date(v)):"—";
 const dayLabel=(status:string)=>({READY:"Đã tính",NO_ATTENDANCE:"Chưa chấm công",NO_ASSIGNMENT:"Thiếu phân công",PENDING_CHECKOUT:"Chưa checkout",RATE_MISSING:"Thiếu Rate HO",RECONCILIATION_REQUIRED:"Cần đối soát"} as Record<string,string>)[status]??"—";
 const statuses={DRAFT:{text:"Bản nháp",color:"gray"},PENDING:{text:"Chờ duyệt",color:"orange"},FINALIZED:{text:"Đã chốt",color:"blue"},PAID:{text:"Đã thanh toán",color:"green"},ARCHIVED_UNAVAILABLE:{text:"Không đủ dữ liệu",color:"gray"}} as const;
-export function PayrollIncomeDetail({centerId,centerName,id,staffId,tab,dayDate}:{centerId:string;centerName:string;id:string;staffId:string;tab:string|null;dayDate:string|null}){
+export function PayrollIncomeDetail({centerId,centerName,id,staffId,tab,dayDate,fromSettlement=false}:{centerId:string;centerName:string;id:string;staffId:string;tab:string|null;dayDate:string|null;fromSettlement?:boolean}){
  const router=useRouter();
  const [result,setResult]=useState<{rows:IncomePeriod[];error:string;nextOffset:number|null}|null>(null);
  useEffect(()=>{let live=true;void loadIncomeHistory(centerId,id,staffId).then(page=>{if(live)setResult({rows:[page.current,...page.rows],error:"",nextOffset:page.nextOffset});}).catch(()=>{if(live)setResult({rows:[],error:"Không thể tải thu nhập từ Core.",nextOffset:null});});return()=>{live=false;};},[centerId,id,staffId]);
@@ -43,12 +43,13 @@ export function PayrollIncomeDetail({centerId,centerName,id,staffId,tab,dayDate}
  if(!current)return <p role="alert">Không có dữ liệu thu nhập.</p>;
  if(dayDate){
   const day=scopedIncomeDay(current,dayDate);
-  if(!day)return <><Link href={incomeHref(centerId,id,staffId)}>Quay lại thu nhập</Link><p role="alert">Không có ngày công trong kỳ này.</p></>;
+  if(!day)return <><Link href={fromSettlement?back+"&incomeDrawer="+encodeURIComponent(staffId):incomeHref(centerId,id,staffId)}>Quay lại thu nhập</Link><p role="alert">Không có ngày công trong kỳ này.</p></>;
   const frozen=current.staff.status==="FINALIZED"||current.staff.status==="PAID";
   const attendance=day.source?.attendance??[],coverage=day.source?.coverage??[];
   const appliedRate=historicalDayRate(day,rates);
-  const detailUrl=incomeHref(centerId,id,staffId)+"&incomeDay="+encodeURIComponent(dayDate);
-  return <BoFullDetail designVariant="business-v25" title={payrollVerifiedName(current.staff.staffName)+" · "+date(dayDate)} description={centerName+" · "+current.period.name} currentUrl={detailUrl} returnTo={incomeHref(centerId,id,staffId)} activeTab={tab} tabs={[
+  const returnTo=fromSettlement?back+"&incomeDrawer="+encodeURIComponent(staffId):incomeHref(centerId,id,staffId);
+  const detailUrl=incomeHref(centerId,id,staffId)+"&incomeDay="+encodeURIComponent(dayDate)+(fromSettlement?"&fromSettlement=1":"");
+  return <BoFullDetail designVariant="business-v25" title={payrollVerifiedName(current.staff.staffName)+" · "+date(dayDate)} description={centerName+" · "+current.period.name} currentUrl={detailUrl} returnTo={returnTo} activeTab={tab} tabs={[
    {id:"overview",label:"Thông tin",content:<section className="property-section"><h3>Chi tiết</h3><BoProperties authority compact items={[["♙","PTE",payrollVerifiedName(current.staff.staffName)],["▦","Ngày",date(dayDate)],["◷","Phân công",coverage.map(c=>c.assignmentId+" · "+c.coverageMode+" · "+(c.startLocal??"—")+"–"+(c.endLocal??"—")).join("; ")||"—"],["◷","Check-in",attendance.map(a=>instant(a.effectiveCheckInAt)).join("; ")||"—"],["◷","Checkout",attendance.map(a=>instant(a.effectiveCheckOutAt)).join("; ")||"—"],["₫","Rate hiệu lực HO",money(appliedRate)],["#","Phút trả lương",day.paidMinutes===null?"—":day.paidMinutes+" phút"],["₫","Lương ngày",money(day.amountMinor)],["▣","Trạng thái",dayLabel(day.status)],["≡","Nguồn",frozen?"Snapshot kỳ đã chốt":"Core · kỳ hiện tại"]].map(([icon,label,value])=>({key:label,label,value,icon}))}/>{rateControl}{rateStatus==="denied"?<p role="alert">Không có quyền xem mức lương hoặc dữ liệu không khả dụng.</p>:rateStatus==="ready"&&appliedRate===null?<p role="status">Không có bản ghi Rate khớp snapshot ngày công.</p>:null}</section>},
    {id:"specialized",label:"Chuyên Sâu",content:<p>{frozen?"Snapshot cố định của kỳ lương; không tính lại từ dữ liệu hiện tại.":"Dữ liệu ngày công trong dự tính kỳ lương từ Core."}</p>},
    {id:"history",label:"Lịch Sử",content:<section className="property-section"><h3>Bằng chứng điều chỉnh</h3>{day.override?<BoProperties authority compact items={[["#","ID điều chỉnh",day.override.id],["#","Phiên bản",String(day.override.version)],["◷","Thời điểm",instant(day.override.createdAt)],["♙","Người tạo (ID)",day.override.createdByUserId],["▣","Trạng thái đối soát",day.overrideStale?"Cần đối soát":"Snapshot hiện hữu"]].map(([icon,label,value])=>({key:label,label,value,icon}))}/>:<p role="status">Không có điều chỉnh trong snapshot ngày công.</p>}</section>}

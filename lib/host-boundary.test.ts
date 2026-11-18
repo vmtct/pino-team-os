@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { BO_HOSTNAME, decideHostBoundary, requiresBoStaffPasswordSession, requiresTosStaffSession, RETIRED_TEAM_HOSTNAME, STAFF_REGISTRATION_HOSTNAME, TOS_HOSTNAME } from "./host-boundary";
+import { BO_STAGING_HOSTNAME, HO_STAGING_HOSTNAME, TOS_STAGING_HOSTNAME, BO_HOSTNAME, decideHostBoundary, requiresBoStaffPasswordSession, requiresTosStaffSession, RETIRED_TEAM_HOSTNAME, STAFF_REGISTRATION_HOSTNAME, TOS_HOSTNAME } from "./host-boundary";
 
 const roleId = "0198d050-56c1-7ac5-b9ab-b0e45d912345";
 
@@ -532,3 +532,15 @@ test("HO World private facade host and method fence",()=>{const path="/api/ho/pi
   for(const method of ["POST","HEAD","DELETE","PATCH"]) assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art",p,method),{action:"not_found"});
   assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art",p+"/other","GET"),{action:"not_found"});
  });
+
+// PAP-2134: exact Staging-only draft verbs and UUIDv7 record; no aliases or Publish.
+test("PAP-2134 private BO Post Draft exact host and method fence",()=>{
+ const page="/bo/piner-posts",base="/api/bo/learning/piner-posts",record=base+"/01912345-6789-7abc-8def-0123456789ab";
+ const methods=["GET","HEAD","POST","PATCH","PUT","DELETE","OPTIONS"];
+ for(const [path,allowed] of [[page,["GET","HEAD"]],[base,["GET","POST"]],[record,["GET","PATCH"]]] as const){
+  for(const method of methods){assert.deepEqual(decideHostBoundary(BO_STAGING_HOSTNAME,path,method),{action:(allowed as readonly string[]).includes(method)?"next":"not_found"});}
+  for(const host of [BO_HOSTNAME,TOS_HOSTNAME,TOS_STAGING_HOSTNAME,HO_STAGING_HOSTNAME,"localhost","unknown.invalid"])for(const method of methods)assert.deepEqual(decideHostBoundary(host,path,method),{action:"not_found"});
+ }
+ assert.equal(requiresBoStaffPasswordSession(BO_STAGING_HOSTNAME,page),true);
+ for(const path of [base+"/",base+"/publish",record+"/media",base+"/01912345-6789-4abc-8def-0123456789ab",base+"%2f",base.toUpperCase(),page+"/extra",page+"/"])assert.deepEqual(decideHostBoundary(BO_STAGING_HOSTNAME,path,"GET"),{action:"not_found"});
+});

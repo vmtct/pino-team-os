@@ -1,6 +1,6 @@
 /* PAP-2041: semantic TOS tokens + approved warm TV scene and downward artwork shadow. */
-.scene{position:absolute;inset:0;z-index:9;display:grid;place-items:center;overflow:hidden;background:var(--tos-color-night);color:var(--tos-color-inverse);font-family:var(--tos-font-family);pointer-events:none}
-.frame{box-sizing:border-box;width:min(100vw,177.7778dvh);aspect-ratio:16/9;max-height:100dvh;container-type:size;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:var(--tos-space-2);padding:var(--tos-space-4) 6%;background:var(--tos-color-warm-text);overflow:hidden}
+.scene{position:absolute;inset:0;z-index:9;display:grid;place-items:center;overflow:hidden;isolation:isolate;background:#39241d;color:var(--tos-color-inverse);font-family:var(--tos-font-family);pointer-events:none}
+.frame{box-sizing:border-box;width:min(100vw,177.7778dvh);aspect-ratio:16/9;max-height:100dvh;container-type:size;display:grid;grid-template-rows:minmax(0,1fr) auto minmax(0,1fr);justify-items:center;align-items:center;text-align:center;padding:0 6%;position:relative;z-index:1;background:transparent;overflow:hidden}
 .eyebrow{font-size:clamp(9px,3cqh,var(--tos-text-label));color:var(--tos-color-classroom-action);font-weight:var(--tos-weight-strong);letter-spacing:.1em}
 .frame h1{margin:0;font-size:clamp(var(--tos-text-heading-lg),5cqh,var(--tos-text-display-lg));font-weight:var(--tos-weight-strong);line-height:1.07;letter-spacing:-.04em;text-wrap:balance}
 .frame p{margin:0;font-size:clamp(var(--tos-text-caption),3.1cqh,var(--tos-text-heading-md));line-height:1.4}
@@ -12,3 +12,16 @@
 .card strong{font-size:clamp(var(--tos-text-secondary),3.1cqh,var(--tos-text-heading-md));line-height:1.3;overflow-wrap:anywhere}
 @container (max-height:260px){.eyebrow{font-size:clamp(9px,4.1cqh,var(--tos-text-secondary))}.frame h1{font-size:clamp(var(--tos-text-caption),6cqh,var(--tos-text-heading-lg))}.frame p{font-size:clamp(9px,4.8cqh,var(--tos-text-caption))}.items{gap:var(--tos-space-1);margin-top:var(--tos-space-1)}.card{padding:min(var(--tos-space-2),2cqh);gap:var(--tos-space-1)}.card img{height:30cqh}.card strong{font-size:clamp(9px,4.8cqh,var(--tos-text-caption))}}
 @media(max-height:460px),(max-width:460px){.frame{padding:var(--tos-space-1) 4%;gap:var(--tos-space-1)}}
+
+/* PAP-2131: same canonical House Ambient layers, chocolate-graded behind crisp UI. */
+.houseBackdrop{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none;background:#39241d}
+.houseBackdrop img{position:absolute;inset:-4%;width:108%;height:108%;object-fit:cover;filter:blur(22px) saturate(.64) brightness(.72);user-select:none}
+.houseBackdrop::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at 50% 42%,rgba(77,44,29,.42),rgba(39,21,16,.78) 100%),linear-gradient(145deg,rgba(91,53,37,.36),rgba(43,24,19,.52));pointer-events:none}
+/* PAP-2131: item grid, not combined copy + grid, is the geometric center. */
+.copy{grid-row:1;align-self:end;min-width:0;max-width:100%;display:flex;flex-direction:column;align-items:center;gap:var(--tos-space-2);padding-bottom:clamp(12px,5cqh,48px)}
+.items{grid-row:2;margin-top:0;align-self:center}
+.frame[data-empty="true"] .copy{grid-row:2;align-self:center;padding-bottom:0}
+@media (orientation:portrait){.frame{height:min(100dvh,max(56.25vw,340px));aspect-ratio:auto}}
+@container (max-height:260px){.copy{gap:var(--tos-space-1);padding-bottom:clamp(8px,5cqh,16px)}.card img{height:26cqh}}
+@media(max-height:460px),(max-width:460px){.frame{padding:0 4%;gap:0}}
+@container (max-height:200px){.copy{gap:2px;padding-bottom:8px}.frame h1{font-size:clamp(11px,6cqh,16px)}.frame p,.eyebrow{font-size:9px}.card img{height:22cqh}}

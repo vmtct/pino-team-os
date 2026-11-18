@@ -1,5 +1,6 @@
 "use client";
 import {useEffect,useState} from "react";
+import {openingReviewActorLabel} from "@/lib/opening-review-actor-label";
 import styles from "./OpeningEvidencePresentation.module.css";
 import boStyles from "../bo.module.css";
 import {openingEvidenceApi,type OpeningEvidenceRow,type EvidenceDetail} from "@/lib/bo-opening-evidence-api";
@@ -17,15 +18,27 @@ function PhotoPreview({row,assetId}:{row:OpeningEvidenceRow;assetId:string}){
   // eslint-disable-next-line @next/next/no-img-element
   return url?<div className={styles.photoPreview}><img src={url} alt="Ảnh setup" className={boStyles.mediaPreviewFrame}/></div>:<p role="status">{error||"Đang tải ảnh…"}</p>;
 }
+export function EvidenceStatusPill({status}:{status:"PENDING"|"APPROVED"|"REJECTED"}){
+  const labels={PENDING:"Chờ duyệt",APPROVED:"Đã duyệt",REJECTED:"Từ chối"};
+  const color={PENDING:"tag-yellow",APPROVED:"tag-green",REJECTED:"tag-red"};
+  return <span className={"datatag "+color[status]}>{labels[status]}</span>;
+}
+
 /** PAP-764/PAP-767: the same scoped private gallery in Quick Drawer and Full Detail. */
 export function OpeningEvidenceGallery({data,formatTime}:{data:EvidenceDetail;formatTime:(value:string)=>string}){
   const {row,history}=data;
+  const submissions=history.filter(e=>e.kind==="SUBMISSION"&&e.privateAssetId);
   return <section className={styles.gallery} aria-label="Ảnh setup">
-    {history.filter(e=>e.kind==="SUBMISSION"&&e.privateAssetId).map(e=><article className={styles.round} key={e.eventId}>
-      <h3>Vòng {e.version}</h3><p>{e.actorLegalFullName??"—"} · {formatTime(e.occurredAt)}</p>
-      {e.note?<p>Ghi chú: {e.note}</p>:null}
-      {(e.privateAssetIds??[e.privateAssetId!]).map(assetId=><PhotoPreview key={JSON.stringify([row.centerId,row.subjectType,row.openingReceiptId,row.version,assetId])} row={row} assetId={assetId}/>)}
-    </article>)}
+    {submissions.length===0?<p role="status">Chưa có ảnh setup.</p>:null}
+    {submissions.map((e,index)=>{
+      const review=history.filter(r=>r.kind==="REVIEW"&&r.roundId===e.roundId&&r.version>e.version).sort((a,b)=>b.version-a.version)[0];
+      return <article className={"v24-prop-section "+styles.round} key={e.eventId}>
+        <header className="v24-section-heading"><div><h4>Vòng {index+1}</h4><p>{e.actorLegalFullName??"—"} · {formatTime(e.occurredAt)}</p></div><EvidenceStatusPill status={review?.verdict??"PENDING"}/></header>
+        <div className={styles.photos}>{(e.privateAssetIds??[e.privateAssetId!]).map(assetId=><PhotoPreview key={JSON.stringify([row.centerId,row.subjectType,row.openingReceiptId,row.version,assetId])} row={row} assetId={assetId}/>)}</div>
+        {e.note?<div className={styles.note}><strong>Ghi chú</strong><p>{e.note}</p></div>:null}
+        {review?<div className={styles.decision}><p>{openingReviewActorLabel(review.actorLegalFullName,review.reviewAccountRecorded)} · {formatTime(review.occurredAt)}</p>{review.reason?<div className={styles.note}><strong>Lý do</strong><p>{review.reason}</p></div>:null}</div>:null}
+      </article>;
+    })}
   </section>;
 }
 

@@ -6,6 +6,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCamera, faCheckCircle, faCloudArrowUp, faImage, faShieldHalved, faTrash } from "@fortawesome/free-solid-svg-icons";
 import { OpsFrame } from "./OpsV4Body";
 import { formatPinoDateTime } from "@/lib/pino-datetime";
+import {openingReviewActorLabel} from "@/lib/opening-review-actor-label";
 async function shrinkPhoto(file:File):Promise<string>{
  if(!["image/jpeg","image/png","image/webp"].includes(file.type))throw new Error("Chọn ảnh JPEG, PNG hoặc WebP.");
  if(file.size>2*1024*1024)throw new Error("Ảnh vượt quá 2 MB.");
@@ -48,7 +49,7 @@ function ReadyEvidence({slot,server,onSaved}:{slot:ReceptionReadySlot;server:Ext
     <div className={css.panelTitle}><h3>Ảnh setup đã lưu</h3><span>{latest?.verdict==="REJECTED"?"Từ chối":latest?.verdict==="APPROVED"?"Đã duyệt":latest?"Chờ duyệt":"Chưa xác minh"}</span></div>
     {latest?.verdict==="REJECTED"?<p className={css.validationError} role="status">{latest.reason}</p>:null}
     {server.history?.map(e=><div key={e.eventId}>
-      <p className={css.meta}>{e.kind==="SUBMISSION"?"Gửi ảnh":e.verdict==="APPROVED"?"Đã duyệt":"Từ chối"} · {e.actorLegalFullName??"—"} · {formatPinoDateTime(e.occurredAt)}</p>
+      <p className={css.meta}>{e.kind==="SUBMISSION"?"Gửi ảnh":e.verdict==="APPROVED"?"Đã duyệt":"Từ chối"} · {openingReviewActorLabel(e.actorLegalFullName,e.reviewAccountRecorded)} · {formatPinoDateTime(e.occurredAt)}</p>
       {e.note?<p>{e.note}</p>:null}{e.reason?<p>{e.reason}</p>:null}
       {e.privateAssetIds.map(assetId=><PrivateReceptionImage key={assetId} slot={slot} receiptId={server.receipt.receipt_id} assetId={assetId}/>)}
     </div>)}

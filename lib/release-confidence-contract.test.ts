@@ -28,3 +28,11 @@ test("PAP-1220 staged-only Classroom Diary stays in navigation coverage, not Pro
  assert.deepEqual(checkPageContract(process.cwd(),bo,route),[]);
  assert.ok(checkPageContract(process.cwd(),BO_HOSTNAME,route).includes("host_denied"));
 });
+
+// PAP-2134: registered navigation has Staging-only page admission, never Production.
+test("PAP-2134 Post Draft canonical navigation stays BO Staging only",()=>{
+ const root=process.cwd(), route="/bo/piner-posts";
+ assert.deepEqual(checkPageContract(root,"bo.staging.pinohouse.art",route),[]);
+ assert.ok(checkPageContract(root,BO_HOSTNAME,route).includes("host_denied"));
+ assert.ok(checkPageContract(root,TOS_HOSTNAME,route).includes("host_denied"));
+});

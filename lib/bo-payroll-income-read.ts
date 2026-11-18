@@ -1,6 +1,15 @@
 import {periodApi,type PeriodStaff,type PayPeriod,type PeriodStaffPage} from "./bo-payroll-period-api";
 export type IncomePeriod = {period:Pick<PayPeriod,"id"|"name"|"startDate"|"endDate"|"status">;staff:PeriodStaff};
-export type IncomePage = {centerId:string;staffMemberId:string;anchorPeriodId:string;current:IncomePeriod;rows:IncomePeriod[];offset:number;nextOffset:number|null};
+export type IncomePage = {centerId:string;staffMemberId:string;anchorPeriodId:string;current:IncomePeriod;rows:IncomePeriod[];offset:number;nextOffset:number|null;financialCapabilities?:unknown};
+export type PayrollFinancialCapabilities = {centerId:string;canManageSettlement:boolean;canReviewExtraTime:boolean};
+/** Read-only advisory UI metadata, never command authorization. Staggered release fails closed. */
+export function verifiedFinancialCapabilities(value:unknown,centerId:string):PayrollFinancialCapabilities {
+ const denied={centerId,canManageSettlement:false,canReviewExtraTime:false};
+ if(!centerId||!value||typeof value!=="object"||Array.isArray(value))return denied;
+ const v=value as Record<string,unknown>;
+ if(v.centerId!==centerId||typeof v.canManageSettlement!=="boolean"||typeof v.canReviewExtraTime!=="boolean")return denied;
+ return {centerId,canManageSettlement:v.canManageSettlement,canReviewExtraTime:v.canReviewExtraTime};
+}
 export function scopedIncomeRow(page:Pick<PeriodStaffPage,"period"|"totalsScope"|"rows">,centerId:string,periodId:string,staffId:string):IncomePeriod|null {
  if(page.period.id!==periodId||page.totalsScope!=="FULL_PERIOD")throw Error("PAYROLL_INCOME_PERIOD_MISMATCH");
  const matches=page.rows.filter(r=>r.staffMemberId===staffId);
@@ -20,7 +29,7 @@ export async function loadIncomeHistory(centerId:string,currentId:string,staffId
  for(const row of [p.current,...p.rows]){
   if(!scopedIncomeRow({period:row.period,totalsScope:"FULL_PERIOD",rows:[row.staff]},centerId,row.period.id,staffId))throw Error("PAYROLL_INCOME_STAFF_NOT_FOUND");
  }
- return p;
+ return {...p,financialCapabilities:verifiedFinancialCapabilities(p.financialCapabilities,centerId)};
 }
 
 
