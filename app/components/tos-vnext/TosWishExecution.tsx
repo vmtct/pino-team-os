@@ -23,7 +23,8 @@ function WishExecution({centerId,learnerId,legalName,gender,host}:Props){
  const [journalError,setJournalError]=useState("");
  const [attempt,setAttempt]=useState<WishAttempt|null>(null),[quote,setQuote]=useState<ReturnType<typeof parseWishQuote>|null>(null),[error,setError]=useState(""),[loading,setLoading]=useState(true),[epoch,setEpoch]=useState(0);
  const [revision,setRevision]=useState(""),[count,setCount]=useState<number|"MAX">(1),[confirm,setConfirm]=useState<Confirmation|null>(null),[receipt,setReceipt]=useState<CommittedWish|null>(null),[busy,setBusy]=useState(false);
- const flight=useRef(false);
+ const flight=useRef(false),mounted=useRef(false);
+ useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;};},[]);
  const attemptRef=useRef(attempt);
  const scope={centerId,learnerId};
  useEffect(()=>{
@@ -38,21 +39,21 @@ function WishExecution({centerId,learnerId,legalName,gender,host}:Props){
   if(flight.current||journalError)return;
   flight.current=true;setBusy(true);setError("");
   try{
-   const persisted=await readAttempt(host,scope);
+   const persisted=await readAttempt(host,scope);if(!mounted.current)return;
    if(c&&persisted)throw Error("Một giao dịch khác đang chờ đối soát. Xác nhận lại đúng giao dịch này.");
    let a=attemptRef.current??persisted;
    if(a&&(!persisted||persisted.key!==a.key||JSON.stringify(persisted.payload)!==JSON.stringify(a.payload)))throw Error("Không xác minh được giao dịch đang chờ.");
-   if(!a){if(!c||!quote||loading)throw Error("Tải lại báo giá.");const next=prepareWishConfirmation(quote,scope,revision,count);if(JSON.stringify(next)!==JSON.stringify(c))throw Error("Báo giá đã thay đổi.");a=createWishAttempt(c.payload);await host.journal.reserve(a);}
+   if(!a){if(!c||!quote||loading)throw Error("Tải lại báo giá.");const next=prepareWishConfirmation(quote,scope,revision,count);if(JSON.stringify(next)!==JSON.stringify(c))throw Error("Báo giá đã thay đổi.");a=createWishAttempt(c.payload);await host.journal.reserve(a);if(!mounted.current)return;}
    attemptRef.current=a;setAttempt(a);setConfirm(null);
-   const raw=await host.draw(a);
+   const raw=await host.draw(a);if(!mounted.current)return;
    setReceipt(parseWishReceipt(raw,a.payload));
-  }catch(e){setConfirm(null);setError((e instanceof Error?e.message:"Chưa xác minh giao dịch.")+" Không tạo giao dịch mới trước khi đối soát.");try{const pending=await readAttempt(host,scope);attemptRef.current=pending;setAttempt(pending);setJournalError(pending?"":"Chưa xác minh được giữ chỗ giao dịch. Tải lại trước khi tiếp tục.");}catch{setJournalError("Không thể kiểm tra giao dịch đang chờ.");}}
-  finally{flight.current=false;setBusy(false);}
+  }catch(e){if(!mounted.current)return;setConfirm(null);setError((e instanceof Error?e.message:"Chưa xác minh giao dịch.")+" Không tạo giao dịch mới trước khi đối soát.");try{const pending=await readAttempt(host,scope);if(!mounted.current)return;attemptRef.current=pending;setAttempt(pending);setJournalError(pending?"":"Chưa xác minh được giữ chỗ giao dịch. Tải lại trước khi tiếp tục.");}catch{if(mounted.current)setJournalError("Không thể kiểm tra giao dịch đang chờ.");}}
+  finally{flight.current=false;if(mounted.current)setBusy(false);}
  }
  async function done(){
   const a=attemptRef.current;if(!a||!receipt||flight.current)return;
-  try{flight.current=true;setBusy(true);await host.journal.complete(a);attemptRef.current=null;setAttempt(null);setReceipt(null);setError("");refresh();}
-  catch{setError("Kết quả đã xác nhận nhưng chưa thể đóng giao dịch. Không tạo Wish mới.");}finally{flight.current=false;setBusy(false);}
+  try{flight.current=true;setBusy(true);await host.journal.complete(a);if(!mounted.current)return;attemptRef.current=null;setAttempt(null);setReceipt(null);setError("");refresh();}
+  catch{if(mounted.current)setError("Kết quả đã xác nhận nhưng chưa thể đóng giao dịch. Không tạo Wish mới.");}finally{flight.current=false;if(mounted.current)setBusy(false);}
  }
  if(receipt)return <><TosWishReveal key={receipt.eventId} receipt={receipt} centerId={centerId} learnerId={learnerId} load={host.reveal} onDone={done}/>{error&&<p role="alert" className={styles.error}>{error}</p>}</>;
  return <TosVNextCard className={styles.panel} aria-label="Wish học viên">

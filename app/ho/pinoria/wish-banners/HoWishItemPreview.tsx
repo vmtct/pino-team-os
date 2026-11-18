@@ -3,8 +3,8 @@
 import {useEffect,useState} from "react";
 import {DrawerFrame} from "@/app/components/workspace-renderer/DrawerFrame";
 import {verifyWishItemPreview,type WishItemPreviewSource,type WishItemPreviewTarget} from "./wish-item-preview";
-type Props={target:WishItemPreviewTarget;load:WishItemPreviewSource;onClose:()=>void};
-export function HoWishItemPreview({target,load,onClose}:Props){
+type Props={target:WishItemPreviewTarget;load:WishItemPreviewSource;onClose:()=>void;path?:string};
+export function HoWishItemPreview({target,load,onClose,path="Wish Banners / Item"}:Props){
  const [state,setState]=useState<{url:string;name:string;revision:number}|null>(null),[error,setError]=useState("");
  const [epoch,setEpoch]=useState(0);
  useEffect(()=>{
@@ -14,7 +14,7 @@ export function HoWishItemPreview({target,load,onClose}:Props){
   }).catch(e=>{if(!ctl.signal.aborted)setError(e instanceof Error?e.message:"Không thể tải media Item.");});
   return()=>{ctl.abort();if(url)URL.revokeObjectURL(url);};
  },[target,load,epoch]);
- return <DrawerFrame title="Item Preview" path="Wish Banners / Item" onClose={onClose} footer={<button type="button" className="secondary-btn" onClick={onClose}>Đóng</button>}>
+ return <DrawerFrame title="Item Preview" path={path} onClose={onClose} footer={<button type="button" className="secondary-btn" onClick={onClose}>Đóng</button>}>
  <div className="v24-prop-section"><p className="settings-hint">{target.itemId} · r{target.revision}</p>
  {error?<><p role="alert">{error}</p><button type="button" className="secondary-btn" onClick={()=>{setError("");setState(null);setEpoch(x=>x+1);}}>Tải lại</button></>:state?<><h4>{state.name}</h4><p>Published · r{state.revision}</p>{/* Verified immutable binary object URL, no Next image optimizer or public media path. */}
  {/* eslint-disable-next-line @next/next/no-img-element */}

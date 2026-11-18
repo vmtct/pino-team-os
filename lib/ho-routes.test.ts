@@ -7,8 +7,8 @@ import { decideHostBoundary } from "./host-boundary";
 const ho="ho.staging.pinohouse.art";
 test("HO route manifest keeps the approved distinct pages",()=>{
  // PAP-1606 / PAP-1601 PLT-UI-LOCALE-BO-HO: include approved Language Mapping alongside Custom Attributes.
- assert.equal(Object.keys(HO_PAGE_PATHS).length,25);
- assert.equal(new Set(Object.values(HO_PAGE_PATHS)).size,25);
+ assert.equal(Object.keys(HO_PAGE_PATHS).length,27);
+ assert.equal(new Set(Object.values(HO_PAGE_PATHS)).size,27);
  assert.equal(HO_PAGE_PATHS.languageMappings,"/ho/language-mappings");
  assert.equal(HO_PAGE_PATHS.paths,"/ho/learning/paths");
  assert.equal(HO_PAGE_PATHS.specialties,"/ho/learning/specialties");
@@ -33,6 +33,15 @@ test("returnTo fails closed on foreign origin, auth pages, duplicate or malforme
  assert.equal(safeHoReturnTo("/ho/centers?record=0198d050-56c1-7ac5-b9ab-b0e45d912345"),"/ho/centers?record=0198d050-56c1-7ac5-b9ab-b0e45d912345");
  assert.equal(hoRecordId("glow"),"glow");
  assert.equal(hoRecordId("../etc"),null);
+});
+test("Wish return-to preserves exact revision and tab, never foreign query",()=>{
+ const id="0198d050-56c1-7ac5-b9ab-b0e45d912345",p=HO_PAGE_PATHS.wishBanners;
+ const q=p+"?record="+id+"&tab=items&wishSelection=pending&wishRevision=2";
+ assert.equal(safeHoReturnTo(q),q);
+ assert.equal(safeHoReturnTo(q+"&external=1"),null);
+ assert.equal(safeHoReturnTo(q.replace("wishRevision=2","wishRevision=0")),null);
+ assert.equal(safeHoReturnTo(q.replace(p,HO_PAGE_PATHS.wishPolicies)),null);
+ for(const path of [HO_PAGE_PATHS.wishPolicies,p]){assert.equal(decideHostBoundary(ho,path).action,"next");for(const host of ["bo.staging.pinohouse.art","tos.staging.pinohouse.art","ho.pinohouse.art"])assert.equal(decideHostBoundary(host,path).action,"not_found");}
 });
 test("HO and BO sidebars both use client routing with prefetch disabled",()=>{
  const ws=readFileSync("app/bo/components/registration/BoRegistrationWorkspace.tsx","utf8");

@@ -1,6 +1,13 @@
 /** PAP-2030 / PNR-WISH — exact catalog head binding, one record per canonical ID. */
 import {parsePolicyHead,parseBannerHead,type WishConfigHead} from "@/lib/pls-wish-ho-contract";
+import type {WishRevisionRef} from "@/lib/pls-wish-detail-route";
 export type Selection="published"|"pending";
+export function wishRevisionRef(head:WishConfigHead<unknown>,selection:Selection):WishRevisionRef{
+ const revision=selection==="published"?head.published?.id:head.pendingDraft?.version;
+ if(revision===undefined)throw Error("Phiên bản Wish không còn khả dụng.");
+ return {selection,revision:String(revision)};
+}
+export function matchesWishRevision<T>(head:WishConfigHead<T>,ref:WishRevisionRef){try{return wishRevisionRef(head,ref.selection).revision===ref.revision;}catch{return false;}}
 export function selectWishRevision<T>(head:WishConfigHead<T>,preferred?:Selection):Selection{
  if(preferred==="pending"&&head.pendingDraft)return "pending";
  if(preferred==="published"&&head.published)return "published";

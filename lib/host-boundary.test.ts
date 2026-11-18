@@ -532,3 +532,11 @@ test("HO World private facade host and method fence",()=>{const path="/api/ho/pi
   for(const method of ["POST","HEAD","DELETE","PATCH"]) assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art",p,method),{action:"not_found"});
   assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art",p+"/other","GET"),{action:"not_found"});
  });
+
+test("PAP-2030 exact historical Wish Item record is HO staging GET only",()=>{
+ const p="/api/ho/pinoria/pls-wish/config/item-record/"+roleId+"/3";
+ assert.deepEqual(decideHostBoundary("ho.staging.pinohouse.art",p,"GET"),{action:"next"});
+ for(const host of ["ho.staging.pinohouse.art","bo.staging.pinohouse.art","tos.staging.pinohouse.art",BO_HOSTNAME])for(const method of ["POST","PATCH","DELETE"])assert.deepEqual(decideHostBoundary(host,p,method),{action:"not_found"});
+ for(const host of ["bo.staging.pinohouse.art","tos.staging.pinohouse.art",BO_HOSTNAME])assert.deepEqual(decideHostBoundary(host,p,"GET"),{action:"not_found"});
+ for(const suffix of ["/x","/0","/3/extra"])assert.deepEqual(decideHostBoundary("ho.staging.pinohouse.art","/api/ho/pinoria/pls-wish/config/item-record/"+roleId+suffix,"GET"),{action:"not_found"});
+});

@@ -1,11 +1,13 @@
 "use client";
 /** PAP-2030 / PNR-WISH — shared DrawerFrame, explicit confirmation and exact receipt verification. */
 import {useRef,useState} from "react";
+import type {WishRevisionRef} from "@/lib/pls-wish-detail-route";
+import {wishRevisionRef} from "./wish-catalog-state";
 import {DrawerFrame} from "@/app/components/workspace-renderer/DrawerFrame";
 import {publishWishDraft,retireWishRevision,confirmWishLifecycle,type WishLifecycleCommand,type WishConfigHead,type PolicyValue,type BannerValue} from "@/lib/pls-wish-ho-contract";
 type Head=WishConfigHead<PolicyValue>|WishConfigHead<BannerValue>;
 export type WishLifecycleHost=(command:WishLifecycleCommand)=>Promise<{receipt:unknown;readback:unknown}>;
-type Props={scope:"policy"|"banner";head:Head;execute:WishLifecycleHost;onVerified:()=>void;onReload:()=>void};
+type Props={scope:"policy"|"banner";head:Head;execute:WishLifecycleHost;onVerified:(next:WishRevisionRef)=>void;onReload:()=>void};
 type Attempt={kind:"publish"|"retire";head:Head};
 const signature=(h:Head)=>JSON.stringify([h.recordId,h.pointerVersion,h.active,h.latestDraft?.version,h.pendingDraft?.version,h.published?.id,h.staleDraft]);
 export function HoWishLifecycle({scope,head,execute,onVerified,onReload}:Props){
@@ -20,7 +22,7 @@ export function HoWishLifecycle({scope,head,execute,onVerified,onReload}:Props){
   try{cmd=attempt.kind==="publish"?publishWishDraft(scope,attempt.head as WishConfigHead<PolicyValue|BannerValue>):retireWishRevision(scope,attempt.head as WishConfigHead<PolicyValue|BannerValue>,reason);}
   catch(e){setError(e instanceof Error?e.message:"Dữ liệu chưa hợp lệ.");return;}
   flight.current=true;setBusy(true);setError("");
-  try{const result=await execute(cmd);confirmWishLifecycle(cmd,attempt.head,result.receipt,result.readback);setAttempt(null);onVerified();}
+  try{const result=await execute(cmd);const next=confirmWishLifecycle(cmd,attempt.head,result.receipt,result.readback);setAttempt(null);onVerified(wishRevisionRef(next,"published"));}
   catch(e){setUncertain(true);setError((e instanceof Error?e.message:"Chưa xác minh được kết quả.")+" Tải lại để đối soát; không gửi lại tự động.");}
   finally{flight.current=false;setBusy(false);}
  }

@@ -7,7 +7,7 @@ export type WishRevealLoader=(scope:WishRevealScope,signal:AbortSignal)=>Promise
 export function TosWishReveal({receipt,centerId,learnerId,load,onDone}:{receipt:CommittedWish;centerId:string;learnerId:string;load?:WishRevealLoader;onDone:()=>void}){
  const [media,setMedia]=useState<string|null>(null),[finished,setFinished]=useState(!load);
  useEffect(()=>{if(!load)return;const c=new AbortController();const timeout=window.setTimeout(()=>{c.abort();setFinished(true);},8000);
- void load({centerId,learnerId,eventId:receipt.eventId},c.signal).then(raw=>{if(!c.signal.aborted){const url=parseCommittedWishReveal(raw,receipt);if(url)setMedia(url);else setFinished(true);}}).catch(()=>{if(!c.signal.aborted)setFinished(true);}).finally(()=>window.clearTimeout(timeout));
+ void Promise.resolve().then(()=>load({centerId,learnerId,eventId:receipt.eventId},c.signal)).then(raw=>{if(!c.signal.aborted){const url=parseCommittedWishReveal(raw,receipt);if(url)setMedia(url);else setFinished(true);}}).catch(()=>{if(!c.signal.aborted)setFinished(true);}).finally(()=>window.clearTimeout(timeout));
  return()=>{c.abort();window.clearTimeout(timeout);};
  },[load,receipt,centerId,learnerId]);
  return <TosVNextCard aria-label="Kết quả Wish">

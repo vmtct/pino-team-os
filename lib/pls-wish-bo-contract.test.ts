@@ -36,3 +36,14 @@ test("invalidation exact refund, immutable reason, committed readback and no dou
  assert.throws(()=>confirmWishInvalidation(attempt,receipt,{...reversed,outcomes:[{...first,item_revision:2},{...second,item_revision:2}]},parseBoWishDetail(detail,id(4),id(1))));
  assert.throws(()=>prepareWishInvalidation(parseBoWishDetail(reversed,id(4),id(1)),"Again","other"));
 });
+
+import {scopedWishInvalidationJournal} from "./pls-wish-bo-journal-scope";
+test("BO reversal journal rejects stale actor or selected Center without read/write/complete",async()=>{
+ const e=parseBoWishDetail(detail,id(4),id(1)),a=prepareWishInvalidation(e,"QA","same");
+ let allowed=true,pending:typeof a|null=null,calls=0;
+ const journal=scopedWishInvalidationJournal({async read(){calls++;return pending;},async reserve(_e,n){calls++;pending=n;},async complete(){calls++;pending=null;}},id(4),async()=>{if(!allowed)throw Error("Actor changed");});
+ await journal.reserve(e,a);assert.equal(pending,a);
+ allowed=false;await assert.rejects(journal.read(e));await assert.rejects(journal.complete(e,a));await assert.rejects(journal.reserve(e,a));assert.equal(calls,1);assert.equal(pending,a);
+ allowed=true;await assert.rejects(journal.read({...e,centerId:id(99)}));await assert.rejects(journal.complete({...e,eventId:id(99)},a));assert.equal(calls,1);
+ assert.equal(await journal.read(e),a);await journal.complete(e,a);assert.equal(pending,null);
+});

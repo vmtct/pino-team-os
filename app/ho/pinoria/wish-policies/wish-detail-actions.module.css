@@ -1,0 +1,34 @@
+/* PAP-2135 — Wish-specific horizontal action row; shared DS buttons stay native. */
+.row { display:flex; flex-flow:row wrap; align-items:center; gap:8px; margin-top:20px;margin-bottom:0;justify-content:flex-end; }
+.row > :global(.heading-actions) { display:contents; }
+.row > button, .row > :global(.heading-actions) > button { flex:0 0 auto; max-width:100%; margin:0; }
+@media (max-width:480px) {
+ .row {gap:5px;flex-wrap:nowrap;}
+ .row:has(> :global(.heading-actions) > button:nth-child(2)) {flex-wrap:wrap;}
+ .row > button, .row > :global(.heading-actions) > button {padding-inline:7px;min-height:37px;font-size:12px;white-space:normal;flex:0 1 auto;min-width:0;}
+}
+
+/* Each group has exactly one property column. The container, not viewport,
+   determines whether two groups fit beside each other. */
+.layout { container-type:inline-size; min-width:0; width:100%; }
+.groups { display:grid;grid-template-columns:minmax(0,1fr);gap:16px;align-items:start; }
+.groups > :global(.v24-prop-section) { min-width:0; margin:0; }
+.groups :global(.v24-prop-grid) { grid-template-columns:minmax(0,1fr) !important; }
+.groups :global(.v24-prop-item) { min-width:0; }
+.groups :global(.edit-input) { min-width:0;max-width:100%;box-sizing:border-box; }
+@container (min-width:660px) {
+ .groups { grid-template-columns:repeat(2,minmax(0,1fr));gap:20px; }
+}
+
+/* Soft pity uses one group slot, with a compact ordinal column. */
+.curve :global(.table-scroll) { min-width:0;max-width:100%; }
+.curve table { table-layout:fixed;width:100%;min-width:0 !important; }
+.wishColumn { width:56px !important; }
+.curve col:last-child { width:calc(100% - 56px) !important; }
+.curve th:first-child,.curve td:first-child { width:56px !important;min-width:0 !important;max-width:56px;position:static;padding-inline:6px;box-sizing:border-box; }
+.curve th:last-child,.curve td:last-child { width:auto !important;min-width:0 !important; }
+.curve :global(.edit-input) { width:100%;min-width:0;max-width:100%;box-sizing:border-box; }
+/* Detail Item picker: sufficient space before the pool table, compact selector. */
+:global(#detail-screen) .itemPicker { display:flex;flex-flow:row wrap;align-items:center;justify-content:flex-start;gap:12px;margin-block:12px 16px;min-width:0; }
+:global(#detail-screen) .itemPicker > select { width:100%;max-width:400px;flex:0 1 400px;min-width:0;box-sizing:border-box;margin:0; }
+:global(#detail-screen) .itemPicker > button { flex:0 0 auto;margin:0; }
