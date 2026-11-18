@@ -24,7 +24,7 @@ import {openLinkedSpecialtyAdapter} from "@/lib/bo-linked-specialty-projection";
 import type {DirectoryCenterSource} from "../pinoria-avatars/centers";
 import type {OwnedSubscriptionItem} from "@/lib/pap1334-native-subscription-read";
 import {readSubscriptionCenterDetail} from "@/lib/bo-subscription-center-detail-client";
-import {readSubscriptionDetailRoute,subscriptionDetailUrl,type SubscriptionDetailTab} from "@/lib/bo-subscription-detail-url";
+import {readSubscriptionDetailRoute,subscriptionDetailUrl,linkedSpecialtyDetailUrl,readLinkedSpecialtyRoute,type SubscriptionDetailTab} from "@/lib/bo-subscription-detail-url";
 import {assertCenterDetail,loadCenterSubscriptionDirectory,nativeSubscriptionModule,
   subscriptionRecord,subscriptionUuid} from "@/lib/pap1334-native-subscription-read";
 
@@ -62,6 +62,8 @@ export function SubscriptionDirectoryDsa({enrollmentContent,linkedSpecialty}:{en
       const url=new URL(window.location.href);
       if(url.searchParams.has("record")){
         url.searchParams.delete("record");
+        url.searchParams.delete("specialtyRecord");
+        url.searchParams.delete("tab");
         window.history.replaceState(null,"",url.pathname+url.search+url.hash);
       }
     }
@@ -101,7 +103,7 @@ function ScopedSubscriptions({centerId,centerName,centerSource,menu,enrollmentCo
     return {openAuthorized:(subject,signal)=>{
       assertScope(subject);
       return openLinkedSpecialtyAdapter({...subject,pathLabel},signal,centerSource);
-    },openDetail:subject=>{assertScope(subject);setLinkedRecord(subject);}};
+    },openDetail:subject=>{assertScope(subject);window.history.pushState(null,"",linkedSpecialtyDetailUrl(window.location.href,subject.subscriptionId,subject.specialtyId));setLinkedRecord(subject);}};
   },[detail,centerId,centerSource]);
   const [revision,setRevision]=useState(0);
   const [page,setPage]=useState(1);
@@ -144,6 +146,7 @@ function ScopedSubscriptions({centerId,centerName,centerSource,menu,enrollmentCo
       if(ctl.signal.aborted)return;
       const row:BoRecord={...subscriptionRecord(item),
         path:canonical.pathDisplayName,
+        pathProgramId:canonical.pathProgramId,
         status:canonical.lifecycle,
         start:canonical.serviceStartsOn||"",
         end:canonical.contractualEndsOn||"",
@@ -157,13 +160,16 @@ function ScopedSubscriptions({centerId,centerName,centerSource,menu,enrollmentCo
       setDetailTab(nextTab);
       // PAP-1907: a direct immutable record URL must restore Full Detail, not Quick View.
       // Only a Table row click opens the Drawer. Both flows require the Center attestation above.
+      setLinkedRecord(null);setNotice("");
       if(pushUrl){
         setDetail(null);setDrawer({id:item.id,row});
         window.history.pushState(null,"",scopedHref(item.id,nextTab));
       }else{
         setDrawer(null);setDetail({id:item.id,row});
+        const linked=readLinkedSpecialtyRoute(window.location.search);
+        if(linked.invalid){setNotice("Liên kết Chuyên đề không hợp lệ.");window.history.replaceState(null,"",scopedHref(item.id,nextTab));}
+        else if(linked.id&&route.id===item.id)setLinkedRecord({specialtyId:linked.id,subscriptionId:item.id,centerId,pathProgramId:canonical.pathProgramId});
       }
-      setNotice("");
     }catch(cause){
       if(!ctl.signal.aborted){setError(failure(cause));setDrawer(null);setDetail(null);}
     }finally{if(!ctl.signal.aborted)setBusy(null);}
@@ -187,11 +193,11 @@ function ScopedSubscriptions({centerId,centerName,centerSource,menu,enrollmentCo
       setLinkedRecord(null);
       const record=new URL(window.location.href).searchParams.get("record");
       if(!record){detailController.current?.abort();setDrawer(null);setDetail(null);setBusy(null);setDetailTab("Detail");}
-      else setDetailTab(readSubscriptionDetailRoute(window.location.search).tab);
+      else {const matching=items.find(item=>item.id===record);if(matching)void verify(matching,false);else{detailController.current?.abort();setDrawer(null);setDetail(null);setError("Gói học không thuộc cơ sở được cấp quyền hoặc không tồn tại.");}}
     };
     window.addEventListener("popstate",onBack);
     return()=>window.removeEventListener("popstate",onBack);
-  },[]);
+  },[items,verify]);
   const rows=items.map(subscriptionRecord);
   const close=()=>{
     detailController.current?.abort();
@@ -229,12 +235,13 @@ function ScopedSubscriptions({centerId,centerName,centerSource,menu,enrollmentCo
   };
 
   if(linkedRecord&&runtimeLinked&&detail?.id===linkedRecord.subscriptionId&&linkedRecord.centerId===centerId)
-    return <BoLinkedSpecialtyDrawer key={linkedRecord.specialtyId+":"+linkedRecord.subscriptionId+":"+centerId} subject={linkedRecord} binding={runtimeLinked} mode="detail" mobileMenu={menu} onClose={()=>setLinkedRecord(null)}/>;
+    return <BoLinkedSpecialtyDrawer key={linkedRecord.specialtyId+":"+linkedRecord.subscriptionId+":"+centerId} subject={linkedRecord} binding={runtimeLinked} mode="detail" mobileMenu={menu} onClose={()=>{window.history.replaceState(null,"",scopedHref(linkedRecord.subscriptionId,"Chuyên đề"));setLinkedRecord(null);}}/>;
   return <>
     {detail ? <DetailFrame title={String(detail.row.path||"Gói học")+" · "+detail.row.name}
       subtitle={"Gói học · "+(centerName||"Cơ sở đã chọn")}
       mobileMenu={menu} onBack={close} tabs={subscriptionDetailTabs}
       selected={detailTab} onSelect={selectDetailTab}>
+      {notice?<p role="status">{notice}</p>:null}
       {detailTab==="Detail"||detailTab==="Lịch Sử" ?
         <PropertySections variant="detail" record={detail.row}
           fields={nativeSubscriptionModule.fields}

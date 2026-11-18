@@ -4,7 +4,7 @@ import {strict as assert} from "node:assert";
 import {readFileSync} from "node:fs";
 import {isBoSubscriptionSpecialtyPath,validateSubscriptionSpecialtyScope,
  handleBoSubscriptionSpecialtyRequest} from "./bo-subscription-specialty-facade";
-import {readSubscriptionDetailRoute,subscriptionDetailUrl} from "./bo-subscription-detail-url";
+import {readSubscriptionDetailRoute,subscriptionDetailUrl,linkedSpecialtyDetailUrl,readLinkedSpecialtyRoute} from "./bo-subscription-detail-url";
 
 const sub="019a0f22-1111-7111-8111-000000000005";
 const grant="019a0f22-1111-7111-8111-000000000008";
@@ -101,4 +101,22 @@ void test("PAP-1496 linked detail facade is exact GET only with selected Center"
  assert.equal((await handleBoSubscriptionSpecialtyRequest(new Request(url),env,path)).status,400);
  assert.equal((await handleBoSubscriptionSpecialtyRequest(new Request(url+"?centerId="+center+"&centerId="+center),env,path)).status,400);
  assert.equal((await handleBoSubscriptionSpecialtyRequest(new Request("https://ho.staging.pinohouse.art/api/bo/"+path+"?centerId="+center),env,path)).status,404);
+});
+
+void test("PAP-1496 immutable linked detail URL rejects duplicate or invalid identifiers and clears on parent navigation",()=>{
+ const origin="https://bo.staging.pinohouse.art";
+ const href=linkedSpecialtyDetailUrl(origin+"/bo?module=subscriptions&foo=bar",sub,grant);
+ const query=new URL(href,origin).search;
+ assert.deepEqual(readLinkedSpecialtyRoute(query),{id:grant,invalid:false});
+ assert.match(href,/foo=bar/);
+ assert.equal(readSubscriptionDetailRoute(query).id,sub);
+ for(const q of [query+"&specialtyRecord="+grant,query+"&record="+sub,query+"&tab=specialty","?specialtyRecord="+grant,"?record="+sub+"&tab=overview&specialtyRecord="+grant,query.replace(grant,"invalid")])
+  assert.deepEqual(readLinkedSpecialtyRoute(q),{id:null,invalid:true});
+ assert.throws(()=>linkedSpecialtyDetailUrl(origin+"/bo",sub,"invalid"));
+ assert.doesNotMatch(subscriptionDetailUrl(origin+href,sub,"Chuyên đề"),/specialtyRecord/);
+ assert.doesNotMatch(subscriptionDetailUrl(origin+href,null),/specialtyRecord/);
+ const native=readFileSync(new URL("../app/bo/subscriptions/SubscriptionDirectoryDsa.tsx",import.meta.url),"utf8");
+ assert.match(native,/pathProgramId:canonical.pathProgramId/);
+ assert.match(native,/linked.id&&route.id===item.id\)setLinkedRecord\(\{specialtyId:linked.id,subscriptionId:item.id,centerId,pathProgramId:canonical.pathProgramId\}/);
+ assert.match(native,/linkedSpecialtyDetailUrl\(window.location.href,subject.subscriptionId,subject.specialtyId\)/);
 });

@@ -57,7 +57,7 @@ export function BoSubscriptionSpecialtyTab({subscriptionId,centerId,centerReady,
  const [views,setViews]=useState<BoSavedView[]>([]),[activeView,setActiveView]=useState<string|null>(null);
 
  const nextRequest=useRef(0);
- const previewReturn=useRef<HTMLButtonElement|null>(null);
+ const previewReturn=useRef<HTMLElement|null>(null);
  const today=localDate();
  const refresh=useCallback(async()=>{
   if(!centerReady||!centerId){setLoad({state:"error",error:"Hãy chọn Center có quyền để xem Subscription."});return;}
@@ -121,7 +121,7 @@ export function BoSubscriptionSpecialtyTab({subscriptionId,centerId,centerReady,
   void run({kind:"completion",key:crypto.randomUUID(),subscriptionId,centerId,
    completion:{grantId:grant.id,completed:!grant.completed,expectedVersion:grant.version}});
  };
- const showPreview=(item:BoSubscriptionSpecialtyCatalogItem,origin:HTMLButtonElement|null)=>{
+ const showPreview=(item:BoSubscriptionSpecialtyCatalogItem,origin:HTMLElement|null)=>{
   previewReturn.current=origin;setPreview(item);
  };
  const closePreview=()=>{setPreview(null);requestAnimationFrame(()=>previewReturn.current?.focus());};
@@ -161,14 +161,14 @@ export function BoSubscriptionSpecialtyTab({subscriptionId,centerId,centerReady,
        onClick={create}>Thêm chuyên đề</button>
     </div>
     {chosen&&!chosenEligible?<div role="status" className={"edit-error "+styles.prerequisiteWarning}>
-     {chosen.alreadyGranted?"Chuyên đề đã được cấp.":<><strong>Cần hoàn thành chuyên đề tiền đề trong cùng Subscription:</strong>{" "}{chosen.missingPrerequisiteIds.length?chosen.missingPrerequisiteIds.map((id,index)=>{const item=byId.get(id);return <span key={id}>{index?", ":""}{item?<button type="button" className="secondary-btn" onClick={event=>showPreview(item,event.currentTarget)}>{item.name}</button>:id}</span>;}):"Chưa đủ điều kiện"}</>}
+     {chosen.alreadyGranted?"Chuyên đề đã được cấp.":<><strong>Cần hoàn thành chuyên đề tiền đề trong cùng Subscription:</strong>{" "}{chosen.missingPrerequisiteIds.length?chosen.missingPrerequisiteIds.map((id,index)=>{const item=byId.get(id);return <span key={id}>{index?", ":""}{item?<a href={"/bo?module=subscriptions&record="+encodeURIComponent(subscriptionId)+"&tab=specialty&specialtyRecord="+encodeURIComponent(item.id)} onClick={event=>{if(!event.ctrlKey&&!event.metaKey&&!event.shiftKey&&!event.altKey&&event.button===0){event.preventDefault();showPreview(item,event.currentTarget);}}}>{item.name}</a>:id}</span>;}):"Chưa đủ điều kiện"}</>}
     </div>:null}
     {!catalog.length?<p>Không có Chuyên đề ACTIVE cùng Path để chọn.</p>:null}
    </section>
    <section className="v24-prop-section">
     <h3>Chuyên đề đã cấp</h3>
     <div data-tdd-shell="" data-tdd-table="" data-tdd-freeze-controls="" className={styles.tableWrap}>
-     <BoDataTable minimal showChrome={false} totalKnown={false} module={grantModule} rows={grantRows} loadState="ready" value={{...table,pageSize:Math.max(1,grantRows.length)}} update={updateTable} page={page} setPage={setPage} onOpen={row=>{const g=data.grants.find(x=>x.id===row.id),item=g&&byId.get(g.specialtyId);if(item)showPreview(item,document.activeElement instanceof HTMLButtonElement?document.activeElement:null);}} onCellEdit={row=>{const g=data.grants.find(x=>x.id===row.id);if(g)toggle(g);}} policy={{identity:"name",search:grantModule.fields.map(f=>f.key),filter:grantModule.fields.map(f=>f.key),sort:grantModule.fields.map(f=>f.key),group:[],edit:canAct&&!busy&&!pendingCommand?["completed"]:[],viewActions:[]}} onSettings={setSettings} filterOpen={filterOpen} setFilterOpen={setFilterOpen} views={views} changeViews={setViews} activeView={activeView} applyView={v=>{setTable(v?.state??defaultTable(grantModule.fields));setActiveView(v?.id??null);setPage(1);}} reset={()=>{setTable(defaultTable(grantModule.fields));setPage(1);setActiveView(null);}} undo={()=>{}} canUndo={false}/>
+     <BoDataTable minimal showChrome={false} totalKnown={false} module={grantModule} rows={grantRows} loadState="ready" value={{...table,pageSize:Math.max(1,grantRows.length)}} update={updateTable} page={page} setPage={setPage} onOpen={row=>{const g=data.grants.find(x=>x.id===row.id),item=g&&byId.get(g.specialtyId);if(item)showPreview(item,document.activeElement instanceof HTMLElement?document.activeElement:null);}} onCellEdit={row=>{const g=data.grants.find(x=>x.id===row.id);if(g)toggle(g);}} policy={{identity:"name",search:grantModule.fields.map(f=>f.key),filter:grantModule.fields.map(f=>f.key),sort:grantModule.fields.map(f=>f.key),group:[],edit:canAct&&!busy&&!pendingCommand?["completed"]:[],viewActions:[]}} onSettings={setSettings} filterOpen={filterOpen} setFilterOpen={setFilterOpen} views={views} changeViews={setViews} activeView={activeView} applyView={v=>{setTable(v?.state??defaultTable(grantModule.fields));setActiveView(v?.id??null);setPage(1);}} reset={()=>{setTable(defaultTable(grantModule.fields));setPage(1);setActiveView(null);}} undo={()=>{}} canUndo={false}/>
     </div>
     {settings?<BoTableSettings screen={settings} setScreen={setSettings} onClose={()=>setSettings(null)} fields={grantModule.fields} rows={grantRows} value={table} update={updateTable} views={views} setViews={setViews} applyView={v=>{setTable(v.state);setActiveView(v.id);setPage(1);}}/>:null}
    </section>
