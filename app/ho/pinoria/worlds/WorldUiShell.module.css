@@ -1,81 +1,18 @@
-/* PAP-2129 feature-only layout. Native DSA owns table, drawer, typography and Detail chrome. */
-.shell{min-width:0;width:100%}
-.table{min-width:0;position:relative;container-type:inline-size}
-.table :global(.empty-table){position:sticky;left:0;box-sizing:border-box;width:calc(100cqw - 24px);max-width:100%;text-align:center}
-.table[data-tdd-surface="BO"] :global([data-native-avatar] #typed-table :is(th,td)[data-tdd-identity-column]){left:56px!important}
-.state{display:flex;align-items:center;flex-wrap:wrap;gap:12px;padding:24px 16px;border:1px solid var(--line,#dce3e7);border-radius:8px;background:var(--surface,#fff)}
-.select{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0}
-.select select{max-width:100%;padding:8px 12px;border:1px solid var(--line,#dce3e7);border-radius:6px;background:var(--surface,#fff);color:inherit}
-.controls{display:grid;gap:0;min-width:0}
-.controls>div{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:12px 4px;border-bottom:1px solid var(--line,#dce3e7)}
-.previewWrap{max-width:960px;width:100%;margin:12px auto}
-.preview{width:100%;aspect-ratio:16/9;position:relative;overflow:hidden;background:#dce8df;border:1px solid var(--line,#dce3e7);border-radius:8px;isolation:isolate}
-.preview svg{display:block;width:100%;height:100%}
-.previewLayer{position:absolute;transform-origin:center bottom}
-.avatarFigure{display:flex;flex-direction:column;align-items:center;font-size:clamp(22px,5vw,62px);color:#725737;text-shadow:0 2px 4px #fff}
-.avatarFigure small{font-size:12px;text-shadow:none}
-.mediaFigure{font-size:clamp(18px,4vw,48px);color:#f7d078}
-.lock{display:grid;place-items:center;position:absolute;inset:0;background:#172a3488;color:white;font-weight:600}
-
-
-
-
-/* PAP-2129 native detail panel layout. Local tables scroll, not the page. */
+/* PAP-2143 / PAP-8: business-tab layout only. PINO DS owns table, control, and panel cosmetics. */
 .builder,.worldTab{display:grid;gap:12px;min-width:0}
-.panel{min-width:0;border:1px solid var(--line,#e1e5e8);border-radius:8px;background:var(--surface,#fff);padding:14px}
-.panelHead{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;min-width:0;margin-bottom:10px}
-.panelHead h3,.panel h3{margin:0;font-size:14px;font-weight:600}
-.panelHead p{margin:5px 0 0;font-size:12px;color:var(--muted,#62686c)}
-.inlineAction{display:flex;gap:8px;align-items:center;flex-wrap:wrap;min-width:0}
-.inlineAction label{font-size:12px}
-.input{min-width:0;max-width:100%;border:1px solid var(--line,#dce0e3);border-radius:5px;padding:7px 9px;min-height:34px;background:var(--surface,#fff);color:inherit;font:inherit}
-.compactScroll{overflow-x:auto;min-width:0;max-width:100%;border:1px solid var(--line,#e1e5e8);border-radius:6px;outline-offset:2px}
-.compactTable{border-collapse:collapse;width:100%;table-layout:auto;font-size:12px;text-align:left;white-space:nowrap}
-.compactTable th,.compactTable td{padding:9px 11px;border-bottom:1px solid var(--line,#e3e6e8);vertical-align:middle}
-.compactTable th{background:var(--soft,#f6f7f8);font-weight:600;color:var(--muted,#555d63)}
-.compactTable tr:last-child td{border-bottom:0}
-.compactTable tr[data-selected=true]{background:var(--selected,#f8edf2)}
-.rowSelect{padding:4px 0;border:0;background:transparent;color:inherit;font:inherit;font-weight:600;text-align:left;cursor:pointer}
-.rowSelect[aria-pressed=true]{color:var(--brand,#812c4b)}
-.layerGrid input{width:72px}.layerGrid td:first-child input{width:156px}
-.builderActions{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-top:10px}
-.builderActions>div{display:flex;gap:8px;flex-wrap:wrap}
-.stage{position:relative;isolation:isolate;overflow:hidden;aspect-ratio:16/9;width:100%;max-width:960px;margin:8px auto 12px;background:#e7eef1;border:1px solid var(--line,#dce3e7);border-radius:7px}
-.stageBg,.stageLayer{position:absolute;transform-origin:center;pointer-events:none}
-.stageBg{width:100%;height:100%}.stageBg svg{width:100%;height:100%;display:block}
-.stageLayer{display:grid;place-items:center;max-width:60%}
-.stageLayer:has(.composite){width:20%;height:58%}
-.stageLayer .composite{height:100%;width:100%;display:block;overflow:visible}
-.anchor{border:1px dashed #9b6942;color:#644626;background:#ffeed3c9;padding:6px 8px;border-radius:5px;font-size:12px;white-space:nowrap}
-.layerGlyph{display:grid;text-align:center;color:#dca74a;font-size:clamp(16px,4vw,42px);line-height:1}
-.layerGlyph small{font-size:11px;color:#654b2a;background:#fff8;padding:3px;border-radius:4px;white-space:nowrap}
-.stageEmpty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:16px;color:var(--muted,#66747a);font-size:13px}
-.worldLayout{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,.85fr);gap:12px;align-items:start;min-width:0}
-.subline{font-size:12px;color:var(--muted,#687079);margin:0 0 4px}
-.sceneChecks{display:grid;gap:8px;max-height:360px;overflow:auto}
-.sceneChecks>div{display:grid;gap:7px;padding:8px 0;border-bottom:1px solid var(--line,#e1e5e8)}
-.sceneChecks label{display:flex;align-items:center;gap:8px;font-size:13px;min-height:28px}
-.sceneChecks input{width:17px;height:17px;accent-color:var(--brand,#812c4b)}
-.layerCheck{padding-left:24px}
-.count{color:var(--muted,#69737a);font-size:12px;font-weight:400;margin-left:6px}
-.empty{padding:16px;margin:0;color:var(--muted,#687079);font-size:13px}
-.validation{margin:0;color:#ad2433;font-size:13px}
-.hostItems{display:grid;gap:8px;margin-top:12px}.hostItems>div{display:flex;align-items:center;gap:12px;padding:10px;border:1px solid var(--line,#e1e5e8);border-radius:6px;font-size:13px}.hostItems>div :global(.datatag){margin-left:auto}
-.hostComposite{max-width:160px;margin:16px auto}.hostComposite svg{width:100%}
-@media(max-width:850px){.worldLayout{grid-template-columns:minmax(0,1fr)}.panel{padding:10px}.inlineAction{width:100%}.inlineAction input,.inlineAction select{flex:1;min-width:100px}.sceneChecks{max-height:none}.compactTable th,.compactTable td{padding:8px}.builderActions>div{margin-left:auto}}
-
-/* PAP-2129 media calibration: direct manipulation + keyboard and numeric values. */
-.mediaCell{display:flex;gap:7px;align-items:center;min-width:165px;max-width:245px}
-.mediaCell>span{max-width:118px;overflow:hidden;text-overflow:ellipsis}
-.mediaThumb{width:32px;height:32px;object-fit:contain;background:#f0f2f3;border:1px solid var(--line,#e1e5e8);border-radius:4px}
-.mediaPicker{position:relative;display:inline-flex;align-items:center;min-height:32px;padding:5px 8px;border:1px solid var(--line,#e1e5e8);border-radius:5px;white-space:nowrap;cursor:pointer}
-.mediaPicker input{position:absolute;inset:0;width:100%!important;height:100%;opacity:0;cursor:pointer}
-.mediaPicker:focus-within{outline:2px solid var(--brand,#812c4b);outline-offset:2px}
-.calibratable{pointer-events:auto;touch-action:none;cursor:grab;min-width:14px;min-height:14px}
-.calibratable:active{cursor:grabbing}
-.calibratable[data-calibration-selected=true],.calibratable:focus-visible{outline:1px dashed #812c4b;outline-offset:3px}
-.layerMedia{display:block;width:100%;height:100%;object-fit:contain;pointer-events:none;user-select:none}
-
-/* PAP-2129 stack order controls */
-.layerOrder{display:flex;align-items:center;gap:4px}
-.layerOrder button{min-width:32px;min-height:32px;padding:4px 8px;font-size:16px;line-height:1}
+.panel{display:grid;gap:10px;min-width:0}
+.panelHead,.inlineAction,.builderActions,.layerOrder,.mediaCell{display:flex;gap:8px;min-width:0}
+.compactScroll{width:100%;min-width:0;max-width:100%}
+.compactTable{width:100%;min-width:900px}
+.layerGrid{min-width:2300px}
+.input{width:100%;min-width:0;max-width:100%}
+.mediaThumb{width:32px;height:32px}
+.mediaPicker{display:grid;gap:4px;max-width:180px}
+.stage{display:block;width:100%;max-width:960px}
+.composite,.layerMedia{display:block;width:100%;height:100%}
+.anchor{display:grid;width:100%;height:100%}
+.worldLayout{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,.85fr);gap:12px;min-width:0}
+.sceneChecks{display:grid;gap:8px}
+.layerCheck{display:block}
+.empty{display:block}
+@media(max-width:850px){.worldLayout{grid-template-columns:minmax(0,1fr)}.panelHead,.inlineAction,.builderActions,.mediaCell{display:grid}}
