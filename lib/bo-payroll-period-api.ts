@@ -25,10 +25,12 @@ export interface SettlementPreview{
  staffMemberId:string;amountMinor:number;adjustmentsMinor:number;extraTimeMinor:number;
  days:SettlementDay[];
  adjustments:{id:string;amountMinor:number;reason:string}[];
- extraTimeDecisions:{id:string;decision:"APPROVED"|"REJECTED";amountMinor:number|null}[];
+ extraTimeDecisions:{id:string;requestId?:string;workDate?:string;decision:"APPROVED"|"REJECTED";amountMinor:number|null}[];
  warnings:string[];sourceFingerprint:string;
 }
 export interface PeriodStaffPage{
+ /** Optional additive Core metadata; absence never grants a financial action. */
+ financialCapabilities?:unknown;
  period:Pick<PayPeriod,"id"|"name"|"startDate"|"endDate"|"status">;
  rows:PeriodStaff[];totalStaffCount:number;staffWithWorkEvidenceCount?:number;limit:number;offset:number;nextOffset:number|null;
  totalsScope:"FULL_PERIOD";periodTotals:{

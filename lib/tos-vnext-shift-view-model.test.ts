@@ -16,5 +16,7 @@ test("schedule times and role facts come from Core, including custom ranges",()=
 });
 test("unknown income stays unknown; zero and negative adjustments remain server facts",()=>{
  assert.equal(formatIncome(undefined),"—");assert.equal(formatIncome(null),"—");
- assert.match(formatIncome(0),/0/);assert.match(formatIncome(-5000000),/-50\.000/);
+ assert.match(formatIncome(0),/0/);assert.match(formatIncome(-50000),/-50\.000/);
 });
+
+test("PAP-2136 renders identical integer VND from BO and TOS, without /100",()=>{for(const amount of [62400,12500,0,-50000])assert.equal(formatIncome(amount),new Intl.NumberFormat("vi-VN",{style:"currency",currency:"VND",maximumFractionDigits:0}).format(amount));});

@@ -86,6 +86,10 @@ export const boNavigation: BoNavGroup[] = [
     ],
   },
   {
+    label: "Piner App",
+    items: [{ href: "/bo/piner-posts", label: "Posts" }],
+  },
+  {
     label: "Content",
     items: [{ href: "/bo/content", label: "Website CMS" }],
   },
