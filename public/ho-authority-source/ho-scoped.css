@@ -1071,6 +1071,16 @@
   :where(html[data-surface="ho"]) [data-tdd-detail-resize] .tdd-label-resize-handle { display: none; }
 }
 
+/* PAP-2174 DSA_DETAIL_GROUP_GRID_V1: property groups, never business tabs. */
+:where(html[data-surface="ho"]) .dsa-detail-group-container { container: dsa-detail-groups / inline-size; min-width: 0; width: 100%; }
+:where(html[data-surface="ho"]) .dsa-detail-group-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; align-items: start; }
+:where(html[data-surface="ho"]) .dsa-detail-group-grid > [data-tdd-properties="detail"] { min-width: 0; margin: 0; }
+:where(html[data-surface="ho"]) .dsa-detail-group-grid > [data-tdd-properties="detail"] > .v24-prop-grid { grid-template-columns: minmax(0, 1fr); }
+:where(html[data-surface="ho"]) .dsa-detail-group-grid .v24-prop-value { overflow-wrap: anywhere; }
+:where(html[data-surface="ho"]) .dsa-detail-group-grid .v24-prop-value .id-code { white-space: normal; overflow-wrap: anywhere; }
+@container dsa-detail-groups (min-width: 760px) {
+  :where(html[data-surface="ho"]) .dsa-detail-group-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 
 /* PAP-1474 shared Table geometry */
 /* PAP-1474 / PAP-1067 — one non-color BO/HO TDD Table geometry authority.
