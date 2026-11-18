@@ -104,3 +104,17 @@ export async function uploadSceneMedia(file:File,replay:string,fetcher:typeof fe
  if(r.mediaType!==mediaType||r.byteSize!==file.size)return fail();
  return{mediaType,objectKey:key(r.objectKey,mediaType.toLowerCase())};
 }
+
+const historyActions:Record<string,[string,string]>={PINORIA_WORLD_CREATED:["pinoria_world","Tạo World"],PINORIA_WORLD_UPDATED:["pinoria_world","Cập nhật World"],PINORIA_WORLD_SCENE_CREATED:["pinoria_world_scene","Tạo cảnh"],PINORIA_WORLD_SCENE_UPDATED:["pinoria_world_scene","Cập nhật cảnh"],PINORIA_WORLD_SCENE_SAVED:["pinoria_world_scene","Lưu cảnh"],PINORIA_WORLD_SCENE_DELETED:["pinoria_world_scene","Xóa cảnh"],PINORIA_WORLD_LAYER_CREATED:["pinoria_world_scene_layer","Thêm layer"],PINORIA_WORLD_LAYER_UPDATED:["pinoria_world_scene_layer","Cập nhật layer"],PINORIA_WORLD_LAYER_DELETED:["pinoria_world_scene_layer","Xóa layer"]};
+export type WorldHistory={events:{id:string;occurredAt:string;label:string;actorName:string|null}[];truncated:boolean};
+export async function fetchWorldHistory(worldId:string,fetcher:typeof fetch=fetch,signal?:AbortSignal):Promise<WorldHistory>{
+ const o=obj(await request(fetcher,"/"+id(worldId)+"/history",{method:"GET",signal})),rows=list(o.events);
+ if(rows.length>100||typeof o.truncated!=="boolean")return fail();
+ const events=rows.map(v=>{const r=obj(v),action=str(r.action),entry=Object.hasOwn(historyActions,action)?historyActions[action]:undefined,occurredAt=str(r.occurredAt);
+  if(!entry||entry[0]!==r.subjectType||!Number.isFinite(Date.parse(occurredAt))||Object.keys(r).some(k=>!["id","occurredAt","action","subjectType","actorName"].includes(k)))return fail();
+  const actorName=r.actorName===null?null:str(r.actorName);if(actorName!==null&&(!actorName.trim()||actorName.length>160))return fail();
+  return {id:id(r.id),occurredAt,label:entry[1],actorName};
+ });
+ if(new Set(events.map(e=>e.id)).size!==events.length)return fail();
+ return {events,truncated:o.truncated};
+}

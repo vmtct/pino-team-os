@@ -10,7 +10,7 @@ import {worldDrawerModule} from "./world-drawer-contract";
 import {fetchWorldCatalog,patchWorld,type CoreWorld} from "./world-runtime-client";
 import {projectRuntimeWorld,createRuntimeScene,saveRuntimeScene,WorldMutationJournal} from "./world-runtime-model";
 import {SceneBuilder} from "./WorldDetailPanels";
-import styles from "./WorldUiShell.module.css";
+import {HoWorldHistory} from "./HoWorldHistory";
 const fields:BoField[]=[...worldDrawerModule.fields,{key:"description",label:"Mô tả",type:"textarea",w:240,icon:"Aa",readonly:true}];
 
 export function HoWorldRuntimeDetail({record,canManage,onBack,onConfirmed,tab,onTab}:{tab:string;onTab:(id:string)=>void;record:BoRecord;canManage:boolean;onBack:()=>void;onConfirmed:(row:BoRecord)=>void}){
@@ -36,6 +36,6 @@ export function HoWorldRuntimeDetail({record,canManage,onBack,onConfirmed,tab,on
  {!model||!world?<div role={result.error?"alert":"status"}>{result.error||"Đang tải World…"} {result.error&&<button type="button" className="secondary-btn" onClick={()=>{setResult({world:null,error:""});setRetry(n=>n+1)}}>Thử lại</button>}</div>:
  tab==="overview"?<><PropertySections fields={fields} record={mergeRow(world)} sections={[{id:"overview",label:"Thông tin World",fields:fields.map(f=>f.key)}]} variant="detail" canEdit={f=>canManage&&!busy&&["name","worldType","description"].includes(f.key)} onEdit={(f,anchor)=>setEdit({field:f,anchor})}/>{edit&&<BoTypedEditor field={{...edit.field,readonly:false}} value={mergeRow(world)[edit.field.key]} anchor={edit.anchor} onClose={closeEdit} onSave={v=>update(edit.field.key,v)}/>}</>:
  tab==="scenes"||tab==="preview"?<SceneBuilder key={world.id+tab} world={model.world} scenes={model.scenes} layers={model.layers} selected={sceneId} onSelect={setScene} onCreate={()=>{throw Error("Runtime Scene requires PNG.")}} onSave={()=>{throw Error("Runtime Scene requires Core acknowledgement.")}} can={canManage&&!busy} previewOnly={tab==="preview"} runtime={{create:async(name,file)=>{await mutate(async()=>{const r=await createRuntimeScene(world,name,file,journal.current);setScene(r.sceneId);return r.world})},save:async(id,rows)=>{const s=world.scenes.find(x=>x.id===id);if(!s)throw Error("Cảnh không còn khả dụng.");await mutate(()=>saveRuntimeScene(s,rows,journal.current))}}}/>:
- <p className={styles.empty} role="status">Lịch sử World chưa khả dụng.</p>}
+ <HoWorldHistory key={world.id} worldId={world.id}/>}
  </DetailFrame>
 }

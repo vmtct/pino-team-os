@@ -45,3 +45,11 @@ test("PAP-2143 bounded private multipart, raw bytes and replay key; reject extra
  assert.equal((await handleHoWorldRequest(make(),env({founder:false}))).status,403);
  assert.equal(calls.length,0);
 });
+test("PAP-2165 exact GET history only, Founder view required",async()=>{
+ calls.length=0;const id="019a0000-0000-7000-8000-000000000001",url=base+path+"/"+id+"/history";
+ assert.equal((await handleHoWorldRequest(req("GET",url),env())).status,200);
+ assert.deepEqual(calls,[{r:{method:"GET",path:"pinoria/worlds/"+id+"/history"},token:"valid"}]);calls.length=0;
+ for(const m of ["POST","PATCH","PUT","DELETE"])assert.equal((await handleHoWorldRequest(req(m,url),env())).status,404);
+ for(const options of [{founder:false},{grant:false}])assert.equal((await handleHoWorldRequest(req("GET",url),env(options))).status,403);
+ assert.equal((await handleHoWorldRequest(req("GET",url+"?limit=1000"),env())).status,404);assert.equal(calls.length,0);
+});
