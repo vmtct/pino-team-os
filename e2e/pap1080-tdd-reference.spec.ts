@@ -18,7 +18,7 @@ async function detail(page:Page,captureDir?:string){
  await quickRow(page).click();
  // PAP-1520: the click resolves before React commits the Drawer contents.
  // Wait for the real visible controls; never relax the >=4 fields or width gate.
- const controls=page.locator('[data-tdd-properties="drawer"] .property-control');
+ const controls=page.locator('[data-tdd-properties="drawer"] .property-row > .v24-prop-value');
  await expect.poll(()=>controls.count(),{message:"Quick View drawer renders at least four controls"}).toBeGreaterThan(3);
  const widths=await controls.evaluateAll(nodes=>nodes.map(n=>n.getBoundingClientRect().width));
  expect(widths.length).toBeGreaterThan(3);
@@ -66,7 +66,7 @@ test("PAP1080 Table search, sort, pagination and optional built-in View",async({
  await fixture(page);await page.locator("#search").fill("DEMO 003");await expect(page.locator("tbody tr[data-open]")).toHaveCount(1);await expect(quickRow(page, "003")).toBeVisible();
  await page.locator("#search").fill("");await page.locator('button[data-sort="quantity"]').click();await page.locator('button[data-sort="quantity"]').click();await expect(page.locator("tbody tr[data-open]").first()).toHaveAttribute("aria-label","Mở Quick View DEMO 024");
  await page.getByRole("button",{name:"Trang sau",exact:true}).click();await expect(page.locator("tbody tr[data-open]").first()).toHaveAttribute("aria-label","Mở Quick View DEMO 016");
- await page.getByRole("button",{name:"Pending (demo)",exact:true}).click();await expect(page.locator("tbody tr[data-open]").first()).toHaveAttribute("aria-label","Mở Quick View DEMO 002");await page.locator('[data-view="all"]').click();await expect(quickRow(page)).toBeVisible();
+ await page.getByRole("tab",{name:"Pending (demo)",exact:true}).click();await expect(page.locator("tbody tr[data-open]").first()).toHaveAttribute("aria-label","Mở Quick View DEMO 002");await page.locator('[data-view="all"]').click();await expect(quickRow(page)).toBeVisible();
 });
 test("PAP1080 typed filter, protected identity, visibility and grouping",async({page})=>{
  await fixture(page);await page.locator("#filter-toggle").click();await page.locator("#add-rule").click();await page.getByLabel("Trường dữ liệu điều kiện 1").selectOption("quantity");await page.getByLabel("Toán tử",{exact:true}).selectOption("gt");await page.getByLabel("Giá trị",{exact:true}).fill("20");await expect(page.locator("tbody tr[data-open]")).toHaveCount(4);await page.locator("#clear-rules").click();
@@ -76,5 +76,5 @@ test("PAP1080 typed filter, protected identity, visibility and grouping",async({
 });
 test("PAP1080 Custom View create, rename and delete stay in memory",async({page})=>{
  await fixture(page);await page.getByRole("button",{name:"Thêm Quick View",exact:true}).click();await page.locator("#view-name").fill("Atlas local");await page.locator("#save-view-confirm").click();const close=page.getByRole("button",{name:"Đóng cài đặt",exact:true});if(await close.isVisible())await close.click();
- const view=page.getByRole("button",{name:/Atlas local/});await expect(view).toBeVisible();await view.focus();await page.keyboard.press("F2");await page.getByLabel("Tên Quick View",{exact:true}).fill("Atlas renamed");await page.keyboard.press("Enter");const renamed=page.getByRole("button",{name:/Atlas renamed/});await expect(renamed).toBeVisible();await renamed.focus();await page.keyboard.press("Shift+F10");await page.getByRole("menuitem",{name:"Xóa view",exact:true}).click();await expect(renamed).toHaveCount(0);await expect(page.getByRole("button",{name:"Pending (demo)",exact:true})).toBeVisible();
+ const view=page.getByRole("tab",{name:/Atlas local/});await expect(view).toBeVisible();await view.focus();await page.keyboard.press("F2");await page.getByLabel("Tên Quick View",{exact:true}).fill("Atlas renamed");await page.keyboard.press("Enter");const renamed=page.getByRole("tab",{name:/Atlas renamed/});await expect(renamed).toBeVisible();await renamed.focus();await page.keyboard.press("Shift+F10");await page.getByRole("menuitem",{name:"Xóa view",exact:true}).click();await expect(renamed).toHaveCount(0);await expect(page.getByRole("tab",{name:"Pending (demo)",exact:true})).toBeVisible();
 });
