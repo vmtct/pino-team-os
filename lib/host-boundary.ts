@@ -1,3 +1,4 @@
+import {postDraftHostDecision} from "./bo-post-draft-host-contract";
 import {openingEvidenceHostDecision} from "./opening-evidence-host-contract";
 import {isNativePayrollNamespace,nativePayrollModule,isNativePayrollApi} from "./bo-native-payroll-route";
 import {isHoTvReadRequest} from "./ho-tv-read-contract";
@@ -27,6 +28,8 @@ export type HostBoundaryDecision =
 
 export function decideHostBoundary(host: string, pathname: string, method = "GET"): HostBoundaryDecision {
   const hostname = normalizeHostname(host);
+  const postDraft = postDraftHostDecision(hostname, pathname, method);
+  if (postDraft) return {action:postDraft};
   // PAP-1671 / PLT-ATTR: exact native value operations, BO Staging only.
   // An entity or selected Center in the path/query is not an authorization grant.
   if (/^\/api\/bo\/(?:students|identity\/parents)\/[^/]*\/custom-attributes(?:\/|$)/i.test(pathname)) {
