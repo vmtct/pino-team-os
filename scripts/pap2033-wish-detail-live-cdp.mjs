@@ -63,15 +63,22 @@ export async function run(env){
    await page.locator("#detail-screen tbody tr").first().press("Enter");
    await page.locator("#drawer").waitFor();await page.locator("#full-detail").click();
    await page.getByRole("tab",{name:"Tổng quan",exact:true}).waitFor();await layout(["Tổng quan"]);
-   await page.locator("#back-to-list").click();assert.equal(await layout(labels),"Item");checks.push("reward-context-return");
-   // Contextual reward direct URL replay is a separate requirement, not inferred from return.
+   const rewardHref=page.url(),rewardUrl=new URL(rewardHref),r=rewardUrl.searchParams;
+   assert.equal(r.get("record"),record);assert.equal(r.get("wishCenter"),center);assert.equal(r.get("tab"),"items");assert(/^(?:[1-9]|10)$/.test(r.get("rewardOrdinal")??""));assert(uuid.test(r.get("rewardItem")??""));assert(/^[1-9][0-9]*$/.test(r.get("rewardRevision")??""));
+   for(const width of [320,390,768,1024,1440,1920]){await page.setViewportSize({width,height:900});await layout(["Tổng quan"]);}
+   await page.reload({waitUntil:"domcontentloaded"});await page.getByRole("tab",{name:"Tổng quan",exact:true}).waitFor();assert.equal(page.url(),rewardHref);await layout(["Tổng quan"]);assert.equal(await page.getByRole("button",{name:"Xem ảnh Item",exact:true}).count(),1);
+   await page.getByRole("button",{name:"Xem ảnh Item",exact:true}).click();const preview=page.locator("#drawer");await preview.locator('img[src^="blob:"]').waitFor();assert(await preview.locator("img").evaluate(img=>img.complete&&img.naturalWidth>0&&img.naturalHeight>0));await preview.getByRole("button",{name:"Đóng",exact:true}).click();await page.getByRole("tab",{name:"Tổng quan",exact:true}).waitFor();
+   const wrong=new URL(rewardHref),rev=Number(r.get("rewardRevision"));wrong.searchParams.set("rewardRevision",String(rev===1?2:1));
+   await page.goto(wrong.href,{waitUntil:"domcontentloaded"});await page.getByText("Item không thuộc Wish Event hoặc chưa được cấp quyền xem.",{exact:false}).waitFor();assert.equal(await page.getByRole("button",{name:"Xem ảnh Item",exact:true}).count(),0);
+   await page.goto(rewardHref,{waitUntil:"domcontentloaded"});await page.getByRole("tab",{name:"Tổng quan",exact:true}).waitFor();await layout(["Tổng quan"]);
+   await page.locator("#back-to-list").click();assert.equal(await layout(labels),"Item");assert.equal(new URL(page.url()).searchParams.has("rewardOrdinal"),false);checks.push("reward-context-return","reward-direct-reload","reward-immutable-media","reward-wrong-revision-denied");
   }
   await page.locator("#back-to-list").click();await page.locator("#list-screen").waitFor();
   anonymous=await browser.newContext();
   const unauth=await anonymous.request.get(origin+c.api+(c.surface==="BO"?"?centerId="+center:""),{maxRedirects:0});
   assert([301,302,303,307,308,401,403,404].includes(unauth.status()),"UNAUTH_READ");
   assert.equal(writes.length,0);assert.equal(errors.length,0);
-  console.log("PAP2033_DETAIL_READONLY_CASE_PASS "+JSON.stringify({kind,checks,sha:env.PAP1912_SERVED_SHA,coreSha:env.PAP2033_CORE_SHA,receipt:env.PAP2033_RECEIPT,rewardDirectReload:kind==="event"?"NOT_RUN":null}));
+  console.log("PAP2033_DETAIL_READONLY_CASE_PASS "+JSON.stringify({kind,checks,sha:env.PAP1912_SERVED_SHA,coreSha:env.PAP2033_CORE_SHA,receipt:env.PAP2033_RECEIPT,rewardDirectReload:kind==="event"?"PASS":null}));
  }finally{if(anonymous)await anonymous.close();if(page)await page.close();if(browser)await browser.close();}
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url))await run(process.env);
