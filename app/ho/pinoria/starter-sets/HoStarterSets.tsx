@@ -1,6 +1,7 @@
 "use client";
 /** PAP-1978 / PAP-1974 native DSA module; host must supply confirmed Founder manage authority. */
-import {useCallback,useEffect,useRef,useState,type ReactNode} from "react";
+import {useCallback,useContext,useEffect,useRef,useState,type ReactNode} from "react";
+import {TddHostMenu} from "@/app/components/workspace-adapters/SurfaceWorkspace";
 import {formatPinoDateTime} from "@/lib/pino-datetime";
 import {BoDataTable} from "@/app/bo/components/registration/BoDataTable";
 // PAP-2117: both modes use the canonical DrawerFrame and PropertySections.
@@ -60,6 +61,7 @@ function Members({draft,items,disabled,onChange}:{draft:StarterSetDraft;items:Ho
  </section>;
 }
 export function HoStarterSets({canManage=false,mobileMenu}:{canManage?:boolean;mobileMenu?:ReactNode}){
+ const hostMenu=useContext(TddHostMenu);
  const [rows,setRows]=useState<HoSetItem[]>([]),[items,setItems]=useState<HoItem[]>([]);
  const [load,setLoad]=useState("loading"),[refresh,setRefresh]=useState(0);
  const [table,setTable]=useState<BoTableState>(()=>defaultTable(starterModule.fields)),[page,setPage]=useState(1);
@@ -103,7 +105,7 @@ export function HoStarterSets({canManage=false,mobileMenu}:{canManage?:boolean;m
  const fields=detailFields;
  if(mode==="detail"&&selected){
   const row:BoRecord={...toRow(selected),name:starterDraft(selected).displayName,key:starterDraft(selected).key,description:starterDraft(selected).description};
-  return <DetailFrame title={selected.displayName} subtitle={selected.key+" · "+selected.status} mobileMenu={mobileMenu} onBack={close}
+  return <DetailFrame title={selected.displayName} subtitle={selected.key+" · "+selected.status} mobileMenu={mobileMenu??hostMenu("detail-menu-btn")} onBack={close}
    tabs={[{id:"overview",label:"Tổng quan"},{id:"members",label:"Thành viên"},{id:"history",label:"Lịch sử"}]} selected={tab} onSelect={selectDetailTab}>
    {notice&&<p role="status">{notice}</p>}{error&&<p role="alert">{error}</p>}
    {tab==="overview"?<>
@@ -128,7 +130,7 @@ export function HoStarterSets({canManage=false,mobileMenu}:{canManage?:boolean;m
  }
  const records=rows.map(toRow);
  return <section id="list-screen" data-pap1978-native-dsa="">
-  <div className="page-heading"><div className="page-heading-left">{mobileMenu}<h1>Starter Set</h1></div>
+  <div className="page-heading"><div className="page-heading-left">{mobileMenu??hostMenu("menu-btn")}<h1>Starter Set</h1></div>
    {canManage&&load==="ready"&&<button className="primary-btn" onClick={e=>{opener.current=e.currentTarget;setDraft(emptyDraft());setError("");setMode("create")}}>Tạo Starter Set</button>}
   </div>
   {notice&&<p role="status">{notice}</p>}{load!=="ready"&&load!=="loading"&&<button className="secondary-btn" onClick={()=>setRefresh(v=>v+1)}>Thử lại</button>}
