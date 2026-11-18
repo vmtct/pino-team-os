@@ -1,4 +1,5 @@
 import {postDraftHostDecision} from "./bo-post-draft-host-contract";
+import {boPlsWishHostDecision} from "./bo-pls-wish-host-contract";
 import {openingEvidenceHostDecision} from "./opening-evidence-host-contract";
 import {isNativePayrollNamespace,nativePayrollModule,isNativePayrollApi} from "./bo-native-payroll-route";
 import {matchesProductPayrollAdjustmentPath} from "./bo-payroll-adjustment-host-contract";
@@ -86,6 +87,8 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   if (isNativePayrollNamespace(pathname)) return {action:hostname===BO_STAGING_HOSTNAME &&
     ((Boolean(nativePayrollModule(pathname))&&(method==="GET"||method==="HEAD")) || (isNativePayrollApi(pathname)&&method==="GET"))?"next":"not_found"};
   // PAP-767: exact Opening Evidence admission before generic TOS/BO host fallthrough.
+  const plsWishBo=boPlsWishHostDecision(hostname,pathname,method);
+  if(plsWishBo)return {action:plsWishBo};
   const openingEvidence = openingEvidenceHostDecision(hostname, pathname, method);
   if (openingEvidence) return { action: openingEvidence };
   // PAP-1939 / PAP-1934: exact BO Staging read admission only. No HO/TOS/Production.
@@ -161,6 +164,11 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   if (/^\/bo\/tvs(?:\/|$)/i.test(pathname)) return { action: "not_found" };
   // PAP-1385 / PNR-TV: only logical visibility GET/PATCH, Founder HO Staging.
   // The private BFF and Core still enforce Founder, selected-Center, CAS and audit.
+  if(pathname==="/api/ho/pinoria/pls-wish"||pathname.startsWith("/api/ho/pinoria/pls-wish/")){
+    const read=/^\/api\/ho\/pinoria\/pls-wish\/config\/(?:policies|banners|items|item-(?:preview|record)\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/[1-9][0-9]*)$/.test(pathname);
+    const write=/^\/api\/ho\/pinoria\/pls-wish\/config\/(?:savePolicy|publishPolicy|retirePolicy|saveBanner|publishBanner|retireBanner)$/.test(pathname);
+    return {action:hostname===HO_STAGING_HOSTNAME&&((method==="GET"&&read)||(method==="POST"&&write))?"next":"not_found"};
+  }
   if(pathname==="/api/ho/pinoria/worlds"||pathname.startsWith("/api/ho/pinoria/worlds/"))
     return {action:hostname===HO_STAGING_HOSTNAME&&(
       pathname==="/api/ho/pinoria/worlds"&&(method==="GET"||method==="POST")||

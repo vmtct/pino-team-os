@@ -1,7 +1,11 @@
 /** PAP-1119 S1 + PAP-1253 S2: Founder-only HO Item + SET projection. */
 export type Slot="HAIR"|"FACE"|"HEADWEAR"|"OUTFIT"|"BACK"|"AURA_BACK"|"AURA_GROUND"|"PATH_MARK";
 export type ItemAsset={key:string;mimeType:"image/png"|"image/webp";byteSize:number;sha256:string};
-export type ItemInput={key:string;displayName:string;type:"WEARABLE"|"ACCESSORY";slot:Slot;asset:ItemAsset;positionX:number;positionY:number;scale:number;rotationDegrees:number|null;variantOfItemId?:string|null;checkInItem?:boolean};
+export type ItemRarity=3|4|5;
+export const isItemRarity=(v:unknown):v is ItemRarity=>v===3||v===4||v===5;
+export function itemRarityLabel(v:ItemRarity|null|undefined){return isItemRarity(v)?`${v}★`:v===null?"Chưa cấu hình":undefined;}
+export function parseItemRarityLabel(v:unknown):ItemRarity|null{if(v===""||v==="Chưa cấu hình")return null;if(v==="3★")return 3;if(v==="4★")return 4;if(v==="5★")return 5;throw Error("Rarity không hợp lệ.");}
+export type ItemInput={key:string;displayName:string;type:"WEARABLE"|"ACCESSORY";slot:Slot;asset:ItemAsset;positionX:number;positionY:number;scale:number;rotationDegrees:number|null;variantOfItemId?:string|null;checkInItem?:boolean;rarity?:ItemRarity|null};
 export type SetInput={key:string;displayName:string;type:"SET";starterEligible:boolean;memberItemIds:string[];description?:string|null;variantOfItemId?:string|null};
 type Common={id:string;key:string;displayName:string;status:"DRAFT"|"PUBLISHED"|"UNPUBLISHED";revision:number;createdAt:string;updatedAt:string;publishedAt:string|null;unpublishedAt:string|null;variantOfItemId?:string|null};
 export type HoItem=Common&ItemInput&{pendingDraft?:ItemInput&{revision:number}};
@@ -27,6 +31,7 @@ export function validateItem(value:unknown):ItemRecord{
   !Number.isSafeInteger(i.revision)||Number(i.revision)<1||
   (i.variantOfItemId!==undefined&&i.variantOfItemId!==null&&!uuid.test(String(i.variantOfItemId))))throw Error("Invalid Item projection");
  if(i.type==="SET"){
+  if(i.rarity!==undefined||(i.pendingDraft&&typeof i.pendingDraft==="object"&&"rarity" in i.pendingDraft))throw Error("Rarity is not a SET field");
   if(i.checkInItem!==undefined||(i.pendingDraft&&typeof i.pendingDraft==="object"&&"checkInItem" in i.pendingDraft))throw Error("Check-in Item is not a SET field");
   if(i.slot!==null||i.asset!==null||i.starterEligible!==undefined&&typeof i.starterEligible!=="boolean"||
     i.members!==undefined&&(!Array.isArray(i.members)||i.members.some(m=>!m||typeof m!=="object"||!uuid.test(String((m as SetMember).id)))))throw Error("Invalid SET projection");
@@ -37,6 +42,7 @@ export function validateItem(value:unknown):ItemRecord{
   if(i.pendingDraft){const draft=i.pendingDraft as SetInput;if(draft.type!=="SET"||(draft.description!==undefined&&draft.description!==null&&typeof draft.description!=="string")||!Array.isArray(draft.memberItemIds)||draft.memberItemIds.some(k=>!uuid.test(k)))throw Error("Invalid pending SET");}
   return i as unknown as HoSetItem;
  }
+ if(i.rarity!==undefined&&i.rarity!==null&&!isItemRarity(i.rarity))throw Error("Invalid Item rarity projection");
  if(i.checkInItem!==undefined&&typeof i.checkInItem!=="boolean")throw Error("Invalid Check-in Item projection");
  if(!slots.includes(i.slot as Slot)||!i.asset||typeof i.asset!=="object"||Array.isArray(i.asset))throw Error("Invalid Item media");
  const a=i.asset as ItemAsset;
@@ -46,7 +52,7 @@ export function validateItem(value:unknown):ItemRecord{
   (i.rotationDegrees!==null&&!Number.isFinite(i.rotationDegrees)))throw Error("Invalid Item projection");
  if(i.pendingDraft){
   const d=i.pendingDraft as ItemInput&{revision:number};
-  if((d.checkInItem!==undefined&&typeof d.checkInItem!=="boolean")||d.revision!==i.revision||d.type!==i.type||!slots.includes(d.slot)||
+  if((d.rarity!==undefined&&d.rarity!==null&&!isItemRarity(d.rarity))||(d.checkInItem!==undefined&&typeof d.checkInItem!=="boolean")||d.revision!==i.revision||d.type!==i.type||!slots.includes(d.slot)||
    !Number.isFinite(d.positionX)||!Number.isFinite(d.positionY)||d.positionX < -1||d.positionX > 1||
    d.positionY < -1||d.positionY > 1||!Number.isFinite(d.scale)||d.scale<=0||d.scale>10||
    !d.asset||!assetUrl(d.asset,String(i.id),true)||typeof d.key!=="string"||!d.key.trim()||
@@ -97,6 +103,18 @@ export async function saveCheckInItem(id:string,expectedRevision:number,value:bo
  const result=await writeItem("/"+id,"PATCH",{key:draft.key,displayName:draft.displayName,type:draft.type,slot:draft.slot,asset:draft.asset,positionX:draft.positionX,positionY:draft.positionY,scale:draft.scale,rotationDegrees:draft.rotationDegrees,variantOfItemId:draft.variantOfItemId??null,checkInItem:value,expectedRevision},signal);
  signal.throwIfAborted();
  if(result.type==="SET"||result.id!==id||result.revision!==expectedRevision+1||result.status!==current.status||(result.pendingDraft?result.pendingDraft.checkInItem!==value:result.checkInItem!==value)||(current.status==="PUBLISHED"&&(result.checkInItem===true)!==effectiveBefore))throw Error("Check-in Item update could not be verified");
+ return result;
+}
+/** PAP-2087: preserve current draft and published boundary via existing Item CAS. */
+export async function saveItemRarity(id:string,expectedRevision:number,value:ItemRarity|null,signal:AbortSignal):Promise<HoItem>{
+ if((value!==null&&!isItemRarity(value))||!Number.isSafeInteger(expectedRevision)||expectedRevision<1)throw Error("Invalid Item rarity edit");
+ const current=await getWearableItem(id,signal);signal.throwIfAborted();
+ if(current.revision!==expectedRevision)throw new ItemApiError(409,"CONFLICT");
+ if(current.rarity===undefined||current.status==="UNPUBLISHED")throw Error("Item rarity chưa hỗ trợ chỉnh sửa.");
+ const draft=current.pendingDraft??current;
+ const result=await writeItem("/"+id,"PATCH",{key:draft.key,displayName:draft.displayName,type:draft.type,slot:draft.slot,asset:draft.asset,positionX:draft.positionX,positionY:draft.positionY,scale:draft.scale,rotationDegrees:draft.rotationDegrees,variantOfItemId:draft.variantOfItemId??null,checkInItem:draft.checkInItem===true,rarity:value,expectedRevision},signal);
+ signal.throwIfAborted();
+ if(result.type==="SET"||result.id!==id||result.revision!==expectedRevision+1||result.status!==current.status||(result.pendingDraft?result.pendingDraft.rarity!==value:result.rarity!==value)||(current.status==="PUBLISHED"&&(!result.pendingDraft||result.rarity!==current.rarity)))throw Error("Không xác minh được rarity mới. Tải lại Item trước khi thử lại.");
  return result;
 }
 export async function uploadItem(file:File):Promise<ItemAsset>{
