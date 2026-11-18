@@ -15,6 +15,7 @@ export const boStagingAdmittedRoutes = new Set([
   "/bo/open-studio-passes",
   "/bo/classroom-diaries",
   "/bo/piner-posts",
+  "/bo/mytime-guests",
   "/bo/opening-evidence",
 ]);
 
