@@ -10,8 +10,8 @@ import type {BoPayrollPeriodEnv} from "./bo-payroll-period-handler";
  */
 const ID="[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
 const CENTER=new RegExp("^"+ID+"$");
-const ROUTE=new RegExp("^workforce/payroll/periods/("+ID+")/staff/("+ID+")/adjustments$");
-const FIXED="workforce/payroll/periods/01a171ed-eb78-7941-b1de-dd4c020457b7/staff/01a18a28-6d8e-7db7-acbb-a18a942a5e72/adjustments";
+const ROUTE=new RegExp("^workforce/payroll/periods/("+ID+")/staff/("+ID+")/financial-adjustments$");
+const FIXED="workforce/payroll/periods/01a171ed-eb78-7941-b1de-dd4c020457b7/staff/01a18a28-6d8e-7db7-acbb-a18a942a5e72/financial-adjustments";
 const FINGERPRINT=/^[0-9a-f]{64}$/;
 type Validation={ok:true;outbound:BoAccessRequest}|{ok:false;status:400|403|404|405};
 const deny=(status:400|403|404|405):Validation=>({ok:false,status});
@@ -39,7 +39,7 @@ export async function validateProductAdjustmentCommand(request:Request,appEnv:st
  const key=request.headers.get("idempotency-key")||"";
  const prefix="pay-adjust-"+body.expectedFingerprint+":";
  if(!key.startsWith(prefix)||!/^[A-Za-z0-9-]{8,64}$/.test(key.slice(prefix.length)))return deny(400);
- return {ok:true,outbound:{method:"POST",path:path+"?centerId="+centerId,resource:{centerId},idempotencyKey:key,
+ return {ok:true,outbound:{method:"POST",path:path.slice(0,-"/financial-adjustments".length)+"/adjustments?centerId="+centerId,resource:{centerId},idempotencyKey:key,
   body:{centerId,amountMinor:body.amountMinor,reason:body.reason.trim(),expectedFingerprint:body.expectedFingerprint}}};
 }
 /** Prepared normal product handler; not mounted at the host edge.

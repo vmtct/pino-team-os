@@ -7,7 +7,7 @@ const expectedFingerprint="a".repeat(64);
 const command:AdjustmentCommand={centerId,periodId,staffId,amountMinor:-1000,reason:"Synthetic deduction",expectedFingerprint,idempotencyKey:"pay-adjust-"+expectedFingerprint+":synthetic-123"};
 test("PAP-1956 builds exact same-origin signed CAS command without alternate route",async()=>{
  const {path,init}=adjustmentRequest(command);
- assert.equal(path,"/api/bo/workforce/payroll/periods/"+periodId+"/staff/"+staffId+"/adjustments?centerId="+centerId);
+ assert.equal(path,"/api/bo/workforce/payroll/periods/"+periodId+"/staff/"+staffId+"/financial-adjustments?centerId="+centerId);
  assert.equal(init.method,"POST");assert.equal(init.credentials,"same-origin");assert.equal(init.cache,"no-store");assert.equal(init.redirect,"error");
  assert.deepEqual(init.headers,{"content-type":"application/json","idempotency-key":command.idempotencyKey});
  assert.deepEqual(JSON.parse(String(init.body)),{centerId,amountMinor:-1000,reason:command.reason,expectedFingerprint});

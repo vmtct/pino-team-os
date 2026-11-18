@@ -3,6 +3,7 @@ import {teamCredential,TeamAuthError,type TeamAccessEnv} from "./team-auth";
 import {authorizeBoShell,BoShellGateError} from "./bo-shell-gate";
 import {BO_STAGING_HOSTNAME,normalizeHostname} from "./host-boundary";
 import {handleProductAdjustmentCommand} from "./bo-payroll-adjustment-command";
+import {matchesProductPayrollAdjustmentPath} from "./bo-payroll-adjustment-host-contract";
 
 export interface BoPayrollPeriodEnv extends TeamAccessEnv {
  PINO_BO_CORE:BoAccessCoreBinding;
@@ -31,7 +32,7 @@ const KEY=/^[A-Za-z0-9._:-]{8,160}$/;
 const DATE=/^\d{4}-\d{2}-\d{2}$/;
 export function isBoPayrollPeriodPath(path:string):boolean{
  return path===ROOT||PERIOD.test(path)||ROLLUP.test(path)||SETTLEMENTS.test(path)
-   ||INCOME.test(path)||PREVIEW.test(path)||FINALIZE.test(path)||PAID.test(path)||ADJUSTMENTS.test(path)||CANCEL.test(path)||HISTORY.test(path);
+   ||INCOME.test(path)||PREVIEW.test(path)||FINALIZE.test(path)||PAID.test(path)||ADJUSTMENTS.test(path)||matchesProductPayrollAdjustmentPath("/api/bo/"+path)||CANCEL.test(path)||HISTORY.test(path);
 }
 function response(body:unknown,status:number,headers:HeadersInit={}):Response{
  return Response.json(body,{status,headers:{"cache-control":"no-store",...headers}});
@@ -40,14 +41,10 @@ export async function handleBoPayrollPeriodRequest(request:Request,env:BoPayroll
  resolver?:Parameters<typeof teamCredential>[3]):Promise<Response>{
  try{
   if(!isBoPayrollPeriodPath(path))return response({error:{code:"PLATFORM_NOT_FOUND"}},404);
-  if(ADJUSTMENTS.test(path)){
-   const match=ADJUSTMENTS.exec(path)!;
-   // PAP-1956 product candidate: retain the exact PAP-1211 fixed fixture and its original denials.
-   // The shared host-boundary must separately admit product POST; no alternate ingress.
-   if(request.method==="POST"&&(match[1]!==E2E_PERIOD||match[2]!==E2E_STAFF))
-    return handleProductAdjustmentCommand(request,env,path);
-   return handlePAP1211Adjustment(request,env,path,resolver);
-  }
+  // PAP-1211 retains the historical exact fixture and its original denials.
+  if(ADJUSTMENTS.test(path))return handlePAP1211Adjustment(request,env,path,resolver);
+  // PAP-1956 separate product namespace; actual host admission is independent.
+  if(matchesProductPayrollAdjustmentPath("/api/bo/"+path))return handleProductAdjustmentCommand(request,env,path);
   const query=new URL(request.url).searchParams,centerId=query.get("centerId");
   if(!centerId||!CENTER.test(centerId))return response({error:{code:"PLATFORM_INVALID_INPUT",message:"Center required"}},400);
   // PAP-1998: collection/detail/rollup accept one explicit Center, never first-value ambiguity.

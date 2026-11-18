@@ -18,7 +18,7 @@ export function adjustmentRequest(command:AdjustmentCommand){
    typeof reason!=="string"||reason!==reason.trim()||reason.length<3||reason.length>500||
    !/^[a-f0-9]{64}$/.test(expectedFingerprint)||!idempotencyKey.startsWith(prefix)||
    !/^[A-Za-z0-9-]{8,64}$/.test(idempotencyKey.slice(prefix.length)))throw Error("PAYROLL_ADJUSTMENT_COMMAND_INVALID");
- const path="/api/bo/workforce/payroll/periods/"+periodId+"/staff/"+staffId+"/adjustments?"+new URLSearchParams({centerId});
+ const path="/api/bo/workforce/payroll/periods/"+periodId+"/staff/"+staffId+"/financial-adjustments?"+new URLSearchParams({centerId});
  const init:RequestInit={method:"POST",cache:"no-store",credentials:"same-origin",redirect:"error",
   headers:{"content-type":"application/json","idempotency-key":idempotencyKey},
   body:JSON.stringify({centerId,amountMinor,reason,expectedFingerprint})};
