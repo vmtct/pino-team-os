@@ -15,7 +15,7 @@ import { nativePayrollModule } from "@/lib/bo-native-payroll-route";
 // Keep Production's existing destinations and content dispatch. Staging-only
 // adapters and aliases are not enabled by adopting the shared presentation.
 const destinations = boNavigation.flatMap(group => group.items.flatMap(item => [
-  ...(item.href && item.href !== "/bo/open-studio-passes" ? [{ href: item.href, label: item.label, group: group.label }] : []),
+  ...(item.href && item.href !== "/bo/open-studio-passes" && item.href !== "/bo/piner-posts" ? [{ href: item.href, label: item.label, group: group.label }] : []),
   ...(item.children ?? []).filter(child => child.href !== item.href).map(child => ({ ...child, group: group.label })),
 ]));
 const destinationKey = (href: string) => href === "/bo" ? "overview" : href.slice("/bo/".length);
