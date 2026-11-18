@@ -65,3 +65,23 @@ test("PAP-1239 keeps Core ACL and conflict failures visible, never fakes success
     },"k"),(error:unknown) => error instanceof ReceptionHouseError && error.status===409);
   } finally { conflict.mock.restore(); }
 });
+
+test("PAP-2138 recent read uses exact Center, abort and no-store; preserves auth denial", async () => {
+  const calls: Array<{url:string;init:RequestInit}> = [];
+  const controller=new AbortController();
+  const spy=mock.method(globalThis,"fetch",async (url:string|URL|Request,init:RequestInit)=>{
+    calls.push({url:String(url),init});
+    if(calls.length===1)return Response.json({data:[{studentProfileId:"student-a",displayName:"Recent",hasCharacter:false,openVisit:null}]});
+    return Response.json({error:{code:"DENIED",message:"Denied"}},{status:403});
+  });
+  try {
+    assert.throws(()=>tosReceptionHouseApi.recent(""), (e:unknown)=>e instanceof ReceptionHouseError&&e.status===400);
+    assert.equal(calls.length,0);
+    assert.equal((await tosReceptionHouseApi.recent("center/a",controller.signal))[0]?.studentProfileId,"student-a");
+    assert.equal(calls[0]?.url,"/api/tos-learning/pinoria/learners/recent?centerId=center%2Fa");
+    assert.equal(calls[0]?.init.cache,"no-store");
+    assert.equal(calls[0]?.init.signal,controller.signal);
+    await assert.rejects(tosReceptionHouseApi.recent("center-b"),(e:unknown)=>e instanceof ReceptionHouseError&&e.status===403);
+    assert.equal(calls.length,2);
+  } finally {spy.mock.restore();}
+});
