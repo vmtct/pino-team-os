@@ -37,6 +37,11 @@ async function fromCore<T>(url: string, options: RequestInit = {}): Promise<T> {
 }
 
 export const tosReceptionHouseApi = {
+  /** PAP-2138: same authenticated Center boundary as name search, no local history fallback. */
+  recent: (centerId: string, signal?: AbortSignal): Promise<ReceptionLearner[]> => {
+    if (!centerId) throw new ReceptionHouseError(400, "INVALID_CENTER", "Thiếu cơ sở.");
+    return fromCore<ReceptionLearner[]>(`/api/tos-learning/pinoria/learners/recent?centerId=${encodeURIComponent(centerId)}`, { signal });
+  },
   search: (centerId: string, query: string, signal?: AbortSignal): Promise<ReceptionLearner[]> => {
     const term = query.trim();
     if (!centerId || term.length < 2 || term.length > 120) {
