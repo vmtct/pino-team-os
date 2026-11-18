@@ -39,6 +39,8 @@ function fixture() {
     // Strip newly admitted Diary nav from the frozen-baseline-only synthetic fixture;
     // real main + its TDD admission are still verified by the first test.
     .replace(/\s*\{ href: "\/bo\/classroom-diaries", label: "Nhật ký lớp học" \},/,"")
+    // PAP-2147: Guest is checked in the real repo; baseline fixture has no Guest page.
+    .replace(/\s*\{ href: "\/bo\/mytime-guests", label: "Khách MyTime" \},/,"")
     // PAP-2134: new Post TDD is checked in the real repo, not in the baseline-only fixture.
     .replace(/\s*\{\s*label: "Piner App",\s*items: \[\{ href: "\/bo\/piner-posts", label: "Posts" \}\],\s*\},/,""));
   // Recreate frozen baseline pages as inert fixtures so receipt tests can

@@ -1000,6 +1000,29 @@
         }
       ]
     }
+,
+    {
+      "profile": "TDD_DEFAULT",
+      "surface": "BO",
+      "key": "mytime-guests",
+      "route": "/bo/mytime-guests",
+      "file": "app/bo/mytime-guests/page.tsx",
+      "files": [
+        "app/bo/mytime-guests/page.tsx",
+        "app/bo/mytime-guests/BoMyTimeGuests.tsx",
+        "app/bo/mytime-guests/MyTimeGuestsRuntime.tsx",
+        "app/bo/mytime-guests/schema.ts",
+        "app/bo/mytime-guests/provider.ts",
+        "app/bo/mytime-guests/nav-access.ts"
+      ],
+      "schema": {"file":"app/bo/mytime-guests/schema.ts","export":"guestSchema"},
+      "binding": {"kind":"SURFACE_WORKSPACE_ADAPTER","file":"app/bo/mytime-guests/BoMyTimeGuests.tsx"},
+      "tests": ["lib/pap2147-guest-provider.test.ts","lib/pap2147-guest-boundary.test.ts"],
+      "externalReferences": [
+        {"file":"lib/host-boundary.ts","owner":"PAP-2147"},
+        {"file":"lib/workspace-adapters/session.ts","owner":"PAP-1221"}
+      ]
+    }
   ],
   "approvals": []
 }
