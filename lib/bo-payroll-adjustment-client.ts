@@ -6,11 +6,14 @@ import type {AdjustmentCommand} from "./bo-payroll-adjustment-confirmation";
 const ID=/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const FIXED_PERIOD="01a171ed-eb78-7941-b1de-dd4c020457b7";
 const FIXED_STAFF="01a18a28-6d8e-7db7-acbb-a18a942a5e72";
+export function canSubmitPayrollAdjustmentScope(centerId:string,periodId:string,staffId:string){
+ return [centerId,periodId,staffId].every(id=>ID.test(id))&&!(periodId===FIXED_PERIOD&&staffId===FIXED_STAFF);
+}
 export function adjustmentRequest(command:AdjustmentCommand){
  const {centerId,periodId,staffId,amountMinor,reason,expectedFingerprint,idempotencyKey}=command;
  const prefix="pay-adjust-"+expectedFingerprint+":";
- if(![centerId,periodId,staffId].every(id=>ID.test(id))||
-   (periodId===FIXED_PERIOD&&staffId===FIXED_STAFF)||
+ if(!canSubmitPayrollAdjustmentScope(centerId,periodId,staffId)||
+
    !Number.isSafeInteger(amountMinor)||amountMinor===0||Math.abs(amountMinor)>1_000_000_000_000||
    typeof reason!=="string"||reason!==reason.trim()||reason.length<3||reason.length>500||
    !/^[a-f0-9]{64}$/.test(expectedFingerprint)||!idempotencyKey.startsWith(prefix)||

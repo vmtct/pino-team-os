@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {adjustmentRequest,submitPayrollAdjustment} from "./bo-payroll-adjustment-client";
+import {adjustmentRequest,submitPayrollAdjustment,canSubmitPayrollAdjustmentScope} from "./bo-payroll-adjustment-client";
 import type {AdjustmentCommand} from "./bo-payroll-adjustment-confirmation";
 const centerId="0199f001-0000-7000-8000-000000000002",periodId="0199f001-0000-7000-8000-000000000003",staffId="0199f001-0000-7000-8000-000000000004";
 const expectedFingerprint="a".repeat(64);
@@ -26,4 +26,9 @@ test("PAP-1956 client rejects ambiguous or rejected receipts without retry",asyn
   await assert.rejects(submitPayrollAdjustment(command,transport),/UNCONFIRMED/);assert.equal(calls,1);
  }
  let calls=0;await assert.rejects(submitPayrollAdjustment(command,async()=>{calls++;throw Error("network uncertain")}));assert.equal(calls,1);
+});
+test("PAP-1956 product CTA excludes the historical fixed fixture and invalid selection",()=>{
+ assert.equal(canSubmitPayrollAdjustmentScope(centerId,periodId,staffId),true);
+ assert.equal(canSubmitPayrollAdjustmentScope(centerId,"bad",staffId),false);
+ assert.equal(canSubmitPayrollAdjustmentScope(centerId,"01a171ed-eb78-7941-b1de-dd4c020457b7","01a18a28-6d8e-7db7-acbb-a18a942a5e72"),false);
 });

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {validateProductAdjustmentCommand,handleProductAdjustmentCommand} from "./bo-payroll-adjustment-command";
 import {BO_STAGING_HOSTNAME} from "./host-boundary";
-import type {BoPayrollPeriodEnv} from "./bo-payroll-period-handler";
+import {handleBoPayrollPeriodRequest,type BoPayrollPeriodEnv} from "./bo-payroll-period-handler";
 import type {BoAccessRequest} from "./bo-core";
 
 const center="0199f001-0000-7000-8000-000000000002";
@@ -55,7 +55,7 @@ test("PAP-1956 prepared command denies unauthenticated or missing permission and
  assert.deepEqual(calls.map(c=>c.path),["context",path+"?centerId="+center]);
  assert.equal(calls[1]?.idempotencyKey,key);
  commandStatus=201;calls.length=0;
- const result=await handleProductAdjustmentCommand(signed(),env,path);
+ const result=await handleBoPayrollPeriodRequest(signed(),env,path);
  assert.equal(result.status,201);
  assert.equal(result.headers.get("cache-control"),"no-store");
  assert.equal(result.headers.get("x-request-id"),"receipt");

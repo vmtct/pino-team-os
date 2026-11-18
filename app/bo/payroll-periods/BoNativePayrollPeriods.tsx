@@ -3,6 +3,7 @@
 import Link from "next/link";
 import {PayrollIncomeDetail} from "./PayrollIncomeDetail";
 import {SettlementIncomeDrawer} from "./SettlementIncomeDrawer";
+import {canSubmitPayrollAdjustmentScope,submitPayrollAdjustment} from "@/lib/bo-payroll-adjustment-client";
 import {SettlementExceptionDetail} from "./SettlementExceptionDetail";
 import {useEffect,useState,useRef} from "react";
 import {useRouter,useSearchParams} from "next/navigation";
@@ -164,7 +165,7 @@ function Settlements({centerId,id,initial,incomeDrawer,onFinalized}:{centerId:st
    emptyTitle="Chưa có giờ công" emptyMessage="Không có bản ghi đủ điều kiện trong trang hiện tại."/>
   {page.nextOffset!==null?<button type="button" disabled={busy} onClick={()=>void more()}>Tải thêm PTE</button>:null}
   {error?<p role="alert">{error}</p>:null}
-  {incomeDrawer?<SettlementIncomeDrawer key={JSON.stringify([centerId,id,initial.period.startDate,initial.period.endDate,initial.period.status,incomeDrawer])} centerId={centerId} period={initial.period} staffId={incomeDrawer} onClose={()=>router.replace(detailUrl(centerId,id)+"&tab=settlements")} onFinalized={()=>{router.replace(detailUrl(centerId,id)+"&tab=settlements");onFinalized();}}/>:null}
+  {incomeDrawer?<SettlementIncomeDrawer key={JSON.stringify([centerId,id,initial.period.startDate,initial.period.endDate,initial.period.status,incomeDrawer])} centerId={centerId} period={initial.period} staffId={incomeDrawer} submitAdjustment={canSubmitPayrollAdjustmentScope(centerId,id,incomeDrawer)?submitPayrollAdjustment:undefined} onAdjusted={onFinalized} onClose={()=>router.replace(detailUrl(centerId,id)+"&tab=settlements")} onFinalized={()=>{router.replace(detailUrl(centerId,id)+"&tab=settlements");onFinalized();}}/>:null}
  </section></>;
 }
 
