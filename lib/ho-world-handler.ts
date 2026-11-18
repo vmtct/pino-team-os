@@ -12,6 +12,7 @@ type Route={method:string;corePath:string;kind:"read"|"create"|"patch"|"createSc
 function route(p:string,m:string):Route|null{
  const corePath=p.slice("/api/ho/".length);
  if(p===path&&(m==="GET"||m==="POST"))return{method:m,corePath,kind:m==="GET"?"read":"create"};
+ if(m==="GET"&&new RegExp("^"+path+"/"+canonical+"/history$").test(p))return{method:m,corePath,kind:"read"};
  if(p===path+"/media"&&m==="POST")return{method:m,corePath,kind:"media"};
  if(m==="PATCH"&&new RegExp("^"+path+"/"+canonical+"$").test(p))return{method:m,corePath,kind:"patch"};
  if(m==="POST"&&new RegExp("^"+path+"/"+canonical+"/scenes$").test(p))return{method:m,corePath,kind:"createScene"};

@@ -41,3 +41,10 @@ test("upload exact bytes typed form and bounded response; no auto retry",async()
  assert.equal((await uploadSceneMedia(file,"qa-upload",m.fetcher)).objectKey,asset+".gif");assert.equal(m.calls[0]!.url,"/api/ho/pinoria/worlds/media");assert.ok(m.calls[0]!.init?.body instanceof FormData);
  await assert.rejects(()=>uploadSceneMedia(file,"qa-upload",mock({objectKey:asset+".png",mediaType:"GIF",byteSize:3},null,201).fetcher));
 });
+import {fetchWorldHistory} from "./world-runtime-client";
+test("PAP-2165 strict redacted scoped history response",async()=>{
+ const event={id:id(8),occurredAt:"2026-11-18T10:00:00Z",action:"PINORIA_WORLD_SCENE_SAVED",subjectType:"pinoria_world_scene",actorName:null};
+ const m=mock(null,{events:[event],truncated:false});assert.deepEqual(await fetchWorldHistory(wid,m.fetcher),{events:[{id:event.id,occurredAt:event.occurredAt,label:"Lưu cảnh",actorName:null}],truncated:false});
+ assert.equal(m.calls[0]!.url,"/api/ho/pinoria/worlds/"+wid+"/history");
+ for(const bad of [{...event,actorId:id(9)},{...event,action:"PINORIA_WORLD_INSTANCE_GRANTED"},{...event,subjectType:"pinoria_world"},{...event,occurredAt:"n/a"}])await assert.rejects(()=>fetchWorldHistory(wid,mock(null,{events:[bad],truncated:false}).fetcher));
+});
