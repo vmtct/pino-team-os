@@ -1,4 +1,13 @@
-/* PAP-2119: layout only; canonical BO media and Full Detail own presentation. */
-.gallery { display: grid; gap: 16px; min-width: 0; }
-.round { display: grid; gap: 8px; min-width: 0; }
-.photoPreview { width: 100%; max-width: 320px; }
+/* PAP-2119 — layout only; native DSA owns type, surfaces and input/button styling. */
+.evidenceTab{display:grid;gap:16px;min-width:0}
+.gallery{display:grid;gap:12px;min-width:0}
+.round{display:grid;gap:12px;min-width:0}
+.photos{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),320px));gap:12px;min-width:0}
+.photoPreview{width:100%;max-width:320px;min-width:0}
+.note{display:grid;gap:3px;min-width:0}
+.decision{display:grid;gap:8px;min-width:0}
+.review{display:grid;gap:12px;min-width:0}
+.reviewForm{width:100%;min-width:0}
+.reason{display:grid;gap:6px;width:100%;min-width:0}
+.actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;width:100%;max-width:320px}
+@media(max-width:450px){.photos{gap:8px}}
