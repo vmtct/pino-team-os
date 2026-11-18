@@ -30,8 +30,12 @@ test("PAP-1035 Full Detail Enrollment uses shared DS and Core reads, no table cl
  assert.match(tab,/data-bo-s3-enrollment="core"/);
  assert.match(tab,/<BoDataGrid/);
  assert.doesNotMatch(tab,/<table/);
- for(const method of ["subscriptionById","subscriptionEnrollments","subscriptionPlacement","enrollmentCapacity","placeEnrollment","transferEnrollment"])
-  assert.match(tab,new RegExp("boApi\\."+method+"\\("));
+ const native=readFileSync("app/bo/subscriptions/SubscriptionDirectoryDsa.tsx","utf8");
+ assert.match(native,/<BoSubscriptionEnrollmentTab[^>]*centerId=\{centerId\}/);
+ assert.match(tab,/readSubscriptionCenterDetail\(subscriptionId,centerId,ctl.signal\)/);
+ for(const method of ["list","placement","capacity","attach","transfer"])
+  assert.match(tab,new RegExp("client\\."+method+"\\("));
+ assert.doesNotMatch(tab,/boApi\.(?:subscriptionById|subscriptionEnrollments|subscriptionPlacement|enrollmentCapacity|placeEnrollment|transferEnrollment)\(/);
  assert.match(api,/enrollments\/capacity/);
  assert.match(api,/enrollments\/bulk-preflight/);
  assert.match(tab,/effectiveUntilExclusiveLocalDate/);
@@ -44,8 +48,8 @@ test("PAP-1035 mutations remain separately authenticated, replay same key and ve
  assert.match(tab,/if\(pending\)/);
  assert.match(tab,/attempt.key/);
  assert.doesNotMatch(tab,/activateSubscription|Kích hoạt|action==="activate"/);
- assert.match(tab,/authorizedCenters/);
- assert.match(tab,/selectedCenterId/);
+ assert.match(tab,/assertCenterDetail\(subscription,subscriptionId,centerId\)/);
+ assert.doesNotMatch(tab,/historicalCenters|selectedCenterId/);
  assert.doesNotMatch(tab,/createBillingSale/);
 });
 
@@ -76,6 +80,6 @@ test("PAP-1036 bootstrap Center status lowercase active is valid, inactive rejec
  assert.equal(isActiveCenter({status:"ACTIVE"}),true);
  assert.equal(isActiveCenter({status:"inactive"}),false);
  const tab=readFileSync("app/bo/subscriptions/BoSubscriptionEnrollmentTab.tsx","utf8");
- assert.match(tab,/ready\?\.centers\.filter\(isActiveCenter\)/);
- assert.match(tab,/historicalCenters\.length===1&&authorizedCenters\.includes\(historicalCenters\[0\]\)/);
+ assert.match(tab,/scope\.centers\.filter\(c=>c.id===centerId&&isActiveCenter\(c\)\)/);
+ assert.match(tab,/if\(centers.length!==1\)throw/);
 });
