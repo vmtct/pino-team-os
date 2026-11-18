@@ -170,7 +170,13 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
     return {action:hostname===HO_STAGING_HOSTNAME&&((method==="GET"&&read)||(method==="POST"&&write))?"next":"not_found"};
   }
   if(pathname==="/api/ho/pinoria/worlds"||pathname.startsWith("/api/ho/pinoria/worlds/"))
-    return {action:hostname===HO_STAGING_HOSTNAME&&pathname==="/api/ho/pinoria/worlds"&&(method==="GET"||method==="POST")?"next":"not_found"};
+    return {action:hostname===HO_STAGING_HOSTNAME&&(
+      pathname==="/api/ho/pinoria/worlds"&&(method==="GET"||method==="POST")||
+      method==="POST"&&pathname==="/api/ho/pinoria/worlds/media"||
+      method==="PATCH"&&/^\/api\/ho\/pinoria\/worlds\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(pathname)||
+      method==="POST"&&/^\/api\/ho\/pinoria\/worlds\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/scenes$/.test(pathname)||
+      method==="PUT"&&/^\/api\/ho\/pinoria\/worlds\/scenes\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/save$/.test(pathname)
+    )?"next":"not_found"};
   if(pathname.startsWith("/api/ho/pinoria/tv-policies/visibility"))
     return {action:hostname===HO_STAGING_HOSTNAME&&isHoTvVisibilityRequest(pathname,method)?"next":"not_found"};
   // PAP-1418 / PNR-TV: all other TV paths remain exact read-only.

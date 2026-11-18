@@ -109,6 +109,23 @@
       "jira": "PAP-1077"
     },
     {
+      "file": "app/ho/pinoria/worlds/HoWorldRuntimeDetail.tsx",
+      "uses": 1,
+      "mode": "tabbed",
+      "jira": "PAP-2143",
+      "tabSource": "literal",
+      "tabs": [["overview", "Tổng quan"], ["scenes", "Cảnh"], ["preview", "Preview"], ["history", "Lịch sử"]],
+      "g4": {
+        "surface": "HO",
+        "module": "worlds",
+        "authPort": 9337,
+        "route": "/ho/pinoria/worlds",
+        "tableSelector": "#list-screen table tbody tr",
+        "detailSelector": "#detail-screen",
+        "runner": "scripts/pap2143-world-detail-live-cdp.mjs"
+      }
+    },
+    {
       "file": "app/ho/pinoria/starter-sets/HoStarterSets.tsx",
       "uses": 1,
       "mode": "tabbed",
