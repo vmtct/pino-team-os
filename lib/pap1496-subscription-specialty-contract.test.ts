@@ -120,3 +120,12 @@ void test("PAP-1496 immutable linked detail URL rejects duplicate or invalid ide
  assert.match(native,/linked.id&&route.id===item.id\)setLinkedRecord\(\{specialtyId:linked.id,subscriptionId:item.id,centerId,pathProgramId:canonical.pathProgramId\}/);
  assert.match(native,/linkedSpecialtyDetailUrl\(window.location.href,subject.subscriptionId,subject.specialtyId\)/);
 });
+
+void test("PAP-1496 record navigation unmounts previous detail actions before reattesting next subject",()=>{
+ const native=readFileSync(new URL("../app/bo/subscriptions/SubscriptionDirectoryDsa.tsx",import.meta.url),"utf8");
+ const verify=native.slice(native.indexOf("const verify=useCallback"),native.indexOf("const canonical=assertCenterDetail"));
+ assert.match(verify,/detailController\.current\?\.abort\(\)/);
+ assert.match(verify,/setLinkedRecord\(null\);setDrawer\(null\);setDetail\(null\);setNotice\(""\);/);
+ assert.match(verify,/setBusy\(item\.id\)/);
+ assert.match(native,/if\(matching\)void verify\(matching,false\);else\{detailController\.current\?\.abort\(\);setDrawer\(null\);setDetail\(null\);setBusy\(null\);setNotice\(""\)/);
+});
