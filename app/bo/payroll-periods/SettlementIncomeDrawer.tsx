@@ -7,6 +7,7 @@ import {BoPill} from "@/app/bo/components/registration/BoValue";
 import {money,periodApi,type PeriodStaffPage,type SettlementPreview} from "@/lib/bo-payroll-period-api";
 import {settlementDrawerSource,settlementDrawerExceptions,settlementReadiness,pendingSettlementException,verifiedSettlementPreview,settlementExceptionHref,canPreviewAdjustment,projectAdjustmentDraft} from "@/lib/bo-payroll-settlement-drawer";
 import {loadIncomeHistory} from "@/lib/bo-payroll-income-read";
+import {confirmAdjustment,AdjustmentConfirmationError,type AdjustmentCommand} from "@/lib/bo-payroll-adjustment-confirmation";
 import {toExceptionReadRow} from "@/lib/bo-payroll-exceptions-model";
 import {payrollVerifiedName} from "@/lib/bo-payroll-safe-read-metadata";
 import type {NativeReviewedException} from "@/lib/bo-payroll-exceptions-read";
@@ -14,7 +15,7 @@ import type {NativeReviewedException} from "@/lib/bo-payroll-exceptions-read";
 const date=(v:string)=>v.split("-").reverse().join("/");
 const dayLabel=(status:string)=>({READY:"Đã tính",NO_ATTENDANCE:"Chưa chấm công",NO_ASSIGNMENT:"Thiếu phân công",PENDING_CHECKOUT:"Chưa checkout",RATE_MISSING:"Thiếu Rate HO",RECONCILIATION_REQUIRED:"Cần đối soát"} as Record<string,string>)[status]??"—";
 const statusLabels={DRAFT:"Bản nháp",PENDING:"Chờ duyệt",FINALIZED:"Đã chốt",PAID:"Đã thanh toán",ARCHIVED_UNAVAILABLE:"Không đủ dữ liệu"};
-export function SettlementIncomeDrawer({centerId,period,staffId,onClose,onFinalized}:{centerId:string;period:PeriodStaffPage["period"];staffId:string;onClose:()=>void;onFinalized:()=>void}){
+export function SettlementIncomeDrawer({centerId,period,staffId,onClose,onFinalized,submitAdjustment,onAdjusted}:{centerId:string;period:PeriodStaffPage["period"];staffId:string;onClose:()=>void;onFinalized:()=>void;submitAdjustment?:(command:AdjustmentCommand)=>Promise<unknown>;onAdjusted?:()=>void}){
  const [result,setResult]=useState<{source:ReturnType<typeof settlementDrawerSource>;exceptions:NativeReviewedException[];exceptionError:string;capability:unknown}|null>(null);
  const [error,setError]=useState("");
  const [confirmation,setConfirmation]=useState<SettlementPreview|null>(null),[ack,setAck]=useState(false),[actionError,setActionError]=useState(""),[busy,setBusy]=useState(false),[uncertain,setUncertain]=useState(false);
@@ -66,6 +67,23 @@ export function SettlementIncomeDrawer({centerId,period,staffId,onClose,onFinali
    if(mounted.current){setUncertain(true);setConfirmation(null);setActionError("Chưa xác nhận được kết quả từ Core. Tải lại kỳ lương để kiểm tra trước khi thao tác tiếp.");}
   }finally{inFlight.current=false;if(mounted.current)setBusy(false);}
  }
+ async function confirmAdjustmentDraft(){
+  if(!source||!adjustmentDraft||!adjustmentEligible||!submitAdjustment||!result||confirmation||inFlight.current||uncertain)return;
+  inFlight.current=true;setBusy(true);setActionError("");setAdjustmentError("");
+  try{
+   const after=await confirmAdjustment(source,adjustmentDraft,{read:loadIncomeHistory,submit:submitAdjustment,active:()=>mounted.current,nonce:()=>crypto.randomUUID()});
+   if(mounted.current){
+    const next=settlementDrawerSource(after.current,centerId,period.id,staffId);
+    setResult({...result,source:next,capability:after.financialCapabilities});
+    setAdjustmentAmount("");setAdjustmentReason("");setAdjustmentDraft(null);onAdjusted?.();
+   }
+  }catch(e){
+   if(mounted.current){
+    setAdjustmentDraft(null);setUncertain(true);
+    setActionError(e instanceof AdjustmentConfirmationError&&!e.submitted?"Dữ liệu kỳ lương đã thay đổi hoặc không đủ quyền. Tải lại trước khi điều chỉnh.":"Chưa xác nhận được kết quả điều chỉnh từ Core. Tải lại kỳ lương trước khi thao tác tiếp.");
+   }
+  }finally{inFlight.current=false;if(mounted.current)setBusy(false)}
+ }
  const close=()=>{if(!inFlight.current)onClose();};
  const href=(day?:string)=>"/bo/payroll-periods?"+new URLSearchParams({centerId,record:period.id,incomeStaff:staffId,...(day?{incomeDay:day,fromSettlement:"1"}:{})});
  return <DrawerFrame title={source?payrollVerifiedName(source.staff.staffName):"Thu nhập PTE"} path="Kỳ lương · Quyết Toán" onClose={close}
@@ -106,7 +124,7 @@ export function SettlementIncomeDrawer({centerId,period,staffId,onClose,onFinali
       <div className="property-row"><label className="property-label" htmlFor="pay-adjustment-reason"><small aria-hidden="true">≡</small>Lý do</label><div className="property-control"><textarea id="pay-adjustment-reason" className="edit-input" rows={3} value={adjustmentReason} minLength={3} maxLength={500} required disabled={busy||uncertain||!!confirmation} onChange={e=>{setAdjustmentReason(e.target.value);setAdjustmentDraft(null);setAdjustmentError("");}}/></div></div>
       <div className="editor-actions"><button type="button" className="secondary-btn" disabled={busy||uncertain||!!confirmation} onClick={()=>{setAdjustmentAmount("");setAdjustmentReason("");setAdjustmentDraft(null);setAdjustmentError("");}}>Hủy</button><button type="button" className="save" disabled={busy||uncertain||!!confirmation||!adjustmentAmount.trim()||!adjustmentReason.trim()} onClick={()=>{try{setAdjustmentDraft(projectAdjustmentDraft(source,result.capability,centerId,adjustmentAmount,adjustmentReason));setAdjustmentError("");}catch(e){setAdjustmentDraft(null);setAdjustmentError(e instanceof Error?e.message:"Không thể xem trước điều chỉnh.");}}}>Xem trước</button></div>
       {adjustmentError?<p role="alert">{adjustmentError}</p>:null}
-      {adjustmentDraft?<><BoProperties authority compact items={[{key:"current",label:"Thu nhập hiện tại",value:money(adjustmentDraft.currentAmountMinor)},{key:"delta",label:"Điều chỉnh",value:(adjustmentDraft.amountMinor>0?"+":"")+money(adjustmentDraft.amountMinor)},{key:"projected",label:"Thu nhập dự kiến",value:money(adjustmentDraft.projectedAmountMinor)},{key:"reason",label:"Lý do",value:adjustmentDraft.reason}]}/><p role="status">Chỉ xem trước. Chưa ghi nhận điều chỉnh vào Core.</p></>:null}
+      {adjustmentDraft?<><BoProperties authority compact items={[{key:"current",label:"Thu nhập hiện tại",value:money(adjustmentDraft.currentAmountMinor)},{key:"delta",label:"Điều chỉnh",value:(adjustmentDraft.amountMinor>0?"+":"")+money(adjustmentDraft.amountMinor)},{key:"projected",label:"Thu nhập dự kiến",value:money(adjustmentDraft.projectedAmountMinor)},{key:"reason",label:"Lý do",value:adjustmentDraft.reason}]}/><p role="status">Chỉ xem trước. Chưa ghi nhận điều chỉnh vào Core.</p>{submitAdjustment?<div className="editor-actions"><button type="button" className="save" disabled={busy||uncertain||!!confirmation} onClick={()=>void confirmAdjustmentDraft()}>Xác nhận điều chỉnh</button></div>:null}</>:null}
      </section>:null}
     <section className="property-section" aria-label="Ngoại lệ và thêm giờ"><h3>Ngoại lệ &amp; thêm giờ</h3>
      {result.exceptionError?<p role="alert">{result.exceptionError}</p>:result.exceptions.length?<div className="pay-card-list">{result.exceptions.map(raw=>{
