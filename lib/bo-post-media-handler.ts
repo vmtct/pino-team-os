@@ -24,7 +24,7 @@ async function bytes(request:Request,max:number):Promise<ArrayBuffer>{
 function preview(body:unknown,requestId:string):Response{
  const r=(body as {data?:{mimeType?:unknown;byteSize?:unknown;bytesBase64?:unknown}})?.data;
  if(!r||typeof r.mimeType!=="string"||!types.has(r.mimeType)||typeof r.byteSize!=="number"||!Number.isSafeInteger(r.byteSize)||r.byteSize<1||r.byteSize>MAX||typeof r.bytesBase64!=="string"||r.bytesBase64.length!==4*Math.ceil(r.byteSize/3)||!/^[A-Za-z0-9+/]+={0,2}$/.test(r.bytesBase64))return fail(502,"PLATFORM_INTERNAL_ERROR");
- try{const decoded=atob(r.bytesBase64);if(decoded.length!==r.byteSize||btoa(decoded)!==r.bytesBase64)return fail(502,"PLATFORM_INTERNAL_ERROR");return new Response(Uint8Array.from(decoded,c=>c.charCodeAt(0)),{status:200,headers:{"content-type":r.mimeType,"content-length":String(r.byteSize),"content-disposition":"inline","cache-control":"private, no-store","x-content-type-options":"nosniff","x-request-id":requestId}});}catch{return fail(502,"PLATFORM_INTERNAL_ERROR");}
+ try{const decoded=atob(r.bytesBase64);if(decoded.length!==r.byteSize||btoa(decoded)!==r.bytesBase64)return fail(502,"PLATFORM_INTERNAL_ERROR");return new Response(Uint8Array.from(decoded,c=>c.charCodeAt(0)),{status:200,headers:{"content-type":r.mimeType,"content-length":String(r.byteSize),"content-disposition":"inline","cache-control":"private, no-store, no-transform","x-content-type-options":"nosniff","x-request-id":requestId}});}catch{return fail(502,"PLATFORM_INTERNAL_ERROR");}
 }
 export async function handleBoPostMediaRequest(request:Request,env:BoPostDraftEnv,path:string):Promise<Response>{
  try{
