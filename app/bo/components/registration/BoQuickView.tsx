@@ -14,6 +14,7 @@ export interface BoQuickViewCreate {
   fields?: BoField[];
   editable: (field: BoField) => boolean;
   editorField?: (field: BoField) => BoField;
+  editorValue?: (field: BoField, value: BoValue) => BoValue;
   onChange: (key: string, value: BoValue) => void;
   onCreate: () => void | Promise<void>;
   busy?: boolean;
@@ -32,6 +33,8 @@ export function BoQuickView({ module, record, onClose, onDetail, hideDetailActio
   const [edit, setEdit] = useState<{ field: BoField; anchor: HTMLElement } | null>(null);
   const fields = create && !record ? create.fields ?? module.fields : module.fields;
   const row = record ?? create?.draft ?? draft;
+  const original = edit ? row[edit.field.key] : undefined;
+  const projected = edit ? create?.editorValue?.(edit.field, original) : undefined;
   const canEdit = (field: BoField) => !record && (create ? create.editable(field) : field.key === "name");
   const submit = () => {
     if (create) { void create.onCreate(); return; }
@@ -58,9 +61,9 @@ export function BoQuickView({ module, record, onClose, onDetail, hideDetailActio
         ? <button type="button" onClick={onRetryDetail}>Thử lại</button> : null}</div> : null}
     {error || create?.error ? <div className="edit-error" role="alert">{create?.error ?? error}</div> : null}
   </DrawerFrame>
-  {edit ? <BoTypedEditor field={edit.field} value={row[edit.field.key]} anchor={edit.anchor}
+  {edit ? <BoTypedEditor field={edit.field} value={projected ?? original} anchor={edit.anchor}
     onClose={() => setEdit(null)} onSave={v => {
-      if (create) create.onChange(edit.field.key, v);
+      if (create) create.onChange(edit.field.key, projected !== undefined && v === projected ? original : v);
       else setDraft(d => ({ ...d, [edit.field.key]: v }));
       setError("");
     }} /> : null}</>;
