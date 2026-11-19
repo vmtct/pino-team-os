@@ -4,6 +4,7 @@ export const HO_PAGE_PATHS = {
   bills: "/ho/billing/bills",
   centers: "/ho/centers",
   walkinPasses: "/ho/open-studio/walkin",
+  mytimeWorkshops: "/ho/mytime-workshops",
   termWeeks: "/ho/workforce/term-weeks",
   globalTerms: "/ho/operating-cycle/global-terms",
   shiftTemplates: "/ho/workforce/shift-templates",
