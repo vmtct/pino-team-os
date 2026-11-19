@@ -1,7 +1,9 @@
 {
   "tests": [
+    "qa/bo-payroll-staging.test.mjs",
     "lib/bo-payroll-daily-view-model.test.ts",
     "lib/bo-payroll-daily-read-contract.test.ts"
   ],
-  "tdd": true
+  "tdd": true,
+  "stagingList": {"path":"/bo/payroll-daily","ticket":"PAP-1954","endpoint":"/api/bo/workforce/payroll/daily"}
 }
