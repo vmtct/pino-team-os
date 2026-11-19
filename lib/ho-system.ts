@@ -74,7 +74,7 @@ export const hoModules: Record<Exclude<HoModule,"staffLinks">,BoModule> = {
   {key:"parent",label:"Parent ID",type:"text",icon:"@",w:260,readonly:true},
   {key:"center",label:"Center ID",type:"text",icon:"⌖",w:260,readonly:true},
  ]},
- staffs:{label:"Staff",group:"Nhân sự",fields:[
+ staffs:{label:"Staff",group:"Workforce",fields:[
   {key:"name",label:"Nhân sự",type:"text",icon:"Aa",w:220,readonly:true},
   {key:"id",label:"Staff ID",type:"id",icon:"#",w:240,readonly:true},
   {key:"status",label:"Trạng thái",type:"select",icon:"◉",w:120,readonly:true},
