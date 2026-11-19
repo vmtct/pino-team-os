@@ -54,7 +54,8 @@ export type WorkshopFields=WorkshopBinding["fields"];
 export const boWorkshopSchema=workshopBinding("BO",{centers:[],missions:[],specialties:[],staff:[]},{read:"learning.mytime_workshop.bo_view",history:"learning.mytime_workshop.bo_view",create:"learning.mytime_workshop.ho_manage",edit:"learning.mytime_workshop.ho_manage"}).schema;
 export const hoWorkshopSchema=workshopBinding("HO",{centers:[],missions:[],specialties:[],staff:[]},{read:"learning.mytime_workshop.ho_view",history:"learning.mytime_workshop.ho_view",create:"learning.mytime_workshop.ho_manage",edit:"learning.mytime_workshop.ho_manage"}).schema;
 export function canonicalWorkshopSchema(template:ModuleSchema<WorkshopFields>,binding:ModuleSchema<WorkshopFields>){
- const structural=(s:ModuleSchema<WorkshopFields>)=>JSON.stringify({...s,fields:s.fields.map((f:FieldSchema)=>{const {options,...field}=f;void options;return field;}),detail:{...s.detail,history:undefined}});
+ // PAP-2193: object key insertion order is not part of schema authority; array order is.
+ const structural=(s:ModuleSchema<WorkshopFields>)=>JSON.stringify({...s,fields:s.fields.map((f:FieldSchema)=>{const {options,...field}=f;void options;return field;}),detail:{...s.detail,history:undefined}},(_key,value:unknown)=>value!==null&&typeof value==="object"&&!Array.isArray(value)?Object.fromEntries(Object.entries(value).sort(([a],[b])=>a<b?-1:a>b?1:0)):value);
  if(structural(template)!==structural(binding))throw Error("Workshop runtime differs from admitted schema");
  if(binding.detail.history.kind!=="provider"||binding.detail.history.source.permission!==template.capabilities.history)throw Error("Workshop history authorization mismatch");
  return binding;
