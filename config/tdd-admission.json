@@ -1023,6 +1023,18 @@
         {"file":"lib/workspace-adapters/session.ts","owner":"PAP-1221"}
       ]
     }
+    ,{
+      "profile":"TDD_DEFAULT",
+      "surface":"BO",
+      "key":"enrollments",
+      "route":"/bo/enrollments",
+      "file":"app/bo/enrollments/page.tsx",
+      "files":["app/bo/enrollments/page.tsx","app/bo/enrollments/BoEnrollmentDirectory.tsx","app/bo/enrollments/EnrollmentRuntime.tsx","app/bo/enrollments/schema.ts","app/bo/enrollments/provider.ts","app/bo/enrollments/enrollment-read-client.ts"],
+      "schema":{"file":"app/bo/enrollments/schema.ts","export":"enrollmentSchema"},
+      "binding":{"kind":"SURFACE_WORKSPACE_ADAPTER","file":"app/bo/enrollments/BoEnrollmentDirectory.tsx"},
+      "tests":["app/bo/enrollments/schema.test.ts","app/bo/enrollments/provider.test.ts","app/bo/enrollments/enrollment-read-client.test.ts","app/bo/enrollments/route.test.ts"],
+      "externalReferences":[{"file":"lib/host-boundary.ts","owner":"PAP-2181"},{"file":"lib/workspace-adapters/session.ts","owner":"PAP-1221"},{"file":"lib/bo-skeleton.ts","owner":"PAP-901"},{"file":"lib/ho-routes.ts","owner":"PAP-1220"}]
+    }
   ],
   "approvals": []
 }
