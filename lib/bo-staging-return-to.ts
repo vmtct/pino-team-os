@@ -38,10 +38,10 @@ export function safeBoStagingReturnTo(raw:string|null|undefined):string|null{
  for(const k of p.keys()){
   const v=p.get(k)!;
   if(k==="module"&&path==="/bo")continue;
-  if(!general.has(k)&&!(sub&&k==="specialtyRecord")&&!(period&&payroll.has(k))&&!(event&&wish.has(k)))return null;
+  if(!general.has(k)&&!(sub&&["specialtyRecord","studentId"].includes(k))&&!(period&&payroll.has(k))&&!(event&&wish.has(k)))return null;
   if(k==="centerId"&&!uuid.test(v))return null;
   if(k==="record"&&(sub||period||event||key==="enrollments"?!uuid.test(v):!id.test(v)))return null;
-  if(["specialtyRecord","incomeStaff","incomeException","incomeDrawer"].includes(k)&&!uuid.test(v))return null;
+  if(["specialtyRecord","studentId","incomeStaff","incomeException","incomeDrawer"].includes(k)&&!uuid.test(v))return null;
   if(["from","to","incomeDay"].includes(k)&&!date(v))return null;
   if(k==="page"&&!/^[1-9]\d{0,5}$/.test(v))return null;
   if(k==="fromSettlement"&&v!=="1")return null;
