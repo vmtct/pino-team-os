@@ -39,10 +39,18 @@ export default {
     const method = PIN_ROUTES.get(path);
     const allowedMethods = isLogin || isAsset ? ["GET", "HEAD"] : method ? [method] : null;
     let response;
-    const memberChrome = !allowedMethods && !isPinRoute ? await readMemberChrome(request,env?.AFTERSCHOOL_PIN_WORKER,parseRoute(path)) : null;
+    const route = parseRoute(path);
+    const shellRead = route && ["GET", "HEAD"].includes(request.method);
+    const loginRead = isCanonicalLogin && ["GET", "HEAD"].includes(request.method);
+    const memberChrome = shellRead || loginRead ? await readMemberChrome(request,env?.AFTERSCHOOL_PIN_WORKER,shellRead ? route : {kind:"launcher"}) : null;
+    const redirect = (target) => new Response(null, {status: 302, headers:{Location:new URL(target,request.url).href,"Cache-Control":"no-store, no-transform","X-Robots-Tag":"noindex, nofollow, noarchive",Vary:"Cookie"}});
     if (isLegacyLogin && allowedMethods.includes(request.method)) {
       // Canonical public URL; never honor query-supplied redirect destinations.
       response = new Response(null, { status: 308, headers: { Location: new URL(LOGIN_PATH, request.url).href } });
+    } else if (shellRead && !memberChrome) {
+      response = redirect(LOGIN_PATH);
+    } else if (loginRead && memberChrome) {
+      response = redirect("/");
     } else {
       // Rewrite only the page request. PIN API requests remain the original Request.
       const forwarded = isCanonicalLogin && allowedMethods.includes(request.method)
