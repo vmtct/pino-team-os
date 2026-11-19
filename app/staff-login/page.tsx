@@ -2,10 +2,11 @@
 import { FormEvent, useEffect, useState } from "react";
 import styles from "./staff-login.module.css";
 import { safeHoReturnTo, HO_HOME_PATH } from "@/lib/ho-routes";
+import { BO_STAGING_RETURN_HOST, boStagingReturnFromSearch, boStagingAuthContinuation } from "@/lib/bo-staging-return-to";
 
-function homePath() { if (window.location.hostname === "tos.staging.pinohouse.art") return "/tos-v4"; if (window.location.hostname === "ho.staging.pinohouse.art") return safeHoReturnTo(new URLSearchParams(window.location.search).get("returnTo")) ?? HO_HOME_PATH; return ["bo.pinohouse.art", "bo.staging.pinohouse.art"].includes(window.location.hostname) ? "/bo" : "/dashboard"; }
+function homePath() { if (window.location.hostname === "tos.staging.pinohouse.art") return "/tos-v4"; if (window.location.hostname === "ho.staging.pinohouse.art") return safeHoReturnTo(new URLSearchParams(window.location.search).get("returnTo")) ?? HO_HOME_PATH; if (window.location.hostname === BO_STAGING_RETURN_HOST) return boStagingReturnFromSearch(window.location.search) ?? "/bo"; return window.location.hostname === "bo.pinohouse.art" ? "/bo" : "/dashboard"; }
 
-function passwordChangePath() { const ret = window.location.hostname === "ho.staging.pinohouse.art" ? safeHoReturnTo(new URLSearchParams(window.location.search).get("returnTo")) : null; return "/staff-password/change" + (ret ? "?returnTo=" + encodeURIComponent(ret) : ""); }
+function passwordChangePath() { if (window.location.hostname === BO_STAGING_RETURN_HOST) return boStagingAuthContinuation("/staff-password/change",window.location.search); const ret = window.location.hostname === "ho.staging.pinohouse.art" ? safeHoReturnTo(new URLSearchParams(window.location.search).get("returnTo")) : null; return "/staff-password/change" + (ret ? "?returnTo=" + encodeURIComponent(ret) : ""); }
 
 export default function StaffLogin() {
   const [email, setEmail] = useState("");

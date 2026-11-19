@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { HO_STAGING_HOSTNAME, normalizeHostname, decideHostBoundary, requiresBoStaffPasswordSession, requiresTosStaffSession } from "@/lib/host-boundary";
 import { boSkeletonRoute, isBoStagingHost, requiresBoStagingPageSession } from "@/lib/bo-skeleton-routing";
 import { safeHoReturnTo } from "@/lib/ho-routes";
+import { BO_RETURN_HEADER, BO_STAGING_RETURN_HOST, safeBoStagingReturnTo } from "@/lib/bo-staging-return-to";
 
 export function middleware(request: NextRequest) {
   // Source assets are served only through the authenticated staging controller.
@@ -41,6 +42,11 @@ export function middleware(request: NextRequest) {
   // Never trust a caller-supplied internal route marker.
   const forwarded = new Headers(request.headers);
   forwarded.delete("x-pino-bo-runtime-path");
+  forwarded.delete(BO_RETURN_HEADER);
+  if(normalizeHostname(host)===BO_STAGING_RETURN_HOST){
+    const ret=safeBoStagingReturnTo(request.nextUrl.pathname+request.nextUrl.search);
+    if(ret)forwarded.set(BO_RETURN_HEADER,ret);
+  }
   forwarded.delete("x-pino-ho-auth-page");
   forwarded.delete("x-pino-ho-return-to");
   if (normalizeHostname(host) === HO_STAGING_HOSTNAME && request.nextUrl.pathname.startsWith("/ho")) {
@@ -80,6 +86,10 @@ export function middleware(request: NextRequest) {
     // Before React starts streaming: an async layout redirect can otherwise be HTTP 200.
     if ((requiresBoStaffPasswordSession(host, request.nextUrl.pathname) || requiresBoStagingPageSession(host, request.nextUrl.pathname)) && !request.cookies.get("pino_staff_password_session")?.value) {
       const login = new URL(request.url); login.pathname = "/staff-login"; login.search = "";
+      if (normalizeHostname(host) === BO_STAGING_RETURN_HOST && ["GET","HEAD"].includes(request.method)) {
+        const ret = safeBoStagingReturnTo(request.nextUrl.pathname + request.nextUrl.search);
+        if (ret) login.searchParams.set("returnTo",ret);
+      }
       return NextResponse.redirect(login, 307);
     }
     return NextResponse.next({ request: { headers: forwarded } });
