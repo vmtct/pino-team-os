@@ -33,12 +33,20 @@ test("PAP-2012 native period and both income details opt in, with scoped settlem
  assert.equal((period.match(/className="pay-kpi"/g)||[]).length,2);
  assert.match(period,/pay-section-heading/); assert.equal((income.match(/<BoProperties authority compact/g)||[]).length,4);
  const drawer=readFileSync("app/bo/payroll-periods/SettlementIncomeDrawer.tsx","utf8");
- assert.match(period,/quickViewOpener onRowOpen=/); assert.match(period,/<SettlementIncomeDrawer/);
+ assert.match(period,/<PayrollNativeTable[^]*onOpen=\{r=>router\.push\(detailUrl\(centerId,id\)\+"&tab=settlements&incomeDrawer="/); assert.doesNotMatch(period,/<BoDataGrid|className="id-code"/); const native=readFileSync("app/bo/payroll-periods/PayrollNativeTable.tsx","utf8"); assert.match(native,/<BoDataTable[^]*onOpen=\{onOpen\?\?/); assert.match(native,/openEnabled=\{!!onOpen\}/); assert.match(period,/<SettlementIncomeDrawer/);
  assert.match(drawer,/<DrawerFrame/); assert.match(drawer,/settlementExceptionHref/); assert.doesNotMatch(period,/Xem thu nhập<\/button>/);
 
  assert.match(income,/<button type="button" className="secondary-btn" onClick=\{\(\)=>router.push\([^\n]*>Xem kỳ<\/button>/);
- for(const field of ['["#","PTE ID"','["♙","Họ tên"','["₫","Rate HO"','["▦","Ngày"','["◷","Check-in"']) assert.ok(income.includes(field),field);
- assert.equal((income.match(/map\(\(\[icon,label,value\]\)/g)||[]).length,3);
+ for(const field of ['["♙","Họ tên"','["₫","Rate HO"','["▦","Ngày"','["◷","Check-in"']) assert.ok(income.includes(field),field);
+ assert.equal((income.match(/map\(\(\[icon,label,value\]\)/g)||[]).length,3); assert.doesNotMatch(income,/"PTE ID"|"Người tạo \(ID\)"|day\.override\.createdByUserId/);
  const css=readFileSync("public/bo-authority-source/styles.css","utf8");
  assert.ok(css.includes(".pay-kpi:nth-child(2){border-color:var(--bo-color-focus);background:var(--bo-color-accent-soft)}"));
+});
+
+test("PAP-2154 Daily and Exception use native server-paged DSA chrome and retain recoverable filters",()=>{
+ const table=readFileSync("app/bo/payroll-periods/PayrollNativeTable.tsx","utf8").split("export function PayrollDsaReadTable")[1]!;
+ assert.match(table,/<BoDataTable/); assert.match(table,/data-tdd-shell="table" data-tdd-freeze-controls="" data-tdd-surface="BO"/); assert.match(table,/totalKnown minimal freezeEnabled/); assert.match(table,/filterContent=\{filterContent\}/); assert.match(table,/serverTotal=\{total\} totalKnown/);assert.match(table,/<BoTableSettings/); assert.doesNotMatch(table,/showChrome=\{false\}/);
+ for(const path of ["app/bo/payroll-daily/BoPayrollDailyReadView.tsx","app/bo/payroll-exceptions/BoPayrollExceptionsReadView.tsx"]){
+  const source=readFileSync(path,"utf8");assert.match(source,/allowed\?<PayrollDsaReadTable/);assert.match(source,/limit:pageSize/);assert.match(source,/onPageSizeChange=/);assert.match(source,/filterContent=/);assert.match(source,/onReset=/);assert.match(source,/<BoQuickView/);assert.match(source,/onDetail=\{\(\)=>router.push/);
+ }
 });

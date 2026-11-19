@@ -2,11 +2,12 @@
 /** PAP-1955 · BO Exception immutable read-only Detail/Chuyên Sâu/Lịch Sử. */
 import {useEffect,useState,useRef} from "react";
 import {BoFullDetail} from "@/app/bo/components/BoFullDetail";
+import {PropertySections} from "@/app/components/workspace-renderer/Properties";
 import {BoProperties} from "@/app/bo/components/BoProperties";
 import {useBoCenterSelection} from "@/app/bo/components/registration/BoCenterSelection";
 import {exceptionReadApi,ExceptionReadError,canReviewStandalone,sameStandaloneRequest} from "@/lib/bo-payroll-exceptions-read";
 import {toExceptionReadRow,minorVnd,type ExceptionReadRow} from "@/lib/bo-payroll-exceptions-model";
-import {exceptionProperties} from "../BoPayrollExceptionsReadView";
+import {exceptionPresentation} from "../BoPayrollExceptionsReadView";
 import {PayrollExceptionDecisionForm} from "../PayrollExceptionDecisionForm";
 import {decisionPayload,localClock,reviewApi} from "@/lib/bo-payroll-extra-review-api";
 import {verifiedReviewReceipt} from "@/lib/bo-payroll-settlement-drawer";
@@ -42,20 +43,19 @@ function ExceptionDetailScope({requestId,activeTab}:ExceptionDetailProps){
  if(!record||record.centerId!==centerId||record.row.id!==requestId)
   return <p role="status">Đang tải yêu cầu từ Core…</p>;
  const r=record.row;
+ const fields=exceptionPresentation.module.fields;
  const tabs=[
   {id:"detail",label:"Th\u00f4ng tin",
-   content:<><BoProperties authority compact items={exceptionProperties.map(([name,render])=>({
-    key:name,label:name,value:render(r)}))}/>{canReviewStandalone(r.source,centerId,requestId)?<StandaloneReview key={r.id} row={r} onReviewed={row=>setRecord({centerId,row})}/>:null}</>},
+   content:<><PropertySections variant="detail" fields={fields} record={exceptionPresentation.record(r)} sections={[{id:"request",label:"Yêu cầu",fields:fields.slice(0,7).map(f=>f.key)},{id:"decision",label:"Quyết định",fields:fields.slice(7,-4).map(f=>f.key)},{id:"audit",label:"Lịch sử bản ghi",fields:fields.slice(-4).map(f=>f.key)}]}/>{canReviewStandalone(r.source,centerId,requestId)?<StandaloneReview key={r.id} row={r} onReviewed={row=>setRecord({centerId,row})}/>:null}</>},
   {id:"history",label:"Lịch Sử",content:<section>
    <h2>Quyết định Core</h2>
-   {r.source.decision?<BoProperties items={[
+   {r.source.decision?<BoProperties authority compact items={[
     {key:"status",label:"Quyết định",value:r.statusLabel},
     {key:"minutes",label:"Số phút duyệt",value:r.reviewedMinutes===null?"—":String(r.reviewedMinutes)},
     {key:"money",label:"Số tiền Core duyệt",value:minorVnd(r.reviewedAmountMinor)},
     {key:"reason",label:"Lý do",value:r.decisionReason},
     {key:"reviewedAt",label:"Thời điểm quyết định",value:r.reviewedAt},
-    {key:"reviewer",label:"Reviewer (legal full name)",value:r.reviewerName},
-    {key:"reviewerId",label:"Reviewer ID (technical)",value:r.reviewerId??"—"},
+    {key:"reviewer",label:"Người duyệt",value:r.reviewerName},
    ]}/>:<p>Chưa có quyết định được Core ghi nhận.</p>}
   </section>},
  ];

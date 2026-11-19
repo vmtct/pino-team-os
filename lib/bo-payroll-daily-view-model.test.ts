@@ -57,4 +57,5 @@ test("PAP-1959 uses only verified Core names and keeps derived day audit unavail
  assert.deepEqual([row.createdAt,row.createdBy,row.updatedAt,row.updatedBy],Array(4).fill("—"));
  assert.equal(row.effectiveMinor,base.effective.amountMinor);
  assert.equal(payrollDailyRow({...base,staffLegalFullName:null},center).staffDisplayName,"—");
+ assert.equal(payrollDailyRow({...base,staffLegalFullName:"019d2000-0002-7000-8000-000000000001"},center).staffDisplayName,"—");
 });

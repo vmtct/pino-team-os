@@ -7,7 +7,7 @@ import {canSubmitPayrollAdjustmentScope,submitPayrollAdjustment} from "@/lib/bo-
 import {SettlementExceptionDetail} from "./SettlementExceptionDetail";
 import {useEffect,useState,useRef} from "react";
 import {useRouter,useSearchParams} from "next/navigation";
-import {BoDataGrid,BoDataGridBadge,type BoDataGridColumn} from "@/app/bo/components/data-grid";
+import {PayrollNativeTable} from "./PayrollNativeTable";
 import {BoFullDetail} from "@/app/bo/components/BoFullDetail";
 import {DrawerFrame} from "@/app/components/workspace-renderer/DrawerFrame";
 import {PeriodProperties,CreatePeriod,periodFields,periodRecord} from "./PeriodProperties";
@@ -15,15 +15,12 @@ import {useBoCenterSelection} from "@/app/bo/components/registration/BoCenterSel
 import {periodApi,money,type PeriodStaffPage} from "@/lib/bo-payroll-period-api";
 import {nativePeriodRow,nativePeriodHistory,type NativePeriodRow} from "@/lib/bo-payroll-native-period-model";
 import {staffWithWorkEvidence,periodSummaries} from "@/lib/bo-payroll-read-model";
-import {BoPill} from "@/app/bo/components/registration/BoValue";
+
 import {payrollVerifiedName} from "@/lib/bo-payroll-safe-read-metadata";
 
 const ROOT="/bo/payroll-periods";
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-const columns:BoDataGridColumn<NativePeriodRow>[]=periodFields.map(f=>({
- key:f.key,header:f.label,minWidth:f.w,
- render:r=>{const v=String(periodRecord(r)[f.key]??"—");return f.key==="status"?<BoDataGridBadge>{v}</BoDataGridBadge>:v;},
-}));
+const periodModule={label:"Kỳ lương",group:"Workforce",fields:periodFields};
 const tableUrl=(center:string)=>ROOT+"?"+new URLSearchParams({centerId:center});
 const detailUrl=(center:string,id:string)=>ROOT+"?"+new URLSearchParams({centerId:center,record:id});
 
@@ -77,13 +74,11 @@ function PeriodTable({centerId,centerName}:{centerId:string;centerName:string}){
  const rows=current?.rows??[];
  const row=rows.find(r=>r.id===selected);
  return <section aria-label="Kỳ lương" data-pap-ticket="PAP-1985">
-  <header className="page-heading"><div className="page-heading-left"><h1>Kỳ lương</h1></div><div className="heading-actions">{current?.canCreate?<button type="button" className="primary-btn" onClick={()=>{setSelected(null);setCreating(true);}}>Tạo mới</button>:null}</div></header>
-  <BoDataGrid rows={rows} columns={columns} rowKey={r=>r.id} caption="Kỳ lương"
-   state={!current?"loading":current.error?"error":"ready"} stateMessage={current?.error}
-   onRefresh={()=>{setCreating(false);setSelected(null);setRefresh(r=>r+1);}}
-   onRowOpen={r=>{setCreating(false);setSelected(r.id);}} selectedRowKey={selected} quickViewOpener
-   pagination={{page:Math.floor(offset/50)+1,pageSize:50,total:current?.total??0,onPageChange:n=>{setSelected(null);setOffset((n-1)*50);}}}
-   emptyTitle="Chưa có kỳ lương" emptyMessage="Core không trả về kỳ lương tại cơ sở này."/>
+  <header className="page-heading"><div className="page-heading-left"><h1>Kỳ lương</h1></div><div className="heading-actions"><button type="button" className="secondary-btn" onClick={()=>{setCreating(false);setSelected(null);setRefresh(r=>r+1);}}>Tải lại</button>{current?.canCreate?<button type="button" className="primary-btn" onClick={()=>{setSelected(null);setCreating(true);}}>Tạo mới</button>:null}</div></header>
+  <PayrollNativeTable module={periodModule} rows={rows.map(periodRecord)} loadState={!current?"loading":current.error||"ready"}
+   onOpen={r=>{setCreating(false);setSelected(r.id);}} selected={selected}
+   page={Math.floor(offset/50)+1} total={current?.total??0}
+   onPageChange={n=>{setSelected(null);setOffset((n-1)*50);}}/>
   {creating&&current?.canCreate?<CreatePeriod centerId={centerId} centerName={centerName} keyForPayload={keyForPayload} onClose={()=>setCreating(false)} onSaved={refreshAfterWrite}/>:null}
   {row&&!creating?<DrawerFrame title={row.name} path="Kỳ lương" onClose={()=>setSelected(null)}
    footer={<Link className="primary-btn" href={detailUrl(centerId,row.id)}>Full Detail</Link>}>
@@ -154,15 +149,12 @@ function Settlements({centerId,id,initial,incomeDrawer,onFinalized}:{centerId:st
   {page.periodTotals.hasPending||page.periodTotals.hasUnavailable?<p role="status">Tổng dự kiến chỉ gồm khoản đã đủ dữ liệu; còn khoản chưa xác định.</p>:null}
   <section aria-label="Quyết toán theo PTE">
   <div className="property-section pay-section-heading"><h3>Quyết toán theo PTE</h3>{typeof fullCount==="number"?<span>{fullCount} PTE có ghi nhận giờ công hoặc đã chốt</span>:null}</div>
-  <BoDataGrid showToolbar={false} rows={visible} rowKey={r=>r.staffMemberId} caption="Quyết toán theo PTE"
-   quickViewOpener onRowOpen={r=>router.push(detailUrl(centerId,id)+"&tab=settlements&incomeDrawer="+encodeURIComponent(r.staffMemberId))} selectedRowKey={incomeDrawer}
-   columns={[
-    {key:"staff",header:"PTE",minWidth:190,render:r=><><strong>{payrollVerifiedName(r.staffName)}</strong><div className="id-code">{r.staffMemberId}</div></>},
-    {key:"amount",header:"Thành tiền",minWidth:150,render:r=><strong className="payroll-ro-amount">{money(r.amountMinor)}</strong>},
-    {key:"status",header:"Trạng thái",minWidth:140,render:r=><BoPill {...settlementStatus(r.status)}/>},
-
-   ]}
-   emptyTitle="Chưa có giờ công" emptyMessage="Không có bản ghi đủ điều kiện trong trang hiện tại."/>
+  <PayrollNativeTable module={{label:"Quyết toán theo PTE",group:"Workforce",fields:[
+    {key:"name",label:"PTE",type:"text",icon:"Aa",w:220,readonly:true},
+    {key:"amount",label:"Thành tiền",type:"text",icon:"#",w:150,readonly:true},
+    {key:"status",label:"Trạng thái",type:"select",icon:"◉",w:140,readonly:true}
+   ]}} rows={visible.map(r=>({id:r.staffMemberId,name:payrollVerifiedName(r.staffName),amount:money(r.amountMinor),status:settlementStatus(r.status).text}))}
+   loadState="ready" selected={incomeDrawer} onOpen={r=>router.push(detailUrl(centerId,id)+"&tab=settlements&incomeDrawer="+encodeURIComponent(r.id))}/>
   {page.nextOffset!==null?<button type="button" disabled={busy} onClick={()=>void more()}>Tải thêm PTE</button>:null}
   {error?<p role="alert">{error}</p>:null}
   {incomeDrawer?<SettlementIncomeDrawer key={JSON.stringify([centerId,id,initial.period.startDate,initial.period.endDate,initial.period.status,incomeDrawer])} centerId={centerId} period={initial.period} staffId={incomeDrawer} submitAdjustment={canSubmitPayrollAdjustmentScope(centerId,id,incomeDrawer)?submitPayrollAdjustment:undefined} onAdjusted={onFinalized} onClose={()=>router.replace(detailUrl(centerId,id)+"&tab=settlements")} onFinalized={()=>{router.replace(detailUrl(centerId,id)+"&tab=settlements");onFinalized();}}/>:null}
@@ -184,11 +176,11 @@ function PeriodHistory({centerId,id}:{centerId:string;id:string}){
  if(!page)return <p role="status">Đang tải lịch sử…</p>;
  if(page.error)return <p role="alert">{page.error}</p>;
  return <section aria-label="Lịch sử kỳ lương">
-  <BoDataGrid showToolbar={false} rows={page.rows} rowKey={r=>r.id} caption="Lịch sử kỳ lương" columns={[
-   {key:"action",header:"Thao tác",render:r=>r.action},
-   {key:"time",header:"Thời gian",render:r=>r.time},
-   {key:"actor",header:"Người thao tác",render:r=>r.actor},
-  ]} emptyTitle="Chưa có lịch sử" emptyMessage="Không có sự kiện được cấp quyền."/>
+  <PayrollNativeTable module={{label:"Lịch sử kỳ lương",group:"Workforce",fields:[
+   {key:"name",label:"Thao tác",type:"text",icon:"Aa",w:220,readonly:true},
+   {key:"time",label:"Thời gian",type:"text",icon:"◷",w:160,readonly:true},
+   {key:"actor",label:"Người thao tác",type:"text",icon:"Aa",w:180,readonly:true}
+  ]}} rows={page.rows.map(r=>({id:r.id,name:r.action,time:r.time,actor:r.actor}))} loadState="ready"/>
   {offset>0?<button type="button" onClick={()=>setOffset(Math.max(0,offset-50))}>Trang trước</button>:null}
   {page.nextOffset!==null?<button type="button" onClick={()=>setOffset(page.nextOffset!)}>Trang sau</button>:null}
  </section>;

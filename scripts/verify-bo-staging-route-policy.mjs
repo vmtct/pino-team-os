@@ -2,6 +2,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { mountsExactNamedComponent, mountsPayrollNativeTable } from "./bo-route-import-guard.mjs";
 import { isFounderMigratedBoAvatarNativeDsaRoute } from "./verify-tdd-authority.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -60,7 +61,7 @@ function nativePayrollRoutes(root,issues){
   const files=[page,base+e.view+".tsx",base+e.detail,e.client,e.test,"lib/bo-native-payroll-route.ts","lib/pap1970-native-payroll-route.test.ts"];
   if(files.some(f=>!fs.existsSync(path.join(root,f)))){issues.push(e.key+": missing native read-only route contract");continue;}
   const [p,v,d,c]=files.map(f=>read(root,f));
-  if(!p.includes("<"+e.view)||!p.includes("PAP-1970")||!v.includes("BoDataGrid")||!v.includes("BoDataGridSidePeek")||
+  if(!p.includes("<"+e.view)||!p.includes("PAP-1970")||!mountsPayrollNativeTable(root,base+e.view+".tsx",v,"PayrollDsaReadTable","../payroll-periods/PayrollNativeTable")||!mountsExactNamedComponent(base+e.view+".tsx",v,"@/app/bo/components/registration/BoQuickView","BoQuickView")||
      !v.includes("useBoCenterSelection")||!d.includes("BoFullDetail")||!d.includes("useBoCenterSelection")||
      !c.includes("same-origin")||!c.includes("no-store")||[p,v,d].some(x=>/BoModuleFactory|BoWorkforceRoute|defineTddModule|SurfaceWorkspace/.test(x))||
      /method:\s*["'](?:POST|PATCH|PUT|DELETE)["']/.test(c)){issues.push(e.key+": invalid native read-only route contract");continue;}
