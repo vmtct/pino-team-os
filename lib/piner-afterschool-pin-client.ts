@@ -19,7 +19,11 @@ async function request(path: string, body?: object, csrfToken?: string): Promise
   const response = await fetch("/api/piner/afterschool/" + path, {
     method: body ? "POST" : "GET",
     credentials: "same-origin",
-    mode: "same-origin",
+    // PAP-2184: preserve a non-opaque browser Origin for the fixed same-origin
+    // JSON route even under the document's no-referrer policy (Safari).
+    // Only the origin, never the page path, is included; redirects still fail.
+    mode: "cors",
+    referrerPolicy: "strict-origin",
     cache: "no-store",
     redirect: "error",
     headers,
