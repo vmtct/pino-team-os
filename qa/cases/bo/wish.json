@@ -1,0 +1,9 @@
+{
+  "tdd": true,
+  "tests": [
+    "lib/bo-pls-wish-handler.test.ts",
+    "lib/pls-wish-bo-contract.test.ts",
+    "lib/pls-wish-detail-route.test.ts",
+    "app/bo/pinoria-wish/wish-event-view.test.ts"
+  ]
+}
