@@ -26,6 +26,7 @@ export function safeBoStagingReturnTo(raw:string|null|undefined):string|null{
  let moduleKey=p.get("module");
  if(path==="/bo/subscriptions"){if(moduleKey!==null&&moduleKey!=="subscriptions")return null;path="/bo";moduleKey="subscriptions";p.set("module",moduleKey);}
  if(path==="/bo/registrations"){if(moduleKey!==null)return null;path="/bo/enrollments";p.delete("record");p.delete("sessionId");}
+ if(path==="/bo/mytime-guests"){if(moduleKey!==null)return null;path="/bo/guests";}
  if(path==="/bo/open-studio"){if(p.size)return null;path="/bo/open-studio-passes";}
  if(path==="/bo"){
   if(moduleKey!==null&&!BO_LEGACY_QUERY_MODULES.some(k=>k===moduleKey))return null;
