@@ -7,6 +7,22 @@ export function middleware(request: NextRequest) {
   // Source assets are served only through the authenticated staging controller.
   if (request.nextUrl.pathname.startsWith("/bo-authority-source/")) return new NextResponse("Not Found", { status: 404 });
   const host = request.headers.get("host") ?? request.nextUrl.hostname;
+  // PAP-2181: retire the legacy BO Session Registration UI on Staging only.
+  // Never reinterpret a Session/Registration ID as an Enrollment record ID.
+  if (normalizeHostname(host) === "bo.staging.pinohouse.art" && (request.method === "GET" || request.method === "HEAD")) {
+    const path=request.nextUrl.pathname, query=request.nextUrl.searchParams;
+    const oldRegistration=path==="/bo/registrations"||path==="/bo/registrations/";
+    const oldEnrollment=(path==="/bo"||path==="/bo/")&&query.getAll("module").length===1&&query.get("module")==="enrollments";
+    if(oldRegistration||oldEnrollment){
+      const target=request.nextUrl.clone();target.pathname="/bo/enrollments";target.search="";
+      const centers=query.getAll("centerId");
+      if(centers.length>1||centers.length===1&&!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(centers[0]!))return new NextResponse("Invalid Center", {status:400,headers:{"cache-control":"no-store"}});
+      if(centers.length===1)target.searchParams.set("centerId",centers[0]!);
+      const records=query.getAll("record");
+      if(oldEnrollment&&records.length===1&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(records[0]!))target.searchParams.set("record",records[0]!);
+      return NextResponse.redirect(target,307);
+    }
+  }
   // Legacy dedicated Subscription URLs are aliases, NOT staging route admissions.
   // One canonical /bo React shell owns the module; existing bookmarks are preserved.
   if (isBoStagingHost(host) && (request.nextUrl.pathname === "/bo/subscriptions" || request.nextUrl.pathname === "/bo/subscriptions/")) {

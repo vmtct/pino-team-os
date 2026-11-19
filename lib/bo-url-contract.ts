@@ -22,6 +22,7 @@ export const BO_TARGET_ROUTES = [
   { key: "piner-posts", path: "/bo/piner-posts", tabs: ["overview", "history"] },
   { key: "mytime-guests", path: "/bo/mytime-guests", tabs: ["overview", "history"] },
   { key: "mytime-workshops", path: "/bo/mytime-workshops", tabs: ["overview", "history"] },
+  { key: "enrollments", path: "/bo/enrollments", tabs: ["overview", "history"] },
 ] as const satisfies readonly Target[];
 export type BoTargetModule = (typeof BO_TARGET_ROUTES)[number]["key"];
 export type BoUrlSurface = "table" | "drawer" | "detail";
