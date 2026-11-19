@@ -87,15 +87,15 @@ const {chromium}=require("playwright");
     assert.equal(await page.locator('.bottom-nav svg[data-line-icon]').count(),4);assert.equal((await page.locator('.bottom-nav').innerText()).trim(),"");
     await page.locator(".profile-switch").click();
     await page.locator('[data-student-id=b]').click();
-    assert.match(await page.locator(".profile-switch").innerText(),/Fixture Learner B/);
-    for(const tab of ["grid","reels","community","home"]){await page.locator("[data-tab="+tab+"]").click();assert.match(await page.locator(".profile-switch").innerText(),/Fixture Learner B/);}
-    await page.reload();assert.match(await page.locator(".profile-switch").innerText(),/Fixture Learner B/);
+    await page.waitForFunction(label=>document.querySelector('.profile-switch')?.innerText.includes(label),'Fixture Learner B');assert.match(await page.locator(".profile-switch").innerText(),/Fixture Learner B/);
+    for(const tab of ["grid","reels","community","home"]){await page.locator("[data-tab="+tab+"]").click();await page.waitForFunction(label=>document.querySelector('.profile-switch')?.innerText.includes(label),'Fixture Learner B');assert.match(await page.locator(".profile-switch").innerText(),/Fixture Learner B/);}
+    await page.reload();await page.waitForFunction(label=>document.querySelector('.profile-switch')?.innerText.includes(label),'Fixture Learner B');assert.match(await page.locator(".profile-switch").innerText(),/Fixture Learner B/);
     students=students.slice(0,1);await page.reload();
-    assert.match(await page.locator(".profile-switch").innerText(),/Fixture Learner A/);
+    await page.waitForFunction(label=>document.querySelector('.profile-switch')?.innerText.includes(label),'Fixture Learner A');assert.match(await page.locator(".profile-switch").innerText(),/Fixture Learner A/);
     studentError=true;await page.reload();assert.equal(await page.locator("[data-student-id]").count(),0);
     await page.locator(".profile-switch").click();await visible("[data-student-retry]");
     studentError=false;await page.locator("[data-student-retry]").click();
-    assert.match(await page.locator(".profile-switch").innerText(),/Fixture Learner A/);
+    await page.waitForFunction(label=>document.querySelector('.profile-switch')?.innerText.includes(label),'Fixture Learner A');assert.match(await page.locator(".profile-switch").innerText(),/Fixture Learner A/);
     await page.locator(".brand").click();await page.locator("[data-launch-app=mytime]").click();
     assert.equal(await page.locator("[data-student-id]").count(),0);
     assert.doesNotMatch(await page.locator("body").innerText(),/Fixture Learner/);
