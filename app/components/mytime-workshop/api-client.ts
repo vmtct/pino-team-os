@@ -1,3 +1,4 @@
+import {formatPinoDateTime} from "@/lib/pino-datetime";
 // PAP-2164 / MT-WORKSHOP: real private facade contract, no fixtures or implicit scope.
 import {isWorkshopId,type WorkshopReference} from "./reference-codec";
 export type WorkshopDto={
@@ -36,7 +37,7 @@ export function ictWorkshopInstant(value:string):string{
  // DSA datetime-local is Vietnamese wall clock, independent of browser timezone.
  const s=/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)?value+":00":value;
  const t=/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?$/.test(s)?s+"+07:00":s;
- if(!/(?:Z|[+-]\d{2}:\d{2})$/.test(t)||!Number.isFinite(Date.parse(t)))throw new WorkshopApiError(400);
+ if(!/(?:Z|[+-]\d{2}:\d{2})$/.test(t)||formatPinoDateTime(t)==="—")throw new WorkshopApiError(400);
  return new Date(t).toISOString();
 }
 export function workshopApi(scope:WorkshopScope,fetcher:typeof fetch=fetch){
