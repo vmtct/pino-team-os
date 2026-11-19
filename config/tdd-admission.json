@@ -945,7 +945,20 @@
         "app/bo/piner-posts/native-draft-binding.ts",
         "app/bo/piner-posts/native-draft-session.ts",
         "app/bo/piner-posts/page.tsx",
-        "app/bo/piner-posts/schema.ts"
+        "app/bo/piner-posts/schema.ts",
+        "app/bo/piner-posts/NativePrivateMediaPanel.tsx",
+        "app/bo/piner-posts/private-media-client.ts",
+        "app/bo/piner-posts/private-media-controller.ts",
+        "app/bo/piner-posts/private-media-shell.module.css",
+        "app/bo/piner-posts/private-media-shell.tsx"
+      ],
+      "businessStyles": [
+        {
+          "file": "app/bo/piner-posts/private-media-shell.module.css",
+          "owner": "PAP-2172",
+          "consumer": "app/bo/piner-posts/private-media-shell.tsx",
+          "classes": ["stack", "row", "preview", "image"]
+        }
       ],
       "schema": {
         "file": "app/bo/piner-posts/native-draft-binding.ts",
@@ -959,7 +972,11 @@
         "lib/pap2134-native-draft-binding.test.ts",
         "lib/pap2134-native-draft-session.test.ts",
         "lib/pap2134-posts-nav-access.test.ts",
-        "lib/pap2134-posts-url.test.ts"
+        "lib/pap2134-posts-url.test.ts",
+        "lib/pap2172-private-media-shell.test.ts",
+        "lib/pap2173-private-media-controller.test.ts",
+        "lib/pap2173-private-media-client.test.ts",
+        "lib/pap2173-private-media-handler.test.ts"
       ],
       "externalReferences": [
           {

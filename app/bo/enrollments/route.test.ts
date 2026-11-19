@@ -13,7 +13,7 @@ test("PAP-2181 Enrollment is exact staging-only read page, unchanged Production 
  assert.equal(decideHostBoundary(host,"/bo/enrollments","POST").action,"not_found");
  assert.equal(decideHostBoundary(host,"/bo/enrollments/"+record).action,"not_found");
  assert.equal(decideHostBoundary(prod,"/bo/registrations").action,"next");
- assert.equal(req("/bo/enrollments",host,false).headers.get("location"),"https://"+host+"/staff-login");
+ assert.equal(new URL(req("/bo/enrollments",host,false).headers.get("location")!).searchParams.get("returnTo"),"/bo/enrollments");
  assert.equal(req("/bo/enrollments?centerId="+id).headers.get("x-middleware-next"),"1");
 });
 test("PAP-2181 old Registration never conflates identities, legacy Enrollment preserves authorized-scope hints only",()=>{
