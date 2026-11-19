@@ -13,6 +13,7 @@ test("PAP-2203: all admitted BO routes and typed detail survive cold login and f
  const routes=["/bo",...BO_LEGACY_QUERY_MODULES.map(module=>"/bo?module="+module),...boStagingAdmittedRoutes,
  "/bo/payroll-daily/"+record+"/2026-11-19","/bo/payroll-exceptions/"+record,"/bo/opening-evidence/class/"+record,
  sub,enrollment,sub.replace("tab=enrollment","tab=specialty")+"&specialtyRecord="+record,
+ "/bo/piner-posts?centerId="+center+"&record="+record+"&tab=media",
  "/bo/payroll-periods?centerId="+center+"&record="+record+"&incomeStaff="+record+"&incomeDay=2026-11-19&fromSettlement=1",
  "/bo/payroll-periods?centerId="+center+"&record="+record+"&tab=settlements&incomeDrawer="+record,
  "/bo/pinoria-wish-events?centerId="+center+"&record="+record+"&tab=items&wishCenter="+center+"&rewardOrdinal=1&rewardItem="+record+"&rewardRevision=1"];
