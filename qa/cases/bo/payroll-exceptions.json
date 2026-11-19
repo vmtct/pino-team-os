@@ -1,0 +1,7 @@
+{
+  "tests": [
+    "lib/bo-payroll-exceptions-model.test.ts",
+    "lib/bo-payroll-exceptions-native-handler.test.ts"
+  ],
+  "tdd": true
+}

@@ -43,12 +43,55 @@ test("PAP-1970 native Payroll is explicit, read-only and does not re-enter TDD E
     "lib/bo-payroll-daily-read-contract.test.ts",
     "lib/bo-native-payroll-route.ts",
     "lib/pap1970-native-payroll-route.test.ts",
+    "app/bo/payroll-periods/PayrollNativeTable.tsx",
   ];
   for(const file of files)write(file,fs.readFileSync(path.join(repo,file),"utf8"));
   assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/payroll-daily.*exactly one staging decision/);
   write(policy,read(policy).replace('  "/bo/payroll-periods",','  "/bo/payroll-periods",\n  "/bo/payroll-daily",'));
   assert.deepEqual(verifyBoStagingRoutePolicy(root).issues,[]);
   const view=files[1], original=read(view);
+  const wrapper=files[7], originalWrapper=read(wrapper);
+  for(const bad of [
+    original.replace('../payroll-periods/PayrollNativeTable','../payroll-periods/OtherTable'),
+    original.replace(/<PayrollDsaReadTable\b/g,"<OtherTable"),
+    original.replace(/<BoQuickView\b/g,"<OtherDrawer"),
+    original.replace('@/app/bo/components/registration/BoQuickView','@/app/bo/components/OtherDrawer')
+  ]){
+    write(view,bad);
+    assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/payroll-daily.*invalid native read-only route contract/);
+  }
+  write(view,original);
+  for(const bad of [
+    originalWrapper.replace('@/app/bo/components/registration/BoDataTable','@/app/bo/components/OtherTable'),
+    originalWrapper.replace(/<BoDataTable\b/g,"<OtherTable"),
+    originalWrapper.replace('export function PayrollDsaReadTable','function PayrollDsaReadTable'),
+    originalWrapper.replace('import {BoDataTable}','// import {BoDataTable}')
+  ]){
+    write(wrapper,bad);
+    assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/payroll-daily.*invalid native read-only route contract/);
+  }
+  fs.unlinkSync(path.join(root,wrapper));
+  assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/payroll-daily.*invalid native read-only route contract/);
+  write(wrapper,originalWrapper);
+  const exceptionFiles=[
+    "app/bo/payroll-exceptions/page.tsx",
+    "app/bo/payroll-exceptions/BoPayrollExceptionsReadView.tsx",
+    "app/bo/payroll-exceptions/[requestId]/BoPayrollExceptionDetail.tsx",
+    "lib/bo-payroll-exceptions-read.ts",
+    "lib/bo-payroll-exceptions-model.test.ts"
+  ];
+  for(const file of exceptionFiles)write(file,fs.readFileSync(path.join(repo,file),"utf8"));
+  write(policy,read(policy).replace('  "/bo/payroll-daily",','  "/bo/payroll-daily",\n  "/bo/payroll-exceptions",'));
+  assert.deepEqual(verifyBoStagingRoutePolicy(root).issues,[]);
+  const exception=read(exceptionFiles[1]);
+  write(exceptionFiles[1],exception.replace(/<BoQuickView\b/g,"<OtherDrawer"));
+  assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/payroll-exceptions.*invalid native read-only route contract/);
+  write(exceptionFiles[1],exception);
+  const client=read(exceptionFiles[3]);
+  write(exceptionFiles[3],client+'\nconst invalid={method:"POST"};');
+  assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/payroll-exceptions.*invalid native read-only route contract/);
+  write(exceptionFiles[3],client);
+  assert.deepEqual(verifyBoStagingRoutePolicy(root).issues,[]);
   write(view,original+"\n// BoModuleFactory");
   assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/payroll-daily.*invalid native read-only route contract/);
   write(view,original);
