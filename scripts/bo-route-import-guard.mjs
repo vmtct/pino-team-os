@@ -75,6 +75,34 @@ export default function PayrollPeriodCanonicalPage(){
  return stagingUser ? <BoNativePayrollPeriods/> : <BoWorkforceRoute moduleKey="payroll-periods" adapter={moduleAdapter}/>;
 }`;
 const periodPrinter=ts.createPrinter({removeComments:true,newLine:ts.NewLineKind.LineFeed});
+export function mountsExactNamedComponent(file,source,moduleName,component){
+  const tree=parse(file,source);
+  const imported=tree.statements.some(stmt=>ts.isImportDeclaration(stmt)&&
+    ts.isStringLiteral(stmt.moduleSpecifier)&&stmt.moduleSpecifier.text===moduleName&&
+    !stmt.importClause?.isTypeOnly&&stmt.importClause?.namedBindings&&
+    ts.isNamedImports(stmt.importClause.namedBindings)&&
+    stmt.importClause.namedBindings.elements.some(el=>!el.isTypeOnly&&el.name.text===component&&
+      (!el.propertyName||el.propertyName.text===component)));
+  let mounted=false;
+  visit(tree,node=>{if((ts.isJsxSelfClosingElement(node)||ts.isJsxOpeningElement(node))&&
+    ts.isIdentifier(node.tagName)&&node.tagName.text===component)mounted=true;});
+  return imported&&mounted;
+}
+export function mountsPayrollNativeTable(root,viewPath,view,component,importPath){
+  if(!mountsExactNamedComponent(viewPath,view,importPath,component))return false;
+  const wrapperPath="app/bo/payroll-periods/PayrollNativeTable.tsx";
+  if(!fs.existsSync(path.join(root,wrapperPath)))return false;
+  const wrapper=fs.readFileSync(path.join(root,wrapperPath),"utf8");
+  const tree=parse(wrapperPath,wrapper);
+  const definition=tree.statements.find(node=>ts.isFunctionDeclaration(node)&&node.name?.text===component&&
+    node.modifiers?.some(m=>m.kind===ts.SyntaxKind.ExportKeyword));
+  if(!definition?.body)return false;
+  let mounted=false;
+  visit(definition.body,node=>{if((ts.isJsxSelfClosingElement(node)||ts.isJsxOpeningElement(node))&&
+    ts.isIdentifier(node.tagName)&&node.tagName.text==="BoDataTable")mounted=true;});
+  return mounted&&mountsExactNamedComponent(wrapperPath,wrapper,"@/app/bo/components/registration/BoDataTable","BoDataTable")
+    &&!/BoModuleFactory|BoWorkforceRoute|defineTddModule/.test(wrapper);
+}
 function auditNativePeriodEntry(root,file,sf,issues){
   if(periodPrinter.printFile(sf)!==periodPrinter.printFile(parse(file,periodEntryTemplate))){
     issues.push(file+": PAP-1970 invalid exact native Staging / unchanged legacy fallback entry");
@@ -84,7 +112,7 @@ function auditNativePeriodEntry(root,file,sf,issues){
   try {
     const view=fs.readFileSync(path.join(root,viewPath),"utf8");
     if(!view.includes("export default function BoNativePayrollPeriods()")||
-      !view.includes("useBoCenterSelection()")||!view.includes("BoDataGrid")||
+      !view.includes("useBoCenterSelection()")||!mountsPayrollNativeTable(root,viewPath,view,"PayrollNativeTable","./PayrollNativeTable")||
       !view.includes("BoFullDetail")||!view.includes("PeriodProperties")||
       /BoModuleFactory|BoWorkforceRoute|defineTddModule/.test(view))
       issues.push(file+": PAP-1970 native period Center/TDD contract incomplete");
