@@ -21,7 +21,7 @@ function member(space,tab,adapter,afterschoolLoginAvailable){
  const program=PROGRAMS[space];
  const tabLabel={home:"Bảng tin",grid:"Bộ sưu tập",reels:"Reels",community:"Cộng đồng"}[tab];
  const desc=tab==="community"?"Chưa có dữ liệu cộng đồng được phép hiển thị.":"Nội dung riêng tư sẽ xuất hiện sau khi kết nối tài khoản và quyền truy cập từ Core.";
- const loginLink=space==="house"&&afterschoolLoginAvailable===true?'<p><a href="/piner-space/afterschool/login" data-afterschool-login>Đăng nhập PINO Afterschool</a></p>':"";
+ const loginLink=space==="house"&&afterschoolLoginAvailable===true?'<p><a href="/login" data-afterschool-login>Đăng nhập PINO Afterschool</a></p>':"";
  const notice='<div class="empty-state" data-adapter-state="unauthenticated"><span class="empty-art" aria-hidden="true">◇</span><strong>Không gian riêng tư</strong><p>'+h(desc)+'</p>'+(loginLink||'<small>UI Shell · Identity chưa kết nối</small>')+'</div>';
  const skeleton=tab==="grid"?'<div class="grid-skeleton" aria-hidden="true"><i></i><i></i><i></i><i></i></div>':
   tab==="reels"?'<div class="reel-skeleton" aria-hidden="true"></div>':'<div class="post-skeleton" aria-hidden="true"><div class="skeleton-heading"></div><div class="skeleton-picture"></div><div class="skeleton-caption"></div></div>';
