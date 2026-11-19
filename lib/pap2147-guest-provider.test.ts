@@ -19,10 +19,10 @@ test("PAP-2147 list scope receipt and detail identity checked",async()=>{
  await assert.rejects(provider.detail(g,scope,async()=>reply({...guest,id:p}),signal()));
 });
 test("PAP-2147 create exact idempotency and gender mapping",async()=>{
- const input={name:"QA",gender:"Nữ",phone:"0900000001",birthDate:"",email:"",note:""};
+ const input={category:"Người lớn",name:"QA",gender:"Nữ",phone:"0900000001",birthDate:"",email:"",note:""};
  const actual=await createGuest(c,input,"test-guest-0000000001",async(input,init)=>{
   assert.equal(String(input),"/api/bo/identity/mytime-guests?centerId="+c);assert.equal(init?.method,"POST");assert.equal(new Headers(init?.headers).get("idempotency-key"),"test-guest-0000000001");
-  assert.deepEqual(JSON.parse(String(init?.body)),{name:"QA",gender:"FEMALE",phone:"0900000001",birthDate:null,email:null,note:null});return reply({guest,committedVersion:1,replayed:false},201);
+  assert.deepEqual(JSON.parse(String(init?.body)),{name:"QA",gender:"FEMALE",phone:"0900000001",birthDate:null,email:null,note:null,category:"ADULT"});return reply({guest,committedVersion:1,replayed:false},201);
  },signal());assert.equal(actual.row.id,g);
  await assert.rejects(createGuest(c,{...input,name:""},"test-guest-0000000002",async()=>{throw Error("must not call");},signal()));
 });
@@ -42,4 +42,15 @@ test("PAP-2147 history is subject-specific and redacted",async()=>{
  assert.equal(history.kind,"provider");if(history.kind!=="provider")throw Error();
  const result=await history.load({type:"mytime_guest",id:g},context,null,signal());assert.equal(result.status,"authorized");
  assert.equal((await history.load({type:"person",id:g},context,null,signal())).status,"denied");
+});
+
+test("PAP-2202 minor sends only canonical guardian ID, masked readback, no child phone",async()=>{
+ const guardian={parentUserId:p,relationship:"PARENT"},profile={category:"Trẻ em",name:"QA Child",gender:"Nữ",phone:"",birthDate:"",email:"",note:"",guardian};
+ const response={...guest,name:"QA Child",phone:null,category:"MINOR",guardian:{...guardian,displayName:"QA Parent",maskedPhone:"+8••••01",phoneVerified:false}};
+ const actual=await createGuest(c,profile,"test-guest-minor-00001",async(_req,init)=>{const body=JSON.parse(String(init?.body));assert.equal(body.category,"MINOR");assert.equal(body.phone,null);assert.deepEqual(body.guardian,guardian);return reply({guest:response,committedVersion:1,replayed:false},201);},signal());
+ assert.equal(actual.row.category,"Trẻ em");assert.equal(actual.row.guardianPhone,"+8••••01");assert.equal(actual.row.guardianRelation,"Cha/mẹ");
+ assert.throws(()=>mapGuest({...response,guardian:{...response.guardian,maskedPhone:"+84900000001"}},c));
+ assert.throws(()=>mapGuest({...response,category:"ADULT"},c));
+ await assert.rejects(createGuest(c,{...profile,guardian:null},"test-guest-minor-00002",async()=>{throw Error("must not call");},signal()));
+ assert.equal(mapGuest(guest,c).row.category,"Chưa xác định");
 });
