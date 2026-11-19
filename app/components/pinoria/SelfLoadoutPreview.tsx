@@ -60,9 +60,9 @@ export function SelfLoadoutEditorLayout({preview,children}:{preview:ReactNode;ch
 }
 
 /** Render the immutable Core layer order. BO and TV may supply different authorized slot URLs. */
-export function SelfLoadoutPreview({loadout,mediaSrc,activeSet,setMemberSrc,embedded=false}:{
+export function SelfLoadoutPreview({loadout,mediaSrc,activeSet,setMemberSrc}:{
   loadout:PreviewData|null;mediaSrc:(slot:Slot)=>string;
-  activeSet?:SetPreviewData|null;setMemberSrc?:(index:number)=>string;embedded?:boolean;
+  activeSet?:SetPreviewData|null;setMemberSrc?:(index:number)=>string;
 }){
   const canvas=useRef<HTMLCanvasElement|null>(null);
   const [missing,setMissing]=useState<string[]>([]);
@@ -167,16 +167,16 @@ export function SelfLoadoutPreview({loadout,mediaSrc,activeSet,setMemberSrc,embe
     void draw();
     return ()=>ctl.abort();
   },[loadout,mediaSrc,activeSet,setMemberSrc]);
-  return <figure className={embedded?undefined:"pds-property-section"} style={embedded?{position:"relative",width:"100%",height:"100%",margin:0}:undefined} aria-label="Composition Preview">
-    {!embedded&&<h3 className="pds-property-heading">Composition Preview</h3>}
-    <canvas className={styles.canvas} style={embedded?{display:"block",width:"100%",height:"100%",objectFit:"contain"}:undefined} ref={canvas} width={WIDTH} height={HEIGHT} aria-label="Pinoria Self: 9:16 theo các lớp đã lưu">
+  return <figure className="pds-property-section" aria-label="Composition Preview">
+    <h3 className="pds-property-heading">Composition Preview</h3>
+    <canvas className={styles.canvas} ref={canvas} width={WIDTH} height={HEIGHT} aria-label="Pinoria Self: 9:16 theo các lớp đã lưu">
       Không hỗ trợ Canvas để hiển thị Self.
     </canvas>
-    {(!embedded||missing.length>0||mediaWarnings.opaque.length>0||mediaWarnings.unchecked.length>0)&&<figcaption className="pds-property-text">
-      {!embedded&&"Preview shows authorized saved media only."}
+    <figcaption className="pds-property-text">
+      Preview shows authorized saved media only.
       {missing.length>0&&<p role="alert">Chưa tải được: {missing.join(", ")} (authorized media unavailable).</p>}
       {mediaWarnings.opaque.length>0&&<p role="alert">Item media không phù hợp để ghép lớp (opaque: mẫu alpha không có vùng trong suốt): {mediaWarnings.opaque.join(", ")}. Đã bỏ qua hình trong preview để không che Self; trang bị đã lưu không thay đổi.</p>}
       {mediaWarnings.unchecked.length>0&&<p role="alert">Không kiểm tra được độ trong suốt của Item media: {mediaWarnings.unchecked.join(", ")}. Đã bỏ qua hình trong preview; trang bị đã lưu không thay đổi.</p>}
-    </figcaption>}
+    </figcaption>
   </figure>;
 }

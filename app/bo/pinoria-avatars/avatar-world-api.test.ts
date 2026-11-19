@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {loadAvatarWorld,loadAvatarWorldSnapshot,mutateAvatarWorld,AvatarWorldApiError} from "./avatar-world-api";
+import {loadAvatarWorld,mutateAvatarWorld,AvatarWorldApiError} from "./avatar-world-api";
 import {parseAvatarWorld} from "./avatar-world-contract";
 const id=(n:number)=>"01a194f0-9bd0-7896-89a0-"+n.toString(16).padStart(12,"0");
 const scope={selfId:id(1),centerId:id(2),studentProfileId:id(3)};
@@ -39,12 +39,6 @@ test("scope mismatch or stale readback never presented as authorized success",as
 });
 
 
-test("same single scoped GET delivers validated composition and rejects incomplete response",async()=>{
- let calls=0;const fetcher:typeof fetch=async()=>{calls++;return Response.json({data:full});};
- const snapshot=await loadAvatarWorldSnapshot(scope,fetcher,signal);
- assert.equal(calls,1);assert.equal(snapshot.state.selfId,scope.selfId);assert.equal(snapshot.composition.activeSet,null);assert.deepEqual(snapshot.previews,{});
- await assert.rejects(loadAvatarWorldSnapshot(scope,async()=>Response.json({data:{...full,composition:undefined}}),signal));
-});
 
 test("management-only readback works without any composition or preview response",async()=>{
  const data={...full,loadout:{selfId:scope.selfId,version:0,ready:false},composition:undefined};

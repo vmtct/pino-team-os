@@ -1,7 +1,6 @@
 /** PAP-2153 / PAP-8 PNR-WORLD: unmounted BO client for the selected-Center contract.
  * Deliberately inject transport; no live caller or permission admission here. */
 import {parseAvatarWorld,buildWorldCommand,verifyWorldReadback,type Scope,type AvatarWorldState,type WorldIntent} from "./avatar-world-contract";
-import {parseAvatarWorldSnapshot,type AvatarWorldSnapshot} from "./avatar-world-snapshot";
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 function path(scope:Scope,command=false){
  if(![scope.selfId,scope.centerId,scope.studentProfileId].every(x=>UUID.test(x)))throw Error("Avatar/Center không hợp lệ.");
@@ -22,7 +21,6 @@ async function request(fetcher:typeof fetch,url:string,signal:AbortSignal,expect
 export async function loadAvatarWorld(scope:Scope,fetcher:typeof fetch,signal:AbortSignal):Promise<AvatarWorldState>{
  return parseAvatarWorld(await request(fetcher,path(scope),signal,200,{method:"GET"}),scope);
 }
-export async function loadAvatarWorldSnapshot(scope:Scope,fetcher:typeof fetch,signal:AbortSignal):Promise<AvatarWorldSnapshot>{return parseAvatarWorldSnapshot(await request(fetcher,path(scope),signal,200,{method:"GET"}),scope);}
 /** Caller must hold the original replay key for an uncertain outcome; no auto-retry. */
 export async function mutateAvatarWorld(previous:AvatarWorldState,intent:WorldIntent,grants:ReadonlySet<string>,replayKey:string,fetcher:typeof fetch,signal:AbortSignal){
  const scope:Scope={selfId:previous.selfId,centerId:previous.centerId,studentProfileId:previous.studentProfileId};
