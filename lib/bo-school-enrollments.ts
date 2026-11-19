@@ -37,11 +37,11 @@ export async function handleBoSchoolEnrollments(request: Request, env: Env): Pro
     return (await result.json() as { data: T }).data;
   };
   try {
-    // This read enforces membership.subscription.view and canonical scope.
-    const page = await read<BoSubscriptionDirectoryPage>("subscriptions", "?" + url.searchParams);
+    // PAP-2181: use the immutable owning-Center directory, exactly as BO Subscription Detail does. Legacy affiliation/placement alone never establishes Subscription ownership.
+    const page = await read<Omit<BoSubscriptionDirectoryPage,"items"> & {items:Array<BoSubscriptionDirectoryPage["items"][number]&{centerId:string}>}>("subscriptions/center-directory", "?" + url.searchParams);
     if (!page || !Array.isArray(page.items) || page.items.length > Number(limit) || !Object.hasOwn(page, "nextCursor")) throw Error("Invalid subscription page");
     const visible = new Map(page.items.map(s => {
-      if (!uuid(s.id) || !uuid(s.studentProfileId) || typeof s.studentDisplayName !== "string" || typeof s.pathDisplayName !== "string") throw Error("Invalid subscription identity");
+      if (s.centerId !== centerId || !uuid(s.id) || !uuid(s.studentProfileId) || typeof s.studentDisplayName !== "string" || typeof s.pathDisplayName !== "string") throw Error("Invalid subscription identity");
       return [s.id, s] as const;
     }));
     if (visible.size !== page.items.length) throw Error("Duplicate subscription identity");
