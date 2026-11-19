@@ -13,6 +13,7 @@ export const boNavigation: BoNavGroup[] = [
       { href: "/bo/student-visits", label: "Student Visits" },
       { href: "/bo/classroom-diaries", label: "Nhật ký lớp học" },
       { href: "/bo/subscriptions", label: "Subscriptions" },
+      { href: "/bo/enrollments", label: "Lịch học" },
       {
         href: "/bo/running-classes",
         label: "Classes",

@@ -1,6 +1,13 @@
 import { handleBoOperationalReadRequest, type BoReadEnv } from "./bo-read-handler";
 import { boSkeletonEnabled } from "./bo-skeleton";
-import type { BoSubscriptionDirectoryPage, BoLearnerLifecycle } from "./bo-model";
+import type { BoSubscriptionDirectoryPage, BoLearnerLifecycle, BoLearnerEnrollment } from "./bo-model";
+
+// Additive rollout: older Core receipts do not carry these projection fields.
+const localTime = (value: unknown) => typeof value === 'string' && /^(?:[01][0-9]|2[0-3]):[0-5][0-9]$/.test(value) ? value : null;
+const timestamp = (value: unknown) => typeof value === 'string' && Number.isFinite(Date.parse(value)) ? value : null;
+
+type EnrollmentProjection = BoLearnerEnrollment & {weekdayIso?:number;scheduleStartsLocal?:string|null;scheduleEndsLocal?:string|null;createdAt?:string;updatedAt?:string};
+type EnrollmentLifecycle = Omit<BoLearnerLifecycle,"subscriptions"> & {subscriptions:Array<Omit<BoLearnerLifecycle["subscriptions"][number],"enrollments">&{enrollments:EnrollmentProjection[]}>};
 
 type Env = BoReadEnv & { APP_ENV?: string; BO_UI_ONLY?: string };
 const uuid = (value: unknown): value is string => typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
@@ -39,12 +46,12 @@ export async function handleBoSchoolEnrollments(request: Request, env: Env): Pro
     }));
     if (visible.size !== page.items.length) throw Error("Duplicate subscription identity");
     const students = [...new Set(page.items.map(s => s.studentProfileId))];
-    const lifecycles = new Map<string, BoLearnerLifecycle>();let index = 0;
+    const lifecycles = new Map<string, EnrollmentLifecycle>();let index = 0;
     await Promise.all(Array.from({ length: Math.min(8, students.length) }, async () => {
       while (index < students.length) {
         const studentId = students[index++];
         // Each read additionally enforces canonical student ACL/center scope.
-        const value = await read<BoLearnerLifecycle>(`students/${studentId}/lifecycle`, "?centerId=" + encodeURIComponent(centerId));
+        const value = await read<EnrollmentLifecycle>(`students/${studentId}/lifecycle`, "?centerId=" + encodeURIComponent(centerId));
         if (value?.student?.id !== studentId || !Array.isArray(value.subscriptions)) throw Error("Invalid lifecycle identity");
         lifecycles.set(studentId, value);
       }
@@ -59,7 +66,11 @@ export async function handleBoSchoolEnrollments(request: Request, env: Env): Pro
         seen.add(enrollment.id);
         items.push({ id: enrollment.id, subscriptionId: subscription.id, studentProfileId: studentId, studentDisplayName: subscription.studentDisplayName, pathDisplayName: subscription.pathDisplayName,
           runningClassId: enrollment.runningClassId, runningClassName: enrollment.runningClassName, effectiveFromLocalDate: enrollment.effectiveFromLocalDate,
-          effectiveUntilExclusiveLocalDate: enrollment.effectiveUntilExclusiveLocalDate, plannedEntryLocalTime: enrollment.plannedEntryLocalTime, plannedDurationMinutes: enrollment.plannedDurationMinutes });
+          effectiveUntilExclusiveLocalDate: enrollment.effectiveUntilExclusiveLocalDate, plannedEntryLocalTime: enrollment.plannedEntryLocalTime, plannedDurationMinutes: enrollment.plannedDurationMinutes,
+          subscriptionDisplayName: [subscription.pathDisplayName, subscription.termWeeks ? `${subscription.termWeeks} tuần` : null, subscription.weeklyCommitment ? `${subscription.weeklyCommitment} buổi/tuần` : null, subscription.commercialReference || null].filter(Boolean).join(" · "),
+          weekdayIso: Number.isInteger(enrollment.weekdayIso) && enrollment.weekdayIso! >= 1 && enrollment.weekdayIso! <= 7 ? enrollment.weekdayIso : null,
+          scheduleStartsLocal: localTime(enrollment.scheduleStartsLocal), scheduleEndsLocal: localTime(enrollment.scheduleEndsLocal),
+          createdAt: timestamp(enrollment.createdAt), updatedAt: timestamp(enrollment.updatedAt) });
       }
     }
     return json({ data: { items, limit: page.limit, nextCursor: page.nextCursor } });
