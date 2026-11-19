@@ -76,7 +76,7 @@ test("PAP-2044 serves only read-only PIN login and Next static asset requests", 
    return new Response(null, { status: 200 });
   } }
  };
- const login = "/piner-space/afterschool/login";
+ const login = "/login";
  const asset = "/_next/static/chunks/app/piner-space/afterschool/login/page-546c04ab6ef5f833.js";
  const page = await staging.fetch(req(login), env);
  assert.equal(page.status, 200);
@@ -85,7 +85,7 @@ test("PAP-2044 serves only read-only PIN login and Next static asset requests", 
  assert.equal((await staging.fetch(req(asset, "HEAD"), env)).status, 200);
  assert.equal((await staging.fetch(req(asset, "POST"), env)).status, 405);
  assert.equal((await staging.fetch(req("/_next/data/private.json"), env)).status, 404);
- assert.deepEqual(seen, [[login, "GET"], [asset, "HEAD"]]);
+ assert.deepEqual(seen, [["/piner-space/afterschool/login", "GET"], [asset, "HEAD"]]);
 });
 
 test("PAP-2044 exposes same-origin login only in bound Afterschool staging shell", async () => {
@@ -94,8 +94,8 @@ test("PAP-2044 exposes same-origin login only in bound Afterschool staging shell
   calls.push([new URL(request.url).pathname, request.method]);
   return new Response("PIN form", { headers: { "content-type": "text/html" } });
  } } };
- const login = "/piner-space/afterschool/login";
- const marker = /<a href="\/piner-space\/afterschool\/login" data-afterschool-login>/;
+ const login = "/login";
+ const marker = /<a href="\/login" data-afterschool-login>/;
  for (const path of ["/piner/house", "/piner/house/grid", "/piner/house/reels", "/piner/house/community"]) {
   const response = await staging.fetch(req(path), env);
   assert.equal(response.status, 200);
@@ -110,5 +110,34 @@ test("PAP-2044 exposes same-origin login only in bound Afterschool staging shell
  assert.doesNotMatch(await (await handleRequest(req("/piner/house"), env)).text(), marker);
  assert.equal(calls.length, 0);
  assert.equal((await staging.fetch(req(login), env)).status, 200);
- assert.deepEqual(calls, [[login, "GET"]]);
+ assert.deepEqual(calls, [["/piner-space/afterschool/login", "GET"]]);
+});
+
+test("PAP-2190 canonical login forwards only GET/HEAD and legacy redirects without query", async () => {
+ const calls = [];
+ const env = { PINER_BRAND_R2: { get: async () => null }, AFTERSCHOOL_PIN_WORKER: { fetch: async request => {
+  calls.push([new URL(request.url).pathname, new URL(request.url).search, request.method]);
+  return new Response(null, { status: 200 });
+ } } };
+ for (const method of ["GET", "HEAD"]) {
+  const page = await staging.fetch(req("/login?next=https://example.invalid", method), env);
+  assert.equal(page.status, 200);
+  assert.equal(page.headers.get("referrer-policy"), "no-referrer");
+  assert.match(page.headers.get("cache-control"), /no-store/);
+  assert.match(page.headers.get("x-robots-tag"), /noindex/);
+  const legacy = await staging.fetch(req("/piner-space/afterschool/login?next=https://example.invalid", method), env);
+  assert.equal(legacy.status, 308);
+  assert.equal(legacy.headers.get("location"), "https://app.staging.pinohouse.art/login");
+  assert.match(legacy.headers.get("cache-control"), /no-store/);
+ }
+ for (const path of ["/login", "/piner-space/afterschool/login"]) {
+  const deny = await staging.fetch(req(path, "POST"), env);
+  assert.equal(deny.status, 405);
+  assert.equal(deny.headers.get("allow"), "GET, HEAD");
+ }
+ for (const path of ["/login/", "/login/anything", "/api/piner/afterschool/other"]) {
+  assert.equal((await staging.fetch(req(path), env)).status, 404);
+ }
+ assert.equal((await staging.fetch(req("/login"))).status, 503);
+ assert.deepEqual(calls, [["/piner-space/afterschool/login", "", "GET"], ["/piner-space/afterschool/login", "", "HEAD"]]);
 });
