@@ -16,7 +16,7 @@ test("PAP-2199 draft shows canonical PINO time and reopens as ICT while retainin
   const local=workshopEditorValue(field,saved);assert.equal(String(local).slice(0,16),wall);assert.equal(ictWorkshopInstant(String(local)),saved);
  }
  const exact="2026-11-29T07:00:12.345Z";
- assert.equal(ictWorkshopInstant(String(workshopEditorValue(field,exact))),exact);
+ assert.equal(workshopEditorValue(field,exact),"2026-11-29T14:00:12");
  assert.equal(workshopEditorValue({...field,key:"updatedAt"},exact),undefined);
  assert.equal(workshopEditorValue(field,""),"");
 });

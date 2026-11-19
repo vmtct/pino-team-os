@@ -18,7 +18,10 @@ export function PropertyEditor<F extends readonly FieldSchema[]>({ schema, conte
   useEffect(() => { const current = request.current; return () => current.cancel(); }, [schema, context, record.id, writes.version, writes.adapter]);
   const metadata = schema.fields.find(f => f.key === selection.field.key);
   if (!metadata || !writes.version.trim() || !allowsField(schema, context, metadata.key, "inlineEdit")) return null;
-  const save = (value: BoValue) => {
+  const original = record[metadata.key as keyof ModuleRow<F>] as BoValue;
+  const projected = writes.editorValue?.(selection.field, original);
+  const save = (next: BoValue) => {
+    const value = projected !== undefined && next === projected ? original : next;
     if (saving || !allowsField(schema, context, metadata.key, "inlineEdit")) return;
     if (fieldValueErrors(metadata, value).length) { setStatus("Giá trị chưa hợp lệ."); return; }
     setPending({ context, version: writes.version });
@@ -28,5 +31,5 @@ export function PropertyEditor<F extends readonly FieldSchema[]>({ schema, conte
       else setStatus(result.status === "conflict" ? "Bản ghi đã thay đổi. Tải lại trước khi lưu." : result.status === "denied" ? "Không có quyền lưu." : "Không thể lưu giá trị.");
     }, () => { setPending(null); setStatus("Không thể lưu. Thử lại sau."); });
   };
-  return <>{saving ? <p role="status">Đang lưu…</p> : <BoTypedEditor closeOnSave={false} field={{ ...selection.field, readonly: false }} value={record[metadata.key as keyof ModuleRow<F>] as BoValue} inputValue={writes.editorValue?.(selection.field, record[metadata.key as keyof ModuleRow<F>] as BoValue)} anchor={selection.anchor} onClose={onClose} onSave={save} />}{status ? <p role="alert">{status}</p> : null}</>;
+  return <>{saving ? <p role="status">Đang lưu…</p> : <BoTypedEditor closeOnSave={false} field={{ ...selection.field, readonly: false }} value={projected ?? original} anchor={selection.anchor} onClose={onClose} onSave={save} />}{status ? <p role="alert">{status}</p> : null}</>;
 }
