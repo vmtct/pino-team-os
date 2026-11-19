@@ -7,11 +7,13 @@ import { decideHostBoundary } from "./host-boundary";
 const ho="ho.staging.pinohouse.art";
 test("HO route manifest keeps the approved distinct pages",()=>{
  // PAP-1606 / PAP-1601 PLT-UI-LOCALE-BO-HO: include approved Language Mapping alongside Custom Attributes.
- assert.equal(Object.keys(HO_PAGE_PATHS).length,27);
- assert.equal(new Set(Object.values(HO_PAGE_PATHS)).size,27);
+ assert.equal(Object.keys(HO_PAGE_PATHS).length,28);
+ assert.equal(new Set(Object.values(HO_PAGE_PATHS)).size,28);
  assert.equal(HO_PAGE_PATHS.languageMappings,"/ho/language-mappings");
  assert.equal(HO_PAGE_PATHS.paths,"/ho/learning/paths");
  assert.equal(HO_PAGE_PATHS.specialties,"/ho/learning/specialties");
+ assert.equal(HO_PAGE_PATHS.mytimeWorkshops,"/ho/mytime-workshops");
+ for(const host of ["bo.staging.pinohouse.art","tos.staging.pinohouse.art","ho.pinohouse.art"])assert.equal(decideHostBoundary(host,HO_PAGE_PATHS.mytimeWorkshops).action,"not_found");
  assert.equal(HO_PAGE_PATHS.tvPolicies,"/ho/pinoria/tv-policies");
  assert.equal(HO_PAGE_PATHS.customAttributes,"/ho/system/custom-attributes");
  assert.equal(safeHoReturnTo("/ho/pinoria/tv-policies"),"/ho/pinoria/tv-policies");

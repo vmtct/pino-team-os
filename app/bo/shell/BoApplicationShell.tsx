@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { canOpenAfterschoolAccounts } from "../afterschool-accounts/accounts-nav-access";
 import { canOpenPosts } from "../piner-posts/posts-nav-access";
 import { canOpenGuests } from "../mytime-guests/nav-access";
+import {canOpenWorkshop} from "@/app/components/mytime-workshop/nav-access";
 import { usePathname, useSearchParams } from "next/navigation";
 import type { BoShellContext } from "@/lib/bo-shell-gate";
 import { BoRegistrationWorkspace, type BoWorkspaceSource } from "../components/registration/BoRegistrationWorkspace";
@@ -16,7 +17,7 @@ import { nativePayrollModule } from "@/lib/bo-native-payroll-route";
 // Keep Production's existing destinations and content dispatch. Staging-only
 // adapters and aliases are not enabled by adopting the shared presentation.
 const destinations = boNavigation.flatMap(group => group.items.flatMap(item => [
-  ...(item.href && item.href !== "/bo/open-studio-passes" && item.href !== "/bo/piner-posts" && item.href !== "/bo/mytime-guests" && item.href !== "/bo/enrollments" ? [{ href: item.href, label: item.label, group: group.label }] : []),
+  ...(item.href && item.href !== "/bo/open-studio-passes" && item.href !== "/bo/piner-posts" && item.href !== "/bo/mytime-guests" && item.href !== "/bo/mytime-workshops" && item.href !== "/bo/enrollments" ? [{ href: item.href, label: item.label, group: group.label }] : []),
   ...(item.children ?? []).filter(child => child.href !== item.href).map(child => ({ ...child, group: group.label })),
 ]));
 const destinationKey = (href: string) => href === "/bo" ? "overview" : href.slice("/bo/".length);
@@ -85,6 +86,14 @@ export function BoApplicationShell({ currentUser, staging, children }: {
     return ()=>{ctl.abort();setGuestsCenter(null);};
   },[centerId]);
   const showGuests=Boolean(centerId&&guestsCenter===centerId);
+  const [workshopCenter,setWorkshopCenter]=useState<string|null>(null);
+  useEffect(()=>{
+    if(!centerId||!staging)return;
+    const ctl=new AbortController();
+    void canOpenWorkshop("BO",centerId,ctl.signal).then(allowed=>{if(!ctl.signal.aborted)setWorkshopCenter(allowed?centerId:null);});
+    return ()=>{ctl.abort();setWorkshopCenter(null);};
+  },[centerId,staging]);
+  const showWorkshop=Boolean(staging&&centerId&&workshopCenter===centerId);
   const scopedSource = useMemo<BoWorkspaceSource>(() => ({
     ...stagingSource,
     modules: {
@@ -92,15 +101,17 @@ export function BoApplicationShell({ currentUser, staging, children }: {
       ...(showAccounts ? {"afterschool-accounts": { label: "Tài khoản", group: "SCHOOL", fields: [] }} : {}),
       ...(showPosts ? {"piner-posts": { label: "Posts", group: "Piner App", fields: [] }} : {}),
       ...(showGuests ? {"mytime-guests": {label:"Khách MyTime",group:"Operations",fields:[]}} : {}),
+      ...(showWorkshop ? {"mytime-workshops": {label:"Workshop MyTime",group:"Operations",fields:[]}} : {}),
     },
     routeForModule: key => key === "afterschool-accounts" && showAccounts
       ? "/bo/afterschool-accounts?" + new URLSearchParams({ centerId })
       : key === "piner-posts" && showPosts ? "/bo/piner-posts?" + new URLSearchParams({ centerId })
       : key==="mytime-guests"&&showGuests ? "/bo/mytime-guests?"+new URLSearchParams({centerId})
+      : key==="mytime-workshops"&&showWorkshop ? "/bo/mytime-workshops?"+new URLSearchParams({centerId})
       : key === "enrollments" && centerId ? "/bo/enrollments?" + new URLSearchParams({centerId})
       : boScopedModuleHref(stagingSource.routeForModule!(key), key,
         center?.selected ?? "", center?.centers.map(item => item.id) ?? []),
-  }), [center?.selected, center?.centers, centerId, showAccounts, showPosts, showGuests]);
+  }), [center?.selected, center?.centers, centerId, showAccounts, showPosts, showGuests, showWorkshop]);
   const productionDestination = destinations.find(item => item.href === pathname)
     ?? destinations.filter(item => item.href !== "/bo" && pathname.startsWith(item.href + "/"))
       .sort((left, right) => right.href.length - left.href.length)[0];
