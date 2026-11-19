@@ -1,0 +1,10 @@
+{
+  "tdd": true,
+  "tests": [
+    "app/ho/pinoria/worlds/world-client.test.ts",
+    "app/ho/pinoria/worlds/world-drawer-contract.test.ts",
+    "app/ho/pinoria/worlds/world-runtime-client.test.ts",
+    "app/ho/pinoria/worlds/world-runtime-model.test.ts",
+    "lib/ho-world-handler.test.ts"
+  ]
+}
