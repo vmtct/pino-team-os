@@ -2,13 +2,13 @@
 /** PAP-1954 · BO Salary Daily read-only TDD: Table → Drawer → Full Detail.
  * No FE wage calculation, override, Create, Paid or Phase W writes.
  */
-import Link from "next/link";
+import {useRouter} from "next/navigation";
 import {useEffect,useState} from "react";
-import {BoDataGrid,BoDataGridBadge,BoDataGridSidePeek,type BoDataGridColumn} from "@/app/bo/components/data-grid";
+import {PayrollDsaReadTable,payrollPresentation} from "../payroll-periods/PayrollNativeTable";
 import {useBoCenterSelection} from "@/app/bo/components/registration/BoCenterSelection";
 import {dailyReadApi,DailyReadError} from "@/lib/bo-payroll-daily-api";
 import {payrollDailyRow,displayDailyMoney,validDailyWindow,type BoPayrollDailyRow} from "@/lib/bo-payroll-daily-view-model";
-import {BoProperties} from "@/app/bo/components/BoProperties";
+import {BoQuickView} from "@/app/bo/components/registration/BoQuickView";
 
 const statuses:Record<BoPayrollDailyRow["status"],string>={
  READY:"Đã tính",NO_ATTENDANCE:"Chưa chấm công",NO_ASSIGNMENT:"Thiếu phân công",
@@ -16,8 +16,8 @@ const statuses:Record<BoPayrollDailyRow["status"],string>={
  RECONCILIATION_REQUIRED:"Cần đối soát",
 };
 export const dailyPropertyFields:[string,(row:BoPayrollDailyRow)=>string][]=[
- ["Ngày làm",r=>r.workDate],["Nhân viên",r=>r.staffDisplayName],["Mã nhân viên",r=>r.staffMemberId],
- ["Lớp/Ca",r=>r.assignmentRefs],["Check-in/out hiệu lực",r=>r.actualInOut],
+ ["Ngày làm",r=>r.workDate],["Nhân viên",r=>r.staffDisplayName],
+ ["Lớp/Ca",()=>"—"],["Check-in/out hiệu lực",r=>r.actualInOut],
  ["Check-in/out gốc",r=>r.recordedInOut],["Phút tính",r=>r.paidMinutes===null?"—":String(r.paidMinutes)],
  ["Rate HO",r=>displayDailyMoney(r.appliedRateMinor)],
  ["Lương chuẩn",r=>displayDailyMoney(r.standardMinor)],
@@ -26,22 +26,7 @@ export const dailyPropertyFields:[string,(row:BoPayrollDailyRow)=>string][]=[
  ["Created Time",r=>r.createdAt],["Created By",r=>r.createdBy],
  ["Last Modified Time",r=>r.updatedAt],["Last Modified By",r=>r.updatedBy],
 ];
-const columns:BoDataGridColumn<BoPayrollDailyRow>[]=[
- {key:"workDate",header:"Ngày làm",render:r=>r.workDate,minWidth:115},
- {key:"staffDisplayName",header:"Nhân viên",render:r=>r.staffDisplayName,minWidth:136},
- {key:"status",header:"Trạng thái",render:r=><BoDataGridBadge>{statuses[r.status]}</BoDataGridBadge>,minWidth:145},
- {key:"assignmentRefs",header:"Lớp/Ca",render:r=>r.assignmentRefs,minWidth:170},
- {key:"actualInOut",header:"Check-in/out",render:r=>r.actualInOut,minWidth:145},
- {key:"paidMinutes",header:"Phút tính",render:r=>r.paidMinutes??"—",minWidth:105},
- {key:"appliedRateMinor",header:"Rate HO",render:r=>displayDailyMoney(r.appliedRateMinor),minWidth:125},
- {key:"standardMinor",header:"Lương chuẩn",render:r=>displayDailyMoney(r.standardMinor),minWidth:135},
- {key:"effectiveMinor",header:"Lương ngày",render:r=>displayDailyMoney(r.effectiveMinor),minWidth:135},
- {key:"overrideStatus",header:"Điều chỉnh",render:r=>r.overrideStatus,minWidth:120},
- {key:"createdAt",header:"Created Time",render:r=>r.createdAt,minWidth:145},
- {key:"createdBy",header:"Created By",render:r=>r.createdBy,minWidth:135},
- {key:"updatedAt",header:"Last Modified Time",render:r=>r.updatedAt,minWidth:150},
- {key:"updatedBy",header:"Last Modified By",render:r=>r.updatedBy,minWidth:150},
-];
+export const dailyPresentation=payrollPresentation("Bảng lương ngày","Nhân viên",(r:BoPayrollDailyRow)=>r.staffDisplayName,dailyPropertyFields);
 function vnToday():string{
  const parts=new Intl.DateTimeFormat("en-US",{timeZone:"Asia/Ho_Chi_Minh",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date());
  const get=(name:string)=>parts.find(p=>p.type===name)?.value??"";
@@ -65,22 +50,23 @@ export default function BoPayrollDailyReadView(){
  return <DailyScopeView key={JSON.stringify([centerId,allowed])}/>;
 }
 function DailyScopeView(){
+ const router=useRouter();
  const scope=useBoCenterSelection(),centerId=scope?.selected??"";
  const allowed=Boolean(scope&&!scope.loading&&!scope.error&&centerId&&scope.centers.some(c=>c.id===centerId));
  const [startDate,setStartDate]=useState(()=>offsetDay(vnToday(),-29));
  const [endDate,setEndDate]=useState(vnToday);
  const [rows,setRows]=useState<BoPayrollDailyRow[]>([]);
- const [total,setTotal]=useState(0),[offset,setOffset]=useState(0),[refresh,setRefresh]=useState(0);
+ const [total,setTotal]=useState(0),[offset,setOffset]=useState(0),[pageSize,setPageSize]=useState(15),[refresh,setRefresh]=useState(0);
  const [selected,setSelected]=useState<string|null>(null);
  const [state,setState]=useState<"loading"|"ready"|"error"|"permission">("loading");
  const [message,setMessage]=useState("");
  const valid=validDailyWindow(startDate,endDate);
- const scopeKey=[centerId,startDate,endDate,offset,refresh].join("|");
+ const scopeKey=[centerId,startDate,endDate,offset,pageSize,refresh].join("|");
  const [servedScope,setServedScope]=useState("");
  useEffect(()=>{
   let live=true;
   if(!allowed||!valid)return;
-  void dailyReadApi.list({centerId,startDate,endDate,limit:50,offset})
+  void dailyReadApi.list({centerId,startDate,endDate,limit:pageSize,offset})
    .then(payload=>{
     if(!live)return;
     const next=payload.data.data.map(r=>payrollDailyRow(r,centerId));
@@ -92,33 +78,25 @@ function DailyScopeView(){
     setState(error instanceof DailyReadError&&[401,403].includes(error.status)?"permission":"error");
    });
   return()=>{live=false;};
- },[allowed,centerId,startDate,endDate,offset,refresh,valid,scopeKey]);
- const safeRows=allowed&&servedScope===scopeKey?rows:[];
- const safeTotal=allowed&&servedScope===scopeKey?total:0;
+ },[allowed,centerId,startDate,endDate,offset,pageSize,refresh,valid,scopeKey]);
+ const safeRows=allowed&&valid&&servedScope===scopeKey?rows:[];
+ const safeTotal=allowed&&valid&&servedScope===scopeKey?total:0;
  const safeSelected=safeRows.find(row=>row.id===selected)??null;
  return <section aria-label="Bảng lương ngày" data-pap-ticket="PAP-1954">
-  <header><small>NHÂN SỰ / LƯƠNG</small>
-   <h1>Bảng lương ngày</h1><p>Chỉ đọc theo cơ sở đang chọn · Core Payroll</p></header>
+  <div className="page-heading"><div className="page-heading-left"><h1>Bảng lương ngày</h1></div></div>
   {scope?.loading?<p role="status">Đang xác thực cơ sở…</p>:!allowed?
    <p role="alert">{scope?.error||"Chọn cơ sở được cấp quyền để xem lương."}</p>:
-   <div role="group" aria-label="Khoảng ngày">
-    <label>Từ ngày<input type="date" value={startDate} onChange={e=>{setOffset(0);setSelected(null);setStartDate(e.target.value);}} /></label>
-    <label>Đến ngày<input type="date" value={endDate} onChange={e=>{setOffset(0);setSelected(null);setEndDate(e.target.value);}} /></label>
-    <button type="button" onClick={()=>{setSelected(null);setRefresh(n=>n+1);}}>Tải lại</button>
-   </div>}
+   null}
   {allowed&&!valid?<p role="alert">Khoảng ngày không hợp lệ; tối đa 31 ngày kể cả hai đầu.</p>:null}
-  {allowed&&valid?<BoDataGrid rows={safeRows} columns={columns} rowKey={r=>r.id}
-   caption="Bảng lương ngày" state={servedScope===scopeKey?state:"loading"} stateMessage={message}
-   onRowOpen={row=>setSelected(row.id)} quickViewOpener
-   resultLabel={String(safeRows.length)+" / "+String(safeTotal)+" bản ghi"}
-   pagination={{page:Math.floor(offset/50)+1,pageSize:50,total:safeTotal,
-    onPageChange:page=>{setSelected(null);setOffset((page-1)*50);}}}
-   emptyTitle="Chưa có ngày công" emptyMessage="Core không trả về bản ghi lương trong khoảng ngày này."/>:null}
-  {safeSelected?<BoDataGridSidePeek title={safeSelected.workDate} eyebrow="Bảng lương ngày · Chỉ xem" onClose={()=>setSelected(null)}
-   footer={<Link href={"/bo/payroll-daily/"+encodeURIComponent(safeSelected.staffMemberId)+"/"+
-    encodeURIComponent(safeSelected.workDate)+"?centerId="+encodeURIComponent(centerId)}>Full Detail</Link>}>
-   <BoProperties compact items={dailyPropertyFields.map(([name,render])=>({key:name,label:name,value:render(safeSelected)}))}/>
-   <p>Audit “—” là dữ liệu chưa có trên bản ghi dẫn xuất; lịch sử override riêng biệt.</p>
-  </BoDataGridSidePeek>:null}
+  {allowed?<PayrollDsaReadTable module={dailyPresentation.module} rows={safeRows.map(dailyPresentation.record)}
+   loadState={!valid?"Khoảng ngày không hợp lệ.":servedScope!==scopeKey?"loading":state==="ready"?"ready":message||"Không thể tải dữ liệu."}
+   onOpen={r=>setSelected(r.id)} selected={selected} page={Math.floor(offset/pageSize)+1} pageSize={pageSize} onPageSizeChange={n=>{setSelected(null);setOffset(0);setPageSize(n);}} total={safeTotal}
+   onPageChange={page=>{setSelected(null);setOffset((page-1)*pageSize);}} filterContent={<div className="rules-panel" role="group" aria-label="Khoảng ngày">
+    <label className="rule-row">Từ ngày<input className="rule-value-input" type="date" value={startDate} onChange={e=>{setOffset(0);setSelected(null);setStartDate(e.target.value);}} /></label>
+    <label className="rule-row">Đến ngày<input className="rule-value-input" type="date" value={endDate} onChange={e=>{setOffset(0);setSelected(null);setEndDate(e.target.value);}} /></label>
+    <button type="button" className="rule-clear" onClick={()=>{setSelected(null);setRefresh(n=>n+1);}}>Tải lại</button>
+   </div>} onReset={()=>{setSelected(null);setOffset(0);setStartDate(offsetDay(vnToday(),-29));setEndDate(vnToday());setRefresh(n=>n+1);}}/>:null}
+  {safeSelected?<BoQuickView module={dailyPresentation.module} record={dailyPresentation.record(safeSelected)}
+   onClose={()=>setSelected(null)} onDetail={()=>router.push("/bo/payroll-daily/"+encodeURIComponent(safeSelected.staffMemberId)+"/"+encodeURIComponent(safeSelected.workDate)+"?centerId="+encodeURIComponent(centerId))}/>:null}
  </section>;
 }

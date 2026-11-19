@@ -5,11 +5,12 @@ import {useBoCenterSelection} from "@/app/bo/components/registration/BoCenterSel
 import {BoFullDetail} from "@/app/bo/components/BoFullDetail";
 import {dailyReadApi,DailyReadError} from "@/lib/bo-payroll-daily-api";
 import {payrollDailyRow,type BoPayrollDailyRow} from "@/lib/bo-payroll-daily-view-model";
-import {dailyPropertyFields} from "../../BoPayrollDailyReadView";
+import {dailyPresentation} from "../../BoPayrollDailyReadView";
+import {PropertySections} from "@/app/components/workspace-renderer/Properties";
 import {BoProperties} from "@/app/bo/components/BoProperties";
 import {payrollAuditTime} from "@/lib/bo-payroll-safe-read-metadata";
 function Properties({row}:{row:BoPayrollDailyRow}){
- return <BoProperties items={dailyPropertyFields.map(([name,render])=>({key:name,label:name,value:render(row)}))}/>;
+ const fields=dailyPresentation.module.fields; return <PropertySections variant="detail" fields={fields} record={dailyPresentation.record(row)} sections={[{id:"work",label:"Thông tin ngày công",fields:fields.slice(0,7).map(f=>f.key)},{id:"pay",label:"Lương và trạng thái",fields:fields.slice(7,-4).map(f=>f.key)},{id:"audit",label:"Lịch sử bản ghi",fields:fields.slice(-4).map(f=>f.key)}]}/>;
 }
 type DailyDetailProps={staffMemberId:string;workDate:string;activeTab?:string};
 export default function BoPayrollDailyDetail(props:DailyDetailProps){
@@ -50,19 +51,18 @@ function DailyDetailScope({staffMemberId,workDate,activeTab}:DailyDetailProps){
   {id:"specialized",label:"Chuyên Sâu",content:<section>
    <h2>Chứng từ nguồn Core</h2>
    <p>Ngày công lấy từ phân công và chấm công được phép xem, không tính lương lại trên BO.</p>
-   <BoProperties items={[{key:"assignment",label:"Mã phân công",value:row.assignmentRefs},
+   <BoProperties authority compact items={[{key:"assignment",label:"Khung giờ phân công",value:row.source.coverage.map(c=>(c.startLocal??"—")+"–"+(c.endLocal??"—")).join("; ")||"—"},
     {key:"recorded",label:"Check-in/out ghi nhận",value:row.recordedInOut},
     {key:"actual",label:"Check-in/out hiệu lực",value:row.actualInOut}]}/></section>},
   {id:"history",label:"Lịch Sử",content:<section>
    <h2>Điều chỉnh ngày công</h2>
-   {row.override?<BoProperties items={[{key:"time",label:"Created Time",value:payrollAuditTime(row.override.createdAt)},
+   {row.override?<BoProperties authority compact items={[{key:"time",label:"Created Time",value:payrollAuditTime(row.override.createdAt)},
     {key:"by",label:"Created By",value:"—"},
-    {key:"actor",label:"Actor ID (technical)",value:row.override.createdByUserId},
     {key:"reason",label:"Lý do",value:row.override.reason}]}/>:<p>Core chưa trả về sự kiện điều chỉnh cho ngày này.</p>}
   </section>},
  ];
  return <BoFullDetail title={"Bảng lương ngày · "+row.workDate}
-  description="Bản ghi ngày công dẫn xuất · Chỉ xem" currentUrl={url}
+  description={row.staffDisplayName+" · Chỉ xem"} currentUrl={url}
   returnTo={"/bo/payroll-daily?centerId="+encodeURIComponent(centerId)}
   designVariant="v25" activeTab={activeTab} tabs={tabs}/>;
 }
