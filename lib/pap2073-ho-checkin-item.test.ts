@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {itemDefinition,projectItemRow} from "../app/ho/pinoria/wardrobe/schema";
-import {validateItem,saveCheckInItem,ItemApiError} from "../app/ho/pinoria/wardrobe/item-client";
+import {validateItem,saveCheckInItem,saveItemRarity,isEditableItemLifecycle,ItemApiError} from "../app/ho/pinoria/wardrobe/item-client";
 import {recordProjection} from "../app/components/workspace-renderer/projection";
 import {validateModule,type AuthorizationContext} from "./workspace-schema";
 const id="019b1126-0001-7000-8000-000000000001";
@@ -47,4 +47,34 @@ test("PAP-2073 Create leaves initial focus to the canonical DrawerFrame to resto
  const source=readFileSync(new URL("../app/ho/pinoria/wardrobe/HoItemCreate.tsx",import.meta.url),"utf8");
  assert.match(source,/<DrawerFrame title="Tạo Item"/);
  assert.doesNotMatch(source,/\bautoFocus\b/);
+});
+
+test("PAP-2177 only DRAFT and PUBLISHED admit lifecycle edits; unpublished stays visible but read-only",()=>{
+ for(const status of ["DRAFT","PUBLISHED"])assert.equal(isEditableItemLifecycle(status),true);
+ for(const status of ["UNPUBLISHED",undefined,null,"UNKNOWN"])assert.equal(isEditableItemLifecycle(status),false);
+ const p=projected({...item,status:"UNPUBLISHED"});
+ assert.equal(p.record.checkInItem,false);
+ assert(p.fields.some(x=>x.key==="checkInItem"));
+ const source=readFileSync(new URL("../app/ho/pinoria/wardrobe/HoCheckInOverview.tsx",import.meta.url),"utf8");
+ assert.match(source,/const authorized=.*context\.authorize\("pinoria\.item\.manage"\)&&isEditableItemLifecycle\(record\.status\)/);
+ assert.match(source,/const canEdit=.*authorized&&!busy/);
+ assert.match(source,/selection&&authorized\?<BoTypedEditor/);
+ assert.match(source,/!canEdit\(selection\.field\)/);
+});
+test("PAP-2177 current UNPUBLISHED read prevents Check-in or rarity PATCH",async()=>{
+ const calls:string[]=[];
+ const previous=globalThis.fetch;
+ globalThis.fetch=async (_input,init)=>{calls.push(init?.method??"GET");return Response.json({data:{...item,status:"UNPUBLISHED",rarity:3}})};
+ try{
+  await assert.rejects(saveCheckInItem(id,3,true,new AbortController().signal),(e:unknown)=>e instanceof ItemApiError&&e.status===409);
+  await assert.rejects(saveItemRarity(id,3,null,new AbortController().signal));
+  assert.deepEqual(calls,["GET","GET"]);
+ }finally{globalThis.fetch=previous}
+});
+test("PAP-2177 DRAFT flag edit preserves CAS and omits rarity from PATCH",async()=>{
+ const calls:string[]=[];
+ const previous=globalThis.fetch;
+ const current={...item,status:"DRAFT",rarity:3};
+ globalThis.fetch=async (_input,init)=>{const method=init?.method??"GET";calls.push(method);if(method==="GET")return Response.json({data:current});const body=JSON.parse(String(init?.body)) as Record<string,unknown>;assert.equal(body.expectedRevision,3);assert.equal(body.checkInItem,true);assert(!("rarity" in body));return Response.json({data:{...current,revision:4,checkInItem:true}})};
+ try{const result=await saveCheckInItem(id,3,true,new AbortController().signal);assert.equal(result.checkInItem,true);assert.equal(result.status,"DRAFT");assert.equal(result.rarity,3);assert.deepEqual(calls,["GET","PATCH"])}finally{globalThis.fetch=previous}
 });
