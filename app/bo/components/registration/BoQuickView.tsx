@@ -14,6 +14,7 @@ export interface BoQuickViewCreate {
   fields?: BoField[];
   editable: (field: BoField) => boolean;
   editorField?: (field: BoField) => BoField;
+  editorValue?: (field: BoField, value: BoValue) => BoValue;
   onChange: (key: string, value: BoValue) => void;
   onCreate: () => void | Promise<void>;
   busy?: boolean;
@@ -58,7 +59,7 @@ export function BoQuickView({ module, record, onClose, onDetail, hideDetailActio
         ? <button type="button" onClick={onRetryDetail}>Thử lại</button> : null}</div> : null}
     {error || create?.error ? <div className="edit-error" role="alert">{create?.error ?? error}</div> : null}
   </DrawerFrame>
-  {edit ? <BoTypedEditor field={edit.field} value={row[edit.field.key]} anchor={edit.anchor}
+  {edit ? <BoTypedEditor field={edit.field} value={row[edit.field.key]} inputValue={create?.editorValue?.(edit.field, row[edit.field.key])} anchor={edit.anchor}
     onClose={() => setEdit(null)} onSave={v => {
       if (create) create.onChange(edit.field.key, v);
       else setDraft(d => ({ ...d, [edit.field.key]: v }));

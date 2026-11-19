@@ -6,7 +6,7 @@ import type { BoField, BoValue } from "@/lib/bo-registration";
 import { latestRequest } from "./resource";
 import { writeProperty } from "./editing";
 
-export type TddWrites<F extends readonly FieldSchema[]> = { readonly adapter: MutationAdapter<F>; readonly version: string; readonly onSaved: (record: ModuleRow<F>, version: string) => void };
+export type TddWrites<F extends readonly FieldSchema[]> = { readonly adapter: MutationAdapter<F>; readonly version: string; readonly editorValue?: (field: BoField, value: BoValue) => BoValue; readonly onSaved: (record: ModuleRow<F>, version: string) => void };
 export function PropertyEditor<F extends readonly FieldSchema[]>({ schema, context, record, writes, selection, onClose }: {
   readonly schema: ModuleSchema<F>; readonly context: AuthorizationContext; readonly record: ModuleRow<F>;
   readonly writes: TddWrites<F>; readonly selection: { readonly field: BoField; readonly anchor: HTMLElement }; readonly onClose: () => void;
@@ -28,5 +28,5 @@ export function PropertyEditor<F extends readonly FieldSchema[]>({ schema, conte
       else setStatus(result.status === "conflict" ? "Bản ghi đã thay đổi. Tải lại trước khi lưu." : result.status === "denied" ? "Không có quyền lưu." : "Không thể lưu giá trị.");
     }, () => { setPending(null); setStatus("Không thể lưu. Thử lại sau."); });
   };
-  return <>{saving ? <p role="status">Đang lưu…</p> : <BoTypedEditor closeOnSave={false} field={{ ...selection.field, readonly: false }} value={record[metadata.key as keyof ModuleRow<F>] as BoValue} anchor={selection.anchor} onClose={onClose} onSave={save} />}{status ? <p role="alert">{status}</p> : null}</>;
+  return <>{saving ? <p role="status">Đang lưu…</p> : <BoTypedEditor closeOnSave={false} field={{ ...selection.field, readonly: false }} value={record[metadata.key as keyof ModuleRow<F>] as BoValue} inputValue={writes.editorValue?.(selection.field, record[metadata.key as keyof ModuleRow<F>] as BoValue)} anchor={selection.anchor} onClose={onClose} onSave={save} />}{status ? <p role="alert">{status}</p> : null}</>;
 }
