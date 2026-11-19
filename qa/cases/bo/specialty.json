@@ -1,0 +1,9 @@
+{
+  "tests": [
+    "lib/pap1496-bo-canonical-specialty.test.ts",
+    "lib/pap1496-linked-specialty-projection.test.ts",
+    "lib/pap1496-student-specialty-direct-detail.test.ts",
+    "lib/pap1496-subscription-specialty-contract.test.ts",
+    "lib/bo-student-specialty-view.test.ts"
+  ]
+}

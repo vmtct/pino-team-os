@@ -67,11 +67,19 @@ export default function AfterschoolPinForm() {
   const submitting = useRef(false);
   const [restoring, setRestoring] = useState(true);
 
+  function enterLauncher() {
+    if (window.location.pathname !== "/login") return false;
+    try { sessionStorage.removeItem("piner:afterschool:selected-student"); } catch {}
+    window.location.replace("/");
+    return true;
+  }
+
   useEffect(() => {
     let current = true;
     restoreAfterschoolSession().then(
       (session) => {
         if (current) {
+          if (enterLauncher()) return;
           setMemberCsrf(session.csrfToken);
           setRestoring(false);
         }
@@ -130,7 +138,7 @@ export default function AfterschoolPinForm() {
       } else {
         setCsrf(null);
         setPhone("");
-        setMemberCsrf(session.csrfToken);
+        if (!enterLauncher()) setMemberCsrf(session.csrfToken);
       }
     } catch (error) {
       setPin("");

@@ -6,6 +6,8 @@ import {BoApiError} from "@/lib/bo-api-error";
 import {createDraftController,type DraftActorScope} from "./draft-controller";
 import {createSessionDraftJournal,type DraftRetryJournal} from "./draft-retry-journal";
 import {bindNativeDraft} from "./native-draft-binding";
+import {createPrivateMediaController} from "./private-media-controller";
+import {privatePostMediaClient} from "./private-media-client";
 import {CoreDraftRequestError} from "./core-draft-client";
 import {BO_STAGING_HOSTNAME} from "@/lib/host-boundary";
 import {collectPagedDirectory} from "@/lib/bo-school-students-state";
@@ -25,7 +27,9 @@ export async function openNativeDraftSession(centerId:string,centerSource:Center
    try{
     await session.refresh(requestSignal);
     const url=new URL(String(input),origin),method=(init?.method??"GET").toUpperCase();
-    const permission=url.pathname==="/api/bo/learners"||method==="POST"?"piner.post.create":method==="PATCH"?"piner.post.edit":"piner.post.view";
+    const media=url.pathname.startsWith("/api/bo/learning/piner-posts/")&&url.pathname.includes("/attachments");
+    if(media&&(url.origin!==origin||url.searchParams.getAll("centerId").length!==1||url.searchParams.get("centerId")!==centerId||[...url.searchParams.keys()].some(k=>k!=="centerId")))throw new CoreDraftRequestError(403);
+    const permission=media?(method==="GET"?"piner.post.view":"piner.post.edit"):url.pathname==="/api/bo/learners"||method==="POST"?"piner.post.create":method==="PATCH"?"piner.post.edit":"piner.post.view";
     if(!current()||!actor.authorize("piner.post.view")||!actor.authorize(permission))throw new CoreDraftRequestError(403);
     const result=await session.transport(input,init);
     if(result.ok){await session.refresh(requestSignal);if(!current()||!actor.authorize("piner.post.view")||!actor.authorize(permission))throw new CoreDraftRequestError(403);}
@@ -40,7 +44,12 @@ export async function openNativeDraftSession(centerId:string,centerSource:Center
   const journal=options.journal??createSessionDraftJournal(window.sessionStorage);
   const controller=createDraftController(actor,current,guardedFetch,undefined,journal);
   const binding=bindNativeDraft(controller,session.context);
+  const mediaControllers=new Map<string,ReturnType<typeof createPrivateMediaController>>();
+  const canMedia=(write:boolean)=>Boolean(current()&&actor.authorize("piner.post.view")&&(!write||actor.authorize("piner.post.edit")));
   return {...binding,controller,userId:principal.userId,
+   canEditMedia:()=>Boolean(current()&&actor.authorize("piner.post.view")&&actor.authorize("piner.post.edit")),
+   media:(postId:string)=>{if(!current()||!actor.authorize("piner.post.view"))throw new CoreDraftRequestError(403);return privatePostMediaClient(centerId,postId,guardedFetch);},
+   mediaController:(postId:string)=>{if(!canMedia(false))throw new CoreDraftRequestError(403);let media=mediaControllers.get(postId);if(!media){media=createPrivateMediaController(privatePostMediaClient(centerId,postId,guardedFetch),canMedia);mediaControllers.set(postId,media);}return media;},
    async studentChoices(requestSignal:AbortSignal):Promise<readonly StudentChoice[]>{
     if(!binding.canCreate())throw new CoreDraftRequestError(403);
     const rows=await collectPagedDirectory((cursor,limit)=>studentCenterApi.learners("",limit,cursor,centerId,(input,init)=>guardedFetch(input,{...init,signal:requestSignal})),100,100);
@@ -52,7 +61,7 @@ export async function openNativeDraftSession(centerId:string,centerSource:Center
     const choices=active.map(row=>({id:row.id,label:count.get(row.displayName.trim())===1?row.displayName.trim():row.displayName.trim()+(row.birthYear?" · "+row.birthYear:"")}));
     return choices;
    },
-   dispose(){binding.unbind();controller.dispose();session.dispose();}
+   dispose(){for(const media of mediaControllers.values())media.dispose();mediaControllers.clear();binding.unbind();controller.dispose();session.dispose();}
   };
  }catch(e){session.dispose();throw e;}
 }
