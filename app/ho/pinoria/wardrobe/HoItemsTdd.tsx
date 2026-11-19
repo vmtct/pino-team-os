@@ -22,7 +22,7 @@ const loaders:SlotLoaders={
 };
 /** PAP-1253: TDD owns Table/Drawer/Detail. S2 business tabs own only the tab interior. */
 export function HoItemsTdd(){
- const [ready,setReady]=useState<Ready|null>(null),[error,setError]=useState(false),[retry,setRetry]=useState(0),[generation,setGeneration]=useState(0);
+ const [ready,setReady]=useState<Ready|null>(null),[error,setError]=useState(false),[retry,setRetry]=useState(0),[generation,setGeneration]=useState(0),[createOpen,setCreateOpen]=useState(false);
  useEffect(()=>{
   const ctrl=new AbortController();let adapter:AuthenticatedSurfaceAdapter<F>|null=null;
   const registry=new TddRegistry((approval:Approval,scope)=>extensionVerifier(approval,scope));
@@ -34,8 +34,8 @@ export function HoItemsTdd(){
  },[retry]);
  const content=error?<p role="alert">Không tải được Items. <button onClick={()=>{setError(false);setReady(null);setRetry(x=>x+1)}}>Thử lại</button></p>:
  ready?<section className="ho-pinoria-items" aria-label="Pinoria Items">
-  {ready.adapter.context.authorize("pinoria.item.manage")?<HoItemCreate onCreated={()=>setGeneration(g=>g+1)}/>:null}
-  <SurfaceWorkspace key={generation} adapter={ready.adapter} navigation={ready.navigation} initialQuery={itemQuery} businessLoaders={loaders} drawerReadOnly detailProperties={(properties,context,_principalId,onSaved)=><HoCheckInOverview key={properties.record.id+":"+String(properties.record.revision)} properties={properties} context={context} onSaved={onSaved}/>}/>
+  {createOpen&&ready.adapter.context.authorize("pinoria.item.manage")?<HoItemCreate onClose={()=>setCreateOpen(false)} onCreated={()=>{setCreateOpen(false);setGeneration(g=>g+1)}}/>:null}
+  <SurfaceWorkspace key={generation} adapter={ready.adapter} navigation={ready.navigation} initialQuery={itemQuery} actionBindings={{openCreate:{kind:"navigation",run:()=>{if(ready.adapter.context.authorize("pinoria.item.manage")&&ready.navigation.read().kind==="table")setCreateOpen(true)}}}} businessLoaders={loaders} drawerReadOnly detailProperties={(properties,context,_principalId,onSaved)=><HoCheckInOverview key={properties.record.id+":"+String(properties.record.revision)} properties={properties} context={context} onSaved={onSaved}/>}/>
  </section>:<p role="status">Đang tải Items được cấp quyền…</p>;
  return <HoWorkspace module="wardrobe" content={content}/>;
 }
