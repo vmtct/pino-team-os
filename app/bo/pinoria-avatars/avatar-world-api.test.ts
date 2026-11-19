@@ -14,9 +14,9 @@ const previous=parseAvatarWorld(empty,scope),intent={kind:"grant",worldId:world.
 const signal=new AbortController().signal;
 test("BO selected-Center request sends only expected fields and checks separate readback",async()=>{
  const calls:{url:string,init?:RequestInit}[]=[];
- const fetcher:typeof fetch=async(input,init)=>{calls.push({url:String(input),init});return init?.method==="POST"?Response.json({data:{instanceId:instance.id,version:1}},{status:201}):Response.json({data:full});};
+ const fetcher:typeof fetch=async(input,init)=>{calls.push({url:String(input),init});return init?.method==="POST"?Response.json({data:{instanceId:instance.id,version:1}},{status:201}):Response.json({data:{...full,loadout:{selfId:scope.selfId,version:0,ready:false},composition:undefined}});};
  const result=await mutateAvatarWorld(previous,intent,grants,"qa-replay-1",fetcher,signal);
- assert.equal(result.instance.id,instance.id);assert.equal(result.snapshot.state.instances[0]?.id,instance.id);assert.equal(result.snapshot.composition.activeSet,null);assert.deepEqual(result.snapshot.previews,{});assert.equal(calls.length,2);
+ assert.equal(result.instance.id,instance.id);assert.equal(result.state.instances[0]?.id,instance.id);assert.equal(Object.hasOwn(result,"snapshot"),false);assert.equal(calls.length,2);
  assert.equal(calls[0]?.url,"/api/bo/pinoria/avatars/"+scope.selfId+"/world/commands?centerId="+scope.centerId);
  assert.equal(calls[1]?.url,"/api/bo/pinoria/avatars/"+scope.selfId+"/world?centerId="+scope.centerId);
  assert.deepEqual(JSON.parse(String(calls[0]?.init?.body)),{kind:"grant",worldId:world.id,label:"QA World",expectedVersion:2});
@@ -44,4 +44,14 @@ test("same single scoped GET delivers validated composition and rejects incomple
  const snapshot=await loadAvatarWorldSnapshot(scope,fetcher,signal);
  assert.equal(calls,1);assert.equal(snapshot.state.selfId,scope.selfId);assert.equal(snapshot.composition.activeSet,null);assert.deepEqual(snapshot.previews,{});
  await assert.rejects(loadAvatarWorldSnapshot(scope,async()=>Response.json({data:{...full,composition:undefined}}),signal));
+});
+
+test("management-only readback works without any composition or preview response",async()=>{
+ const data={...full,loadout:{selfId:scope.selfId,version:0,ready:false},composition:undefined};
+ let calls=0;
+ const fetcher:typeof fetch=async(_input,init)=>{calls++;return init?.method==="POST"?Response.json({data:{instanceId:instance.id,version:1}},{status:201}):Response.json({data});};
+ const result=await mutateAvatarWorld(previous,intent,grants,"qa",fetcher,signal);
+ assert.equal(result.state.instances[0]?.id,instance.id);
+ assert.equal(Object.hasOwn(result,"snapshot"),false);
+ assert.equal(calls,2);
 });

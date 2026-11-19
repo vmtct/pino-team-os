@@ -29,7 +29,7 @@ export async function mutateAvatarWorld(previous:AvatarWorldState,intent:WorldIn
  if(!replayKey||replayKey.trim()!==replayKey||replayKey.length>200||/[\u0000-\u001f\u007f]/.test(replayKey))throw Error("Thiếu mã xác nhận thao tác World hợp lệ.");
  const command=buildWorldCommand(previous,intent,grants);
  const receipt=await request(fetcher,path(scope,true),signal,command.kind==="grant"?201:200,{method:"POST",headers:{"content-type":"application/json","idempotency-key":replayKey},body:JSON.stringify(command)});
- const snapshot=await loadAvatarWorldSnapshot(scope,fetcher,signal);const fresh=snapshot.state;
+ const fresh=await loadAvatarWorld(scope,fetcher,signal);
  const instance=verifyWorldReadback(previous,command,receipt,fresh);
- return {state:fresh,instance,snapshot};
+ return {state:fresh,instance};
 }
