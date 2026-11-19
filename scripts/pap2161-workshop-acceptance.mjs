@@ -1,0 +1,32 @@
+// PAP-2161 M1 technical ledger: local synthetic only.
+import {chromium} from "playwright";
+import assert from "node:assert/strict";
+import {spawn} from "node:child_process";
+import {once} from "node:events";
+const port=8888,base="http://127.0.0.1:"+port;
+const server=spawn(process.execPath,["scripts/serve-mytime-workshop-review.mjs","--port="+port],{stdio:["ignore","pipe","pipe"]});
+let browser;
+try{
+ await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(Error("preview timeout")),20000);server.stdout.on("data",b=>{if(String(b).includes("synthetic review")){clearTimeout(timer);resolve();}});server.once("exit",n=>{clearTimeout(timer);reject(Error("server exited "+n));});server.stderr.on("data",b=>console.error(String(b)));});
+ browser=await chromium.launch({channel:"chrome",headless:true});
+ const p=await browser.newPage({viewport:{width:1440,height:900}});p.setDefaultTimeout(8000);const errors=[];p.on("pageerror",e=>errors.push(e.message));
+ const go=async(surf,state="")=>p.goto(base+"/"+surf+"/mytime-workshops"+(state?"?qaState="+state:""));
+ const open=async key=>p.locator('[data-detail-edit="'+key+'"]').click();
+ const save=async()=>{await p.locator("#popover").getByRole("button",{name:"Lưu",exact:true}).click();await p.locator("#popover").waitFor({state:"hidden"});};
+ const edit=async(k,fn)=>{await open(k);await fn();await save();};
+ const pick=async(name)=>{await p.locator("#editor-search").fill(name);await p.locator("#editor-options").getByRole("button",{name:new RegExp(name)}).click();};
+ await go("ho");const add=p.getByRole("button",{name:"Thêm Workshop",exact:true});await add.focus();await p.keyboard.press("Enter");await p.locator("#create-save").waitFor();
+ await edit("name",()=>p.locator("#editor-value").fill("Workshop QA full staff"));
+ await edit("center",()=>p.locator("#editor-value").selectOption("PINO House B"));
+ await edit("startAt",()=>p.locator("#editor-value").fill("2026-11-29T14:00"));
+ await edit("endAt",()=>p.locator("#editor-value").fill("2026-11-29T17:00"));
+ await edit("missions",()=>p.locator("#editor-options").getByRole("button",{name:/Moonlit City/}).click());
+ await edit("eventLead",()=>pick("QA Võ Gia Hân"));await edit("academicLead",()=>pick("QA Lê Bảo Nam"));
+ await edit("otherStaff",async()=>{await pick("QA Nguyễn Minh An");await pick("QA Phạm Thu Linh");});
+ await edit("facebookUrl",()=>p.locator("#editor-value").fill("https://www.facebook.com/events/000000000000001"));
+ await p.locator("#create-save").click();await p.locator("#full-detail").click();
+ for(const [key,value] of [["eventLead","QA Võ Gia Hân"],["academicLead","QA Lê Bảo Nam"],["otherStaff","QA Nguyễn Minh An"],["otherStaff","QA Phạm Thu Linh"],["facebookUrl","facebook.com"],["center","PINO House B"]])assert.ok((await p.locator('[data-detail-edit="'+key+'"]').innerText()).includes(value),key+" "+value);
+ console.log("COMBINED_CREATE_PASS");
+ for(const surf of ["ho","bo"]){await go(surf,"empty");await p.getByText("Workshop MyTime",{exact:true}).first().waitFor();assert.equal(await p.getByRole("button",{name:/Mở Quick View Daydream/}).count(),0);const txt=await p.locator("body").innerText();assert.ok(!txt.includes("Daydream cuối tuần"),surf);console.log("EMPTY_"+surf+" "+txt.slice(-350));await go(surf,"denied");await p.getByText("Không có quyền xem bản ghi.",{exact:true}).waitFor();assert.equal(await p.getByRole("button",{name:"Thêm Workshop",exact:true}).count(),0);assert.ok(!(await p.locator("body").innerText()).includes("Daydream cuối tuần"));console.log("DENIED_"+surf+"_PASS");}
+ assert.deepEqual(errors,[]);console.log("PAP2161_M1_LEDGER_PASS keyboard activation, full create, empty/denied");
+}finally{if(browser)await browser.close();if(server.exitCode===null){server.kill();await once(server,"exit");}}

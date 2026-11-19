@@ -33,6 +33,7 @@ export const boNavigation: BoNavGroup[] = [
       { href: "/bo/sales/leads", label: "Leads" },
       { href: "/bo/open-studio", label: "Open Studio" },
       { href: "/bo/mytime-guests", label: "Khách MyTime" },
+      { href: "/bo/mytime-workshops", label: "Workshop MyTime" },
       { href: "/bo/open-studio-passes", label: "Pass Trạm Nghệ Thuật" },
     ],
   },
