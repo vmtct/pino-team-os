@@ -3,7 +3,7 @@ import {test} from "node:test";
 import assert from "node:assert/strict";
 import {loadWorkshopRuntime,workshopHistory} from "../app/components/mytime-workshop/runtime-binding";
 import type {WorkshopDto} from "../app/components/mytime-workshop/api-client";
-import {boWorkshopSchema,canonicalWorkshopSchema,workshopBinding} from "../app/components/mytime-workshop/schema";
+import {boWorkshopSchema,hoWorkshopSchema,canonicalWorkshopSchema,workshopBinding} from "../app/components/mytime-workshop/schema";
 import type {AuthorizationContext} from "./workspace-schema";
 const id=(n:number)=>"01a03c6e-cc58-7d81-ac8e-"+String(n).padStart(12,"0");
 const start="2026-11-29T07:00:00.000Z",end="2026-11-29T10:00:00.000Z";
@@ -79,4 +79,16 @@ test("PAP-2164 real BO runtime schema permits choices and scoped history, not ch
  assert.equal(canonicalWorkshopSchema(boWorkshopSchema,schema),schema);
  assert.throws(()=>canonicalWorkshopSchema(boWorkshopSchema,workshopBinding("BO",choices,{...caps,read:"other"},history).schema),/admitted schema/);
  assert.throws(()=>canonicalWorkshopSchema(boWorkshopSchema,workshopBinding("BO",choices,caps,{...history,source:{...history.source,permission:"other"}}).schema),/history authorization/);
+});
+test("PAP-2193 HO native runtime admits identical capabilities independent of insertion order",()=>{
+ const caps={read:"learning.mytime_workshop.ho_view",create:"learning.mytime_workshop.ho_manage",edit:"learning.mytime_workshop.ho_manage",history:"learning.mytime_workshop.ho_view"};
+ const choices={centers:["QA Center"],missions:["QA Mission"],specialties:["QA Collection"],staff:["QA Staff"]};
+ const history={kind:"provider" as const,source:{adapter:"core-mytime-workshop-history",permission:caps.history},load:async()=>({status:"denied" as const})};
+ const runtime=workshopBinding("HO",choices,caps,history).schema;
+ assert.notDeepEqual(Object.keys(runtime.capabilities),Object.keys(hoWorkshopSchema.capabilities));
+ assert.equal(canonicalWorkshopSchema(hoWorkshopSchema,runtime),runtime);
+ assert.throws(()=>canonicalWorkshopSchema(hoWorkshopSchema,workshopBinding("HO",choices,{...caps,create:"other"},history).schema),/admitted schema/);
+ assert.throws(()=>canonicalWorkshopSchema(hoWorkshopSchema,{...runtime,fields:[...runtime.fields].reverse()} as unknown as typeof runtime),/admitted schema/);
+ assert.throws(()=>canonicalWorkshopSchema(hoWorkshopSchema,{...runtime,fields:runtime.fields.map((f,i)=>i===0?{...f,label:"Other name"}:f)} as unknown as typeof runtime),/admitted schema/);
+ assert.throws(()=>canonicalWorkshopSchema(hoWorkshopSchema,workshopBinding("HO",choices,caps,{...history,source:{...history.source,permission:"other"}}).schema),/history authorization/);
 });
