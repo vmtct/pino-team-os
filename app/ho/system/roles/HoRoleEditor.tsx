@@ -1,8 +1,9 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { PropertySections, TosCard, TosButton, type PropertyField } from "@pino/design-system/react";
 import type { BoAccessPermission, BoAccessRoleDetail } from "@/lib/bo-access-model";
 import { boApi } from "@/lib/bo-api";
+import { avatarPermissionPresentation, type AvatarPermissionSection } from "@/lib/avatar-permission-presentation";
 
 // PAP-1507 / PLT-ACCESS: module-owned, presentation-only helpers.
 export function groupSelectionState(selectedKeys:readonly string[],visibleKeys:readonly string[]):"none"|"mixed"|"all" {
@@ -50,6 +51,29 @@ export function permissionPlatformCounts<T extends PermissionPlatformMetadata>(p
 
 type Ready = { role: BoAccessRoleDetail; permissions: BoAccessPermission[] };
 type Draft = { displayName: string; description: string; keys: string[] };
+const avatarPermissionLabels: Record<AvatarPermissionSection,string> = { profile:"Profile", item:"Items", loadout:"Loadout", world:"World", wish:"Wish" };
+export function PermissionPresentationRows({domain,permissions,renderRow}: {
+  domain:string; permissions:readonly BoAccessPermission[]; renderRow:(permission:BoAccessPermission)=>ReactNode;
+}) {
+  if(domain!=="pinoria") return <>{permissions.map(renderRow)}</>;
+  const sections=avatarPermissionPresentation(permissions);
+  const avatar=sections.filter(group=>group.section!==null);
+  const other=sections.find(group=>group.section===null);
+  return <>
+    {avatar.length>0?<section aria-label="Avatar">
+      <div className="ho-role-group-head"><h4 className="ho-role-group-title">Avatar</h4></div>
+      {avatar.map(group=> {
+        if(group.section===null)return null;
+        const label=avatarPermissionLabels[group.section];
+        return <div key={group.section} role="group" aria-label={label}>
+          <div className="ho-role-group-head"><h5 className="ho-role-group-title">{label}</h5></div>
+          {group.items.map(renderRow)}
+        </div>;
+      })}
+    </section>:null}
+    {other?.items.map(renderRow)}
+  </>;
+}
 const sorted = (keys: readonly string[]) => [...new Set(keys)].sort();
 const same = (a: readonly string[], b: readonly string[]) => JSON.stringify(sorted(a)) === JSON.stringify(sorted(b));
 
@@ -259,12 +283,12 @@ export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, o
           </div>
           {open?<fieldset disabled={!editable||busy}>
             <legend className="ho-role-legend">{domain}</legend>
-            {permissions.map(permission=><label className="ho-role-permission-row" key={permission.key}>
+            <PermissionPresentationRows domain={domain} permissions={permissions} renderRow={permission=><label className="ho-role-permission-row" key={permission.key}>
               <input type="checkbox" checked={draft.keys.includes(permission.key)}
                 onChange={()=>toggle(permission.key)} />
               <span className="ho-role-permission-info"><strong>{permission.displayLabel}</strong>
                 <small> {permission.key} · {permission.accessKind} · {permission.allowedScopes.join("/")}</small></span>
-            </label>)}
+            </label>} />
           </fieldset>:null}
         </div>;
         }):<p className="ho-role-empty" role="status">Không có quyền khớp tìm kiếm.</p>}
