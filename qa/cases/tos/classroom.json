@@ -1,0 +1,6 @@
+{
+  "tests": [
+    "lib/tos-classroom-v4-mission-checkbox.test.ts",
+    "lib/tos-classroom-v4-projected-scope.test.ts"
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "tests": [
+    "qa/person-browser.test.mjs",
+    "lib/ho-person-handler.test.ts",
+    "lib/ho-person-host-contract.test.ts"
+  ],
+  "tdd": true
+}
