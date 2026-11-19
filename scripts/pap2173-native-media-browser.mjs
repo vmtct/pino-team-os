@@ -26,18 +26,18 @@ try{
  const origin="http://127.0.0.1:"+server.address().port;
  browser=await chromium.launch({headless:true});
  const png=Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jR2QAAAAASUVORK5CYII=","base64");
- for(const width of [390,1440]){
+ for(const width of [320,390,768,1440]){
   const page=await browser.newPage({viewport:{width,height:900}}),errors=[];
   diagnosticPage=page;page.on("pageerror",e=>{errors.push(e.message);pageErrors.push(e.message);});await page.route("**/*",r=>{const u=new URL(r.request().url());return u.origin===origin||u.protocol==="blob:"?r.continue():r.abort();});
   await page.goto(origin+"/bo/piner-posts",{waitUntil:"domcontentloaded"});
-  const input=page.locator('input[type=file]');await input.waitFor({timeout:15000});await input.setInputFiles({name:"qa.png",mimeType:"image/png",buffer:png});
+  const cta=page.getByRole("button",{name:"Thêm ảnh",exact:true});await cta.waitFor({timeout:15000});await cta.focus();const [chooser]=await Promise.all([page.waitForEvent("filechooser"),cta.press("Enter")]);await chooser.setFiles({name:"qa.png",mimeType:"image/png",buffer:png});
   const retry=page.getByRole("button",{name:"Thử lại thao tác",exact:true});await retry.waitFor();await retry.click();
   await page.getByText("Media của Post (1/5)",{exact:true}).waitFor();
   const receipt=()=>page.getByTestId("receipt").textContent().then(JSON.parse);
   assert.deepEqual(await receipt(),{version:3,count:1,reserveCalls:1,confirmCalls:2});
   await page.getByRole("button",{name:"Xem ảnh",exact:true}).click();await page.getByRole("img",{name:"Ảnh 1",exact:true}).waitFor();
   await page.waitForFunction(()=>[...document.images].some(i=>i.alt==="Ảnh 1"&&i.complete&&i.naturalWidth>0));
-  await page.screenshot({path:resolve(out,width+"-preview.png"),fullPage:true});
+  const geometry=await page.getByRole("img",{name:"Ảnh 1",exact:true}).evaluate(e=>{const r=e.getBoundingClientRect();return {left:r.left,right:r.right,viewport:innerWidth};});assert(geometry.left>=0&&geometry.right<=geometry.viewport+1,JSON.stringify(geometry));await page.screenshot({path:resolve(out,width+"-preview.png"),fullPage:true});
   await page.getByRole("tab",{name:"Tổng quan",exact:true}).click();assert.equal(await page.getByRole("img",{name:"Ảnh 1",exact:true}).count(),0);
   await page.getByRole("tab",{name:"Media",exact:true}).click();await page.getByText("Media của Post (1/5)",{exact:true}).waitFor();
   await page.getByRole("button",{name:"Gỡ Ảnh 1",exact:true}).click();await page.getByText("Media của Post (0/5)",{exact:true}).waitFor();

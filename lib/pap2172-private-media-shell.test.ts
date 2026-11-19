@@ -2,7 +2,18 @@
 import assert from "node:assert/strict";
 import {test} from "node:test";
 import {renderToStaticMarkup} from "react-dom/server";
-import {privateMediaSlot,validatePrivateMediaSelection,PRIVATE_MEDIA_MAX_BYTES} from "../app/bo/piner-posts/private-media-shell";
+import {createRequire} from "node:module";
+const requireCss=createRequire(import.meta.url);
+const cssPath=requireCss.resolve("../app/bo/piner-posts/private-media-shell.module.css");
+const previousCss=requireCss.extensions[".css"];
+requireCss.extensions[".css"]=(module,file)=>{
+ if(file!==cssPath){if(previousCss)return previousCss(module,file);throw Error("Unexpected CSS import: "+file);}
+ module.exports={stack:"stack",row:"row",preview:"preview",image:"image"};
+};
+const {privateMediaSlot,validatePrivateMediaSelection,PRIVATE_MEDIA_MAX_BYTES}=(()=>{
+ try{return requireCss("../app/bo/piner-posts/private-media-shell") as typeof import("../app/bo/piner-posts/private-media-shell");}
+ finally{if(previousCss)requireCss.extensions[".css"]=previousCss;else delete requireCss.extensions[".css"];}
+})();
 import {checkedSlotContent} from "../app/components/workspace-renderer/Slots";
 const noop=()=>{};
 const actions={select:noop,preview:noop,closePreview:noop,remove:noop,retry:noop};

@@ -5,7 +5,6 @@ import {privateMediaSlot,validatePrivateMediaSelection,type PrivateMediaShellSta
 import type {NativeDraftSession} from "./native-draft-session";
 import {CoreDraftRequestError,type CoreDraftRow} from "./core-draft-client";
 import {readVerifiedMediaRecord} from "./private-media-controller";
-import "./private-media-shell.css";
 type MediaPanelSession=Pick<NativeDraftSession,"mediaController"|"canEditMedia"|"context">&{controller:Pick<NativeDraftSession["controller"],"detail">};
 type Controller=ReturnType<NativeDraftSession["mediaController"]>;
 type Listing=Awaited<ReturnType<Controller["list"]>>;

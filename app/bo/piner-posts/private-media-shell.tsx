@@ -1,6 +1,7 @@
 /** PAP-2172 — BO Post Draft Private Media M1. Content-only native TDD slot.
  * No network requests or production registration. Host supplies isolated preview state. */
 import type {ChangeEvent,ReactNode} from "react";
+import styles from "./private-media-shell.module.css";
 export const PRIVATE_MEDIA_MAX_COUNT=5;
 export const PRIVATE_MEDIA_MAX_BYTES=5*1024*1024;
 export const PRIVATE_MEDIA_TYPES=["image/jpeg","image/png","image/webp"] as const;
@@ -19,17 +20,17 @@ export type PrivateMediaShellActions={select:(files:readonly File[])=>void;previ
 export function privateMediaSlot(state:PrivateMediaShellState,actions:PrivateMediaShellActions):ReactNode{
  if(state.status==="loading")return <p role="status">Đang tải ảnh…</p>;
  if(state.status==="denied")return <p role="status">Bạn chưa có quyền xem ảnh của Post này.</p>;
- if(state.status==="error")return <section className="v24-prop-section piner-post-private-media"><p role="alert">Không thể tải ảnh.</p><button type="button" className="secondary-btn" onClick={actions.retry}>Thử lại</button></section>;
+ if(state.status==="error")return <section className="v24-prop-section"><p role="alert">Không thể tải ảnh.</p><button type="button" className="secondary-btn" onClick={actions.retry}>Thử lại</button></section>;
  if(state.status!=="ready")return null;
  const {rows,canEdit,busy,preview}=state;
  const selected=preview&&rows.find(row=>row.id===preview.id&&row.state==="ready");
  const select=(event:ChangeEvent<HTMLInputElement>)=>{const files=Array.from(event.currentTarget.files??[]);event.currentTarget.value="";if(canEdit&&!busy&&rows.length<PRIVATE_MEDIA_MAX_COUNT&&files.length)actions.select(files);};
- return <section className="v24-prop-section piner-post-private-media">
+ return <section className="v24-prop-section">
   <div className="v24-section-heading"><h4>Media của Post ({rows.length}/{PRIVATE_MEDIA_MAX_COUNT})</h4></div>
-  {canEdit?<div><label className="secondary-btn piner-post-media-picker" aria-disabled={busy||rows.length>=PRIVATE_MEDIA_MAX_COUNT}>Thêm ảnh<input aria-label="Thêm ảnh" type="file" accept={PRIVATE_MEDIA_TYPES.join(",")} multiple disabled={busy||rows.length>=PRIVATE_MEDIA_MAX_COUNT} onChange={select}/></label><p>JPEG, PNG, WebP · Tối đa 5 ảnh · 5 MB/ảnh</p></div>:null}
+  {canEdit?<div><button type="button" className="secondary-btn" disabled={busy||rows.length>=PRIVATE_MEDIA_MAX_COUNT} onClick={event=>{const input=event.currentTarget.nextElementSibling;if(input instanceof HTMLInputElement&&!input.disabled)input.click();}}>Thêm ảnh</button><input hidden aria-label="Thêm ảnh" type="file" accept={PRIVATE_MEDIA_TYPES.join(",")} multiple disabled={busy||rows.length>=PRIVATE_MEDIA_MAX_COUNT} onChange={select}/><p>JPEG, PNG, WebP · Tối đa 5 ảnh · 5 MB/ảnh</p></div>:null}
   {state.error?<p role="alert">{state.error}</p>:null}
   {busy?<p role="status">Đang xử lý ảnh…</p>:null}
-  {rows.length===0?<p>Chưa có ảnh.</p>:<ul>{rows.map(row=><li key={row.id}><span>{row.name} · {Math.ceil(row.bytes/1024)} KB{row.state==="pending"?" · Đang xử lý":row.state==="error"?" · Lỗi":""}</span>{" "}{row.state==="ready"?<button type="button" className="secondary-btn" onClick={()=>actions.preview(row.id)}>Xem ảnh</button>:null}{" "}{canEdit?<button type="button" className="secondary-btn" disabled={busy} aria-label={"Gỡ "+row.name} onClick={()=>{if(!busy)actions.remove(row.id);}}>Gỡ ảnh</button>:null}</li>)}</ul>}
-  {selected&&preview&&/^blob:/.test(preview.url)?<section><div><strong>{selected.name}</strong>{" "}<button type="button" className="secondary-btn" onClick={actions.closePreview}>Đóng ảnh</button></div><picture className="piner-post-media-preview"><img src={preview.url} alt={selected.name} width={320} height={240}/></picture></section>:null}
+  {rows.length===0?<p>Chưa có ảnh.</p>:<div role="list" className={styles.stack}>{rows.map(row=><div role="listitem" key={row.id} className={styles.row}><span>{row.name} · {Math.ceil(row.bytes/1024)} KB{row.state==="pending"?" · Đang xử lý":row.state==="error"?" · Lỗi":""}</span>{" "}{row.state==="ready"?<button type="button" className="secondary-btn" onClick={()=>actions.preview(row.id)}>Xem ảnh</button>:null}{" "}{canEdit?<button type="button" className="secondary-btn" disabled={busy} aria-label={"Gỡ "+row.name} onClick={()=>{if(!busy)actions.remove(row.id);}}>Gỡ ảnh</button>:null}</div>)}</div>}
+  {selected&&preview&&/^blob:/.test(preview.url)?<section><div><strong>{selected.name}</strong>{" "}<button type="button" className="secondary-btn" onClick={actions.closePreview}>Đóng ảnh</button></div><picture className={styles.preview}><img className={styles.image} src={preview.url} alt={selected.name} width={320} height={240}/></picture></section>:null}
  </section>;
 }

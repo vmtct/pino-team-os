@@ -8,7 +8,6 @@ import type {SlotLoaders} from "@/app/components/workspace-renderer/Slots";
 import {TddRegistry,type AuthorizationContext,type TableQuery} from "@/lib/workspace-schema";
 import {postDefinition,postModule,postQuery,POST_PREVIEW_READ,type PostFields} from "@/app/bo/piner-posts/schema";
 import {privateMediaSlot,validatePrivateMediaSelection,type PrivateMediaRow,type PrivateMediaShellState} from "@/app/bo/piner-posts/private-media-shell";
-import "../../app/bo/piner-posts/private-media-shell.css";
 import "@pino/design-system/bo-tokens.css";
 import "@pino/design-system/components.css";
 import "../../public/bo-authority-source/bo-scoped.css";
