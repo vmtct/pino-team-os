@@ -1,7 +1,7 @@
 /** PAP-2134 / PAP-1746 PNR-APP-HUB: candidate BO client for PAP-2133 private Draft contract.
  * Not a mounted BFF route, auth grant, or LAN fixture. Never use from synthetic preview. */
 import type {PostShellRow} from "./data-port";
-export type CoreDraftRow=PostShellRow & {readonly studentId:string;readonly centerId:string;readonly version:number};
+export type CoreDraftRow=PostShellRow & {readonly studentId:string;readonly centerId:string;readonly version:number;readonly mediaCount:number};
 type Page={rows:readonly CoreDraftRow[];nextBeforeId:string|null};
 type Write={row:CoreDraftRow;committedVersion:number;replayed:boolean};
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -15,7 +15,8 @@ function key(x:string){if(!/^[A-Za-z0-9_-]{16,128}$/.test(x))throw Error("Mã y�
 function projection(raw:unknown,centerId:string):CoreDraftRow{
  const r=obj(raw),recordId=id(r.id),studentId=id(r.studentId),center=id(r.centerId);
  if(center!==centerId||r.status!=="DRAFT"||r.publisher!=="PINO Afterschool")throw Error("Post không thuộc phạm vi đã chọn.");
- return {id:recordId,studentId,centerId:center,version:version(r.version),name:text(r.studentName),caption:text(r.caption),author:"PINO Afterschool",status:"Nháp",center:text(r.centerName),source:"Chưa có",mediaCount:0,commentCount:0,createdAt:instant(r.createdAt),updatedAt:instant(r.updatedAt),createdBy:label(r.createdBy),updatedBy:label(r.updatedBy)};
+ const mediaCount=r.mediaCount===undefined?0:r.mediaCount;if(typeof mediaCount!=="number"||!Number.isSafeInteger(mediaCount)||mediaCount<0||mediaCount>5)throw Error("Invalid Post media count.");
+ return {id:recordId,studentId,centerId:center,version:version(r.version),name:text(r.studentName),caption:text(r.caption),author:"PINO Afterschool",status:"Nháp",center:text(r.centerName),source:"Chưa có",mediaCount,commentCount:0,createdAt:instant(r.createdAt),updatedAt:instant(r.updatedAt),createdBy:label(r.createdBy),updatedBy:label(r.updatedBy)};
 }
 export class CoreDraftRequestError extends Error{
  constructor(readonly status:number){super(({401:"Phiên đăng nhập đã hết hạn.",403:"Bạn không có quyền với Post này.",404:"Không tìm thấy Post trong cơ sở.",409:"Post đã thay đổi. Tải lại trước khi cập nhật."} as Record<number,string>)[status]??"Không thể tải hoặc lưu Post.");}
