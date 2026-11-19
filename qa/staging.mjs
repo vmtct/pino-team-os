@@ -42,12 +42,14 @@ export async function runStaging({surface, cases, withProfile, verify}) {
           const before = await verify(page, profile, item);
           if (!validProof(before) || before.actorId !== item.actorId || before.scope !== item.scope) throw Error("Admission not proved");
           phase = "journey";
-          if (item.run) await item.run(page);
-          else await checkTdd(page, item.fixture);
-          phase = "readback";
-          const after = await verify(page, profile, item);
-          if (!validProof(after) || Object.keys(before).some(key => before[key] !== after[key])) throw Error("Stale evidence");
-          result = unexpectedWrite ? "FAIL" : "PASS";
+          const outcome = await verifyJourney({
+            before,
+            run: () => item.run ? item.run(page) : checkTdd(page, item.fixture),
+            readback: () => verify(page, profile, item),
+            hasUnexpectedWrite: () => unexpectedWrite
+          });
+          phase = outcome.phase;
+          result = outcome.result;
         } catch {
           result = phase === "journey" ? "FAIL" : "BLOCKED";
         } finally {
@@ -68,4 +70,27 @@ function validProof(proof) {
   return proof?.authorized === true && typeof proof.actorId === "string" && !!proof.actorId &&
     typeof proof.scope === "string" && !!proof.scope && /^[a-f0-9]{40}$/.test(proof.teamSha) &&
     /^[a-f0-9]{40}$/.test(proof.coreSha);
+}
+
+// Verify the same admission and serving pins even when the native journey fails.
+// An unverified or stale post-state is BLOCKED, not a product failure.
+export async function verifyJourney({before, run, readback, hasUnexpectedWrite}) {
+  if (!validProof(before)) return {phase:"admission", result:"BLOCKED"};
+  const baseline = {...before};
+  let failed = false;
+  try {
+    await run();
+  } catch {
+    failed = true;
+  }
+  try {
+    const after = await readback();
+    if (!validProof(after) || Object.keys(baseline).some(key => baseline[key] !== after[key])) {
+      return {phase:"readback", result:"BLOCKED"};
+    }
+  } catch {
+    return {phase:"readback", result:"BLOCKED"};
+  }
+  if (failed || hasUnexpectedWrite()) return {phase:"journey", result:"FAIL"};
+  return {phase:"readback", result:"PASS"};
 }
