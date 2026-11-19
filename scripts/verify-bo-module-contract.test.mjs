@@ -425,7 +425,7 @@ test("PAP-1970 exact native period admission fails closed for reversed scope, ar
  const root=fs.mkdtempSync(path.join(os.tmpdir(),"pap1970-period-entry-"));
  const file="app/bo/payroll-periods/page.tsx";
  try{
-  for(const p of [file,"app/bo/payroll-periods/BoNativePayrollPeriods.tsx"]){
+  for(const p of [file,"app/bo/payroll-periods/BoNativePayrollPeriods.tsx","app/bo/payroll-periods/PayrollNativeTable.tsx"]){
    const dest=path.join(root,p);fs.mkdirSync(path.dirname(dest),{recursive:true});
    fs.copyFileSync(path.join(repo,p),dest);
   }
@@ -445,6 +445,31 @@ test("PAP-1970 exact native period admission fails closed for reversed scope, ar
    original.replace('moduleKey="payroll-periods"','moduleKey="workforce-assignments"'),
   ])assert.ok(checkEntry(changed).length>0,changed);
   assert.ok(checkEntry(original,"workforce-assignments").length>0);
+  const viewPath=path.join(root,"app/bo/payroll-periods/BoNativePayrollPeriods.tsx");
+  const wrapperPath=path.join(root,"app/bo/payroll-periods/PayrollNativeTable.tsx");
+  const view=fs.readFileSync(viewPath,"utf8"),wrapper=fs.readFileSync(wrapperPath,"utf8");
+  for(const bad of [
+   view.replace('from "./PayrollNativeTable"','from "./OtherTable"'),
+   view.replace(/<PayrollNativeTable\b/g,"<OtherTable"),
+   view.replace('import {PayrollNativeTable}','// import {PayrollNativeTable}')
+  ]){
+   fs.writeFileSync(viewPath,bad);
+   assert.ok(checkEntry(original).some(x=>x.includes("contract incomplete")));
+  }
+  fs.writeFileSync(viewPath,view);
+  for(const bad of [
+   wrapper.replace('@/app/bo/components/registration/BoDataTable','@/app/bo/components/OtherTable'),
+   wrapper.replace(/<BoDataTable\b/g,"<OtherTable"),
+   wrapper.replace('export function PayrollNativeTable','function PayrollNativeTable'),
+   wrapper.replace('import {BoDataTable}','// import {BoDataTable}')
+  ]){
+   fs.writeFileSync(wrapperPath,bad);
+   assert.ok(checkEntry(original).some(x=>x.includes("contract incomplete")));
+  }
+  fs.unlinkSync(wrapperPath);
+  assert.ok(checkEntry(original).some(x=>x.includes("contract incomplete")));
+  fs.writeFileSync(wrapperPath,wrapper);
+  assert.deepEqual(checkEntry(original),[]);
   fs.writeFileSync(path.join(root,"app/bo/payroll-periods/BoNativePayrollPeriods.tsx"),"export default function BoNativePayrollPeriods(){return null;}");
   assert.ok(checkEntry(original).some(x=>x.includes("contract incomplete")));
  }finally{fs.rmSync(root,{recursive:true,force:true});}

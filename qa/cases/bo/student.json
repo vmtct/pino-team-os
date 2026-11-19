@@ -1,0 +1,8 @@
+{
+  "tests": [
+    "lib/bo-school-students-presentation.test.ts",
+    "lib/bo-school-students-state.test.ts",
+    "scripts/pap1413-student-readonly-cdp.test.mjs"
+  ],
+  "tdd": true
+}

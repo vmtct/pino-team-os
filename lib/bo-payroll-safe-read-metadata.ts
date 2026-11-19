@@ -1,7 +1,7 @@
 /** PAP-1959: display only the authorized server's verified-name projection. */
 export function payrollVerifiedName(value:unknown):string {
  const name=typeof value==="string"?value.trim():"";
- return name.length>0&&name.length<=160?name:"—";
+ return name.length>0&&name.length<=160&&!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(name)?name:"—";
 }
 export function payrollAuditTime(value:unknown):string {
  if(typeof value!=="string"||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value))return "—";

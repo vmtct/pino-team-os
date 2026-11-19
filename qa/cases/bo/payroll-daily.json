@@ -1,0 +1,7 @@
+{
+  "tests": [
+    "lib/bo-payroll-daily-view-model.test.ts",
+    "lib/bo-payroll-daily-read-contract.test.ts"
+  ],
+  "tdd": true
+}
