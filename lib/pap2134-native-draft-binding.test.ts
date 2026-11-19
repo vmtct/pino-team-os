@@ -1,6 +1,6 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
-import {bindNativeDraft,draftSchema,draftQuery} from "../app/bo/piner-posts/native-draft-binding";
+import {bindNativeDraft,draftSchema,draftQuery,verifyPostMediaApproval} from "../app/bo/piner-posts/native-draft-binding";
 import {createDraftController,type DraftActorScope} from "../app/bo/piner-posts/draft-controller";
 import {postFields,postDefinition} from "../app/bo/piner-posts/schema";
 import {allowsField,type AuthorizationContext} from "../lib/workspace-schema";
@@ -18,7 +18,7 @@ test("native schema reuses M1 columns/groups, permits only caption edit and hide
  assert.deepEqual(x.schema.fields.map(f=>[f.key,f.label,f.width]),postFields.map(f=>[f.key,f.label,f.width]));
  assert.deepEqual(x.schema.drawer.sections,postDefinition.drawer.sections);
  assert.deepEqual(x.schema.detail.overview,postDefinition.detail.overview);
- assert.equal(x.schema.detail.businessTabs.length,0);
+ assert.deepEqual(x.schema.detail.businessTabs.map(t=>[t.id,t.kind]),[["media","approved-extension"]]);
  assert.deepEqual(x.schema.fields.filter(f=>allowsField(x.schema,x.ctx,f.key,"inlineEdit")).map(f=>f.key),["caption"]);
  assert(!allowsField(x.schema,{...x.ctx,authorize:p=>p==="local.posts.preview"},"caption","inlineEdit"));
 });
@@ -43,3 +43,5 @@ test("complete keyset collection with actual native list shape; denied context b
 });
 
 test("exported native schema is the actual bound runtime and disposed scope is denied",async()=>{let calls=0;const x=setup(async()=>{calls++;return Response.json({data:{posts:[row],nextBeforeId:null}});});assert.equal(x.schema,draftSchema);assert.equal((await draftSchema.data.list(draftQuery,x.ctx,sig())).total,1);x.unbind();await assert.rejects(draftSchema.data.list(draftQuery,x.ctx,sig()));assert.equal((await x.mutation.update(P,{caption:"x"},"1",x.ctx,sig())).status,"denied");assert.equal(calls,1);});
+
+test("Media extension admission rejects wrong scope or approval",()=>{const slot=draftSchema.detail.businessTabs[0];assert(slot?.kind==="approved-extension");const scope={surface:"BO" as const,key:"piner-posts",extensionId:"pap2172-private-post-media"};assert(verifyPostMediaApproval(slot.approval,scope));assert(!verifyPostMediaApproval(slot.approval,{...scope,surface:"HO"}));assert(!verifyPostMediaApproval(slot.approval,{...scope,extensionId:"comments"}));assert(!verifyPostMediaApproval({...slot.approval,jira:"PAP-2173"},scope));assert(!verifyPostMediaApproval({...slot.approval,files:["other.ts"]},scope));});

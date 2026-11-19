@@ -1,0 +1,8 @@
+/* PAP-2172/PAP-2134: owner-fenced layout only; native BO DS owns controls. */
+.stack { display: grid; gap: 8px; min-width: 0; }
+.row { display: grid; grid-template-columns: minmax(0,1fr) auto auto; gap: 8px; min-width: 0; }
+.preview { display: block; width: 100%; max-width: 320px; min-width: 0; }
+.image { display: block; width: 100%; height: auto; max-width: 320px; }
+@media (max-width:600px) {
+ .row { grid-template-columns: minmax(0,1fr); }
+}

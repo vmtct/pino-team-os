@@ -1,7 +1,7 @@
 /** PAP-2134 / PNR-APP-HUB — native Draft runtime registration candidate.
  * Derives the approved M1 schema without duplicating its visual implementation.
  * No route admission, synthetic permission grant, or production runtime creation. */
-import {TddRegistry,allows,type AuthorizationContext,type ModuleSchema,type MutationAdapter,type TableQuery} from "@/lib/workspace-schema";
+import {TddRegistry,allows,type ApprovalVerifier,type AuthorizationContext,type ModuleSchema,type MutationAdapter,type TableQuery} from "@/lib/workspace-schema";
 import {postDefinition,postFields,postQuery} from "./schema";
 import type {createDraftController} from "./draft-controller";
 import {CoreDraftRequestError} from "./core-draft-client";
@@ -17,11 +17,13 @@ function requireRead(ctx:AuthorizationContext):Controller {
  if(!controller||ctx.surface!=="BO"||ctx.centerId!==controller.centerId||!ctx.authorize("piner.post.view"))throw new CoreDraftRequestError(403);
  return controller;
 }
-export const draftRegistry=new TddRegistry();
+/** Recorded Founder M1 approval PAP-2172 #41957. Presentation only; Core reauthorizes. */
+export const verifyPostMediaApproval:ApprovalVerifier=(approval,scope)=>scope.surface==="BO"&&scope.key==="piner-posts"&&scope.extensionId==="pap2172-private-post-media"&&approval.jira==="PAP-2172"&&approval.owner==="Piner App Post"&&approval.designAuthority==="Founder M1 #41957"&&approval.reviewBy==="2026-12-01T00:00:00+07:00"&&approval.files.length===2&&approval.files.includes("app/bo/piner-posts/NativePrivateMediaPanel.tsx")&&approval.files.includes("app/bo/piner-posts/private-media-shell.tsx")&&approval.tests.length===2&&approval.tests.includes("lib/pap2172-private-media-shell.test.ts")&&approval.tests.includes("lib/pap2173-private-media-controller.test.ts");
+export const draftRegistry=new TddRegistry(verifyPostMediaApproval);
 const schema:ModuleSchema<DraftFields>={
   ...postDefinition,fields:draftFields,capabilities:{read:"piner.post.view",create:"piner.post.create",edit:"piner.post.edit"},
   table:{...postDefinition.table,views:{...postDefinition.table.views,builtIn:postDefinition.table.views.builtIn.filter(v=>v.id==="draft")}},
-  detail:{overview:postDefinition.detail.overview,businessTabs:[],history:{kind:"unavailable",reason:"Chưa có lịch sử chi tiết."}},
+  detail:{overview:postDefinition.detail.overview,businessTabs:[{id:"media",label:"Media",kind:"approved-extension",extensionId:"pap2172-private-post-media",source:{adapter:"bo-private-post-media",permission:"piner.post.view"},approval:{jira:"PAP-2172",owner:"Piner App Post",designAuthority:"Founder M1 #41957",files:["app/bo/piner-posts/NativePrivateMediaPanel.tsx","app/bo/piner-posts/private-media-shell.tsx"],tests:["lib/pap2172-private-media-shell.test.ts","lib/pap2173-private-media-controller.test.ts"],reviewBy:"2026-12-01T00:00:00+07:00"}}],history:{kind:"unavailable",reason:"Chưa có lịch sử chi tiết."}},
   data:{id:"bo-private-post-draft",async list(_query,ctx,signal){
    const controller=requireRead(ctx);
    // Native local-ui paging operates only over the complete bounded authorized set.
