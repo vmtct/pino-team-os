@@ -1,0 +1,9 @@
+{
+  "tests": [
+    "lib/tos-mission-assignment-choices.test.ts",
+    "lib/tos-mission-assignment-workflow.test.ts",
+    "lib/tos-mission-assignment-tab-read.test.ts",
+    "lib/tos-specialty-mission-availability.test.ts",
+    "lib/tos-specialty-picker-read.test.ts"
+  ]
+}

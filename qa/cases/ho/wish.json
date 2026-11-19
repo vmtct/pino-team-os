@@ -1,0 +1,14 @@
+{
+  "tdd": true,
+  "tests": [
+    "lib/ho-pls-wish-handler.test.ts",
+    "lib/pls-wish-ho-contract.test.ts",
+    "app/ho/pinoria/wish-policies/wish-detail-dsa.test.ts",
+    "app/ho/pinoria/wish-policies/wish-policy-view.test.ts",
+    "app/ho/pinoria/wish-policies/wish-policy-edit.test.ts",
+    "app/ho/pinoria/wish-banners/wish-banner-view.test.ts",
+    "app/ho/pinoria/wish-banners/wish-banner-edit.test.ts",
+    "app/ho/pinoria/wish-banners/wish-item-preview.test.ts",
+    "lib/host-boundary.test.ts"
+  ]
+}
