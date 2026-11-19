@@ -52,9 +52,11 @@ export function privatePostMediaClient(centerId:string,postId:string,fetcher:typ
    const r=receipt(await data(await request("/"+id(attachmentId)+"/revoke",signal,{method:"POST",headers:{"content-type":"application/json","idempotency-key":retryKey(key)},body:JSON.stringify({expectedPostVersion:integer(expectedPostVersion),expectedAttachmentVersion:integer(expectedAttachmentVersion)})}),signal),expectedPostVersion,attachmentId,expectedAttachmentVersion);
    if(r.attachment.state!=="REVOKED")bad();return r;
   },
-  async preview(attachmentId:string,signal:AbortSignal){
-   const response=await request("/"+id(attachmentId)+"/preview",signal),type=mime(response.headers.get("content-type")),length=response.headers.get("content-length");
-   if(length===null||!/^\d+$/.test(length))bad();const size=integer(Number(length),1,POST_IMAGE_MAX);
+  async preview(expected:{id:string;mimeType:string;byteSize:number},signal:AbortSignal){
+   const size=integer(expected.byteSize,1,POST_IMAGE_MAX),expectedType=mime(expected.mimeType);
+   const response=await request("/"+id(expected.id)+"/preview",signal),type=mime(response.headers.get("content-type")),length=response.headers.get("content-length"),encoding=response.headers.get("content-encoding");
+   // Workers/streaming intermediaries need not expose Content-Length. The authorized READY entry fixes decoded bytes and MIME.
+   if(type!==expectedType||(length!==null&&(!/^\d+$/.test(length)||Number(length)<1||!Number.isSafeInteger(Number(length))||((!encoding||encoding.toLowerCase()==="identity")&&Number(length)!==size))))bad();
    const reader=response.body?.getReader();if(!reader)bad();const chunks:Uint8Array<ArrayBuffer>[]=[];let total=0;
    try{while(true){signal.throwIfAborted();const next=await reader.read();if(next.done)break;total+=next.value.byteLength;if(total>size){await reader.cancel();bad();}chunks.push(Uint8Array.from(next.value));}signal.throwIfAborted();if(total!==size)bad();return new Blob(chunks,{type});}finally{reader.releaseLock();}
   }
