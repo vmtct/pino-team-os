@@ -9,6 +9,8 @@ test("Open Studio Pass Control uses only canonical BO facade commands", async ()
   ]);
   assert.match(api, /open-studio\/member-centers\/assign/);
   assert.match(api, /open-studio\/member-centers\/reassign/);
+  assert.match(api, /open-studio\/member-centers\/end/);
+  assert.match(api, /open-studio\/member-path-centers\/end/);
   assert.match(api, /open-studio\/passes\/issue-bring-a-friend/);
   assert.match(api, /open-studio\/passes\/\$\{encodeURIComponent\(passId\)\}\/revoke/);
   assert.match(view, /issueOpenStudioBringAFriendPass/);

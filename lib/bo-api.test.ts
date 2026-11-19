@@ -16,12 +16,16 @@ test("Open Studio Pass control posts only canonical Core command fields", async 
   try {
     await boApi.assignOpenStudioMemberCenter({ houseMembershipId: "house-1", centerId: "center-1", effectiveFrom: "2026-08-30T02:00:00.000Z" });
     await boApi.reassignOpenStudioMemberCenter({ houseMembershipId: "house-1", centerId: "center-2", effectiveFrom: "2026-08-30T03:00:00.000Z", assignmentReason: "Center move" });
+    await boApi.endOpenStudioPathCenter({ houseMembershipId: "house-1", pathProgramId: "path-1", centerId: "center-2", effectiveUntilExclusive: "2026-08-30T03:30:00.000Z", reason: "Fixture cleanup" }, "path-end-key");
+    await boApi.endOpenStudioMemberCenter({ houseMembershipId: "house-1", centerId: "center-2", effectiveUntilExclusive: "2026-08-30T03:45:00.000Z", reason: "Fixture cleanup" }, "member-end-key");
     await boApi.issueOpenStudioBringAFriendPass({ houseMembershipId: "house-1", effectiveAt: "2026-08-30T04:00:00.000Z" });
     await boApi.revokeOpenStudioPass("pass-1", { revokedAt: "2026-08-30T05:00:00.000Z", reason: "Administrative correction" });
   } finally { globalThis.fetch = original; }
   assert.deepEqual(calls, [
     { path: "/api/bo/open-studio/member-centers/assign", body: { houseMembershipId: "house-1", centerId: "center-1", effectiveFrom: "2026-08-30T02:00:00.000Z" } },
     { path: "/api/bo/open-studio/member-centers/reassign", body: { houseMembershipId: "house-1", centerId: "center-2", effectiveFrom: "2026-08-30T03:00:00.000Z", assignmentReason: "Center move" } },
+    { path: "/api/bo/open-studio/member-path-centers/end", body: { houseMembershipId: "house-1", pathProgramId: "path-1", centerId: "center-2", effectiveUntilExclusive: "2026-08-30T03:30:00.000Z", reason: "Fixture cleanup" } },
+    { path: "/api/bo/open-studio/member-centers/end", body: { houseMembershipId: "house-1", centerId: "center-2", effectiveUntilExclusive: "2026-08-30T03:45:00.000Z", reason: "Fixture cleanup" } },
     { path: "/api/bo/open-studio/passes/issue-bring-a-friend", body: { houseMembershipId: "house-1", effectiveAt: "2026-08-30T04:00:00.000Z" } },
     { path: "/api/bo/open-studio/passes/pass-1/revoke", body: { revokedAt: "2026-08-30T05:00:00.000Z", reason: "Administrative correction" } },
   ]);
