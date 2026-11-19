@@ -1,0 +1,12 @@
+{
+    "tdd":  true,
+    "tests":  [
+                  "lib/mytime-workshop-api-client.test.ts",
+                  "lib/mytime-workshop-datetime.test.ts",
+                  "lib/mytime-workshop-handler.test.ts",
+                  "lib/mytime-workshop-nav-access.test.ts",
+                  "lib/mytime-workshop-reference-codec.test.ts",
+                  "lib/mytime-workshop-runtime-binding.test.ts",
+                  "lib/pino-datetime.test.ts"
+              ]
+}
