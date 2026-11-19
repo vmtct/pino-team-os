@@ -26,7 +26,7 @@ const sections = [
  {id:"schedule",label:"Lịch học",fields:["schedule","start","end"]},
  {id:"system",label:"Thông tin hệ thống",fields:["createdAt","createdBy","updatedAt","updatedBy"]},
 ] as const;
-const definition = {
+export const definition = {
  version:1,classification:"TDD_DEFAULT",surface:"BO",key:"enrollments",label:"Lịch học",group:"School",fields,
  capabilities:{read:READ,history:"access.audit.view"},
  data:{id:"enrollment-directory-unbound",list:async()=>{throw Error("Core adapter not bound");},detail:async()=>{throw Error("Core adapter not bound");}},
