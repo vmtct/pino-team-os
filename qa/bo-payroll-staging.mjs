@@ -20,9 +20,11 @@ async function listCase(key, actorId, scope, observe) {
         // Record only status codes and DOM flags, including on failure.
         const status = await page.evaluate(path => performance.getEntriesByType("resource")
           .filter(entry => new URL(entry.name).pathname === path).map(entry => entry.responseStatus), endpoint);
-        observe?.({key, status, shell:await table.isVisible(), alert:await section.getByRole("alert").count(),
+        const observation = {key, status, shell:await table.isVisible(), alert:await section.getByRole("alert").count(),
           rows:await table.locator("tbody tr[data-record]").count(),
-          empty:await table.locator("tbody .empty-table:not([role]) strong").isVisible()});
+          empty:await table.locator("tbody .empty-table:not([role]) strong").isVisible()};
+        observe?.(observation);
+        assertPositiveListRead(observation);
       }
     }
   };
@@ -44,4 +46,12 @@ export async function runPayrollListBatch({features,actorId,centerId,withProfile
       return {...proof, ...await readServing()};
     }
   });
+}
+
+export function assertPositiveListRead({status, shell, alert, rows, empty}) {
+  if (!Array.isArray(status) || !status.length ||
+      status.some(code => !Number.isInteger(code) || code < 200 || code >= 300)) {
+    throw Error("BO_LIST_HTTP_NOT_PROVED");
+  }
+  if (!shell || alert !== 0 || !(rows > 0 || empty === true)) throw Error("BO_LIST_DOM_NOT_PROVED");
 }
