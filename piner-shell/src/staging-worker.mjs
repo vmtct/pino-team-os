@@ -9,7 +9,8 @@ const PIN_ROUTES = new Map([
   ["/api/piner/afterschool/logout", "POST"],
 ]);
 
-const LOGIN_PATH = "/piner-space/afterschool/login";
+const LOGIN_PATH = "/login";
+const INTERNAL_LOGIN_PATH = "/piner-space/afterschool/login";
 const NEXT_STATIC = /^\/_next\/static\/(?:[\w.-]+\/)*[\w.-]+\.(?:js|css|woff2)$/;
 
 async function forwardAfterschoolPin(request, service, allowedMethods) {
@@ -29,13 +30,25 @@ export default {
   async fetch(request, env, ctx) {
     const path = new URL(request.url).pathname;
     const isPinRoute = path.startsWith("/api/piner/afterschool/");
-    const isLogin = path === LOGIN_PATH;
+    const isCanonicalLogin = path === LOGIN_PATH;
+    const isLegacyLogin = path === INTERNAL_LOGIN_PATH;
+    const isLogin = isCanonicalLogin || isLegacyLogin;
     const isAsset = NEXT_STATIC.test(path);
     const method = PIN_ROUTES.get(path);
     const allowedMethods = isLogin || isAsset ? ["GET", "HEAD"] : method ? [method] : null;
-    const response = allowedMethods
-      ? await forwardAfterschoolPin(request, env?.AFTERSCHOOL_PIN_WORKER, allowedMethods)
-      : isPinRoute ? new Response(null, { status: 404 }) : await base.fetch(request, env, ctx, { afterschoolLoginAvailable: typeof env?.AFTERSCHOOL_PIN_WORKER?.fetch === "function" });
+    let response;
+    if (isLegacyLogin && allowedMethods.includes(request.method)) {
+      // Canonical public URL; never honor query-supplied redirect destinations.
+      response = new Response(null, { status: 308, headers: { Location: new URL(LOGIN_PATH, request.url).href } });
+    } else {
+      // Rewrite only the page request. PIN API requests remain the original Request.
+      const forwarded = isCanonicalLogin && allowedMethods.includes(request.method)
+        ? new Request(new URL(INTERNAL_LOGIN_PATH, request.url), request)
+        : request;
+      response = allowedMethods
+        ? await forwardAfterschoolPin(forwarded, env?.AFTERSCHOOL_PIN_WORKER, allowedMethods)
+        : isPinRoute ? new Response(null, { status: 404 }) : await base.fetch(request, env, ctx, { afterschoolLoginAvailable: typeof env?.AFTERSCHOOL_PIN_WORKER?.fetch === "function" });
+    }
     const headers = new Headers(response.headers);
     headers.set("X-Piner-Environment", "staging");
     if (isPinRoute || isLogin || isAsset) {
