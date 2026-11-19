@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   AfterschoolPinError,
   listAfterschoolStudents,
@@ -24,6 +24,7 @@ export default function AfterschoolStudentPicker({
   const [studentId, setStudentId] = useState("");
   const [attempt, setAttempt] = useState(0);
   const [signingOut, setSigningOut] = useState(false);
+  const logoutPending = useRef(false);
   const [logoutError, setLogoutError] = useState(false);
 
   useEffect(() => {
@@ -40,6 +41,8 @@ export default function AfterschoolStudentPicker({
   }, [attempt]);
 
   async function signOut() {
+    if (logoutPending.current) return;
+    logoutPending.current = true;
     setSigningOut(true);
     setLogoutError(false);
     try {
@@ -49,6 +52,7 @@ export default function AfterschoolStudentPicker({
       if (error instanceof AfterschoolPinError && error.status === 401) onSignedOut();
       else setLogoutError(true);
     } finally {
+      logoutPending.current = false;
       setSigningOut(false);
     }
   }
@@ -80,9 +84,9 @@ export default function AfterschoolStudentPicker({
       {selected && <p>{selected.centers.map((center) => center.displayName).join(", ")}</p>}
     </div> : <p>Chưa có học viên được liên kết. Vui lòng liên hệ PINO.</p>)}
     {logoutError && <p role="alert">Chưa thể đăng xuất. Vui lòng thử lại.</p>}
-    <button type="button" className={css.submit} disabled={signingOut}
+    <button type="button" className={css.submit} disabled={signingOut} aria-busy={signingOut}
       onClick={result.status === "expired" ? onSignedOut : signOut}>
-      {result.status === "expired" ? "Đăng nhập lại" : "Đăng xuất"}
+      {signingOut ? "Đang đăng xuất…" : result.status === "expired" ? "Đăng nhập lại" : "Đăng xuất"}
     </button>
   </section>;
 }
