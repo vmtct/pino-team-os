@@ -3,5 +3,6 @@
     "lib/bo-payroll-exceptions-model.test.ts",
     "lib/bo-payroll-exceptions-native-handler.test.ts"
   ],
-  "tdd": true
+  "tdd": true,
+  "stagingList": {"path":"/bo/payroll-exceptions","ticket":"PAP-1955","endpoint":"/api/bo/workforce/payroll/read-only/extra-time/reviews"}
 }
