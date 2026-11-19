@@ -38,8 +38,8 @@ export async function readEnrollmentRows(fetcher:typeof fetch,centerId:string,si
  throw Error("Danh sách lịch học chưa được tải đầy đủ.");
 }
 export function enrollmentRelationLinks(relations:EnrollmentRelations,centerId:string){
- const center=id(centerId),detail=(path:string,record:string)=>path+"?"+new URLSearchParams({centerId:center,detail:id(record)});
- return [{label:"Học viên",href:detail("/bo/learners",relations.studentId)},
+ const center=id(centerId),detail=(module:string,record:string)=>"/bo?"+new URLSearchParams({module,centerId:center,record:id(record)});
+ return [{label:"Học viên",href:detail("students",relations.studentId)},
   {label:"Subscription",href:"/bo?"+new URLSearchParams({module:"subscriptions",centerId:center,record:id(relations.subscriptionId)})},
-  {label:"Lớp",href:detail("/bo/running-classes",relations.runningClassId)}];
+  {label:"Lớp",href:detail("classes",relations.runningClassId)}];
 }

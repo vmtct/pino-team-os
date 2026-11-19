@@ -397,11 +397,6 @@ export interface BoLearnerEnrollment {
   subscriptionId: string;
   runningClassId: string;
   runningClassName: string;
-  weekdayIso?: number;
-  scheduleStartsLocal?: string | null;
-  scheduleEndsLocal?: string | null;
-  createdAt?: string;
-  updatedAt?: string;
   effectiveFromLocalDate: string;
   effectiveUntilExclusiveLocalDate: string | null;
   plannedEntryLocalTime: string | null;

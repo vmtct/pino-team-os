@@ -7,7 +7,7 @@ import {BoQuickView} from "@/app/bo/components/registration/BoQuickView";
 import {TddHostMenu} from "@/app/components/workspace-adapters/SurfaceWorkspace";
 import type {AuthorizationContext,ModuleRow,ModuleSchema,TddRegistry,TableQuery} from "@/lib/workspace-schema";
 import {browserTddNavigation} from "@/lib/workspace-adapters/navigation";
-import {registry,enrollmentSchema,enrollmentModule,queryDefault,type EnrollmentFields} from "./schema";
+import {registry,enrollmentSchema,enrollmentModule,queryDefault,canonicalEnrollmentSchema,type EnrollmentFields} from "./schema";
 export type EnrollmentRow = ModuleRow<EnrollmentFields>;
 type RelatedLink = Readonly<{label:string;href:string}>;
 export function BoEnrollmentDirectory({context,rows,relationLinks,binding,readRecord}:{context:AuthorizationContext;rows:readonly EnrollmentRow[];relationLinks?:(row:EnrollmentRow)=>readonly RelatedLink[];binding?:{registry:TddRegistry;schema:ModuleSchema<EnrollmentFields>};readRecord?:(id:string,signal:AbortSignal)=>Promise<EnrollmentRow|null>}) {
@@ -37,7 +37,7 @@ export function BoEnrollmentDirectory({context,rows,relationLinks,binding,readRe
  const related=links?.length?<nav aria-label="Hồ sơ liên quan">{links.map(link=><p key={link.href}><a href={link.href}>{link.label}</a></p>)}</nav>:null;
  return <TddPreferencePolicy.Provider value="ephemeral">
   {error?<p role="alert">{error}</p>:loading?<p role="status">Đang tải lịch học…</p>:null}
-  <div hidden={detail&&!!record}><TddRenderer view={{kind:"table",mobileMenu:menu("enrollment-menu"),props:{registry:activeRegistry,schema:activeSchema,context,rows,query,status:"ready",onQueryChange:q=>{setQuery(q);if(navigation)navigation.change({...navigation.read(),query:q},true);},onOpen:r=>{if(navigation){navigation.capture(r.id);navigation.change({kind:"drawer",recordId:r.id,tab:"overview",query});}else open(r.id,false);}}}}/></div>
+  <div hidden={detail&&!!record}><TddRenderer view={{kind:"table",mobileMenu:menu("enrollment-menu"),props:{registry:activeRegistry,schema:canonicalEnrollmentSchema(enrollmentSchema,activeSchema),context,rows,query,status:"ready",onQueryChange:q=>{setQuery(q);if(navigation)navigation.change({...navigation.read(),query:q},true);},onOpen:r=>{if(navigation){navigation.capture(r.id);navigation.change({kind:"drawer",recordId:r.id,tab:"overview",query});}else open(r.id,false);}}}}/></div>
   {detail&&record?<TddDetail registry={activeRegistry} schema={activeSchema} context={context} record={record} subject={{type:"enrollment",id:record.id}} mobileMenu={menu("enrollment-detail-menu")} activeTab={tab} onTabChange={v=>{setTab(v);if(navigation&&record)navigation.change({kind:"detail",recordId:record.id,tab:v,query},true);}} onBack={close} overviewAfter={related}/>:null}
   {!detail&&record?<BoQuickView key={record.id} module={enrollmentModule} moduleKey="enrollments" record={{...record,name:String(record.name??"")}} onClose={close} onDetail={()=>{if(navigation&&record)navigation.change({kind:"detail",recordId:record.id,tab:"overview",query});else setDetail(true);}} extraSection={related}/>:null}
  </TddPreferencePolicy.Provider>;

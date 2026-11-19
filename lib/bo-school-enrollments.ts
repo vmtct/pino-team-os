@@ -1,10 +1,13 @@
 import { handleBoOperationalReadRequest, type BoReadEnv } from "./bo-read-handler";
 import { boSkeletonEnabled } from "./bo-skeleton";
-import type { BoSubscriptionDirectoryPage, BoLearnerLifecycle } from "./bo-model";
+import type { BoSubscriptionDirectoryPage, BoLearnerLifecycle, BoLearnerEnrollment } from "./bo-model";
 
 // Additive rollout: older Core receipts do not carry these projection fields.
 const localTime = (value: unknown) => typeof value === 'string' && /^(?:[01][0-9]|2[0-3]):[0-5][0-9]$/.test(value) ? value : null;
 const timestamp = (value: unknown) => typeof value === 'string' && Number.isFinite(Date.parse(value)) ? value : null;
+
+type EnrollmentProjection = BoLearnerEnrollment & {weekdayIso?:number;scheduleStartsLocal?:string|null;scheduleEndsLocal?:string|null;createdAt?:string;updatedAt?:string};
+type EnrollmentLifecycle = Omit<BoLearnerLifecycle,"subscriptions"> & {subscriptions:Array<Omit<BoLearnerLifecycle["subscriptions"][number],"enrollments">&{enrollments:EnrollmentProjection[]}>};
 
 type Env = BoReadEnv & { APP_ENV?: string; BO_UI_ONLY?: string };
 const uuid = (value: unknown): value is string => typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
@@ -43,12 +46,12 @@ export async function handleBoSchoolEnrollments(request: Request, env: Env): Pro
     }));
     if (visible.size !== page.items.length) throw Error("Duplicate subscription identity");
     const students = [...new Set(page.items.map(s => s.studentProfileId))];
-    const lifecycles = new Map<string, BoLearnerLifecycle>();let index = 0;
+    const lifecycles = new Map<string, EnrollmentLifecycle>();let index = 0;
     await Promise.all(Array.from({ length: Math.min(8, students.length) }, async () => {
       while (index < students.length) {
         const studentId = students[index++];
         // Each read additionally enforces canonical student ACL/center scope.
-        const value = await read<BoLearnerLifecycle>(`students/${studentId}/lifecycle`, "?centerId=" + encodeURIComponent(centerId));
+        const value = await read<EnrollmentLifecycle>(`students/${studentId}/lifecycle`, "?centerId=" + encodeURIComponent(centerId));
         if (value?.student?.id !== studentId || !Array.isArray(value.subscriptions)) throw Error("Invalid lifecycle identity");
         lifecycles.set(studentId, value);
       }

@@ -42,5 +42,10 @@ export const definition = {
 } as const satisfies ModuleSchema<EnrollmentFields>;
 export const registry = new TddRegistry();
 export const enrollmentSchema = registry.register(definition);
+export function canonicalEnrollmentSchema(template:ModuleSchema<EnrollmentFields>,bound:ModuleSchema<EnrollmentFields>){
+ const structural=(s:ModuleSchema<EnrollmentFields>)=>JSON.stringify({...s,data:undefined});
+ if(structural(template)!==structural(bound))throw Error("Enrollment runtime differs from admitted schema");
+ return bound;
+}
 const boFields:BoField[] = sections.flatMap(s=>s.fields).map(key=>{const f=fields.find(x=>x.key===key)!;return {key:f.key,label:f.label,type:f.type,icon:f.icon,w:f.width,readonly:true};});
 export const enrollmentModule:BoModule = {label:"Lịch học",group:"School",fields:boFields};

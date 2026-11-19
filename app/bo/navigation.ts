@@ -20,6 +20,7 @@ export const boNavigation: BoNavGroup[] = [
         children: [
           { href: "/bo/running-classes", label: "Lớp đang chạy" },
           { href: "/bo/sessions", label: "Sessions" },
+          { href: "/bo/registrations", label: "Registrations" },
           { href: "/bo/delivery-activation", label: "Activation" },
         ],
       },
