@@ -26,7 +26,7 @@ const path = require("node:path");
       bundle: true, jsx: "automatic", outdir: temp, entryNames: "ui", external: ["/piner_mobile_shell_background.png"],
       loader: { ".module.css": "local-css" }, write: true
     });
-    let authenticated = false, restricted = false, failLogout = true;
+    let authenticated = false, restricted = false, failLogout = true, failLogin = false;
     const calls = [];
     const mockCsrf = "A".repeat(22);
     const session = (authState) => ({ authState, expiresAt: "2027-01-01T00:00:00.000Z", csrfToken: mockCsrf });
@@ -40,7 +40,7 @@ const path = require("node:path");
       req.resume();
       req.on("end", () => {
         if (endpoint.endsWith("/session")) return authenticated ? answer(200,{authenticated:true,...session("AUTHENTICATED")}) : answer(401);
-        if (endpoint.endsWith("/pin/login")) { restricted=true;return answer(200,session("PIN_CHANGE_REQUIRED")); }
+        if (endpoint.endsWith("/pin/login")) { if(failLogin){failLogin=false;return answer(401);} restricted=true;return answer(200,session("PIN_CHANGE_REQUIRED")); }
         if (endpoint.endsWith("/pin/change") && restricted && req.headers["x-pino-csrf"]===mockCsrf) { restricted=false;authenticated=true;return answer(200,session("AUTHENTICATED")); }
         if (endpoint.endsWith("/students") && authenticated) return answer(200,[{id:"fixture-student",displayName:"QA local learner",centers:[{id:"fixture-center",displayName:"QA local center"}]}]);
         if (endpoint.endsWith("/logout") && req.method==="POST" && req.headers["x-pino-csrf"]===mockCsrf) {
@@ -58,7 +58,7 @@ const path = require("node:path");
       await page.route("**/*",route=>route.request().url().startsWith(url+"/") ? route.continue() : route.abort());
       const errors=[];page.on("pageerror",e=>errors.push(e.message));
       try {
-        authenticated=false;restricted=false;failLogout=true;calls.length=0;
+        authenticated=false;restricted=false;failLogout=true;failLogin=width===390;calls.length=0;
         await page.goto(url);
         const phone=page.getByRole("textbox",{name:"Số điện thoại"});
         await phone.waitFor();
@@ -76,12 +76,15 @@ const path = require("node:path");
         assert.equal(geometry.length,6);
         for(let i=0;i<geometry.length;i++){assert.ok(geometry[i].w>=30);assert.ok(geometry[i].x>=0&&geometry[i].right<=width+1);if(i)assert.ok(geometry[i].x>geometry[i-1].right&&Math.abs(geometry[i].y-geometry[0].y)<1);}
         assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true);
-        await pin.pressSequentially("000000");
-        assert.equal(await page.locator('[data-filled=true]').count(),6);
-        await pin.press("Backspace");
+        assert.equal(await page.getByRole("heading",{name:"Nhập PIN"}).count(),0);
+        assert.equal(await page.getByText("0900000000",{exact:true}).count(),0);
+        assert.equal(await page.getByRole("button",{name:"Đăng nhập",exact:true}).count(),0);
+        await pin.pressSequentially("00000");
         assert.equal(await page.locator('[data-filled=true]').count(),5);
-        await pin.evaluate(el=>{const dt=new DataTransfer();dt.setData("text","000 000");el.dispatchEvent(new ClipboardEvent("paste",{bubbles:true,cancelable:true,clipboardData:dt}));});
-        assert.equal(await page.locator('[data-filled=true]').count(),6);
+        await pin.press("Backspace");
+        assert.equal(await page.locator('[data-filled=true]').count(),4);
+        await pin.evaluate(el=>{const dt=new DataTransfer();dt.setData("text","000 00");el.dispatchEvent(new ClipboardEvent("paste",{bubbles:true,cancelable:true,clipboardData:dt}));});
+        assert.equal(await page.locator('[data-filled=true]').count(),5);
         await page.getByRole("button",{name:"Đổi số điện thoại"}).click();
         await phone.waitFor();
         assert.equal(await phone.inputValue(),"0900000000");
@@ -89,9 +92,14 @@ const path = require("node:path");
         assert.equal(await page.locator('[data-filled=false]').count(),6);
         assert.equal(calls.filter(c=>c.method==="POST").length,0);
         if(width===390){
-          await pin.fill("000000");
-          await page.getByRole("button",{name:"Đăng nhập",exact:true}).click();
+          await pin.pressSequentially("000000");
+          await page.getByRole("alert").filter({hasText:"Không thể xác thực PIN"}).waitFor();
+          assert.equal(await pin.inputValue(),"");
+          assert.equal(await pin.evaluate(el=>document.activeElement===el),true);
+          assert.equal(calls.filter(c=>c.endpoint.endsWith("/pin/login")).length,1);
+          await pin.evaluate(el=>{const dt=new DataTransfer();dt.setData("text","000 000");el.dispatchEvent(new ClipboardEvent("paste",{bubbles:true,cancelable:true,clipboardData:dt}));});
           await page.getByRole("heading",{name:"Tạo PIN mới"}).waitFor();
+          assert.equal(calls.filter(c=>c.endpoint.endsWith("/pin/login")).length,2);
           assert.equal(await page.locator('[data-filled=false]').count(),12);
           await pin.fill("111111");
           await page.locator('input[name=confirm]').fill("222222");
