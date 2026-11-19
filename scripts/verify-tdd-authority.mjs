@@ -1,5 +1,6 @@
 /** PAP-1071 / PAP-1532: existing Engine G0/G1 + DS ownership; new FE is not admission-gated. */
 import fs from 'node:fs';
+import {createHash} from 'node:crypto';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { pathToFileURL, fileURLToPath } from 'node:url';
@@ -484,6 +485,30 @@ export function isFounderMigratedBoAvatarNativeDsaRoute(root, entry) {
     !/(?:TddRegistry|createBoTddAdapter|SurfaceWorkspace|browserTddNavigation|TddRenderer)/.test(page + client);
 }
 
+
+/** PAP-2202 S0 approved #44656: exact Guest route rename, not removal of TDD authority.
+ * All normal verify() checks still apply to the new manifest entry. */
+export function isFounderMigratedGuestRoute(root,entry){
+ if(entry.file!=="app/bo/mytime-guests/page.tsx"||entry.route!=="/bo/mytime-guests"||entry.key!=="mytime-guests"||entry.surface!=="BO"||entry.profile!=="TDD_DEFAULT")return false;
+ try{
+  const old=entry.file,next="app/bo/guests/page.tsx",alias="app/bo/mytime-guests/route.ts";
+  if(fs.existsSync(path.join(root,old)))return false;
+  const modules=JSON.parse(read(root,MANIFEST)).modules;
+  if(modules.some(m=>m.file===old||m.route===entry.route||m.key===entry.key))return false;
+  const target=modules.filter(m=>m.file===next&&m.route==="/bo/guests"&&m.key==="guests"&&m.surface==="BO"&&m.profile==="TDD_DEFAULT");
+  if(target.length!==1)return false;
+  const n=target[0];
+  if(JSON.stringify(n.schema)!==JSON.stringify(entry.schema)||JSON.stringify(n.binding)!==JSON.stringify(entry.binding)||!n.files.includes(next)||!entry.files.filter(f=>f!==old).every(f=>n.files.includes(f))||!entry.tests.every(f=>n.tests.includes(f)))return false;
+  const digest=f=>createHash("sha256").update(read(root,f).replace(/\r\n/g,"\n")).digest("hex");
+  if(digest(alias)!=="bb3d2e86ace63484c9ad7eb464546732d3a50f8978a87a26e1e616d55f3fc5fe"||digest(next)!=="c4afb11d5b44d1c27969c19a98a6a0fb67e1d6ac6d3724ac5616498879019f85")return false;
+  const nav=read(root,"app/bo/navigation.ts"),url=read(root,"lib/bo-url-contract.ts"),policy=read(root,"app/bo/architecture/bo-staging-route-policy.ts"),host=read(root,"lib/bo-mytime-guest-host-contract.ts");
+  return /href:\s*"\/bo\/guests",\s*label:\s*"Khách"/.test(nav)&&!/href:\s*"\/bo\/mytime-guests"/.test(nav)&&
+   /key:\s*"guests",\s*path:\s*"\/bo\/guests"/.test(url)&&!/path:\s*"\/bo\/mytime-guests"/.test(url)&&
+   policy.includes('"/bo/guests"')&&!policy.includes('"/bo/mytime-guests"')&&
+   host.includes('const PAGE="/bo/guests",LEGACY="/bo/mytime-guests"')&&host.includes('if(host!=="bo.staging.pinohouse.art")return "not_found";');
+ }catch{return false;}
+}
+
 export async function main() {
   const baseIndex=process.argv.indexOf('--base');
   const base=baseIndex<0?(process.env.TDD_BASE||'origin/main'):process.argv[baseIndex+1];
@@ -498,7 +523,7 @@ export async function main() {
   let previous=[];
   if(git(ROOT,['ls-tree','--name-only',base,MANIFEST])) previous=JSON.parse(git(ROOT,['show',base+':'+MANIFEST])).modules;
   const current=JSON.parse(read(ROOT,MANIFEST));
-  for(const e of previous.filter(e=>e.profile!=='EXISTING_GRANDFATHERED')) if(!current.modules.some(n=>n.file===e.file&&n.profile===e.profile) && !isFounderRetiredBoTvRoute(ROOT,e) && !isFounderRetiredHoStaffLinksRoute(ROOT,e) && !isFounderMigratedBoAvatarNativeDsaRoute(ROOT,e)) throw Error('admitted route cannot return to grandfathered inventory: '+e.file);
+  for(const e of previous.filter(e=>e.profile!=='EXISTING_GRANDFATHERED')) if(!current.modules.some(n=>n.file===e.file&&n.profile===e.profile) && !isFounderRetiredBoTvRoute(ROOT,e) && !isFounderRetiredHoStaffLinksRoute(ROOT,e) && !isFounderMigratedBoAvatarNativeDsaRoute(ROOT,e) && !isFounderMigratedGuestRoute(ROOT,e)) throw Error('admitted route cannot return to grandfathered inventory: '+e.file);
   const readBaseSource=file=>{try{return git(ROOT,['show',base+':'+file]);}catch{return null;}};
   const result=await verify(ROOT,{changed,baseline,approvals,readBaseSource});
   for(const f of changed.filter(f=>f.endsWith('.css')&&!/^(?:public\/(?:bo|ho)-authority-source\/|app\/ho\/ho-theme\.css)/.test(f))) {

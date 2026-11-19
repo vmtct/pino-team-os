@@ -29,7 +29,7 @@ const visible=order.filter(k=>k!=="birthDate"&&k!=="email"&&k!=="note"&&k!=="cat
 export const queryDefault:TableQuery<GuestFields>={search:"",filters:{logic:"AND",rules:[]},sort:null,group:null,order,visible,page:1,pageSize:15};
 const sections=[{id:"profile",label:"Thông tin cá nhân",fields:["category","name","gender","birthDate","phone","email","note"]},{id:"affiliation",label:"Cơ sở",fields:["center"]},{id:"system",label:"Thông tin hệ thống",fields:["createdAt","createdBy","updatedAt","updatedBy"]}] as const;
 export const definition={
- version:1,classification:"TDD_DEFAULT",surface:"BO",key:"mytime-guests",label:"Khách",group:"Operations",fields,
+ version:1,classification:"TDD_DEFAULT",surface:"BO",key:"guests",label:"Khách",group:"Operations",fields,
  capabilities:{read:READ,create:CREATE,edit:EDIT,history:"access.audit.view"},
  data:{id:"mytime-guest-unbound",list:async()=>{throw Error("Core adapter not bound");},detail:async()=>{throw Error("Core adapter not bound");}},
  table:{identity:{field:"name",pinned:"left",hideable:false,reorderable:false},columns:order.map(field=>({field,visible:visible.includes(field as typeof visible[number])})),
