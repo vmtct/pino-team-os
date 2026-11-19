@@ -4,7 +4,7 @@ import {teamCredential,TeamAuthError,type TeamAccessEnv} from "./team-auth";
 import {BO_STAGING_HOSTNAME} from "./host-boundary";
 export interface BoMyTimeGuestEnv extends TeamAccessEnv{PINO_BO_CORE:BoAccessCoreBinding;APP_ENV?:string;}
 const base="identity/mytime-guests",uuid="[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}",id=new RegExp("^"+uuid+"$"),detail=new RegExp("^"+base+"/"+uuid+"$"),history=new RegExp("^"+base+"/"+uuid+"/history$");
-const fields=["name","gender","phone","birthDate","email","note"];
+import {validIntakeBoundary} from "./guest-intake-contract";
 class BadInput extends Error{}
 function requireId(v:unknown):string{if(typeof v!=="string"||!id.test(v))throw new BadInput();return v;}
 function json(body:unknown,status:number,requestId?:string){return Response.json(body,{status,headers:{"cache-control":"no-store","x-content-type-options":"nosniff",...(requestId?{"x-request-id":requestId}:{})}});}
@@ -32,9 +32,7 @@ export async function handleBoMyTimeGuestRequest(request:Request,env:BoMyTimeGue
   if(method!=="GET"){
    if(request.headers.get("origin")!==url.origin||(request.headers.has("sec-fetch-site")&&request.headers.get("sec-fetch-site")!=="same-origin"))return failure(403,"ACCESS_PERMISSION_DENIED");
    const key=request.headers.get("idempotency-key");if(!key||!/^[A-Za-z0-9_-]{16,128}$/.test(key))throw new BadInput();
-   const input=await readBody(request),allowedKeys=method==="PATCH"?[...fields,"expectedVersion"]:fields;
-   if(Object.keys(input).some(k=>!allowedKeys.includes(k))||Object.keys(input).filter(k=>fields.includes(k)).some(k=>input[k]!==null&&typeof input[k]!=="string"))throw new BadInput();
-   if(method==="PATCH"&&(!Number.isSafeInteger(input.expectedVersion)||Number(input.expectedVersion)<1||!Object.keys(input).some(k=>fields.includes(k))))throw new BadInput();
+   const input=await readBody(request);if(!validIntakeBoundary(input,method==="PATCH"?"PATCH":"POST"))throw new BadInput();
    core.body=input;core.idempotencyKey=key;
   }
   const result=await callBoAccessCoreWithCredential(env.PINO_BO_CORE,core,credential);
