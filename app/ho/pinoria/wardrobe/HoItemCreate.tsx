@@ -7,13 +7,13 @@ import {slots,slotNames,uploadItem,writeItem,type Slot,type ItemRarity,parseItem
 
 type ItemKind="WEARABLE"|"ACCESSORY"|"SET";
 const itemKeyPattern=/^[a-z0-9][a-z0-9._-]{0,119}$/;
-export function HoItemCreate({onCreated}:{onCreated:()=>void}){
- const [open,setOpen]=useState(false),[name,setName]=useState(""),[key,setKey]=useState("");
+export function HoItemCreate({onCreated,onClose}:{onCreated:()=>void;onClose:()=>void}){
+ const [name,setName]=useState(""),[key,setKey]=useState("");
  const [kind,setKind]=useState<ItemKind>("WEARABLE"),[slot,setSlot]=useState<Slot>("HAIR");
  const [checkInItem,setCheckInItem]=useState(false),[rarity,setRarity]=useState<ItemRarity|null>(null);
  const [file,setFile]=useState<File|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState("");
- function close(){if(busy)return;setOpen(false);setError("");}
- function begin(){setName("");setKey("");setKind("WEARABLE");setSlot("HAIR");setCheckInItem(false);setRarity(null);setFile(null);setError("");setOpen(true);}
+ function close(){if(busy)return;onClose();}
+
  async function submit(event:FormEvent<HTMLFormElement>){
   event.preventDefault();
   if(busy)return;
@@ -32,7 +32,7 @@ export function HoItemCreate({onCreated}:{onCreated:()=>void}){
     const created=await writeItem("","POST",{key:itemKey,displayName,type:kind,slot,asset,positionX:0,positionY:0,scale:1,rotationDegrees:null,checkInItem,...(rarity===null?{}:{rarity})});
     if(rarity!==null&&(created.type==="SET"||created.rarity!==rarity))throw Error("Item đã tạo nhưng rarity chưa được xác minh. Tải lại danh sách; không tạo lại.");
    }
-   setOpen(false);setName("");setKey("");setFile(null);onCreated();
+   onCreated();
   }catch(e){setError(e instanceof Error?e.message:"Không thể tạo Item.");}
   finally{setBusy(false);}
  }
@@ -41,8 +41,8 @@ export function HoItemCreate({onCreated}:{onCreated:()=>void}){
   <button type="submit" form="pap1700-ho-create-item" className="primary-btn" disabled={busy}>{busy?"Đang tạo…":"Tạo bản nháp"}</button>
  </>;
  return <div className="pino-item-create" data-jira="PAP-1700">
-  <button type="button" className="primary-btn" aria-expanded={open} onClick={begin}>＋ Tạo Item</button>
-  {open?<DrawerFrame title="Tạo Item" path="Pinoria · Items" onClose={close} footer={footer}>
+
+  <DrawerFrame title="Tạo Item" path="Pinoria · Items" onClose={close} footer={footer}>
    <form id="pap1700-ho-create-item" className="pino-item-create-form" aria-label="Tạo Item" onSubmit={event=>{void submit(event);}} noValidate>
     <section className="pino-item-create-section" aria-label="Thông tin Item">
      <h3>THÔNG TIN ITEM</h3>
@@ -63,6 +63,6 @@ export function HoItemCreate({onCreated}:{onCreated:()=>void}){
      <div className="pino-item-create-system"><span>Created Time</span><strong>—</strong><span>Created by (User)</span><strong>—</strong><span>Last Modified Time</span><strong>—</strong><span>Last Modified By (User)</span><strong>—</strong></div>
     </section>
    </form>
-  </DrawerFrame>:null}
+  </DrawerFrame>
  </div>;
 }

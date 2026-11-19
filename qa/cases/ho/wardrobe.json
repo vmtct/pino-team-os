@@ -1,0 +1,11 @@
+{
+  "tests": [
+    "qa/wardrobe-browser.test.mjs",
+    "lib/pap1700-ho-item-create-audit.test.ts",
+    "lib/pap2073-ho-checkin-item.test.ts",
+    "lib/pap1119-ho-item-ui.test.ts",
+    "lib/pap1253-ho-item-s2.test.ts",
+    "lib/ho-pinoria-item-handler.test.ts"
+  ],
+  "tdd": true
+}
