@@ -32,7 +32,7 @@ export function BoEnrollmentDirectory({context,rows,relationLinks,binding,readRe
  },[readRecord]);
  useEffect(()=>{if(!navigation)return;const sync=()=>{const next=navigation.read();setQuery(next.query);if(next.kind==="table")clear();else if(next.recordId)open(next.recordId,next.kind==="detail",next.tab);};sync();const unsubscribe=navigation.subscribe(sync);return()=>{unsubscribe();request.current?.abort();};},[navigation,clear,open]);
  const close=()=>{clear();if(navigation){navigation.change({kind:"table",tab:"overview",query});navigation.restore();}};
- if(context.surface!=="BO"||!context.authorize(activeSchema.capabilities.read))return <RecordState status="denied"/>;
+ if(context.surface!=="BO"||!context.authorize(activeSchema.capabilities.read)||(binding&&!context.authorize("student.profile.view")))return <RecordState status="denied"/>;
  const links=record?relationLinks?.(record):undefined;
  const related=links?.length?<nav aria-label="Hồ sơ liên quan">{links.map(link=><p key={link.href}><a href={link.href}>{link.label}</a></p>)}</nav>:null;
  return <TddPreferencePolicy.Provider value="ephemeral">

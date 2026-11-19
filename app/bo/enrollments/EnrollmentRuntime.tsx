@@ -4,7 +4,7 @@ import {useCallback,useContext,useEffect,useState} from "react";
 import {useBoCenterSelection} from "../components/registration/BoCenterSelection";
 import {TddHostMenu} from "@/app/components/workspace-adapters/SurfaceWorkspace";
 import {RecordState} from "@/app/components/workspace-renderer/Record";
-import {surfaceSession} from "@/lib/workspace-adapters/session";
+import {surfaceSession,type CenterSource} from "@/lib/workspace-adapters/session";
 import {bindSurface} from "@/lib/workspace-adapters/adapter";
 import type {AuthenticatedSurfaceAdapter} from "@/lib/workspace-adapters";
 import {TddRegistry} from "@/lib/workspace-schema";
@@ -18,7 +18,13 @@ type Result={scopeKey:string;adapter:AuthenticatedSurfaceAdapter<EnrollmentField
 export function BoEnrollmentTdd(){
  const center=useBoCenterSelection(),menu=useContext(TddHostMenu);
  const centerId=!center?.loading&&!center?.error&&center?.centers.some(c=>c.id===center.selected)?center.selected:"";
+ if(!centerId)return <>{menu("enrollment-menu")}{center?.loading?<p role="status">Đang tải cơ sở…</p>:center?.error?<p role="alert">{center.error}</p>:<p role="status">Chọn cơ sở để xem lịch học.</p>}</>;
  const source=center?.source??"centers";
+ // A -> B -> A is a new mounted scope, never the previous A state/session.
+ return <EnrollmentScope key={JSON.stringify([centerId,source])} centerId={centerId} source={source}/>;
+}
+function EnrollmentScope({centerId,source}:{centerId:string;source:CenterSource}){
+ const menu=useContext(TddHostMenu);
  const [retry,setRetry]=useState(0),[result,setResult]=useState<Result|null>(null);
  const scopeKey=centerId+":"+source+":"+retry;
  useEffect(()=>{
@@ -45,6 +51,6 @@ export function BoEnrollmentTdd(){
   if(!ready.adapter.context.authorize("student.profile.view"))throw new BoApiError(403,"Không có quyền xem lịch học.",null);
   return result?.row??null;
  },[ready]);
- if(!centerId||!ready)return <>{menu("enrollment-menu")}{center?.loading?<p role="status">Đang tải cơ sở…</p>:center?.error?<p role="alert">{center.error}</p>:!centerId?<p role="status">Chọn cơ sở để xem lịch học.</p>:current&&"error" in current?<><RecordState status={current.error}/><button type="button" onClick={()=>setRetry(n=>n+1)}>Thử lại</button></>:<p role="status">Đang tải lịch học…</p>}</>;
+ if(!ready)return <>{menu("enrollment-menu")}{current&&"error" in current?<><RecordState status={current.error}/><button type="button" onClick={()=>setRetry(n=>n+1)}>Thử lại</button></>:<p role="status">Đang tải lịch học…</p>}</>;
  return <BoEnrollmentDirectory key={scopeKey} context={ready.adapter.context} binding={ready.adapter} rows={ready.rows} readRecord={readRecord} relationLinks={row=>{const relation=ready.source.relation(row.id);return relation?enrollmentRelationLinks(relation,centerId):[];}}/>;
 }
