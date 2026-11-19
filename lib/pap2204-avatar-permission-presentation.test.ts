@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { avatarPermissionPresentation, avatarPermissionSection } from "./avatar-permission-presentation";
+import { avatarPermissionPresentation, avatarPermissionSection } from "../app/ho/system/roles/HoRoleEditor";
 const p = (key: string, domain = "pinoria") => Object.freeze({key, domain});
 test("only exact existing scoped identities get display classification", () => {
   assert.equal(avatarPermissionSection(p("pinoria.avatar.directory.view")), "profile");
