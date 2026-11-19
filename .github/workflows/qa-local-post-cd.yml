@@ -1,0 +1,76 @@
+name: Local QA - Offline Regression Observer
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'qa/service/**'
+      - '.github/workflows/qa-local-post-cd.yml'
+  workflow_run:
+    workflows: ["Team Staging CD (Guarded)"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  service-contract:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node --test qa/service/*.test.mjs
+
+  offline-after-cd:
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.repository == 'vmtct/pino-team-os' &&
+      github.event.workflow_run.head_repository.full_name == 'vmtct/pino-team-os' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Retrieve exact guarded CD receipt
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CD_RUN: ${{ github.event.workflow_run.id }}
+        run: |
+          set -euo pipefail
+          [[ "$CD_RUN" =~ ^[0-9]+$ ]]
+          mkdir -p "$RUNNER_TEMP/pino-qa-cd"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$CD_RUN" > "$RUNNER_TEMP/pino-qa-cd/run.json"
+          jq -e --arg repo "$GITHUB_REPOSITORY" --arg run "$CD_RUN" '.repository.full_name==$repo and .head_repository.full_name==$repo and .path==".github/workflows/candidate-staging-deploy.yml" and .head_branch=="main" and .status=="completed" and .conclusion=="success" and (.id|tostring)==$run' "$RUNNER_TEMP/pino-qa-cd/run.json" >/dev/null
+          gh run download "$CD_RUN" --repo "$GITHUB_REPOSITORY" --name team-guarded-staging-cd-receipt --dir "$RUNNER_TEMP/pino-qa-cd/receipt"
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Install local synthetic browser dependencies
+        run: npx playwright install --with-deps chromium chrome
+      - name: Verify worker contract
+        run: node --test qa/service/*.test.mjs
+      - name: Run offline queue for exact released source
+        run: |
+          node qa/service/pipeline.mjs "$RUNNER_TEMP/pino-qa-cd/receipt/receipt.json" "$RUNNER_TEMP/pino-qa-cd/run.json" "$RUNNER_TEMP/pino-qa-cd/queue.db" "$RUNNER_TEMP/pino-qa-cd/report.json"
+      - name: Retain local-only QA evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pap2198-offline-regression-${{ github.event.workflow_run.id }}
+          path: ${{ runner.temp }}/pino-qa-cd/report.json
+          if-no-files-found: warn
+          retention-days: 7

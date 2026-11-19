@@ -47,3 +47,16 @@ never G4 or business acceptance.
 V1 is an on-demand worker, not a network listener or installed scheduler.
 Automatic CD trigger, Jira API callback and live QA are not implemented.
 Existing SOP and execution restrictions remain in force.
+
+### Pipeline observer (LOCAL_ONLY)
+
+An independent GitHub-hosted workflow observes completed successful Team Staging
+CD (Guarded) on trusted main. It downloads the exact CD receipt, checks the run
+and version identifiers and clean checked-out revision, enqueues all three
+registered surface suites and uploads a sanitized JSON report. This is offline
+source regression after CD, not a live deployment check, release gate or G4.
+It does not hold the deployment slot or roll back staging. PRs touching service
+code run only the contract tests. The same pipeline.mjs is usable on a dedicated
+reviewed i5 checkout with actual trusted CD receipt and GitHub run metadata;
+automatic i5 scheduler activation and credentialed Jira callback are not part of
+this increment. No self-hosted runner or authenticated browser is used.

@@ -44,7 +44,7 @@ export function executeClaim(queue,job,{revision,groups,run}) {
   const {state,...details}=result;
   return queue.finish(job.id,state,{...details,evidence:"LOCAL_ONLY",revision:job.revision,elapsedMs:Date.now()-started});
 }
-function cleanRevision() {
+export function cleanRevision() {
   if(execFileSync("git",["status","--porcelain"],{cwd:root,encoding:"utf8",timeout:15000}).trim()) return null;
   return execFileSync("git",["rev-parse","HEAD"],{cwd:root,encoding:"utf8",timeout:15000}).trim();
 }
@@ -52,7 +52,7 @@ function localEnvironment() {
   const allowed=new Set(["path","systemroot","windir","temp","tmp","home","userprofile","localappdata","appdata","homedrive","homepath","comspec","pathext","processor_architecture","number_of_processors","programfiles","programfiles(x86)","programdata"]);
   return Object.fromEntries(Object.entries(process.env).filter(([k])=>allowed.has(k.toLowerCase())));
 }
-function runLocal(job) {
+export function runLocal(job) {
   return spawnSync(process.execPath,["qa/run.mjs",job.surface,"local",...(job.feature?[job.feature]:[])],{
     cwd:root,env:localEnvironment(),encoding:"utf8",stdio:["ignore","pipe","pipe"],maxBuffer:32*1024*1024,windowsHide:true
   });
