@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {verify,inspectModuleSource,inspectModuleDelta,inspectCss,validateSpecial,isFounderRetiredBoTvRoute,isFounderRetiredHoStaffLinksRoute} from './verify-tdd-authority.mjs';
+import {verify,inspectModuleSource,inspectModuleDelta,inspectCss,validateSpecial,isFounderRetiredBoTvRoute,isFounderRetiredHoStaffLinksRoute,isFounderMigratedGuestRoute} from './verify-tdd-authority.mjs';
 const now=Date.parse('2026-10-28T06:00:00Z');
 function schema(surface='BO') {
  const fields=[{key:'name',label:'Name',type:'text',icon:'Aa',width:175,permission:'fixture.read',readOnly:true,capabilities:{display:true,search:true,filter:true,sort:true,group:true,inlineEdit:false}}];
@@ -416,4 +416,20 @@ test("PAP-1542 Founder-authorized HO Staff Link retirement is exactly Center-own
   mutate(files[2],s=>s.replaceAll("readFounderStaffLink","unsafeLegacyLinkRead"));
   mutate(files[3],s=>s.replace("export const hoModules","export const altModules"));
   mutate(files[4],s=>s.replaceAll("staffLinksBase", "staffLinksGone"));
+});
+
+test("PAP-2202 exact admitted Guest rename is not a generic retirement exception",t=>{
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),"pap2202-guest-rename-"));t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+ const previous={file:"app/bo/mytime-guests/page.tsx",route:"/bo/mytime-guests",key:"mytime-guests",surface:"BO",profile:"TDD_DEFAULT",files:["app/bo/mytime-guests/page.tsx","app/bo/mytime-guests/schema.ts","app/bo/mytime-guests/BoMyTimeGuests.tsx"],schema:{file:"app/bo/mytime-guests/schema.ts",export:"guestSchema"},binding:{kind:"SURFACE_WORKSPACE_ADAPTER",file:"app/bo/mytime-guests/BoMyTimeGuests.tsx"},tests:["lib/pap2147-guest-provider.test.ts"]};
+ const paths=["config/tdd-admission.json","app/bo/guests/page.tsx","app/bo/mytime-guests/route.ts","app/bo/navigation.ts","lib/bo-url-contract.ts","app/bo/architecture/bo-staging-route-policy.ts","lib/bo-mytime-guest-host-contract.ts"];
+ for(const f of paths){const to=path.join(root,f);fs.mkdirSync(path.dirname(to),{recursive:true});fs.copyFileSync(path.join(process.cwd(),f),to);}
+ assert.equal(isFounderMigratedGuestRoute(root,previous),true);
+ assert.equal(isFounderMigratedGuestRoute(root,{...previous,key:"other"}),false);
+ const mutate=(f,fn)=>{const p=path.join(root,f),original=fs.readFileSync(p,"utf8");try{fs.writeFileSync(p,fn(original));assert.equal(isFounderMigratedGuestRoute(root,previous),false);}finally{fs.writeFileSync(p,original);}};
+ mutate("app/bo/mytime-guests/route.ts",s=>s.replace("307","200"));
+ mutate("app/bo/guests/page.tsx",s=>s.replace("<BoMyTimeGuestsTdd/>","<div/>"));
+ mutate("app/bo/navigation.ts",s=>s.replace('href: "/bo/guests"','href: "/bo/mytime-guests"'));
+ mutate("lib/bo-mytime-guest-host-contract.ts",s=>s.replace('host!=="bo.staging.pinohouse.art"','host!=="bo.pinohouse.art"'));
+ mutate("config/tdd-admission.json",s=>{const j=JSON.parse(s);j.modules.find(m=>m.key==="guests").profile="EXISTING_GRANDFATHERED";return JSON.stringify(j);});
+ const old=path.join(root,previous.file);fs.writeFileSync(old,"export default function Old(){}");assert.equal(isFounderMigratedGuestRoute(root,previous),false);
 });

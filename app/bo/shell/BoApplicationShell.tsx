@@ -17,7 +17,7 @@ import { nativePayrollModule } from "@/lib/bo-native-payroll-route";
 // Keep Production's existing destinations and content dispatch. Staging-only
 // adapters and aliases are not enabled by adopting the shared presentation.
 const destinations = boNavigation.flatMap(group => group.items.flatMap(item => [
-  ...(item.href && item.href !== "/bo/open-studio-passes" && item.href !== "/bo/piner-posts" && item.href !== "/bo/mytime-guests" && item.href !== "/bo/mytime-workshops" && item.href !== "/bo/enrollments" ? [{ href: item.href, label: item.label, group: group.label }] : []),
+  ...(item.href && item.href !== "/bo/open-studio-passes" && item.href !== "/bo/piner-posts" && item.href !== "/bo/guests" && item.href !== "/bo/mytime-workshops" && item.href !== "/bo/enrollments" ? [{ href: item.href, label: item.label, group: group.label }] : []),
   ...(item.children ?? []).filter(child => child.href !== item.href).map(child => ({ ...child, group: group.label })),
 ]));
 const destinationKey = (href: string) => href === "/bo" ? "overview" : href.slice("/bo/".length);
@@ -100,13 +100,13 @@ export function BoApplicationShell({ currentUser, staging, children }: {
       ...stagingSource.modules,
       ...(showAccounts ? {"afterschool-accounts": { label: "Tài khoản", group: "SCHOOL", fields: [] }} : {}),
       ...(showPosts ? {"piner-posts": { label: "Posts", group: "Piner App", fields: [] }} : {}),
-      ...(showGuests ? {"mytime-guests": {label:"Khách MyTime",group:"Operations",fields:[]}} : {}),
+      ...(showGuests ? {"guests": {label:"Khách",group:"Operations",fields:[]}} : {}),
       ...(showWorkshop ? {"mytime-workshops": {label:"Workshop MyTime",group:"Operations",fields:[]}} : {}),
     },
     routeForModule: key => key === "afterschool-accounts" && showAccounts
       ? "/bo/afterschool-accounts?" + new URLSearchParams({ centerId })
       : key === "piner-posts" && showPosts ? "/bo/piner-posts?" + new URLSearchParams({ centerId })
-      : key==="mytime-guests"&&showGuests ? "/bo/mytime-guests?"+new URLSearchParams({centerId})
+      : key==="guests"&&showGuests ? "/bo/guests?"+new URLSearchParams({centerId})
       : key==="mytime-workshops"&&showWorkshop ? "/bo/mytime-workshops?"+new URLSearchParams({centerId})
       : key === "enrollments" && centerId ? "/bo/enrollments?" + new URLSearchParams({centerId})
       : boScopedModuleHref(stagingSource.routeForModule!(key), key,

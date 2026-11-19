@@ -40,7 +40,7 @@ function fixture() {
     // real main + its TDD admission are still verified by the first test.
     .replace(/\s*\{ href: "\/bo\/classroom-diaries", label: "Nhật ký lớp học" \},/,"")
     // PAP-2147: Guest is checked in the real repo; baseline fixture has no Guest page.
-    .replace(/\s*\{ href: "\/bo\/mytime-guests", label: "Khách MyTime" \},/,"")
+    .replace(/\s*\{ href: "\/bo\/guests", label: "Khách" \},/,"")
     .replace(/\s*\{ href: "\/bo\/mytime-workshops", label: "Workshop MyTime" \},/,"")
     .replace(/\s*\{ href: "\/bo\/enrollments", label: "Lịch học" \},/,"")
     // PAP-2134: new Post TDD is checked in the real repo, not in the baseline-only fixture.
