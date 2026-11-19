@@ -1,9 +1,9 @@
 /** PAP-2192 M1 only. Actual native renderer, local synthetic callbacks. Never a product route. */
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { TddRenderer } from "../../app/components/workspace-renderer/Renderer";
 
-import { TddRegistry, type AuthorizationContext, type ModuleRow } from "../../lib/workspace-schema";
+import { TddRegistry, type AuthorizationContext, type ModuleRow, type TddActionHandler } from "../../lib/workspace-schema";
 import { roleSchema, roleFields, roleQuery, verifyRolePermissionTabApproval } from "../../app/ho/system/roles/schema";
 import { staffSchema, staffQuery, staffFields } from "../../app/ho/staff/schema";
 import { CreateCustomRoleFields, ArchiveCustomRoleAction, TemporaryRoleAssignmentForm } from "../../app/ho/system/roles/RoleLifecycleForms";
@@ -48,4 +48,22 @@ function Fixture(){
  {flow.open&&<TddRenderer view={{kind:"form",props:{registry,schema,context:ctx,mode:"create",title:"Tạo vai trò",onClose:flow.close,actionBindings:bindings,content:<CreateCustomRoleFields draft={flow.draft} onChange={flow.setDraft} disabled={flow.busy}/>}}}/>}
  </main>;
 }
-createRoot(document.getElementById("root")!).render(<Fixture/>);
+/** Independent local-only regression for retained callbacks; never mounted by the product. */
+function ControllerRegression(){
+ const [calls,setCalls]=useState(0),[result,setResult]=useState("");
+ const retained=useRef<TddActionHandler|undefined>(undefined);
+ const retainedOpen=useRef<TddActionHandler|undefined>(undefined);
+ const flow=useRoleCreateFlow(true,async()=>{setCalls(n=>n+1);return {state:"unverified"};},()=>setResult("unexpected verified"));
+ const runRetained=async()=>{const outcome=await retained.current?.run();setResult(outcome?.state??"none");};
+ return <main>
+ <output data-test="calls">{calls}</output><output data-test="result">{result}</output>
+ <output data-test="open">{String(flow.open)}</output><output data-test="uncertain">{String(flow.uncertain)}</output>
+ <button onClick={()=>{void flow.bindings.openCreate?.run();}}>Open test</button>
+ <button onClick={()=>{flow.setDraft({roleKey:"demo-metadata",displayName:"Demo metadata",description:""});}}>Fill test</button>
+ <button onClick={()=>{retained.current=flow.bindings.saveCreate;retainedOpen.current=flow.bindings.openCreate;}}>Retain test</button>
+ <button onClick={flow.close}>Close test</button>
+ <button onClick={()=>{void runRetained();}}>Run retained</button>
+ <button onClick={()=>{void retainedOpen.current?.run();}}>Run retained open</button>
+ </main>;
+}
+createRoot(document.getElementById("root")!).render(location.hash==="#controller-regression"?<ControllerRegression/>:<Fixture/>);
