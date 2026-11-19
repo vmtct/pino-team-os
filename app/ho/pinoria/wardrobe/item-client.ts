@@ -94,10 +94,12 @@ export async function writeWearableItem(path:string,method:"POST"|"PATCH",body:o
  const result=await writeItem(path,method,body);if(result.type==="SET")throw Error("Unexpected SET response");return result;
 }
 /** PAP-2073: the read-only HO TDD adapter stays untouched; use existing Item domain CAS. */
+export function isEditableItemLifecycle(status:unknown):boolean{return status==="DRAFT"||status==="PUBLISHED";}
 export async function saveCheckInItem(id:string,expectedRevision:number,value:boolean,signal:AbortSignal):Promise<HoItem>{
  if(typeof value!=="boolean"||!Number.isSafeInteger(expectedRevision)||expectedRevision<1)throw Error("Invalid Check-in Item edit");
  const current=await getWearableItem(id,signal);signal.throwIfAborted();
  if(current.revision!==expectedRevision)throw new ItemApiError(409,"CONFLICT");
+ if(!isEditableItemLifecycle(current.status))throw new ItemApiError(409,"CONFLICT");
  const draft=current.pendingDraft??current;
  const effectiveBefore=current.checkInItem===true;
  const result=await writeItem("/"+id,"PATCH",{key:draft.key,displayName:draft.displayName,type:draft.type,slot:draft.slot,asset:draft.asset,positionX:draft.positionX,positionY:draft.positionY,scale:draft.scale,rotationDegrees:draft.rotationDegrees,variantOfItemId:draft.variantOfItemId??null,checkInItem:value,expectedRevision},signal);
@@ -110,7 +112,7 @@ export async function saveItemRarity(id:string,expectedRevision:number,value:Ite
  if((value!==null&&!isItemRarity(value))||!Number.isSafeInteger(expectedRevision)||expectedRevision<1)throw Error("Invalid Item rarity edit");
  const current=await getWearableItem(id,signal);signal.throwIfAborted();
  if(current.revision!==expectedRevision)throw new ItemApiError(409,"CONFLICT");
- if(current.rarity===undefined||current.status==="UNPUBLISHED")throw Error("Item rarity chưa hỗ trợ chỉnh sửa.");
+ if(current.rarity===undefined||!isEditableItemLifecycle(current.status))throw Error("Item rarity chưa hỗ trợ chỉnh sửa.");
  const draft=current.pendingDraft??current;
  const result=await writeItem("/"+id,"PATCH",{key:draft.key,displayName:draft.displayName,type:draft.type,slot:draft.slot,asset:draft.asset,positionX:draft.positionX,positionY:draft.positionY,scale:draft.scale,rotationDegrees:draft.rotationDegrees,variantOfItemId:draft.variantOfItemId??null,checkInItem:draft.checkInItem===true,rarity:value,expectedRevision},signal);
  signal.throwIfAborted();
