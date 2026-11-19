@@ -1,6 +1,7 @@
 "use client";
 /** PAP-2153: canonical WorldStage with scoped Avatar projection, not fixture Character. */
 import {useCallback} from "react";
+import {worldCompositionFrameKey} from "./avatar-world-composition";
 import {SelfLoadoutPreview} from "@/app/components/pinoria/SelfLoadoutPreview";
 import {scopedWorldPreview,type AvatarWorldSnapshot} from "./avatar-world-snapshot";
 import {WorldStage} from "@/app/ho/pinoria/worlds/WorldDetailPanels";
@@ -13,5 +14,5 @@ export function SelfWorldPreview({snapshot,scope,instanceId,sceneId}:{snapshot:A
  if(!scene||!model)return <p role="status">Cảnh chưa khả dụng.</p>;
  const record:BoRecord={id:scene.id,name:scene.displayName,canvasWidth:scene.canvasWidth,canvasHeight:scene.canvasHeight};
  const layers:BoRecord[]=[{id:"background:"+scene.id,name:"Background",kind:"BACKGROUND",assetKey:scene.baseAssetKey,z:0,enabled:true},...scene.layers.map((l,index)=>({id:l.id,name:l.displayName,kind:l.kind,mediaType:l.mediaType,assetKey:l.assetKey,posterAssetKey:l.posterAssetKey,x:50+l.positionX,y:50+l.positionY,scale:100*l.scale,rotation:l.rotationDegrees,anchor:l.anchor,z:index+1,enabled:l.enabled}))];
- return <WorldStage scene={record} layers={layers} avatarNode={<SelfLoadoutPreview key={[scope.selfId,scope.centerId,model.loadout.version,model.setVersion,model.selfVersion].join(":")} embedded loadout={model.loadout} activeSet={model.activeSet} mediaSrc={mediaSrc} setMemberSrc={setMemberSrc}/>} runtimeOnly/>;
+ return <WorldStage scene={record} layers={layers} avatarNode={<SelfLoadoutPreview key={worldCompositionFrameKey(scope,model)} embedded loadout={model.loadout} activeSet={model.activeSet} mediaSrc={mediaSrc} setMemberSrc={setMemberSrc}/>} runtimeOnly/>;
 }

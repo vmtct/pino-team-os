@@ -30,3 +30,11 @@ export function parseWorldComposition(raw:unknown,scope:Scope){
  if(new Set(members.map(m=>m.slot)).size!==members.length||!["HAIR","FACE","OUTFIT"].every(slot=>members.some(m=>m.slot===slot))||c.ready!==true)return fail();
  return {loadout,activeSet:{setItemId:id(set.setItemId),version:setVersion,membershipRevision:ver(set.membershipRevision,1),members},setVersion,selfVersion};
 }
+
+/** PAP-2186: remount only on actual scoped composition identity changes; not a media request revision guard. */
+export function worldCompositionFrameKey(scope:Scope,model:ReturnType<typeof parseWorldComposition>){
+ const memberKey=(m:Member|null)=>m===null?null:[m.slot,m.itemId,m.positionX,m.positionY,m.scale,m.rotationDegrees];
+ const set=model.activeSet;
+ return JSON.stringify([scope.selfId,scope.centerId,scope.studentProfileId,model.selfVersion,model.loadout.version,model.setVersion,
+  set===null?["slots",...SLOTS.map(slot=>memberKey(model.loadout.slots[slot]))]:["set",set.setItemId,set.membershipRevision,...set.members.map(memberKey)]]);
+}

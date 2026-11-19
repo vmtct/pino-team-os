@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {parseWorldComposition} from "./avatar-world-composition";
+import {parseWorldComposition,worldCompositionFrameKey} from "./avatar-world-composition";
 const id=(n:number)=>"01a194f0-9bd0-7896-89a0-"+n.toString(16).padStart(12,"0");
 const scope={selfId:id(1),centerId:id(2),studentProfileId:id(3)};
 const order=["AURA_GROUND","AURA_BACK","BACK","CHAR_BASE","OUTFIT","HAIR","FACE","HEADWEAR","PATH_MARK"];
@@ -21,4 +21,20 @@ test("missing Set, foreign scope, invalid order, stale version, invalid geometry
  assert.throws(()=>parseWorldComposition({...raw,composition:{...active,setVersion:2}},scope));
  assert.throws(()=>parseWorldComposition({...raw,composition:{...active,activeSet:{...active.activeSet,members:[{...members[0],scale:0},...members.slice(1)]}}},scope));
  assert.throws(()=>parseWorldComposition({...raw,composition:{...active,activeSet:{...active.activeSet,members:members.slice(0,2)}}},scope));
+});
+
+test("PAP-2186 frame identity distinguishes member revision, order, replacement, clear and scope",()=>{
+ const model=parseWorldComposition({...raw,composition:active},scope);
+ const key=worldCompositionFrameKey(scope,model);
+ const set=model.activeSet!;
+ assert.equal(worldCompositionFrameKey({...scope},structuredClone(model)),key);
+ assert.notEqual(worldCompositionFrameKey({...scope,studentProfileId:id(4)},model),key);
+ assert.notEqual(worldCompositionFrameKey({...scope,centerId:id(5)},model),key);
+ assert.notEqual(worldCompositionFrameKey(scope,{...model,activeSet:{...set,membershipRevision:3}}),key);
+ assert.notEqual(worldCompositionFrameKey(scope,{...model,activeSet:{...set,members:[...set.members].reverse()}}),key);
+ assert.notEqual(worldCompositionFrameKey(scope,{...model,activeSet:{...set,members:[{...set.members[0],itemId:id(99)},...set.members.slice(1)]}}),key);
+ assert.notEqual(worldCompositionFrameKey(scope,{...model,activeSet:{...set,members:[{...set.members[0],scale:1.5},...set.members.slice(1)]}}),key);
+ assert.notEqual(worldCompositionFrameKey(scope,{...model,activeSet:null}),key);
+ const empty=parseWorldComposition(raw,scope);
+ assert.notEqual(worldCompositionFrameKey(scope,{...empty,loadout:{...empty.loadout,slots:{...empty.loadout.slots,HAIR:set.members[0]}}}),worldCompositionFrameKey(scope,empty));
 });
