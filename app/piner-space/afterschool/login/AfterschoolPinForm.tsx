@@ -33,8 +33,8 @@ function PinCells({ name, label, value, onChange, disabled, autoFocus, newPin }:
 }) {
   const input = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    if (autoFocus) input.current?.focus();
-  }, [autoFocus]);
+    if (autoFocus && !disabled) input.current?.focus();
+  }, [autoFocus, disabled]);
   return <label className={css.pinGroup}>
     <span className={css.pinLabel}>{label}</span>
     <div className={css.pinCells}>
@@ -105,18 +105,24 @@ export default function AfterschoolPinForm() {
       setStep("pin");
       return;
     }
-    if (!/^\d{6}$/.test(pin)) {
+    await submitPin(pin);
+  }
+
+  async function submitPin(value: string) {
+    if (submitting.current || memberCsrf) return;
+    setMessage("");
+    if (!/^\d{6}$/.test(value)) {
       setMessage("PIN gồm đúng 6 chữ số.");
       return;
     }
-    if (csrf && confirm !== pin) {
+    if (csrf && confirm !== value) {
       setMessage("Hai lần nhập PIN mới chưa khớp.");
       return;
     }
     submitting.current = true;
     setBusy(true);
     try {
-      const session = csrf ? await changeAfterschoolPin(pin, csrf) : await loginAfterschool(phone, pin);
+      const session = csrf ? await changeAfterschoolPin(value, csrf) : await loginAfterschool(phone, value);
       setPin("");
       setConfirm("");
       if (session.authState === "PIN_CHANGE_REQUIRED") {
@@ -152,24 +158,26 @@ export default function AfterschoolPinForm() {
     {csrf ? <>
       <h2 className={css.formTitle}>Tạo PIN mới</h2>
       <p className={css.notice}>Đổi PIN tạm trước khi truy cập thông tin học viên.</p>
-    </> : step === "pin" && <>
-      <h2 className={css.formTitle}>Nhập PIN</h2>
-      <p className={css.phoneHint}>{phone}</p>
-    </>}
+    </> : null}
     <form key={csrf ? "change" : step} className={css.form} onSubmit={submit} aria-busy={busy}>
       {!csrf && step === "phone" ? <label>
         <input name="phone" aria-label="Số điện thoại" placeholder="Số điện thoại" type="tel"
           autoComplete="tel" value={phone} onChange={(event) => setPhone(event.target.value)} required />
       </label> : <>
         <PinCells key={csrf ? "new" : "current"} name="pin" label={csrf ? "PIN mới" : "PIN"}
-          value={pin} onChange={(value) => { setPin(value); setMessage(""); }}
+          value={pin} onChange={(value) => {
+            if (submitting.current) return;
+            setPin(value); setMessage("");
+            if (!csrf && step === "pin" && value.length === 6) void submitPin(value);
+          }}
           disabled={busy} autoFocus newPin={Boolean(csrf)} />
         {csrf && <PinCells name="confirm" label="Nhập lại PIN mới" value={confirm}
           onChange={(value) => { setConfirm(value); setMessage(""); }} disabled={busy} newPin />}
       </>}
-      <button type="submit" className={css.submit} disabled={busy}>
-        {csrf ? "Lưu PIN mới" : step === "phone" ? "Tiếp tục" : "Đăng nhập"}
-      </button>
+      {(csrf || step === "phone") && <button type="submit" className={css.submit} disabled={busy}>
+        {csrf ? "Lưu PIN mới" : "Tiếp tục"}
+      </button>}
+      {!csrf && step === "pin" && busy && <p role="status">Đang đăng nhập…</p>}
       {!csrf && step === "pin" && <button type="button" className={css.secondary}
         disabled={busy} onClick={() => { setStep("phone"); setPin(""); setMessage(""); }}>
         Đổi số điện thoại
