@@ -1,5 +1,5 @@
 "use client";
-// PAP-2202 M1 synthetic-only guardian UX; no production data or write contract.
+// PAP-2202 PLT-GUEST native guardian section; scoped canonical references supplied by the controller.
 import {useState} from "react";
 import {createPortal} from "react-dom";
 import {PropertySections} from "@/app/components/workspace-renderer/Properties";

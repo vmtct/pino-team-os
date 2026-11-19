@@ -1030,11 +1030,14 @@
         "app/bo/mytime-guests/MyTimeGuestsRuntime.tsx",
         "app/bo/mytime-guests/schema.ts",
         "app/bo/mytime-guests/provider.ts",
-        "app/bo/mytime-guests/nav-access.ts"
+        "app/bo/mytime-guests/nav-access.ts",
+        "app/bo/mytime-guests/GuardianPreview.tsx",
+        "app/bo/mytime-guests/guardian-recovery.ts",
+        "lib/guest-intake-contract.ts"
       ],
       "schema": {"file":"app/bo/mytime-guests/schema.ts","export":"guestSchema"},
       "binding": {"kind":"SURFACE_WORKSPACE_ADAPTER","file":"app/bo/mytime-guests/BoMyTimeGuests.tsx"},
-      "tests": ["lib/pap2147-guest-provider.test.ts","lib/pap2147-guest-boundary.test.ts"],
+      "tests": ["lib/pap2147-guest-provider.test.ts","lib/pap2147-guest-boundary.test.ts","lib/guest-intake-contract.test.ts","lib/pap2202-guardian-recovery.test.ts"],
       "externalReferences": [
         {"file":"lib/host-boundary.ts","owner":"PAP-2147"},
         {"file":"lib/workspace-adapters/session.ts","owner":"PAP-1221"},
