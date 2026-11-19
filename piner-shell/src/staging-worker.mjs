@@ -1,6 +1,8 @@
 // PAP-1952 / PNR-APP-HUB — Staging ONLY, suppress Cloudflare automatic HTML mutation
 // without allowing third-party scripts or weakening no-store on member shell responses.
 import base from "./worker.mjs";
+import {parseRoute} from "./adapter.mjs";
+import {readMemberChrome} from "./member-session.mjs";
 const PIN_ROUTES = new Map([
   ["/api/piner/afterschool/pin/login", "POST"],
   ["/api/piner/afterschool/pin/change", "POST"],
@@ -37,6 +39,7 @@ export default {
     const method = PIN_ROUTES.get(path);
     const allowedMethods = isLogin || isAsset ? ["GET", "HEAD"] : method ? [method] : null;
     let response;
+    const memberChrome = !allowedMethods && !isPinRoute ? await readMemberChrome(request,env?.AFTERSCHOOL_PIN_WORKER,parseRoute(path)) : null;
     if (isLegacyLogin && allowedMethods.includes(request.method)) {
       // Canonical public URL; never honor query-supplied redirect destinations.
       response = new Response(null, { status: 308, headers: { Location: new URL(LOGIN_PATH, request.url).href } });
@@ -47,7 +50,7 @@ export default {
         : request;
       response = allowedMethods
         ? await forwardAfterschoolPin(forwarded, env?.AFTERSCHOOL_PIN_WORKER, allowedMethods)
-        : isPinRoute ? new Response(null, { status: 404 }) : await base.fetch(request, env, ctx, { afterschoolLoginAvailable: typeof env?.AFTERSCHOOL_PIN_WORKER?.fetch === "function" });
+        : isPinRoute ? new Response(null, { status: 404 }) : await base.fetch(request, env, ctx, { afterschoolLoginAvailable: typeof env?.AFTERSCHOOL_PIN_WORKER?.fetch === "function", memberChrome });
     }
     const headers = new Headers(response.headers);
     headers.set("X-Piner-Environment", "staging");
@@ -61,6 +64,7 @@ export default {
       }
     } else if ((headers.get("Content-Type") || "").includes("text/html")) {
       headers.set("Cache-Control", "no-store, no-transform");
+      if(memberChrome?.runtime){headers.set("Content-Security-Policy",headers.get("Content-Security-Policy").replace("connect-src 'none'","connect-src 'self'"));headers.set("Vary","Cookie");}
     }
     return new Response(response.body, {
       status: response.status,
