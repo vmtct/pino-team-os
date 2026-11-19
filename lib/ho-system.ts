@@ -5,7 +5,7 @@ import { hoCentersModule, mapHoCenters } from "./ho-centers";
 import {hoA1Modules,type HoA1Module} from "./ho-a1";
 import { HO_PAGE_PATHS } from "./ho-routes";
 
-export type HoModule = "paths" | "specialties" | "mytimeWorkshops" | "bills" | "globalTerms" | "centers" | "walkinPasses" | "termWeeks" | "shiftTemplates" | "staffs" | "staffLinks" | "users" | "roles" | "audits" | "tddReference" | "classroomDiaries" | "tvPolicies" | "customAttributes" | "starterSets" | "wishPolicies" | "wishBanners" | HoA1Module;
+export type HoModule = "paths" | "specialties" | "mytimeWorkshops" | "bills" | "globalTerms" | "centers" | "walkinPasses" | "termWeeks" | "shiftTemplates" | "staffs" | "staffLinks" | "people" | "users" | "roles" | "audits" | "tddReference" | "classroomDiaries" | "tvPolicies" | "customAttributes" | "starterSets" | "wishPolicies" | "wishBanners" | HoA1Module;
 export const hoRoutes: Record<HoModule, string> = HO_PAGE_PATHS;
 // PAP-1542 / PAP-220: Staff registration link is an attribute of Centers, not an HO module.
 export const hoModules: Record<Exclude<HoModule,"staffLinks">,BoModule> = {
@@ -82,6 +82,7 @@ export const hoModules: Record<Exclude<HoModule,"staffLinks">,BoModule> = {
   {key:"department",label:"Bộ phận",type:"text",icon:"Aa",w:170,readonly:true},
  ]},
  ...hoA1Modules,
+ people: {label:"Person",group:"System",fields:[]},
  users: {label:"Users",group:"System",fields:[
   {key:"name",label:"Account",type:"text",icon:"Aa",w:260,readonly:true},
   {key:"id",label:"User ID",type:"id",icon:"#",w:270,readonly:true},

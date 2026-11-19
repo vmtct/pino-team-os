@@ -34,15 +34,17 @@ const source: BoWorkspaceSource = {
 export function HoWorkspace<F extends readonly FieldSchema[] = readonly FieldSchema[]>({module,content,tdd,tddAdapter}:{module:HoModule|"languageMappings";content?:ReactNode;tdd?:TddStage<F>;tddAdapter?:SurfaceWorkspaceProps<F>}) {
  const [displayName, setDisplayName] = useState<string | null>(null);
  const [workshopVisible,setWorkshopVisible]=useState(false);
+ const [personVisible,setPersonVisible]=useState(false);
  useEffect(()=>{
    const ctl=new AbortController();
    void canOpenWorkshop("HO",null,ctl.signal).then(allowed=>{if(!ctl.signal.aborted)setWorkshopVisible(allowed);});
+   void import("./system/people/person-read-client").then(async ({createPersonReader})=>{try{await createPersonReader().unlinkedCounts(ctl.signal);if(!ctl.signal.aborted)setPersonVisible(true);}catch{/* fail closed */}});
    return ()=>ctl.abort();
  },[]);
  const admittedSource=useMemo<BoWorkspaceSource>(()=>{
-   if(workshopVisible||module==="mytimeWorkshops")return source;
-   return {...source,modules:Object.fromEntries(Object.entries(source.modules).filter(([key])=>key!=="mytimeWorkshops"))};
- },[workshopVisible,module]);
+   if(workshopVisible&&personVisible)return source;
+   return {...source,modules:Object.fromEntries(Object.entries(source.modules).filter(([key])=>(key!=="mytimeWorkshops"||workshopVisible||module==="mytimeWorkshops")&&(key!=="people"||personVisible||module==="people")))};
+ },[workshopVisible,personVisible,module]);
  useEffect(() => {
    const controller = new AbortController();
    void fetch("/api/bo/context", { cache: "no-store", signal: controller.signal })

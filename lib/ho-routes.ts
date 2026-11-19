@@ -24,6 +24,7 @@ export const HO_PAGE_PATHS = {
   effects: "/ho/pinoria/effects",
   tvPolicies: "/ho/pinoria/tv-policies",
  customAttributes: "/ho/system/custom-attributes",
+  people: "/ho/system/people",
   users: "/ho/system/users",
   roles: "/ho/system/roles",
   audits: "/ho/system/audit",
