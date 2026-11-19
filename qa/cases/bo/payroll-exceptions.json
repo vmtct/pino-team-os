@@ -1,7 +1,12 @@
 {
   "tests": [
+    "qa/bo-payroll-staging.test.mjs",
     "lib/bo-payroll-exceptions-model.test.ts",
-    "lib/bo-payroll-exceptions-native-handler.test.ts"
+    "lib/bo-payroll-exceptions-native-handler.test.ts",
+    "lib/bo-payroll-exception-detail-review.test.ts",
+    "lib/bo-payroll-extra-review-contract.test.ts",
+    "lib/bo-payroll-settlement-drawer.test.ts"
   ],
-  "tdd": true
+  "tdd": true,
+  "stagingList": {"path":"/bo/payroll-exceptions","ticket":"PAP-1955","endpoint":"/api/bo/workforce/payroll/read-only/extra-time/reviews"}
 }

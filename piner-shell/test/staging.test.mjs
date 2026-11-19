@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import staging from "../src/staging-worker.mjs";
 const req = (path,method="GET") => new Request("https://app.staging.pinohouse.art"+path,{method});
 test("PAP-1952 staging HTML is no-store/no-transform and CSP stays strict",async()=>{
- const r=await staging.fetch(req("/"));
+ const r=await staging.fetch(new Request("https://app.staging.pinohouse.art/",{headers:{cookie:"__Host-PINO_AFTERSCHOOL=fixture-only"}}),{AFTERSCHOOL_PIN_WORKER:{fetch:async()=>Response.json({data:{authenticated:true,expiresAt:"2099-01-01T00:00:00Z"}})}});
  assert.equal(r.status,200);
  assert.match(r.headers.get("Cache-Control"),/no-store/);
  assert.match(r.headers.get("Cache-Control"),/no-transform/);
@@ -98,10 +98,10 @@ test("PAP-2044 exposes same-origin login only in bound Afterschool staging shell
  const marker = /<a href="\/login" data-afterschool-login>/;
  for (const path of ["/piner/house", "/piner/house/grid", "/piner/house/reels", "/piner/house/community"]) {
   const response = await staging.fetch(req(path), env);
-  assert.equal(response.status, 200);
-  assert.match(await response.text(), marker);
-  assert.match(response.headers.get("Content-Security-Policy"), /connect-src 'none'/);
-  assert.doesNotMatch(await (await staging.fetch(req(path))).text(), marker);
+  assert.equal(response.status, 302);
+  assert.equal(response.headers.get("location"), "https://app.staging.pinohouse.art/login");
+  assert.equal(await response.text(), "");
+  assert.equal((await staging.fetch(req(path))).status,302);
  }
  for (const path of ["/", "/piner", "/piner/mytime", "/piner/mytime/community"]) {
   assert.doesNotMatch(await (await staging.fetch(req(path), env)).text(), marker);
