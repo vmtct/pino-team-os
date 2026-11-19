@@ -43,3 +43,8 @@ test("PAP-2164 rejects mismatched scope and sends indempotent versioned patch",a
  });
  assert.equal((await api.patch(id(1),{name:"Changed"},1,"a".repeat(20),signal)).version,2);
 });
+
+test("PAP-2199 canonical date validation rejects normalized impossible or incomplete dates",()=>{
+ for(const v of ["2026-02-30T14:00","2026-11-31T09:00","2026-11-29T24:00","2026-11-29T14:61","2026-11-29","2026-02-30T07:00:00Z"])assert.throws(()=>ictWorkshopInstant(v),v);
+ assert.equal(ictWorkshopInstant("2024-02-29T23:59"),"2024-02-29T16:59:00.000Z");
+});

@@ -42,11 +42,15 @@ export default {
     const route = parseRoute(path);
     const shellRead = route && ["GET", "HEAD"].includes(request.method);
     const loginRead = isCanonicalLogin && ["GET", "HEAD"].includes(request.method);
-    const memberChrome = shellRead || loginRead ? await readMemberChrome(request,env?.AFTERSCHOOL_PIN_WORKER,shellRead ? route : {kind:"launcher"}) : null;
+    let memberChrome=null, sessionUnavailable=false;
+    if(shellRead || loginRead){try{memberChrome=await readMemberChrome(request,env?.AFTERSCHOOL_PIN_WORKER,shellRead ? route : {kind:"launcher"});}catch{sessionUnavailable=true;}}
     const redirect = (target) => new Response(null, {status: 302, headers:{Location:new URL(target,request.url).href,"Cache-Control":"no-store, no-transform","X-Robots-Tag":"noindex, nofollow, noarchive",Vary:"Cookie"}});
     if (isLegacyLogin && allowedMethods.includes(request.method)) {
       // Canonical public URL; never honor query-supplied redirect destinations.
       response = new Response(null, { status: 308, headers: { Location: new URL(LOGIN_PATH, request.url).href } });
+    } else if (sessionUnavailable) {
+      // An unavailable validator is not an anonymous session. Stop the redirect loop without admitting member data.
+      response=new Response(request.method==="HEAD"?null:'<!doctype html><html lang="vi"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Piner APP</title><main><h1>Chưa thể kiểm tra phiên đăng nhập</h1><p>Vui lòng thử lại sau ít phút. Không cần nhập lại PIN.</p><a href="/">Thử lại</a></main></html>',{status:503,headers:{"Content-Type":"text/html; charset=utf-8","Cache-Control":"no-store, no-transform","X-Robots-Tag":"noindex, nofollow, noarchive","X-Content-Type-Options":"nosniff","Content-Security-Policy":"default-src 'none'; frame-ancestors 'none'; base-uri 'none'",Vary:"Cookie"}});
     } else if (shellRead && !memberChrome) {
       response = redirect(LOGIN_PATH);
     } else if (loginRead && memberChrome) {
