@@ -1,4 +1,6 @@
+export { PinerOtpRateGuard } from "./lib/piner-auth-bff.mjs";
 import openNextWorker from "./.open-next/worker.js";
+import { dispatchPinerAfterschoolPin } from "./lib/piner-afterschool-pin-dispatch.mjs";
 
 const ALLOWED_PREFIXES = [
   "/piner-space",
@@ -20,6 +22,11 @@ function withNoIndex(response) {
 const stagingWorker = {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+
+    // PAP-1887 / Epic PAP-1832: pin-only BFF dispatch is staging fail-closed
+    // and never falls through to OpenNext or a legacy OTP endpoint.
+    const afterschoolResponse = await dispatchPinerAfterschoolPin(request, env);
+    if (afterschoolResponse) return withNoIndex(afterschoolResponse);
 
     if (url.pathname.startsWith("/_next/static/")) {
       return withNoIndex(await env.ASSETS.fetch(request));
