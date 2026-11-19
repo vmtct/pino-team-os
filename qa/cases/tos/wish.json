@@ -1,0 +1,10 @@
+{
+  "tests": [
+    "lib/tos-pls-wish-client.test.ts",
+    "lib/tos-pls-wish-handler.test.ts",
+    "lib/pls-wish-tos-contract.test.ts",
+    "lib/pls-wish-reveal-contract.test.ts",
+    "lib/tos-wish-reception-mount.test.ts",
+    "lib/pinoria-wish-tos-choice-contract.test.ts"
+  ]
+}
