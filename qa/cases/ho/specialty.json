@@ -1,0 +1,16 @@
+{
+  "tests": [
+    "lib/pap1495-ho-specialty-v2-reader.test.ts",
+    "lib/pap1495-specialty-draft-create.test.ts",
+    "lib/pap1495-specialty-s3-list.test.ts",
+    "lib/pap1495-specialty-s3-semantic.test.ts",
+    "lib/pap1495-specialty-s4-detail.test.ts",
+    "lib/pap1495-specialty-s5-command.test.ts",
+    "lib/pap1495-specialty-s5-metadata.test.ts",
+    "lib/pap1495-specialty-s5-overview.test.ts",
+    "lib/pap1695-specialty-publish.test.ts",
+    "lib/pap1732-specialty-archive.test.ts",
+    "lib/pap1732-specialty-history.test.ts",
+    "lib/pap1732-specialty-unpublish.test.ts"
+  ]
+}
