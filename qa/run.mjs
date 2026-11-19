@@ -16,7 +16,7 @@ for (const file of selected) {
   const key = file.slice(0, -5);
   const contract = JSON.parse(await readFile(resolve(directory, file), "utf8"));
   if (mode === "list") {
-    console.log(surface, key, contract.tdd ? "local + TDD preview" : "local");
+    console.log(surface, key, [ "local", ...(contract.tdd ? ["TDD preview"] : []), ...(contract.stagingList ? ["admitted staging list"] : []) ].join(" + "));
     continue;
   }
   const start = Date.now();
