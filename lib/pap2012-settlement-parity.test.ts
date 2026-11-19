@@ -11,8 +11,21 @@ test("PAP-2012 settlement tab restores full-period Core totals",()=>{
  assert.match(settlement,/hasUnavailable/);
 });
 test("PAP-2012 visible salary/status use existing PINO design system",()=>{
- assert.match(settlement,/payroll-ro-amount/);
- assert.match(settlement,/BoPill/);
+ assert.match(settlement,/<PayrollNativeTable\b/);
+ assert.match(settlement,/key:"amount",label:"Thành tiền",type:"text"[^}]*readonly:true/);
+ assert.match(settlement,/key:"status",label:"Trạng thái",type:"select"[^}]*readonly:true/);
+ assert.match(settlement,/amount:money\(r\.amountMinor\)/);
+ assert.match(settlement,/status:settlementStatus\(r\.status\)\.text/);
+ assert.match(settlement,/name:payrollVerifiedName\(r\.staffName\)/);
+ assert.doesNotMatch(settlement,/id-code|payroll-ro-amount|<BoDataGrid\b/);
+ const wrapper=readFileSync(new URL("../app/bo/payroll-periods/PayrollNativeTable.tsx",import.meta.url),"utf8");
+ const native=wrapper.slice(wrapper.indexOf("export function PayrollNativeTable("),wrapper.indexOf("export function PayrollDsaReadTable("));
+ const table=readFileSync(new URL("../app/bo/components/registration/BoDataTable.tsx",import.meta.url),"utf8");
+ const value=readFileSync(new URL("../app/bo/components/registration/BoValue.tsx",import.meta.url),"utf8");
+ assert.match(wrapper,/import \{BoDataTable\} from "@\/app\/bo\/components\/registration\/BoDataTable"/);
+ assert.match(native,/<BoDataTable module=\{module\} rows=\{rows\}/);
+ assert.match(table,/<BoValue field=\{f\} value=\{record\[f\.key\]\}/);
+ assert.match(value,/case "select": return <BoPill text=\{display\(value\)\}/);
  assert.match(settlement,/settlementStatus/);
  assert.match(settlement,/staffWithWorkEvidence\(rows\)/);
  assert.match(settlement,/staffWithWorkEvidenceCount/);
