@@ -1,4 +1,5 @@
 import {guestHostDecision} from "./bo-mytime-guest-host-contract";
+import {workshopHostDecision} from "./mytime-workshop-host-contract";
 import {postDraftHostDecision} from "./bo-post-draft-host-contract";
 import {boPlsWishHostDecision} from "./bo-pls-wish-host-contract";
 import {openingEvidenceHostDecision} from "./opening-evidence-host-contract";
@@ -31,6 +32,10 @@ export type HostBoundaryDecision =
 
 export function decideHostBoundary(host: string, pathname: string, method = "GET"): HostBoundaryDecision {
   const hostname = normalizeHostname(host);
+  const workshop = workshopHostDecision(hostname, pathname, method);
+  if (workshop) return {action:workshop};
+  // PAP-2181: exact private native Enrollment page; no Production or cross-surface admission.
+  if (pathname.toLowerCase().startsWith("/bo/enrollments")) return { action: hostname === BO_STAGING_HOSTNAME && (pathname === "/bo/enrollments" || pathname === "/bo/enrollments/") && (method === "GET" || method === "HEAD") ? "next" : "not_found" };
   const guest = guestHostDecision(hostname, pathname, method);
   if (guest) return {action:guest};
   const postDraft = postDraftHostDecision(hostname, pathname, method);

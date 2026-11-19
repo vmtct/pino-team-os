@@ -1020,8 +1020,74 @@
       "tests": ["lib/pap2147-guest-provider.test.ts","lib/pap2147-guest-boundary.test.ts"],
       "externalReferences": [
         {"file":"lib/host-boundary.ts","owner":"PAP-2147"},
-        {"file":"lib/workspace-adapters/session.ts","owner":"PAP-1221"}
+        {"file":"lib/workspace-adapters/session.ts","owner":"PAP-1221"},
+        {"file":"lib/ho-routes.ts","owner":"PAP-2164"}
       ]
+    },
+    {
+      "profile": "TDD_DEFAULT",
+      "surface": "BO",
+      "key": "mytime-workshops",
+      "route": "/bo/mytime-workshops",
+      "file": "app/bo/mytime-workshops/page.tsx",
+      "files": [
+        "app/bo/mytime-workshops/page.tsx",
+        "app/components/mytime-workshop/WorkshopWorkspace.tsx",
+        "app/components/mytime-workshop/WorkshopRuntime.tsx",
+        "app/components/mytime-workshop/schema.ts",
+        "app/components/mytime-workshop/api-client.ts",
+        "app/components/mytime-workshop/reference-codec.ts",
+        "app/components/mytime-workshop/runtime-binding.ts"
+      ],
+      "schema": {"file":"app/components/mytime-workshop/schema.ts","export":"boWorkshopSchema"},
+      "binding": {"kind":"SURFACE_WORKSPACE_ADAPTER","file":"app/components/mytime-workshop/WorkshopWorkspace.tsx"},
+      "tests": ["lib/mytime-workshop-api-client.test.ts","lib/mytime-workshop-runtime-binding.test.ts","lib/mytime-workshop-host-contract.test.ts","lib/mytime-workshop-navigation.test.ts","lib/mytime-workshop-reference-codec.test.ts"],
+      "externalReferences": [
+        {"file":"lib/mytime-workshop-host-contract.ts","owner":"PAP-2164"},
+        {"file":"lib/host-boundary.ts","owner":"PAP-2164"},
+        {"file":"lib/workspace-adapters/session.ts","owner":"PAP-1221"},
+        {"file":"lib/ho-routes.ts","owner":"PAP-2164"}
+      ]
+    },
+    {
+      "profile": "TDD_DEFAULT",
+      "surface": "HO",
+      "key": "mytime-workshops",
+      "route": "/ho/mytime-workshops",
+      "file": "app/ho/mytime-workshops/page.tsx",
+      "files": [
+        "app/ho/mytime-workshops/page.tsx",
+        "app/components/mytime-workshop/WorkshopWorkspace.tsx",
+        "app/components/mytime-workshop/WorkshopRuntime.tsx",
+        "app/components/mytime-workshop/schema.ts",
+        "app/components/mytime-workshop/api-client.ts",
+        "app/components/mytime-workshop/reference-codec.ts",
+        "app/components/mytime-workshop/runtime-binding.ts"
+      ],
+      "schema": {"file":"app/components/mytime-workshop/schema.ts","export":"hoWorkshopSchema"},
+      "binding": {"kind":"SURFACE_WORKSPACE_ADAPTER","file":"app/components/mytime-workshop/WorkshopWorkspace.tsx"},
+      "tests": ["lib/mytime-workshop-api-client.test.ts","lib/mytime-workshop-runtime-binding.test.ts","lib/mytime-workshop-host-contract.test.ts","lib/mytime-workshop-navigation.test.ts"],
+      "externalReferences": [
+        {"file":"lib/mytime-workshop-host-contract.ts","owner":"PAP-2164"},
+        {"file":"lib/host-boundary.ts","owner":"PAP-2164"},
+        {"file":"lib/workspace-adapters/session.ts","owner":"PAP-1221"},
+        {"file":"lib/ho-routes.ts","owner":"PAP-2164"},
+        {"file":"lib/ho-system.ts","owner":"PAP-2164"},
+        {"file":"app/ho/HoWorkspace.tsx","owner":"PAP-2164"},
+        {"file":"app/components/mytime-workshop/nav-access.ts","owner":"PAP-2164"}
+      ]
+    }
+    ,{
+      "profile":"TDD_DEFAULT",
+      "surface":"BO",
+      "key":"enrollments",
+      "route":"/bo/enrollments",
+      "file":"app/bo/enrollments/page.tsx",
+      "files":["app/bo/enrollments/page.tsx","app/bo/enrollments/BoEnrollmentDirectory.tsx","app/bo/enrollments/EnrollmentRuntime.tsx","app/bo/enrollments/schema.ts","app/bo/enrollments/provider.ts","app/bo/enrollments/enrollment-read-client.ts"],
+      "schema":{"file":"app/bo/enrollments/schema.ts","export":"enrollmentSchema"},
+      "binding":{"kind":"SURFACE_WORKSPACE_ADAPTER","file":"app/bo/enrollments/BoEnrollmentDirectory.tsx"},
+      "tests":["app/bo/enrollments/schema.test.ts","app/bo/enrollments/provider.test.ts","app/bo/enrollments/enrollment-read-client.test.ts","app/bo/enrollments/route.test.ts"],
+      "externalReferences":[{"file":"lib/host-boundary.ts","owner":"PAP-2181"},{"file":"lib/workspace-adapters/session.ts","owner":"PAP-1221"},{"file":"lib/bo-skeleton.ts","owner":"PAP-901"},{"file":"lib/ho-routes.ts","owner":"PAP-1220"}]
     }
   ],
   "approvals": []

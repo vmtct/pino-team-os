@@ -3,9 +3,10 @@ import { BoRegistrationWorkspace, type BoWorkspaceSource } from "@/app/bo/compon
 import { boApi } from "@/lib/bo-api";
 import { hoRoutes, hoModules, mapHoCenters, mapHoUsers, mapHoRoleDirectory, type HoModule } from "@/lib/ho-system";
 import { HO_A1_KEYS,loadHoA1,loadHoA1Detail,type HoA1Module } from "@/lib/ho-a1";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { TddStage } from "@/app/components/workspace-renderer/Renderer";
 import type { FieldSchema } from "@/lib/workspace-schema";
+import {canOpenWorkshop} from "@/app/components/mytime-workshop/nav-access";
 import type { SurfaceWorkspaceProps } from "@/app/components/workspace-adapters/SurfaceWorkspace";
 const source: BoWorkspaceSource = {
  modules:{...hoModules,languageMappings:{label:"Language Mapping",group:"System",fields:[]}}, surface:"ho",readOnly:true,
@@ -32,6 +33,16 @@ const source: BoWorkspaceSource = {
 };
 export function HoWorkspace<F extends readonly FieldSchema[] = readonly FieldSchema[]>({module,content,tdd,tddAdapter}:{module:HoModule|"languageMappings";content?:ReactNode;tdd?:TddStage<F>;tddAdapter?:SurfaceWorkspaceProps<F>}) {
  const [displayName, setDisplayName] = useState<string | null>(null);
+ const [workshopVisible,setWorkshopVisible]=useState(false);
+ useEffect(()=>{
+   const ctl=new AbortController();
+   void canOpenWorkshop("HO",null,ctl.signal).then(allowed=>{if(!ctl.signal.aborted)setWorkshopVisible(allowed);});
+   return ()=>ctl.abort();
+ },[]);
+ const admittedSource=useMemo<BoWorkspaceSource>(()=>{
+   if(workshopVisible||module==="mytimeWorkshops")return source;
+   return {...source,modules:Object.fromEntries(Object.entries(source.modules).filter(([key])=>key!=="mytimeWorkshops"))};
+ },[workshopVisible,module]);
  useEffect(() => {
    const controller = new AbortController();
    void fetch("/api/bo/context", { cache: "no-store", signal: controller.signal })
@@ -56,5 +67,5 @@ export function HoWorkspace<F extends readonly FieldSchema[] = readonly FieldSch
      }).catch(() => { /* neutral fallback; no inferred identity */ });
    return () => controller.abort();
  }, []);
- return <BoRegistrationWorkspace source={source} moduleKey={module} currentUser={{displayName}} content={content} tdd={tdd} tddAdapter={tddAdapter}/>;
+ return <BoRegistrationWorkspace source={admittedSource} moduleKey={module} currentUser={{displayName}} content={content} tdd={tdd} tddAdapter={tddAdapter}/>;
 }

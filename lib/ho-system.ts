@@ -5,7 +5,7 @@ import { hoCentersModule, mapHoCenters } from "./ho-centers";
 import {hoA1Modules,type HoA1Module} from "./ho-a1";
 import { HO_PAGE_PATHS } from "./ho-routes";
 
-export type HoModule = "paths" | "specialties" | "bills" | "globalTerms" | "centers" | "walkinPasses" | "termWeeks" | "shiftTemplates" | "staffs" | "staffLinks" | "users" | "roles" | "audits" | "tddReference" | "classroomDiaries" | "tvPolicies" | "customAttributes" | "starterSets" | "wishPolicies" | "wishBanners" | HoA1Module;
+export type HoModule = "paths" | "specialties" | "mytimeWorkshops" | "bills" | "globalTerms" | "centers" | "walkinPasses" | "termWeeks" | "shiftTemplates" | "staffs" | "staffLinks" | "users" | "roles" | "audits" | "tddReference" | "classroomDiaries" | "tvPolicies" | "customAttributes" | "starterSets" | "wishPolicies" | "wishBanners" | HoA1Module;
 export const hoRoutes: Record<HoModule, string> = HO_PAGE_PATHS;
 // PAP-1542 / PAP-220: Staff registration link is an attribute of Centers, not an HO module.
 export const hoModules: Record<Exclude<HoModule,"staffLinks">,BoModule> = {
@@ -27,6 +27,7 @@ export const hoModules: Record<Exclude<HoModule,"staffLinks">,BoModule> = {
   {key:"tagView",label:"Tag",type:"text",icon:"#",w:180,readonly:true},
   {key:"missionCount",label:"Nhiệm vụ",type:"number",icon:"#",w:110,readonly:true},
  ]},
+ mytimeWorkshops:{label:"Workshop MyTime",group:"Open Studio",fields:[]},
  bills: {label:"Bills",group:"Tài chính",fields:[]},
  globalTerms: {label:"Global Terms",group:"Operating Cycle",fields:[
   {key:"name",label:"Tên học kỳ",type:"text",icon:"Aa",w:260,readonly:true},
@@ -73,7 +74,7 @@ export const hoModules: Record<Exclude<HoModule,"staffLinks">,BoModule> = {
   {key:"parent",label:"Parent ID",type:"text",icon:"@",w:260,readonly:true},
   {key:"center",label:"Center ID",type:"text",icon:"⌖",w:260,readonly:true},
  ]},
- staffs:{label:"Staff",group:"Nhân sự",fields:[
+ staffs:{label:"Staff",group:"Workforce",fields:[
   {key:"name",label:"Nhân sự",type:"text",icon:"Aa",w:220,readonly:true},
   {key:"id",label:"Staff ID",type:"id",icon:"#",w:240,readonly:true},
   {key:"status",label:"Trạng thái",type:"select",icon:"◉",w:120,readonly:true},
