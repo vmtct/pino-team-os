@@ -1,0 +1,11 @@
+{
+  "tests": [
+    "app/bo/enrollments/enrollment-read-client.test.ts",
+    "app/bo/enrollments/provider.test.ts",
+    "app/bo/enrollments/route.test.ts",
+    "app/bo/enrollments/schema.test.ts",
+    "lib/bo-school-enrollments.test.ts",
+    "lib/pap1335-bo-enrollment-center.test.ts"
+  ],
+  "tdd": true
+}
