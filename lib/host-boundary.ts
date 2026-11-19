@@ -32,6 +32,12 @@ export type HostBoundaryDecision =
 
 export function decideHostBoundary(host: string, pathname: string, method = "GET"): HostBoundaryDecision {
   const hostname = normalizeHostname(host);
+  // PAP-2180: exact Person namespace, staging HO read only.
+  const personPage="/ho/system/people",personApi="/api/ho/identity/persons",personPath=pathname.toLowerCase();
+  if([personPage,personApi,"/api/bo/identity/persons","/api/tos/identity/persons","/bo/system/people","/tos/system/people"].some(p=>personPath===p||personPath.startsWith(p+"/"))){
+    const read=pathname===personApi||pathname===personApi+"/unlinked-counts"||/^\/api\/ho\/identity\/persons\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(pathname);
+    return {action:hostname===HO_STAGING_HOSTNAME&&(pathname===personPage&&(method==="GET"||method==="HEAD")||read&&method==="GET")?"next":"not_found"};
+  }
   const workshop = workshopHostDecision(hostname, pathname, method);
   if (workshop) return {action:workshop};
   // PAP-2181: exact private native Enrollment page; no Production or cross-surface admission.

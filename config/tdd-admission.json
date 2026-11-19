@@ -1089,6 +1089,18 @@
       "tests":["app/bo/enrollments/schema.test.ts","app/bo/enrollments/provider.test.ts","app/bo/enrollments/enrollment-read-client.test.ts","app/bo/enrollments/route.test.ts"],
       "externalReferences":[{"file":"lib/host-boundary.ts","owner":"PAP-2181"},{"file":"lib/workspace-adapters/session.ts","owner":"PAP-1221"},{"file":"lib/bo-skeleton.ts","owner":"PAP-901"},{"file":"lib/ho-routes.ts","owner":"PAP-1220"}]
     }
+    ,{
+      "profile":"TDD_DEFAULT",
+      "surface":"HO",
+      "key":"people",
+      "route":"/ho/system/people",
+      "file":"app/ho/system/people/page.tsx",
+      "files":["app/ho/system/people/page.tsx","app/ho/system/people/HoPersonDirectory.tsx","app/ho/system/people/HoPersonRuntime.tsx","app/ho/system/people/schema.ts","app/ho/system/people/person-read-client.ts","app/ho/system/people/person-directory-loader.ts"],
+      "schema":{"file":"app/ho/system/people/schema.ts","export":"personSchema"},
+      "binding":{"file":"app/ho/system/people/HoPersonDirectory.tsx"},
+      "tests":["app/ho/system/people/schema.test.ts","app/ho/system/people/person-read-client.test.ts","app/ho/system/people/person-directory-loader.test.ts","lib/ho-person-host-contract.test.ts","lib/ho-person-handler.test.ts"],
+      "externalReferences":[{"file":"lib/ho-routes.ts","owner":"PAP-2180"},{"file":"lib/ho-system.ts","owner":"PAP-2180"},{"file":"app/ho/HoWorkspace.tsx","owner":"PAP-2180"},{"file":"lib/host-boundary.ts","owner":"PAP-2180"}]
+    }
   ],
   "approvals": []
 }
