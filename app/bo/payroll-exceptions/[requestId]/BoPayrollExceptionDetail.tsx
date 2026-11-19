@@ -1,5 +1,5 @@
 "use client";
-/** PAP-1955 · BO Exception immutable read-only Detail/Chuyên Sâu/Lịch Sử. */
+/** PAP-1955 · BO Exception Detail and read-only history; review uses existing authorized decision contract. */
 import {useEffect,useState,useRef} from "react";
 import {BoFullDetail} from "@/app/bo/components/BoFullDetail";
 import {PropertySections} from "@/app/components/workspace-renderer/Properties";
@@ -8,7 +8,7 @@ import {useBoCenterSelection} from "@/app/bo/components/registration/BoCenterSel
 import {exceptionReadApi,ExceptionReadError,canReviewStandalone,sameStandaloneRequest} from "@/lib/bo-payroll-exceptions-read";
 import {toExceptionReadRow,minorVnd,type ExceptionReadRow} from "@/lib/bo-payroll-exceptions-model";
 import {exceptionPresentation} from "../BoPayrollExceptionsReadView";
-import {PayrollExceptionDecisionForm} from "../PayrollExceptionDecisionForm";
+import {PayrollExceptionDetailReview} from "../PayrollExceptionDetailReview";
 import {decisionPayload,localClock,reviewApi} from "@/lib/bo-payroll-extra-review-api";
 import {verifiedReviewReceipt} from "@/lib/bo-payroll-settlement-drawer";
 type ExceptionDetailProps={requestId:string;activeTab?:string};
@@ -89,5 +89,5 @@ function StandaloneReview({row,onReviewed}:{row:ExceptionReadRow;onReviewed:(row
    if(active.current){setUncertain(true);setError(submitted?"Ch\u01b0a x\u00e1c nh\u1eadn \u0111\u01b0\u1ee3c k\u1ebft qu\u1ea3. T\u1ea3i l\u1ea1i tr\u01b0\u1edbc khi thao t\u00e1c ti\u1ebfp.":e instanceof Error?e.message:"Cannot verify request");}
   }finally{inFlight.current=false;if(active.current)setBusy(false)}
  }
- return <>{error?<p role="alert">{error}</p>:null}<PayrollExceptionDecisionForm partial={partial} from={from} to={to} reason={reason} busy={busy} uncertain={uncertain} onPartial={setPartial} onFrom={setFrom} onTo={setTo} onReason={setReason} onDecision={mode=>void decide(mode)}/></>;
+ return <PayrollExceptionDetailReview row={row} decision={canReviewStandalone(row.source,row.source.centerId,row.id)?{partial,from,to,reason,busy,uncertain,onPartial:setPartial,onFrom:setFrom,onTo:setTo,onReason:setReason,onDecision:mode=>void decide(mode)}:undefined} feedback={error?{kind:"alert",message:error}:undefined}/>;
 }
