@@ -58,7 +58,7 @@ export function createPrivateMediaController(api:Api,authorize:(write:boolean)=>
   async remove(id:string,signal:AbortSignal){guard(true,signal);requireIdle();const item=listing?.attachments.find(a=>a.id===id);if(!item||!listing)throw Error("Image not found.");pending={kind:"remove",id,postVersion:listing.postVersion,attachmentVersion:item.version,key:key()};return execute(signal,false);},
   retry(signal:AbortSignal){return execute(signal,true);},
   hasPending(){return pending!==null;},
-  async openPreview(id:string,signal:AbortSignal){guard(false,signal);if(busy||!listing?.attachments.some(a=>a.id===id))throw Error("Image unavailable.");closePreview();const generation=previewGeneration,blob=await api.preview(id,signal);guard(false,signal);if(generation!==previewGeneration||!listing?.attachments.some(a=>a.id===id))throw Error("Preview superseded.");const url=urls.createObjectURL(blob);preview={id,url};return preview;},
+  async openPreview(id:string,signal:AbortSignal){guard(false,signal);const item=listing?.attachments.find(a=>a.id===id);if(busy||!item)throw Error("Image unavailable.");closePreview();const generation=previewGeneration,blob=await api.preview(item,signal);guard(false,signal);if(generation!==previewGeneration||!listing?.attachments.some(a=>a.id===id))throw Error("Preview superseded.");const url=urls.createObjectURL(blob);preview={id,url};return preview;},
   closePreview,
   dispose(){closed=true;pending=null;listing=null;closePreview();}
  };
