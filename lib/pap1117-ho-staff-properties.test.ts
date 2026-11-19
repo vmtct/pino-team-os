@@ -7,7 +7,7 @@ import type { BoAccessSystemUser } from "./bo-access-model";
 import type { BoAccessRole } from "./bo-model";
 import { StaffRoleAccess } from "../app/ho/staff/StaffRoleAccess";
 import { staffFields, staffSchema } from "../app/ho/staff/schema";
-const assignment = { assignmentId: "old-assignment", roleId: "old-role", roleName: "Reception", roleKey: "reception", scopeType: "CENTER", scopeId: "center-a" } as BoAccessSystemUser["assignments"][number];
+const assignment = { assignmentId: "old-assignment", roleId: "old-role", roleName: "Reception", roleKey: "reception", scopeType: "CENTER", scopeId: "center-a", effectiveUntil: null } as BoAccessSystemUser["assignments"][number];
 const user = { id: "other-user", status: "active", assignments: [assignment] } as BoAccessSystemUser;
 const roles = [{ id: "next-role", roleKey: "teacher", displayName: "Teacher", status: "active" }, { id: "founder", roleKey: "founder", status: "active" }, { id: "archived", roleKey: "reception", status: "archived" }] as BoAccessRole[];
 test("PAP-1117 role editor keeps self, Founder, inactive, ambiguous and multiple assignments read-only", () => {
@@ -39,4 +39,16 @@ test("PAP-1117 Staff overview renders one shared section with name/status/role a
   assert.deepEqual([...markup.matchAll(/data-pds-field="([^"]+)"/g)].map(match => match[1]), ["name", "status", "role"]);
   assert.doesNotMatch(markup, /<select|v24-prop-row|Sửa Vai trò/);
   assert.match(markup, /Đang tải…/);
+});
+
+test("PAP-2192 replacement denies finite and missing expiry before any network request", async () => {
+  let calls = 0;
+  for (const effectiveUntil of ["2026-11-19T12:00:00.000Z", "2026-11-18T12:00:00.000Z", "invalid", undefined]) {
+    const temporary = { ...assignment, effectiveUntil } as typeof assignment;
+    assert.equal(staffRoleEditorModel({ ...user, assignments: [temporary] }, roles, true, "actor", false).editable, false);
+    await assert.rejects(replaceStaffRole("staff-a", temporary, "next-role", (async () => {
+      calls++; return new Response(null, { status: 200 });
+    }) as typeof fetch), /Không thể thay thế vai trò có thời hạn/);
+  }
+  assert.equal(calls, 0);
 });

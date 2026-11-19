@@ -8,12 +8,14 @@ export function staffRoleEditorModel(user: BoAccessSystemUser | null, roles: BoA
   const assignment = user?.assignments.length === 1 ? user.assignments[0]! : null;
   return {
     assignment,
-    editable: Boolean(active && user?.status === "active" && user.id !== principalId && assignment && assignment.roleKey !== "founder" && !ambiguous),
+    editable: Boolean(active && user?.status === "active" && user.id !== principalId && assignment && assignment.effectiveUntil === null && assignment.roleKey !== "founder" && !ambiguous),
     roles: roles.filter(role => role.status === "active" && role.roleKey !== "founder"),
   };
 }
 /** Existing two-command boundary: preserve scope and report partial success truthfully. */
 export async function replaceStaffRole(staffId: string, assignment: BoAccessSystemUser["assignments"][number], roleId: string, fetcher: typeof fetch = fetch) {
+  // PAP-2192: replacement must not convert finite or unknown expiry into a permanent assignment.
+  if (assignment.effectiveUntil !== null) throw Error("Không thể thay thế vai trò có thời hạn hoặc chưa xác định thời hạn.");
   async function mutate(body: object) {
     const response = await fetcher("/api/ho/staff/" + encodeURIComponent(staffId) + "/role", {
       method: "POST", credentials: "same-origin", cache: "no-store", redirect: "error",
