@@ -1,3 +1,10 @@
+import type {TddActionDescriptor} from "@/lib/workspace-schema";
+export const roleCreateActions=[
+ {id:"createRole",label:"Thêm",slot:"table.header",variant:"primary",capability:"create",handler:"openCreate"},
+ {id:"cancelCreate",label:"Hủy",slot:"drawer.footer",variant:"secondary",capability:"create",handler:"cancelCreate",formMode:"create"},
+ {id:"saveCreate",label:"Tạo vai trò",slot:"drawer.footer",variant:"primary",capability:"create",handler:"saveCreate",formMode:"create"},
+] as const satisfies readonly TddActionDescriptor[];
+
 // PAP-2192: presentation validation only; Core and the authenticated HO boundary remain authoritative.
 export interface RoleCandidate { id: string; roleKey: string; roleType: "system" | "custom"; status: "active" | "archived"; assignmentCount: number; updatedAt: string }
 export interface RoleDraft { roleKey: string; displayName: string; description: string }

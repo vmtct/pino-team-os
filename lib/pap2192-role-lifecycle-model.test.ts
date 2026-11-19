@@ -43,3 +43,19 @@ test("finite assignment requires an exact finite readback, not callback completi
  assert.equal(verifyTemporaryAssignment(review,receipt),true);
  for(const bad of [undefined,null,{}, {...receipt,assignmentId:""}, {...receipt,staffId:"other"}, {...receipt,roleId:"other"}, {...receipt,scopeId:"other"}, {...receipt,scopeType:"GLOBAL"}, {...receipt,status:"removed"}, {...receipt,effectiveUntil:null}, {...receipt,effectiveUntil:"invalid"}, {...receipt,effectiveUntil:"2026-11-19T01:00:00Z"}]) assert.equal(verifyTemporaryAssignment(review,bad),false);
 });
+
+test("native Roles TDD admits static actions only with explicit handler and authorized context",async()=>{
+ const {roleDefinition,roleProvider,roleSchema}=await import("../app/ho/system/roles/schema");
+ const {authorizedHostActions}=await import("./workspace-schema/registry");
+ const {hasActionOnlyCapability}=await import("./workspace-adapters/adapter");
+ assert.deepEqual(roleDefinition.capabilities,{read:"access.role.view",create:"access.role.create"});
+ assert.equal(hasActionOnlyCapability(roleDefinition,roleProvider,"create"),true);
+ assert.equal(roleProvider.mutation,undefined);
+ assert.deepEqual(roleDefinition.actions.map(a=>[a.id,a.slot]),[["createRole","table.header"],["cancelCreate","drawer.footer"],["saveCreate","drawer.footer"]]);
+ const allowed={surface:"HO" as const,authorize:(key:string)=>["access.role.view","access.role.create"].includes(key)};
+ const denied={surface:"HO" as const,authorize:(key:string)=>key==="access.role.view"};
+ const bindings={openCreate:{kind:"navigation" as const,run:()=>{}}};
+ assert.deepEqual(authorizedHostActions(roleSchema,allowed,"table.header",{}),[]);
+ assert.deepEqual(authorizedHostActions(roleSchema,denied,"table.header",bindings),[]);
+ assert.deepEqual(authorizedHostActions(roleSchema,allowed,"table.header",bindings).map(a=>a.id),["createRole"]);
+});

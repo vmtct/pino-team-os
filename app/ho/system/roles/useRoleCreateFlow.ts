@@ -1,12 +1,8 @@
 "use client";
 import {useLayoutEffect,useRef,useState} from "react";
-import type {TddActionBindings,TddActionDescriptor,TddActionResult} from "@/lib/workspace-schema";
+import type {TddActionBindings,TddActionResult} from "@/lib/workspace-schema";
 import {roleCreateInput,verifyCreatedRole,type RoleCreateInput,type RoleDraft} from "./role-lifecycle-model";
-export const roleCreateActions=[
- {id:"createRole",label:"Thêm",slot:"table.header",variant:"primary",capability:"create",handler:"openCreate"},
- {id:"cancelCreate",label:"Hủy",slot:"drawer.footer",variant:"secondary",capability:"create",handler:"cancelCreate",formMode:"create"},
- {id:"saveCreate",label:"Tạo vai trò",slot:"drawer.footer",variant:"primary",capability:"create",handler:"saveCreate",formMode:"create"},
-] as const satisfies readonly TddActionDescriptor[];
+export {roleCreateActions} from "./role-lifecycle-model";
 const emptyDraft=():RoleDraft=>({roleKey:"",displayName:"",description:""});
 export type RoleCreateOutcome={state:Exclude<TddActionResult["state"],"verified">}|{state:"verified";receipt:unknown};
 /** Native presentation controller. No HTTP or authority; adapter must supply persisted readback. */

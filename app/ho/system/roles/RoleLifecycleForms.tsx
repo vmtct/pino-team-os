@@ -79,11 +79,11 @@ export function TemporaryRoleAssignmentForm({ staffId, staffLabel, roles, center
   return <TosCard className="ho-role-card"><section aria-label="Bổ sung vai trò có thời hạn"><h3>Bổ sung vai trò có thời hạn</h3>
     <p>{staffLabel} · Giữ nguyên các phân công hiện có.</p>
     <form onSubmit={e=>{e.preventDefault();if(enabled&&!busy)setConfirm({...draft});}}>
-      <fieldset disabled={busy||confirmed||outcome!=="idle"} style={{border:0,padding:0,margin:0,minWidth:0}}>
-        <div className="ho-role-field-row"><label htmlFor={id+"-role"}>Vai trò bổ sung</label><select id={id+"-role"} required value={roleId} onChange={e=>{setRole(e.target.value);setConfirm(null);}}><option value="">Chọn vai trò</option>{roles.map(r=><option key={r.id} value={r.id}>{r.label}</option>)}</select></div>
-        <div className="ho-role-field-row"><label htmlFor={id+"-center"}>Chi nhánh</label><select id={id+"-center"} required value={centerId} onChange={e=>{setCenter(e.target.value);setConfirm(null);}}><option value="">Chọn chi nhánh</option>{centers.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</select></div>
-        <div className="ho-role-field-row"><label htmlFor={id+"-duration"}>Thời hạn</label><select id={id+"-duration"} value={minutes} onChange={e=>{setMinutes(Number(e.target.value) as QaMinutes);setConfirm(null);}}>{QA_MINUTES.map(m=><option key={m} value={m}>{m} phút</option>)}</select></div>
-      </fieldset>
+      <div role="group" aria-label="Thông tin phân công">
+        <div className="ho-role-field-row"><label htmlFor={id+"-role"}>Vai trò bổ sung</label><select id={id+"-role"} disabled={busy||confirmed||outcome!=="idle"} required value={roleId} onChange={e=>{setRole(e.target.value);setConfirm(null);}}><option value="">Chọn vai trò</option>{roles.map(r=><option key={r.id} value={r.id}>{r.label}</option>)}</select></div>
+        <div className="ho-role-field-row"><label htmlFor={id+"-center"}>Chi nhánh</label><select id={id+"-center"} disabled={busy||confirmed||outcome!=="idle"} required value={centerId} onChange={e=>{setCenter(e.target.value);setConfirm(null);}}><option value="">Chọn chi nhánh</option>{centers.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</select></div>
+        <div className="ho-role-field-row"><label htmlFor={id+"-duration"}>Thời hạn</label><select id={id+"-duration"} disabled={busy||confirmed||outcome!=="idle"} value={minutes} onChange={e=>{setMinutes(Number(e.target.value) as QaMinutes);setConfirm(null);}}>{QA_MINUTES.map(m=><option key={m} value={m}>{m} phút</option>)}</select></div>
+      </div>
       <div className="ho-role-actions"><TosButton variant="secondary" type="button" disabled={busy} onClick={onCancel}>Hủy</TosButton><TosButton variant="primary" type="submit" disabled={!enabled||busy||confirmed}>Bổ sung vai trò</TosButton></div>
     </form>
     {confirmed&&enabled&&<div role="alertdialog" aria-label="Xác nhận phân công"><p>{roles.find(r=>r.id===roleId)?.label} · {centers.find(c=>c.id===centerId)?.label} · {minutes} phút. Quyền được bổ sung, không thay thế vai trò cũ.</p><div className="ho-role-confirm-actions"><TosButton variant="secondary" type="button" disabled={busy} onClick={()=>setConfirm(null)}>Quay lại</TosButton><TosButton variant="primary" type="button" disabled={busy} onClick={()=>void assign()}>Xác nhận bổ sung</TosButton></div></div>}
