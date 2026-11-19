@@ -1,7 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
-import {itemDefinition,itemFields,itemQuery,projectItemRow,formatItemAuditTime} from "../app/ho/pinoria/wardrobe/schema";
+import {itemDefinition,itemFields,itemQuery,projectItemRow,formatItemAuditTime,itemProvider,extensionVerifier} from "../app/ho/pinoria/wardrobe/schema";
+import {TddRegistry,authorizedHostActions} from "./workspace-schema";
+import {createHoTddAdapter} from "./workspace-adapters";
 import type {ItemRecord} from "../app/ho/pinoria/wardrobe/item-client";
 
 const audit=["createdAt","createdBy","updatedAt","updatedBy"] as const;
@@ -55,4 +57,31 @@ test("PAP-1700 Drawer uses canonical shared shell, guards writes and preserves e
  assert.doesNotMatch(source,/pino-item-create-form" aria-label="Tạo Item".*hidden/);
  assert.match(host,/authorize\("pinoria.item.manage"\)/);
  assert.match(host,/<SurfaceWorkspace/);
+});
+test("PAP-2200 Wardrobe Create is a single canonical table-header action with existing manage permission",async()=>{
+ const bindings={openCreate:{kind:"navigation" as const,run:()=>undefined}};
+ assert.equal(itemDefinition.capabilities.create,"pinoria.item.manage");
+ for(const manage of [true,false]){
+  const fetcher:typeof fetch=async input=>{
+   assert.equal(new URL(String(input),"https://ho.staging.pinohouse.art").pathname,"/api/bo/context");
+   return Response.json({data:{surface:"BO",entitled:true,userId:"pap2200-synthetic",permissionKeys:["team.bo.access","pinoria.item.view",...(manage?["pinoria.item.manage"]:[])]}});
+  };
+  const adapter=await createHoTddAdapter({origin:"https://ho.staging.pinohouse.art",fetcher,registry:new TddRegistry(extensionVerifier),definition:itemDefinition,provider:itemProvider},new AbortController().signal);
+  try{
+   const {schema,context}=adapter;
+   assert.equal(adapter.capabilities.create,false);
+   assert.equal(adapter.mutation,undefined);
+   assert.deepEqual(authorizedHostActions(schema,context,"table.header",bindings).map(a=>[a.id,a.label,a.variant]),manage?[["item-open-create","Thêm","primary"]]:[]);
+   assert.deepEqual(authorizedHostActions(schema,context,"table.header",{}),[]);
+   assert.deepEqual(authorizedHostActions(schema,context,"detail.header",bindings),[]);
+   assert.deepEqual(authorizedHostActions(schema,context,"drawer.header",bindings),[]);
+  }finally{adapter.dispose();}
+ }
+ const host=readFileSync(new URL("../app/ho/pinoria/wardrobe/HoItemsTdd.tsx",import.meta.url),"utf8");
+ const drawer=readFileSync(new URL("../app/ho/pinoria/wardrobe/HoItemCreate.tsx",import.meta.url),"utf8");
+ assert.match(host,/actionBindings=\{\{openCreate:\{kind:"navigation"/);
+ assert.match(host,/ready\.navigation\.read\(\)\.kind==="table"/);
+ assert.match(host,/createOpen&&ready\.adapter\.context\.authorize\("pinoria.item.manage"\)/);
+ assert.doesNotMatch(drawer,/onClick=\{begin\}|＋ Tạo Item/);
+ assert.match(drawer,/onClose\(\)/);
 });
