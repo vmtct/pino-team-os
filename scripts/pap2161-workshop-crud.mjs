@@ -17,8 +17,20 @@ try {
  await p.locator("#full-detail").click();
  await edit("name",()=>p.locator("#editor-value").fill("Workshop QA edited"));
  assert.ok((await p.locator("body").innerText()).includes("Workshop QA edited"));
+ // PAP-2207: one cancellation action follows all Overview fields on desktop and mobile.
+ const cancel=p.getByRole("button",{name:"H\u1ee7y Workshop",exact:true});
+ assert.equal(await cancel.count(),1);
+ for(const width of [1440,390]){
+  await p.setViewportSize({width,height:900});
+  await cancel.scrollIntoViewIfNeeded();
+  assert.ok(await cancel.evaluate(button=>{
+   const fields=[...document.querySelectorAll(".v24-prop-item")].filter(e=>e.getClientRects().length);
+   return fields.length>0&&fields.every(field=>Boolean(field.compareDocumentPosition(button)&Node.DOCUMENT_POSITION_FOLLOWING)&&field.getBoundingClientRect().bottom<=button.getBoundingClientRect().top+1);
+  }),"Cancel must follow the visible Overview fields at width "+width);
+ }
  p.once("dialog",d=>d.accept());await p.getByRole("button",{name:"Hủy Workshop",exact:true}).click();
  await p.getByText("Đã hủy",{exact:true}).last().waitFor();
  assert.equal(await p.locator("[data-detail-edit]").count(),0);
+ assert.equal(await cancel.count(),0);
  assert.deepEqual(errs,[]); console.log("HO_CREATE_EDIT_CANCEL_PASS");
 }finally{await browser.close();}
