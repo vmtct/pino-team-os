@@ -3,8 +3,9 @@
  * Core Assignment IDs (not Diary child records). Approved card and sheet CSS only.
  */
 import {useCallback,useEffect,useRef,useState} from "react";
-import {FontAwesomeIcon,faBookOpen,faCheck,faRotate,faXmark} from "./classroom-icons";
+import {FontAwesomeIcon,faBookOpen,faCheck,faLock,faRotate,faXmark} from "./classroom-icons";
 import styles from "./classroom.module.css";
+import choiceStyles from "./mission-assignment-choice.module.css";
 import {AppModalRoot,createSlotKeys} from "../tos-ds";
 import {
   startMissionAssignmentTabRead,missionTabReadMessage,
@@ -249,13 +250,13 @@ export default function MissionAssignmentTab({
           </label>
           {shown.length===0&&<p role="status">Không có nhiệm vụ phù hợp.</p>}
           {shown.map(item=>{
-            const rowStyle=!item.available?styles.missionChoiceDisabled:chosen===item.missionId?styles.missionChoiceActive:styles.missionChoice;
-            return <button type="button" className={rowStyle} data-tos-slot={slot(rowStyle)}
+            const rowStyle=!item.available?styles.missionChoice+" "+styles.missionChoiceDisabled:chosen===item.missionId?styles.missionChoiceActive:styles.missionChoice;
+            return <button type="button" className={rowStyle+(!item.available?" "+choiceStyles.lockedCard:"")} data-tos-slot={slot(rowStyle)}
               disabled={busy||!item.available} aria-pressed={chosen===item.missionId} key={item.missionId}
               onClick={()=>{if(item.available)setChosen(item.missionId)}}>
               <div><strong>{item.code} · {item.name}</strong><small>Cấp {item.level}</small>
                 {!item.available&&<em>{describeTosMissionLocks({...item,lockReasons:item.lockReasons.map(({code})=>({code}))}).join(" · ")}</em>}
-              </div><span aria-hidden="true">{!item.available?"🔒":chosen===item.missionId?"◉":"○"}</span>
+              </div><span aria-hidden="true">{!item.available?<FontAwesomeIcon icon={faLock}/>:chosen===item.missionId?"◉":"○"}</span>
             </button>;
           })}
         </>}
