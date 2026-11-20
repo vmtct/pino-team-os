@@ -111,9 +111,10 @@ export async function readGlobalDiaries(fetcher:typeof fetch,centerId:string,loc
  if((centerId&&!diaryUuid.test(centerId))||(localDate!==null&&!validDiaryDay(localDate)))throw Error("Invalid GLOBAL Diary scope");
  const all:CoreHoDiary[]=[],seen=new Set<string>();
  for(let offset=0;offset<400;offset+=100){
-  const q=new URLSearchParams({limit:"100",offset:String(offset)});
+  const q=new URLSearchParams();
   if(localDate)q.set("localDate",localDate);
   if(centerId)q.set("centerId",centerId);
+  q.set("limit","100");q.set("offset",String(offset));
   const value=await readData(fetcher,"/api/ho/learning/path-diaries?"+q.toString(),signal);
   if(!value||typeof value!=="object"||Array.isArray(value))throw Error("Invalid GLOBAL Diary page");
   const p=value as Partial<CoreHoDiaryPage>;
