@@ -9,7 +9,6 @@ import {readSpecialtyV2Detail,readSpecialtyV2List,type SpecialtyV2Detail,type Sp
 import {postSpecialtyGraphCommand} from "@/lib/ho-specialty-v2-graph-client";
 import {specialtyPublishWarnings} from "@/lib/ho-specialty-v2-publish";
 import {ConfirmDialog} from "@pino/design-system/react";
-import styles from "./HoSpecialtyOverviewEdit.module.css";
 import {eligibleSpecialtyPrerequisites,planSpecialtyOverviewEdit,type SpecialtyS5OverviewKey} from "@/lib/ho-specialty-s5-overview";
 import {planSpecialtyMetadataEdit,type SpecialtyMetadataPatch} from "@/lib/ho-specialty-s5-metadata";
 import {putSpecialtyMetadataEdit} from "@/lib/ho-specialty-v2-metadata-client";
@@ -192,11 +191,11 @@ export function HoSpecialtyOverviewEdit({properties,canManage,onSaved}:{
   <PropertySections variant="detail" fields={props.fields} record={props.record} sections={props.sections}
     canEdit={editable} onEdit={(field,anchor)=>{attempt.current=null;setError("");setSelection({field,anchor});}}
     labelWidth={labelWidth} onLabelWidthChange={setLabelWidth}/>
-  {data?.detail.status==="DRAFT"&&canManage?<section className={styles.publishAction} aria-label="Xuất bản Chuyên đề">
+  {data?.detail.status==="DRAFT"&&canManage?<div aria-label="Xuất bản Chuyên đề">
     {data.detail.missionCountDistinct===0?<span>Liên kết ít nhất một Mission trong tab Nhiệm vụ trước khi xuất bản.</span>:null}
     <button type="button" className="primary-btn" disabled={saving||specialtyPublishWarnings(data.detail).length>0}
       onClick={()=>{setError("");setPublishVersion(data.detail.version);}}>Xuất bản</button>
-  </section>:null}
+  </div>:null}
   {!data&&!error?<p role="status">Đang kiểm tra quyền chỉnh sửa và dữ liệu Core…</p>:null}
   {error?<p role="alert">{error} <button type="button" disabled={saving} onClick={()=>{
     setError("");setData(null);setSelection(null);setRetry(n=>n+1);
