@@ -96,21 +96,23 @@ async function readData(fetcher:typeof fetch,path:string,signal:AbortSignal):Pro
  if(!json||typeof json!=="object"||!("data" in json))throw Error("Invalid GLOBAL Diary response");
  return json.data;
 }
-export function hoDiaryQueryForDay(day:string,centerId=""):TableQuery<F>{
- if(!validDiaryDay(day)||(centerId&&!diaryUuid.test(centerId)))throw Error("Valid local date and Center required");
- return {...hoDiaryQuery,filters:{logic:"AND",rules:[{field:"date",op:"eq",value:day},...(centerId?[{field:"center" as const,op:"eq" as const,value:centerId}]:[])]}};
+export function hoDiaryQueryForDay(day="",centerId=""):TableQuery<F>{
+ if((day&&!validDiaryDay(day))||(centerId&&!diaryUuid.test(centerId)))throw Error("Invalid Diary date or Center");
+ return {...hoDiaryQuery,filters:{logic:"AND",rules:[...(day?[{field:"date" as const,op:"eq" as const,value:day}]:[]),...(centerId?[{field:"center" as const,op:"eq" as const,value:centerId}]:[])]}};
 }
-function dayFromQuery(query:TableQuery<F>):string{
+function dayFromQuery(query:TableQuery<F>):string|null{
  const dates=query.filters.rules.filter(r=>r.field==="date");
- if(query.filters.logic!=="AND"||dates.length!==1||dates[0]?.op!=="eq"||typeof dates[0].value!=="string"||
-   !validDiaryDay(dates[0].value))throw Error("Choose a valid Diary day via date filter");
- return dates[0].value;
+ if(query.filters.logic!=="AND"||dates.length>1||(dates.length===1&&
+   (dates[0]?.op!=="eq"||typeof dates[0].value!=="string"||!validDiaryDay(dates[0].value))))
+   throw Error("Invalid Diary date filter");
+ return dates.length?String(dates[0]!.value):null;
 }
-export async function readGlobalDiaries(fetcher:typeof fetch,centerId:string,localDate:string,signal:AbortSignal):Promise<readonly CoreHoDiary[]>{
- if((centerId&&!diaryUuid.test(centerId))||!validDiaryDay(localDate))throw Error("Invalid GLOBAL Diary scope");
+export async function readGlobalDiaries(fetcher:typeof fetch,centerId:string,localDate:string|null,signal:AbortSignal):Promise<readonly CoreHoDiary[]>{
+ if((centerId&&!diaryUuid.test(centerId))||(localDate!==null&&!validDiaryDay(localDate)))throw Error("Invalid GLOBAL Diary scope");
  const all:CoreHoDiary[]=[],seen=new Set<string>();
  for(let offset=0;offset<400;offset+=100){
-  const q=new URLSearchParams({localDate,limit:"100",offset:String(offset)});
+  const q=new URLSearchParams({limit:"100",offset:String(offset)});
+  if(localDate)q.set("localDate",localDate);
   if(centerId)q.set("centerId",centerId);
   const value=await readData(fetcher,"/api/ho/learning/path-diaries?"+q.toString(),signal);
   if(!value||typeof value!=="object"||Array.isArray(value))throw Error("Invalid GLOBAL Diary page");
