@@ -96,7 +96,7 @@ export function BoStudentBirthDateLocalField({ record, centerId }: { record: BoR
     <div className={styles.studentBirthDateValue} role="group" aria-label="Sinh Nhật">
       {fields.map(part => <input className={"edit-input " + styles.studentBirthDateInput} key={part.key}
         type="text" inputMode="numeric" maxLength={part.key === "birthYear" ? 4 : 2} aria-label={part.label} readOnly={Boolean(centerId) && (version === null || saving)}
-        placeholder={part.placeholder} value={parts[part.key]}
+        placeholder={part.placeholder} value={String(parts[part.key])}
         onChange={event => setParts(current => ({ ...current, [part.key]: event.target.value }))} />)}
       {version !== null && <button type="button" className="secondary-btn" disabled={saving} onClick={() => void saveBirth()}>Lưu</button>}
     </div>
