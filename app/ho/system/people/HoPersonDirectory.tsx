@@ -12,7 +12,7 @@ const projection=(r:PersonRow):ModuleRow<PersonFields>=>({id:r.id,personId:r.id,
 const routeId=()=>new URLSearchParams(window.location.search).get("record");
 function setRoute(id:string|null){const u=new URL(window.location.href);if(id)u.searchParams.set("record",id);else u.searchParams.delete("record");window.history.pushState(null,"",u.pathname+u.search);}
 type RecordStatus="ready"|"loading"|"error"|"denied"|"not-found";
-export function HoPersonDirectory({rows,loadState="ready",onRetry,loadDetail,counts}:{rows:PersonRow[];loadState?:string;onRetry?:()=>void;loadDetail?:(id:string,signal:AbortSignal)=>Promise<PersonRow>;counts?:{students:number;staff:number}}){
+export function HoPersonDirectory({rows,loadState="ready",onRetry,loadDetail,counts}:{rows:PersonRow[];loadState?:string;onRetry?:()=>void;loadDetail?:(id:string,signal:AbortSignal)=>Promise<PersonRow>;counts?:{students:number;staff:number;parents?:number}}){
  const menu=useContext(TddHostMenu);
  const [query,setQuery]=useState<TableQuery<PersonFields>>(queryDefault);
  const [selected,setSelected]=useState<string|null>(null),[mode,setMode]=useState<"drawer"|"detail"|null>(null);
@@ -35,7 +35,7 @@ export function HoPersonDirectory({rows,loadState="ready",onRetry,loadDetail,cou
  const common={registry,schema:personSchema,context,record,status,onRetry:()=>{setDetail(null);retry(n=>n+1);}};
  if(denied||loadState==="denied")return <p role="alert">Bạn không có quyền xem Person.</p>;
  return <>
- {counts&&(counts.students>0||counts.staff>0)&&<p role="status">Student: {counts.students} · Staff: {counts.staff} chưa liên kết Person.</p>}
+ {counts&&(counts.students>0||counts.staff>0||(counts.parents??0)>0)&&<p role="status">Student: {counts.students} · Staff: {counts.staff}{counts.parents!==undefined&&<> · Parent: {counts.parents}</>} chưa liên kết Person.</p>}
  <div hidden={mode==="detail"}><TddRenderer view={{kind:"table",mobileMenu:menu("menu-btn"),props:{registry,schema:personSchema,context,rows:rows.map(projection),query,onQueryChange:setQuery,onOpen:open,status:loadState==="ready"?"ready":loadState==="loading"?"loading":"error",onRetry}}}/></div>
  {mode==="drawer"&&selected&&<TddRenderer view={{kind:"drawer",props:{...common,schema:personSchema,onClose:close,onDetail:full}}}/>}
  {mode==="detail"&&selected&&<TddRenderer view={{kind:"detail",props:{...common,schema:personSchema,subject:{type:"person",id:selected},mobileMenu:menu("detail-menu-btn"),onBack:close,returnFocus:()=>opener.current}}}/>}
