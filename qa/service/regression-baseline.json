@@ -1,0 +1,5 @@
+{
+  "schemaVersion": 1,
+  "policy": "AUTOMATION_SCOPE_REGRESSION_ONLY_V1",
+  "suites": []
+}

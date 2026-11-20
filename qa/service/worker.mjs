@@ -3,6 +3,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { openQueue, validateSelection } from "./queue.mjs";
+import { readBaseline, verifyAcceptedSuite } from "./baseline.mjs";
 
 const root=fileURLToPath(new URL("../../",import.meta.url));
 export function expectedGroups(surface,feature="") {
@@ -69,6 +70,7 @@ function main() {
     if(operation==="list") console.log(JSON.stringify(queue.list()));
     else if(operation==="enqueue") {
       expectedGroups(surface,feature);
+      verifyAcceptedSuite(surface,feature,readBaseline().suites);
       const revision=cleanRevision();
       validateSelection(surface,feature,revision);
       console.log(JSON.stringify(queue.enqueue({surface,feature,revision})));

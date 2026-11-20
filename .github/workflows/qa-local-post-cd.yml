@@ -66,11 +66,19 @@ jobs:
       - name: Run offline queue for exact released source
         run: |
           node qa/service/pipeline.mjs "$RUNNER_TEMP/pino-qa-cd/receipt/receipt.json" "$RUNNER_TEMP/pino-qa-cd/run.json" "$RUNNER_TEMP/pino-qa-cd/queue.db" "$RUNNER_TEMP/pino-qa-cd/report.json"
+      - name: Summarize regression-only boundary
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/pino-qa-cd/report.json" ]; then
+            node -e 'const r=require(process.argv[1]); console.log("AUTO_REGRESSION: "+r.state); if(r.state==="NO_ACCEPTED_BASELINE") console.log("No feature was run: no Founder-accepted suite is registered.");' "$RUNNER_TEMP/pino-qa-cd/report.json" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "AUTO_REGRESSION: BLOCKED (no report)" >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Retain local-only QA evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: pap2198-offline-regression-${{ github.event.workflow_run.id }}
           path: ${{ runner.temp }}/pino-qa-cd/report.json
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 7

@@ -31,7 +31,7 @@ or authenticated staging jobs. It calls the existing master with mode local.
     node qa/service/worker.mjs D:\pino-e2e-evidence\qa-local-v1\queue.db work-once
     node qa/service/worker.mjs D:\pino-e2e-evidence\qa-local-v1\queue.db list
 
-Omit feature to select all manifest groups for that surface. A job is pinned
+The initial accepted baseline registry is empty; an enqueue attempt for any feature is rejected until its Founder acceptance is explicitly registered. Omit feature only after a reviewed accepted registry policy supports a surface-wide suite. A job is pinned
 to the clean source's full commit SHA; identical selection and SHA returns
 the existing job, including terminal outcomes. Single offline claim is atomic
 within the same database; this does not lock live QA profiles. An abandoned
@@ -60,3 +60,15 @@ code run only the contract tests. The same pipeline.mjs is usable on a dedicated
 reviewed i5 checkout with actual trusted CD receipt and GitHub run metadata;
 automatic i5 scheduler activation and credentialed Jira callback are not part of
 this increment. No self-hosted runner or authenticated browser is used.
+
+### Founder-accepted regression baseline
+
+Feature manifests define executable engineering tests; they do NOT authorize
+automatic feature regression. The observer and local worker may select only
+entries in regression-baseline.json, each with an explicit Founder acceptance
+Jira comment reference and timestamp. The initial registry is intentionally
+empty. Until an accepted suite is added, post-CD output is
+NO_ACCEPTED_BASELINE (not PASS, FAIL, G4, M4 or feature acceptance). New
+feature/first-use/UX/business QA remains Founder manual. Add a baseline entry
+only after scope-equivalent Founder acceptance and explicit review of the
+exact test paths. AUTO_REGRESSION and TECHNICAL_GATE receipts remain separate.

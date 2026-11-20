@@ -2,10 +2,9 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { isAbsolute, resolve, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { openQueue } from "./queue.mjs";
+import { readBaseline, validateBaseline, verifyAcceptedSuite } from "./baseline.mjs";
 import { cleanRevision, expectedGroups, executeClaim, runLocal } from "./worker.mjs";
-
 const root=fileURLToPath(new URL("../../",import.meta.url));
-const surfaces=["ho","bo","tos"];
 export function validateRelease(receipt,run,revision) {
   const sha=/^[a-f0-9]{40}$/;
   const uuid=/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i;
@@ -24,25 +23,29 @@ export function validateRelease(receipt,run,revision) {
       !uuid.test(receipt.coreVersion??"")) throw Error("CD_RECEIPT_NOT_ADMITTED");
   return {revision,cdRunId:run.id,teamVersion:receipt.activeVersionId,coreVersion:receipt.coreVersion};
 }
-export function runBatch(queue,release,executor) {
-  const selected=surfaces.map(surface=>queue.enqueue({surface,revision:release.revision}));
+export function runBatch(queue,release,executor,baseline=readBaseline(),verify=verifyAcceptedSuite) {
+  const suites=validateBaseline(baseline);
+  if(!suites.length) return {kind:"PAP2198_OFFLINE_REGRESSION",evidence:"AUTO_REGRESSION",
+    state:"NO_ACCEPTED_BASELINE",...release,jobs:[],skipped:"No Founder-accepted regression suites are registered."};
+  try { for(const suite of suites) verify(suite.surface,suite.feature,suites); } catch(error) { return {kind:"PAP2198_OFFLINE_REGRESSION",evidence:"AUTO_REGRESSION",state:"BASELINE_DRIFT",...release,jobs:[],reason:error.message}; }
+  const selected=suites.map(({surface,feature})=>queue.enqueue({surface,feature,revision:release.revision}));
   const ids=new Set(selected.map(job=>job.id));
   let rows=queue.list();
-  if(rows.length!==3||rows.some(job=>!ids.has(job.id)||job.state==="RUNNING")) throw Error("QUEUE_NOT_EXCLUSIVE");
-  for(let i=0;i<3;i++) {
+  if(rows.length!==selected.length||rows.some(job=>!ids.has(job.id)||job.state==="RUNNING")) throw Error("QUEUE_NOT_EXCLUSIVE");
+  for(let i=0;i<selected.length;i++) {
     const job=queue.claim();
     if(!job) break;
     if(!ids.has(job.id)) throw Error("UNEXPECTED_JOB");
     executor(queue,job);
   }
   rows=queue.list();
-  const jobs=surfaces.map(surface=>{
-    const row=rows.find(job=>job.surface===surface);
+  const jobs=suites.map(suite=>{
+    const row=rows.find(job=>job.surface===suite.surface&&job.feature===suite.feature);
     if(!row||!row.receipt||!["PASS","FAIL","BLOCKED","INVALIDATED"].includes(row.state)) throw Error("INCOMPLETE_BATCH");
-    return {surface,state:row.state,receipt:JSON.parse(row.receipt)};
+    return {...suite,state:row.state,receipt:JSON.parse(row.receipt)};
   });
-  if(rows.length!==3||jobs.some(j=>j.receipt.revision!==release.revision||j.receipt.evidence!=="LOCAL_ONLY")) throw Error("INVALID_BATCH_RECEIPT");
-  return {kind:"PAP2198_OFFLINE_REGRESSION",evidence:"LOCAL_ONLY",...release,
+  if(rows.length!==selected.length||jobs.some(j=>j.receipt.revision!==release.revision||j.receipt.evidence!=="LOCAL_ONLY")) throw Error("INVALID_BATCH_RECEIPT");
+  return {kind:"PAP2198_OFFLINE_REGRESSION",evidence:"AUTO_REGRESSION",...release,
     state:jobs.every(j=>j.state==="PASS")?"PASS":jobs.some(j=>["BLOCKED","INVALIDATED"].includes(j.state))?"BLOCKED":"FAIL",jobs};
 }
 function external(path) {
@@ -61,8 +64,8 @@ function main() {
   try {
     const result=runBatch(queue,release,(q,j)=>executeClaim(q,j,{revision:cleanRevision,groups:expectedGroups,run:runLocal}));
     writeFileSync(outputs[1],JSON.stringify(result,null,2)+"\n",{flag:"wx"});
-    console.log(JSON.stringify({state:result.state,revision:release.revision,cdRunId:release.cdRunId,surfaces:result.jobs.map(j=>({surface:j.surface,state:j.state,groups:j.receipt.groups.length}))}));
-    if(result.state!=="PASS") process.exitCode=1;
+    console.log(JSON.stringify({state:result.state,evidence:result.evidence,revision:release.revision,cdRunId:release.cdRunId,suites:result.jobs.map(j=>({surface:j.surface,feature:j.feature,state:j.state}))}));
+    if(["FAIL","BLOCKED","BASELINE_DRIFT"].includes(result.state)) process.exitCode=1;
   } finally {queue.close();}
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)) main();
