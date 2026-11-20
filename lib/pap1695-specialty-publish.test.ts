@@ -33,7 +33,7 @@ void describe("PAP-1695 S1P HO DSA inline Publish",()=>{
  });
  void it("disables invalid Level/Mission prerequisite combinations without inventing server Mission authority",()=>{
   assert.deepEqual(specialtyPublishWarnings(draft,[]),[]);
-  assert.match(specialtyPublishWarnings({...draft,missionCountDistinct:0,levels:[{...draft.levels[0]!,missionIds:[]}]},[]).join(" "),/chưa liên kết nhiệm vụ/);
+  assert.match(specialtyPublishWarnings({...draft,missionCountDistinct:0,levels:[{...draft.levels[0]!,missionIds:[]}]},[]).join(" "),/Liên kết ít nhất một Nhiệm vụ trước khi xuất bản\./);
   const wrong:SpecialtyV2Summary={...active,id:id(5),pathProgramId:id(6)};
   assert.match(specialtyPublishWarnings({...draft,prerequisiteIds:[id(5)]},[wrong]).join(" "),/Tiên quyết/);
   const inactive:SpecialtyV2Summary={...draft,id:id(5)};
