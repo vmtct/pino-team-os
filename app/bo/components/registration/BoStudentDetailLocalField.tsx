@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { studentCenterApi } from "@/lib/bo-student-center-api";
 import { studentBirthProfilePatch } from "@/lib/bo-student-birth-profile";
 import { BoApiError } from "@/lib/bo-api-error";
-import styles from "./BoStudentDetailLocalField.module.css";
 import { BoTypedEditor } from "./BoTypedEditor";
 import { BoValue } from "./BoValue";
 import type { BoField, BoRecord, BoValue as BoFieldValue } from "@/lib/bo-registration";
@@ -93,8 +92,8 @@ export function BoStudentBirthDateLocalField({ record, centerId }: { record: BoR
 
   return <div className="v24-prop-item" data-student-detail-field="birthDate">
     <div className="v24-prop-key"><span className="v24-field-glyph">#</span>Sinh Nhật</div>
-    <div className={styles.studentBirthDateValue} role="group" aria-label="Sinh Nhật">
-      {fields.map(part => <input className={"edit-input " + styles.studentBirthDateInput} key={part.key}
+    <div style={{display: "grid", gridTemplateColumns: "repeat(3, 8ch) max-content", gap: 8}} role="group" aria-label="Sinh Nhật">
+      {fields.map(part => <input className="edit-input" style={{width: "100%", minWidth: 0}} key={part.key}
         type="text" inputMode="numeric" maxLength={part.key === "birthYear" ? 4 : 2} aria-label={part.label} readOnly={Boolean(centerId) && (version === null || saving)}
         placeholder={part.placeholder} value={String(parts[part.key])}
         onChange={event => setParts(current => ({ ...current, [part.key]: event.target.value }))} />)}

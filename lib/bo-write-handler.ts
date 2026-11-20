@@ -202,7 +202,7 @@ export async function handleBoWriteRequest(
       && !(request.method === "PUT" && (WARD_SET_WRITE.test(path) || WARD_LEARNER_WRITE.test(path) || PINORIA_ONBOARDING_SET_WRITE.test(path) || PINORIA_WORLD_WRITE.test(path) || MISSION_CATALOG_UPDATE.test(path)))
       && !(request.method === "DELETE" && (PINORIA_ONBOARDING_GRANT_WRITE.test(path) || PINORIA_WORLD_WRITE.test(path)))
     ) return json({ error: { code: "PLATFORM_METHOD_NOT_ALLOWED", message: "Method not allowed" } }, 405);
-    if (!isAllowedPostPath(path) && !(request.method === "PATCH" && (RUNNING_CLASS_PATCH.test(path) || STUDENT_PROFILE_PATCH.test(path) || PARENT_NAME_PATCH.test(path) || STUDENT_GENDER_PATCH.test(path) || STUDENT_BIRTH_PATCH.test(path)))) return json({ error: { code: "PLATFORM_NOT_FOUND", message: "BO operation not found" } }, 404);
+    if (!isAllowedPostPath(path) && !(request.method === "PATCH" && (RUNNING_CLASS_PATCH.test(path) || STUDENT_PROFILE_PATCH.test(path) || PARENT_NAME_PATCH.test(path) || STUDENT_GENDER_PATCH.test(path))) && !(request.method === "PATCH" && STUDENT_BIRTH_PATCH.test(path))) return json({ error: { code: "PLATFORM_NOT_FOUND", message: "BO operation not found" } }, 404);
 
     const credential = await teamCredential(request, env, "BO");
 
