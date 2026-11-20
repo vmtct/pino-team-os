@@ -9,18 +9,18 @@ import {browserTddNavigation,type AdapterNavigation} from "@/lib/workspace-adapt
 import {TddRegistry} from "@/lib/workspace-schema";
 import {SurfaceWorkspace} from "@/app/components/workspace-adapters/SurfaceWorkspace";
 import {HoWorkspace} from "@/app/ho/HoWorkspace";
-import {hoDiaryDefinition,hoDiaryFields,hoDiaryProvider,hoDiaryQueryForDay,localDayToday,validDiaryDay} from "./schema";
+import {hoDiaryDefinition,hoDiaryFields,hoDiaryProvider,hoDiaryQueryForDay} from "./schema";
 
 type F=typeof hoDiaryFields;
 type Ready={adapter:AuthenticatedSurfaceAdapter<F>;navigation:AdapterNavigation<F>};
 export function HoDiariesTdd(){
  const [center,setCenter]=useState("");
- const [day,setDay]=useState(localDayToday);
+ const [day,setDay]=useState("");
  const [centers,setCenters]=useState<readonly BoCenter[]>([]);
  const [error,setError]=useState("");
  const [retry,setRetry]=useState(0);
  const [ready,setReady]=useState<Ready|null>(null);
- const query=useMemo(()=>validDiaryDay(day)?hoDiaryQueryForDay(day,center):null,[day,center]);
+ const query=useMemo(()=>hoDiaryQueryForDay(day,center),[day,center]);
  useEffect(()=>{
   let live=true;
   void boApi.centers().then(data=>{if(live)setCenters(data)}).catch(()=>{
@@ -29,7 +29,6 @@ export function HoDiariesTdd(){
   return ()=>{live=false};
  },[]);
  useEffect(()=>{
-  if(!query)return;
   const controller=new AbortController();let adapter:AuthenticatedSurfaceAdapter<F>|null=null;
   void createHoTddAdapter({registry:new TddRegistry(),definition:hoDiaryDefinition,
      provider:hoDiaryProvider},controller.signal)
@@ -50,8 +49,7 @@ export function HoDiariesTdd(){
    <input id="ho-diary-day" type="date" value={day}
     onChange={e=>{setDay(e.target.value);setReady(null);setError("")}}/>
   </div>
-  {!query?<p role="alert">Chọn ngày học hợp lệ.</p>:
-   error?<p role="alert">{error} <button type="button" onClick={()=>{setError("");setReady(null);setRetry(n=>n+1)}}>Thử lại</button></p>:
+  {error?<p role="alert">{error} <button type="button" onClick={()=>{setError("");setReady(null);setRetry(n=>n+1)}}>Thử lại</button></p>:
    ready?<><SurfaceWorkspace key={center+":"+day} adapter={ready.adapter}
      navigation={ready.navigation} initialQuery={query}/>
    </>:

@@ -29,8 +29,8 @@ test("PAP-1220 day selection uses VN local calendar and rejects invalid dates",(
 });
 test("PAP-1220 source truthful: no linked Mission/Result, no fabricated Student/Submitter name",()=>{
  const projected=projectDiary(row);
- assert.equal(projected.student,row.studentId);
- assert.equal(projected.submitter,row.registeredByUserId);
+ assert.equal(projected.student,"Học viên");
+ assert.equal(projected.submitter,"Nhân viên");
  assert.equal(projected.mission,"Chưa xác minh liên kết");
  assert.equal(projected.missionCompleted,"Chưa xác nhận");
  assert.equal(projected.date,"2026-10-31");

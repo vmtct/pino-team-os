@@ -51,7 +51,7 @@ export const diaryDefinition={
 export type DiaryViewRow=ModuleRow<F>;
 type CoreDiary={
  id:string;centerId:string;studentId:string;teachingContextKey:string;pathKey:string;runningClassId:string|null;
- registeredByUserId:string;registeredAt:string;status:"REGISTERED"|"CLOSED";notes:string|null;interest:number|null;
+ registeredByUserId:string;studentDisplayName?:string;runningClassDisplayName?:string;centerDisplayName?:string;registeredByDisplayName?:string;registeredAt:string;status:"REGISTERED"|"CLOSED";notes:string|null;interest:number|null;
  difficulty:string|null;updatedAt:string;version:number;
 };
 type CoreDiaryPage={centerId:string;localDate:string;diaries:CoreDiary[];hasMore:boolean;limit:number;offset:number};
@@ -91,11 +91,11 @@ export function projectDiary(value:CoreDiary,mission="Chưa xác minh liên kế
  // PAP-1342: Caller supplies source-owned association; Mission Result remains separate.
  // Never infer links from Student/date/path/legacy mission children or Diary CLOSED.
  const d=value.teachingContextKey.slice(-10);
- return {id:value.id,student:value.studentId,mission,
+ return {id:value.id,student:value.studentDisplayName??'Học viên',mission,
   date:validDiaryDay(d)?d:value.registeredAt.slice(0,10),
-  className:value.runningClassId??value.teachingContextKey,
-  submitter:value.registeredByUserId,status:value.status==="CLOSED"?"Đã đóng":"Đã ghi nhận",
-  diaryCode:value.id,center:value.centerId,notes:value.notes??"—",interest:value.interest===null?"Chưa xác nhận":String(value.interest),
+  className:value.runningClassDisplayName??'Buổi học',
+  submitter:value.registeredByDisplayName??'Nhân viên',status:value.status==="CLOSED"?"Đã đóng":"Đã ghi nhận",
+  diaryCode:value.id,center:value.centerDisplayName??'Center',notes:value.notes??"—",interest:value.interest===null?"Chưa xác nhận":String(value.interest),
   difficulty:value.difficulty??"—",updatedAt:value.updatedAt,missionCompleted:"Chưa xác nhận"};
 }
 async function readPage(fetcher:typeof fetch,centerId:string,localDate:string,offset:number,signal:AbortSignal):Promise<CoreDiaryPage>{
