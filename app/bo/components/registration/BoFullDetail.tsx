@@ -107,7 +107,7 @@ export function BoFullDetail({
 
                 </div>
                 <div className="v24-prop-grid">
-                  {module.fields.filter(field => moduleKey !== "students" || !isStudentHouseMemberField(field)).map(field => moduleKey === "students" && field.key === "birthDay"
+                  {module.fields.filter(field => moduleKey !== "students" || !isStudentHouseMemberField(field)).map(field => moduleKey === "students" && field.key === (module.fields.some(candidate => candidate.key === "birthDay") ? "birthDay" : "birthYear")
                     ? <BoStudentBirthDateLocalField key={record.id + ":birthDate:" + centerId + ":" + centerReady} record={record} centerId={!reviewOnly && centerReady ? centerId : ""} />
                     : moduleKey === "students" && ["birthMonth", "birthYear"].includes(field.key)
                       ? null

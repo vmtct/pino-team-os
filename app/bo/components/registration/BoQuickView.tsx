@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { DrawerFrame } from "@/app/components/workspace-renderer/DrawerFrame";
 import { PropertySections } from "@/app/components/workspace-renderer/Properties";
+import { BoStudentBirthDateLocalField } from "./BoStudentDetailLocalField";
+import { useBoCenterSelection } from "./BoCenterSelection";
 import { BoTypedEditor } from "./BoTypedEditor";
 import { BoParentReadTabs } from "./BoParentReadTabs";
 import { BoWorkforceAssignmentNoteEditor } from "./BoWorkforceAssignmentNoteEditor";
@@ -31,7 +33,9 @@ export function BoQuickView({ module, record, onClose, onDetail, hideDetailActio
   const [draft, setDraft] = useState<BoRecord>({ id: "", name: "" });
   const [error, setError] = useState("");
   const [edit, setEdit] = useState<{ field: BoField; anchor: HTMLElement } | null>(null);
-  const fields = create && !record ? create.fields ?? module.fields : module.fields;
+  const center = useBoCenterSelection();
+  const student = moduleKey === "students" ? record : null;
+  const fields = student ? module.fields.filter(field => !["birthDay", "birthMonth", "birthYear"].includes(field.key)) : create && !record ? create.fields ?? module.fields : module.fields;
   const row = record ?? create?.draft ?? draft;
   const original = edit ? row[edit.field.key] : undefined;
   const projected = edit ? create?.editorValue?.(edit.field, original) : undefined;
@@ -54,6 +58,7 @@ export function BoQuickView({ module, record, onClose, onDetail, hideDetailActio
           onEdit={(field, anchor) => setEdit({
             field: create?.editorField ? create.editorField(field) : { ...field, readonly: false }, anchor
           })} />}
+    {student && <BoStudentBirthDateLocalField key={student.id + ":" + (center?.selected ?? "")} record={student} centerId={center?.selected ?? ""} readOnly />}
     {extraSection ?? (!legacyStyles && moduleKey === "workforce-assignments" && record
       ? <BoWorkforceAssignmentNoteEditor record={record} onSaved={() => window.location.reload()} /> : null)}
     {detailLoading ? <p role="status" className="settings-hint">Đang tải chi tiết…</p>

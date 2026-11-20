@@ -20,7 +20,7 @@ export function studentEditableKind(field: BoField): EditableKind | null {
   return null;
 }
 
-export function BoStudentBirthDateLocalField({ record, centerId }: { record: BoRecord; centerId: string }) {
+export function BoStudentBirthDateLocalField({ record, centerId, readOnly = false }: { record: BoRecord; centerId: string; readOnly?: boolean }) {
   const [parts, setParts] = useState({
     birthDay: record.birthDay ?? "",
     birthMonth: record.birthMonth ?? "",
@@ -39,7 +39,7 @@ export function BoStudentBirthDateLocalField({ record, centerId }: { record: BoR
     if (!centerId) return;
     let active = true;
     void Promise.all([
-      studentCenterApi.birthEditCapability(centerId),
+      readOnly ? Promise.resolve(false) : studentCenterApi.birthEditCapability(centerId),
       studentCenterApi.learnerLifecycle(record.id, centerId),
     ]).then(([allowed, {student}]) => {
       if (!active || student.id !== record.id) return;
@@ -49,7 +49,7 @@ export function BoStudentBirthDateLocalField({ record, centerId }: { record: BoR
       if (active) setMessage("Không thể tải quyền sửa hoặc ngày sinh.");
     });
     return () => { active = false; };
-  }, [centerId, record.id]);
+  }, [centerId, record.id, readOnly]);
 
   async function saveBirth() {
     if (!centerId || version === null || busy.current) return;
@@ -94,7 +94,7 @@ export function BoStudentBirthDateLocalField({ record, centerId }: { record: BoR
     <div className="v24-prop-key"><span className="v24-field-glyph">#</span>Sinh Nhật</div>
     <div style={{display: "grid", gridTemplateColumns: "repeat(3, 8ch) max-content", gap: 8}} role="group" aria-label="Sinh Nhật">
       {fields.map(part => <input className="edit-input" style={{width: "100%", minWidth: 0}} key={part.key}
-        type="text" inputMode="numeric" maxLength={part.key === "birthYear" ? 4 : 2} aria-label={part.label} readOnly={Boolean(centerId) && (version === null || saving)}
+        type="text" inputMode="numeric" maxLength={part.key === "birthYear" ? 4 : 2} aria-label={part.label} readOnly={readOnly || (Boolean(centerId) && (version === null || saving))}
         placeholder={part.placeholder} value={String(parts[part.key])}
         onChange={event => setParts(current => ({ ...current, [part.key]: event.target.value }))} />)}
       {version !== null && <button type="button" className="secondary-btn" disabled={saving} onClick={() => void saveBirth()}>Lưu</button>}
