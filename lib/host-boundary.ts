@@ -254,7 +254,7 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   // PAP-1932 / SCH-STUDENT-MGMT: narrow gender PATCH ingress. BO BFF and Core
   // independently enforce selected-Center authorization, CAS, and audit.
   // No other Student descendants or host/verb combinations are admitted.
-  const studentGenderEdit = /^\/api\/bo\/students\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/gender$/.test(pathname);
+  const studentGenderEdit = /^\/api\/bo\/students\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/(?:gender|birth-profile)$/.test(pathname);
   if (studentGenderEdit) {
     return hostname === BO_STAGING_HOSTNAME && method === "PATCH" ? { action: "next" } : { action: "not_found" };
   }

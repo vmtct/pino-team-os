@@ -761,6 +761,7 @@
         "lib/pap1526-bo-bill-table.test.ts"
       ],
       "externalReferences": [
+        {"file":"lib/bo-student-center-api.ts","owner":"PAP-2219"},
         {"file":"app/bo/architecture/bo-unified-workspace-source.ts","owner":"PAP-1421"},
         {"file":"app/bo/components/registration/BoRuntimeBoundary.tsx","owner":"PAP-1407"},
         {"file":"lib/host-boundary.ts","owner":"PAP-1220"},

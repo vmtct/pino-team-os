@@ -2,6 +2,7 @@
 // Intentionally separate from the shared bo-api.ts TDD admission fence.
 import type { BoLearnerDirectoryItem, BoLearnerLifecycle } from "./bo-model";
 import { BoApiError } from "./bo-api-error";
+import type { StudentBirthProfilePatch } from "./bo-student-birth-profile";
 
 type Envelope<T>={data?:T;error?:{message?:string;requestId?:string}};
 function scopeCenter(centerId:string):string {
@@ -42,6 +43,19 @@ export const studentCenterApi={
     return requestData<{id:string;displayName:string;status:"ACTIVE"|"INACTIVE"|"ARCHIVED";version:number}>(
       `students/${encodeURIComponent(studentId)}?centerId=${scopeCenter(centerId)}`,
       {method:"PATCH",headers:{"content-type":"application/json","idempotency-key":crypto.randomUUID()},body:JSON.stringify(body)},
+      fetcher
+    );
+  },
+  birthEditCapability: async (centerId: string) => {
+    const data = await requestData<{studentBirthProfileEditAllowed?: boolean}>(
+      `context?centerId=${scopeCenter(centerId)}`
+    );
+    return data.studentBirthProfileEditAllowed === true;
+  },
+  updateBirthProfile:(studentId:string,body:StudentBirthProfilePatch,centerId:string,fetcher?:typeof fetch)=>{
+    return requestData<BoLearnerLifecycle["student"]>(
+      `students/${encodeURIComponent(studentId)}/birth-profile?centerId=${scopeCenter(centerId)}`,
+      {method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify(body)},
       fetcher
     );
   },
