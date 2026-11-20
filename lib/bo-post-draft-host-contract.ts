@@ -8,6 +8,7 @@ export function postDraftHostDecision(host:string,path:string,method:string):"ne
  if(host!=="bo.staging.pinohouse.art")return "not_found";
  if(path===PAGE)return method==="GET"||method==="HEAD"?"next":"not_found";
  if(path===BASE)return method==="GET"||method==="POST"?"next":"not_found";
+ if(path===BASE+"/student-options")return method==="GET"?"next":"not_found";
  const media=MEDIA.exec(path);if(media){const operation=media[1];return (method==="GET"&&(!operation||operation==="preview"))||(method==="POST"&&operation!=="preview")?"next":"not_found";}
  if(DETAIL.test(path))return method==="GET"||method==="PATCH"?"next":"not_found";
  return "not_found";

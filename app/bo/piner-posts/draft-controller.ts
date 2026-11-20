@@ -3,7 +3,6 @@
  * Core is final authorization and transaction authority. Never use for LAN fixtures. */
 import {coreDraftClient,CoreDraftRequestError,type CoreDraftRow} from "./core-draft-client";
 import {draftDigest,type DraftRetryJournal,type DraftRetryReceipt} from "./draft-retry-journal";
-import {readCenterStudents} from "@/lib/bo-mission-assignment-options";
 export type DraftCapability="piner.post.view"|"piner.post.create"|"piner.post.edit";
 export type DraftActorScope={actorId:string;centerId:string;authorize:(permission:DraftCapability)=>boolean};
 type Command={kind:"create";studentId:string;caption:string}|{kind:"edit";postId:string;expectedVersion:number;caption:string};
@@ -55,7 +54,7 @@ export function createDraftController(initial:DraftActorScope,current:()=>DraftA
   centerId,
   async list(signal:AbortSignal,beforeId?:string){guard("piner.post.view",signal);const page=await api.list(signal,beforeId);guard("piner.post.view",signal);return page;},
   async detail(postId:string,signal:AbortSignal){guard("piner.post.view",signal);const row=await api.detail(postId,signal);guard("piner.post.view",signal);return row;},
-  async searchStudents(query:string,signal:AbortSignal){guard("piner.post.create",signal);const result=await readCenterStudents(fetcher,centerId,query,signal);guard("piner.post.create",signal);return {...result,items:result.items.filter(row=>row.status.toUpperCase()==="ACTIVE")};},
+  async studentOptions(signal:AbortSignal,beforeId?:string,limit=100){guard("piner.post.create",signal);const result=await api.studentOptions(signal,beforeId,limit);guard("piner.post.create",signal);return result;},
   createDraft(studentId:string,caption:string,signal:AbortSignal){return execute({kind:"create",studentId,caption},signal);},
   editCaption(postId:string,expectedVersion:number,caption:string,signal:AbortSignal){return execute({kind:"edit",postId,expectedVersion,caption},signal);},
   hasUnresolvedCommand(){return pending!==null;},

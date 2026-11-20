@@ -16,9 +16,9 @@ async function readBody(request:Request){
 }
 export async function handleBoPostDraftRequest(request:Request,env:BoPostDraftEnv,path:string):Promise<Response>{
  try{
-  const url=new URL(request.url),isDetail=detail.test(path),method=request.method;
-  if(env.APP_ENV!=="staging"||url.origin!=="https://"+BO_STAGING_HOSTNAME||url.pathname!=="/api/bo/"+path||(!isDetail&&path!==base))return failure(404,"PLATFORM_NOT_FOUND");
-  if(method!=="GET"&&!(method==="POST"&&!isDetail)&&!(method==="PATCH"&&isDetail))return failure(405,"PLATFORM_METHOD_NOT_ALLOWED");
+  const url=new URL(request.url),isDetail=detail.test(path),studentOptions=path===base+"/student-options",method=request.method;
+  if(env.APP_ENV!=="staging"||url.origin!=="https://"+BO_STAGING_HOSTNAME||url.pathname!=="/api/bo/"+path||(!isDetail&&!studentOptions&&path!==base))return failure(404,"PLATFORM_NOT_FOUND");
+  if(method!=="GET"&&!(method==="POST"&&!isDetail&&!studentOptions)&&!(method==="PATCH"&&isDetail))return failure(405,"PLATFORM_METHOD_NOT_ALLOWED");
   const allowed=method==="GET"&&!isDetail?["centerId","limit","beforeId"]:["centerId"];
   for(const k of url.searchParams.keys())if(!allowed.includes(k)||url.searchParams.getAll(k).length!==1)throw new BadInput();
   const centerId=requireId(url.searchParams.get("centerId")),query=new URLSearchParams({centerId});

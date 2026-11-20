@@ -62,7 +62,11 @@ function ScopedDraft({session,centerLabel}:{session:NativeDraftSession;centerLab
  const open=(id:string)=>{if(active.current)return;navigation.capture(id);move("drawer",id);};
  const create=()=>{if(active.current||!session.canCreate())return;setDraft(blank(centerLabel));perform(async signal=>{const data=await session.studentChoices(signal);signal.throwIfAborted();setChoices(data);});};
  const change=(key:string,value:BoValue)=>{if(key==="name"||key==="caption"){setDraft(old=>old?{...old,[key]:String(value??"")}:old);setError("");}};
- const submit=()=>{if(!draft||!session.canCreate())return;const student=resolveStudent(choices,draft.name);if(!student){setError("Chọn học viên có định danh duy nhất.");return;}perform(async signal=>{const row=await controller.createDraft(student.id,String(draft.caption??""),signal);signal.throwIfAborted();setReload(n=>n+1);move("drawer",row.id);});};
+ const submit=()=>{if(!draft||!session.canCreate())return;const student=resolveStudent(choices,draft.name);if(!student){setError("Chọn học viên có định danh duy nhất.");return;}perform(async signal=>{try{const row=await controller.createDraft(student.id,String(draft.caption??""),signal);signal.throwIfAborted();setReload(n=>n+1);move("drawer",row.id);}
+ catch(e){if(e instanceof CoreDraftRequestError&&e.status===404&&e.operation==="create"&&!controller.hasUnresolvedCommand()){
+  setChoices([]);setDraft(old=>old?{...old,name:""}:old);
+  try{const fresh=await session.studentChoices(signal);signal.throwIfAborted();setChoices(fresh);}catch{signal.throwIfAborted();}
+ }throw e;}});};
  const saved=(row:Row,version:string)=>{if(!record||record.id!==row.id||typeof row.name!=="string"||!row.name.trim())return;const nextVersion=Number(version),mediaCount=row.mediaCount;if(!Number.isSafeInteger(nextVersion)||nextVersion<=record.version||typeof mediaCount!=="number"||!Number.isSafeInteger(mediaCount)||mediaCount<0||mediaCount>5)return;setDetailResult({id:record.id,generation:recordRetry,record:{...record,...row,name:row.name,version:nextVersion,mediaCount},status:"ready"});setReload(n=>n+1);};
  const updateQuery=(query:TableQuery<DraftFields>)=>navigation.change({...position,query},true);
  const visibleRecord=record?.id===selected&&recordStatus==="ready"?record:null;

@@ -3,6 +3,7 @@
 import type {PostShellRow} from "./data-port";
 export type CoreDraftRow=PostShellRow & {readonly studentId:string;readonly centerId:string;readonly version:number;readonly mediaCount:number};
 type Page={rows:readonly CoreDraftRow[];nextBeforeId:string|null};
+export type DraftStudentOption={id:string;displayName:string;birthYear:number|null};
 type Write={row:CoreDraftRow;committedVersion:number;replayed:boolean};
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 function id(x:unknown):string{if(typeof x!=="string"||!uuid.test(x))throw Error("Định danh không hợp lệ.");return x;}
@@ -19,19 +20,19 @@ function projection(raw:unknown,centerId:string):CoreDraftRow{
  return {id:recordId,studentId,centerId:center,version:version(r.version),name:text(r.studentName),caption:text(r.caption),author:"PINO Afterschool",status:"Nháp",center:text(r.centerName),source:"Chưa có",mediaCount,commentCount:0,createdAt:instant(r.createdAt),updatedAt:instant(r.updatedAt),createdBy:label(r.createdBy),updatedBy:label(r.updatedBy)};
 }
 export class CoreDraftRequestError extends Error{
- constructor(readonly status:number){super(({401:"Phiên đăng nhập đã hết hạn.",403:"Bạn không có quyền với Post này.",404:"Không tìm thấy Post trong cơ sở.",409:"Post đã thay đổi. Tải lại trước khi cập nhật."} as Record<number,string>)[status]??"Không thể tải hoặc lưu Post.");}
+ constructor(readonly status:number,readonly operation?:"create"){super(status===404&&operation==="create"?"Không thể tạo Post cho học viên tại cơ sở đã chọn. Vui lòng kiểm tra lại học viên.":({401:"Phiên đăng nhập đã hết hạn.",403:"Bạn không có quyền với Post này.",404:"Không tìm thấy Post trong cơ sở.",409:"Post đã thay đổi. Tải lại trước khi cập nhật."} as Record<number,string>)[status]??"Không thể tải hoặc lưu Post.");}
 }
 export function coreDraftClient(centerId:string,fetcher:typeof fetch=fetch){
  id(centerId);
  const base="/api/bo/learning/piner-posts";
- async function request(method:"GET"|"POST"|"PATCH",signal:AbortSignal,opts:{postId?:string;params?:Record<string,string>;body?:object;idempotencyKey?:string}={}){
+ async function request(method:"GET"|"POST"|"PATCH",signal:AbortSignal,opts:{postId?:string;studentOptions?:boolean;params?:Record<string,string>;body?:object;idempotencyKey?:string}={}){
   signal.throwIfAborted();const q=new URLSearchParams({centerId,...opts.params});
-  const url=base+(opts.postId?"/"+id(opts.postId):"")+"?"+q.toString();
+  const url=base+(opts.studentOptions?"/student-options":opts.postId?"/"+id(opts.postId):"")+"?"+q.toString();
   const headers=new Headers({Accept:"application/json"});
   if(opts.body)headers.set("Content-Type","application/json");
   if(opts.idempotencyKey!==undefined)headers.set("Idempotency-Key",key(opts.idempotencyKey));
   const response=await fetcher(url,{method,signal,headers,cache:"no-store",credentials:"same-origin",redirect:"error",...(opts.body?{body:JSON.stringify(opts.body)}:{})});
-  signal.throwIfAborted();if(!response.ok)throw new CoreDraftRequestError(response.status);
+  signal.throwIfAborted();if(!response.ok)throw new CoreDraftRequestError(response.status,method==="POST"?"create":undefined);
   const result=obj(await response.json()).data;signal.throwIfAborted();return result;
  }
  function write(raw:unknown,expectedPost?:string,expectedStudent?:string):Write{
@@ -48,6 +49,15 @@ export function coreDraftClient(centerId:string,fetcher:typeof fetch=fetch){
    const rows=data.posts.map(r=>projection(r,centerId)),nextBeforeId=data.nextBeforeId===null?null:id(data.nextBeforeId);
    if(new Set(rows.map(r=>r.id)).size!==rows.length||(nextBeforeId!==null&&nextBeforeId!==rows.at(-1)?.id)||rows.some((r,i)=>i>0&&r.id>=rows[i-1]!.id)||beforeId&&rows.some(r=>r.id>=beforeId))throw Error("Phân trang Post không hợp lệ.");
    return {rows,nextBeforeId};
+  },
+  async studentOptions(signal:AbortSignal,beforeId?:string,limit=100){
+   if(!Number.isSafeInteger(limit)||limit<1||limit>100)throw Error("Giới hạn danh sách không hợp lệ.");
+   const data=obj(await request("GET",signal,{studentOptions:true,params:{limit:String(limit),...(beforeId?{beforeId:id(beforeId)}:{})}}));
+   if(data.centerId!==centerId||!Array.isArray(data.items)||data.items.length>limit)throw Error("Danh sách học viên không hợp lệ.");
+   const items:DraftStudentOption[]=data.items.map(raw=>{const r=obj(raw),recordId=id(r.id),displayName=text(r.displayName).trim(),birthYear=r.birthYear;if(!displayName||birthYear!==null&&(typeof birthYear!=="number"||!Number.isSafeInteger(birthYear)||birthYear<1900||birthYear>2100))throw Error("Danh sách học viên không hợp lệ.");return {id:recordId,displayName,birthYear};});
+   const nextBeforeId=data.nextBeforeId===null?null:id(data.nextBeforeId);
+   if(new Set(items.map(r=>r.id)).size!==items.length||(nextBeforeId!==null&&(items.length!==limit||nextBeforeId!==items.at(-1)?.id))||items.some((r,i)=>i>0&&r.id>=items[i-1]!.id)||beforeId&&items.some(r=>r.id>=beforeId))throw Error("Phân trang học viên không hợp lệ.");
+   return {items,nextBeforeId};
   },
   async detail(postId:string,signal:AbortSignal){const row=projection(await request("GET",signal,{postId:id(postId)}),centerId);if(row.id!==postId)throw Error("Post không khớp.");return row;},
   async createDraft(input:{studentId:string;caption:string;idempotencyKey:string},signal:AbortSignal){return write(await request("POST",signal,{body:{studentId:id(input.studentId),caption:input.caption},idempotencyKey:input.idempotencyKey}),undefined,input.studentId);},
