@@ -9,6 +9,7 @@ import {readSpecialtyV2Detail,readSpecialtyV2List,type SpecialtyV2Detail,type Sp
 import {postSpecialtyGraphCommand} from "@/lib/ho-specialty-v2-graph-client";
 import {specialtyPublishWarnings} from "@/lib/ho-specialty-v2-publish";
 import {ConfirmDialog} from "@pino/design-system/react";
+import styles from "./HoSpecialtyOverviewEdit.module.css";
 import {eligibleSpecialtyPrerequisites,planSpecialtyOverviewEdit,type SpecialtyS5OverviewKey} from "@/lib/ho-specialty-s5-overview";
 import {planSpecialtyMetadataEdit,type SpecialtyMetadataPatch} from "@/lib/ho-specialty-s5-metadata";
 import {putSpecialtyMetadataEdit} from "@/lib/ho-specialty-v2-metadata-client";
@@ -53,7 +54,7 @@ export function HoSpecialtyOverviewEdit({properties,canManage,onSaved}:{
  const options=selection&&data?(()=>{
   const field=selection.field;
   if(field.key==="status")return data.detail.status==="ACTIVE"?["Đang áp dụng","Bản nháp","Đã lưu trữ"]:
-   data.detail.status==="ARCHIVED"?["Đã lưu trữ","Bản nháp"]:["Bản nháp","Đang áp dụng","Đã lưu trữ"];
+   data.detail.status==="ARCHIVED"?["Đã lưu trữ","Bản nháp"]:["Bản nháp","Đã lưu trữ"];
    if(field.key==="prerequisiteView")return eligibleSpecialtyPrerequisites(data.detail,data.catalog).map(x=>x.label);
   if(field.key==="tagView")return [...new Set([...data.catalog.flatMap(s=>s.tags),...["Nhân vật","Mỹ thuật","Sáng tạo","Anime","Gouache","Acrylic","Chibi"],...data.detail.tags])];
   return undefined;
@@ -82,7 +83,7 @@ export function HoSpecialtyOverviewEdit({properties,canManage,onSaved}:{
        (data.detail.status==="ARCHIVED"&&value==="Đã lưu trữ");
      if(isCurrent){setSelection(null);setError("");return;}
      if(value==="Đang áp dụng"&&data.detail.status==="DRAFT"){
-       setSelection(null);setError("");setPublishVersion(data.detail.version);return;
+       setError("Dùng nút Xuất bản ở cuối Chi tiết Chuyên đề.");return;
      }
      if(value==="Bản nháp"&&data.detail.status==="ACTIVE"){
        setSelection(null);setError("");setUnpublishVersion(data.detail.version);return;
@@ -121,7 +122,7 @@ export function HoSpecialtyOverviewEdit({properties,canManage,onSaved}:{
  async function publish(){
    if(publishVersion===null||!data||saving||!canManage)return;
    if(data.detail.status!=="DRAFT"||data.detail.version!==publishVersion){setPublishVersion(null);setRetry(n=>n+1);setError("Chuyên đề đã thay đổi. Tải lại trước khi xuất bản.");return;}
-   if(specialtyPublishWarnings(data.detail,data.catalog).length)return;
+   if(specialtyPublishWarnings(data.detail).length)return;
    const command:SpecialtyGraphCommand={type:"PUBLISH",expectedVersion:publishVersion};
    const payload=JSON.stringify(command);
    if(!attempt.current||attempt.current.payload!==payload)
@@ -191,6 +192,11 @@ export function HoSpecialtyOverviewEdit({properties,canManage,onSaved}:{
   <PropertySections variant="detail" fields={props.fields} record={props.record} sections={props.sections}
     canEdit={editable} onEdit={(field,anchor)=>{attempt.current=null;setError("");setSelection({field,anchor});}}
     labelWidth={labelWidth} onLabelWidthChange={setLabelWidth}/>
+  {data?.detail.status==="DRAFT"&&canManage?<section className={styles.publishAction} aria-label="Xuất bản Chuyên đề">
+    {data.detail.missionCountDistinct===0?<span>Liên kết ít nhất một Mission trong tab Nhiệm vụ trước khi xuất bản.</span>:null}
+    <button type="button" className="primary-btn" disabled={saving||specialtyPublishWarnings(data.detail).length>0}
+      onClick={()=>{setError("");setPublishVersion(data.detail.version);}}>Xuất bản</button>
+  </section>:null}
   {!data&&!error?<p role="status">Đang kiểm tra quyền chỉnh sửa và dữ liệu Core…</p>:null}
   {error?<p role="alert">{error} <button type="button" disabled={saving} onClick={()=>{
     setError("");setData(null);setSelection(null);setRetry(n=>n+1);
@@ -204,9 +210,9 @@ export function HoSpecialtyOverviewEdit({properties,canManage,onSaved}:{
       surface="ho" context="Chuyên đề · Trạng thái" title="Xuất bản chuyên đề"
       subject={data.detail.name}
       description="Sau khi xuất bản, chuyên đề có thể được cấp cho học viên. Cấu hình DRAFT sẽ khóa và chưa thể hoàn tác."
-      readyMessage="Đã kiểm tra cấu hình cơ bản. Core sẽ kiểm chứng trạng thái Mission, Path và tiên quyết khi lưu."
+      readyMessage="Core sẽ xác minh Mission và Path khi xuất bản."
       confirmLabel="Xác nhận xuất bản" busyLabel="Đang xác minh…"
-      warnings={specialtyPublishWarnings(data.detail,data.catalog)} busy={saving} error={error}
+      warnings={specialtyPublishWarnings(data.detail)} busy={saving} error={error}
       onCancel={()=>{if(!saving){setPublishVersion(null);setError("");}}}
       onConfirm={()=>{void publish();}}/>:null}
    {archiveVersion!==null&&data?<ConfirmDialog
