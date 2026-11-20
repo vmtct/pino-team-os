@@ -83,5 +83,6 @@ test("PAP-1221 HO rejects Core denial and reads without a date filter",async()=>
  assert.equal(result.records.length,1);
  assert.equal(r.calls[0],"/api/ho/learning/path-diaries?limit=100&offset=0");
  await assert.rejects(hoDiaryProvider.list(hoDiaryQueryForDay("2026-10-31"),{surface:"BO",centerId:center},r.fn,new AbortController().signal),/HO GLOBAL scope/);
- assert.equal(r.calls.length,1);
+ assert.equal(r.calls.length,2);
+ assert.match(r.calls[1]??"",/mission-links/);
 });
