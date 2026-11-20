@@ -188,8 +188,9 @@ function BoWorkspace({ moduleKey, options, currentUser, source, content, headerC
   const userLabel = currentUser.displayName || "Tài khoản";
   let scope = ""; try { scope = source.scopeLabel(moduleKey, options); } catch { /* adapter renders the invalid range error, with no fallback data */ }
 
-  const workspaceContent = <>{shellOnly && applicationMenuSlots === 0 ? menu("bo-application-menu-btn") : null}{content ? content : detail ? <BoFullDetail key={detail.id} module={definition} moduleKey={moduleKey} record={detail} mobileMenu={menu("detail-menu-btn")} onBack={back} onStudentNeutralized={studentCreate ? () => { setDetail(null); setRetry(n => n + 1); } : undefined}
-        onStudentRenamed={!ho && moduleKey === "students" ? nextName => {
+  const workspaceContent = <>{shellOnly && applicationMenuSlots === 0 ? menu("bo-application-menu-btn") : null}{content ? content : detail ? <BoFullDetail key={detail.id} module={definition} moduleKey={moduleKey} record={detail} mobileMenu={menu("detail-menu-btn")} onBack={back}
+        reviewOnly={source.ephemeral && moduleKey === "students"}
+        onStudentRenamed={!source.ephemeral && !ho && moduleKey === "students" ? nextName => {
           setRows(rows => rows.map(row => row.id === detail.id ? { ...row, name: nextName } : row));
           setDetail(row => row && row.id === detail.id ? { ...row, name: nextName } : row);
         } : undefined}
