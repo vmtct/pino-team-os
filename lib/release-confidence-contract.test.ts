@@ -38,7 +38,7 @@ test("PAP-2134 Post Draft canonical navigation stays BO Staging only",()=>{
 });
 
 test("PAP-2147 Guest navigation is admitted only on BO Staging",()=>{
- const root=process.cwd(), route="/bo/mytime-guests";
+ const root=process.cwd(), route="/bo/guests";
  assert.deepEqual(checkPageContract(root,"bo.staging.pinohouse.art",route),[]);
  assert.ok(checkPageContract(root,BO_HOSTNAME,route).includes("host_denied"));
  assert.ok(checkPageContract(root,TOS_HOSTNAME,route).includes("host_denied"));

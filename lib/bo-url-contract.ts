@@ -20,7 +20,7 @@ export const BO_TARGET_ROUTES = [
   { key: "open-studio-passes", path: "/bo/open-studio-passes", tabs: ["overview", "history"] },
   { key: "classroom-diaries", path: "/bo/classroom-diaries", tabs: ["overview", "history"] },
   { key: "piner-posts", path: "/bo/piner-posts", tabs: ["overview", "media", "history"] },
-  { key: "mytime-guests", path: "/bo/mytime-guests", tabs: ["overview", "history"] },
+  { key: "guests", path: "/bo/guests", tabs: ["overview", "history"] },
   { key: "mytime-workshops", path: "/bo/mytime-workshops", tabs: ["overview", "history"] },
   { key: "enrollments", path: "/bo/enrollments", tabs: ["overview", "history"] },
 ] as const satisfies readonly Target[];

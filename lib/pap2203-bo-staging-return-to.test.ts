@@ -39,7 +39,7 @@ test("PAP-2203: aliases canonicalize and never reinterpret retired Session ident
  }
 });
 test("PAP-2203: malicious, malformed and ambiguous returnTo rejected",()=>{
- for(const value of ["https://evil.example/bo","//evil.example/bo","/bo/../bo/enrollments","/bo%2fenrollments","/bo\\enrollments","/staff-login","/api/bo/context","/ho/centers","/bo/guests","/bo/students","/bo/tvs","/bo?module=bad","/bo?module=subscriptions&module=students",sub+"&record="+record,sub+"&returnTo=%2F%2Fevil.example",sub+"&centerId=evil",sub.replace("tab=enrollment","tab=unknown"),"/bo?module=subscriptions&tab=enrollment",sub+"&specialtyRecord="+record,enrollment+"#x","/bo/enrollments?centerId=bad","/bo/enrollments?search=%00","/bo/payroll-daily/"+record+"/2026-02-30","/bo/payroll-periods?incomeStaff="+record,"/bo/pinoria-wish-events?centerId="+center+"&record="+record+"&wishCenter="+record])assert.equal(safeBoStagingReturnTo(value),null,value);
+ for(const value of ["https://evil.example/bo","//evil.example/bo","/bo/../bo/enrollments","/bo%2fenrollments","/bo\\enrollments","/staff-login","/api/bo/context","/ho/centers","/bo/guest-unknown","/bo/students","/bo/tvs","/bo?module=bad","/bo?module=subscriptions&module=students",sub+"&record="+record,sub+"&returnTo=%2F%2Fevil.example",sub+"&centerId=evil",sub.replace("tab=enrollment","tab=unknown"),"/bo?module=subscriptions&tab=enrollment",sub+"&specialtyRecord="+record,enrollment+"#x","/bo/enrollments?centerId=bad","/bo/enrollments?search=%00","/bo/payroll-daily/"+record+"/2026-02-30","/bo/payroll-periods?incomeStaff="+record,"/bo/pinoria-wish-events?centerId="+center+"&record="+record+"&wishCenter="+record])assert.equal(safeBoStagingReturnTo(value),null,value);
  assert.equal(boStagingReturnFromSearch("?returnTo="+encodeURIComponent(sub)+"&returnTo="+encodeURIComponent(enrollment)),null);
 });
 test("PAP-2203: other hosts and invalid destinations do not acquire staging continuation",()=>{
@@ -55,4 +55,13 @@ test("PAP-2203: expired session uses same safe target after existing cleanup",as
  assert.deepEqual(calls,["/api/staff-auth/logout"]);assert.equal(boStagingReturnFromSearch(new URL(urls[0]!,origin).search),sub);
  await recoverInvalidStaffPasswordSession(fetcher,{replace:v=>{urls.push(String(v));},hostname:"bo.pinohouse.art",pathname:"/bo",search:"?module=subscriptions"});
  assert.equal(urls[1],"/staff-login");
+});
+
+test("PAP-2202: canonical and legacy Guest login continuation preserve exact selected Center",()=>{
+ const canonical="/bo/guests?centerId="+center+"&record="+record;
+ for(const route of [canonical,canonical.replace("/bo/guests","/bo/mytime-guests")]){
+  assert.equal(safeBoStagingReturnTo(route),canonical);
+  const response=middleware(new NextRequest(origin+route));assert.equal(response.status,307);
+  const login=new URL(response.headers.get("location")!);assert.equal(login.pathname,"/staff-login");assert.equal(boStagingReturnFromSearch(login.search),canonical);
+ }
 });
