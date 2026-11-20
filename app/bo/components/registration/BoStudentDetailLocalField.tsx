@@ -94,7 +94,7 @@ export function BoStudentBirthDateLocalField({ record, centerId }: { record: BoR
   return <div className="v24-prop-item" data-student-detail-field="birthDate">
     <div className="v24-prop-key"><span className="v24-field-glyph">#</span>Sinh Nhật</div>
     <div className={styles.studentBirthDateValue} role="group" aria-label="Sinh Nhật">
-      {fields.map(part => <input className={styles.studentBirthDateInput} key={part.key}
+      {fields.map(part => <input className={"edit-input " + styles.studentBirthDateInput} key={part.key}
         type="text" inputMode="numeric" maxLength={part.key === "birthYear" ? 4 : 2} aria-label={part.label} readOnly={Boolean(centerId) && (version === null || saving)}
         placeholder={part.placeholder} value={parts[part.key]}
         onChange={event => setParts(current => ({ ...current, [part.key]: event.target.value }))} />)}
