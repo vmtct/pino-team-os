@@ -8,11 +8,12 @@ import {BoDataTable} from "./BoDataTable";
 import {BoQuickView} from "./BoQuickView";
 import {readStudentPathDiaries,type StudentPathDiary,type StudentPathDiaryMissionLink} from "@/lib/bo-student-path-diary";
 import styles from "./BoStudentDiaryRelation.module.css";
+import {formatPinoDateTime} from "@/lib/pino-datetime";
 
 const tableFields:BoField[]=[
   {key:"action",label:"Thao tác",type:"text",icon:"Aa",w:150,readonly:true},
   {key:"missionName",label:"Nhiệm vụ",type:"relation",icon:"↗",w:270,readonly:true},
-  {key:"registeredAt",label:"Ghi nhận lúc",type:"text",icon:"⌁",w:180,readonly:true},
+  {key:"registeredAt",label:"Ghi nhận lúc",type:"datetime",icon:"⌁",w:180,readonly:true},
   {key:"runningClassName",label:"Bối cảnh",type:"text",icon:"Aa",w:200,readonly:true},
   {key:"interest",label:"Mức độ hứng thú",type:"number",icon:"#",w:150,readonly:true},
   {key:"difficulty",label:"Khó khăn",type:"text",icon:"Aa",w:220,readonly:true},
@@ -20,8 +21,9 @@ const tableFields:BoField[]=[
   {key:"statusLabel",label:"Trạng thái",type:"text",icon:"◉",w:140,readonly:true},
   {key:"version",label:"Phiên bản",type:"number",icon:"#",w:110,readonly:true},
   {key:"registeredByDisplayName",label:"Người ghi nhận",type:"text",icon:"Aa",w:180,readonly:true},
-  {key:"updatedAt",label:"Cập nhật lúc",type:"text",icon:"⌁",w:180,readonly:true},
-  {key:"closedAt",label:"Đóng lúc",type:"text",icon:"⌁",w:180,readonly:true},
+  {key:"updatedAt",label:"Cập nhật lúc",type:"datetime",icon:"⌁",w:180,readonly:true},
+  {key:"updatedByDisplayName",label:"Cập nhật bởi",type:"text",icon:"Aa",w:180,readonly:true},
+  {key:"closedAt",label:"Đóng lúc",type:"datetime",icon:"⌁",w:180,readonly:true},
 ];
 
 export const diaryRawModule:BoModule={
@@ -44,15 +46,16 @@ export const diaryRawModule:BoModule={
     {key:"interest",label:"Mức độ hứng thú (1–4)",type:"number",icon:"#",w:190,readonly:true},
     {key:"notes",label:"Ghi chú",type:"textarea",icon:"Aa",w:190,readonly:true},
     {key:"difficulty",label:"Khó khăn",type:"textarea",icon:"Aa",w:190,readonly:true},
-    {key:"registeredAt",label:"Registered At",type:"text",icon:"⌁",w:190,readonly:true},
+    {key:"registeredAt",label:"Registered At",type:"datetime",icon:"⌁",w:190,readonly:true},
     {key:"registeredByDisplayName",label:"Người ghi nhận",type:"text",icon:"Aa",w:190,readonly:true},
     {key:"registeredByUserId",label:"Registered By User ID (raw)",type:"id",icon:"#",w:190,readonly:true},
-    {key:"draftSavedAt",label:"Draft Saved At",type:"text",icon:"⌁",w:190,readonly:true},
+    {key:"draftSavedAt",label:"Draft Saved At",type:"datetime",icon:"⌁",w:190,readonly:true},
     {key:"draftSavedByUserId",label:"Draft Saved By User ID (raw)",type:"id",icon:"#",w:190,readonly:true},
     {key:"draftSavedVersion",label:"Draft Saved Version",type:"number",icon:"#",w:190,readonly:true},
-    {key:"closedAt",label:"Closed At",type:"text",icon:"⌁",w:190,readonly:true},
+    {key:"closedAt",label:"Closed At",type:"datetime",icon:"⌁",w:190,readonly:true},
     {key:"closedByUserId",label:"Closed By User ID (raw)",type:"id",icon:"#",w:190,readonly:true},
-    {key:"updatedAt",label:"Last Modified Time",type:"text",icon:"⌁",w:190,readonly:true},
+    {key:"updatedAt",label:"Last Modified Time",type:"datetime",icon:"⌁",w:190,readonly:true},
+    {key:"updatedByDisplayName",label:"Last Modified By",type:"text",icon:"Aa",w:190,readonly:true},
     {key:"version",label:"Diary version",type:"number",icon:"#",w:190,readonly:true},
   ],
 };
@@ -77,8 +80,8 @@ export const missionRawModule:BoModule={
     {key:"missionReconciliation",label:"Reconciliation",type:"text",icon:"Aa",w:190,readonly:true},
     {key:"missionDiagnostics",label:"Diagnostics",type:"textarea",icon:"Aa",w:190,readonly:true},
     {key:"missionVersion",label:"Phiên bản",type:"number",icon:"#",w:190,readonly:true},
-    {key:"missionCreatedAt",label:"Created Time",type:"text",icon:"⌁",w:190,readonly:true},
-    {key:"missionUpdatedAt",label:"Last Modified Time",type:"text",icon:"⌁",w:190,readonly:true},
+    {key:"missionCreatedAt",label:"Created Time",type:"datetime",icon:"⌁",w:190,readonly:true},
+    {key:"missionUpdatedAt",label:"Last Modified Time",type:"datetime",icon:"⌁",w:190,readonly:true},
   ],
 };
 
@@ -90,11 +93,8 @@ const diaryTablePolicy:TablePolicy={
 
 type RelationByDiary=ReadonlyMap<string,readonly StudentPathDiaryMissionLink[]>;
 function displayTime(value:string|null|undefined):string{
-  if(!value)return "—";
-  const at=new Date(value);
-  return Number.isFinite(at.getTime())?new Intl.DateTimeFormat("vi-VN",{
-    timeZone:"Asia/Ho_Chi_Minh",dateStyle:"short",timeStyle:"short",
-  }).format(at):"—";
+  if(!value||!Number.isFinite(Date.parse(value)))return "—";
+  return formatPinoDateTime(value);
 }
 function missionLabel(links:readonly StudentPathDiaryMissionLink[]):string{
   return links.length?links.map(link=>link.missionCode+" — "+link.missionName).join(" · "):"Chưa liên kết nhiệm vụ";
@@ -111,11 +111,11 @@ function rowFromDiary(diary:StudentPathDiary,studentName:string):BoRecord{
     assignmentIds:links.map(link=>link.assignmentId??"—").join(" · "),
     statusRaw:diary.status,statusLabel:diary.status==="CLOSED"?"Đã đóng":"Đã ghi nhận",
     interest:diary.interest,notes:diary.notes??"—",difficulty:diary.difficulty??"—",
-    registeredAt:diary.registeredAt,registeredByDisplayName:diary.registeredByDisplayName??"Nhân viên",
+    registeredAt:diary.registeredAt,registeredByDisplayName:diary.registeredByDisplayName??"—",
     registeredByUserId:diary.registeredByUserId,draftSavedAt:diary.draftSavedAt,
     draftSavedByUserId:diary.draftSavedByUserId,draftSavedVersion:diary.draftSavedVersion,
     closedAt:diary.closedAt,closedByUserId:diary.closedByUserId,
-    updatedAt:diary.updatedAt,version:diary.version,
+    updatedAt:diary.updatedAt,updatedByDisplayName:"—",version:diary.version,
   };
 }
 function missionRawRecord(value:Record<string,unknown>):BoRecord{
