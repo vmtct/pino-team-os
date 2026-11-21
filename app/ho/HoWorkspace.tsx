@@ -43,7 +43,7 @@ export function HoWorkspace<F extends readonly FieldSchema[] = readonly FieldSch
  },[]);
  const admittedSource=useMemo<BoWorkspaceSource>(()=>{
    if(workshopVisible&&personVisible)return source;
-   return {...source,modules:Object.fromEntries(Object.entries(source.modules).filter(([key])=>(key!=="mytimeWorkshops"||workshopVisible||module==="mytimeWorkshops")&&(key!=="people"||personVisible||module==="people")))};
+   return {...source,modules:Object.fromEntries(Object.entries(source.modules).filter(([key])=>(key!=="mytimeWorkshops"||workshopVisible||module==="mytimeWorkshops")&&(key!=="mytimeParticipations"||workshopVisible||module==="mytimeParticipations")&&(key!=="people"||personVisible||module==="people")))};
  },[workshopVisible,personVisible,module]);
  useEffect(() => {
    const controller = new AbortController();

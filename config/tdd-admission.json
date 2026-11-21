@@ -1056,6 +1056,9 @@
         "app/bo/mytime-workshops/page.tsx",
         "app/components/mytime-workshop/WorkshopWorkspace.tsx",
         "app/components/mytime-workshop/WorkshopParticipationTab.tsx",
+        "app/components/mytime-workshop/WorkshopParticipationCreate.tsx",
+        "app/components/mytime-workshop/ParticipationPersonPicker.tsx",
+        "app/components/mytime-workshop/ParticipationSchema.ts",
         "app/components/mytime-workshop/WorkshopRuntime.tsx",
         "app/components/mytime-workshop/schema.ts",
         "app/components/mytime-workshop/api-client.ts",
@@ -1084,6 +1087,9 @@
         "app/ho/mytime-workshops/page.tsx",
         "app/components/mytime-workshop/WorkshopWorkspace.tsx",
         "app/components/mytime-workshop/WorkshopParticipationTab.tsx",
+        "app/components/mytime-workshop/WorkshopParticipationCreate.tsx",
+        "app/components/mytime-workshop/ParticipationPersonPicker.tsx",
+        "app/components/mytime-workshop/ParticipationSchema.ts",
         "app/components/mytime-workshop/WorkshopRuntime.tsx",
         "app/components/mytime-workshop/schema.ts",
         "app/components/mytime-workshop/api-client.ts",
@@ -1106,6 +1112,53 @@
       ]
     }
     ,{
+      "profile":"TDD_DEFAULT",
+      "surface":"BO",
+      "key":"mytime-participations",
+      "route":"/bo/mytime-participations",
+      "file":"app/bo/mytime-participations/page.tsx",
+      "files":[
+        "app/bo/mytime-participations/page.tsx",
+        "app/components/mytime-workshop/ParticipationTdd.tsx",
+        "app/components/mytime-workshop/ParticipationSchema.ts"
+      ],
+      "schema":{"file":"app/components/mytime-workshop/ParticipationSchema.ts","export":"boParticipationSchema"},
+      "binding":{"kind":"SURFACE_WORKSPACE_ADAPTER","file":"app/components/mytime-workshop/ParticipationTdd.tsx"},
+      "tests":["lib/pap2242-participation-shell.test.ts","lib/mytime-workshop-host-contract.test.ts"],
+      "externalReferences":[
+        {"file":"lib/host-boundary.ts","owner":"PAP-2164"},
+        {"file":"app/bo/components/registration/BoRegistrationWorkspace.tsx","owner":"PAP-1080"},
+        {"file":"app/bo/components/registration/BoCenterSelection.tsx","owner":"PAP-1598"},
+        {"file":"lib/workspace-adapters/session.ts","owner":"PAP-1221"},
+        {"file":"public/bo-authority-source/school-adapters.js","owner":"PAP-1080"}
+      ]
+    },
+    {
+      "profile":"TDD_DEFAULT",
+      "surface":"HO",
+      "key":"mytime-participations",
+      "route":"/ho/mytime-participations",
+      "file":"app/ho/mytime-participations/page.tsx",
+      "files":[
+        "app/ho/mytime-participations/page.tsx",
+        "app/components/mytime-workshop/ParticipationTdd.tsx",
+        "app/components/mytime-workshop/ParticipationSchema.ts"
+      ],
+      "schema":{"file":"app/components/mytime-workshop/ParticipationSchema.ts","export":"hoParticipationSchema"},
+      "binding":{"kind":"SURFACE_WORKSPACE_ADAPTER","file":"app/components/mytime-workshop/ParticipationTdd.tsx"},
+      "tests":["lib/pap2242-participation-shell.test.ts","lib/mytime-workshop-host-contract.test.ts","lib/ho-routes.test.ts"],
+      "externalReferences":[
+        {"file":"lib/host-boundary.ts","owner":"PAP-2164"},
+        {"file":"app/bo/components/registration/BoRegistrationWorkspace.tsx","owner":"PAP-1080"},
+        {"file":"app/bo/components/registration/BoCenterSelection.tsx","owner":"PAP-1598"},
+        {"file":"lib/workspace-adapters/session.ts","owner":"PAP-1221"},
+        {"file":"public/bo-authority-source/school-adapters.js","owner":"PAP-1080"},
+        {"file":"app/ho/HoWorkspace.tsx","owner":"PAP-2164"},
+        {"file":"lib/ho-routes.ts","owner":"PAP-2164"},
+        {"file":"lib/ho-system.ts","owner":"PAP-2164"}
+      ]
+    },
+    {
       "profile":"TDD_DEFAULT",
       "surface":"BO",
       "key":"enrollments",

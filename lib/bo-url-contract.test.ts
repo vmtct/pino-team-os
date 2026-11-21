@@ -76,6 +76,13 @@ test("PAP-1158 retired Salary Period URL goes to canonical Kỳ lương",()=>{
   assert.deepEqual(parseBoTargetUrl("/bo/payroll-periods","?record="+id),{moduleKey:"payroll-periods",surface:"drawer",recordId:id});
 });
 
+test("PAP-2242 BO Participation URL is a canonical directory target",()=>{
+  const route=BO_TARGET_ROUTES.find(r=>r.key==="mytime-participations");
+  assert.deepEqual(route,{key:"mytime-participations",path:"/bo/mytime-participations",tabs:["overview","history"]});
+  assert.equal(buildBoTargetUrl({moduleKey:"mytime-participations",surface:"table"}),"/bo/mytime-participations");
+  assert.deepEqual(parseBoTargetUrl("/bo/mytime-participations"),{moduleKey:"mytime-participations",surface:"table"});
+});
+
 test("PAP-1220 Classroom Diary staging TDD uses the canonical BO target registry, no alias leakage",()=>{
   const route=BO_TARGET_ROUTES.find(r=>r.key==="classroom-diaries");
   assert.deepEqual(route,{key:"classroom-diaries",path:"/bo/classroom-diaries",tabs:["overview","history"]});
