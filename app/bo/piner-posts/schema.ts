@@ -25,7 +25,7 @@ export const postFields=[
 export type PostFields=typeof postFields;
 const order=postFields.map(f=>f.key);
 export const postQuery:TableQuery<PostFields>={search:"",filters:{logic:"AND",rules:[]},sort:null,group:null,order,visible:order,page:1,pageSize:15};
-const primary=["name","program","caption","author","status","center","source","mediaCount","commentCount"] as const;
+const primary=["program","name","caption","author","status","center","source","mediaCount","commentCount"] as const;
 const audit=["createdAt","createdBy","updatedAt","updatedBy"] as const;
 const sections=[{id:"overview",label:"Thông tin bài đăng",fields:primary},{id:"system",label:"Thông tin hệ thống",fields:audit}] as const;
 export const postDefinition={
