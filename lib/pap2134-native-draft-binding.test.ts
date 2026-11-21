@@ -6,7 +6,7 @@ import {postFields,postDefinition} from "../app/bo/piner-posts/schema";
 import {allowsField,type AuthorizationContext} from "../lib/workspace-schema";
 const A="01900000-0000-7000-8000-000000000001",S="01900000-0000-7000-8000-000000000003",P="01900000-0000-7000-8000-000000000004",Q="01900000-0000-7000-8000-000000000005";
 const stamp="2026-11-18T00:00:00.000Z",sig=()=>new AbortController().signal;
-const row={id:P,studentId:S,centerId:A,studentName:"QA",centerName:"A",caption:"",status:"DRAFT",publisher:"PINO Afterschool",version:1,createdAt:stamp,updatedAt:stamp,createdBy:null,updatedBy:null};
+const row={id:P,studentId:S,personId:"01900000-0000-7000-8000-000000000006",personName:"QA",programKey:"AFTERSCHOOL",centerId:A,studentName:"QA",centerName:"A",caption:"",status:"DRAFT",publisher:"PINO Afterschool",version:1,createdAt:stamp,updatedAt:stamp,createdBy:null,updatedBy:null};
 function setup(fetcher:typeof fetch,edit=true){
  const actor:DraftActorScope={actorId:"qa",centerId:A,authorize:p=>p==="piner.post.view"||edit};
  const ctx:AuthorizationContext={surface:"BO",centerId:A,authorize:p=>actor.authorize(p as Parameters<typeof actor.authorize>[0])};
