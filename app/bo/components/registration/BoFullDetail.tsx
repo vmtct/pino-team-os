@@ -5,7 +5,6 @@ import { DetailFrame } from "@/app/components/workspace-renderer/DetailFrame";
 import { BoValue } from "./BoValue";
 import { BoRegistrationHistory } from "./BoRegistrationHistory";
 import { BoRunningClassEnrollment } from "./BoRunningClassEnrollment";
-import { BoStudentIntakeVoid } from "./BoStudentIntakeVoid";
 import { BoStudentSubscriptionRelation } from "./BoStudentSubscriptionRelation";
 import {subscriptionDetailUrl} from "@/lib/bo-subscription-detail-url";
 import { BoSubscriptionInformationTab } from "@/app/bo/subscriptions/BoSubscriptionInformationTab";
@@ -14,6 +13,7 @@ import { BoPayrollPeriodDetail } from "./BoPayrollPeriodDetail";
 import { BoStaffIncomeReadTab } from "./BoStaffIncomeReadTab";
 import { BoWorkforceRegistrationEditor } from "./BoWorkforceRegistrationEditor";
 import { BoStudentNameInlineCell } from "./BoStudentNameInlineCell";
+import { BoStudentBirthDateLocalField, BoStudentDetailLocalField, isStudentHouseMemberField, studentEditableKind } from "./BoStudentDetailLocalField";
 import { useBoCenterSelection } from "./BoCenterSelection";
 const BoSubscriptionEnrollmentTab = lazy(async () => {
   // Node SSR of Detail must not eagerly import the DataGrid CSS module.
@@ -38,18 +38,18 @@ const BoStudentSpecialtyTab = lazy(async () => {
 import type { BoModule, BoRecord } from "@/lib/bo-registration";
 
 export function BoFullDetail({
-  module, moduleKey, record, onBack, onStudentNeutralized, onStudentRenamed, mobileMenu, enableStudentSubscriptions = false, onEnrollmentChanged, onWorkforcePlanChanged, initialTab, onTabChanged,
+  module, moduleKey, record, onBack, onStudentRenamed, mobileMenu, enableStudentSubscriptions = false, onEnrollmentChanged, onWorkforcePlanChanged, initialTab, onTabChanged, reviewOnly = false,
 }: {
   module: BoModule;
   moduleKey: string;
   record: BoRecord;
   onBack: () => void;
-  onStudentNeutralized?: () => void;
   onStudentRenamed?: (nextName: string) => void;
   mobileMenu: React.ReactNode;
   enableStudentSubscriptions?: boolean;
   onEnrollmentChanged?: () => void;
   onWorkforcePlanChanged?: (open: boolean) => void;
+  reviewOnly?: boolean;
   initialTab?: string;
   onTabChanged?: (tab: string) => void;
 }) {
@@ -58,10 +58,9 @@ export function BoFullDetail({
   const centerReady = Boolean(centerId) && !center?.loading && !center?.error && Boolean(center?.centers.some(item => item.id === centerId));
   const [tab, setTab] = useState(initialTab ?? "Detail");
   useEffect(() => { setTab(initialTab ?? "Detail"); }, [initialTab]);
-  const [voidOpen, setVoidOpen] = useState(false);
   const subjectType = moduleKey === "students" ? "student_profile" : moduleKey === "classes" ? "running_class" : moduleKey === "subscriptions" ? "subscription" : null;
   // Shared BO V2.5 Detail/History stays universal; specialized tabs remain module-owned.
-  const tabs = moduleKey === "workforce-shift-plans" ? ["Detail", "Lịch tuần", "Lịch Sử"]
+  const tabs = reviewOnly ? ["Detail"] : moduleKey === "workforce-shift-plans" ? ["Detail", "Lịch tuần", "Lịch Sử"]
     : moduleKey === "classes"
     ? ["Detail", "Enrollment", "Lịch Sử"]
     : moduleKey === "payroll-periods"
@@ -92,8 +91,7 @@ export function BoFullDetail({
     subtitle={moduleKey === "workforce-shift-plans" ? String(record.centerName ?? record.id) : record.id}
     mobileMenu={mobileMenu} onBack={onBack}
     tabs={tabs.map(label => ({ id: label, label: label === "Detail" ? (moduleKey === "subscriptions" ? "Thông Tin" : "Thông tin") : label }))}
-    selected={activeTab} onSelect={(next) => { setTab(next); onTabChanged?.(next); }}
-    after={voidOpen ? <BoStudentIntakeVoid studentId={record.id} onClose={() => setVoidOpen(false)} onNeutralized={onStudentNeutralized!} /> : null}>
+    selected={activeTab} onSelect={(next) => { setTab(next); onTabChanged?.(next); }}>
           {moduleKey === "payroll-periods" && (activeTab === "Detail" || activeTab === "Quyết Toán")
             ? <BoPayrollPeriodDetail record={record} tab={activeTab} />
             : activeTab === "Lịch tuần" && moduleKey === "workforce-shift-plans"
@@ -106,16 +104,20 @@ export function BoFullDetail({
             ? <section className="v24-prop-section">
                 <div className="v24-section-heading">
                   <h4>Thông tin chính</h4>
-                  {moduleKey === "students" && onStudentNeutralized
-                    ? <button type="button" className="secondary-btn" onClick={() => setVoidOpen(true)}>Lưu trữ intake</button>
-                    : null}
+
                 </div>
                 <div className="v24-prop-grid">
-                  {module.fields.map(field => moduleKey === "workforce-shift-plans" && field.key === "registrationOpen"
+                  {module.fields.filter(field => moduleKey !== "students" || !isStudentHouseMemberField(field)).map(field => moduleKey === "students" && field.key === (module.fields.some(candidate => candidate.key === "birthDay") ? "birthDay" : "birthYear")
+                    ? <BoStudentBirthDateLocalField key={record.id + ":birthDate:" + centerId + ":" + centerReady} record={record} centerId={!reviewOnly && centerReady ? centerId : ""} />
+                    : moduleKey === "students" && ["birthMonth", "birthYear"].includes(field.key)
+                      ? null
+                      : moduleKey === "workforce-shift-plans" && field.key === "registrationOpen"
                     ? <BoWorkforceRegistrationEditor key={field.key} record={record} onSaved={open => onWorkforcePlanChanged?.(open)} />
                     : moduleKey === "students" && field.key === "name" && onStudentRenamed
                       ? <BoStudentNameInlineCell key={record.id + ":" + centerId} studentId={record.id}
                           displayName={record.name} centerId={centerId} centerReady={centerReady} onSaved={onStudentRenamed} />
+                    : reviewOnly && moduleKey === "students" && studentEditableKind(field)
+                      ? <BoStudentDetailLocalField key={record.id + ":" + field.key} field={field} value={record[field.key]} />
                     : <div className="v24-prop-item" key={field.key}>
                     <div className="v24-prop-key"><span className="v24-field-glyph">{field.icon}</span>{field.label}</div>
                     <div className="v24-prop-value readonly" aria-label={"Chỉ đọc " + field.label}>
@@ -123,7 +125,7 @@ export function BoFullDetail({
                       <span className="v24-lock" aria-label="Chỉ đọc">⌁</span>
                     </div>
                   </div>)}
-                  {moduleKey === "students" && <BoStudentNameInlineCell key={"gender:" + record.id + ":" + centerId} studentId={record.id} displayName={record.name} centerId={centerId} centerReady={centerReady} editGender />}
+                  {!reviewOnly && moduleKey === "students" && <BoStudentNameInlineCell key={"gender:" + record.id + ":" + centerId} studentId={record.id} displayName={record.name} centerId={centerId} centerReady={centerReady} editGender />}
                 </div>
               </section>
             : activeTab === "Subscription" && moduleKey === "students" && enableStudentSubscriptions
