@@ -74,7 +74,7 @@ export async function readScopedParentDirectory(centerId: string, fetcher: typeo
   return invalid();
 }
 export type ScopedParentDetail = {
-  id: string; scopeCenterId: string; auditAuthorized: boolean;
+  id: string; scopeCenterId: string; auditAuthorized: boolean; canonicalMobileMasked: string | null;
   students: readonly Json[]; contacts: readonly Json[]; audit: readonly Json[];
 };
 export async function readScopedParentDetail(
@@ -84,8 +84,10 @@ export async function readScopedParentDetail(
   if (!UUID.test(id)) return invalid(404);
   const query = new URLSearchParams({ centerId });
   const data = receipt(await readData(fetcher, "identity/parents/" + encodeURIComponent(id) + "/detail?" + query, signal), centerId);
-  if (Object.keys(data).some(key => !["id","scopeCenterId","students","contacts","audit","auditAuthorized"].includes(key)) ||
+  if (Object.keys(data).some(key => !["id","scopeCenterId","students","contacts","audit","auditAuthorized","canonicalMobileMasked"].includes(key)) ||
       data.id !== id || typeof data.auditAuthorized !== "boolean" ||
+      (data.canonicalMobileMasked !== undefined && data.canonicalMobileMasked !== null &&
+        (typeof data.canonicalMobileMasked !== "string" || !/[•*]/.test(data.canonicalMobileMasked))) ||
       !Array.isArray(data.students) || !Array.isArray(data.contacts) || !Array.isArray(data.audit) ||
       [data.students, data.contacts, data.audit].some(list => list.length > 100) ||
       (!data.auditAuthorized && data.audit.length > 0)) return invalid();
@@ -117,7 +119,11 @@ export async function readScopedParentDetail(
     return { id: event.id, at: event.at, action: event.action, outcome: event.outcome, actorType: event.actorType };
   });
   for (const values of [students, contacts, audit]) if (new Set(values.map(value => value.id)).size !== values.length) return invalid();
-  return { id, scopeCenterId: centerId, auditAuthorized: data.auditAuthorized as boolean, students, contacts, audit };
+  return {
+    id, scopeCenterId: centerId, auditAuthorized: data.auditAuthorized as boolean,
+    canonicalMobileMasked: (data.canonicalMobileMasked as string | null | undefined) ?? null,
+    students, contacts, audit,
+  };
 }
 /** No selected Center => no reads. Search/filter/paging stay in canonical local TDD table. */
 export function parentDirectoryProvider(): SurfaceProvider<ParentFields> {

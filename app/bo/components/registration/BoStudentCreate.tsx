@@ -75,6 +75,7 @@ function BoStudentCreateScoped({ centerId, onClose, onCreated }: {
   const busyRef = useRef(false);
   const attemptRef = useRef<Attempt | null>(null);
   const [studentName, setStudentName] = useState("");
+  const [studentMobile, setStudentMobile] = useState("");
   const [birthDayInput, setBirthDayInput] = useState("");
   const [birthMonthInput, setBirthMonthInput] = useState("");
   const [birthYearInput, setBirthYearInput] = useState("");
@@ -145,7 +146,7 @@ function BoStudentCreateScoped({ centerId, onClose, onCreated }: {
         return;
       }
       const common = {
-        displayName: studentName.trim(), ...parsedBirthDate.value,
+        displayName: studentName.trim(), mobile: studentMobile.trim() || null, ...parsedBirthDate.value,
         relationshipType, effectiveFrom: new Date().toISOString(),
       };
       currentAttempt = {
@@ -178,6 +179,7 @@ function BoStudentCreateScoped({ centerId, onClose, onCreated }: {
     : ["parentMode", "guardianName", "contactType", "contactValue"];
   const schema: BoField[] = [
     { key: "name", label: "Học viên", type: "text", icon: "Aa", w: 180 },
+    { key: "mobile", label: "Số điện thoại hồ sơ", type: "text", icon: "Aa", w: 180 },
     { key: "birthDate", label: "Sinh Nhật", type: "date", icon: "▦", w: 140 },
     { key: "relationshipType", label: "Quan hệ", type: "select", icon: "▣", w: 130 },
     { key: "parentMode", label: "Liên kết phụ huynh", type: "select", icon: "▣", w: 160 },
@@ -187,16 +189,26 @@ function BoStudentCreateScoped({ centerId, onClose, onCreated }: {
     { key: "contactType", label: "Liên hệ", type: "select", icon: "▣", w: 130 },
     { key: "contactValue", label: "Số điện thoại / Email", type: "text", icon: "Aa", w: 180 },
   ];
-  const studentKeys = ["name", "birthDate", "relationshipType"];
+  const studentKeys = ["name", "mobile", "birthDate", "relationshipType"];
   const studentFields = schema.filter(field => studentKeys.includes(field.key));
   const parentFields = schema.filter(field => parentFieldKeys.includes(field.key));
   const relationshipLabels = { PARENT: "Cha/Mẹ", GUARDIAN: "Người giám hộ", OTHER: "Khác" } as const;
   const record: BoRecord = {
-    id: "", name: studentName, birthDate: null, relationshipType: relationshipLabels[relationshipType],
+    id: "", name: studentName, mobile: studentMobile || null, birthDate: null, relationshipType: relationshipLabels[relationshipType],
     parentMode, parentQuery, selectedParentId: selectedParent?.parent.displayName ?? null,
     guardianName, contactType, contactValue,
   };
   const studentCreateFields: Record<string, CreateDrawerField> = {
+    mobile: {
+      id: "student-create-mobile", label: "Số điện thoại hồ sơ", value: studentMobile, disabled: locked,
+      onChange: value => { setStudentMobile(value); setError(""); },
+      control: <div>
+        <input id="student-create-mobile" className="edit-input" type="tel" inputMode="tel" autoComplete="tel"
+          aria-label="Số điện thoại hồ sơ" placeholder="Số điện thoại" value={studentMobile} disabled={locked}
+          onChange={event => { setStudentMobile(event.target.value); setError(""); }} />
+        <small className="settings-hint">Nhập số riêng của Person học viên. Không dùng lại số của phụ huynh; để trống nếu chưa có số riêng. Trường này không tự tạo tài khoản hoặc PIN.</small>
+      </div>,
+    },
     birthDate: {
       id: "student-create-birth-day", label: "Sinh Nhật", value: birthDayInput, disabled: locked,
       onChange: value => { setBirthDayInput(value.replace(/\D/g, "").slice(0, 2)); setError(""); },
