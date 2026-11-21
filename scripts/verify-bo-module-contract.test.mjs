@@ -12,9 +12,10 @@ const repo=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"..");
 const navFile="app/bo/navigation.ts",regFile="app/bo/architecture/registry.ts";
 const baselineFile="app/bo/architecture/legacy-baseline.json";
 const migrationFile="app/bo/architecture/legacy-migration-ledger.json";
+const policyFile="app/bo/architecture/bo-staging-route-policy.ts";
 function fixture() {
   const tmp=fs.mkdtempSync(path.join(os.tmpdir(),"pap926-bo-"));
-  for(const name of [navFile,regFile,baselineFile,migrationFile]){
+  for(const name of [navFile,regFile,baselineFile,migrationFile,policyFile]){
     const dest=path.join(tmp,name);
     fs.mkdirSync(path.dirname(dest),{recursive:true});
     fs.copyFileSync(path.join(repo,name),dest);
@@ -99,6 +100,14 @@ test("PAP-982 BO TDD route requires an exact separate manifest and navigation ow
     assert.ok(check(root).some(s=>s.includes("TDD route missing navigation")));
     edit(root,navFile,s=>s.replace('label: "Pinoria",\n    items: [','label: "Pinoria",\n    items: [\n      { href: "/bo/self-test", label: "Self Test" },'));
     assert.deepEqual(check(root),[]);
+    edit(root,navFile,s=>s.replace(`      { href: "/bo/self-test", label: "Self Test" },
+`,""));
+    edit(root,policyFile,s=>s.replace(
+      'new Set<string>(["/bo/mytime-participations"])',
+      'new Set<string>(["/bo/mytime-participations", "/bo/self-test"])'));
+    assert.deepEqual(check(root),[]);
+    edit(root,policyFile,s=>s.replace('"/bo/self-test"', "deferredRoute()"));
+    assert.ok(check(root).some(s=>s.includes("Invalid/duplicate BO Staging deferred-route entry")));
     entry.binding.file="app/bo/self-test/unknown.tsx";
     fs.writeFileSync(path.join(root,"config/tdd-admission.json"),JSON.stringify({modules:[entry]}));
     assert.ok(check(root).some(s=>s.includes("Invalid BO TDD admission")));
