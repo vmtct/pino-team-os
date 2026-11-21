@@ -7,7 +7,7 @@ import {BoQuickView} from "@/app/bo/components/registration/BoQuickView";
 import {TddHostMenu} from "@/app/components/workspace-adapters/SurfaceWorkspace";
 import {browserTddNavigation} from "@/lib/workspace-adapters/navigation";
 import type {TableQuery,ModuleRow} from "@/lib/workspace-schema";
-import type {BoRecord,BoValue} from "@/lib/bo-registration";
+import {norm,type BoRecord,type BoValue} from "@/lib/bo-registration";
 import {postModule} from "./schema";
 import {draftSchema,draftQuery,type DraftFields} from "./native-draft-binding";
 import type {NativeDraftSession} from "./native-draft-session";
@@ -33,13 +33,13 @@ function ScopedDraft({session,centerLabel}:{session:NativeDraftSession;centerLab
  const rows=listCurrent?.rows??[],status=listCurrent?.status??"loading";
  const [recordRetry,setRecordRetry]=useState(0);
  const [detailResult,setDetailResult]=useState<{id:string;generation:number;record:CoreDraftRow|null;status:State}|null>(null);
- const [draft,setDraft]=useState<BoRecord|null>(null),[choices,setChoices]=useState<readonly PersonChoice[]>([]),[busy,setBusy]=useState(false),[error,setError]=useState("");
+ const [draft,setDraft]=useState<BoRecord|null>(null),[choices,setChoices]=useState<readonly PersonChoice[]>([]),[personSearch,setPersonSearch]=useState(""),[busy,setBusy]=useState(false),[error,setError]=useState("");
  const active=useRef<AbortController|null>(null),previousStage=useRef(position.kind),restore=useRef(false);
  const allowed=context.authorize("piner.post.view");
  const selected=position.kind==="table"?undefined:position.recordId;
  const currentDetail=detailResult?.id===selected&&detailResult?.generation===recordRetry?detailResult:null;
  const record=currentDetail?.record??null,recordStatus=currentDetail?.status??"loading";
- const resetDraft=()=>{active.current?.abort();active.current=null;setDraft(null);setChoices([]);setBusy(false);setError("");};
+ const resetDraft=()=>{active.current?.abort();active.current=null;setDraft(null);setChoices([]);setPersonSearch("");setBusy(false);setError("");};
  useEffect(()=>navigation.subscribe(()=>{
    const next=navigation.read();
    if(previousStage.current!=="table"&&next.kind==="table")restore.current=true;
@@ -62,16 +62,18 @@ function ScopedDraft({session,centerLabel}:{session:NativeDraftSession;centerLab
  };
  const close=()=>{resetDraft();if(position.kind!=="table")move("table");};
  const open=(id:string)=>{if(active.current)return;navigation.capture(id);move("drawer",id);};
- const create=()=>{if(active.current||!session.canCreate())return;setDraft(blank(centerLabel));setChoices([]);perform(async signal=>{const data=await session.personChoices("AFTERSCHOOL",signal);signal.throwIfAborted();setChoices(data);if(!data.length)setError(noPeople("AFTERSCHOOL"));});};
+ const create=()=>{if(active.current||!session.canCreate())return;setDraft(blank(centerLabel));setChoices([]);setPersonSearch("");perform(async signal=>{const data=await session.personChoices("AFTERSCHOOL",signal);signal.throwIfAborted();setChoices(data);if(!data.length)setError(noPeople("AFTERSCHOOL"));});};
  const change=(key:string,value:BoValue)=>{
   if(key==="program"){
    const selected=String(value??"PINO Afterschool"),program=programKey(selected);
-   setChoices([]);setDraft(old=>old?{...old,program:selected,name:""}:old);setError("");
+   setChoices([]);setPersonSearch("");setDraft(old=>old?{...old,program:selected,name:""}:old);setError("");
    perform(async signal=>{const data=await session.personChoices(program,signal);signal.throwIfAborted();setChoices(data);if(!data.length)setError(noPeople(program));});
    return;
   }
   if(key==="name"||key==="caption"){setDraft(old=>old?{...old,[key]:String(value??"")}:old);setError("");}
  };
+ const searchPerson=(value:string)=>{setPersonSearch(value);setDraft(old=>old?{...old,name:""}:old);setError("");};
+ const selectPerson=(value:string)=>{setPersonSearch(value);setDraft(old=>old?{...old,name:value}:old);setError("");};
  const submit=()=>{
   if(!draft||!session.canCreate())return;
   const selectedProgram=programKey(draft.program),person=resolvePerson(choices,draft.name);
@@ -80,7 +82,7 @@ function ScopedDraft({session,centerLabel}:{session:NativeDraftSession;centerLab
    try{const row=await controller.createDraft(person.id,selectedProgram,String(draft.caption??""),signal);signal.throwIfAborted();setReload(n=>n+1);move("drawer",row.id);}
    catch(e){
     if(e instanceof CoreDraftRequestError&&e.status===404&&e.operation==="create"&&!controller.hasUnresolvedCommand()){
-     setChoices([]);setDraft(old=>old?{...old,name:""}:old);
+     setChoices([]);setPersonSearch("");setDraft(old=>old?{...old,name:""}:old);
      try{const fresh=await session.personChoices(selectedProgram,signal);signal.throwIfAborted();setChoices(fresh);if(!fresh.length)setError(noPeople(selectedProgram));}catch{signal.throwIfAborted();}
     }
     throw e;
@@ -91,12 +93,24 @@ function ScopedDraft({session,centerLabel}:{session:NativeDraftSession;centerLab
  const updateQuery=(query:TableQuery<DraftFields>)=>navigation.change({...position,query},true);
  const visibleRecord=record?.id===selected&&recordStatus==="ready"?record:null;
  const canSubmitDraft=Boolean(draft&&session.canCreate()&&resolvePerson(choices,draft.name));
+ const personLabel=String(draft?.name??"");
+ const matchingPeople=personSearch.trim()?choices.filter(choice=>norm(choice.label).includes(norm(personSearch))):[];
+ const showPersonSearchResults=Boolean(draft&&personSearch.trim()&&personSearch!==personLabel);
+ const createFields=draft?{name:{
+  id:"post-person-search",label:"Person",value:personLabel,onChange:selectPerson,required:true,disabled:busy||!session.canCreate(),
+  control:<>
+   <input id="post-person-search" className="edit-input edit-search" type="search" aria-label="Tìm Person" aria-autocomplete="list" aria-required="true" required aria-controls="post-person-options" aria-expanded={showPersonSearchResults} aria-invalid={Boolean(showPersonSearchResults&&!matchingPeople.length)} aria-describedby={!personSearch.trim()&&!personLabel?"post-person-search-hint":showPersonSearchResults&&!matchingPeople.length?"post-person-options":undefined} placeholder="Tìm Person..." value={personSearch} disabled={busy||!session.canCreate()} onChange={event=>searchPerson(event.target.value)} />
+   {showPersonSearchResults?<div id="post-person-options" className="option-list">
+    {matchingPeople.length?matchingPeople.map(choice=><button className="option-item" type="button" key={choice.id} onClick={()=>selectPerson(choice.label)}><span className="option-check" aria-hidden="true">＋</span>{choice.label}</button>):<p className="settings-hint" role="status">Không tìm thấy Person phù hợp.</p>}
+   </div>:!personSearch.trim()&&!personLabel?<p id="post-person-search-hint" className="settings-hint">Nhập tên, tuổi hoặc 4 số cuối điện thoại để tìm Person.</p>:null}
+  </>
+ }}:undefined;
  if(!allowed)return <RecordState status="denied"/>;
  return <>
   <div hidden={position.kind==="detail"}><TddRenderer view={{kind:"table",headerActions:session.canCreate()?<button className="primary-btn" type="button" disabled={busy||status!=="ready"} onClick={create}>Tạo mới</button>:null,props:{registry,schema:draftSchema,context,rows,query:position.query,status,onRetry:()=>setReload(n=>n+1),onQueryChange:updateQuery,onOpen:r=>open(r.id)}}}/></div>
   {position.kind!=="table"&&!visibleRecord?<section>{menu("posts-record-menu")}<RecordState status={recordStatus} onRetry={()=>setRecordRetry(n=>n+1)}/><button type="button" onClick={close}>Quay lại</button></section>:null}
   {position.kind==="detail"&&visibleRecord?<TddDetail registry={registry} schema={draftSchema} context={context} record={visibleRecord} subject={{type:"piner_post_draft",id:visibleRecord.id}} activeTab={position.tab} onTabChange={tab=>move("detail",visibleRecord.id,tab,true)} renderApprovedExtension={(row,_ctx,tab)=>tab==="media"?<NativePrivateMediaPanel key={row.id} session={session} postId={row.id} onVerified={fresh=>{if(fresh.id===visibleRecord.id&&fresh.version>=visibleRecord.version&&(fresh.version!==visibleRecord.version||fresh.mediaCount!==visibleRecord.mediaCount)){setDetailResult(old=>old?.id===fresh.id&&old.generation===recordRetry&&old.record&&old.record.version<=fresh.version?{...old,record:fresh,status:"ready"}:old);setReload(n=>n+1);}}}/>:null} mobileMenu={menu("posts-detail-menu")} onBack={close} writes={{adapter:mutation,version:String(visibleRecord.version),onSaved:saved}}/>:null}
   {draft||position.kind==="drawer"&&visibleRecord?<BoQuickView key={draft?"create":visibleRecord!.id} module={postModule} moduleKey="piner-posts" record={draft?null:visibleRecord?{...visibleRecord,name:String(visibleRecord.name??"")}:null} onClose={close} onDetail={()=>{if(!draft&&visibleRecord)move("detail",visibleRecord.id);}}
-   create={draft?{draft,editable:f=>!busy&&session.canCreate()&&["program","name","caption"].includes(f.key),editorField:f=>f.key==="name"?{...f,type:"relation",options:[...new Set(choices.map(c=>c.label))],readonly:false}:f.key==="program"?{...f,type:"select",options:["PINO Afterschool","MyTime by PINO"],readonly:false}:{...f,readonly:false},onChange:change,onCreate:submit,busy:busy||!canSubmitDraft,error,title:"Tạo Post",path:"Piner App / Posts"}:undefined}/>:null}
+   create={draft?{draft,createFields,editable:f=>!busy&&session.canCreate()&&["program","name","caption"].includes(f.key),editorField:f=>f.key==="name"?{...f,type:"relation",options:[...new Set(choices.map(c=>c.label))],readonly:false}:f.key==="program"?{...f,type:"select",options:["PINO Afterschool","MyTime by PINO"],readonly:false}:{...f,readonly:false},onChange:change,onCreate:submit,busy:busy||!canSubmitDraft,error,title:"Tạo Post",path:"Piner App / Posts"}:undefined}/>:null}
  </>;
 }
