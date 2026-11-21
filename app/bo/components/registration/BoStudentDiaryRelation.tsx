@@ -7,7 +7,6 @@ import {DrawerFrame} from "@/app/components/workspace-renderer/DrawerFrame";
 import {BoDataTable} from "./BoDataTable";
 import {BoQuickView} from "./BoQuickView";
 import {readStudentPathDiaries,type StudentPathDiary,type StudentPathDiaryMissionLink} from "@/lib/bo-student-path-diary";
-import styles from "./BoStudentDiaryRelation.module.css";
 import {formatPinoDateTime} from "@/lib/pino-datetime";
 
 const tableFields:BoField[]=[
@@ -240,7 +239,7 @@ export function BoStudentDiaryRelation({
   };
 
   return <>
-    <div className={styles.relation}>
+    <div>
       {reviewOnly?<p className="settings-hint" role="note">Bản ghi mẫu chỉ để duyệt giao diện; không đọc từ Core.</p>:null}
       <BoDataTable
         module={diaryTableModule} showChrome={false} rows={rows} loadState={loadState}
@@ -270,7 +269,7 @@ export function BoStudentDiaryRelation({
       footer={<button type="button" className="secondary-btn" onClick={()=>setMissionChoices(null)}>Đóng</button>}
     >
       <p className="settings-hint">Chọn một Nhiệm vụ để mở bản ghi raw.</p>
-      <div className={styles.missionChoices}>
+      <div className="option-list">
         {missionChoices.map(link=><button key={link.id} type="button" className="secondary-btn"
           disabled={missionLoading} onClick={()=>void openMission(link)}>
           {link.missionCode} — {link.missionName}
