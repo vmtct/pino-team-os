@@ -9,6 +9,7 @@ import { BoDataTable } from "@/app/bo/components/registration/BoDataTable";
 import { useBoStagingUser } from "@/app/bo/components/registration/BoRuntimeBoundary";
 import { AfterschoolHistory } from "./AfterschoolHistory";
 import { AfterschoolPinDrawer } from "./AfterschoolPinDrawer";
+import { DrawerFrame } from "@/app/components/workspace-renderer/DrawerFrame";
 import { DetailFrame } from "@/app/components/workspace-renderer/DetailFrame";
 import { PropertySections } from "@/app/components/workspace-renderer/Properties";
 import { BoQuickView } from "@/app/bo/components/registration/BoQuickView";
@@ -112,6 +113,7 @@ function ScopedAccounts({ centerId }: { centerId: string }) {
   const [page, setPage] = useState(1);
   const [drawer, setDrawer] = useState<BoRecord | null>(null);
   const [detail, setDetail] = useState<BoRecord | null>(null);
+  const [personPicker, setPersonPicker] = useState(false);
   const [historyTab, setHistoryTab] = useState<string>("overview");
   const [settings, setSettings] = useState<string | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
@@ -177,7 +179,9 @@ function ScopedAccounts({ centerId }: { centerId: string }) {
   return <section id="list-screen" aria-label="Tài khoản" data-bo-afterschool-directory="PAP-1886">
     <div className="page-heading"><div className="page-heading-left">{menu?.("menu-btn")}<h1>Tài khoản</h1></div>
       <div className="heading-actions">{actionsEnabled && <button type="button" className="primary-btn"
-        onClick={() => setPinDrawer({ parent: null })}>Tạo tài khoản</button>}</div>
+        onClick={() => setPinDrawer({ parent: null })}>Tạo tài khoản</button>}
+        {actionsEnabled && <button type="button" className="secondary-btn" onClick={() => { setDrawer(null); setPinDrawer(null); setPersonPicker(true); }}>Chọn Person</button>}
+      </div>
     </div>
     {error && <p role="alert">{error} <button type="button" className="ghost-btn"
       onClick={() => { setError(""); setRetry(value => value + 1); }}>Thử lại</button></p>}
@@ -192,8 +196,65 @@ function ScopedAccounts({ centerId }: { centerId: string }) {
     {drawer && !pinDrawer && <BoQuickView module={directory} record={drawer}
       onClose={() => setDrawer(null)} onDetail={() => { setHistoryTab("overview"); setDetail(drawer); setDrawer(null); }} />}
     {pinActionDrawer}
+    {personPicker && <PersonOptionsDrawer centerId={centerId} onClose={() => setPersonPicker(false)} />}
     {settings && <BoTableSettings screen={settings} setScreen={setSettings}
       onClose={() => setSettings(null)} fields={directory.fields} rows={rows}
       value={table} update={update} views={views} setViews={setViews} applyView={applyView} />}
   </section>;
+}
+
+// PAP-2211 · Person-linked Piner User. Reads use the selected BO Center.
+function PersonOptionsDrawer({ centerId, onClose }: { centerId: string; onClose: () => void }) {
+  type Option = { personId: string; displayName: string | null; mobileLastFour: string | null; roles: string[] };
+  const [options, setOptions] = useState<Option[]>([]);
+  const [selected, select] = useState("");
+  const [cursor, setCursor] = useState("");
+  const [next, setNext] = useState<string | null>(null);
+  const [loadedCursor, setLoadedCursor] = useState<string | null>(null);
+  const [error, setError] = useState(false);
+  const [retry, setRetry] = useState(0);
+  useEffect(() => {
+    const controller = new AbortController();
+    const query = new URLSearchParams({ centerId });
+    if (cursor) query.set("afterPersonId", cursor);
+    void (async () => {
+      const response = await fetch("/api/bo/identity/afterschool-users/person-options?" + query, {
+        credentials: "same-origin", cache: "no-store", signal: controller.signal,
+      });
+      if (!response.ok) throw new Error("Person picker unavailable");
+      const { data } = await response.json() as {
+        data?: { items?: Option[]; scopeCenterId?: string; nextPersonId?: string | null };
+      };
+      if (data?.scopeCenterId !== centerId || !Array.isArray(data.items)) throw new Error("Invalid picker scope");
+      const items = data.items;
+      if (!controller.signal.aborted) {
+        setOptions(previous => cursor ? [...previous, ...items] : items);
+        setNext(data.nextPersonId ?? null);
+        setLoadedCursor(cursor);
+      }
+    })().catch(() => {
+      if (!controller.signal.aborted) setError(true);
+    });
+    return () => controller.abort();
+  }, [centerId, cursor, retry]);
+
+  const pending = loadedCursor !== cursor && !error;
+  return <DrawerFrame title="Chọn Person" path="Tài khoản" onClose={onClose}
+    footer={<button type="button" className="secondary-btn" onClick={onClose}>Đóng</button>}>
+    <label htmlFor="account-person-options">Person</label>
+    <select id="account-person-options" value={selected} onChange={event => select(event.target.value)}>
+      <option value="">Chọn một Person</option>
+      {options.map(option => <option key={option.personId} value={option.personId}>
+        {[option.displayName ?? "Chưa có tên", option.roles.join(" / "),
+          option.mobileLastFour ? "•••• " + option.mobileLastFour : null].filter(Boolean).join(" · ")}
+      </option>)}
+    </select>
+    {pending && <p role="status">Đang tải danh sách…</p>}
+    {error && <p role="alert">Không thể tải danh sách.{" "}
+      <button type="button" className="ghost-btn" onClick={() => { setError(false); setRetry(value => value + 1); }}>Thử lại</button>
+    </p>}
+    {!pending && !error && options.length === 0 && <p>Chưa có Person trong cơ sở này.</p>}
+    {!pending && !error && next && <button type="button" className="ghost-btn" onClick={() => setCursor(next)}>Tải thêm</button>}
+    {selected && <p role="status">Chức năng kích hoạt tài khoản qua Person chưa khả dụng.</p>}
+  </DrawerFrame>;
 }
