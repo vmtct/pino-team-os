@@ -11,11 +11,12 @@ export type ParticipationPreview = {
 };
 
 export function WorkshopParticipationTab({
-  workshopName, rows, canCreate, onCreate, onOpen
+  workshopName, rows, canCreate, onCreate, onOpen, unavailable=false
 }: {
   workshopName: string;
   rows: readonly ParticipationPreview[];
   canCreate: boolean;
+  unavailable?: boolean;
   onCreate?: () => void;
   onOpen?: (participationId: string) => void;
 }): ReactNode {
@@ -27,7 +28,7 @@ export function WorkshopParticipationTab({
       </div>
       {canCreate && onCreate ? <button type="button" className="primary-btn" onClick={onCreate}>Thêm người tham gia</button> : null}
     </div>
-    {rows.length === 0 ? <p role="status">Chưa có người tham gia.</p> :
+    {unavailable ? <p role="status">Dữ liệu Participation chưa được kết nối với Core. Không thể tạo hoặc xác nhận lượt tham gia tại đây.</p> : rows.length === 0 ? <p role="status">Chưa có người tham gia.</p> :
       <div className="overflow-x-auto"><table className="w-full text-left">
         <thead><tr><th scope="col">Person</th><th scope="col">Trạng thái</th><th scope="col">Nhóm</th><th scope="col">Lượt sử dụng</th><th scope="col">Chi tiết</th></tr></thead>
         <tbody>{rows.map(row => <tr key={row.id}>
