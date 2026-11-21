@@ -1,0 +1,21 @@
+/* PAP-2206: only the native Assignment picker locked-state presentation.
+ * Shared Classroom/Diary card layout and eligibility behavior stay untouched. */
+.lockedCard.lockedCard {
+  opacity: 1;
+  filter: none;
+}
+.lockedCard.lockedCard > div {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.lockedCard.lockedCard em {
+  font-weight: var(--tos-weight-medium);
+  color: var(--tos-color-warning-text);
+  line-height: 1.4;
+}
+.lockedCard.lockedCard > span {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
