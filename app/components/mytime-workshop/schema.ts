@@ -1,5 +1,7 @@
 /** PAP-2161 / MT-WORKSHOP. Presentation schema, capability binding is injected by host. */
-import {TddRegistry,type FieldSchema,type ModuleSchema,type TableQuery,type HistoryBinding} from "@/lib/workspace-schema";
+import {TddRegistry,type Approval,type FieldSchema,type ModuleSchema,type TableQuery,type HistoryBinding} from "@/lib/workspace-schema";
+const participationApproval={jira:"PAP-2242",owner:"Founder",designAuthority:"PAP-2242 M1 Participation in BO Workshop Detail",files:["app/components/mytime-workshop/WorkshopParticipationTab.tsx","app/components/mytime-workshop/WorkshopParticipationCreate.tsx","app/components/mytime-workshop/WorkshopWorkspace.tsx"],tests:["lib/pap2242-participation-shell.test.ts","lib/pap2242-create-shell.test.ts"],reviewBy:"2026-12-31T00:00:00+07:00"} as const;
+export const verifyWorkshopParticipation=(approval:Approval,scope:{surface:"BO"|"HO";key:string;extensionId?:string})=>scope.surface==="BO"&&scope.key==="mytime-workshops"&&scope.extensionId==="pap2242-workshop-participation"&&approval.jira===participationApproval.jira&&approval.designAuthority===participationApproval.designAuthority;
 import type {BoField,BoModule} from "@/lib/bo-registration";
 export type WorkshopChoices={centers:readonly string[];missions:readonly string[];specialties:readonly string[];staff:readonly string[]};
 export type WorkshopCapabilities={read:string;create:string;edit:string;history:string};
@@ -40,9 +42,9 @@ export function workshopBinding(surface:"HO"|"BO",choices:WorkshopChoices,cap:Wo
  const definition={version:1,classification:"TDD_DEFAULT",surface,key:"mytime-workshops",label:"Workshop MyTime",group:"Operations",fields,capabilities:editable?cap:{read:cap.read,history:cap.history},
  data:{id:"mt-workshop-unbound",list:async()=>{throw Error("Adapter not bound");},detail:async()=>{throw Error("Adapter not bound");}},
  table:{identity:{field:"name",pinned:"left",hideable:false,reorderable:false},columns:order.map(field=>({field,visible:visible.includes(field as typeof visible[number])})),search:{fields:["name"],normalization:"vi-diacritic-insensitive"},filters:{fields:["center","status"],mode:"flat",logic:"AND"},sort:{fields:["name","center","startAt"],mode:"single",nulls:"last",tieBreak:"record-id"},group:{fields:[],mode:"single"},views:{builtIn:[],saved:{kind:"local-ui"},actions:["add","apply","rename","delete","reorder"]},pagination:{sizes:[8,15,30],defaultSize:15,mode:"local-ui"},inlineEdit:{fields:[],enabled:false},interaction:{settings:["properties","grouping","filters","quick-views"],quickView:"separate-opener",keyboard:"canonical",undo:"local-ui-only"}},
- drawer:{density:"one-column",sections,actions:[]},detail:{overview:{sections},businessTabs:[],history}
+ drawer:{density:"one-column",sections,actions:[]},detail:{overview:{sections},businessTabs:surface==="BO"?[{id:"participation",label:"Participation",kind:"approved-extension" as const,extensionId:"pap2242-workshop-participation",source:{adapter:"bo-workshop-participation",permission:cap.read},approval:participationApproval}]:[],history}
  } as const satisfies ModuleSchema<typeof fields>;
- const registry=new TddRegistry(),schema=registry.register(definition);
+ const registry=new TddRegistry(verifyWorkshopParticipation),schema=registry.register(definition);
  const boFields:BoField[]=sections.flatMap(s=>s.fields).map(key=>{const f=fields.find(x=>x.key===key)!;return {key:f.key,label:f.label,type:f.type,icon:f.icon,w:f.width,readonly:f.readOnly,...("options" in f&&f.options?{options:[...f.options]}:{})}});
  const moduleDefinition:BoModule={label:"Workshop MyTime",group:"Operations",fields:boFields};
  return {registry,schema,module:moduleDefinition,fields,query};
