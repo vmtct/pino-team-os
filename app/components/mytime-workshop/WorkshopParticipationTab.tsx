@@ -36,13 +36,15 @@ export function WorkshopParticipationTab({
     group:row.group??null,usageCount:row.usageCount??null,
     createdAt:null,createdBy:null,updatedAt:null,updatedBy:null,
   }));
-  return <section aria-label="Participation" className="space-y-4">
-    <div className="flex items-center justify-between gap-3">
+  return <section aria-label="Participation">
+    <div className="page-heading">
       <div>
-        <h2 className="text-lg font-semibold">Người tham gia</h2>
-        <p className="text-sm">Workshop: {workshopName}</p>
+        <h2>Người tham gia</h2>
+        <p>Workshop: {workshopName}</p>
       </div>
-      {canCreate?<button type="button" className="primary-btn" onClick={()=>setCreateOpen(true)}>Thêm người tham gia</button>:null}
+      {canCreate?<div className="heading-actions">
+        <button type="button" className="primary-btn" aria-haspopup="dialog" aria-expanded={createOpen} onClick={()=>setCreateOpen(true)}>Thêm người tham gia</button>
+      </div>:null}
     </div>
     {unavailable?<p role="status">Core read chưa được kết nối. Không có Participation giả hoặc thao tác ghi trong M1.</p>:null}
     <TddTable registry={binding.registry} schema={binding.schema} context={context} rows={tableRows} query={query} status="ready" onQueryChange={setQuery} onOpen={record=>onOpen?.(record.id)}/>

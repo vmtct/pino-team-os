@@ -22,14 +22,13 @@ export function ParticipationPersonPicker({people,selectedId,onSelect,disabled=f
 }) {
   const [search,setSearch]=useState("");
   const options=useMemo(()=>people.filter(p=>personParticipationLabel(p).toLocaleLowerCase("vi").includes(search.toLocaleLowerCase("vi"))),[people,search]);
-  return <div style={{display:"grid",gap:8,width:"100%"}}>
-    <label htmlFor="participation-person-search">Tìm Person</label>
-    <input className="os-create-select" id="participation-person-search" type="search" value={search} onChange={event=>setSearch(event.target.value)} disabled={disabled} placeholder="Tên, tuổi hoặc 4 số cuối điện thoại"/>
-    <label htmlFor="participation-person-select">Person</label>
-    <select className="os-create-select" id="participation-person-select" value={selectedId} onChange={event=>onSelect(event.target.value)} disabled={disabled} required>
+  const unavailable=disabled||people.length===0;
+  return <>
+    <input className="edit-input" aria-label="Tìm Person" id="participation-person-search" type="search" value={search} onChange={event=>setSearch(event.target.value)} disabled={unavailable} placeholder="Tên, tuổi hoặc 4 số cuối điện thoại"/>
+    <select className="edit-input" aria-label="Person" id="participation-person-select" value={selectedId} onChange={event=>onSelect(event.target.value)} disabled={unavailable} required>
       <option value="">Chọn Person</option>
       {options.map(p=><option key={p.personId} value={p.personId}>{personParticipationLabel(p)}</option>)}
     </select>
-    {!options.length ? <p role="status">Không tìm thấy Person phù hợp.</p> : null}
-  </div>;
+    {!people.length?<span role="status">Danh sách Person chưa được kết nối trong M1.</span>:!options.length?<span role="status">Không tìm thấy Person phù hợp.</span>:null}
+  </>;
 }
