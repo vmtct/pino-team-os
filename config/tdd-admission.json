@@ -1058,6 +1058,7 @@
         "app/components/mytime-workshop/WorkshopParticipationTab.tsx",
         "app/components/mytime-workshop/WorkshopParticipationCreate.tsx",
         "app/components/mytime-workshop/ParticipationPersonPicker.tsx",
+        "app/components/mytime-workshop/ParticipationPersonOptions.ts",
         "app/components/mytime-workshop/ParticipationSchema.ts",
         "app/components/mytime-workshop/WorkshopRuntime.tsx",
         "app/components/mytime-workshop/schema.ts",
@@ -1067,7 +1068,7 @@
       ],
       "schema": {"file":"app/components/mytime-workshop/schema.ts","export":"boWorkshopSchema"},
       "binding": {"kind":"SURFACE_WORKSPACE_ADAPTER","file":"app/components/mytime-workshop/WorkshopWorkspace.tsx"},
-      "tests": ["lib/mytime-workshop-api-client.test.ts","lib/mytime-workshop-runtime-binding.test.ts","lib/mytime-workshop-host-contract.test.ts","lib/mytime-workshop-navigation.test.ts","lib/mytime-workshop-reference-codec.test.ts","lib/mytime-workshop-datetime.test.ts"],
+      "tests": ["lib/mytime-workshop-api-client.test.ts","lib/mytime-workshop-runtime-binding.test.ts","lib/mytime-workshop-host-contract.test.ts","lib/mytime-workshop-navigation.test.ts","lib/mytime-workshop-reference-codec.test.ts","lib/mytime-workshop-datetime.test.ts","lib/pap2242-person-picker.test.ts"],
       "externalReferences": [
         {"file":"lib/mytime-workshop-host-contract.ts","owner":"PAP-2164"},
         {"file":"lib/host-boundary.ts","owner":"PAP-2164"},
@@ -1089,6 +1090,7 @@
         "app/components/mytime-workshop/WorkshopParticipationTab.tsx",
         "app/components/mytime-workshop/WorkshopParticipationCreate.tsx",
         "app/components/mytime-workshop/ParticipationPersonPicker.tsx",
+        "app/components/mytime-workshop/ParticipationPersonOptions.ts",
         "app/components/mytime-workshop/ParticipationSchema.ts",
         "app/components/mytime-workshop/WorkshopRuntime.tsx",
         "app/components/mytime-workshop/schema.ts",
@@ -1098,7 +1100,7 @@
       ],
       "schema": {"file":"app/components/mytime-workshop/schema.ts","export":"hoWorkshopSchema"},
       "binding": {"kind":"SURFACE_WORKSPACE_ADAPTER","file":"app/components/mytime-workshop/WorkshopWorkspace.tsx"},
-      "tests": ["lib/mytime-workshop-api-client.test.ts","lib/mytime-workshop-runtime-binding.test.ts","lib/mytime-workshop-host-contract.test.ts","lib/mytime-workshop-navigation.test.ts","lib/mytime-workshop-datetime.test.ts"],
+      "tests": ["lib/mytime-workshop-api-client.test.ts","lib/mytime-workshop-runtime-binding.test.ts","lib/mytime-workshop-host-contract.test.ts","lib/mytime-workshop-navigation.test.ts","lib/mytime-workshop-datetime.test.ts","lib/pap2242-person-picker.test.ts"],
       "externalReferences": [
         {"file":"lib/mytime-workshop-host-contract.ts","owner":"PAP-2164"},
         {"file":"lib/host-boundary.ts","owner":"PAP-2164"},

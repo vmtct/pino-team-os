@@ -6,9 +6,11 @@ import {TddTable} from "@/app/components/workspace-renderer/Table";
 import {DrawerFrame} from "@/app/components/workspace-renderer/DrawerFrame";
 import {boParticipationBinding,type ParticipationRow} from "./ParticipationSchema";
 import {WorkshopParticipationCreate} from "./WorkshopParticipationCreate";
+import type {ParticipationPersonOption} from "./ParticipationPersonPicker";
 
 export type ParticipationPreview = {
   id:string;
+  personId?:string;
   personLabel:string;
   status:string;
   group?:"Hội họa"|"Piano"|null;
@@ -16,13 +18,14 @@ export type ParticipationPreview = {
 };
 
 export function WorkshopParticipationTab({
-  workshopId,centerId,workshopName,centerName,rows,context,canCreate,onOpen,unavailable=false
+  workshopId,centerId,workshopName,centerName,rows,personCandidates=[],context,canCreate,onOpen,unavailable=false
 }:{
   workshopId:string;
   centerId:string;
   workshopName:string;
   centerName:string;
   rows:readonly ParticipationPreview[];
+  personCandidates?:readonly ParticipationPersonOption[];
   context:AuthorizationContext;
   canCreate:boolean;
   onOpen?:(participationId:string)=>void;
@@ -36,6 +39,7 @@ export function WorkshopParticipationTab({
     group:row.group??null,usageCount:row.usageCount??null,
     createdAt:null,createdBy:null,updatedAt:null,updatedBy:null,
   }));
+  const participantPersonIds=rows.flatMap(row=>row.personId?[row.personId]:[]);
   return <section aria-label="Participation">
     <div className="page-heading">
       <div>
@@ -46,10 +50,11 @@ export function WorkshopParticipationTab({
         <button type="button" className="primary-btn" aria-haspopup="dialog" aria-expanded={createOpen} onClick={()=>setCreateOpen(true)}>Thêm người tham gia</button>
       </div>:null}
     </div>
-    {unavailable?<p role="status">Core read chưa được kết nối. Không có Participation giả hoặc thao tác ghi trong M1.</p>:null}
+    {unavailable?<p role="status">Core read chưa được kết nối. M1 không có Participation giả hoặc thao tác ghi.</p>:null}
     <TddTable registry={binding.registry} schema={binding.schema} context={context} rows={tableRows} query={query} status="ready" onQueryChange={setQuery} onOpen={record=>onOpen?.(record.id)}/>
     {createOpen?<DrawerFrame title="Thêm người tham gia" path="Workshop MyTime" onClose={()=>setCreateOpen(false)} footer={<><button type="button" className="secondary-btn" onClick={()=>setCreateOpen(false)}>Hủy</button><button type="button" className="primary-btn" disabled aria-disabled="true">Thêm người tham gia</button></>}>
-      <WorkshopParticipationCreate workshopId={workshopId} centerId={centerId} workshopName={workshopName} centerName={centerName} people={[]} context={context}/>
+      <WorkshopParticipationCreate workshopId={workshopId} centerId={centerId} workshopName={workshopName} centerName={centerName}
+        people={personCandidates} participantPersonIds={participantPersonIds} context={context}/>
       <p role="status">M1 chỉ trình bày giao diện. Tạo thật sẽ được nối sau Founder Gate1.</p>
     </DrawerFrame>:null}
   </section>;
