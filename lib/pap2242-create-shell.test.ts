@@ -12,7 +12,8 @@ test("PAP-2242 nested M1 shell inherits canonical Workshop and Center",()=>{
 test("PAP-2242 M1 does not persist Participation before Gate1",()=>{
   assert.ok(!create.includes("onSubmit"));
   assert.ok(!create.includes("fetch("));
-  assert.ok(tab.includes("people={[]}"));
+  assert.ok(tab.includes("people={personCandidates}"));
+  assert.ok(tab.includes("participantPersonIds={participantPersonIds}"));
   assert.ok(tab.includes('disabled aria-disabled="true"'));
   assert.ok(tab.includes("onClose={()=>setCreateOpen(false)}"));
 });
