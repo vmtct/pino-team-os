@@ -1,0 +1,60 @@
+.relation :global(button[data-edit="action"]) {
+  align-items: center !important;
+  background: #f5f2ff !important;
+  border: 1px solid #d8cff8 !important;
+  border-radius: 6px !important;
+  color: #5d49c5 !important;
+  cursor: pointer;
+  display: inline-flex !important;
+  font-size: 12px;
+  font-weight: 600;
+  justify-content: center;
+  min-height: 30px;
+  padding: 4px 9px !important;
+  white-space: nowrap;
+  width: auto !important;
+}
+
+.relation :global(button[data-edit="action"]:hover) {
+  background: #ede8ff !important;
+  border-color: #c7b9f4 !important;
+}
+
+.relation :global(button[data-edit="action"]:focus-visible) {
+  outline: 2px solid #7864df;
+  outline-offset: 2px;
+}
+
+.relation :global(button[data-edit="missionName"]) {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 2px 4px !important;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: #b4a5ef;
+  text-underline-offset: 3px;
+  width: auto !important;
+}
+
+.relation :global(button[data-edit="missionName"]:hover) {
+  background: #f5f2ff !important;
+  text-decoration-color: #5d49c5;
+}
+
+.relation :global(button[data-edit="missionName"]:focus-visible) {
+  outline: 2px solid #7864df;
+  outline-offset: 2px;
+}
+
+.missionChoices {
+  display: grid;
+  gap: 12px;
+}
+
+.missionChoices :global(button) {
+  justify-content: flex-start;
+  text-align: left;
+  white-space: normal;
+}
