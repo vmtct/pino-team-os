@@ -9,6 +9,8 @@ import { BoDataTable } from "@/app/bo/components/registration/BoDataTable";
 import { useBoStagingUser } from "@/app/bo/components/registration/BoRuntimeBoundary";
 import { AfterschoolHistory } from "./AfterschoolHistory";
 import { AfterschoolPinDrawer } from "./AfterschoolPinDrawer";
+import { PersonActivationDrawer } from "./PersonActivationDrawer";
+import { DrawerFrame } from "@/app/components/workspace-renderer/DrawerFrame";
 import { DetailFrame } from "@/app/components/workspace-renderer/DetailFrame";
 import { PropertySections } from "@/app/components/workspace-renderer/Properties";
 import { BoQuickView } from "@/app/bo/components/registration/BoQuickView";
@@ -112,6 +114,7 @@ function ScopedAccounts({ centerId }: { centerId: string }) {
   const [page, setPage] = useState(1);
   const [drawer, setDrawer] = useState<BoRecord | null>(null);
   const [detail, setDetail] = useState<BoRecord | null>(null);
+  const [personPicker, setPersonPicker] = useState(false);
   const [historyTab, setHistoryTab] = useState<string>("overview");
   const [settings, setSettings] = useState<string | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
@@ -177,7 +180,8 @@ function ScopedAccounts({ centerId }: { centerId: string }) {
   return <section id="list-screen" aria-label="Tài khoản" data-bo-afterschool-directory="PAP-1886">
     <div className="page-heading"><div className="page-heading-left">{menu?.("menu-btn")}<h1>Tài khoản</h1></div>
       <div className="heading-actions">{actionsEnabled && <button type="button" className="primary-btn"
-        onClick={() => setPinDrawer({ parent: null })}>Tạo tài khoản</button>}</div>
+        onClick={() => { setDrawer(null); setPinDrawer(null); setPersonPicker(true); }}>Tạo tài khoản</button>}
+      </div>
     </div>
     {error && <p role="alert">{error} <button type="button" className="ghost-btn"
       onClick={() => { setError(""); setRetry(value => value + 1); }}>Thử lại</button></p>}
@@ -192,6 +196,8 @@ function ScopedAccounts({ centerId }: { centerId: string }) {
     {drawer && !pinDrawer && <BoQuickView module={directory} record={drawer}
       onClose={() => setDrawer(null)} onDetail={() => { setHistoryTab("overview"); setDetail(drawer); setDrawer(null); }} />}
     {pinActionDrawer}
+    {personPicker && <PersonActivationDrawer centerId={centerId} onClose={() => setPersonPicker(false)}
+      onActivated={() => { setCursor(undefined); setRetry(value => value + 1); }} />}
     {settings && <BoTableSettings screen={settings} setScreen={setSettings}
       onClose={() => setSettings(null)} fields={directory.fields} rows={rows}
       value={table} update={update} views={views} setViews={setViews} applyView={applyView} />}
