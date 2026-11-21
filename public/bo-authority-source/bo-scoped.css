@@ -4562,3 +4562,41 @@ html:where([data-bo-ui-authority="v25"]),
     text-align: right;
   }
 }
+
+
+:where(html[data-bo-ui-authority="v25"]) #drawer .student-create-birthday {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+:where(html[data-bo-ui-authority="v25"]) #drawer .student-create-birthday__input {
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 7px 6px;
+  border: 1px solid var(--bo-color-border-strong);
+  border-radius: 7px;
+  background: var(--bo-color-surface);
+  color: var(--bo-color-text);
+  font: inherit;
+  font-size: 12px;
+  text-align: center;
+}
+:where(html[data-bo-ui-authority="v25"]) #drawer .student-create-birthday__input--day,
+:where(html[data-bo-ui-authority="v25"]) #drawer .student-create-birthday__input--month {
+  width: 6ch;
+}
+:where(html[data-bo-ui-authority="v25"]) #drawer .student-create-birthday__input--year {
+  width: 8ch;
+}
+:where(html[data-bo-ui-authority="v25"]) #drawer .student-create-birthday__input:focus-visible {
+  outline: 2px solid var(--bo-color-accent);
+  outline-offset: 2px;
+}
+:where(html[data-bo-ui-authority="v25"]) #drawer .student-create-birthday__input:disabled {
+  opacity: .65;
+  cursor: not-allowed;
+}

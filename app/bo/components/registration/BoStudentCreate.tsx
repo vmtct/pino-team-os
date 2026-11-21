@@ -14,6 +14,40 @@ type ParentResults =
   | { state: "ready"; centerId: string; data: BoParentSearchResult[] }
   | { state: "error"; message: string };
 type Attempt = { body: BoStudentIntakeCreateInput; idempotencyKey: string; centerId: string };
+type StudentBirthDate = Pick<BoStudentIntakeCreateInput, "birthYear" | "birthMonth" | "birthDay" | "birthPrecision">;
+type ParsedBirthDate = { ok: true; value: StudentBirthDate } | { ok: false; error: string };
+
+function parseStudentBirthDate(dayInput: string, monthInput: string, yearInput: string): ParsedBirthDate {
+  const dayText = dayInput.trim();
+  const monthText = monthInput.trim();
+  const yearText = yearInput.trim();
+  if (!dayText && !monthText && !yearText) {
+    return { ok: true, value: { birthYear: null, birthMonth: null, birthDay: null, birthPrecision: "UNKNOWN" } };
+  }
+  if (!yearText) return { ok: false, error: "Nhập năm sinh trước khi nhập tháng hoặc ngày." };
+  if (!/^\d{4}$/.test(yearText) || Number(yearText) < 1900) {
+    return { ok: false, error: "Năm sinh cần đủ 4 chữ số và từ năm 1900 trở lên." };
+  }
+  const birthYear = Number(yearText);
+  if (monthText && (!/^\d{1,2}$/.test(monthText) || Number(monthText) < 1 || Number(monthText) > 12)) {
+    return { ok: false, error: "Tháng sinh phải từ 1 đến 12." };
+  }
+  if (dayText && !monthText) return { ok: false, error: "Nhập tháng sinh khi đã nhập ngày." };
+  if (!monthText) {
+    return { ok: true, value: { birthYear, birthMonth: null, birthDay: null, birthPrecision: "YEAR_ONLY" } };
+  }
+  const birthMonth = Number(monthText);
+  if (!dayText) {
+    return { ok: true, value: { birthYear, birthMonth, birthDay: null, birthPrecision: "YEAR_MONTH" } };
+  }
+  if (!/^\d{1,2}$/.test(dayText)) return { ok: false, error: "Ngày sinh phải từ 1 đến 31." };
+  const birthDay = Number(dayText);
+  const daysInMonth = new Date(birthYear, birthMonth, 0).getDate();
+  if (birthDay < 1 || birthDay > daysInMonth) {
+    return { ok: false, error: "Ngày sinh không hợp lệ theo tháng và năm đã nhập." };
+  }
+  return { ok: true, value: { birthYear, birthMonth, birthDay, birthPrecision: "FULL_DATE" } };
+}
 
 function message(cause: unknown) {
   return cause instanceof Error && cause.message ? cause.message : "Không thể tạo học viên. Hãy thử lại.";
@@ -41,7 +75,9 @@ function BoStudentCreateScoped({ centerId, onClose, onCreated }: {
   const busyRef = useRef(false);
   const attemptRef = useRef<Attempt | null>(null);
   const [studentName, setStudentName] = useState("");
-  const [birthDate, setBirthDate] = useState("");
+  const [birthDayInput, setBirthDayInput] = useState("");
+  const [birthMonthInput, setBirthMonthInput] = useState("");
+  const [birthYearInput, setBirthYearInput] = useState("");
   const [relationshipType, setRelationshipType] = useState<"PARENT" | "GUARDIAN" | "OTHER">("PARENT");
   const [parentMode, setParentMode] = useState<"EXISTING" | "NEW">("EXISTING");
   const [parentQuery, setParentQuery] = useState("");
@@ -101,21 +137,25 @@ function BoStudentCreateScoped({ centerId, onClose, onCreated }: {
       setError("Hãy nhập tên học viên và thông tin liên hệ bắt buộc.");
       return;
     }
-    const currentAttempt = attemptRef.current ?? (() => {
-      const [birthYear, birthMonth, birthDay] = birthDate ? birthDate.split("-").map(Number) : [null, null, null];
+    let currentAttempt = attemptRef.current;
+    if (!currentAttempt) {
+      const parsedBirthDate = parseStudentBirthDate(birthDayInput, birthMonthInput, birthYearInput);
+      if (!parsedBirthDate.ok) {
+        setError(parsedBirthDate.error);
+        return;
+      }
       const common = {
-        displayName: studentName.trim(), birthYear, birthMonth, birthDay,
-        birthPrecision: birthDate ? "FULL_DATE" as const : "UNKNOWN" as const,
+        displayName: studentName.trim(), ...parsedBirthDate.value,
         relationshipType, effectiveFrom: new Date().toISOString(),
       };
-      return {
+      currentAttempt = {
         idempotencyKey: crypto.randomUUID(),
         centerId,
         body: parentMode === "EXISTING"
           ? { ...common, existingParentUserId: selectedParentId! }
           : { ...common, guardianDisplayName: guardianName.trim() || null, contactType, contactValue: contactValue.trim() },
       };
-    })();
+    }
     attemptRef.current = currentAttempt;
     setAttempt(currentAttempt);
     busyRef.current = true; setBusy(true); setError(""); setCanResetAttempt(false);
@@ -138,7 +178,7 @@ function BoStudentCreateScoped({ centerId, onClose, onCreated }: {
     : ["parentMode", "guardianName", "contactType", "contactValue"];
   const schema: BoField[] = [
     { key: "name", label: "Học viên", type: "text", icon: "Aa", w: 180 },
-    { key: "birthDate", label: "Ngày sinh", type: "date", icon: "▦", w: 140 },
+    { key: "birthDate", label: "Sinh Nhật", type: "date", icon: "▦", w: 140 },
     { key: "relationshipType", label: "Quan hệ", type: "select", icon: "▣", w: 130 },
     { key: "parentMode", label: "Liên kết phụ huynh", type: "select", icon: "▣", w: 160 },
     { key: "parentQuery", label: "Tìm phụ huynh", type: "text", icon: "⌕", w: 160 },
@@ -152,9 +192,29 @@ function BoStudentCreateScoped({ centerId, onClose, onCreated }: {
   const parentFields = schema.filter(field => parentFieldKeys.includes(field.key));
   const relationshipLabels = { PARENT: "Cha/Mẹ", GUARDIAN: "Người giám hộ", OTHER: "Khác" } as const;
   const record: BoRecord = {
-    id: "", name: studentName, birthDate, relationshipType: relationshipLabels[relationshipType],
+    id: "", name: studentName, birthDate: null, relationshipType: relationshipLabels[relationshipType],
     parentMode, parentQuery, selectedParentId: selectedParent?.parent.displayName ?? null,
     guardianName, contactType, contactValue,
+  };
+  const studentCreateFields: Record<string, CreateDrawerField> = {
+    birthDate: {
+      id: "student-create-birth-day", label: "Sinh Nhật", value: birthDayInput, disabled: locked,
+      onChange: value => { setBirthDayInput(value.replace(/\D/g, "").slice(0, 2)); setError(""); },
+      control: <div className="student-create-birthday" role="group" aria-label="Sinh Nhật">
+        <input id="student-create-birth-day" className="edit-input student-create-birthday__input student-create-birthday__input--day"
+          type="text" inputMode="numeric" pattern="[0-9]*" maxLength={2} aria-label="Sinh Nhật - ngày"
+          placeholder="dd" value={birthDayInput} disabled={locked}
+          onChange={event => { setBirthDayInput(event.target.value.replace(/\D/g, "").slice(0, 2)); setError(""); }} />
+        <input id="student-create-birth-month" className="edit-input student-create-birthday__input student-create-birthday__input--month"
+          type="text" inputMode="numeric" pattern="[0-9]*" maxLength={2} aria-label="Sinh Nhật - tháng"
+          placeholder="mm" value={birthMonthInput} disabled={locked}
+          onChange={event => { setBirthMonthInput(event.target.value.replace(/\D/g, "").slice(0, 2)); setError(""); }} />
+        <input id="student-create-birth-year" className="edit-input student-create-birthday__input student-create-birthday__input--year"
+          type="text" inputMode="numeric" pattern="[0-9]*" maxLength={4} aria-label="Sinh Nhật - năm"
+          placeholder="yyyy" value={birthYearInput} disabled={locked}
+          onChange={event => { setBirthYearInput(event.target.value.replace(/\D/g, "").slice(0, 4)); setError(""); }} />
+      </div>,
+    },
   };
   const createFields: Record<string, CreateDrawerField> = {
     parentMode: {
@@ -218,14 +278,13 @@ function BoStudentCreateScoped({ centerId, onClose, onCreated }: {
   return <BoQuickView moduleKey="students" module={studentModule} record={null}
     onClose={closeIfSafe}
     create={{
-      draft: record, fields: studentFields, busy: busy || !centerId, error, title: "Tạo học viên", path: "Students",
+      draft: record, fields: studentFields, createFields: studentCreateFields, busy: busy || !centerId, error, title: "Tạo học viên", path: "Students",
       editable: field => !locked && studentKeys.includes(field.key),
       editorField: field => field.key === "relationshipType"
         ? { ...field, readonly: false, options: Object.values(relationshipLabels) }
         : { ...field, readonly: false },
       onChange: (key: string, value: BoValue) => {
         if (key === "name") setStudentName(String(value ?? ""));
-        if (key === "birthDate") setBirthDate(String(value ?? ""));
         if (key === "relationshipType") {
           const match = (Object.keys(relationshipLabels) as (keyof typeof relationshipLabels)[])
             .find(k => relationshipLabels[k] === value);
