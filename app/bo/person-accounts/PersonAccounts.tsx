@@ -126,7 +126,7 @@ export function PersonAccounts() {
     closeCreate();
   }
 
-  return <section aria-label="Tài khoản Piner" data-pap-task="PAP-2211" data-preview="synthetic-only">
+  return <section id="list-screen" aria-label="Tài khoản Piner" data-pap-task="PAP-2211" data-preview="synthetic-only">
     <div className="page-heading"><div className="page-heading-left"><h1>Tài khoản Piner</h1></div>
       <div className="heading-actions"><button type="button" className="primary-btn" onClick={() => { setPersonId(""); setCreateOpen(true); }}>Tạo tài khoản</button></div>
     </div>
