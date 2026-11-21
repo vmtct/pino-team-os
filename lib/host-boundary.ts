@@ -402,6 +402,12 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
       return hostname === BO_STAGING_HOSTNAME && method === "GET"
         ? { action: "next" } : { action: "not_found" };
     }
+    // PAP-2261 · Core BO — student-scoped Path Diary read for PAP-2221.
+    // Exact Center+Student GET only; BFF and Core independently validate ACL/scope.
+    if (/^\/api\/bo\/learning\/students\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/path-diaries$/i.test(pathname)) {
+      return hostname === BO_STAGING_HOSTNAME && method === "GET"
+        ? { action: "next" } : { action: "not_found" };
+    }
     // PAP-1224: new Pass TDD is BO Staging-only; production retains legacy Open Studio.
     if (pathname === "/bo/open-studio-passes") return (method==="GET"||method==="HEAD") ? {action:"next"} : {action:"not_found"};
     // PAP-1211: one exact synthetic salary adjustment E2E path, Founder BFF guarded.
