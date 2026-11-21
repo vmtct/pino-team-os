@@ -42,6 +42,8 @@ function fixture() {
     // PAP-2147: Guest is checked in the real repo; baseline fixture has no Guest page.
     .replace(/\s*\{ href: "\/bo\/guests", label: "Khách" \},/,"")
     .replace(/\s*\{ href: "\/bo\/mytime-workshops", label: "Workshop MyTime" \},/,"")
+    // PAP-2242: participation is tested by the real-repository TDD contract, not in this baseline-only fixture.
+    .replace(/\s*\{ href: "\/bo\/mytime-participations", label: "Participation" \},/,"")
     .replace(/\s*\{ href: "\/bo\/enrollments", label: "Lịch học" \},/,"")
     // PAP-2134: new Post TDD is checked in the real repo, not in the baseline-only fixture.
     .replace(/\s*\{\s*label: "Piner App",\s*items: \[\{ href: "\/bo\/piner-posts", label: "Posts" \}\],\s*\},/,""));
