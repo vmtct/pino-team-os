@@ -1,6 +1,7 @@
 import { TddRegistry, type FieldSchema, type ModuleRow, type TableQuery } from "@/lib/workspace-schema";
 import type { ApprovalVerifier } from "@/lib/workspace-schema/registry";
 import type { SurfaceDefinition, SurfaceProvider } from "@/lib/workspace-adapters/contracts";
+import {roleCreateActions} from "./role-lifecycle-model";
 
 const read = { display:true, search:true, filter:true, sort:true, group:true, inlineEdit:false } as const;
 export const roleFields = [
@@ -21,7 +22,7 @@ export const roleQuery:TableQuery<F> = {
 };
 export const roleDefinition = {
  version:1,classification:"TDD_DEFAULT",surface:"HO",key:"roles",label:"Roles",group:"System",
- fields:roleFields,capabilities:{read:"access.role.view"},
+ fields:roleFields,capabilities:{read:"access.role.view",create:"access.role.create"},actions:roleCreateActions,
  table:{
   identity:{field:"name",pinned:"left",hideable:false,reorderable:false},
   columns:[
