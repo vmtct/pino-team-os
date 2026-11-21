@@ -1005,10 +1005,6 @@
           "owner": "PAP-1732"
         },
         {
-          "file": "lib/bo-mission-assignment-options.ts",
-          "owner": "PAP-1210"
-        },
-        {
           "file": "lib/bo-student-center-api.ts",
           "owner": "PAP-1426"
         },

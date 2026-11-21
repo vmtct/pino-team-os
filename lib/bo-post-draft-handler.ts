@@ -1,9 +1,9 @@
-/** PAP-2134 / PNR-APP-HUB candidate private Draft BFF; not mounted / no production admission. */
+/** PAP-2228 / PNR-APP-HUB candidate private Post BFF; staging-only and Core-authorized. */
 import {callBoAccessCoreWithCredential,type BoAccessCoreBinding,type BoAccessRequest} from "./bo-core";
 import {teamCredential,TeamAuthError,type TeamAccessEnv} from "./team-auth";
 import {BO_STAGING_HOSTNAME} from "./host-boundary";
 export interface BoPostDraftEnv extends TeamAccessEnv{PINO_BO_CORE:BoAccessCoreBinding;APP_ENV?:string;}
-const base="learning/piner-posts",uuid="[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}",id=new RegExp("^"+uuid+"$"),detail=new RegExp("^"+base+"/"+uuid+"$");
+const base="learning/piner-posts",peoplePath=base+"/people",uuid="[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}",id=new RegExp("^"+uuid+"$"),detail=new RegExp("^"+base+"/"+uuid+"$");
 class BadInput extends Error{}
 function requireId(v:unknown):string{if(typeof v!=="string"||!id.test(v))throw new BadInput();return v;}
 function json(body:unknown,status:number,requestId?:string){return Response.json(body,{status,headers:{"cache-control":"no-store","x-content-type-options":"nosniff",...(requestId?{"x-request-id":requestId}:{})}});}
@@ -16,15 +16,22 @@ async function readBody(request:Request){
 }
 export async function handleBoPostDraftRequest(request:Request,env:BoPostDraftEnv,path:string):Promise<Response>{
  try{
-  const url=new URL(request.url),isDetail=detail.test(path),method=request.method;
-  if(env.APP_ENV!=="staging"||url.origin!=="https://"+BO_STAGING_HOSTNAME||url.pathname!=="/api/bo/"+path||(!isDetail&&path!==base))return failure(404,"PLATFORM_NOT_FOUND");
-  if(method!=="GET"&&!(method==="POST"&&!isDetail)&&!(method==="PATCH"&&isDetail))return failure(405,"PLATFORM_METHOD_NOT_ALLOWED");
-  const allowed=method==="GET"&&!isDetail?["centerId","limit","beforeId"]:["centerId"];
+  const url=new URL(request.url),isDetail=detail.test(path),isPeople=path===peoplePath,method=request.method;
+  if(env.APP_ENV!=="staging"||url.origin!=="https://"+BO_STAGING_HOSTNAME||url.pathname!=="/api/bo/"+path||(!isDetail&&path!==base&&!isPeople))return failure(404,"PLATFORM_NOT_FOUND");
+  if(isPeople?method!=="GET":method!=="GET"&&!(method==="POST"&&!isDetail&&path===base)&&!(method==="PATCH"&&isDetail))return failure(405,"PLATFORM_METHOD_NOT_ALLOWED");
+  const allowed=method==="GET"&&path===base?["centerId","limit","beforeId"]:method==="GET"&&isPeople?["centerId","programKey","q","after","limit"]:["centerId"];
   for(const k of url.searchParams.keys())if(!allowed.includes(k)||url.searchParams.getAll(k).length!==1)throw new BadInput();
   const centerId=requireId(url.searchParams.get("centerId")),query=new URLSearchParams({centerId});
   const limit=url.searchParams.get("limit"),before=url.searchParams.get("beforeId");
   if(limit!==null){if(!/^[1-9][0-9]{0,2}$/.test(limit)||Number(limit)>100)throw new BadInput();query.set("limit",limit);}
   if(before!==null)query.set("beforeId",requireId(before));
+  if(isPeople){
+   const programKey=url.searchParams.get("programKey"),q=url.searchParams.get("q"),after=url.searchParams.get("after");
+   if(programKey!=="AFTERSCHOOL"&&programKey!=="MYTIME")throw new BadInput();
+   if(q!==null&&(q.length>120||[...q].some(c=>c.charCodeAt(0)<32||c.charCodeAt(0)===127)))throw new BadInput();
+   if(after!==null)query.set("after",requireId(after));
+   query.set("programKey",programKey);if(q!==null)query.set("q",q);
+  }
   const credential=await teamCredential(request,env,"BO");
   if(credential.kind==="support"||request.headers.get("cookie")?.split(";").some(v=>v.trim().startsWith("pino_support_session=")))return failure(403,"ACCESS_PERMISSION_DENIED");
   const core:BoAccessRequest={method,path:path+"?"+query.toString(),resource:{centerId}};
@@ -34,8 +41,12 @@ export async function handleBoPostDraftRequest(request:Request,env:BoPostDraftEn
    const input=await readBody(request),caption=input.caption;
    if(caption!==undefined&&(typeof caption!=="string"||caption.trim().length>2000))throw new BadInput();
    if(method==="POST"){
-    if(Object.keys(input).some(k=>!["studentId","caption"].includes(k)))throw new BadInput();
-    core.body={studentId:requireId(input.studentId),...(caption===undefined?{}:{caption})};
+    if(Object.keys(input).some(k=>!["personId","programKey","studentId","caption"].includes(k)))throw new BadInput();
+    const personId=input.personId===undefined?undefined:requireId(input.personId),studentId=input.studentId===undefined?undefined:requireId(input.studentId),programKey=input.programKey;
+    if(!personId&&!studentId)throw new BadInput();
+    if(programKey!==undefined&&programKey!=="AFTERSCHOOL"&&programKey!=="MYTIME")throw new BadInput();
+    if(programKey==="MYTIME"&&(!personId||studentId!==undefined))throw new BadInput();
+    core.body={...(personId?{personId}:{}),...(studentId?{studentId}:{}),...(programKey?{programKey}:{}),...(caption===undefined?{}:{caption})};
    }else{
     if(Object.keys(input).some(k=>!["caption","expectedVersion"].includes(k))||typeof caption!=="string"||typeof input.expectedVersion!=="number"||!Number.isSafeInteger(input.expectedVersion)||input.expectedVersion<1)throw new BadInput();
     core.body={caption,expectedVersion:input.expectedVersion};
