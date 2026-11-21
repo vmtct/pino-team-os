@@ -35,17 +35,12 @@ export function parentBusinessLoaders(adapter: AuthenticatedSurfaceAdapter<Field
         ]} rowKey={r => r.id} caption="Học viên liên kết hiện tại" emptyTitle="Chưa có liên kết" emptyMessage="Không có học viên được cấp quyền trong cơ sở này." showToolbar={false} />;
       }
       const rows = detail.contacts.map(r => ({ id: String(r.id), type: String(r.type), maskedValue: String(r.maskedValue), primary: Boolean(r.primary), verified: Boolean(r.verified) }));
-      return <>
-        <p className="settings-hint" data-person-mobile="masked">
-          Số điện thoại hồ sơ (Person): {detail.canonicalMobileMasked ?? "Chưa có"}
-        </p>
-        <BusinessDataGrid rows={rows} columns={[
-          { key: "type", header: "Loại", render: r => r.type },
-          { key: "maskedValue", header: "Liên hệ (đã che)", render: r => r.maskedValue },
-          { key: "primary", header: "Chính", render: r => r.primary ? "Có" : "Không" },
-          { key: "verified", header: "Xác minh", render: r => r.verified ? "Đã xác minh" : "Chưa xác minh" },
-        ]} rowKey={r => r.id} caption="Liên hệ đã che" emptyTitle="Không có liên hệ" emptyMessage="Không có liên hệ đang hoạt động." showToolbar={false} />
-      </>;
+      return <BusinessDataGrid rows={rows} columns={[
+        { key: "type", header: "Loại", render: r => r.type },
+        { key: "maskedValue", header: "Liên hệ (đã che)", render: r => r.maskedValue },
+        { key: "primary", header: "Chính", render: r => r.primary ? "Có" : "Không" },
+        { key: "verified", header: "Xác minh", render: r => r.verified ? "Đã xác minh" : "Chưa xác minh" },
+      ]} rowKey={r => r.id} caption="Liên hệ đã che" emptyTitle="Không có liên hệ" emptyMessage="Không có liên hệ đang hoạt động." showToolbar={false} />;
     },
   };
 }

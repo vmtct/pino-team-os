@@ -114,7 +114,6 @@ export type WorkforceWindowPolicyValue = { autoLock: { enabled:boolean; timeLoca
 export type WorkforceWindowPolicyInspection = OpenStudioPolicyInspection<WorkforceWindowPolicyValue>;
 export type BoStudentIntakeCreateInput = {
   displayName: string;
-  mobile?: string | null;
   birthYear: number | null;
   birthMonth: number | null;
   birthDay: number | null;

@@ -13,7 +13,8 @@ type ParentResults =
   | { state: "loading" }
   | { state: "ready"; centerId: string; data: BoParentSearchResult[] }
   | { state: "error"; message: string };
-type Attempt = { body: BoStudentIntakeCreateInput; idempotencyKey: string; centerId: string };
+type PersonMobileStudentIntakeCreateInput = BoStudentIntakeCreateInput & { mobile?: string | null };
+type Attempt = { body: PersonMobileStudentIntakeCreateInput; idempotencyKey: string; centerId: string };
 type StudentBirthDate = Pick<BoStudentIntakeCreateInput, "birthYear" | "birthMonth" | "birthDay" | "birthPrecision">;
 type ParsedBirthDate = { ok: true; value: StudentBirthDate } | { ok: false; error: string };
 
