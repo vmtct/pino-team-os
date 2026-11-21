@@ -84,7 +84,7 @@
 
 
 /* PAP-2232 · PAP-1365 Student Create birthday inputs: one nullable DSA property. */
-#drawer .student-create-birthday {
+#drawer [data-student-create-birthday] {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -92,7 +92,7 @@
   min-width: 0;
   flex-wrap: nowrap;
 }
-#drawer .student-create-birthday__input {
+#drawer [data-student-create-birth-part] {
   box-sizing: border-box;
   flex: 0 0 auto;
   min-height: 36px;
@@ -105,18 +105,18 @@
   font-size: 12px;
   text-align: center;
 }
-#drawer .student-create-birthday__input--day,
-#drawer .student-create-birthday__input--month {
+#drawer [data-student-create-birth-part="day"],
+#drawer [data-student-create-birth-part="month"] {
   width: 6ch;
 }
-#drawer .student-create-birthday__input--year {
+#drawer [data-student-create-birth-part="year"] {
   width: 8ch;
 }
-#drawer .student-create-birthday__input:focus-visible {
+#drawer [data-student-create-birth-part]:focus-visible {
   outline: 2px solid var(--bo-color-accent);
   outline-offset: 2px;
 }
-#drawer .student-create-birthday__input:disabled {
+#drawer [data-student-create-birth-part]:disabled {
   opacity: .65;
   cursor: not-allowed;
 }

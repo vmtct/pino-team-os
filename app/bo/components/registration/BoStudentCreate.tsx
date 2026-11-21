@@ -200,16 +200,16 @@ function BoStudentCreateScoped({ centerId, onClose, onCreated }: {
     birthDate: {
       id: "student-create-birth-day", label: "Sinh Nhật", value: birthDayInput, disabled: locked,
       onChange: value => { setBirthDayInput(value.replace(/\D/g, "").slice(0, 2)); setError(""); },
-      control: <div className="student-create-birthday" role="group" aria-label="Sinh Nhật">
-        <input id="student-create-birth-day" className="edit-input student-create-birthday__input student-create-birthday__input--day"
+      control: <div data-student-create-birthday="" role="group" aria-label="Sinh Nhật">
+        <input id="student-create-birth-day" className="edit-input" data-student-create-birth-part="day"
           type="text" inputMode="numeric" pattern="[0-9]*" maxLength={2} aria-label="Sinh Nhật - ngày"
           placeholder="dd" value={birthDayInput} disabled={locked}
           onChange={event => { setBirthDayInput(event.target.value.replace(/\D/g, "").slice(0, 2)); setError(""); }} />
-        <input id="student-create-birth-month" className="edit-input student-create-birthday__input student-create-birthday__input--month"
+        <input id="student-create-birth-month" className="edit-input" data-student-create-birth-part="month"
           type="text" inputMode="numeric" pattern="[0-9]*" maxLength={2} aria-label="Sinh Nhật - tháng"
           placeholder="mm" value={birthMonthInput} disabled={locked}
           onChange={event => { setBirthMonthInput(event.target.value.replace(/\D/g, "").slice(0, 2)); setError(""); }} />
-        <input id="student-create-birth-year" className="edit-input student-create-birthday__input student-create-birthday__input--year"
+        <input id="student-create-birth-year" className="edit-input" data-student-create-birth-part="year"
           type="text" inputMode="numeric" pattern="[0-9]*" maxLength={4} aria-label="Sinh Nhật - năm"
           placeholder="yyyy" value={birthYearInput} disabled={locked}
           onChange={event => { setBirthYearInput(event.target.value.replace(/\D/g, "").slice(0, 4)); setError(""); }} />

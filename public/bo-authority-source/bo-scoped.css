@@ -4564,7 +4564,8 @@ html:where([data-bo-ui-authority="v25"]),
 }
 
 
-:where(html[data-bo-ui-authority="v25"]) #drawer .student-create-birthday {
+/* PAP-2232 · PAP-1365 Student Create birthday inputs: one nullable DSA property. */
+:where(html[data-bo-ui-authority="v25"]) #drawer [data-student-create-birthday] {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -4572,7 +4573,7 @@ html:where([data-bo-ui-authority="v25"]),
   min-width: 0;
   flex-wrap: nowrap;
 }
-:where(html[data-bo-ui-authority="v25"]) #drawer .student-create-birthday__input {
+:where(html[data-bo-ui-authority="v25"]) #drawer [data-student-create-birth-part] {
   box-sizing: border-box;
   flex: 0 0 auto;
   min-height: 36px;
@@ -4585,18 +4586,18 @@ html:where([data-bo-ui-authority="v25"]),
   font-size: 12px;
   text-align: center;
 }
-:where(html[data-bo-ui-authority="v25"]) #drawer .student-create-birthday__input--day,
-:where(html[data-bo-ui-authority="v25"]) #drawer .student-create-birthday__input--month {
+:where(html[data-bo-ui-authority="v25"]) #drawer [data-student-create-birth-part="day"],
+:where(html[data-bo-ui-authority="v25"]) #drawer [data-student-create-birth-part="month"] {
   width: 6ch;
 }
-:where(html[data-bo-ui-authority="v25"]) #drawer .student-create-birthday__input--year {
+:where(html[data-bo-ui-authority="v25"]) #drawer [data-student-create-birth-part="year"] {
   width: 8ch;
 }
-:where(html[data-bo-ui-authority="v25"]) #drawer .student-create-birthday__input:focus-visible {
+:where(html[data-bo-ui-authority="v25"]) #drawer [data-student-create-birth-part]:focus-visible {
   outline: 2px solid var(--bo-color-accent);
   outline-offset: 2px;
 }
-:where(html[data-bo-ui-authority="v25"]) #drawer .student-create-birthday__input:disabled {
+:where(html[data-bo-ui-authority="v25"]) #drawer [data-student-create-birth-part]:disabled {
   opacity: .65;
   cursor: not-allowed;
 }
