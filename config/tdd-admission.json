@@ -1055,6 +1055,7 @@
       "files": [
         "app/bo/mytime-workshops/page.tsx",
         "app/components/mytime-workshop/WorkshopWorkspace.tsx",
+        "app/components/mytime-workshop/WorkshopParticipationTab.tsx",
         "app/components/mytime-workshop/WorkshopRuntime.tsx",
         "app/components/mytime-workshop/schema.ts",
         "app/components/mytime-workshop/api-client.ts",
@@ -1082,6 +1083,7 @@
       "files": [
         "app/ho/mytime-workshops/page.tsx",
         "app/components/mytime-workshop/WorkshopWorkspace.tsx",
+        "app/components/mytime-workshop/WorkshopParticipationTab.tsx",
         "app/components/mytime-workshop/WorkshopRuntime.tsx",
         "app/components/mytime-workshop/schema.ts",
         "app/components/mytime-workshop/api-client.ts",

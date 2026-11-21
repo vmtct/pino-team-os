@@ -29,12 +29,6 @@ export function WorkshopParticipationTab({
       {canCreate && onCreate ? <button type="button" className="primary-btn" onClick={onCreate}>Thêm người tham gia</button> : null}
     </div>
     {unavailable ? <p role="status">Dữ liệu Participation chưa được kết nối với Core. Không thể tạo hoặc xác nhận lượt tham gia tại đây.</p> : rows.length === 0 ? <p role="status">Chưa có người tham gia.</p> :
-      <div className="overflow-x-auto"><table className="w-full text-left">
-        <thead><tr><th scope="col">Person</th><th scope="col">Trạng thái</th><th scope="col">Nhóm</th><th scope="col">Lượt sử dụng</th><th scope="col">Chi tiết</th></tr></thead>
-        <tbody>{rows.map(row => <tr key={row.id}>
-          <td>{row.personLabel}</td><td>{row.status}</td><td>{row.group ?? "—"}</td><td>{row.usageCount ?? "—"}</td>
-          <td>{onOpen ? <button type="button" onClick={() => onOpen(row.id)} aria-label={`Xem Participation của ${row.personLabel}`}>Xem</button> : "—"}</td>
-        </tr>)}</tbody>
-      </table></div>}
+      <ul aria-label="Danh sách người tham gia" className="space-y-2">{rows.map(row => <li key={row.id} className="flex items-center justify-between gap-3"><span>{row.personLabel} · {row.status} · {row.group ?? "—"} · {row.usageCount ?? "—"}</span>{onOpen ? <button type="button" onClick={() => onOpen(row.id)} aria-label={`Xem Participation của ${row.personLabel}`}>Xem</button> : null}</li>)}</ul>}
   </section>;
 }
