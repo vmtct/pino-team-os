@@ -1,0 +1,37 @@
+/* PAP-1604 / PAP-1601 PLT-UI-LOCALE-BO-HO: local component styling for the two approved navigation controls.
+ * No new foundation cascade, BO/HO frozen CSS mutation, global reset or prototype import. */
+.actions.actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+.actions button.control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 31px;
+  width: 31px;
+  min-height: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--bo-palette-neutral-59, #49465d);
+  border-radius: 7px;
+  background: var(--bo-palette-neutral-60, #282638);
+  color: var(--bo-palette-violet-19, #e1dff0);
+  cursor: pointer;
+}
+.actions button.control:hover:not(:disabled) {
+  color: #fff;
+  background: var(--bo-palette-neutral-61, #353247);
+}
+.actions button.control:focus-visible {
+  outline: 2px solid var(--bo-color-focus, #beb2ff);
+  outline-offset: 2px;
+}
+.actions button.language {
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: .02em;
+  border-color: var(--bo-color-accent, #6b5bd6);
+}
