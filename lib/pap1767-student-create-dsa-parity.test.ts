@@ -40,7 +40,8 @@ test("PAP-1767 shared View/Create Drawer renders typed editable Student fields a
     assert.ok(html.includes('data-tdd-field="' + field + '"'), "missing row " + field);
   }
   assert.match(html, /aria-label="Sửa Học viên"/);
-  assert.match(html, /aria-label="Sửa Ngày sinh"/);
+  assert.match(html, /Sinh Nhật/);
+  for (const placeholder of ["dd", "mm", "yyyy"]) assert.ok(html.includes('placeholder="' + placeholder + '"'));
   assert.match(html, /Chọn phụ huynh hiện có/);
   assert.match(html, /Tạo phụ huynh mới/);
   assert.match(html, /id="create-save"/);
