@@ -39,6 +39,7 @@ const S3_ENROLLMENT_RECORD_READ = /^enrollments\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f
 const S3_ENROLLMENT_CAPACITY_READ = "enrollments/capacity";
 const S3_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const AFTERSCHOOL_DIRECTORY_READ = "identity/afterschool-users";
+const PERSON_PICKER_READ = "identity/afterschool-users/person-options";
 const S3_LOCAL_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 const BILLING_BILL_READ = /^billing\/bills\/[0-9a-f-]{36}$/;
@@ -48,16 +49,17 @@ const SPECIALTY_POLICY_READ = /^policies\/specialty\/(purchase\.v1|session_settl
 /** PAP-1407 / PAP-220: exact BO Center Staff application list and pending Drawer detail. */
 const STAFF_CENTER_APPLICATION_READ = /^workforce\/staff-center-registration-requests(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$/i;
 
-function afterschoolDirectoryRequest(url: URL): BoAccessRequest {
+function afterschoolDirectoryRequest(url: URL, personPicker = false): BoAccessRequest {
+  const cursorKey = personPicker ? "afterPersonId" : "afterParentId";
   const params = url.searchParams;
   for (const key of params.keys()) {
-    if (!["centerId", "limit", "afterParentId"].includes(key) || params.getAll(key).length !== 1) {
+    if (!["centerId", "limit", cursorKey].includes(key) || params.getAll(key).length !== 1) {
       throw new RangeError("Invalid Afterschool directory query");
     }
   }
   const centerId = params.get("centerId");
   const limit = params.get("limit");
-  const afterParentId = params.get("afterParentId");
+  const afterParentId = params.get(cursorKey);
   if (!centerId || !S3_UUID.test(centerId) ||
       (limit !== null && !/^(?:[1-9]|[1-4][0-9]|50)$/.test(limit)) ||
       (afterParentId !== null && !S3_UUID.test(afterParentId))) {
@@ -65,10 +67,10 @@ function afterschoolDirectoryRequest(url: URL): BoAccessRequest {
   }
   const paging = new URLSearchParams();
   if (limit !== null) paging.set("limit", limit);
-  if (afterParentId !== null) paging.set("afterParentId", afterParentId);
+  if (afterParentId !== null) paging.set(cursorKey, afterParentId);
   return {
     method: "GET",
-    path: AFTERSCHOOL_DIRECTORY_READ + (paging.size ? "?" + paging.toString() : ""),
+    path: (personPicker ? PERSON_PICKER_READ : AFTERSCHOOL_DIRECTORY_READ) + (paging.size ? "?" + paging.toString() : ""),
     resource: { centerId },
   };
 }
@@ -92,8 +94,8 @@ export async function handleBoOperationalReadRequest(
     const credential = await teamCredential(request, env, "BO");
     const url = new URL(request.url);
     // PAP-1886 · BO Users TDD / PAP-1832 Piner Identity.
-    if (path === AFTERSCHOOL_DIRECTORY_READ) {
-      const directoryRequest = afterschoolDirectoryRequest(url);
+    if (path === AFTERSCHOOL_DIRECTORY_READ || path === PERSON_PICKER_READ) {
+      const directoryRequest = afterschoolDirectoryRequest(url, path === PERSON_PICKER_READ);
       const result = await callBoAccessCoreWithCredential(env.PINO_BO_CORE, directoryRequest, credential);
       const body = result.body as { data?: { scopeCenterId?: unknown } } | null;
       if (result.status === 200 && body?.data?.scopeCenterId !== directoryRequest.resource?.centerId) {
@@ -238,7 +240,7 @@ export function isOperationalReadPath(path: string): boolean {
     || STUDENT_VISIT_DETAIL_READ.test(path)
     || path === "identity/parents"
     || path === "identity/parents/center-search"
-    || path === AFTERSCHOOL_DIRECTORY_READ
+    || path === PERSON_PICKER_READ || path === AFTERSCHOOL_DIRECTORY_READ
     || AFTERSCHOOL_HISTORY_READ.test(path)
     || path === "identity/parents/directory"
     || /^identity\/parents\/[0-9a-f-]{36}\/detail$/.test(path)
