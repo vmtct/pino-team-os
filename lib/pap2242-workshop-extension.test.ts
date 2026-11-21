@@ -13,5 +13,6 @@ test("PAP-2242 native Detail retains Participation navigation and explicit pendi
  assert.ok(workspace.includes('p.tab==="participation"'));
  assert.ok(workspace.includes('active==="participation"'));
  assert.ok(workspace.includes("renderApprovedExtension="));
- assert.ok(workspace.includes("chưa được kết nối với Core"));
+ assert.ok(workspace.includes("unavailable/>"));
+ assert.ok(workspace.includes("WorkshopParticipationTab"));
 });
