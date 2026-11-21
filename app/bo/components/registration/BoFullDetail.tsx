@@ -62,7 +62,7 @@ export function BoFullDetail({
   useEffect(() => { setTab(initialTab ?? "Detail"); }, [initialTab]);
   const subjectType = moduleKey === "students" ? "student_profile" : moduleKey === "classes" ? "running_class" : moduleKey === "subscriptions" ? "subscription" : null;
   // Shared BO V2.5 Detail/History stays universal; specialized tabs remain module-owned.
-  const tabs = reviewOnly ? (moduleKey === "students" ? ["Detail", "Diary"] : ["Detail"]) : moduleKey === "workforce-shift-plans" ? ["Detail", "Lịch tuần", "Lịch Sử"]
+  const tabs = reviewOnly ? ["Detail"] : moduleKey === "workforce-shift-plans" ? ["Detail", "Lịch tuần", "Lịch Sử"]
     : moduleKey === "classes"
     ? ["Detail", "Enrollment", "Lịch Sử"]
     : moduleKey === "payroll-periods"
@@ -144,7 +144,7 @@ export function BoFullDetail({
             : activeTab === "Diary" && moduleKey === "students"
               ? <Suspense fallback={<p role="status">Đang tải Diary…</p>}>
                   <BoStudentDiaryRelation key={record.id+":"+centerId} studentId={record.id} studentName={record.name}
-                    centerId={centerId} centerReady={centerReady} reviewOnly={reviewOnly} onFullDetail={openDiaryFullDetail} />
+                    centerId={centerId} centerReady={centerReady} onFullDetail={openDiaryFullDetail} />
                 </Suspense>
             : activeTab === "Subscription" && moduleKey === "students" && enableStudentSubscriptions
               ? <BoStudentSubscriptionRelation studentId={record.id} onFullDetail={openSubscriptionFromStudent} />

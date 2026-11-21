@@ -135,18 +135,6 @@ function missionRawRecord(value:Record<string,unknown>):BoRecord{
     missionVersion:number("version"),missionCreatedAt:text("createdAt"),missionUpdatedAt:text("updatedAt"),
   };
 }
-function reviewMissionRecord(link:StudentPathDiaryMissionLink,diaryId:string):BoRecord{
-  return {
-    id:link.missionId,name:link.missionCode+" — "+link.missionName,diaryRecordId:diaryId,
-    missionCode:link.missionCode,missionName:link.missionName,missionLevel:1,missionStatus:link.missionStatus,
-    missionDescription:"Giữ nhịp đều ở đoạn chuyển hợp âm.",
-    missionGuideline:"Làm mẫu chậm; tăng tốc sau khi nhịp đã ổn định.",
-    missionPlsValue:0,missionPaperSize:"A4",missionPathProgramId:"qa-path",
-    missionPathKeySnapshot:"Piano Core",missionPrerequisiteMissionId:null,
-    missionPrerequisiteCodeSnapshot:null,missionReconciliation:"READY",
-    missionDiagnostics:"[]",missionVersion:1,missionCreatedAt:"",missionUpdatedAt:"",
-  };
-}
 async function readMission(fetcher:typeof fetch,centerId:string,missionId:string):Promise<BoRecord>{
   const query=new URLSearchParams({centerId});
   const response=await fetcher("/api/bo/learning/missions/"+encodeURIComponent(missionId)+"?"+query,{
@@ -164,29 +152,12 @@ async function readMission(fetcher:typeof fetch,centerId:string,missionId:string
   return missionRawRecord(value as Record<string,unknown>);
 }
 
-function reviewRow(studentName:string):{row:BoRecord;links:StudentPathDiaryMissionLink[]}{
-  const diaryId="qa-diary",link:StudentPathDiaryMissionLink={
-    id:"qa-diary-mission-link",diaryId,missionId:"qa-mission",missionCode:"M-PN-01",
-    missionName:"Luyện nhịp cơ bản",missionStatus:"ACTIVE",assignmentId:"qa-assignment",
-    linkedAt:"2026-11-20T11:00:00.000Z",linkedByUserId:"qa-teacher",
-  };
-  const diary={id:diaryId,centerId:"qa-center",studentId:"qa-student",studentDisplayName:studentName,
-    teachingContextKey:"qa-session:2026-11-20",pathKey:"pianohouse",runningClassId:"qa-class",
-    runningClassDisplayName:"Piano · Lớp mẫu",centerDisplayName:"Center QA",
-    status:"CLOSED" as const,interest:4,notes:"Giữ nhịp đều ở đoạn chuyển hợp âm.",
-    difficulty:"Đoạn chuyển hợp âm",registeredAt:"2026-11-20T11:00:00.000Z",registeredByUserId:"qa-teacher",
-    registeredByDisplayName:"Giáo viên mẫu",draftSavedAt:"2026-11-20T11:20:00.000Z",
-    draftSavedByUserId:"qa-teacher",closedAt:"2026-11-20T11:25:00.000Z",closedByUserId:"qa-teacher",
-    updatedAt:"2026-11-20T11:25:00.000Z",draftSavedVersion:2,version:3,missionLinks:[link]};
-  return {row:rowFromDiary(diary,studentName),links:[link]};
-}
-
 /** PAP-2221 · BO Student Detail — Diary table with separate Diary and Mission raw drawers. */
 export function BoStudentDiaryRelation({
-  studentId,studentName,centerId,centerReady,reviewOnly=false,onFullDetail,
+  studentId,studentName,centerId,centerReady,onFullDetail,
 }:{
   studentId:string;studentName:string;centerId:string;centerReady:boolean;
-  reviewOnly?:boolean;onFullDetail?:(record:BoRecord)=>void;
+  onFullDetail?:(record:BoRecord)=>void;
 }){
   const [records,setRecords]=useState<readonly StudentPathDiary[]>([]);
   const [loadState,setLoadState]=useState("loading");
@@ -199,7 +170,6 @@ export function BoStudentDiaryRelation({
   const [page,setPage]=useState(1);
 
   useEffect(()=>{
-    if(reviewOnly){setLoadState("ready");setRecords([]);return;}
     if(!centerReady||!centerId||!studentId){setLoadState("Chọn Center để xem Diary.");setRecords([]);return;}
     const controller=new AbortController();
     setLoadState("loading");setRecords([]);
@@ -211,19 +181,16 @@ export function BoStudentDiaryRelation({
       setLoadState(error instanceof Error?error.message:"Không thể đọc Diary.");
     });
     return ()=>controller.abort();
-  },[centerId,centerReady,reviewOnly,studentId]);
+  },[centerId,centerReady,studentId]);
 
-  const fixture=useMemo(()=>reviewRow(studentName),[studentName]);
-  const relations:RelationByDiary=useMemo(()=>reviewOnly
-    ?new Map([[fixture.row.id,fixture.links] as const])
-    :new Map(records.map(record=>[record.id,record.missionLinks] as const)),[fixture,records,reviewOnly]);
-  const rows=useMemo(()=>reviewOnly?[fixture.row]:records.map(record=>rowFromDiary(record,studentName)),[fixture,records,reviewOnly,studentName]);
+  const relations:RelationByDiary=useMemo(()=>new Map(records.map(record=>[record.id,record.missionLinks] as const)),[records]);
+  const rows=useMemo(()=>records.map(record=>rowFromDiary(record,studentName)),[records,studentName]);
   const update=(patch:Partial<BoTableState>)=>{setTable(current=>({...current,...patch}));setPage(1);};
 
   async function openMission(link:StudentPathDiaryMissionLink){
     setMissionError("");setMissionLoading(true);
     try{
-      const record=reviewOnly?reviewMissionRecord(link,link.diaryId):await readMission(fetch,centerId,link.missionId);
+      const record=await readMission(fetch,centerId,link.missionId);
       setDiaryDrawer(null);setMissionChoices(null);
       setMissionDrawer({...record,diaryRecordId:link.diaryId});
     }catch(error){
@@ -240,7 +207,6 @@ export function BoStudentDiaryRelation({
 
   return <>
     <div>
-      {reviewOnly?<aside className="settings-hint" role="note">Bản ghi mẫu chỉ để duyệt giao diện; không đọc từ Core.</aside>:null}
       <BoDataTable
         module={diaryTableModule} showChrome={false} rows={rows} loadState={loadState}
         value={table} update={update} page={page} setPage={setPage}
@@ -253,7 +219,7 @@ export function BoStudentDiaryRelation({
         undo={()=>{}} canUndo={false} openEnabled
       />
       {missionError?<p className="edit-error" role="alert">{missionError}</p>:null}
-      {!reviewOnly&&loadState==="ready"&&rows.length===0?<p className="settings-hint" role="status">Học viên chưa có Diary trong Center này.</p>:null}
+      {loadState==="ready"&&rows.length===0?<p className="settings-hint" role="status">Học viên chưa có Diary trong Center này.</p>:null}
     </div>
     {diaryDrawer?<BoQuickView
       module={diaryRawModule}record={diaryDrawer}onClose={()=>setDiaryDrawer(null)}
