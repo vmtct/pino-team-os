@@ -131,8 +131,6 @@ export function PersonAccounts() {
     <div className="page-heading"><div className="page-heading-left"><h1>Tài khoản Piner</h1></div>
       <div className="heading-actions"><button type="button" className="primary-btn" onClick={() => { setPersonId(""); setCreateOpen(true); }}>Tạo tài khoản</button></div>
     </div>
-    <p className="settings-hint" role="note">BẢN XEM THỬ · DỮ LIỆU DEMO</p>
-    <p>Chọn Person hiện hữu; kích hoạt quyền truy cập là thao tác riêng. Phạm vi xem đến từ liên kết Student và Guardian hiện hành.</p>
     <BoDataTable module={personAccountModule} rows={accounts} loadState="ready" value={table}
       update={change => setTable(old => ({ ...old, ...change }))} page={page} setPage={setPage}
       onOpen={setDrawer} selected={drawer?.id} onSettings={() => {}}
