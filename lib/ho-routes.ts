@@ -5,6 +5,7 @@ export const HO_PAGE_PATHS = {
   centers: "/ho/centers",
   walkinPasses: "/ho/open-studio/walkin",
   mytimeWorkshops: "/ho/mytime-workshops",
+  mytimeParticipations: "/ho/mytime-participations",
   termWeeks: "/ho/workforce/term-weeks",
   globalTerms: "/ho/operating-cycle/global-terms",
   shiftTemplates: "/ho/workforce/shift-templates",
