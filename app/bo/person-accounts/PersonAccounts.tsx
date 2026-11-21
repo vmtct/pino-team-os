@@ -34,7 +34,7 @@ const fields = [
   { key: "updatedBy", label: "Last Modified By", type: "text", icon: "Aa", w: 155, readonly: true },
 ] as const;
 
-const module: BoModule = { label: "Tài khoản Piner", group: "People", fields: [...fields] };
+const personAccountModule: BoModule = { label: "Tài khoản Piner", group: "People", fields: [...fields] };
 const rows: BoRecord[] = [
   { id: "demo-person-01", person: "Nguyễn An (DEMO)", phone: "0900•••821", actors: "Parent · Student", profiles: "An (Student) · 1 Guardian Student", access: "Đã kích hoạt", createdAt: "—", createdBy: "—", updatedAt: "—", updatedBy: "—" },
   { id: "demo-person-02", person: "Trần Bình (DEMO)", phone: "0900•••642", actors: "Student", profiles: "Bình (Student)", access: "Chưa kích hoạt", createdAt: "—", createdBy: "—", updatedAt: "—", updatedBy: "—" },
@@ -132,13 +132,13 @@ export function PersonAccounts() {
     </div>
     <p className="settings-hint" role="note">BẢN XEM THỬ · DỮ LIỆU DEMO</p>
     <p>Chọn Person hiện hữu; kích hoạt quyền truy cập là thao tác riêng. Phạm vi xem đến từ liên kết Student và Guardian hiện hành.</p>
-    <BoDataTable module={module} rows={accounts} loadState="ready" value={table}
+    <BoDataTable module={personAccountModule} rows={accounts} loadState="ready" value={table}
       update={change => setTable(old => ({ ...old, ...change }))} page={page} setPage={setPage}
       onOpen={setDrawer} selected={drawer?.id} onSettings={() => {}}
       filterOpen={filterOpen} setFilterOpen={setFilterOpen} views={[]} changeViews={() => {}}
       activeView={null} applyView={() => {}} reset={() => setTable(initialTable())}
       undo={() => {}} canUndo={false} />
-    {drawer && <BoQuickView module={module} record={drawer} onClose={() => setDrawer(null)}
+    {drawer && <BoQuickView module={personAccountModule} record={drawer} onClose={() => setDrawer(null)}
       onDetail={() => { setDetail(drawer); setDrawer(null); setTab("overview"); }} />}
     {createOpen && <DrawerFrame title="Tạo tài khoản từ Person" path="People · Tài khoản Piner"
       onClose={closeCreate} footer={<>
