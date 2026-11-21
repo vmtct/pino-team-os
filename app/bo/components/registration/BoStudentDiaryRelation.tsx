@@ -240,7 +240,7 @@ export function BoStudentDiaryRelation({
 
   return <>
     <div>
-      {reviewOnly?<p className="settings-hint" role="note">Bản ghi mẫu chỉ để duyệt giao diện; không đọc từ Core.</p>:null}
+      {reviewOnly?<aside className="settings-hint" role="note">Bản ghi mẫu chỉ để duyệt giao diện; không đọc từ Core.</aside>:null}
       <BoDataTable
         module={diaryTableModule} showChrome={false} rows={rows} loadState={loadState}
         value={table} update={update} page={page} setPage={setPage}
