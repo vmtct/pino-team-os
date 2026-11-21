@@ -3,7 +3,7 @@
 // PAP-1886 · BO Users TDD / PAP-1832 · Piner Identity.
 import "@pino/design-system/bo-tokens.css";
 import "@pino/design-system/components.css";
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { BoApplicationShellContext } from "@/app/bo/shell/BoApplicationShellContext";
 import { BoDataTable } from "@/app/bo/components/registration/BoDataTable";
 import { useBoStagingUser } from "@/app/bo/components/registration/BoRuntimeBoundary";
@@ -179,8 +179,7 @@ function ScopedAccounts({ centerId }: { centerId: string }) {
   return <section id="list-screen" aria-label="Tài khoản" data-bo-afterschool-directory="PAP-1886">
     <div className="page-heading"><div className="page-heading-left">{menu?.("menu-btn")}<h1>Tài khoản</h1></div>
       <div className="heading-actions">{actionsEnabled && <button type="button" className="primary-btn"
-        onClick={() => setPinDrawer({ parent: null })}>Tạo tài khoản</button>}
-        {actionsEnabled && <button type="button" className="secondary-btn" onClick={() => { setDrawer(null); setPinDrawer(null); setPersonPicker(true); }}>Chọn Person</button>}
+        onClick={() => { setDrawer(null); setPinDrawer(null); setPersonPicker(true); }}>Tạo tài khoản</button>}
       </div>
     </div>
     {error && <p role="alert">{error} <button type="button" className="ghost-btn"
@@ -196,7 +195,8 @@ function ScopedAccounts({ centerId }: { centerId: string }) {
     {drawer && !pinDrawer && <BoQuickView module={directory} record={drawer}
       onClose={() => setDrawer(null)} onDetail={() => { setHistoryTab("overview"); setDetail(drawer); setDrawer(null); }} />}
     {pinActionDrawer}
-    {personPicker && <PersonOptionsDrawer centerId={centerId} onClose={() => setPersonPicker(false)} />}
+    {personPicker && <PersonOptionsDrawer centerId={centerId} onClose={() => setPersonPicker(false)}
+      onActivated={() => { setCursor(undefined); setRetry(value => value + 1); }} />}
     {settings && <BoTableSettings screen={settings} setScreen={setSettings}
       onClose={() => setSettings(null)} fields={directory.fields} rows={rows}
       value={table} update={update} views={views} setViews={setViews} applyView={applyView} />}
@@ -204,7 +204,11 @@ function ScopedAccounts({ centerId }: { centerId: string }) {
 }
 
 // PAP-2211 · Person-linked Piner User. Reads use the selected BO Center.
-function PersonOptionsDrawer({ centerId, onClose }: { centerId: string; onClose: () => void }) {
+function PersonOptionsDrawer({ centerId, onClose, onActivated }: {
+  centerId: string;
+  onClose: () => void;
+  onActivated: () => void;
+}) {
   type Option = { personId: string; displayName: string | null; mobileLastFour: string | null; roles: string[] };
   const [options, setOptions] = useState<Option[]>([]);
   const [selected, select] = useState("");
@@ -213,6 +217,11 @@ function PersonOptionsDrawer({ centerId, onClose }: { centerId: string; onClose:
   const [loadedCursor, setLoadedCursor] = useState<string | null>(null);
   const [error, setError] = useState(false);
   const [retry, setRetry] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const submitting = useRef(false);
+  const [activationError, setActivationError] = useState("");
+  const [receipt, setReceipt] = useState<{ pin: string; expiresAt: string } | null>(null);
+
   useEffect(() => {
     const controller = new AbortController();
     const query = new URLSearchParams({ centerId });
@@ -239,22 +248,91 @@ function PersonOptionsDrawer({ centerId, onClose }: { centerId: string; onClose:
   }, [centerId, cursor, retry]);
 
   const pending = loadedCursor !== cursor && !error;
-  return <DrawerFrame title="Chọn Person" path="Tài khoản" onClose={onClose}
-    footer={<button type="button" className="secondary-btn" onClick={onClose}>Đóng</button>}>
-    <label htmlFor="account-person-options">Person</label>
-    <select id="account-person-options" value={selected} onChange={event => select(event.target.value)}>
-      <option value="">Chọn một Person</option>
-      {options.map(option => <option key={option.personId} value={option.personId}>
-        {[option.displayName ?? "Chưa có tên", option.roles.join(" / "),
-          option.mobileLastFour ? "•••• " + option.mobileLastFour : null].filter(Boolean).join(" · ")}
-      </option>)}
-    </select>
-    {pending && <p role="status">Đang tải danh sách…</p>}
-    {error && <p role="alert">Không thể tải danh sách.{" "}
-      <button type="button" className="ghost-btn" onClick={() => { setError(false); setRetry(value => value + 1); }}>Thử lại</button>
-    </p>}
-    {!pending && !error && options.length === 0 && <p>Chưa có Person trong cơ sở này.</p>}
-    {!pending && !error && next && <button type="button" className="ghost-btn" onClick={() => setCursor(next)}>Tải thêm</button>}
-    {selected && <p role="status">Chức năng kích hoạt tài khoản qua Person chưa khả dụng.</p>}
+  const selectedOption = options.find(option => option.personId === selected);
+  const hasParentActor = Boolean(selectedOption?.roles.includes("Parent"));
+
+  async function activate() {
+    if (!selectedOption || !hasParentActor || submitting.current || receipt) return;
+    submitting.current = true;
+    setBusy(true);
+    setActivationError("");
+    try {
+      const query = new URLSearchParams({ centerId });
+      const response = await fetch("/api/bo/identity/afterschool-users/person/" +
+        encodeURIComponent(selectedOption.personId) + "/pin/issue-initial?" + query, {
+        method: "POST",
+        credentials: "same-origin",
+        redirect: "error",
+        cache: "no-store",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      if (!response.ok) {
+        setActivationError(response.status === 409
+          ? "Không thể kích hoạt: tài khoản đã tồn tại hoặc số điện thoại chính của Parent chưa được xác minh."
+          : response.status === 403 || response.status === 404
+            ? "Không thể xác nhận Person hoặc quyền tại cơ sở đã chọn."
+            : "Chưa thể kích hoạt tài khoản. Vui lòng thử lại sau.");
+        return;
+      }
+      const { data } = await response.json() as {
+        data?: { personId?: string; centerId?: string; temporaryPin?: string; expiresAt?: string };
+      };
+      if (data?.personId !== selectedOption.personId || data.centerId !== centerId
+        || typeof data.temporaryPin !== "string" || !/^\d{6}$/.test(data.temporaryPin)
+        || typeof data.expiresAt !== "string" || !Number.isFinite(Date.parse(data.expiresAt))) {
+        setActivationError("Không thể xác minh biên nhận kích hoạt. Kiểm tra danh sách tài khoản trước khi thử lại.");
+        return;
+      }
+      setReceipt({ pin: data.temporaryPin, expiresAt: data.expiresAt });
+      onActivated();
+    } catch {
+      setActivationError("Chưa xác nhận được kết quả. Kiểm tra danh sách tài khoản trước khi thử lại.");
+    } finally {
+      submitting.current = false;
+      setBusy(false);
+    }
+  }
+
+  const close = () => { if (!submitting.current) onClose(); };
+  return <DrawerFrame title={receipt ? "Tài khoản đã kích hoạt" : "Chọn Person"} path="Tài khoản" onClose={close}
+    footer={receipt
+      ? <button type="button" className="primary-btn" onClick={close}>Đóng</button>
+      : <>
+        <button type="button" className="secondary-btn" disabled={busy} onClick={close}>Hủy</button>
+        <button type="button" className="primary-btn" disabled={!selectedOption || !hasParentActor || pending || error || busy}
+          onClick={() => void activate()}>Kích hoạt tài khoản</button>
+      </>}>
+    {receipt ? <section className="property-section" role="status">
+      <p>PIN tạm chỉ hiển thị một lần. Nhân viên nhận và chuyển PIN cho người dùng.</p>
+      <output aria-label="PIN tạm">{receipt.pin}</output>
+      <p>Hết hạn lúc {new Intl.DateTimeFormat("vi-VN", {
+        dateStyle: "short", timeStyle: "short", timeZone: "Asia/Ho_Chi_Minh",
+      }).format(new Date(receipt.expiresAt))}.</p>
+    </section> : <>
+      <label htmlFor="account-person-options">Person</label>
+      <select id="account-person-options" className="edit-input" value={selected}
+        disabled={pending || Boolean(error) || busy}
+        onChange={event => { select(event.target.value); setActivationError(""); }}>
+        <option value="">Chọn một Person</option>
+        {options.map(option => <option key={option.personId} value={option.personId}>
+          {[option.displayName ?? "Chưa có tên", option.roles.join(" / "),
+            option.mobileLastFour ? "•••• " + option.mobileLastFour : null].filter(Boolean).join(" · ")}
+        </option>)}
+      </select>
+      {pending && <p role="status">Đang tải danh sách…</p>}
+      {error && <p role="alert">Không thể tải danh sách.{" "}
+        <button type="button" className="ghost-btn" onClick={() => { setError(false); setRetry(value => value + 1); }}>Thử lại</button>
+      </p>}
+      {!pending && !error && options.length === 0 && <p>Chưa có Person trong cơ sở này.</p>}
+      {!pending && !error && next && <button type="button" className="ghost-btn" disabled={busy} onClick={() => setCursor(next)}>Tải thêm</button>}
+      {selectedOption && hasParentActor && <p role="status">
+        Chỉ cấp PIN khi mobile Person khớp với số điện thoại chính Parent đã xác minh tại cơ sở này.
+      </p>}
+      {selectedOption && !hasParentActor && <p role="status">
+        Person này chưa đủ điều kiện đi qua luồng tương thích. Student/Guest cần credential Person và xác minh mobile theo PAP-1832 · PNR-IDENTITY.
+      </p>}
+      {activationError && <p role="alert">{activationError}</p>}
+    </>}
   </DrawerFrame>;
 }

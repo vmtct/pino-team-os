@@ -63,6 +63,7 @@ const SESSION_SYLLABUS_BINDING_PATH = /^delivery\/sessions\/[0-9a-f-]{36}\/sylla
 const CALENDAR_EXCLUSION_COMMAND = /^delivery\/calendar-exclusions\/[0-9a-f-]{36}$/;
 const PARENT_PIN_PATH = /^identity\/parents\/[0-9a-f-]{36}\/pin\/(issue-initial|reset)$/;
 const AFTERSCHOOL_PIN_PATH = /^identity\/afterschool-users\/[0-9a-f-]{36}\/pin\/(issue-initial|reset)$/;
+const PERSON_AFTER_SCHOOL_ACTIVATION_PATH = /^identity\/afterschool-users\/person\/[0-9a-f-]{36}\/pin\/issue-initial$/;
 const STUDENT_COMPANION_FEED_PATH = /^students\/[0-9a-f-]{36}\/pinoria\/companions\/[0-9a-f-]{36}\/feed$/;
 const STUDENT_VISIT_CHECK_IN = "student-visits/check-in";
 const STUDENT_VISIT_COMMAND = /^student-visits\/[0-9a-f-]{36}\/(check-out|correct)$/;
@@ -249,16 +250,20 @@ export async function handleBoWriteRequest(
       studentProfileResource = { centerId: ids[0]! };
     }
     let afterschoolPinResource: { centerId: string } | undefined;
-    if (request.method === "POST" && AFTERSCHOOL_PIN_PATH.test(path)) {
+    if (request.method === "POST" && (AFTERSCHOOL_PIN_PATH.test(path) || PERSON_AFTER_SCHOOL_ACTIVATION_PATH.test(path))) {
       const query = new URL(request.url).searchParams;
       const ids = query.getAll("centerId");
       if ([...query.keys()].length !== 1 || ids.length !== 1 ||
           !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ids[0]!))
         return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Exactly one selected Center is required" } }, 400);
-      if (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body).length !== 1 ||
+      if (PERSON_AFTER_SCHOOL_ACTIVATION_PATH.test(path)) {
+        if (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body).length !== 0)
+          return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Person activation accepts an empty body" } }, 400);
+      } else if (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body).length !== 1 ||
           !Object.hasOwn(body, "confirmedPhone") ||
-          typeof (body as Record<string, unknown>).confirmedPhone !== "string")
+          typeof (body as Record<string, unknown>).confirmedPhone !== "string") {
         return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Only confirmedPhone is accepted" } }, 400);
+      }
       afterschoolPinResource = { centerId: ids[0]! };
     }
 
@@ -441,6 +446,7 @@ export function isAllowedPostPath(path: string): boolean {
     || CALENDAR_EXCLUSION_COMMAND.test(path)
     || PARENT_PIN_PATH.test(path)
     || AFTERSCHOOL_PIN_PATH.test(path)
+    || PERSON_AFTER_SCHOOL_ACTIVATION_PATH.test(path)
     || STUDENT_COMPANION_FEED_PATH.test(path)
     || path === PARENT_CREATE_PATH || path === STUDENT_INTAKE_PATH || path === STUDENT_INTAKE_CENTER_PATH
     || path === STAGING_CENTER_AFFILIATION_FIXTURE_PATH

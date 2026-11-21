@@ -92,8 +92,9 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   }
   if (pathname.startsWith("/api/bo/identity/afterschool-users/")) {
     const command = /^\/api\/bo\/identity\/afterschool-users\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/pin\/(issue-initial|reset)$/.test(pathname);
+    const personActivation = /^\/api\/bo\/identity\/afterschool-users\/person\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/pin\/issue-initial$/.test(pathname);
     const history = /^\/api\/bo\/identity\/afterschool-users\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/history$/.test(pathname);
-    return { action: hostname === BO_STAGING_HOSTNAME && ((method === "POST" && command) || (method === "GET" && (history || pathname === "/api/bo/identity/afterschool-users/person-options"))) ? "next" : "not_found" };
+    return { action: hostname === BO_STAGING_HOSTNAME && ((method === "POST" && (command || personActivation)) || (method === "GET" && (history || pathname === "/api/bo/identity/afterschool-users/person-options"))) ? "next" : "not_found" };
   }
   if (pathname === "/api/bo/identity/afterschool-users") {
     return { action: hostname === BO_STAGING_HOSTNAME && method === "GET" ? "next" : "not_found" };
