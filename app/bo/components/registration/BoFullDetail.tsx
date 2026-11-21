@@ -15,6 +15,7 @@ import { BoWorkforceRegistrationEditor } from "./BoWorkforceRegistrationEditor";
 import { BoStudentNameInlineCell } from "./BoStudentNameInlineCell";
 import { BoStudentBirthDateLocalField, BoStudentDetailLocalField, isStudentHouseMemberField, studentEditableKind } from "./BoStudentDetailLocalField";
 import { useBoCenterSelection } from "./BoCenterSelection";
+const BoStudentDiaryRelation = lazy(() => import("./BoStudentDiaryRelation").then(module => ({ default: module.BoStudentDiaryRelation })));
 const BoSubscriptionEnrollmentTab = lazy(async () => {
   // Node SSR of Detail must not eagerly import the DataGrid CSS module.
   // S3 Enrollment is loaded only when its tab is opened.
@@ -57,10 +58,11 @@ export function BoFullDetail({
   const centerId = center?.selected ?? "";
   const centerReady = Boolean(centerId) && !center?.loading && !center?.error && Boolean(center?.centers.some(item => item.id === centerId));
   const [tab, setTab] = useState(initialTab ?? "Detail");
+  const [diaryFullDetail,setDiaryFullDetail]=useState<{module:BoModule;record:BoRecord}|null>(null);
   useEffect(() => { setTab(initialTab ?? "Detail"); }, [initialTab]);
   const subjectType = moduleKey === "students" ? "student_profile" : moduleKey === "classes" ? "running_class" : moduleKey === "subscriptions" ? "subscription" : null;
   // Shared BO V2.5 Detail/History stays universal; specialized tabs remain module-owned.
-  const tabs = reviewOnly ? ["Detail"] : moduleKey === "workforce-shift-plans" ? ["Detail", "Lịch tuần", "Lịch Sử"]
+  const tabs = reviewOnly ? (moduleKey === "students" ? ["Detail", "Diary"] : ["Detail"]) : moduleKey === "workforce-shift-plans" ? ["Detail", "Lịch tuần", "Lịch Sử"]
     : moduleKey === "classes"
     ? ["Detail", "Enrollment", "Lịch Sử"]
     : moduleKey === "payroll-periods"
@@ -70,7 +72,9 @@ export function BoFullDetail({
     : moduleKey === "subscriptions"
     ? ["Detail", "Enrollment", "Chuyên đề", "Lịch Sử"]
     : moduleKey === "students" && enableStudentSubscriptions
-    ? ["Detail", "Subscription", "Chuyên đề", "Lịch Sử"]
+    ? ["Detail", "Diary", "Subscription", "Chuyên đề", "Lịch Sử"]
+    : moduleKey === "students"
+    ? ["Detail", "Diary", "Lịch Sử"]
     : ["Detail", "Lịch Sử"];
   const selectedTabIndex = tabs.indexOf(tab);
   const activeTab = selectedTabIndex >= 0 ? tab : "Detail";
@@ -81,6 +85,15 @@ export function BoFullDetail({
     const url=subscriptionDetailUrl(new URL("/bo?module=subscriptions",window.location.origin).href,next.id);
     window.location.assign(url);
   }
+
+  async function openDiaryFullDetail(next:BoRecord){
+    const {diaryRawModule}=await import("./BoStudentDiaryRelation");
+    setDiaryFullDetail({module:diaryRawModule,record:next});
+  }
+  if(moduleKey==="students"&&diaryFullDetail) return <BoFullDetail
+    module={diaryFullDetail.module} moduleKey="path-diaries" record={diaryFullDetail.record}
+    onBack={()=>setDiaryFullDetail(null)} mobileMenu={mobileMenu} reviewOnly={reviewOnly}
+  />;
 
   // Parent uses the SAME full-width Detail cover/hero/tab/body structure as Student.
   // Domain-specific read-only tabs are children of the canonical shell, never a narrow detached panel.
@@ -128,6 +141,11 @@ export function BoFullDetail({
                   {!reviewOnly && moduleKey === "students" && <BoStudentNameInlineCell key={"gender:" + record.id + ":" + centerId} studentId={record.id} displayName={record.name} centerId={centerId} centerReady={centerReady} editGender />}
                 </div>
               </section>
+            : activeTab === "Diary" && moduleKey === "students"
+              ? <Suspense fallback={<p role="status">Đang tải Diary…</p>}>
+                  <BoStudentDiaryRelation key={record.id+":"+centerId} studentId={record.id} studentName={record.name}
+                    centerId={centerId} centerReady={centerReady} reviewOnly={reviewOnly} onFullDetail={openDiaryFullDetail} />
+                </Suspense>
             : activeTab === "Subscription" && moduleKey === "students" && enableStudentSubscriptions
               ? <BoStudentSubscriptionRelation studentId={record.id} onFullDetail={openSubscriptionFromStudent} />
               : activeTab === "Chuyên đề" && moduleKey === "students" && enableStudentSubscriptions
