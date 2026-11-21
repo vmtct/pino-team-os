@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { DetailFrame } from "@/app/components/workspace-renderer/DetailFrame";
+import { BoValue } from "./BoValue";
 import { defaultTable, type BoRecord, type BoTableState } from "@/lib/bo-registration";
 import school from "@/public/bo-authority-source/school-adapters.js";
 import { BoDataTable } from "./BoDataTable";
@@ -38,13 +40,15 @@ export function BoStudentDiaryRelation({studentName}: {studentName: string}) {
     setPage(1);
   };
 
-  if (detail) return <section className="v24-prop-section" aria-label="Chi tiết Diary">
-    <button type="button" onClick={() => setDetail(null)}>Quay lại Diary</button>
-    <div className="v24-prop-grid">{diaryModule.fields.map(field => <div className="v24-prop-item" key={field.key}>
-      <div className="v24-prop-key">{field.label}</div>
-      <div className="v24-prop-value readonly">{String(detail[field.key] ?? "—")}</div>
-    </div>)}</div>
-  </section>;
+  if (detail) return <DetailFrame title="Diary" subtitle={detail.name} mobileMenu={null} onBack={() => setDetail(null)}>
+    <section className="v24-prop-section">
+      <div className="v24-section-heading"><h4>Thông tin chính</h4></div>
+      <div className="v24-prop-grid">{diaryModule.fields.map(field => <div className="v24-prop-item" key={field.key}>
+        <div className="v24-prop-key"><span className="v24-field-glyph">{field.icon}</span>{field.label}</div>
+        <div className="v24-prop-value readonly"><BoValue field={field} value={detail[field.key]} full /></div>
+      </div>)}</div>
+    </section>
+  </DetailFrame>;
 
   return <>
 
