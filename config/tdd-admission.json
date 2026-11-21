@@ -1127,6 +1127,7 @@
       "tests":["lib/pap2242-participation-shell.test.ts","lib/mytime-workshop-host-contract.test.ts"],
       "externalReferences":[
         {"file":"lib/host-boundary.ts","owner":"PAP-2164"},
+        {"file":"lib/ho-routes.ts","owner":"PAP-2164"},
         {"file":"app/bo/components/registration/BoRegistrationWorkspace.tsx","owner":"PAP-1080"},
         {"file":"app/bo/components/registration/BoCenterSelection.tsx","owner":"PAP-1598"},
         {"file":"lib/workspace-adapters/session.ts","owner":"PAP-1221"},
