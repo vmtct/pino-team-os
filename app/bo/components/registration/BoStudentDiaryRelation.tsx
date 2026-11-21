@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { type BoRecord, type BoTableState } from "@/lib/bo-registration";
-import { studentSubscriptionTableState } from "@/lib/bo-student-subscription-rows";
+import { defaultTable, type BoRecord, type BoTableState } from "@/lib/bo-registration";
 import school from "@/public/bo-authority-source/school-adapters.js";
 import { BoDataTable } from "./BoDataTable";
 import { BoQuickView } from "./BoQuickView";
@@ -26,7 +25,7 @@ export function BoStudentDiaryRelation({studentName}: {studentName: string}) {
   }];
   const [detail, setDetail] = useState<BoRecord | null>(null);
   const [drawer, setDrawer] = useState<BoRecord | null>(null);
-  const [table, setTable] = useState<BoTableState>(() => studentSubscriptionTableState(diaryModule.fields));
+  const [table, setTable] = useState<BoTableState>(() => defaultTable(diaryModule.fields));
   const [page, setPage] = useState(1);
   const [filterOpen, setFilterOpen] = useState(false);
   const [settings, setSettings] = useState<string | null>(null);
@@ -67,11 +66,11 @@ export function BoStudentDiaryRelation({studentName}: {studentName: string}) {
       changeViews={setViews}
       activeView={activeView}
       applyView={view => {
-        setTable(view?.state ?? studentSubscriptionTableState(diaryModule.fields));
+        setTable(view?.state ?? defaultTable(diaryModule.fields));
         setActiveView(view?.id ?? null);
         setPage(1);
       }}
-      reset={() => update(studentSubscriptionTableState(diaryModule.fields))}
+      reset={() => update(defaultTable(diaryModule.fields))}
       undo={() => {}}
       canUndo={false}
     />
