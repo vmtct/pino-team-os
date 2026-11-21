@@ -47,7 +47,7 @@ export function WorkshopParticipationTab({
     {unavailable?<p role="status">Core read chưa được kết nối. Không có Participation giả hoặc thao tác ghi trong M1.</p>:null}
     <TddTable registry={binding.registry} schema={binding.schema} context={context} rows={tableRows} query={query} status="ready" onQueryChange={setQuery} onOpen={record=>onOpen?.(record.id)}/>
     {createOpen?<DrawerFrame title="Thêm người tham gia" path="Workshop MyTime" onClose={()=>setCreateOpen(false)} footer={<><button type="button" className="secondary-btn" onClick={()=>setCreateOpen(false)}>Hủy</button><button type="button" className="primary-btn" disabled aria-disabled="true">Thêm người tham gia</button></>}>
-      <WorkshopParticipationCreate workshopId={workshopId} centerId={centerId} workshopName={workshopName} centerName={centerName} people={[]}/>
+      <WorkshopParticipationCreate workshopId={workshopId} centerId={centerId} workshopName={workshopName} centerName={centerName} people={[]} context={context}/>
       <p role="status">M1 chỉ trình bày giao diện. Tạo thật sẽ được nối sau Founder Gate1.</p>
     </DrawerFrame>:null}
   </section>;
