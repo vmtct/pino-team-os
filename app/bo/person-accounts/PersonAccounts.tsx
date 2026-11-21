@@ -36,9 +36,9 @@ const fields = [
 
 const personAccountModule: BoModule = { label: "Tài khoản Piner", group: "People", fields: [...fields] };
 const rows: BoRecord[] = [
-  { id: "demo-person-01", person: "Nguyễn An (DEMO)", phone: "0900•••821", actors: "Parent · Student", profiles: "An (Student) · 1 Guardian Student", access: "Đã kích hoạt", createdAt: "—", createdBy: "—", updatedAt: "—", updatedBy: "—" },
-  { id: "demo-person-02", person: "Trần Bình (DEMO)", phone: "0900•••642", actors: "Student", profiles: "Bình (Student)", access: "Chưa kích hoạt", createdAt: "—", createdBy: "—", updatedAt: "—", updatedBy: "—" },
-  { id: "demo-person-03", person: "Lê Chi (DEMO)", phone: "0900•••357", actors: "Guest", profiles: "Guest", access: "Chưa kích hoạt", createdAt: "—", createdBy: "—", updatedAt: "—", updatedBy: "—" },
+  { id: "demo-person-01", name: "Nguyễn An (DEMO)", person: "Nguyễn An (DEMO)", phone: "0900•••821", actors: "Parent · Student", profiles: "An (Student) · 1 Guardian Student", access: "Đã kích hoạt", createdAt: "—", createdBy: "—", updatedAt: "—", updatedBy: "—" },
+  { id: "demo-person-02", name: "Trần Bình (DEMO)", person: "Trần Bình (DEMO)", phone: "0900•••642", actors: "Student", profiles: "Bình (Student)", access: "Chưa kích hoạt", createdAt: "—", createdBy: "—", updatedAt: "—", updatedBy: "—" },
+  { id: "demo-person-03", name: "Lê Chi (DEMO)", person: "Lê Chi (DEMO)", phone: "0900•••357", actors: "Guest", profiles: "Guest", access: "Chưa kích hoạt", createdAt: "—", createdBy: "—", updatedAt: "—", updatedBy: "—" },
 ];
 const candidates: PersonCandidate[] = [
   { id: "demo-person-04", name: "Phạm Duy (DEMO)", ageLabel: "10t", phone: "0900•••114", actors: "Student · Guest · Staff", profiles: "Duy (Student) · Guest" },
@@ -55,6 +55,7 @@ function personPickerLabel(person: PersonCandidate) {
 function accountRecord(person: PersonCandidate | null, access = "Chưa kích hoạt"): BoRecord {
   return {
     id: person?.id ?? "",
+    name: person?.name ?? "",
     person: person?.name ?? "",
     phone: person?.phone ?? "—",
     actors: person?.actors ?? "—",
