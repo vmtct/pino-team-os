@@ -69,7 +69,7 @@ export function PersonActivationDrawer({ centerId, onClose, onActivated }: {
       });
       if (!response.ok) {
         setActivationError(response.status === 409
-          ? "Không thể kích hoạt: tài khoản đã tồn tại hoặc số điện thoại chính của Parent chưa được xác minh."
+          ? "Không thể kích hoạt: tài khoản đã tồn tại hoặc hồ sơ không đủ điều kiện cấp PIN."
           : response.status === 403 || response.status === 404
             ? "Không thể xác nhận Person hoặc quyền tại cơ sở đã chọn."
             : "Chưa thể kích hoạt tài khoản. Vui lòng thử lại sau.");
@@ -127,7 +127,7 @@ export function PersonActivationDrawer({ centerId, onClose, onActivated }: {
       {!pending && !error && options.length === 0 && <p>Chưa có Person trong cơ sở này.</p>}
       {!pending && !error && next && <button type="button" className="ghost-btn" disabled={busy} onClick={() => setCursor(next)}>Tải thêm</button>}
       {selectedOption && hasParentActor && <p role="status">
-        Chỉ cấp PIN khi mobile Person khớp với số điện thoại chính Parent đã xác minh tại cơ sở này.
+        Chỉ cấp PIN khi số điện thoại trên Person khớp số điện thoại chính, duy nhất của Parent tại cơ sở đã chọn. Bước này chưa yêu cầu xác minh số điện thoại.
       </p>}
       {selectedOption && !hasParentActor && <p role="status">
         Person này chưa đủ điều kiện đi qua luồng tương thích. Student/Guest cần credential Person và xác minh mobile theo PAP-1832 · PNR-IDENTITY.
