@@ -23,6 +23,9 @@ export interface V18bPathDiary {
  centerId?:string;runningClassId?:string|null;registeredAt?:string;registeredByUserId?:string;
  draftSavedAt?:string|null;draftSavedByUserId?:string|null;closedAt?:string|null;updatedAt?:string;
 }
+export interface V18bDiaryOccurrenceResolution {
+ state:"NOT_FOUND"|"REGISTERED"|"ALREADY_SUBMITTED";diary:V18bPathDiary|null;
+}
 export interface V18bDiaryMissionLink {
  id:string;diaryId:string;missionId:string;missionCode:string;missionName:string;
  missionStatus:string;assignmentId:string|null;linkedAt:string;linkedByUserId:string;
@@ -132,6 +135,34 @@ export function createV18bApiTransport(canWrite:boolean,transport:typeof fetch=(
   diariesForOccurrence:(scope:{centerId:string;runningClassId:string;pathKey:string;localDate:string})=>
    get<{centerId:string;localDate:string;teachingContextKey:string;diaries:V18bPathDiary[]}>(
     "/learning/path-diaries?"+new URLSearchParams(scope).toString()),
+  resolveDiary:(scope:{centerId:string;runningClassId:string;studentId:string;pathKey:string;localDate:string})=>{
+   const centerId=scope.centerId?.trim()??"",runningClassId=scope.runningClassId?.trim()??"";
+   const studentId=scope.studentId?.trim()??"",pathKey=scope.pathKey?.trim()??"";
+   for(const [name,value] of Object.entries({centerId,runningClassId,studentId,pathKey}))
+    if(!value)throw new V18bCoreError(400,"DIARY_RESOLVE_SCOPE_INVALID","Thiếu "+name+" của Nhật ký.");
+   const localDate=scope.localDate;
+   if(!/^\d{4}-\d{2}-\d{2}$/.test(localDate)||
+      !Number.isFinite(Date.parse(localDate+"T00:00:00Z"))||
+      new Date(localDate+"T00:00:00Z").toISOString().slice(0,10)!==localDate)
+    throw new V18bCoreError(400,"DIARY_RESOLVE_SCOPE_INVALID","Ngày lớp không hợp lệ.");
+   const query=new URLSearchParams({centerId,runningClassId,studentId,pathKey,localDate}).toString();
+   return get<V18bDiaryOccurrenceResolution>("/learning/path-diaries/resolve?"+query).then(result=>{
+    if(!result||!["NOT_FOUND","REGISTERED","ALREADY_SUBMITTED"].includes(result.state))
+     throw new V18bCoreError(502,"DIARY_RESOLVE_READBACK_INVALID","Core trả trạng thái Nhật ký không hợp lệ.");
+    if(result.state==="NOT_FOUND"){
+     if(result.diary!==null)throw new V18bCoreError(502,"DIARY_RESOLVE_READBACK_MISMATCH","Core trả Diary khi trạng thái là chưa có.");
+     return result;
+    }
+    const diary=result.diary;
+    const expectedStatus=result.state==="REGISTERED"?"REGISTERED":"CLOSED";
+    if(!diary||diary.centerId!==centerId||diary.runningClassId!==runningClassId||
+       diary.studentId!==studentId||diary.pathKey!==pathKey||
+       diary.teachingContextKey!==runningClassId+":"+localDate||diary.status!==expectedStatus||
+       !Number.isSafeInteger(diary.version)||diary.version<1)
+     throw new V18bCoreError(502,"DIARY_RESOLVE_READBACK_MISMATCH","Core trả Diary sai Center, học viên, lớp, Path hoặc trạng thái.");
+    return result;
+   });
+  },
   diary:(diaryId:string,centerId:string)=>get<V18bPathDiary>(
    "/learning/path-diaries/"+requireValue(diaryId,"DIARY")+"?centerId="+requireValue(centerId,"CENTER")),
   evidence:(diaryId:string,centerId:string)=>get<unknown>(

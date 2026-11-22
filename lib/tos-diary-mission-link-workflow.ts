@@ -83,6 +83,7 @@ export async function resumeDiaryMissionLinks(client:Client,plan:MissionLinkPlan
  for(const choice of plan.selected){
   const id=requireString(choice.missionId,"MISSION");
   if(seen.has(id))throw new V18bCoreError(409,"DIARY_DUPLICATE_MISSION","Không chọn trùng Nhiệm vụ.");
+  if(choice.assignmentId!=null)requireString(choice.assignmentId,"ASSIGNMENT");
   seen.add(id);
  }
  const canonical={diaryId,centerId,submissionKey,selected:plan.selected};
