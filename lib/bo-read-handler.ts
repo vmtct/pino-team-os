@@ -20,8 +20,9 @@ const PRACTICE_RESOURCE_READ = /^practice\/resources\/[0-9a-f-]{36}$/;
 const TV_POLICY_READ = new Set(["pinoria/tv-config/policy/head","pinoria/tv-config/policy/versions","pinoria/tv-config/policy/version","pinoria/tv-config/policy/active"]);
 const MISSION_CATALOG_READ = /^learning\/missions(?:\/[0-9a-f-]{36})?$/;
 const MISSION_ASSIGNMENT_READ = /^learning\/mission-assignments(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/(?:diaries|history))?)?$/i;
-/** PAP-1220: strictly Center/day-scoped BO Diary read facade; no HO GLOBAL. */
+/** PAP-1220: Center/day-scoped BO Diary reads; PAP-2261 adds exact student scope. */
 const BO_DIARY_READ = /^learning\/path-diaries(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/mission-links)?)?$/i;
+const BO_STUDENT_DIARY_READ = /^learning\/students\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/path-diaries$/i;
 const TV_DIALOGUE_CONFIG_READ = new Set(["pinoria/tv-config/dialogue/head","pinoria/tv-config/dialogue/versions","pinoria/tv-config/dialogue/version","pinoria/tv-config/dialogue/active"]);
 const TV_SPATIAL_CONFIG_READ = new Set(["pinoria/tv-config/spatial/head","pinoria/tv-config/spatial/versions","pinoria/tv-config/spatial/version","pinoria/tv-config/spatial/active"]);
 const WEB_CMS_SLOT_READ = /^web-cms\/slots\/[0-9a-f-]{36}(?:\/history)?$/;
@@ -192,6 +193,7 @@ export function isOperationalReadPath(path: string): boolean {
     || MISSION_CATALOG_READ.test(path)
     || MISSION_ASSIGNMENT_READ.test(path)
     || BO_DIARY_READ.test(path)
+    || BO_STUDENT_DIARY_READ.test(path)
     || TV_POLICY_READ.has(path)
     || path === "learning/syllabi/owners"
     || path === "learning/syllabi/media"
@@ -310,6 +312,24 @@ export function readCorePath(path: string, url: URL): string {
         throw new RangeError("Invalid protected Mission history pagination");
     }
     return path + "?" + params.toString();
+  }
+  if (BO_STUDENT_DIARY_READ.test(path)) {
+    const studentId=path.split("/")[2];
+    if(!studentId||!S3_UUID.test(studentId))throw new RangeError("Student Diary identity required");
+    const allowed=["centerId","limit","offset"];
+    for(const key of url.searchParams.keys())
+      if(!allowed.includes(key)||url.searchParams.getAll(key).length!==1)throw new RangeError("Invalid student Diary query");
+    const centerId=url.searchParams.get("centerId");
+    if(!centerId||!S3_UUID.test(centerId))throw new RangeError("Student Diary Center required");
+    const query=new URLSearchParams({centerId});
+    for(const [name,max,min] of [["limit",100,1],["offset",10000,0]] as const){
+      const value=url.searchParams.get(name);
+      if(value===null)continue;
+      if(!/^(0|[1-9][0-9]*)$/.test(value)||!Number.isSafeInteger(Number(value))||Number(value)<min||Number(value)>max)
+        throw new RangeError("Invalid student Diary pagination");
+      query.set(name,value);
+    }
+    return path+"?"+query.toString();
   }
   if (BO_DIARY_READ.test(path)) {
     const detail = path !== "learning/path-diaries";

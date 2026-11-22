@@ -10,7 +10,7 @@ const entry=readFileSync(new URL("../app/bo/components/registration/BoRuntimeBou
 const tab=readFileSync(new URL("../app/bo/learners/StudentSpecialtyTab.tsx",import.meta.url),"utf8");
 
 test("PAP-1496: canonical /bo Students mounts Specialty between overview and History",()=>{
-  assert.match(full,/\["Detail", "Subscription", "Chuyên đề", "Lịch Sử"\]/);
+  assert.match(full,/\["Detail", "Diary", "Subscription", "Chuyên đề", "Lịch Sử"\]/);
   assert.match(full,/activeTab === "Chuyên đề" && moduleKey === "students" && enableStudentSubscriptions/);
   assert.match(full,/BoStudentSpecialtyTab = lazy\(async \(\) =>/);
   assert.match(full,/import\("@\/app\/bo\/learners\/StudentSpecialtyTab"\)/);

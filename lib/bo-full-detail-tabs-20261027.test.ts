@@ -29,7 +29,7 @@ function tabs(moduleKey: string, enableStudentSubscriptions = false): string[] {
 }
 
 test("PAP-1496 / SPEC-UNLOCK: Student Full Detail preserves Subscription and adds Chuyên đề before History", () => {
-  assert.deepEqual(tabs("students", true), ["Thông tin", "Subscription", "Chuyên đề", "Lịch Sử"]);
+  assert.deepEqual(tabs("students", true), ["Thông tin", "Diary", "Subscription", "Chuyên đề", "Lịch Sử"]);
 });
 
 test("PAP-1496 / SPEC-UNLOCK: Subscription Full Detail preserves canonical Thông Tin and Enrollment, adds Chuyên đề before History", () => {
@@ -42,5 +42,5 @@ test("Payroll period Full Detail preserves Quyết Toán", () => {
 
 test("Staff Full Detail exposes private Thu nhập without legacy Chuyên Sâu", () => {
   assert.deepEqual(tabs("staffs"), ["Thông tin", "Thu nhập", "Lịch Sử"]);
-  assert.deepEqual(tabs("students"), ["Thông tin", "Lịch Sử"]);
+  assert.deepEqual(tabs("students"), ["Thông tin", "Diary", "Lịch Sử"]);
 });
