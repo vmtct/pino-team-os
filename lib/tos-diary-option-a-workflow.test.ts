@@ -157,3 +157,37 @@ test("PAP-2277 stale Diary version and missing link fail closed before Close",as
  assert.equal(noLink.state,"CLOSE_PENDING");assert.equal(noLink.errorCode,"DIARY_LINK_READBACK_INCOMPLETE");
  assert.equal(g.count("POST","/close"),0);
 });
+
+
+test("PAP-1400 stages the original ticket after occurrence miss and before Register",async()=>{
+ const f=fixture();
+ let callsWhenTicketStaged=-1;
+ let stagedKey="";
+ const outcome=await beginDiaryDraftWithLinks(f.client,{
+  prepared:prepared("mission-a","assignment-a","request-a"),
+  localDate:scope.localDate,
+  beforeRegister:key=>{callsWhenTicketStaged=f.calls.length;stagedKey=key;return true;},
+ });
+ assert.equal(outcome.state,"DRAFT_READY");
+ assert.equal(stagedKey,"request-a");
+ assert.equal(callsWhenTicketStaged,1);
+ assert.match(f.calls[0].url,/\/learning\/path-diaries\/resolve\?/);
+ const register=f.calls[callsWhenTicketStaged];
+ assert.equal(register.method,"POST");
+ assert.ok(register.url.endsWith("/learning/path-diaries"));
+ assert.equal(f.count("POST","/learning/path-diaries"),1);
+});
+
+test("PAP-1400 unavailable original ticket blocks Register",async()=>{
+ const f=fixture();
+ let staged=false;
+ const outcome=await beginDiaryDraftWithLinks(f.client,{
+  prepared:prepared(),localDate:scope.localDate,
+  beforeRegister:()=>{staged=true;return false;},
+ });
+ assert.equal(staged,true);
+ assert.equal(outcome.state,"DRAFT_PENDING");
+ if(outcome.state==="DRAFT_PENDING")assert.equal(outcome.errorCode,"DIARY_REGISTER_TICKET_UNAVAILABLE");
+ assert.equal(f.count("POST","/learning/path-diaries"),0);
+ assert.equal(f.calls.some(call=>call.method==="POST"),false);
+});
