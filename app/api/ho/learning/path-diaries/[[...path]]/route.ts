@@ -51,9 +51,9 @@ export async function handleHoDiaryRead(request:Request,env:DiaryHoEnv,segments:
   const credential=await teamCredential(request,env,"BO");
   if(credential.kind!=="password")return bad(401,"IDENTITY_UNAUTHORIZED");
   const corePath="/learning/path-diaries"+(segments.length?"/"+segments[0]:"")+(missionLinkRead?"/mission-links":"");
-  const coreQuery=new URLSearchParams(Object.entries(data).map(([key,value])=>[key,String(value)]));
+  // Core FounderRequest carries bounded GET filters in body; query strings belong to the public BFF URL.
   const result=await callFounderCoreWithStaffPassword(env.PINO_CORE,{
-    method:"GET",path:corePath+(coreQuery.size?"?"+coreQuery.toString():""),
+    method:"GET",path:corePath,body:data,
   },credential.token);
   return Response.json(result.body,{status:result.status,
     headers:{"cache-control":"no-store","x-request-id":result.requestId}});
