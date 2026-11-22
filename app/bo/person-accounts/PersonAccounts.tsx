@@ -18,6 +18,7 @@ type PersonCandidate = {
   name: string;
   ageLabel: string;
   phone: string;
+  mobileLastFour: string | null;
   actors: string;
   profiles: string;
 };
@@ -41,15 +42,16 @@ const rows: BoRecord[] = [
   { id: "demo-person-03", name: "Lê Chi (DEMO)", person: "Lê Chi (DEMO)", phone: "0900•••357", actors: "Guest", profiles: "Guest", access: "Chưa kích hoạt", createdAt: "—", createdBy: "—", updatedAt: "—", updatedBy: "—" },
 ];
 const candidates: PersonCandidate[] = [
-  { id: "demo-person-04", name: "Phạm Duy (DEMO)", ageLabel: "10t", phone: "0900•••114", actors: "Student · Guest · Staff", profiles: "Duy (Student) · Guest" },
-  { id: "demo-person-05", name: "Hoàng Vy (DEMO)", ageLabel: "28t", phone: "0900•••298", actors: "Parent", profiles: "2 Guardian Students" },
+  { id: "demo-person-04", name: "Phạm Duy (DEMO)", ageLabel: "10t", phone: "0900••••8114", mobileLastFour: "8114", actors: "Student · Guest · Staff", profiles: "Duy (Student) · Guest" },
+  { id: "demo-person-05", name: "Hoàng Vy (DEMO)", ageLabel: "28t", phone: "0900••••8298", mobileLastFour: "8298", actors: "Parent", profiles: "2 Guardian Students" },
 ];
 const initialTable = (): BoTableState => ({ ...defaultTable([...fields]), pageSize: 15 });
 const overview = [{ id: "person", label: "Thông tin tài khoản", fields: fields.map(field => field.key) }];
 
 function personPickerLabel(person: PersonCandidate) {
-  const mobileTail = person.phone.replace(/\D/g, "").slice(-4);
-  return [person.name, person.ageLabel || "—", mobileTail ? "•••• " + mobileTail : "—"].join(" · ");
+  const age = person.ageLabel.trim() || "—";
+  const mobileLastFour = /^\d{4}$/.test(person.mobileLastFour ?? "") ? person.mobileLastFour : "—";
+  return `${person.name} - ${age} - ${mobileLastFour}`;
 }
 
 function accountRecord(person: PersonCandidate | null, access = "Chưa kích hoạt"): BoRecord {
@@ -101,13 +103,13 @@ export function PersonAccounts() {
   const createFields: Record<string, CreateDrawerField> = {
     person: {
       id: "person-account-person",
-      label: "Person",
+      label: "Chọn Person",
       value: personId,
       required: true,
       onChange: setPersonId,
       control: <select id="person-account-person" className="edit-input" value={personId} required
         disabled={availablePeople.length === 0} onChange={event => setPersonId(event.target.value)}>
-        <option value="">Chọn Person có sẵn</option>
+        <option value="">Chọn Person</option>
         {availablePeople.map(person => <option key={person.id} value={person.id}>{personPickerLabel(person)}</option>)}
       </select>,
     },
@@ -148,7 +150,7 @@ export function PersonAccounts() {
       <form id="person-account-create-form" onSubmit={createAccount}>
         <PropertySections variant="drawer" fields={[...fields]} sections={overview}
           record={accountRecord(selectedPerson)} createFields={createFields} />
-        <p className="settings-hint">Tạo tài khoản từ Person đã có. Việc kích hoạt quyền truy cập và cấp credential là thao tác riêng.</p>
+        <p className="settings-hint">Chọn Person trong hệ thống; hồ sơ Student, Parent, Guest và Staff được gom theo cùng một người. Điều kiện kích hoạt quyền truy cập và cấp credential vẫn theo policy hiện hành.</p>
         {availablePeople.length === 0 && <p role="status">Không còn Person chưa có tài khoản trong dữ liệu xem thử.</p>}
       </form>
     </DrawerFrame>}
