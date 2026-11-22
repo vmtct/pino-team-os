@@ -25,9 +25,16 @@ test("PAP-1400 explicit Skip opening is Diary-only entry, not a local photo or C
 test("PAP-1400 original Register ticket is stored BEFORE network, no automatic re-Register on unknown receipt",()=>{
  const ui=readFileSync(resolve(process.cwd(),"app/components/tos-vnext/DiaryCapturePanel.tsx"),"utf8");
  const source=readFileSync(resolve(process.cwd(),"lib/tos-diary-register-receipt-recovery.ts"),"utf8");
- const stage=ui.indexOf("stageDiaryTicket(storage,prepared.submissionKey)");
- const register=ui.indexOf("createDiaryObservationWithLinks(writerApi");
- assert.ok(stage>=0&&register>stage,"opaque ticket must be stored before POST");
+ const workflow=readFileSync(resolve(process.cwd(),"lib/tos-diary-observation-workflow.ts"),"utf8");
+ const begin=ui.indexOf("const outcome:DiaryDraftOutcome=await beginDiaryDraftWithLinks(writerApi,{");
+ const hook=ui.indexOf("beforeRegister:key=>{",begin);
+ const stage=ui.indexOf("stageDiaryTicket(storage,key)",hook);
+ const resolveRead=workflow.indexOf("const resolution=await client.resolveDiary(scope);",workflow.indexOf("export async function beginDiaryDraftWithLinks"));
+ const notFound=workflow.indexOf('if(resolution.state!=="NOT_FOUND")',resolveRead);
+ const ticketGate=workflow.indexOf("if(!request.beforeRegister(submissionKey))",notFound);
+ const register=workflow.indexOf("await client.register(prepared.registration",ticketGate);
+ assert.ok(begin>=0&&begin<hook&&hook<stage,"TOS stages the original opaque ticket through the workflow hook");
+ assert.ok(resolveRead>=0&&resolveRead<notFound&&notFound<ticketGate&&ticketGate<register,"Core resolve and ticket write precede the first Register POST");
  assert.match(ui,/reconcileUnknownDiaryRegister\(recoveryApi,/);
  assert.match(ui,/const recoveryApi=useMemo\(\(\)=>\(\{\.\.\.writerApi,eligibleMissions:readCatalog\}\)/);
  assert.match(ui,/readDiarySpecialtyCatalog\(scope,classroom.pathProgramId\)/);
