@@ -16,6 +16,7 @@ import {readDiaryTicket,stageDiaryTicket,clearVerifiedDiaryTicket,type DiaryTick
 import {isConfirmedSkipDiaryEntry} from "@/lib/tos-diary-skip-opening";
 import {isDiaryStagingWriterHost} from "@/lib/tos-diary-stage-admission";
 import {diaryWriteView} from "@/lib/tos-diary-stage-status";
+import {diaryComposerLocks,diaryDraftPhaseForScope} from "@/lib/tos-diary-composer-state";
 import {createTosMissionAssignmentApiTransport} from "@/lib/tos-mission-assignment-api";
 import {assignmentScopeForCandidate} from "@/lib/tos-mission-assignment-workflow";
 import {readTosMissionCompletion} from "@/lib/tos-mission-completion-read";
@@ -75,14 +76,16 @@ export default function DiaryCapturePanel({model,classroom,confirmedSkipClassId}
  const readCatalog=useCallback((scope:V18bEligibleMissionsInput)=>readDiarySpecialtyCatalog(scope,classroom.pathProgramId),[classroom.pathProgramId]);
  const recoveryApi=useMemo(()=>({...writerApi,eligibleMissions:readCatalog}),[writerApi,readCatalog]);
  const writeAdmitted=stagingHostAdmitted&&skipEntryConfirmed;
- const locked=receipt!==null||busy||reloadBusy||completionBusy||recovering||draftStatus.phase==="loading"||closeReceipt?.state==="CLOSE_PENDING";
- const formLocked=locked||draftStatus.phase==="closed";
  const receiptView=diaryUiReceipt(receipt);
  const writeView=diaryWriteView({
   admitted:writeAdmitted,busy,checking:recovering||reloadBusy,
   ticket:registerTicket.state,outcome:receipt?.state??null,
  });
  const permitted=students.some(x=>x.id===studentId);
+ const {studentPickerLocked:locked,formLocked}=diaryComposerLocks({
+  permitted,draftPhase:draftStatus.phase,receiptPresent:receipt!==null,busy,reloadBusy,completionBusy,recovering,
+  closePending:closeReceipt?.state==="CLOSE_PENDING",
+ });
  const key=JSON.stringify([model.centerId,classroom.runningClassId,model.today,classroom.id,classroom.pathProgramId,studentId]);
  useEffect(()=>{
   setStagingHostAdmitted(isDiaryStagingWriterHost(
@@ -90,8 +93,11 @@ export default function DiaryCapturePanel({model,classroom,confirmedSkipClassId}
   setRegisterTicket(readDiaryTicket(ticketStorage()));
  },[]);
  useEffect(()=>{reloadGeneration.current++;setKnownDiaryId("");setReloadReceipt(null);setRegisterRecovery(null);
-  setDraftStatus({...emptyDraft,phase:"loading",message:"Đang đọc Nhật ký của lần học…"});
-  setDraftDirty(false);setCloseReceipt(null);setReceipt(null);},[key]);
+  const scopePhase=diaryDraftPhaseForScope(permitted);
+  setDraftStatus(scopePhase==="loading"
+   ?{...emptyDraft,phase:scopePhase,message:"Đang đọc Nhật ký của lần học…"}
+   :emptyDraft);
+  setDraftDirty(false);setCloseReceipt(null);setReceipt(null);},[key,permitted]);
  useEffect(()=>{
   if(!permitted)return;
   let active=true;
@@ -443,7 +449,12 @@ export default function DiaryCapturePanel({model,classroom,confirmedSkipClassId}
   }finally{if(reloadGeneration.current===generation)setReloadBusy(false);}
  }
  function onStudent(value:string){
-  reloadGeneration.current++;setStudentId(value);setRead(idle);setMissionIds([]);setRecoveryMissionIds([]);setNotes("");setInterest(null);setDifficulty("");setDraftDirty(false);setShowValidation(false);
+  reloadGeneration.current++;setStudentId(value);setRead(idle);
+  const scopePhase=diaryDraftPhaseForScope(value!=="");
+  setDraftStatus(scopePhase==="loading"
+   ?{...emptyDraft,phase:scopePhase,message:"Đang đọc Nhật ký của lần học…"}
+   :emptyDraft);
+  setMissionIds([]);setRecoveryMissionIds([]);setNotes("");setInterest(null);setDifficulty("");setDraftDirty(false);setShowValidation(false);
   setKnownDiaryId("");setReloadReceipt(null);setReloadBusy(false);setRegisterRecovery(null);
   setCompletionIntent([]);setCompletionStatus({});setCompletionMessage("");setCompletionBusy(false);
  }
