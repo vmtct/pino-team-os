@@ -4,6 +4,7 @@
 // Fixture state only. No Core/BFF reads, account mutations, or credential operations.
 import "@pino/design-system/bo-tokens.css";
 import "@pino/design-system/components.css";
+import { AfterschoolPinDrawer } from "@/app/bo/afterschool-accounts/AfterschoolPinDrawer";
 import { useState, type FormEvent } from "react";
 import { BoDataTable } from "@/app/bo/components/registration/BoDataTable";
 import { BoQuickView } from "@/app/bo/components/registration/BoQuickView";
@@ -19,6 +20,7 @@ type PersonCandidate = {
   ageLabel: string;
   phone: string;
   mobileLastFour: string | null;
+  parentActorId?: string | null;
   actors: string;
   profiles: string;
 };
@@ -37,13 +39,13 @@ const fields = [
 
 const personAccountModule: BoModule = { label: "Tài khoản Piner", group: "People", fields: [...fields] };
 const rows: BoRecord[] = [
-  { id: "demo-person-01", name: "Nguyễn An (DEMO)", person: "Nguyễn An (DEMO)", phone: "0900•••821", actors: "Parent · Student", profiles: "An (Student) · 1 Guardian Student", access: "Đã kích hoạt", createdAt: "—", createdBy: "—", updatedAt: "—", updatedBy: "—" },
+  { id: "demo-person-01", name: "Nguyễn An (DEMO)", person: "Nguyễn An (DEMO)", phone: "0900•••821", actors: "Parent · Student", profiles: "An (Student) · 1 Guardian Student", access: "Đã kích hoạt", parentActorId: "demo-parent-01", createdAt: "—", createdBy: "—", updatedAt: "—", updatedBy: "—" },
   { id: "demo-person-02", name: "Trần Bình (DEMO)", person: "Trần Bình (DEMO)", phone: "0900•••642", actors: "Student", profiles: "Bình (Student)", access: "Chưa kích hoạt", createdAt: "—", createdBy: "—", updatedAt: "—", updatedBy: "—" },
   { id: "demo-person-03", name: "Lê Chi (DEMO)", person: "Lê Chi (DEMO)", phone: "0900•••357", actors: "Guest", profiles: "Guest", access: "Chưa kích hoạt", createdAt: "—", createdBy: "—", updatedAt: "—", updatedBy: "—" },
 ];
 const candidates: PersonCandidate[] = [
   { id: "demo-person-04", name: "Phạm Duy (DEMO)", ageLabel: "10 tuổi", phone: "0900••••8114", mobileLastFour: "8114", actors: "Student · Guest · Staff", profiles: "Duy (Student) · Guest" },
-  { id: "demo-person-05", name: "Hoàng Vy (DEMO)", ageLabel: "28 tuổi", phone: "0900••••8298", mobileLastFour: "8298", actors: "Parent", profiles: "2 Guardian Students" },
+  { id: "demo-person-05", name: "Hoàng Vy (DEMO)", ageLabel: "28 tuổi", phone: "0900••••8298", mobileLastFour: "8298", parentActorId: "demo-parent-05", actors: "Parent", profiles: "2 Guardian Students" },
 ];
 const initialTable = (): BoTableState => ({ ...defaultTable([...fields]), pageSize: 15 });
 const overview = [{ id: "person", label: "Thông tin tài khoản", fields: fields.map(field => field.key) }];
@@ -63,6 +65,7 @@ function accountRecord(person: PersonCandidate | null, access = "Chưa kích ho�
     actors: person?.actors ?? "—",
     profiles: person?.profiles ?? "—",
     access,
+    parentActorId: person?.parentActorId ?? null,
     createdAt: "—",
     createdBy: "—",
     updatedAt: "—",
@@ -81,6 +84,7 @@ export function PersonAccounts({ localPreview = false }: { localPreview?: boolea
   const [filterOpen, setFilterOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [personId, setPersonId] = useState("");
+  const [parentPinAction, setParentPinAction] = useState<{ id: string; name: string } | null>(null);
 
   if (!localPreview && center?.error) return <p role="alert">{center.error}</p>;
   if (!localPreview && center?.loading) return <p role="status">Đang xác định cơ sở…</p>;
@@ -88,17 +92,26 @@ export function PersonAccounts({ localPreview = false }: { localPreview?: boolea
 
   const availablePeople = candidates.filter(person => !accounts.some(account => account.id === person.id));
   const selectedPerson = availablePeople.find(person => person.id === personId) ?? null;
+  const pinResetDrawer = parentPinAction ? <AfterschoolPinDrawer centerId={center?.selected ?? ""}
+    parent={parentPinAction} onClose={() => setParentPinAction(null)} onChanged={() => {}}
+    onExisting={async () => false} previewOnly /> : null;
 
-  if (detail) return <DetailFrame title={String(detail.person)} onBack={() => { setDetail(null); setTab("overview"); }}
-    tabs={[{ id: "overview", label: "Tổng quan" }, { id: "history", label: "Lịch sử" }]} selected={tab} onSelect={setTab}>
-    {tab === "overview" ? <>
-      <PropertySections variant="detail" fields={[...fields]} record={detail} sections={overview} />
-      <section className="property-section" aria-label="Thông tin credential">
-        <h3>Credential</h3>
-        <p>Tạo tài khoản không tự cấp PIN. Cấp lại PIN theo luồng hiện có cho nhóm đủ điều kiện.</p>
-      </section>
-    </> : <p role="status">Chưa có dữ liệu lịch sử trong bản xem thử.</p>}
-  </DetailFrame>;
+  if (detail) {
+    const parentActorId = typeof detail.parentActorId === "string" ? detail.parentActorId : null;
+    const actions = parentActorId ? <button type="button" className="secondary-btn"
+      onClick={() => setParentPinAction({ id: parentActorId, name: String(detail.name) })}>Cấp Lại PIN</button> : null;
+    return <DetailFrame title={String(detail.person)} onBack={() => { setDetail(null); setTab("overview"); }}
+      tabs={[{ id: "overview", label: "Tổng quan" }, { id: "history", label: "Lịch sử" }]} selected={tab} onSelect={setTab}
+      actions={actions} after={pinResetDrawer}>
+      {tab === "overview" ? <>
+        <PropertySections variant="detail" fields={[...fields]} record={detail} sections={overview} />
+        <section className="property-section" aria-label="Thông tin credential">
+          <h3>Credential</h3>
+          <p>Tạo tài khoản không tự cấp PIN. Cấp lại PIN theo luồng hiện có cho nhóm đủ điều kiện.</p>
+        </section>
+      </> : <p role="status">Chưa có dữ liệu lịch sử trong bản xem thử.</p>}
+    </DetailFrame>;
+  }
 
   const createFields: Record<string, CreateDrawerField> = {
     person: {

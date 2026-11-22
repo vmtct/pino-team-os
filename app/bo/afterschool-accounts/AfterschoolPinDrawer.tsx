@@ -15,12 +15,13 @@ const pinFields: BoField[] = [
 ];
 type Parent = { id: string; name: string };
 
-export function AfterschoolPinDrawer({ centerId, parent, onClose, onChanged, onExisting }: {
+export function AfterschoolPinDrawer({ centerId, parent, onClose, onChanged, onExisting, previewOnly = false }: {
   centerId: string;
   parent: Parent | null;
   onClose: () => void;
   onChanged: () => void;
   onExisting: (parentId: string) => Promise<boolean>;
+  previewOnly?: boolean;
 }) {
   const [parents, setParents] = useState<NativeParentRow[] | null>(null);
   const [search, setSearch] = useState("");
@@ -44,6 +45,7 @@ export function AfterschoolPinDrawer({ centerId, parent, onClose, onChanged, onE
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (previewOnly) { setError("Bản xem thử không gửi yêu cầu PIN."); return; }
     if (!selected || submitting.current || receipt) return;
     const form = event.currentTarget;
     const confirmedPhone = String(new FormData(form).get("confirmedPhone") ?? "").trim();
@@ -99,7 +101,7 @@ export function AfterschoolPinDrawer({ centerId, parent, onClose, onChanged, onE
     : <>
       <button type="button" className="secondary-btn" disabled={busy} onClick={close}>Hủy</button>
       <button type="submit" form="afterschool-pin-form" className="primary-btn"
-        disabled={!selected || busy}>{title}</button>
+        disabled={!selected || busy || previewOnly}>{title}</button>
     </>}>
     {receipt ? <section className="property-section" role="status">
       <p>PIN tạm chỉ hiện một lần.</p>
@@ -108,6 +110,7 @@ export function AfterschoolPinDrawer({ centerId, parent, onClose, onChanged, onE
         dateStyle: "short", timeStyle: "short", timeZone: "Asia/Ho_Chi_Minh",
       }).format(new Date(receipt.expiresAt))}.</p>
     </section> : <form id="afterschool-pin-form" onSubmit={submit} aria-busy={busy}>
+      {previewOnly && <p role="status">Bản xem thử chỉ hiển thị luồng hiện có; không gửi yêu cầu cấp lại PIN.</p>}
       {!parent && !parents && !error && <p role="status">Đang tải danh sách phụ huynh…</p>}
       {!parent && parents?.length === 0 && <p role="status">Không có phụ huynh tại cơ sở này.</p>}
       {!parent && parents && parents.length > 0 && filtered?.length === 0 && <p role="status">Không tìm thấy phụ huynh phù hợp.</p>}
@@ -124,10 +127,10 @@ export function AfterschoolPinDrawer({ centerId, parent, onClose, onChanged, onE
               </select> },
           } : {}),
           phone: { id: "afterschool-confirmed-phone", value: "", onChange: () => {},
-            control: <input id="afterschool-confirmed-phone" className="edit-input" name="confirmedPhone" type="tel" autoComplete="off" maxLength={32} required disabled={!selected || busy} /> },
+            control: <input id="afterschool-confirmed-phone" className="edit-input" name="confirmedPhone" type="tel" autoComplete="off" maxLength={32} required disabled={!selected || busy || previewOnly} /> },
           confirmation: { id: "afterschool-confirmation", value: "", onChange: () => {},
             label: parent ? "Xác nhận danh tính và thu hồi các phiên hiện tại." : "Đã xác minh danh tính phụ huynh.",
-            control: <input id="afterschool-confirmation" type="checkbox" required disabled={!selected || busy} /> },
+            control: <input id="afterschool-confirmation" type="checkbox" required disabled={!selected || busy || previewOnly} /> },
         }} />
       {error && <p className="edit-error" role="alert">{error}</p>}
     </form>}
