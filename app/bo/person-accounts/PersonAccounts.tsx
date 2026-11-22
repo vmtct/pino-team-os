@@ -98,11 +98,10 @@ export function PersonAccounts({ localPreview = false }: { localPreview?: boolea
 
   if (detail) {
     const parentActorId = typeof detail.parentActorId === "string" ? detail.parentActorId : null;
-    const actions = parentActorId ? <button type="button" className="secondary-btn"
-      onClick={() => setParentPinAction({ id: parentActorId, name: String(detail.name) })}>Cấp Lại PIN</button> : null;
+
     return <DetailFrame title={String(detail.person)} onBack={() => { setDetail(null); setTab("overview"); }}
       tabs={[{ id: "overview", label: "Tổng quan" }, { id: "history", label: "Lịch sử" }]} selected={tab} onSelect={setTab}
-      actions={actions} after={pinResetDrawer}>
+      after={pinResetDrawer}>
       {tab === "overview" ? <>
         <PropertySections variant="detail" fields={[...fields]} record={detail} sections={overview} />
         <section className="property-section" aria-label="Thông tin credential">
@@ -110,6 +109,10 @@ export function PersonAccounts({ localPreview = false }: { localPreview?: boolea
           <p>Tạo tài khoản không tự cấp PIN. Cấp lại PIN theo luồng hiện có cho nhóm đủ điều kiện.</p>
         </section>
       </> : <p role="status">Chưa có dữ liệu lịch sử trong bản xem thử.</p>}
+      {parentActorId && <div className="afterschool-detail-actions" style={{ display: "flex", justifyContent: "flex-start", flexWrap: "wrap", gap: "8px", marginTop: "24px" }}>
+        <button type="button" className="secondary-btn"
+          onClick={() => setParentPinAction({ id: parentActorId, name: String(detail.name) })}>Cấp Lại PIN</button>
+      </div>}
     </DetailFrame>;
   }
 
