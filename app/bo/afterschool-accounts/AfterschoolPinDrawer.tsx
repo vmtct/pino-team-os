@@ -127,7 +127,7 @@ export function AfterschoolPinDrawer({ centerId, parent, onClose, onChanged, onE
               </select> },
           } : {}),
           phone: { id: "afterschool-confirmed-phone", value: "", onChange: () => {},
-            control: <input id="afterschool-confirmed-phone" className="edit-input" name="confirmedPhone" type="tel" autoComplete="off" maxLength={32} required disabled={!selected || busy || previewOnly} /> },
+            control: <input id="afterschool-confirmed-phone" className="edit-input" name="confirmedPhone" type="tel" autoComplete="off" maxLength={32} required disabled={!selected || busy} readOnly={previewOnly} /> },
           confirmation: { id: "afterschool-confirmation", value: "", onChange: () => {},
             label: parent ? "Xác nhận danh tính và thu hồi các phiên hiện tại." : "Đã xác minh danh tính phụ huynh.",
             control: <input id="afterschool-confirmation" type="checkbox" required disabled={!selected || busy || previewOnly} /> },
