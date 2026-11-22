@@ -42,8 +42,8 @@ const rows: BoRecord[] = [
   { id: "demo-person-03", name: "Lê Chi (DEMO)", person: "Lê Chi (DEMO)", phone: "0900•••357", actors: "Guest", profiles: "Guest", access: "Chưa kích hoạt", createdAt: "—", createdBy: "—", updatedAt: "—", updatedBy: "—" },
 ];
 const candidates: PersonCandidate[] = [
-  { id: "demo-person-04", name: "Phạm Duy (DEMO)", ageLabel: "10t", phone: "0900••••8114", mobileLastFour: "8114", actors: "Student · Guest · Staff", profiles: "Duy (Student) · Guest" },
-  { id: "demo-person-05", name: "Hoàng Vy (DEMO)", ageLabel: "28t", phone: "0900••••8298", mobileLastFour: "8298", actors: "Parent", profiles: "2 Guardian Students" },
+  { id: "demo-person-04", name: "Phạm Duy (DEMO)", ageLabel: "10 tuổi", phone: "0900••••8114", mobileLastFour: "8114", actors: "Student · Guest · Staff", profiles: "Duy (Student) · Guest" },
+  { id: "demo-person-05", name: "Hoàng Vy (DEMO)", ageLabel: "28 tuổi", phone: "0900••••8298", mobileLastFour: "8298", actors: "Parent", profiles: "2 Guardian Students" },
 ];
 const initialTable = (): BoTableState => ({ ...defaultTable([...fields]), pageSize: 15 });
 const overview = [{ id: "person", label: "Thông tin tài khoản", fields: fields.map(field => field.key) }];
@@ -70,7 +70,7 @@ function accountRecord(person: PersonCandidate | null, access = "Chưa kích ho�
   };
 }
 
-export function PersonAccounts() {
+export function PersonAccounts({ localPreview = false }: { localPreview?: boolean }) {
   const center = useBoCenterSelection();
   const [table, setTable] = useState<BoTableState>(initialTable);
   const [accounts, setAccounts] = useState<BoRecord[]>(rows);
@@ -82,9 +82,9 @@ export function PersonAccounts() {
   const [createOpen, setCreateOpen] = useState(false);
   const [personId, setPersonId] = useState("");
 
-  if (center?.error) return <p role="alert">{center.error}</p>;
-  if (center?.loading) return <p role="status">Đang xác định cơ sở…</p>;
-  if (!center?.selected) return <p role="status">Chọn cơ sở để xem tài khoản.</p>;
+  if (!localPreview && center?.error) return <p role="alert">{center.error}</p>;
+  if (!localPreview && center?.loading) return <p role="status">Đang xác định cơ sở…</p>;
+  if (!localPreview && !center?.selected) return <p role="status">Chọn cơ sở để xem tài khoản.</p>;
 
   const availablePeople = candidates.filter(person => !accounts.some(account => account.id === person.id));
   const selectedPerson = availablePeople.find(person => person.id === personId) ?? null;
