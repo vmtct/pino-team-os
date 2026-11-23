@@ -164,6 +164,17 @@ export function LeadHouseholdM1Preview() {
       setStep(2);
       return;
     }
+    const memberById = new Map(draft.members.map(member => [member.id, member]));
+    if (draft.relationships.some(relation => {
+      const parent = memberById.get(relation.fromMemberId);
+      const child = memberById.get(relation.toMemberId);
+      return !parent || !child || parent.id === child.id || !parent.roles.includes("PARENT")
+        || !(child.roles.includes("STUDENT") || (child.roles.includes("GUEST") && child.age !== null && child.age < 18));
+    })) {
+      setFormError("Quan hệ không còn hợp lệ sau khi chỉnh sửa thành viên hoặc vai trò. Hãy cập nhật quan hệ trước khi lưu.");
+      setStep(2);
+      return;
+    }
     const nextRecord = createFixtureFromDraft(draft, drawer?.mode === "edit" ? drawer.leadId : "LEAD-MOCK-" + String(nextFixtureNumber).padStart(3, "0"));
     setRecords(current => drawer?.mode === "edit" ? current.map(record => record.id === nextRecord.id ? nextRecord : record) : [nextRecord, ...current]);
     if (drawer?.mode === "create") setNextFixtureNumber(value => value + 1);
@@ -424,6 +435,7 @@ function LeadCreateEditDrawer({
           {draft.relationships.map(item => <div className={styles.relationshipLine} key={item.id}>
             <span>{draft.members.find(member => member.id === item.fromMemberId)?.name ?? "—"} → {draft.members.find(member => member.id === item.toMemberId)?.name ?? "—"} · {item.label}</span>
             <BoDataGridStatus value="Khai báo" tone="warning" />
+            <button type="button" aria-label={"Gỡ quan hệ " + item.label} onClick={() => onDraftChange({ ...draft, relationships: draft.relationships.filter(relation => relation.id !== item.id) })}>Gỡ</button>
           </div>)}
         </section> : null}
       </>}
