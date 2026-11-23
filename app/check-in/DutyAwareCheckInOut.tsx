@@ -71,6 +71,8 @@ export default function DutyAwareCheckInOut() {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraPreviewAvailable, setCameraPreviewAvailable] = useState(false);
+  useEffect(() => { setCameraPreviewAvailable(window.location.hostname.includes("staging") || window.location.hostname === "localhost"); }, []);
   const [exceptionOpen, setExceptionOpen] = useState(false);
   const [exceptionReason, setExceptionReason] = useState("");
   const [checkInState, setCheckInState] = useState<UnscheduledCheckInSelfState | null>(null);
@@ -321,6 +323,6 @@ export default function DutyAwareCheckInOut() {
       </> : null}
       {!loading ? <section className={styles.noteCard}><h3>Lưu ý trong ca</h3><p>Kiểm tra thông tin ca trước khi bắt đầu. Nếu dữ liệu nghiệp vụ chưa có contract authoritative, TOS sẽ hiển thị chưa sẵn sàng thay vì suy đoán.</p></section> : null}
     </main>
-    {typeof window !== "undefined" && (window.location.hostname.includes("staging") || window.location.hostname === "localhost") && <button type="button" onClick={() => setCameraOpen(true)} style={{position:"fixed",bottom:84,right:16,zIndex:30,borderRadius:12,padding:"10px 14px",background:"#7e3121",color:"white",border:0}}>📷 M1 · Camera preview</button>}\n    {cameraOpen && <FrontCameraEvidence onClose={() => setCameraOpen(false)} />}
+    {cameraPreviewAvailable && <button type="button" onClick={() => setCameraOpen(true)} style={{position:"fixed",bottom:84,right:16,zIndex:30,borderRadius:12,padding:"10px 14px",background:"#7e3121",color:"white",border:0}}>📷 M1 · Camera preview</button>}\n    {cameraOpen && <FrontCameraEvidence onClose={() => setCameraOpen(false)} />}
   </TosShell>;
 }
