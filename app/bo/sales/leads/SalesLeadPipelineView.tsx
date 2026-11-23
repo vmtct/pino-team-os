@@ -328,9 +328,9 @@ function SalesLeadIntentPipelineView() {
   );
 }
 
-export function SalesLeadPipelineView({ allowM1Preview = false }: { allowM1Preview?: boolean }) {
+export function SalesLeadPipelineView({ allowM1Preview = false, forceM1Preview = false }: { allowM1Preview?: boolean; forceM1Preview?: boolean }) {
   const searchParams = useSearchParams();
-  const previewEnabled = (allowM1Preview || process.env.NODE_ENV === "development") && searchParams.get("m1Preview") === "1";
+  const previewEnabled = forceM1Preview || ((allowM1Preview || process.env.NODE_ENV === "development") && searchParams.get("m1Preview") === "1");
   return previewEnabled ? <LeadHouseholdM1Preview /> : <SalesLeadIntentPipelineView />;
 }
 function compareLeadRows(left: BoAcquisitionIntent, right: BoAcquisitionIntent, key: string) {
