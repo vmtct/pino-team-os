@@ -317,7 +317,7 @@ export function LeadHouseholdM1Preview() {
       activeTab={activeTab}
       actions={<div className={styles.detailActions}><BoDataGridBadge>DỮ LIỆU MẪU</BoDataGridBadge><button type="button" onClick={() => openEdit(selectedLead)}>Chỉnh sửa</button></div>}
       tabs={[
-        { id: "detail", label: "Tổng quan", content: <><LeadOverview record={selectedLead} onSave={(name, phone) => saveInlineContact(selectedLead.id, name, phone)} /><div className={styles.detailActions}><button type="button" className={styles.primaryButton} onClick={() => openConvert(selectedLead)}>Convert Lead · Xem trước</button></div></> },
+        { id: "detail", label: "Tổng quan", content: <LeadOverview record={selectedLead} onSave={(name, phone) => saveInlineContact(selectedLead.id, name, phone)} onConvert={() => openConvert(selectedLead)} /> },
         { id: "members", label: "Thành viên", content: <LeadMembers record={selectedLead} onSave={(memberId, name, age, roles) => saveInlineMember(selectedLead.id, memberId, name, age, roles)} onSaveInterests={(memberId, kinds) => saveMemberInterests(selectedLead.id, memberId, kinds)} /> },
         { id: "relationships", label: "Quan hệ", content: <LeadRelationships record={selectedLead} /> },
         { id: "history", label: "Lịch sử", content: <LeadHistory /> },
@@ -406,7 +406,7 @@ function LeadQuickView({ record }: { record: LeadM1Record }) {
   </div>;
 }
 
-function LeadOverview({ record, onSave }: { record: LeadM1Record; onSave: (name: string, phone: string) => boolean }) {
+function LeadOverview({ record, onSave, onConvert }: { record: LeadM1Record; onSave: (name: string, phone: string) => boolean; onConvert: () => void }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(record.contactName);
   const [phone, setPhone] = useState(record.phone);
@@ -435,6 +435,7 @@ function LeadOverview({ record, onSave }: { record: LeadM1Record; onSave: (name:
       { key: "updatedBy", label: "Last Modified By", value: "—" },
     ]} />
     <p className={styles.helperNote}>Số điện thoại là khóa nhận diện Lead trong acquisition. Phone match không tự tạo Person, Parent, Student, Guest hay quyền Guardian.</p>
+    <div className={styles.detailActions}><button type="button" className={styles.primaryButton} onClick={onConvert}>Convert Lead · Xem trước</button></div>
   </div>;
 }
 
