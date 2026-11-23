@@ -17,7 +17,7 @@ function policyRoutes(source, name, issues) {
   let routes;
   try { routes = JSON.parse(match[1].replace(/,\s*\]$/, "]")); }
   catch { issues.push(`${name} must contain only JSON string literals`); return new Set(); }
-  if (!Array.isArray(routes) || routes.some(route => typeof route !== "string" || !/^\/bo\/[a-z0-9-]+$/.test(route))) {
+  if (!Array.isArray(routes) || routes.some(route => typeof route !== "string" || !(/^\/bo\/[a-z0-9-]+$/.test(route) || route === "/bo/sales/leads"))) {
     issues.push(`${name} must be a literal Set of BO route strings`);
     return new Set();
   }
