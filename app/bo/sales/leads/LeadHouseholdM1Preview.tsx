@@ -138,7 +138,10 @@ export function LeadHouseholdM1Preview() {
     if (!contactCanonicalName.trim() || (contactPersonMode === "EXISTING" && !contactPersonId.trim()) || !contactActorRoles.length) {
       setConvertMessage("Liên hệ chính cần tên canonical, Person ID nếu liên kết, và ít nhất một Actor."); return;
     }
-    const chosen = convertLead.members.filter(member => convertSelected.includes(member.id));
+    const chosen = convertLead.members.filter(member => !member.primaryContact && convertSelected.includes(member.id));
+    if (chosen.some(member => (memberActorRoles[member.id] ?? []).includes("PARENT"))) {
+      setConvertMessage("Thành viên không phải liên hệ chính chỉ được chọn Student hoặc Guest."); return;
+    }
     if (chosen.some(member => !memberCanonicalNames[member.id]?.trim()
       || (memberPersonModes[member.id] === "EXISTING" && !memberPersonIds[member.id]?.trim())
       || !memberActorRoles[member.id]?.length)) {
@@ -338,7 +341,7 @@ export function LeadHouseholdM1Preview() {
       onClose={() => { setConvertLeadId(null); setConvertMessage(""); }}
       footer={<div className={styles.drawerFooter}>
         <button type="button" onClick={() => setConvertLeadId(null)}>Hủy</button>
-        <button type="button" className={styles.primaryButton} disabled={!convertSelected.length} onClick={previewConversion}>Xác nhận xem trước</button>
+        <button type="button" className={styles.primaryButton} onClick={previewConversion}>Xác nhận xem trước</button>
       </div>}
     >
       <div className={styles.drawerContent}>
@@ -353,14 +356,14 @@ export function LeadHouseholdM1Preview() {
           </div>
           <div className={styles.roleOptions} aria-label="Actors liên hệ chính">{ROLE_OPTIONS.map(role => <label key={role}><input type="checkbox" checked={contactActorRoles.includes(role)} onChange={event => setContactActorRoles(current => event.target.checked ? [...current, role] : current.filter(item => item !== role))} />{leadM1RoleLabel(role)}</label>)}</div>
           <h3>Chọn thành viên để chuyển đổi</h3>
-          {convertLead.members.map(member => <div className={styles.primaryContactOption} key={member.id}>
+          {convertLead.members.filter(member => !member.primaryContact).map(member => <div className={styles.primaryContactOption} key={member.id}>
             <input type="checkbox" aria-label={"Chọn " + member.name} checked={convertSelected.includes(member.id)} onChange={event => setConvertSelected(current => event.target.checked ? [...current, member.id] : current.filter(id => id !== member.id))} />
             <span>{member.name} · {member.roles.map(leadM1RoleLabel).join(" / ")}</span>
             {convertSelected.includes(member.id) ? <span className={styles.memberFields}>
               <span>Person<select aria-label={"Person " + member.name} value={memberPersonModes[member.id] ?? "NEW"} onChange={event => setMemberPersonModes(current => ({ ...current, [member.id]: event.target.value as "NEW" | "EXISTING" }))}><option value="NEW">Tạo mới</option><option value="EXISTING">Liên kết hiện có</option></select></span>
               <span>Person ID<input aria-label={"Person ID " + member.name} placeholder="PERSON-..." disabled={memberPersonModes[member.id] !== "EXISTING"} value={memberPersonIds[member.id] ?? ""} onChange={event => setMemberPersonIds(current => ({ ...current, [member.id]: event.target.value }))} /></span>
               <span>Tên canonical<input aria-label={"Tên canonical " + member.name} value={memberCanonicalNames[member.id] ?? ""} onChange={event => setMemberCanonicalNames(current => ({ ...current, [member.id]: event.target.value }))} /></span>
-              <span className={styles.roleOptions}>{ROLE_OPTIONS.map(role => <span key={role}><input type="checkbox" aria-label={leadM1RoleLabel(role) + " " + member.name} checked={(memberActorRoles[member.id] ?? []).includes(role)} onChange={event => setMemberActorRoles(current => ({ ...current, [member.id]: event.target.checked ? [...(current[member.id] ?? []), role] : (current[member.id] ?? []).filter(item => item !== role) }))} />{leadM1RoleLabel(role)}</span>)}</span>
+              <span className={styles.roleOptions}>{ROLE_OPTIONS.filter(role => role !== "PARENT").map(role => <span key={role}><input type="checkbox" aria-label={leadM1RoleLabel(role) + " " + member.name} checked={(memberActorRoles[member.id] ?? []).includes(role)} onChange={event => setMemberActorRoles(current => ({ ...current, [member.id]: event.target.checked ? [...(current[member.id] ?? []), role] : (current[member.id] ?? []).filter(item => item !== role) }))} />{leadM1RoleLabel(role)}</span>)}</span>
             </span> : null}
           </div>)}
         </section>
