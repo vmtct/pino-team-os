@@ -9,11 +9,9 @@ import {
   LEAD_M1_AUDIT_COLUMNS,
   LEAD_M1_FIXTURE,
   LEAD_M1_INTEREST_LABELS,
-  leadM1IntentStatusLabel,
   leadM1MemberSummary,
   leadM1RoleLabel,
   leadM1SearchText,
-  type LeadM1Intent,
   type LeadM1IntentKind,
   type LeadM1Member,
   type LeadM1Record,
@@ -276,7 +274,6 @@ export function LeadHouseholdM1Preview() {
         { id: "detail", label: "Tổng quan", content: <><LeadOverview record={selectedLead} /><div className={styles.detailActions}><button type="button" className={styles.primaryButton} onClick={() => openConvert(selectedLead)}>Convert Lead · Xem trước</button></div></> },
         { id: "members", label: "Thành viên", content: <LeadMembers record={selectedLead} /> },
         { id: "relationships", label: "Quan hệ", content: <LeadRelationships record={selectedLead} /> },
-        { id: "interests", label: "Quan tâm", content: <LeadInterests record={selectedLead} /> },
         { id: "history", label: "Lịch sử", content: <LeadHistory /> },
       ]}
     /> : null}
@@ -386,6 +383,7 @@ function LeadMembers({ record }: { record: LeadM1Record }) {
     { key: "gender", header: "Giới tính", minWidth: 100, render: member => member.gender },
     { key: "roles", header: "Vai trò", minWidth: 180, render: member => <div className={styles.badgeWrap}>{member.roles.map(role => <BoDataGridBadge key={role}>{leadM1RoleLabel(role)}</BoDataGridBadge>)}</div> },
     { key: "contact", header: "Liên hệ chính", minWidth: 120, render: member => member.primaryContact ? "Người liên hệ" : "—" },
+    { key: "interests", header: "Chương trình quan tâm", minWidth: 220, render: member => <div className={styles.badgeWrap}>{record.intents.filter(intent => intent.memberIds.includes(member.id)).map(intent => <BoDataGridBadge key={intent.id}>{LEAD_M1_INTEREST_LABELS[intent.kind]}</BoDataGridBadge>)}</div> },
   ];
   return <section className={styles.detailContent}><div className={styles.sectionHeading}><h2>Household members</h2><BoDataGridBadge>{record.members.length} thành viên</BoDataGridBadge></div>
     <BoDataGrid rows={record.members} columns={columns} rowKey={member => member.id} caption="Lead members" showToolbar={false} />
@@ -404,19 +402,6 @@ function LeadRelationships({ record }: { record: LeadM1Record }) {
   return <section className={styles.detailContent}><div className={styles.sectionHeading}><h2>Quan hệ trong household</h2><BoDataGridBadge>{record.relationships.length} quan hệ</BoDataGridBadge></div>
     <BoDataGrid rows={record.relationships} columns={columns} rowKey={relation => relation.id} caption="Declared household relationships" showToolbar={false} />
     <p className={styles.helperNote}>Quan hệ Parent → Student/Guest ở đây là khai báo để nhân viên nhận diện household. Không phải Guardian relationship đã xác thực và không cấp quyền.</p>
-  </section>;
-}
-
-function LeadInterests({ record }: { record: LeadM1Record }) {
-  const columns: BoDataGridColumn<LeadM1Intent>[] = [
-    { key: "interest", header: "Nhu cầu", minWidth: 210, render: intent => LEAD_M1_INTEREST_LABELS[intent.kind] },
-    { key: "source", header: "Nguồn", minWidth: 160, render: intent => intent.source },
-    { key: "members", header: "Thành viên quan tâm", minWidth: 210, render: intent => record.members.filter(member => intent.memberIds.includes(member.id)).map(member => member.name).join(", ") || "Chưa chỉ định" },
-    { key: "status", header: "Lifecycle", minWidth: 145, render: intent => <BoDataGridStatus value={leadM1IntentStatusLabel(intent.status)} tone={intent.status === "CONTACTED" ? "info" : intent.status === "CLOSED" ? "neutral" : "warning"} /> },
-  ];
-  return <section className={styles.detailContent}><div className={styles.sectionHeading}><h2>Acquisition interests</h2><BoDataGridBadge>{record.intents.length} nhu cầu</BoDataGridBadge></div>
-    <BoDataGrid rows={record.intents} columns={columns} rowKey={intent => intent.id} caption="Acquisition interests" showToolbar={false} />
-    <p className={styles.helperNote}>Mỗi dòng là một Acquisition Intent thuộc Lead. Các intent không phải household members hoặc registrations.</p>
   </section>;
 }
 
