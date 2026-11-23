@@ -7,7 +7,7 @@
   min-width: 0;
 }
 .heading { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px; min-width: 0; }
-.headingActions { display: flex; align-items: flex-start; align-self: start; flex-wrap: wrap; gap: 8px; min-width: 0; }
+.headingActions { display: flex; height: max-content; gap: 8px; min-width: 0; }
 .previewNotice { display: flex; gap: 8px 14px; width: 100%; min-width: 0; }
 .filterControl { display: inline-flex; gap: 7px; }
 .identityCell { display: grid; gap: 4px; min-width: 0; }
@@ -44,7 +44,7 @@
 .primaryButton { min-width: 150px; }
 @media (max-width: 900px) {
   .heading { grid-template-columns: minmax(0, 1fr); }
-
+  .headingActions { display: grid; grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 700px) {
   .programGrid { grid-template-columns: minmax(0, 1fr); }
