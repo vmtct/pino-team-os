@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import styles from "./lead-household.module.css";
+import { styles } from "./lead-household-styles";
 import { InlineProperty, type InlineKey } from "./InlineProperty";
 
 type Role = "Parent" | "Student" | "Guest";

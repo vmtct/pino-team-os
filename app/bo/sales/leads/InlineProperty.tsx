@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import styles from "./lead-household.module.css";
+import { styles } from "./lead-household-styles";
 export type InlineKey = "name" | "phone" | "program" | "path";
 export function InlineProperty({label,value,field,onSave,options}: {label:string;value:string;field:InlineKey;onSave:(field:InlineKey,value:string)=>string|null;options?:string[]}) {
  const [active,setActive]=useState(false),[draft,setDraft]=useState(value),[error,setError]=useState("");
