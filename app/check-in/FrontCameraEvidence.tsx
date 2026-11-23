@@ -15,7 +15,7 @@ export default function FrontCameraEvidence({ onClose }: { onClose: () => void }
       return;
     }
     try {
-      const media = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "user" } }, audio: false });
+      const media = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: "user" } }, audio: false });
       stream.current = media;
       if (video.current) { video.current.srcObject = media; await video.current.play(); }
     } catch { stop(); setError("Không thể mở camera trước. Kiểm tra quyền camera và thử lại."); }
