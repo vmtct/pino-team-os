@@ -237,7 +237,7 @@ export default function DutyAwareCheckInOut() {
           <p>{assignment?.shift ? `${assignment.shift.startLocalTime}–${assignment.shift.endLocalTime}` : "Không có ShiftAssignment active trong ngày."}</p>
           <small>{board?.workDate ?? "—"} · {center?.displayName ?? "—"}</small>
           <p className={styles.roleUnavailable}>Vai trò ca · Chưa sẵn sàng</p>
-          <button className={styles.primaryAction} disabled={!checkInReady || Boolean(busy)} onClick={() => setCameraOpen(true)}>{busy === "check-in" ? "Đang check-in…" : "📷 Chụp ảnh Check-in"}</button>
+          <button className={styles.primaryAction} disabled={!checkInReady || Boolean(busy)} onClick={() => void checkIn()}>{busy === "check-in" ? "Đang check-in…" : "Check-in"}</button>
         </section>
         <div className={styles.stats}><article><span>Giờ công tháng này</span><strong className={styles.unavailable}>Chưa sẵn sàng</strong><small>Chờ effective timekeeping từ PAP-706.</small></article><article><span>Ca tiếp theo</span><strong>{nextAssignment ? compactDate(nextAssignment.workDate) : "Chưa có"}</strong><small>{nextAssignment?.shift ? `${nextAssignment.shift.startLocalTime}–${nextAssignment.shift.endLocalTime}` : "Không có assignment sắp tới."}</small></article></div>
         <section className={styles.briefingCard}>
@@ -321,6 +321,6 @@ export default function DutyAwareCheckInOut() {
       </> : null}
       {!loading ? <section className={styles.noteCard}><h3>Lưu ý trong ca</h3><p>Kiểm tra thông tin ca trước khi bắt đầu. Nếu dữ liệu nghiệp vụ chưa có contract authoritative, TOS sẽ hiển thị chưa sẵn sàng thay vì suy đoán.</p></section> : null}
     </main>
-    {cameraOpen && <FrontCameraEvidence onClose={() => setCameraOpen(false)} />}
+    {typeof window !== "undefined" && (window.location.hostname.includes("staging") || window.location.hostname === "localhost") && <button type="button" onClick={() => setCameraOpen(true)} style={{position:"fixed",bottom:84,right:16,zIndex:30,borderRadius:12,padding:"10px 14px",background:"#7e3121",color:"white",border:0}}>📷 M1 · Camera preview</button>}\n    {cameraOpen && <FrontCameraEvidence onClose={() => setCameraOpen(false)} />}
   </TosShell>;
 }
