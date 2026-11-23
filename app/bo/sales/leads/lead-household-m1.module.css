@@ -1,4 +1,4 @@
-.page {
+﻿.page {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 16px;
@@ -54,42 +54,4 @@
 @media (max-width: 420px) {
   .stepProgress { grid-template-columns: minmax(0, 1fr) 14px minmax(0, 1fr); gap: 5px; }
 
-}/* PAP-2286: M1 staging review shell, scoped to Leads only. */
-.page { color: #f1edf2; max-width: none; }
-.heading { align-items: start; }
-.heading h1 { font-size: 30px; line-height: 1.2; margin: 10px 0 12px; }
-.heading p { color: #bcb8c5; margin: 0; line-height: 1.55; }
-.headingActions { align-items: center; flex-wrap: wrap; justify-content: flex-end; }
-.page button, .page select, .page input { font: inherit; }
-.page button { background: #33313b; color: #f5f1f6; border: 1px solid #57515e; border-radius: 8px; padding: 9px 14px; min-height: 36px; cursor: pointer; }
-.page button:hover { background: #47404c; border-color: #a78f9a; }
-.page button:focus-visible, .page input:focus-visible, .page select:focus-visible { outline: 2px solid #d0a4a1; outline-offset: 2px; }
-.page input, .page select { background: #242329; color: #f4f1f5; border: 1px solid #58535e; border-radius: 7px; padding: 8px 10px; min-width: 0; }
-.previewNotice { align-items: center; flex-wrap: wrap; background: #29262d; border: 1px solid #48404a; border-radius: 10px; padding: 10px 14px; color: #cbc5ce; font-size: 12px; line-height: 1.5; }
-.previewNotice strong { color: #f1d6cc; }
-.previewNotice a { color: #efc3af; margin-left: auto; }
-.headingActions > button, .primaryButton { background: #793e34 !important; color: #fff !important; border-color: #9a5c4b !important; }
-.filterControl { align-items: center; white-space: nowrap; }
-.filterControl select { width: auto; }
-.badgeWrap { flex-wrap: wrap; }
-.detailActions { align-items: center; flex-wrap: wrap; }
-.formPropertyRow { display: grid; grid-template-columns: minmax(130px, 35%) minmax(0, 1fr); align-items: center; gap: 14px; padding: 9px 0; min-width: 0; }
-.formPropertyLabel { color: #c9c2cf; white-space: normal; overflow-wrap: normal; line-height: 1.4; }
-.formPropertyControl { min-width: 0; }
-.formPropertyControl input { width: 100%; min-width: 0; box-sizing: border-box; }
-.propertySection { padding: 12px 0; }
-.propertySection h3 { margin: 0 0 12px; }
-.programCard, .memberDraft { padding: 14px; border: 1px solid #46404c; border-radius: 10px; background: #25232a; }
-.programCard > div { display: flex; flex-wrap: wrap; gap: 12px; }
-.interestOption { align-items: center; }
-.interestOption input { width: auto; }
-.sectionHeading { align-items: center; justify-content: space-between; flex-wrap: wrap; }
-.sectionHeading h3 { margin: 0 0 6px; }
-.sectionHeading p { margin: 0; color: #b5aebc; }
-.stepProgress { grid-template-columns: minmax(0,1fr) 18px minmax(0,1fr); align-items: center; }
-.stepProgress span { padding: 10px 12px; border-radius: 7px; background: #302c35; }
-.stepProgress span[data-active] { color: #ffe4d9; background: #56362f; }
-.fixtureStrip { color: #b7aebb; font-size: 12px; }
-.drawerFooter { align-items: center; justify-content: flex-end; }
-@media (max-width: 700px) { .formPropertyRow { grid-template-columns: minmax(0,1fr); gap: 5px; } .headingActions { justify-content: flex-start; } .previewNotice a { margin-left: 0; } }
-.propertyRows { display: grid; grid-template-columns: minmax(130px, 35%) minmax(0, 1fr); gap: 14px; min-width: 0; }
+}
