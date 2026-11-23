@@ -94,7 +94,7 @@ export const boNavigation: BoNavGroup[] = [
   },
   {
     label: "Content",
-    items: [{ href: "/bo/content", label: "Website CMS" }, { href: "/bo/content/posts", label: "Piner Posts" }],
+    items: [{ href: "/bo/content", label: "Website CMS" }],
   },
   {
     label: "System",

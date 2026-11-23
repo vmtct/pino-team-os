@@ -44,8 +44,6 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   if (pathname.toLowerCase().startsWith("/bo/enrollments")) return { action: hostname === BO_STAGING_HOSTNAME && (pathname === "/bo/enrollments" || pathname === "/bo/enrollments/") && (method === "GET" || method === "HEAD") ? "next" : "not_found" };
   const guest = guestHostDecision(hostname, pathname, method);
   if (guest) return {action:guest};
-  // PAP-2337 M1 synthetic BO Post Submit shell: exact staging-only GET/HEAD; no write/API expansion.
-  if (pathname === "/bo/content/posts" || pathname.startsWith("/bo/content/posts/")) return {action:hostname===BO_STAGING_HOSTNAME && pathname==="/bo/content/posts" && (method==="GET"||method==="HEAD") ? "next":"not_found"};
   const postDraft = postDraftHostDecision(hostname, pathname, method);
   if (postDraft) return {action:postDraft};
   // PAP-1671 / PLT-ATTR: exact native value operations, BO Staging only.

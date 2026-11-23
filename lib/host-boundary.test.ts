@@ -552,11 +552,3 @@ test("PAP-2030 exact historical Wish Item record is HO staging GET only",()=>{
  for(const host of ["bo.staging.pinohouse.art","tos.staging.pinohouse.art",BO_HOSTNAME])assert.deepEqual(decideHostBoundary(host,p,"GET"),{action:"not_found"});
  for(const suffix of ["/x","/0","/3/extra"])assert.deepEqual(decideHostBoundary("ho.staging.pinohouse.art","/api/ho/pinoria/pls-wish/config/item-record/"+roleId+suffix,"GET"),{action:"not_found"});
 });
-
-test("PAP-2337 BO Post Submit M1 exact staging page host fence",()=>{
- const path="/bo/content/posts";
- for(const method of ["GET","HEAD"]) assert.deepEqual(decideHostBoundary(BO_STAGING_HOSTNAME,path,method),{action:"next"});
- for(const method of ["POST","PATCH","PUT","DELETE","OPTIONS"]) assert.deepEqual(decideHostBoundary(BO_STAGING_HOSTNAME,path,method),{action:"not_found"});
- for(const host of [BO_HOSTNAME,HO_STAGING_HOSTNAME,TOS_HOSTNAME,TOS_STAGING_HOSTNAME,"localhost"]) assert.deepEqual(decideHostBoundary(host,path,"GET"),{action:"not_found"});
- for(const bad of [path+"/",path+"/extra",path.toUpperCase()]) assert.deepEqual(decideHostBoundary(BO_STAGING_HOSTNAME,bad,"GET"),{action:"not_found"});
-});
