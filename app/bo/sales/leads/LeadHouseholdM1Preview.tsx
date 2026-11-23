@@ -190,6 +190,22 @@ export function LeadHouseholdM1Preview() {
     setDrawer({ mode: "create" });
   }
 
+  function saveInlineContact(id: string, name: string, phone: string) {
+    const normalizedPhone = phone.replace(/\D/g, "");
+    if (!name.trim() || !/^0\d{9}$/.test(normalizedPhone) || records.some(record => record.id !== id && record.phone === normalizedPhone)) return false;
+    setRecords(current => current.map(record => record.id === id ? { ...record, contactName: name.trim(), phone: normalizedPhone } : record));
+    setFixtureNotice("Đã cập nhật liên hệ trong fixture. Không ghi Core.");
+    return true;
+  }
+
+  function saveInlineMember(leadId: string, memberId: string, name: string, age: string) {
+    const normalizedAge = age.trim() ? Number(age) : null;
+    if (!name.trim() || (normalizedAge !== null && (!Number.isInteger(normalizedAge) || normalizedAge < 0 || normalizedAge > 120))) return false;
+    setRecords(current => current.map(record => record.id === leadId ? { ...record, members: record.members.map(member => member.id === memberId ? { ...member, name: name.trim(), age: normalizedAge } : member) } : record));
+    setFixtureNotice("Đã cập nhật thành viên trong fixture. Không ghi Core.");
+    return true;
+  }
+
   function openEdit(record: LeadM1Record) {
     setDraft(makeDraft(record));
     setStep(1);
@@ -281,8 +297,8 @@ export function LeadHouseholdM1Preview() {
       activeTab={activeTab}
       actions={<div className={styles.detailActions}><BoDataGridBadge>DỮ LIỆU MẪU</BoDataGridBadge><button type="button" onClick={() => openEdit(selectedLead)}>Chỉnh sửa</button></div>}
       tabs={[
-        { id: "detail", label: "Tổng quan", content: <><LeadOverview record={selectedLead} /><div className={styles.detailActions}><button type="button" className={styles.primaryButton} onClick={() => openConvert(selectedLead)}>Convert Lead · Xem trước</button></div></> },
-        { id: "members", label: "Thành viên", content: <LeadMembers record={selectedLead} /> },
+        { id: "detail", label: "Tổng quan", content: <><LeadOverview record={selectedLead} onSave={(name, phone) => saveInlineContact(selectedLead.id, name, phone)} /><div className={styles.detailActions}><button type="button" className={styles.primaryButton} onClick={() => openConvert(selectedLead)}>Convert Lead · Xem trước</button></div></> },
+        { id: "members", label: "Thành viên", content: <LeadMembers record={selectedLead} onSave={(memberId, name, age) => saveInlineMember(selectedLead.id, memberId, name, age)} /> },
         { id: "relationships", label: "Quan hệ", content: <LeadRelationships record={selectedLead} /> },
         { id: "history", label: "Lịch sử", content: <LeadHistory /> },
       ]}
@@ -370,8 +386,21 @@ function LeadQuickView({ record }: { record: LeadM1Record }) {
   </div>;
 }
 
-function LeadOverview({ record }: { record: LeadM1Record }) {
+function LeadOverview({ record, onSave }: { record: LeadM1Record; onSave: (name: string, phone: string) => boolean }) {
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(record.contactName);
+  const [phone, setPhone] = useState(record.phone);
+  const [error, setError] = useState("");
   return <div className={styles.detailContent}>
+    <section className={styles.propertySection}><h3>Liên hệ chính · Chỉnh sửa trực tiếp</h3>
+      {editing ? <div className={styles.memberFields}>
+        <label>Họ tên<input value={name} onChange={event => setName(event.target.value)} /></label>
+        <label>Số điện thoại<input value={phone} onChange={event => setPhone(event.target.value)} /></label>
+        <button type="button" onClick={() => { if (onSave(name, phone)) { setEditing(false); setError(""); } else setError("Tên hoặc số điện thoại không hợp lệ / trùng Lead."); }}>Lưu</button>
+        <button type="button" onClick={() => { setEditing(false); setError(""); setName(record.contactName); setPhone(record.phone); }}>Hủy</button>
+      </div> : <button type="button" onClick={() => setEditing(true)}>Sửa liên hệ</button>}
+      {error ? <p role="alert">{error}</p> : null}
+    </section>
     <div className={styles.fixtureStrip}>Fixture local · không phải Core record</div>
     <BoProperties items={[
       { key: "contact", label: "Người liên hệ", value: record.contactName },
@@ -389,7 +418,11 @@ function LeadOverview({ record }: { record: LeadM1Record }) {
   </div>;
 }
 
-function LeadMembers({ record }: { record: LeadM1Record }) {
+function LeadMembers({ record, onSave }: { record: LeadM1Record; onSave: (memberId: string, name: string, age: string) => boolean }) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [name, setName] = useState("");
+  const [age, setAge] = useState("");
+  const [error, setError] = useState("");
   const columns: BoDataGridColumn<LeadM1Member>[] = [
     { key: "name", header: "Thành viên", minWidth: 200, render: member => <div className={styles.stackCell}><strong>{member.name}</strong><small>{member.id}</small></div> },
     { key: "age", header: "Tuổi", minWidth: 90, render: member => member.age === null ? "—" : member.age + " tuổi" },
@@ -397,9 +430,20 @@ function LeadMembers({ record }: { record: LeadM1Record }) {
     { key: "roles", header: "Vai trò", minWidth: 180, render: member => <div className={styles.badgeWrap}>{member.roles.map(role => <BoDataGridBadge key={role}>{leadM1RoleLabel(role)}</BoDataGridBadge>)}</div> },
     { key: "contact", header: "Liên hệ chính", minWidth: 120, render: member => member.primaryContact ? "Người liên hệ" : "—" },
     { key: "interests", header: "Chương trình quan tâm", minWidth: 220, render: member => <div className={styles.badgeWrap}>{record.intents.filter(intent => intent.memberIds.includes(member.id)).map(intent => <BoDataGridBadge key={intent.id}>{LEAD_M1_INTEREST_LABELS[intent.kind]}</BoDataGridBadge>)}</div> },
+    { key: "edit", header: "Thao tác", minWidth: 95, render: member => <button type="button" onClick={() => { setEditingId(member.id); setName(member.name); setAge(member.age === null ? "" : String(member.age)); setError(""); }}>Sửa</button> },
   ];
   return <section className={styles.detailContent}><div className={styles.sectionHeading}><h2>Household members</h2><BoDataGridBadge>{record.members.length} thành viên</BoDataGridBadge></div>
     <BoDataGrid rows={record.members} columns={columns} rowKey={member => member.id} caption="Lead members" showToolbar={false} />
+    {editingId ? <section className={styles.propertySection} aria-label="Chỉnh sửa thành viên trực tiếp">
+      <h3>Chỉnh sửa · {record.members.find(member => member.id === editingId)?.name}</h3>
+      <div className={styles.memberFields}>
+        <label>Họ tên<input value={name} onChange={event => setName(event.target.value)} /></label>
+        <label>Tuổi<input inputMode="numeric" value={age} onChange={event => setAge(event.target.value)} /></label>
+        <button type="button" onClick={() => { if (onSave(editingId, name, age)) { setEditingId(null); setError(""); } else setError("Họ tên hoặc tuổi không hợp lệ."); }}>Lưu</button>
+        <button type="button" onClick={() => { setEditingId(null); setError(""); }}>Hủy</button>
+      </div>
+      {error ? <p role="alert">{error}</p> : null}
+    </section> : null}
     <p className={styles.helperNote}>Các Member trong fixture chỉ là candidates thuộc Lead. M1 không tạo Student/Parent/Guest Actor thật.</p>
   </section>;
 }
