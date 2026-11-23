@@ -12,6 +12,7 @@ import {
   leadM1MemberSummary,
   leadM1RoleLabel,
   leadM1SearchText,
+  type LeadM1Intent,
   type LeadM1IntentKind,
   type LeadM1Member,
   type LeadM1Record,
