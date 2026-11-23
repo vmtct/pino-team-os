@@ -9,6 +9,25 @@
   },
   "consumers": [
     {
+      "file": "app/bo/person-accounts/PersonAccounts.tsx",
+      "uses": 1,
+      "mode": "tabbed",
+      "jira": "PAP-2211",
+      "tabSource": "literal",
+      "tabs": [
+        ["overview", "Tổng quan"],
+        ["history", "Lịch sử"]
+      ],
+      "g4": {
+        "surface": "BO",
+        "module": "personAccounts",
+        "authPort": 9335,
+        "route": "/bo/person-accounts",
+        "tableSelector": "#list-screen table tbody tr",
+        "detailSelector": "#detail-screen"
+      }
+    },
+    {
       "file": "app/bo/afterschool-accounts/AfterschoolAccounts.tsx",
       "uses": 1,
       "mode": "tabbed",
