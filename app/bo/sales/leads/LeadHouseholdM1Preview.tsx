@@ -102,6 +102,14 @@ export function LeadHouseholdM1Preview() {
   const [convertLeadId, setConvertLeadId] = useState<string | null>(null);
   const [convertSelected, setConvertSelected] = useState<string[]>([]);
   const [convertMessage, setConvertMessage] = useState("");
+  const [contactPersonMode, setContactPersonMode] = useState<"NEW" | "EXISTING">("NEW");
+  const [contactPersonId, setContactPersonId] = useState("");
+  const [contactCanonicalName, setContactCanonicalName] = useState("");
+  const [contactActorRoles, setContactActorRoles] = useState<LeadM1Role[]>(["PARENT"]);
+  const [memberPersonModes, setMemberPersonModes] = useState<Record<string, "NEW" | "EXISTING">>({});
+  const [memberPersonIds, setMemberPersonIds] = useState<Record<string, string>>({});
+  const [memberCanonicalNames, setMemberCanonicalNames] = useState<Record<string, string>>({});
+  const [memberActorRoles, setMemberActorRoles] = useState<Record<string, LeadM1Role[]>>({});
 
   const selectedLeadId = searchParams.get("lead");
   const activeTab = searchParams.get("tab") ?? "detail";
@@ -114,6 +122,28 @@ export function LeadHouseholdM1Preview() {
     setConvertLeadId(record.id);
     setConvertSelected(record.members.filter(member => member.roles.includes("STUDENT") || member.roles.includes("GUEST")).map(member => member.id));
     setConvertMessage("");
+    setContactPersonMode("NEW");
+    setContactPersonId("");
+    setContactCanonicalName(record.contactName);
+    setContactActorRoles(record.members.find(member => member.primaryContact)?.roles ?? ["PARENT"]);
+    setMemberPersonModes({});
+    setMemberPersonIds({});
+    setMemberCanonicalNames(Object.fromEntries(record.members.map(member => [member.id, member.name])));
+    setMemberActorRoles(Object.fromEntries(record.members.map(member => [member.id, [...member.roles]])));
+  }
+
+  function previewConversion() {
+    if (!convertLead) return;
+    if (!contactCanonicalName.trim() || (contactPersonMode === "EXISTING" && !contactPersonId.trim()) || !contactActorRoles.length) {
+      setConvertMessage("Liên hệ chính cần tên canonical, Person ID nếu liên kết, và ít nhất một Actor."); return;
+    }
+    const chosen = convertLead.members.filter(member => convertSelected.includes(member.id));
+    if (chosen.some(member => !memberCanonicalNames[member.id]?.trim()
+      || (memberPersonModes[member.id] === "EXISTING" && !memberPersonIds[member.id]?.trim())
+      || !memberActorRoles[member.id]?.length)) {
+      setConvertMessage("Mỗi thành viên được chọn cần tên canonical, Person ID nếu liên kết, và ít nhất một Actor."); return;
+    }
+    setConvertMessage("Mô phỏng hợp lệ: liên hệ chính + " + chosen.length + " thành viên; 0 Guardian được tạo (quan hệ mới chỉ khai báo). Chưa ghi Core.");
   }
 
   const filteredRecords = useMemo(() => {
@@ -268,18 +298,31 @@ export function LeadHouseholdM1Preview() {
       onClose={() => { setConvertLeadId(null); setConvertMessage(""); }}
       footer={<div className={styles.drawerFooter}>
         <button type="button" onClick={() => setConvertLeadId(null)}>Hủy</button>
-        <button type="button" className={styles.primaryButton} disabled={!convertSelected.length} onClick={() => setConvertMessage("Mô phỏng hoàn tất: " + convertSelected.length + " thành viên được chọn. Chưa tạo Person, Actor, Guardian hoặc ghi Core.")}>Xác nhận xem trước</button>
+        <button type="button" className={styles.primaryButton} disabled={!convertSelected.length} onClick={previewConversion}>Xác nhận xem trước</button>
       </div>}
     >
       <div className={styles.drawerContent}>
         <div className={styles.fixtureStrip}>Đây là shell duyệt luồng chuyển đổi, không thực hiện conversion thật.</div>
         <BoProperties compact items={[{ key: "contact", label: "Liên hệ chính", value: convertLead.contactName }, { key: "phone", label: "Số điện thoại", value: convertLead.phone }, { key: "actors", label: "Actor khả dụng", value: "Parent · Student · Guest (mapping tại M2/M3)" }]} />
         <section className={styles.memberSection}>
+          <h3>Person · Liên hệ chính</h3>
+          <div className={styles.memberFields}>
+            <label>Person<select value={contactPersonMode} onChange={event => setContactPersonMode(event.target.value as "NEW" | "EXISTING")}><option value="NEW">Tạo mới</option><option value="EXISTING">Liên kết hiện có</option></select></label>
+            <label>Person ID<input placeholder="PERSON-..." value={contactPersonId} disabled={contactPersonMode !== "EXISTING"} onChange={event => setContactPersonId(event.target.value)} /></label>
+            <label>Tên canonical<input value={contactCanonicalName} onChange={event => setContactCanonicalName(event.target.value)} /></label>
+          </div>
+          <div className={styles.roleOptions} aria-label="Actors liên hệ chính">{ROLE_OPTIONS.map(role => <label key={role}><input type="checkbox" checked={contactActorRoles.includes(role)} onChange={event => setContactActorRoles(current => event.target.checked ? [...current, role] : current.filter(item => item !== role))} />{leadM1RoleLabel(role)}</label>)}</div>
           <h3>Chọn thành viên để chuyển đổi</h3>
-          {convertLead.members.map(member => <label className={styles.primaryContactOption} key={member.id}>
-            <input type="checkbox" checked={convertSelected.includes(member.id)} onChange={event => setConvertSelected(current => event.target.checked ? [...current, member.id] : current.filter(id => id !== member.id))} />
+          {convertLead.members.map(member => <div className={styles.primaryContactOption} key={member.id}>
+            <input type="checkbox" aria-label={"Chọn " + member.name} checked={convertSelected.includes(member.id)} onChange={event => setConvertSelected(current => event.target.checked ? [...current, member.id] : current.filter(id => id !== member.id))} />
             <span>{member.name} · {member.roles.map(leadM1RoleLabel).join(" / ")}</span>
-          </label>)}
+            {convertSelected.includes(member.id) ? <span className={styles.memberFields}>
+              <span>Person<select aria-label={"Person " + member.name} value={memberPersonModes[member.id] ?? "NEW"} onChange={event => setMemberPersonModes(current => ({ ...current, [member.id]: event.target.value as "NEW" | "EXISTING" }))}><option value="NEW">Tạo mới</option><option value="EXISTING">Liên kết hiện có</option></select></span>
+              <span>Person ID<input aria-label={"Person ID " + member.name} placeholder="PERSON-..." disabled={memberPersonModes[member.id] !== "EXISTING"} value={memberPersonIds[member.id] ?? ""} onChange={event => setMemberPersonIds(current => ({ ...current, [member.id]: event.target.value }))} /></span>
+              <span>Tên canonical<input aria-label={"Tên canonical " + member.name} value={memberCanonicalNames[member.id] ?? ""} onChange={event => setMemberCanonicalNames(current => ({ ...current, [member.id]: event.target.value }))} /></span>
+              <span className={styles.roleOptions}>{ROLE_OPTIONS.map(role => <span key={role}><input type="checkbox" aria-label={leadM1RoleLabel(role) + " " + member.name} checked={(memberActorRoles[member.id] ?? []).includes(role)} onChange={event => setMemberActorRoles(current => ({ ...current, [member.id]: event.target.checked ? [...(current[member.id] ?? []), role] : (current[member.id] ?? []).filter(item => item !== role) }))} />{leadM1RoleLabel(role)}</span>)}</span>
+            </span> : null}
+          </div>)}
         </section>
         <section className={styles.relationshipSection}><h3>Quan hệ khai báo (chưa xác nhận)</h3>
           {convertLead.relationships.map(relation => <p key={relation.id}>{convertLead.members.find(member => member.id === relation.fromMemberId)?.name ?? "—"} → {convertLead.members.find(member => member.id === relation.toMemberId)?.name ?? "—"} · {relation.label} · Chưa xác nhận</p>)}
