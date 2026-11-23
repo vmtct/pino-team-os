@@ -43,6 +43,8 @@ function fixture() {
     .replace(/\s*\{ href: "\/bo\/guests", label: "Khách" \},/,"")
     .replace(/\s*\{ href: "\/bo\/mytime-workshops", label: "Workshop MyTime" \},/,"")
     .replace(/\s*\{ href: "\/bo\/enrollments", label: "Lịch học" \},/,"")
+    // PAP-2337: native Post Submit FE route is verified against the real repo; the frozen baseline fixture does not copy this route.
+    .replace(/\s*\{ href: "\/bo\/content\/posts", label: "Piner Posts" \},?/,"")
     // PAP-2134: new Post TDD is checked in the real repo, not in the baseline-only fixture.
     .replace(/\s*\{\s*label: "Piner App",\s*items: \[\{ href: "\/bo\/piner-posts", label: "Posts" \}\],\s*\},/,""));
   // Recreate frozen baseline pages as inert fixtures so receipt tests can
