@@ -1,0 +1,57 @@
+﻿.page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  width: 100%;
+  max-width: 1480px;
+  min-width: 0;
+}
+.heading { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px; min-width: 0; }
+.headingActions { display: flex; gap: 8px; min-width: 0; }
+.previewNotice { display: flex; gap: 8px 14px; width: 100%; min-width: 0; }
+.filterControl { display: inline-flex; gap: 7px; }
+.identityCell { display: grid; gap: 4px; min-width: 0; }
+.mono { min-width: 0; }
+.stackCell { display: grid; gap: 4px; min-width: 0; }
+.badgeWrap { display: flex; gap: 5px; min-width: 0; }
+.detailActions { display: flex; gap: 7px; min-width: 0; }
+.detailContent { display: grid; gap: 13px; min-width: 0; }
+.sectionHeading { display: flex; gap: 12px; min-width: 0; }
+.helperNote { max-width: 960px; min-width: 0; }
+.fixtureStrip { display: flex; width: max-content; max-width: 100%; }
+.quickView { display: grid; gap: 17px; min-width: 0; }
+.propertySection { display: grid; gap: 6px; min-width: 0; }
+.propertyRows { display: grid; min-width: 0; }
+.drawerContent { display: grid; gap: 16px; min-width: 0; }
+.stepProgress { display: grid; grid-template-columns: minmax(0, 1fr) 28px minmax(0, 1fr); gap: 8px; min-width: 0; }
+.interestSection { display: grid; gap: 12px; min-width: 0; }
+.programGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; min-width: 0; }
+.programCard { display: grid; gap: 10px; min-width: 0; }
+.interestOption { display: inline-flex; gap: 7px; min-width: 0; }
+.memberSection { display: grid; gap: 12px; min-width: 0; }
+.memberDraft { display: grid; gap: 10px; min-width: 0; }
+.memberDraftHeader { display: flex; gap: 10px; min-width: 0; }
+.memberFields { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(78px, .6fr) minmax(110px, .8fr); gap: 8px; min-width: 0; }
+.roleOptions { display: flex; gap: 7px; min-width: 0; }
+.primaryContactOption { display: inline-flex; gap: 7px; min-width: 0; }
+.relationshipSection { display: grid; gap: 12px; min-width: 0; }
+.relationshipComposer { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)) minmax(115px, .8fr) auto; gap: 8px; min-width: 0; }
+.relationshipLine { display: flex; gap: 10px; min-width: 0; }
+.emptyHint { max-width: 960px; }
+.emptyHistory { display: grid; gap: 6px; min-width: 0; }
+.formError { max-width: 960px; }
+.drawerFooter { display: flex; gap: 8px; min-width: 0; }
+.primaryButton { min-width: 150px; }
+@media (max-width: 900px) {
+  .heading { grid-template-columns: minmax(0, 1fr); }
+
+}
+@media (max-width: 700px) {
+  .programGrid { grid-template-columns: minmax(0, 1fr); }
+  .memberFields { grid-template-columns: minmax(0, 1fr) minmax(72px, .55fr); }
+  .relationshipComposer { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 420px) {
+  .stepProgress { grid-template-columns: minmax(0, 1fr) 14px minmax(0, 1fr); gap: 5px; }
+
+}
