@@ -24,8 +24,11 @@ export default function FrontCameraEvidence({ onClose }: { onClose: () => void }
   function capture() {
     if (!video.current?.videoWidth) { setError("Camera chưa sẵn sàng."); return; }
     const canvas = document.createElement("canvas");
-    canvas.width = video.current.videoWidth; canvas.height = video.current.videoHeight;
-    canvas.getContext("2d")?.drawImage(video.current, 0, 0);
+    const width = video.current.videoWidth; const height = video.current.videoHeight;
+    const cropWidth = Math.min(width, height * 3 / 4);
+    const cropHeight = Math.min(height, width * 4 / 3);
+    canvas.width = 720; canvas.height = 960;
+    canvas.getContext("2d")?.drawImage(video.current, (width - cropWidth) / 2, (height - cropHeight) / 2, cropWidth, cropHeight, 0, 0, canvas.width, canvas.height);
     setPhoto(canvas.toDataURL("image/jpeg", 0.86)); stop();
   }
   function retake() { setPhoto(""); void start(); }
