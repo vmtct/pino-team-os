@@ -1,0 +1,36 @@
+name: PAP-2337 Post Approval M1 CI
+on:
+  pull_request:
+    paths:
+      - 'app/ho/content/post-approval/**'
+      - 'app/bo/content/posts/**'
+      - 'app/bo/navigation.ts'
+      - '.github/workflows/pap2337-post-approval-m1.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - name: Verify M1 post editorial contract
+        run: |
+          node - <<'NODE'
+          const fs=require('fs');
+          const ho=fs.readFileSync('app/ho/content/post-approval/HoPostApprovalShell.tsx','utf8');
+          const bo=fs.readFileSync('app/bo/content/posts/BoPostSubmitShell.tsx','utf8');
+          const nav=fs.readFileSync('app/bo/navigation.ts','utf8');
+          for(const x of ['Hide Post','Lưu & Xuất bản','Chỉnh sửa Person','Chỉnh sửa Center','Chỉnh sửa Diary nguồn']) if(!ho.includes(x))throw Error('HO missing '+x);
+          if(ho.includes('pap2336-detailnav">'))throw Error('HO drawer must not have tabs');
+          if(!bo.includes('Gửi duyệt')||bo.includes('Xuất bản'))throw Error('BO must submit, not publish');
+          if(!nav.includes('/bo/content/posts'))throw Error('BO nav missing');
+          console.log('PAP-2337 M1 FE contract PASS');
+          NODE
