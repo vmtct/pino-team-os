@@ -32,7 +32,7 @@ export default function FrontCameraEvidence({ onClose }: { onClose: () => void }
     <section style={{background:"#fff",color:"#292929",padding:20,borderRadius:16,width:"min(100%,430px)",display:"grid",gap:12}}>
       <h2>Ảnh bằng chứng Check-in</h2>
       <p>Đưa khuôn mặt và một phần không gian PINO vào cùng khung hình. Chỉ chụp trực tiếp bằng camera trước.</p>
-      {!photo && <video ref={video} autoPlay muted playsInline aria-label="Camera trước trực tiếp" style={{width:"100%",borderRadius:12,background:"#222"}} />}
+      {<video ref={video} autoPlay muted playsInline aria-label="Camera trước trực tiếp" style={{width:"100%",borderRadius:12,background:"#222",display:photo ? "none" : "block"}} />}
       {photo && <img src={photo} alt="Ảnh vừa chụp" style={{width:"100%",borderRadius:12}} />}
       {error && <p role="alert">{error}</p>}
       <div style={{display:"flex",gap:8}}>
