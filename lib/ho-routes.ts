@@ -15,6 +15,7 @@ export const HO_PAGE_PATHS = {
   missions: "/ho/learning/missions",
   specialties: "/ho/learning/specialties",
   classroomDiaries: "/ho/learning/diaries",
+  postApproval: "/ho/content/post-approval",
   worlds: "/ho/pinoria/worlds",
   wardrobe: "/ho/pinoria/wardrobe",
   wardrobeSets: "/ho/pinoria/wardrobe-sets",
