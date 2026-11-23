@@ -99,12 +99,22 @@ export function LeadHouseholdM1Preview() {
   const [formError, setFormError] = useState("");
   const [fixtureNotice, setFixtureNotice] = useState("");
   const [nextFixtureNumber, setNextFixtureNumber] = useState(2);
+  const [convertLeadId, setConvertLeadId] = useState<string | null>(null);
+  const [convertSelected, setConvertSelected] = useState<string[]>([]);
+  const [convertMessage, setConvertMessage] = useState("");
 
   const selectedLeadId = searchParams.get("lead");
   const activeTab = searchParams.get("tab") ?? "detail";
   const selectedLead = records.find(record => record.id === selectedLeadId) ?? null;
   const quickViewId = searchParams.get("quickView");
   const quickViewLead = records.find(record => record.id === quickViewId) ?? null;
+  const convertLead = records.find(record => record.id === convertLeadId) ?? null;
+
+  function openConvert(record: LeadM1Record) {
+    setConvertLeadId(record.id);
+    setConvertSelected(record.members.filter(member => member.roles.includes("STUDENT") || member.roles.includes("GUEST")).map(member => member.id));
+    setConvertMessage("");
+  }
 
   const filteredRecords = useMemo(() => {
     const term = query.trim().toLocaleLowerCase("vi");
@@ -233,7 +243,7 @@ export function LeadHouseholdM1Preview() {
       activeTab={activeTab}
       actions={<div className={styles.detailActions}><BoDataGridBadge>DỮ LIỆU MẪU</BoDataGridBadge><button type="button" onClick={() => openEdit(selectedLead)}>Chỉnh sửa</button></div>}
       tabs={[
-        { id: "detail", label: "Tổng quan", content: <LeadOverview record={selectedLead} /> },
+        { id: "detail", label: "Tổng quan", content: <><LeadOverview record={selectedLead} /><div className={styles.detailActions}><button type="button" className={styles.primaryButton} onClick={() => openConvert(selectedLead)}>Convert Lead · Xem trước</button></div></> },
         { id: "members", label: "Thành viên", content: <LeadMembers record={selectedLead} /> },
         { id: "relationships", label: "Quan hệ", content: <LeadRelationships record={selectedLead} /> },
         { id: "interests", label: "Quan tâm", content: <LeadInterests record={selectedLead} /> },
@@ -249,6 +259,35 @@ export function LeadHouseholdM1Preview() {
       onClose={() => setPreviewParam("quickView", null)}
       footer={quickViewLead ? <div className={styles.drawerFooter}><button type="button" onClick={() => { setPreviewParam("quickView", null); openEdit(quickViewLead); }}>Chỉnh sửa</button><button type="button" className={styles.primaryButton} onClick={() => openFullDetail(quickViewLead.id)}>Mở chi tiết đầy đủ →</button></div> : null}
     >{quickViewLead ? <LeadQuickView record={quickViewLead} /> : <p role="alert">Lead fixture không còn tồn tại trong bộ nhớ preview. Refresh để khôi phục fixture chuẩn.</p>}</BoDrawer> : null}
+
+    {convertLead ? <BoDrawer
+      title="Chuyển đổi Lead"
+      eyebrow="M1 · Conversion preview · Không ghi Core"
+      mode="view"
+      size="lg"
+      onClose={() => { setConvertLeadId(null); setConvertMessage(""); }}
+      footer={<div className={styles.drawerFooter}>
+        <button type="button" onClick={() => setConvertLeadId(null)}>Hủy</button>
+        <button type="button" className={styles.primaryButton} disabled={!convertSelected.length} onClick={() => setConvertMessage("Mô phỏng hoàn tất: " + convertSelected.length + " thành viên được chọn. Chưa tạo Person, Actor, Guardian hoặc ghi Core.")}>Xác nhận xem trước</button>
+      </div>}
+    >
+      <div className={styles.drawerContent}>
+        <div className={styles.fixtureStrip}>Đây là shell duyệt luồng chuyển đổi, không thực hiện conversion thật.</div>
+        <BoProperties compact items={[{ key: "contact", label: "Liên hệ chính", value: convertLead.contactName }, { key: "phone", label: "Số điện thoại", value: convertLead.phone }, { key: "actors", label: "Actor khả dụng", value: "Parent · Student · Guest (mapping tại M2/M3)" }]} />
+        <section className={styles.memberSection}>
+          <h3>Chọn thành viên để chuyển đổi</h3>
+          {convertLead.members.map(member => <label className={styles.primaryContactOption} key={member.id}>
+            <input type="checkbox" checked={convertSelected.includes(member.id)} onChange={event => setConvertSelected(current => event.target.checked ? [...current, member.id] : current.filter(id => id !== member.id))} />
+            <span>{member.name} · {member.roles.map(leadM1RoleLabel).join(" / ")}</span>
+          </label>)}
+        </section>
+        <section className={styles.relationshipSection}><h3>Quan hệ khai báo (chưa xác nhận)</h3>
+          {convertLead.relationships.map(relation => <p key={relation.id}>{convertLead.members.find(member => member.id === relation.fromMemberId)?.name ?? "—"} → {convertLead.members.find(member => member.id === relation.toMemberId)?.name ?? "—"} · {relation.label} · Chưa xác nhận</p>)}
+          <p>Không tự tạo Guardian từ quan hệ khai báo.</p>
+        </section>
+        {convertMessage ? <p role="status" className={styles.previewNotice}>{convertMessage}</p> : null}
+      </div>
+    </BoDrawer> : null}
 
     {drawer ? <LeadCreateEditDrawer
       mode={drawer.mode}
