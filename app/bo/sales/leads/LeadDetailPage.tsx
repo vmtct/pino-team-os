@@ -35,7 +35,7 @@ export function LeadDetailPage({leadId, preview = false}:{leadId:string;preview?
     try{
       const stored=JSON.parse(sessionStorage.getItem("pino-leads-m1")||"[]") as Lead[];
       if(key==="phone"&&stored.some(x=>x.id!==lead.id&&x.phone.replace(/\D/g,"")===normalized))return "Số điện thoại đã thuộc Lead khác.";
-      const updated={...lead,[key]:normalized,updatedAt:new Date().toLocaleString("vi-VN")};
+      const updated={...lead,[key]:normalized,updatedAt:new Intl.DateTimeFormat("vi-VN",{timeZone:"Asia/Ho_Chi_Minh",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).format(new Date())};
       sessionStorage.setItem("pino-leads-m1",JSON.stringify(stored.some(x=>x.id===lead.id)?stored.map(x=>x.id===lead.id?updated:x):[updated,...stored]));
       setLead(updated);setFeedback("Đã lưu "+({name:"họ tên",phone:"số điện thoại",program:"chương trình",path:"chuyên môn"}[key])+".");return null;
     }catch{return "Không lưu được bản nháp local.";}
@@ -47,7 +47,7 @@ export function LeadDetailPage({leadId, preview = false}:{leadId:string;preview?
     if(field==="program"&&!["Afterschool","MyTime"].includes(value))return "Chương trình không hợp lệ.";
     if(field==="path"&&!["Hội họa","Piano"].includes(value))return "Chuyên môn không hợp lệ.";
     if(field==="role"&&!["Student","Guest"].includes(value))return "Vai trò không hợp lệ.";
-    const updated={...lead,members:lead.members.map(m=>m.id===memberId?{...m,[field]:value.trim()}:m),updatedAt:new Date().toLocaleString("vi-VN")};
+    const updated={...lead,members:lead.members.map(m=>m.id===memberId?{...m,[field]:value.trim()}:m),updatedAt:new Intl.DateTimeFormat("vi-VN",{timeZone:"Asia/Ho_Chi_Minh",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).format(new Date())};
     try{const stored=JSON.parse(sessionStorage.getItem("pino-leads-m1")||"[]") as Lead[];
       sessionStorage.setItem("pino-leads-m1",JSON.stringify(stored.some(x=>x.id===lead.id)?stored.map(x=>x.id===lead.id?updated:x):[updated,...stored]));
     }catch{return "Không lưu được bản nháp local.";}

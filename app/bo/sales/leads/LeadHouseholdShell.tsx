@@ -71,7 +71,7 @@ export function LeadHouseholdShell({ preview = false, initialDrawer = false }: {
     const normalized=key==="phone"?value.replace(/\D/g,""):value;
     if(key==="phone"&&!/^0\d{9}$/.test(normalized))return "Số điện thoại phải có 10 chữ số và bắt đầu bằng 0.";
     if(key==="phone"&&leads.some(l=>l.id!==current.id&&l.phone.replace(/\D/g,"")===normalized))return "Số điện thoại đã thuộc Lead khác.";
-    const next=leads.map(l=>l.id===current.id?{...l,[key]:normalized,updatedAt:new Date().toLocaleString("vi-VN")}:l);
+    const next=leads.map(l=>l.id===current.id?{...l,[key]:normalized,updatedAt:new Intl.DateTimeFormat("vi-VN",{timeZone:"Asia/Ho_Chi_Minh",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).format(new Date())}:l);
     try{sessionStorage.setItem("pino-leads-m1",JSON.stringify(next));}catch{return "Không lưu được bản nháp local.";}
     setLeads(next);setNotice("Đã cập nhật "+({name:"họ tên",phone:"số điện thoại",program:"chương trình",path:"chuyên môn"}[key])+".");return null;
   };
@@ -83,7 +83,7 @@ export function LeadHouseholdShell({ preview = false, initialDrawer = false }: {
     if (draft.members.some(m => !m.name.trim())) { setStep(2); setError("Vui lòng nhập tên cho từng thành viên."); return; }
     if (mode === "create" && leads.some(l => l.phone.replace(/\D/g, "") === normalized)) { setStep(1); setError("Số điện thoại đã tồn tại. Mở Lead hiện có để bổ sung thông tin."); return; }
     if (mode === "edit" && leads.some(l => l.id !== selected && l.phone.replace(/\D/g, "") === normalized)) { setStep(1); setError("Số điện thoại đã thuộc một Lead khác."); return; }
-    const item: Lead = { ...draft, id: mode === "edit" && current ? current.id : crypto.randomUUID(), createdAt: mode === "edit" ? current?.createdAt ?? "—" : new Date().toLocaleString("vi-VN"), updatedAt: new Date().toLocaleString("vi-VN"), source: mode === "edit" ? current?.source ?? "Nhập trực tiếp" : "Nhập trực tiếp", status: mode === "edit" ? current?.status ?? "ACTIVE" : "ACTIVE" };
+    const item: Lead = { ...draft, id: mode === "edit" && current ? current.id : crypto.randomUUID(), createdAt: mode === "edit" ? current?.createdAt ?? "—" : new Intl.DateTimeFormat("vi-VN",{timeZone:"Asia/Ho_Chi_Minh",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).format(new Date()), updatedAt: new Intl.DateTimeFormat("vi-VN",{timeZone:"Asia/Ho_Chi_Minh",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).format(new Date()), source: mode === "edit" ? current?.source ?? "Nhập trực tiếp" : "Nhập trực tiếp", status: mode === "edit" ? current?.status ?? "ACTIVE" : "ACTIVE" };
     setLeads(old => { const next = mode === "edit" ? old.map(l => l.id === item.id ? item : l) : [item, ...old]; try { sessionStorage.setItem("pino-leads-m1", JSON.stringify(next)); } catch {} return next; });
     setSelected(null); setMode(null); setDetail(false); setTab("Tổng quan"); setNotice(mode === "edit" ? "Đã cập nhật thông tin Lead." : "Đã thêm Lead.");
   };
