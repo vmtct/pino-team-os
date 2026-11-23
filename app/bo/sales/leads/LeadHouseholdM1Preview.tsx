@@ -66,10 +66,10 @@ function PropertySection<T extends Record<string, unknown>>({
 }) {
   return <section className={styles.propertySection} aria-label={title}>
     <h3>{title}</h3>
-    <div className={styles.propertyRows} role="list">
-      {schema.map(field => <div className={styles.formPropertyRow} role="listitem" key={field.key}>
-        <div className={styles.formPropertyLabel}>{field.label}{field.required ? " *" : ""}</div>
-        <div className={styles.formPropertyControl}>
+    <div className={styles.drawerContent} role="list">
+      {schema.map(field => <div className={styles.propertyRows} role="listitem" key={field.key}>
+        <div className={styles.helperNote}>{field.label}{field.required ? " *" : ""}</div>
+        <div className={styles.mono}>
           {mode === "VIEW" ? String(values[field.key] ?? "—") : (
             <input
               aria-label={field.label}

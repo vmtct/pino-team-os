@@ -92,3 +92,4 @@
 .fixtureStrip { color: #b7aebb; font-size: 12px; }
 .drawerFooter { align-items: center; justify-content: flex-end; }
 @media (max-width: 700px) { .formPropertyRow { grid-template-columns: minmax(0,1fr); gap: 5px; } .headingActions { justify-content: flex-start; } .previewNotice a { margin-left: 0; } }
+.propertyRows { display: grid; grid-template-columns: minmax(130px, 35%) minmax(0, 1fr); gap: 14px; min-width: 0; }

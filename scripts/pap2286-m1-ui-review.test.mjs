@@ -7,6 +7,6 @@ test("PAP-2286 detail replaces table in M1", () => {
  assert.match(view, /!selectedLead \? <><header/);
  assert.match(view, /<BoDataGrid[\s\S]*?<\/\> : null\}[\s\S]*?selectedLead \? <BoFullDetail/);
  assert.match(view, /designVariant="business-v25"/);
- assert.match(view, /styles\.formPropertyRow/);
- assert.match(css, /\.formPropertyRow\s*\{\s*display: grid; grid-template-columns: minmax\(130px/);
+ assert.match(view, /styles\.propertyRows/);
+ assert.match(css, /\.propertyRows\s*\{\s*display: grid; grid-template-columns: minmax\(130px/);
 });
