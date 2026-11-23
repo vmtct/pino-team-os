@@ -198,10 +198,12 @@ export function LeadHouseholdM1Preview() {
     return true;
   }
 
-  function saveInlineMember(leadId: string, memberId: string, name: string, age: string) {
+  function saveInlineMember(leadId: string, memberId: string, name: string, age: string, roles: LeadM1Role[]) {
     const normalizedAge = age.trim() ? Number(age) : null;
-    if (!name.trim() || (normalizedAge !== null && (!Number.isInteger(normalizedAge) || normalizedAge < 0 || normalizedAge > 120))) return false;
-    setRecords(current => current.map(record => record.id === leadId ? { ...record, members: record.members.map(member => member.id === memberId ? { ...member, name: name.trim(), age: normalizedAge } : member) } : record));
+    const target = records.find(record => record.id === leadId)?.members.find(member => member.id === memberId);
+    if (!target || !name.trim() || !roles.length || (!target.primaryContact && roles.includes("PARENT"))
+      || (normalizedAge !== null && (!Number.isInteger(normalizedAge) || normalizedAge < 0 || normalizedAge > 120))) return false;
+    setRecords(current => current.map(record => record.id === leadId ? { ...record, members: record.members.map(member => member.id === memberId ? { ...member, name: name.trim(), age: normalizedAge, roles } : member) } : record));
     setFixtureNotice("Đã cập nhật thành viên trong fixture. Không ghi Core.");
     return true;
   }
@@ -298,7 +300,7 @@ export function LeadHouseholdM1Preview() {
       actions={<div className={styles.detailActions}><BoDataGridBadge>DỮ LIỆU MẪU</BoDataGridBadge><button type="button" onClick={() => openEdit(selectedLead)}>Chỉnh sửa</button></div>}
       tabs={[
         { id: "detail", label: "Tổng quan", content: <><LeadOverview record={selectedLead} onSave={(name, phone) => saveInlineContact(selectedLead.id, name, phone)} /><div className={styles.detailActions}><button type="button" className={styles.primaryButton} onClick={() => openConvert(selectedLead)}>Convert Lead · Xem trước</button></div></> },
-        { id: "members", label: "Thành viên", content: <LeadMembers record={selectedLead} onSave={(memberId, name, age) => saveInlineMember(selectedLead.id, memberId, name, age)} /> },
+        { id: "members", label: "Thành viên", content: <LeadMembers record={selectedLead} onSave={(memberId, name, age, roles) => saveInlineMember(selectedLead.id, memberId, name, age, roles)} /> },
         { id: "relationships", label: "Quan hệ", content: <LeadRelationships record={selectedLead} /> },
         { id: "history", label: "Lịch sử", content: <LeadHistory /> },
       ]}
@@ -418,10 +420,11 @@ function LeadOverview({ record, onSave }: { record: LeadM1Record; onSave: (name:
   </div>;
 }
 
-function LeadMembers({ record, onSave }: { record: LeadM1Record; onSave: (memberId: string, name: string, age: string) => boolean }) {
+function LeadMembers({ record, onSave }: { record: LeadM1Record; onSave: (memberId: string, name: string, age: string, roles: LeadM1Role[]) => boolean }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [age, setAge] = useState("");
+  const [roles, setRoles] = useState<LeadM1Role[]>([]);
   const [error, setError] = useState("");
   const columns: BoDataGridColumn<LeadM1Member>[] = [
     { key: "name", header: "Thành viên", minWidth: 200, render: member => <div className={styles.stackCell}><strong>{member.name}</strong><small>{member.id}</small></div> },
@@ -430,7 +433,7 @@ function LeadMembers({ record, onSave }: { record: LeadM1Record; onSave: (member
     { key: "roles", header: "Vai trò", minWidth: 180, render: member => <div className={styles.badgeWrap}>{member.roles.map(role => <BoDataGridBadge key={role}>{leadM1RoleLabel(role)}</BoDataGridBadge>)}</div> },
     { key: "contact", header: "Liên hệ chính", minWidth: 120, render: member => member.primaryContact ? "Người liên hệ" : "—" },
     { key: "interests", header: "Chương trình quan tâm", minWidth: 220, render: member => <div className={styles.badgeWrap}>{record.intents.filter(intent => intent.memberIds.includes(member.id)).map(intent => <BoDataGridBadge key={intent.id}>{LEAD_M1_INTEREST_LABELS[intent.kind]}</BoDataGridBadge>)}</div> },
-    { key: "edit", header: "Thao tác", minWidth: 95, render: member => <button type="button" onClick={() => { setEditingId(member.id); setName(member.name); setAge(member.age === null ? "" : String(member.age)); setError(""); }}>Sửa</button> },
+    { key: "edit", header: "Thao tác", minWidth: 95, render: member => <button type="button" onClick={() => { setEditingId(member.id); setName(member.name); setAge(member.age === null ? "" : String(member.age)); setRoles([...member.roles]); setError(""); }}>Sửa</button> },
   ];
   return <section className={styles.detailContent}><div className={styles.sectionHeading}><h2>Household members</h2><BoDataGridBadge>{record.members.length} thành viên</BoDataGridBadge></div>
     <BoDataGrid rows={record.members} columns={columns} rowKey={member => member.id} caption="Lead members" showToolbar={false} />
@@ -439,7 +442,8 @@ function LeadMembers({ record, onSave }: { record: LeadM1Record; onSave: (member
       <div className={styles.memberFields}>
         <label>Họ tên<input value={name} onChange={event => setName(event.target.value)} /></label>
         <label>Tuổi<input inputMode="numeric" value={age} onChange={event => setAge(event.target.value)} /></label>
-        <button type="button" onClick={() => { if (onSave(editingId, name, age)) { setEditingId(null); setError(""); } else setError("Họ tên hoặc tuổi không hợp lệ."); }}>Lưu</button>
+        <fieldset className={styles.roleOptions}><legend>Actor</legend>{(record.members.find(member => member.id === editingId)?.primaryContact ? ROLE_OPTIONS : ROLE_OPTIONS.filter(role => role !== "PARENT")).map(role => <label key={role}><input type="checkbox" checked={roles.includes(role)} onChange={event => setRoles(current => event.target.checked ? [...current, role] : current.filter(item => item !== role))} />{leadM1RoleLabel(role)}</label>)}</fieldset>
+        <button type="button" onClick={() => { if (onSave(editingId, name, age, roles)) { setEditingId(null); setError(""); } else setError("Họ tên, tuổi hoặc Actor không hợp lệ."); }}>Lưu</button>
         <button type="button" onClick={() => { setEditingId(null); setError(""); }}>Hủy</button>
       </div>
       {error ? <p role="alert">{error}</p> : null}
