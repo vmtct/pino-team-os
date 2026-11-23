@@ -9,4 +9,6 @@ test("PAP-2286 detail replaces table in M1", () => {
  assert.match(view, /designVariant="business-v25"/);
  assert.match(view, /styles\.propertyRows/);
  assert.match(css, /\.propertyRows\s*\{\s*display: grid; min-width: 0/);
+ assert.match(css, /\.headingActions\s*\{[^}]*height:\s*max-content/);
+ assert.match(css, /@media \(max-width: 900px\)[\s\S]*?\.headingActions\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/);
 });
