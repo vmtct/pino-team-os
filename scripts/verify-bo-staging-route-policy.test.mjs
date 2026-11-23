@@ -27,7 +27,7 @@ function fixture(run) {
   for (const file of [policy, layout, rootLayout, source, gateway, cd, ci, ...pages.map(name => `app/bo/${name}/page.tsx`)]) {
     const content=fs.readFileSync(path.join(repo,file),"utf8");
     // Existing PAP-901 factory fixtures have no TDD manifest; keep scopes independent.
-    write(file,file===policy?content.replace(/\r\n/g,"\n").replace('  "/bo/payroll-daily",\n',"").replace('  "/bo/payroll-exceptions",\n',"").replace('  "/bo/pinoria-avatars",\n',"").replace('  "/bo/afterschool-accounts",\n',"").replace('  "/bo/open-studio-passes",\n',"")
+    write(file,file===policy?content.replace(/\r\n/g,"\n").replace('new Set<string>(["/bo/mytime-participations"])', "new Set<string>([])").replace('  "/bo/payroll-daily",\n',"").replace('  "/bo/payroll-exceptions",\n',"").replace('  "/bo/pinoria-avatars",\n',"").replace('  "/bo/afterschool-accounts",\n',"").replace('  "/bo/open-studio-passes",\n',"")
       .replace(/\s*"\/bo\/classroom-diaries",\r?\n/,"\n").replace('  "/bo/bills",\n',"").replace('  "/bo/missions",\n',"").replace('  "/bo/tvs",\n',"").replace('  "/bo/opening-evidence",\n',"").replace('  "/bo/piner-posts",\n',"").replace('  "/bo/pinoria-wish-events",\n',"").replace('  "/bo/mytime-guests",\n',"").replace('  "/bo/guests",\n',"").replace('  "/bo/mytime-workshops",\n',"").replace('  "/bo/enrollments",\n',""):content);
   }
   try { return run({ root, read, write }); }
@@ -99,11 +99,12 @@ test("PAP-1970 native Payroll is explicit, read-only and does not re-enter TDD E
   assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/payroll-daily.*missing native read-only route contract/);
 }));
 
-test("PAP-901 current canonical routes use one admitted BO workspace with required stylesheet", () => {
+test("PAP-901 canonical routes have exactly one staging decision and required stylesheet", () => {
   const result=verifyBoStagingRoutePolicy(repo);
   assert.deepEqual(result.issues, []);
-  assert.equal(result.admitted, result.canonical);
-  assert.equal(result.deferred, 0);
+  assert.equal(result.admitted + result.deferred, result.canonical);
+  assert.equal(result.deferred, 1);
+  assert.match(fs.readFileSync(path.join(repo, policy), "utf8"), /boStagingDeferredRoutes[\s\S]*?\/bo\/mytime-participations/);
 });
 
 test("PAP-982 admitted TDD route requires exact schema, binding, tests and explicit policy",()=>fixture(({root,read,write})=>{

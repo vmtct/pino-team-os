@@ -24,7 +24,7 @@ export const boStagingAdmittedRoutes = new Set([
 ]);
 
 // New canonical modules must be admitted or deliberately deferred in this policy.
-export const boStagingDeferredRoutes = new Set<string>([]);
+export const boStagingDeferredRoutes = new Set<string>(["/bo/mytime-participations"]);
 
 export function isBoStagingRouteAdmitted(path: string): boolean {
   const native=nativePayrollModule(path)??openingEvidenceBoModule(path);

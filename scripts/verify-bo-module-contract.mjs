@@ -143,6 +143,49 @@ function tddAdmittedBoRoutes(root,issues) {
   }
   return entries;
 }
+/** PAP-2266: explicitly Staging-deferred TDD pages remain registered but intentionally have no navigation entry. */
+function deferredBoTddRoutes(root,issues) {
+  const file="app/bo/architecture/bo-staging-route-policy.ts";
+  const filename=path.join(root,file);
+  if(!fs.existsSync(filename)) {
+    issues.push("Missing BO Staging deferred-route policy");
+    return new Set();
+  }
+  const parsed=source(file,read(root,file));
+  const declarations=[];
+  visit(parsed,node=>{
+    if(ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) &&
+      node.name.text==="boStagingDeferredRoutes") declarations.push(node);
+  });
+  if(declarations.length!==1) {
+    issues.push("BO Staging policy must declare exactly one literal boStagingDeferredRoutes set");
+    return new Set();
+  }
+  const declaration=declarations[0];
+  const statement=declaration.parent?.parent;
+  const isExported=ts.isVariableStatement(statement) &&
+    Boolean(statement.modifiers?.some(modifier=>modifier.kind===ts.SyntaxKind.ExportKeyword));
+  const initializer=declaration.initializer;
+  if(!isExported || !initializer || !ts.isNewExpression(initializer) ||
+    !ts.isIdentifier(initializer.expression) || initializer.expression.text!=="Set" ||
+    initializer.typeArguments?.length!==1 ||
+    initializer.typeArguments[0].kind!==ts.SyntaxKind.StringKeyword ||
+    initializer.arguments?.length!==1 ||
+    !ts.isArrayLiteralExpression(initializer.arguments[0])) {
+    issues.push("BO Staging deferred-route policy must be an exported literal Set<string>");
+    return new Set();
+  }
+  const routes=new Set();
+  for(const entry of initializer.arguments[0].elements) {
+    const route=literal(entry);
+    if(!route || !ROUTE.test(route) || routes.has(route)) {
+      issues.push("Invalid/duplicate BO Staging deferred-route entry");
+      continue;
+    }
+    routes.add(route);
+  }
+  return routes;
+}
 function canonicalRoute(root,file,expectedKey,issues){
   const text=read(root,file);
   const sf=source(file,text);
@@ -189,6 +232,7 @@ export function verifyBoModuleContract(root=DEFAULT_ROOT) {
     byKey.set(def.key,def);byHref.set(def.href,def);
   }
   const tdd=tddAdmittedBoRoutes(root,issues);
+  const deferred=deferredBoTddRoutes(root,issues);
   const tddHrefs=new Set([...tdd.values()].map(e=>e.route));
   const newRoutes=routes.filter(f=>!legacyRoutes.has(f));
   const newNav=nav.filter(h=>!legacyNav.has(h));
@@ -197,7 +241,7 @@ export function verifyBoModuleContract(root=DEFAULT_ROOT) {
     const def=href&&byHref.get(href);
     if(tdd.has(file)){
       if(def)issues.push(`Ambiguous BO TDD/factory admission: ${file}`);
-      if(!nav.includes(href))issues.push(`BO TDD route missing navigation: ${file}`);
+      if(!nav.includes(href)&&!deferred.has(href))issues.push(`BO TDD route missing navigation: ${file}`);
       // A read-only TDD route must never carry a raw Level-1 grid.
       if(/<\s*(table|BoDataGrid|BoDataGridSidePeek)(?=[\s/>])/.test(read(root,file)))issues.push(`Bespoke BO TDD route shell: ${file}`);
       continue;
