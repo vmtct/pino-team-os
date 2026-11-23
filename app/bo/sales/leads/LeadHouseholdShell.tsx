@@ -16,7 +16,7 @@ const initial: Lead[] = [{
   createdAt: "22/11/2026 · 09:30", updatedAt: "23/11/2026 · 08:45", source: "Website", status: "ACTIVE"
 }];
 const empty: Draft = { name: "", phone: "", program: "Afterschool", path: "Hội họa", members: [] };
-const audit = ["Created Time", "Created By", "Last Modified Time", "Last Modified By"] as const;
+
 const makeMember = (): Member => ({ id: crypto.randomUUID(), name: "", role: "Student", age: "" });
 
 export function LeadHouseholdShell() {
@@ -34,7 +34,7 @@ export function LeadHouseholdShell() {
   const [draft, setDraft] = useState<Draft>(empty);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [showAudit, setShowAudit] = useState(false);
+
   const current = leads.find(l => l.id === selected);
   const filtered = useMemo(() => leads.filter(l =>
     (filter === "ALL" || l.status === filter) &&
@@ -61,11 +61,11 @@ export function LeadHouseholdShell() {
     <header className={styles.header}><div><h1>Leads</h1><p>Quản lý liên hệ quan tâm và thành viên dự kiến</p></div><button className={styles.primary} onClick={startCreate}>+ Tạo Lead</button></header>
     {notice && <div className={styles.notice} role="status">{notice}<button onClick={() => setNotice("")} aria-label="Đóng thông báo">×</button></div>}
     <section className={styles.panel}>
-      <div className={styles.toolbar}><input aria-label="Tìm kiếm Lead" placeholder="Tìm tên, số điện thoại, thành viên..." value={query} onChange={e => setQuery(e.target.value)} /><select aria-label="Trạng thái Lead" value={filter} onChange={e => setFilter(e.target.value)}><option value="ALL">Tất cả trạng thái</option><option value="ACTIVE">Đang hoạt động</option><option value="ARCHIVED">Đã lưu trữ</option></select><button className={styles.secondary} onClick={() => setShowAudit(v => !v)}>Cột hiển thị</button></div>
-      {showAudit && <div className={styles.columnPanel}>Thông tin kiểm toán: {audit.join(" · ")}</div>}
-      <div className={styles.tableScroll}><table><thead><tr><th>Liên hệ</th><th>Số điện thoại</th><th>Thành viên</th><th>Quan tâm</th><th>Nguồn</th><th>Trạng thái</th><th>Created Time</th><th>Created By</th><th>Last Modified Time</th><th>Last Modified By</th><th aria-label="Thao tác" /></tr></thead><tbody>
-      {filtered.map(l => <tr key={l.id} onClick={() => { setSelected(l.id); setDetail(false); }} tabIndex={0} onKeyDown={e => { if (e.key === "Enter") { setSelected(l.id); setDetail(false); } }}><td><strong>{l.name || "Chưa có tên liên hệ"}</strong></td><td>{l.phone}</td><td>{l.members.length} thành viên</td><td>{l.program} · {l.path}</td><td>{l.source}</td><td><span className={styles.badge}>{l.status === "ACTIVE" ? "Đang hoạt động" : "Đã lưu trữ"}</span></td><td>{l.createdAt}</td><td>—</td><td>{l.updatedAt}</td><td>—</td><td><button className={styles.textButton} onClick={e => { e.stopPropagation(); openDetail(l.id); }}>Chi tiết</button></td></tr>)}
-      {!filtered.length && <tr><td colSpan={11} className={styles.empty}>Không có Lead phù hợp với bộ lọc.</td></tr>}
+      <div className={styles.toolbar}><input aria-label="Tìm kiếm Lead" placeholder="Tìm tên, số điện thoại, thành viên..." value={query} onChange={e => setQuery(e.target.value)} /><select aria-label="Trạng thái Lead" value={filter} onChange={e => setFilter(e.target.value)}><option value="ALL">Tất cả trạng thái</option><option value="ACTIVE">Đang hoạt động</option><option value="ARCHIVED">Đã lưu trữ</option></select><span className={styles.resultCount}>{filtered.length} kết quả</span></div>
+
+      <div className={styles.tableScroll}><table aria-label="Danh sách Leads"><thead><tr><th>Liên hệ</th><th>Số điện thoại</th><th>Thành viên</th><th>Chương trình</th><th>Chuyên môn</th><th>Nguồn</th><th>Trạng thái</th><th>Created Time</th><th>Created By</th><th>Last Modified Time</th><th>Last Modified By</th><th aria-label="Thao tác" /></tr></thead><tbody>
+      {filtered.map(l => <tr key={l.id} onClick={() => { setSelected(l.id); setDetail(false); }} tabIndex={0} onKeyDown={e => { if (e.key === "Enter") { setSelected(l.id); setDetail(false); } }}><td><strong>{l.name || "Chưa có tên liên hệ"}</strong></td><td>{l.phone}</td><td>{l.members.length} thành viên</td><td>{l.program}</td><td>{l.path}</td><td>{l.source}</td><td><span className={styles.badge}>{l.status === "ACTIVE" ? "Đang hoạt động" : "Đã lưu trữ"}</span></td><td>{l.createdAt}</td><td>—</td><td>{l.updatedAt}</td><td>—</td><td><button type="button" className={styles.textButton} onClick={e => { e.stopPropagation(); openDetail(l.id); }}>Xem chi tiết</button></td></tr>)}
+      {!filtered.length && <tr><td colSpan={12} className={styles.empty}>Không có Lead phù hợp với bộ lọc.</td></tr>}
       </tbody></table></div><footer className={styles.footer}>{filtered.length} Lead</footer>
     </section>
     {selected && current && !detail && !mode && <div className={styles.backdrop} onMouseDown={() => setSelected(null)}><aside className={styles.drawer} onMouseDown={e => e.stopPropagation()} aria-label="Xem nhanh Lead"><div className={styles.drawerHead}><div><small>LEAD</small><h2>{current.name || "Liên hệ chưa có tên"}</h2></div><button className={styles.icon} onClick={() => setSelected(null)} aria-label="Đóng">×</button></div><div className={styles.drawerBody}><Field label="Số điện thoại" value={current.phone}/><Field label="Chương trình quan tâm" value={current.program}/><Field label="Chuyên môn" value={current.path}/><Field label="Trạng thái" value="Đang hoạt động"/><h3>Thành viên</h3>{current.members.map(m => <Field key={m.id} label={m.role} value={m.name}/>)}<h3>Quan tâm gần đây</h3><Field label="Nguồn" value={current.source}/></div><div className={styles.drawerFoot}><button className={styles.secondary} onClick={startEdit}>Chỉnh sửa</button><button className={styles.primary} onClick={() => { openDetail(current.id); }}>Xem chi tiết</button></div></aside></div>}
