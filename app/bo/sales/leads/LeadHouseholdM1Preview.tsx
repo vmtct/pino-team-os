@@ -109,6 +109,7 @@ export function LeadHouseholdM1Preview() {
   const [memberPersonIds, setMemberPersonIds] = useState<Record<string, string>>({});
   const [memberCanonicalNames, setMemberCanonicalNames] = useState<Record<string, string>>({});
   const [memberActorRoles, setMemberActorRoles] = useState<Record<string, LeadM1Role[]>>({});
+  const [guardianConfirmedIds, setGuardianConfirmedIds] = useState<string[]>([]);
 
   const selectedLeadId = searchParams.get("lead");
   const activeTab = searchParams.get("tab") ?? "detail";
@@ -129,6 +130,7 @@ export function LeadHouseholdM1Preview() {
     setMemberPersonIds({});
     setMemberCanonicalNames(Object.fromEntries(record.members.map(member => [member.id, member.name])));
     setMemberActorRoles(Object.fromEntries(record.members.map(member => [member.id, [...member.roles]])));
+    setGuardianConfirmedIds([]);
   }
 
   function previewConversion() {
@@ -142,7 +144,14 @@ export function LeadHouseholdM1Preview() {
       || !memberActorRoles[member.id]?.length)) {
       setConvertMessage("Mỗi thành viên được chọn cần tên canonical, Person ID nếu liên kết, và ít nhất một Actor."); return;
     }
-    setConvertMessage("Mô phỏng hợp lệ: liên hệ chính + " + chosen.length + " thành viên; 0 Guardian được tạo (quan hệ mới chỉ khai báo). Chưa ghi Core.");
+    const confirmed = convertLead.relationships.filter(relation => guardianConfirmedIds.includes(relation.id));
+    if (confirmed.some(relation => !convertSelected.includes(relation.toMemberId)
+      || !(convertLead.members.find(member => member.id === relation.fromMemberId)?.primaryContact
+        ? contactActorRoles.includes("PARENT")
+        : convertSelected.includes(relation.fromMemberId) && memberActorRoles[relation.fromMemberId]?.includes("PARENT")))) {
+      setConvertMessage("Quan hệ Guardian cần người được giám hộ nằm trong danh sách chuyển đổi và người giám hộ có vai trò Parent."); return;
+    }
+    setConvertMessage("Mô phỏng hợp lệ: liên hệ chính + " + chosen.length + " thành viên; " + confirmed.length + " quan hệ Guardian được chọn xác nhận (chưa ghi Core).");
   }
 
   const filteredRecords = useMemo(() => {
@@ -323,7 +332,10 @@ export function LeadHouseholdM1Preview() {
           </div>)}
         </section>
         <section className={styles.relationshipSection}><h3>Quan hệ khai báo (chưa xác nhận)</h3>
-          {convertLead.relationships.map(relation => <p key={relation.id}>{convertLead.members.find(member => member.id === relation.fromMemberId)?.name ?? "—"} → {convertLead.members.find(member => member.id === relation.toMemberId)?.name ?? "—"} · {relation.label} · Chưa xác nhận</p>)}
+          {convertLead.relationships.map(relation => <label className={styles.primaryContactOption} key={relation.id}>
+            <input type="checkbox" checked={guardianConfirmedIds.includes(relation.id)} onChange={event => setGuardianConfirmedIds(current => event.target.checked ? [...current, relation.id] : current.filter(id => id !== relation.id))} />
+            <span>{convertLead.members.find(member => member.id === relation.fromMemberId)?.name ?? "—"} → {convertLead.members.find(member => member.id === relation.toMemberId)?.name ?? "—"} · {relation.label} · {guardianConfirmedIds.includes(relation.id) ? "Đã chọn xác nhận trong preview" : "Chưa xác nhận"}</span>
+          </label>)}
           <p>Không tự tạo Guardian từ quan hệ khai báo.</p>
         </section>
         {convertMessage ? <p role="status" className={styles.previewNotice}>{convertMessage}</p> : null}
