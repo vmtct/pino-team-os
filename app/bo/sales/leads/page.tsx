@@ -11,5 +11,5 @@ export default async function SalesLeadPipelinePage() {
   const { env } = await getCloudflareContext({ async: true }) as unknown as { env: BoShellGateEnv };
   const actor = await authorizeBoShell(new Headers(incoming), env);
   if (!actor.permissionKeys.includes("acquisition.lead.manage")) forbidden();
-  return <SalesLeadPipelineView />;
+  return <SalesLeadPipelineView allowM1Preview={(env as BoShellGateEnv & { APP_ENV?: string }).APP_ENV === "staging"} />;
 }
