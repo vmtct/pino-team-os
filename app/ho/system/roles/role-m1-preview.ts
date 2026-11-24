@@ -47,3 +47,13 @@ export const rolePreviewCatalog=[
  example("mission.view","Mission","Xem nhiệm vụ","TOS","read",["CENTER","PATH"]),
  example("mission.complete","Mission","Hoàn thành nhiệm vụ","TOS","mutation",["RUNNING_CLASS"]),
 ];
+
+// Route selection only, not authorization. A real record never enters the mock provider.
+export function roleReviewRoute(query:{m1Preview?:string|string[];record?:string|string[]}):"live"|"preview"|"invalid" {
+  if(query.m1Preview!==undefined&&query.m1Preview!=="1")return "invalid";
+  if(query.record===undefined)return "preview";
+  if(typeof query.record!=="string")return "invalid";
+  if(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(query.record))
+    return query.m1Preview===undefined?"live":"invalid";
+  return /^ROLE-MOCK-[0-9]{3,}$/.test(query.record)?"preview":"invalid";
+}

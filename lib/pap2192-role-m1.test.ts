@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { roleM1, makePreviewRole, archivePreviewRole, eligiblePermissions, rolePreviewCatalog, type PreviewRole } from "../app/ho/system/roles/role-m1-preview";
+import { roleM1, makePreviewRole, archivePreviewRole, eligiblePermissions, rolePreviewCatalog, roleReviewRoute, type PreviewRole } from "../app/ho/system/roles/role-m1-preview";
 import { createPreviewState, reducePreview } from "./m1-preview/state";
 const draft={roleKey:"demo-operator",displayName:"Demo operator",description:"Preview"};
 const catalog=[
@@ -47,4 +47,16 @@ test("same eight isolated permission examples for both review hosts",()=>{
  assert.ok(rolePreviewCatalog.every(p=>p.key.startsWith("fixture.")));
  assert.deepEqual(makePreviewRole(draft,["fixture.student.view","fixture.class.view"],rolePreviewCatalog)?.permissionKeys,["fixture.class.view","fixture.student.view"]);
  assert.equal(makePreviewRole(draft,["student.view"],rolePreviewCatalog),null);
+});
+test("canonical Roles route selects isolated review and preserves real details",()=>{
+ const id="01a17d3f-8697-7080-bdf1-33e939758059";
+ assert.equal(roleReviewRoute({}),"preview");
+ assert.equal(roleReviewRoute({m1Preview:"1"}),"preview");
+ assert.equal(roleReviewRoute({record:"ROLE-MOCK-001"}),"preview");
+ assert.equal(roleReviewRoute({record:id}),"live");
+ assert.equal(roleReviewRoute({record:id,m1Preview:"1"}),"invalid");
+ assert.equal(roleReviewRoute({m1Preview:["1","1"]}),"invalid");
+ assert.equal(roleReviewRoute({record:["ROLE-MOCK-001","ROLE-MOCK-002"]}),"invalid");
+ assert.equal(roleReviewRoute({m1Preview:"0"}),"invalid");
+ assert.equal(roleReviewRoute({record:"STAFF-MOCK-001"}),"invalid");
 });

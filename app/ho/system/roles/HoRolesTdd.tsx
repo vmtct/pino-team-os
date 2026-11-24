@@ -35,7 +35,7 @@ export function ReadyRoles({ready,submitCreate,onVerified}:{ready:Ready;submitCr
 }
 
 /** Canonical HO TDD controller; capability is presented only if an independent domain command is supplied. */
-export function HoRolesTdd({submitCreate,previewAvailable=false}:{submitCreate?:SubmitCreate;previewAvailable?:boolean}={}){
+export function HoRolesTdd({submitCreate}:{submitCreate?:SubmitCreate}={}){
  const [ready,setReady]=useState<Ready|null>(null);
  const [error,setError]=useState(false);
  const [retry,setRetry]=useState(0);
@@ -57,5 +57,5 @@ export function HoRolesTdd({submitCreate,previewAvailable=false}:{submitCreate?:
   : ready
     ? <ReadyRoles key={ready.adapter.userId} ready={ready} submitCreate={submitCreate} onVerified={reload}/>
     : <p role="status">Đang tải Roles…</p>;
- return <HoWorkspace module="roles" content={<>{previewAvailable&&<div className="ho-role-editor"><p role="status"><a className="secondary-btn" href="/ho/system/roles?m1Preview=1">Tạo vai trò · M1 mô phỏng</a></p></div>}{content}</>}/>;
+ return <HoWorkspace module="roles" content={content}/>;
 }
