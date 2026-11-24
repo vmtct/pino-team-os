@@ -38,7 +38,7 @@ export function StaffManualCreateDrawer({ schema, context, centers, onClose, onC
       createFields[key] = { id: "staff-create-" + key, value: "", onChange: () => {}, required: true, control: <input className="property-control os-create-select" id={"staff-create-" + key} type="password" autoComplete="new-password" minLength={10} maxLength={128} required disabled={busy} value={value} onChange={e => { setter(e.target.value); setError(""); }} /> };
     }
   }
-  const row: BoRecord = { id: "", name: draft.name, status: "Đang làm", role: "Staff", createdAt: null, createdByUser: null, updatedAt: null, updatedByUser: null };
+  const row: BoRecord = { id: "", name: draft.name, status: "Đang làm", role: "Staff", createdAt: null, createdBy: "—", updatedAt: null, updatedBy: "—" };
   const submit = async () => {
     if (lock.current) return;
     const result = validateStaffDraft(draft, centers, login ? { password, confirmation } : null);
