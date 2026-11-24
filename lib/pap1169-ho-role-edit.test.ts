@@ -44,7 +44,7 @@ test("PAP-1169 roles use a registered canonical TDD + Shared DS (no new shell)",
  validateModule(roleSchema);
  assert.equal(roleSchema.surface,"HO");
  assert.equal(roleSchema.key,"roles");
- assert.deepEqual(roleQuery.visible,["name","roleType","status","permissionCount","assignmentCount"]);
+ assert.deepEqual(roleQuery.visible,["name","roleType","status","permissionCount","assignmentCount","createdAt","createdBy","updatedAt","updatedBy"]);
  assert.equal(roleDefinition.detail.history.kind,"unavailable");
  const page=readFileSync("app/ho/system/roles/page.tsx","utf8");
  const ui=readFileSync("app/ho/system/roles/HoRolesTdd.tsx","utf8");

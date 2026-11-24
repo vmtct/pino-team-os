@@ -24,7 +24,8 @@ const staffRegistry=new TddRegistry();
 const staff=staffRegistry.register(staffSchema);
 const ctx:AuthorizationContext={surface:"HO",authorize:key=>["access.role.view","team.bo.access","access.role.create"].includes(key)};
 type Row=ModuleRow<typeof roleFields>;
-const rowsInitial:Row[]=[{id:"fixture-1",name:"QA Role trống",roleType:"custom",status:"active",permissionCount:2,assignmentCount:0,roleKey:"qa-empty"},{id:"fixture-2",name:"QA Manager đang dùng",roleType:"custom",status:"active",permissionCount:2,assignmentCount:1,roleKey:"qa-used"},{id:"fixture-3",name:"Founder",roleType:"system",status:"active",permissionCount:5,assignmentCount:1,roleKey:"founder"}];
+const fixtureMetadata={description:"",createdAt:null,createdBy:"—",updatedAt:null,updatedBy:"—"} as const;
+const rowsInitial:Row[]=[{...fixtureMetadata,id:"fixture-1",name:"QA Role trống",roleType:"custom",status:"active",permissionCount:2,assignmentCount:0,roleKey:"qa-empty"},{...fixtureMetadata,id:"fixture-2",name:"QA Manager đang dùng",roleType:"custom",status:"active",permissionCount:2,assignmentCount:1,roleKey:"qa-used"},{...fixtureMetadata,id:"fixture-3",name:"Founder",roleType:"system",status:"active",permissionCount:5,assignmentCount:1,roleKey:"founder"}];
 const staffRow:ModuleRow<typeof staffFields>={id:"fixture-staff",name:"QA Staff mẫu",status:"Đang làm",role:"Staff (hiện hữu)"};
 function Fixture(){
  const [rows,setRows]=useState(rowsInitial),[query,setQuery]=useState(roleQuery),[selected,setSelected]=useState<string|null>(null),[mode,setMode]=useState<"roles"|"staff">("roles"),[notice,setNotice]=useState(""),[temporary,setTemporary]=useState<string[]>([]);
@@ -33,7 +34,7 @@ function Fixture(){
    if(rows.some(r=>r.roleKey===input.roleKey))return {state:"invalid"};
    const id="fixture-"+(rows.length+1);
    const receipt={...input,id,roleType:"custom" as const,status:"active" as const,permissionCount:0,assignmentCount:0};
-   setRows(prev=>[...prev,{id,name:input.displayName,roleKey:input.roleKey,roleType:"custom",status:"active",permissionCount:0,assignmentCount:0}]);
+   setRows(prev=>[...prev,{...fixtureMetadata,description:input.description??"",id,name:input.displayName,roleKey:input.roleKey,roleType:"custom",status:"active",permissionCount:0,assignmentCount:0}]);
    return {state:"verified",receipt};
  },()=>setNotice("Mô phỏng: đã tạo vai trò."));
  const bindings=flow.bindings;
