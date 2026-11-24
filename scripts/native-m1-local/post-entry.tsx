@@ -7,6 +7,8 @@ import {postModule} from "@/app/bo/piner-posts/schema";
 import {TddPreferencePolicy} from "@/app/components/workspace-renderer/Record";
 import "@pino/design-system/bo-tokens.css";
 import "@pino/design-system/components.css";
+import "../../public/bo-authority-source/bo-scoped.css";
+import "../../app/bo/design-system/foundation.css";
 import "../../public/ho-authority-source/ho-scoped.css";
 import "../../app/components/workspace-renderer/tdd-detail-layout.css";
 import "../../app/components/workspace-renderer/tdd-table-geometry.css";
