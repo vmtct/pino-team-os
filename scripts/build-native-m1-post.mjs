@@ -9,12 +9,13 @@ const root=process.cwd(),git=(...args)=>execFileSync("git",args,{cwd:root});
 const revision=git("rev-parse","HEAD").toString().trim();
 if(git("status","--porcelain").toString().trim())throw Error("Clean committed source required");
 const dependencies=process.env.PINO_M1_READONLY_NODE_MODULES;
+const outputRoot=process.env.PINO_M1_POST_ARTIFACT_ROOT;if(!outputRoot)throw Error("Private artifact root required");
 const logoPath=process.env.PINO_M1_LOGO_PATH;
 if(!logoPath)throw Error("Canonical logo path required");
 const logo=readFileSync(logoPath);
 if(createHash("sha256").update(logo).digest("hex")!=="76da9a2d6beae0d75134979ac0b622d4ab798c28d9d727c3c165819aacd59a4d")throw Error("Canonical logo digest mismatch");
 for(const surface of ["bo","ho"]){
- const route=surface==="bo"?"/bo/piner-posts":"/ho/content/post-approval",assets=route+"/__m1_assets/",output=resolve("node_modules.cache/pap2337-native-post/"+revision+"/"+surface);
+ const route=surface==="bo"?"/bo/piner-posts":"/ho/content/post-approval",assets=route+"/__m1_assets/",output=resolve(outputRoot,revision,surface);
  if(existsSync(output))throw Error("Preserve previous artifact evidence");
  mkdirSync(output,{recursive:true});writeFileSync(join(output,"pino-logo.png"),logo);
  const shim={
