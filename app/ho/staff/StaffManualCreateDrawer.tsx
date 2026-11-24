@@ -14,7 +14,6 @@ export function StaffManualCreateDrawer({ schema, context, centers, onClose, onC
   const [login, setLogin] = useState(false), [password, setPassword] = useState(""), [confirmation, setConfirmation] = useState("");
   const [error, setError] = useState(""), [busy, setBusy] = useState(false);
   const lock = useRef(false);
-  const first = useRef<HTMLInputElement>(null);
   const change = (key: keyof StaffDraft, value: string) => { setDraft(d => ({ ...d, [key]: value })); setError(""); };
   const clearSecrets = () => { setPassword(""); setConfirmation(""); };
   const close = () => { if (lock.current) return; clearSecrets(); onClose(); };
@@ -22,7 +21,7 @@ export function StaffManualCreateDrawer({ schema, context, centers, onClose, onC
   const sections = schema.drawer.sections.map(section => ({ ...section, fields: section.fields.filter(key => key !== "loginEmail" && fields.some(field => field.key === key)) }));
   const createFields: Record<string, CreateDrawerField> = {};
   const add = (key: keyof StaffDraft, label: string, control?: ReactNode, required = false) => {
-    createFields[key] = { id: "staff-create-" + key, label, value: draft[key], onChange: value => change(key, value), required, disabled: busy, ...(control === undefined ? {} : { control }), ...(key === "name" ? { inputRef: first } : {}) };
+    createFields[key] = { id: "staff-create-" + key, label, value: draft[key], onChange: value => change(key, value), required, disabled: busy, ...(control === undefined ? {} : { control }) };
   };
   add("name", "Họ tên", undefined, true);
   add("phone", "Số điện thoại", <input className="property-control os-create-select" type="tel" id="staff-create-phone" required value={draft.phone} disabled={busy} onChange={e => change("phone", e.target.value)} />, true);
