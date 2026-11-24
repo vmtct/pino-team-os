@@ -354,7 +354,7 @@ export function LeadHouseholdM1Preview({localReview=false}: {localReview?: boole
           </div>
           <div className={styles.roleOptions} aria-label="Actors liên hệ chính">{ROLE_OPTIONS.map(role => <label key={role}><input type="checkbox" checked={contactActorRoles.includes(role)} onChange={event => setContactActorRoles(current => event.target.checked ? [...current, role] : current.filter(item => item !== role))} />{leadM1RoleLabel(role)}</label>)}</div>
           <h3>Chọn thành viên để chuyển đổi</h3>
-          {convertLead.members.filter(member => !member.primaryContact).map(member => <div className={styles.primaryContactOption} key={member.id}>
+          {convertLead.members.filter(member => !member.primaryContact).map(member => <div className={styles.convertMember} key={member.id}>
             <input type="checkbox" aria-label={"Chọn " + member.name} checked={convertSelected.includes(member.id)} onChange={event => setConvertSelected(current => event.target.checked ? [...current, member.id] : current.filter(id => id !== member.id))} />
             <span>{member.name} · {member.roles.map(leadM1RoleLabel).join(" / ")}</span>
             {convertSelected.includes(member.id) ? <span className={styles.memberFields}>
@@ -399,7 +399,7 @@ function LeadQuickView({ record }: { record: LeadM1Record }) {
       { key: "person", label: "Person liên kết", value: "—" },
       { key: "actors", label: "Actors hiện hữu", value: "—" },
     ]} />
-    <section><h3>Thành viên</h3><ul>{record.members.map(member => <li key={member.id}><strong>{member.name}</strong><span>{member.age === null ? "Tuổi —" : member.age + " tuổi"} · {member.roles.map(leadM1RoleLabel).join(" · ")}</span></li>)}</ul></section>
+    <section><h3>Thành viên</h3><ul className={styles.memberList}>{record.members.map(member => <li key={member.id}><strong>{member.name}</strong><span>{member.age === null ? "Tuổi —" : member.age + " tuổi"} · {member.roles.map(leadM1RoleLabel).join(" · ")}</span></li>)}</ul></section>
     <section><h3>Quan tâm</h3><div className={styles.badgeWrap}>{record.intents.map(intent => <BoDataGridBadge key={intent.id}>{LEAD_M1_INTEREST_LABELS[intent.kind]}</BoDataGridBadge>)}</div></section>
   </div>;
 }
