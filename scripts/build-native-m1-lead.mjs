@@ -16,16 +16,20 @@ const navigation=`
 import {useSyncExternalStore} from "react";
 const event="pino:m1:lead:navigation";
 function subscribe(callback){window.addEventListener(event,callback);window.addEventListener("popstate",callback);return()=>{window.removeEventListener(event,callback);window.removeEventListener("popstate",callback);};}
-function snapshot(){return location.search;}
+const validId=id=>typeof id==="string"&&/^LEAD-MOCK-\\d{3,}$/.test(id);
+function decode(){const physical=new URLSearchParams(location.search),id=physical.get("record");const virtual=new URLSearchParams("m1Preview=1");const saved=history.state?.[event];if(validId(id)){if(saved?.id===id&&saved.mode==="quickView")virtual.set("quickView",id);else{virtual.set("lead",id);if(saved?.id===id&&/^[a-z][a-z0-9-]{0,63}$/.test(saved.tab??""))virtual.set("tab",saved.tab);}}return virtual;}
+function snapshot(){return decode().toString();}
 export const usePathname=()=>location.pathname;
 export function useSearchParams(){return new URLSearchParams(useSyncExternalStore(subscribe,snapshot,snapshot));}
-function change(href,replace){const next=new URL(href,location.href);if(next.origin!==location.origin||next.pathname!=="/bo/sales/leads"||next.searchParams.get("m1Preview")!=="1"||next.hash)throw Error("Local review route only");history[replace?"replaceState":"pushState"](null,"",next.pathname+next.search);window.dispatchEvent(new Event(event));}
+function target(href){const next=new URL(href,location.href),q=next.searchParams;if(next.origin!==location.origin||next.pathname!=="/bo/sales/leads"||q.getAll("m1Preview").length!==1||q.get("m1Preview")!=="1"||next.hash||[...q.keys()].some(k=>!["m1Preview","lead","quickView","tab","record"].includes(k)||q.getAll(k).length!==1))throw Error("Local review route only");const lead=q.get("lead"),quick=q.get("quickView"),record=q.get("record"),id=lead??quick??record,tab=q.get("tab");if([lead,quick,record].filter(x=>x!==null).length>1||id!==null&&!validId(id)||tab!==null&&(!lead||!/^[a-z][a-z0-9-]{0,63}$/.test(tab)))throw Error("Synthetic record only");const physical=new URLSearchParams("m1Preview=1");if(id)physical.set("record",id);return {href:next.pathname+"?"+physical,state:{id,mode:quick?"quickView":"detail",tab}};}
+export const localHref=href=>target(href).href;
+function change(href,replace){const next=target(href);history[replace?"replaceState":"pushState"]({[event]:next.state},"",next.href);window.dispatchEvent(new Event(event));}
 export const useRouter=()=>({push:href=>change(href,false),replace:href=>change(href,true),refresh:()=>location.reload(),back:()=>history.back()});
 export const redirect=()=>{throw Error("Local-only navigation")};
 `;
 const shim={
  "next/navigation":navigation,
- "next/link":`import {useRouter} from "next/navigation";export default function Link({href,children,prefetch,...props}){const router=useRouter();const valid=typeof href==="string"&&href.startsWith("/bo/sales/leads?")&&new URL(href,location.href).searchParams.get("m1Preview")==="1";return <a {...props} href={valid?href:"#unavailable-local-module"} onClick={event=>{props.onClick?.(event);if(event.defaultPrevented)return;event.preventDefault();if(valid)router.push(href);}}>{children}</a>}`,
+ "next/link":`import {useRouter,localHref} from "next/navigation";export default function Link({href,children,prefetch,...props}){const router=useRouter();let actual=null;try{if(typeof href==="string")actual=localHref(href);}catch{}return <a {...props} href={actual??"#unavailable-local-module"} onClick={event=>{props.onClick?.(event);if(event.defaultPrevented)return;event.preventDefault();if(actual)router.push(href);}}>{children}</a>}`,
  "next/image":`export default function Image({alt,width,height,className}){return <span className={className} role="img" aria-label={alt} style={{width,height}}/>}`,
  "next/dynamic":`export default function dynamic(){return function UnavailableLocalModule(){return null;}}`,
  "local-logout":`export function LogoutButton(){return <button type="button" disabled>↪</button>}`
