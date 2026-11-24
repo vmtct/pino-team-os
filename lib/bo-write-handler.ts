@@ -53,6 +53,7 @@ const TERM_NEUTRALIZE_COMMAND = /^delivery\/terms\/[0-9a-f-]{36}\/neutralize$/;
 const RUNNING_CLASS_PATCH = /^delivery\/running-classes\/[0-9a-f-]{36}$/;
 const STUDENT_PROFILE_PATCH = /^students\/[0-9a-f-]{36}$/;
 const STUDENT_GENDER_PATCH = /^students\/[0-9a-f-]{36}\/gender$/;
+const STUDENT_BIRTH_PATCH = /^students\/[0-9a-f-]{36}\/birth-profile$/;
 const DELIVERY_CONFIG_LIFECYCLE = /^delivery\/(?:learning-spaces|running-classes)\/[0-9a-f-]{36}\/lifecycle$/;
 const DELIVERY_FUTURE_RESERVATION_POLICY_VERSION = "policies/delivery/future_reservation.v1/versions";
 const DELIVERY_FUTURE_RESERVATION_POLICY_PUBLISH = /^policies\/delivery\/future_reservation\.v1\/versions\/[0-9a-f-]{36}\/publish$/;
@@ -62,6 +63,7 @@ const SESSION_SYLLABUS_BINDING_PATH = /^delivery\/sessions\/[0-9a-f-]{36}\/sylla
 const CALENDAR_EXCLUSION_COMMAND = /^delivery\/calendar-exclusions\/[0-9a-f-]{36}$/;
 const PARENT_PIN_PATH = /^identity\/parents\/[0-9a-f-]{36}\/pin\/(issue-initial|reset)$/;
 const AFTERSCHOOL_PIN_PATH = /^identity\/afterschool-users\/[0-9a-f-]{36}\/pin\/(issue-initial|reset)$/;
+const PERSON_AFTER_SCHOOL_ACTIVATION_PATH = /^identity\/afterschool-users\/person\/[0-9a-f-]{36}\/pin\/issue-initial$/;
 const STUDENT_COMPANION_FEED_PATH = /^students\/[0-9a-f-]{36}\/pinoria\/companions\/[0-9a-f-]{36}\/feed$/;
 const STUDENT_VISIT_CHECK_IN = "student-visits/check-in";
 const STUDENT_VISIT_COMMAND = /^student-visits\/[0-9a-f-]{36}\/(check-out|correct)$/;
@@ -197,11 +199,11 @@ export async function handleBoWriteRequest(
     }
     if (
       request.method !== "POST"
-      && !(request.method === "PATCH" && (CATALOG_PATH_UPDATE.test(path) || RUNNING_CLASS_PATCH.test(path) || STUDENT_PROFILE_PATCH.test(path) || PARENT_NAME_PATCH.test(path) || STUDENT_GENDER_PATCH.test(path) || WARD_CATALOG_WRITE.test(path) || WARD_SET_WRITE.test(path) || PINORIA_WORLD_WRITE.test(path)))
+      && !(request.method === "PATCH" && (CATALOG_PATH_UPDATE.test(path) || RUNNING_CLASS_PATCH.test(path) || STUDENT_PROFILE_PATCH.test(path) || PARENT_NAME_PATCH.test(path) || STUDENT_GENDER_PATCH.test(path) || STUDENT_BIRTH_PATCH.test(path) || WARD_CATALOG_WRITE.test(path) || WARD_SET_WRITE.test(path) || PINORIA_WORLD_WRITE.test(path)))
       && !(request.method === "PUT" && (WARD_SET_WRITE.test(path) || WARD_LEARNER_WRITE.test(path) || PINORIA_ONBOARDING_SET_WRITE.test(path) || PINORIA_WORLD_WRITE.test(path) || MISSION_CATALOG_UPDATE.test(path)))
       && !(request.method === "DELETE" && (PINORIA_ONBOARDING_GRANT_WRITE.test(path) || PINORIA_WORLD_WRITE.test(path)))
     ) return json({ error: { code: "PLATFORM_METHOD_NOT_ALLOWED", message: "Method not allowed" } }, 405);
-    if (!isAllowedPostPath(path) && !(request.method === "PATCH" && (RUNNING_CLASS_PATCH.test(path) || STUDENT_PROFILE_PATCH.test(path) || PARENT_NAME_PATCH.test(path) || STUDENT_GENDER_PATCH.test(path)))) return json({ error: { code: "PLATFORM_NOT_FOUND", message: "BO operation not found" } }, 404);
+    if (!isAllowedPostPath(path) && !(request.method === "PATCH" && (RUNNING_CLASS_PATCH.test(path) || STUDENT_PROFILE_PATCH.test(path) || PARENT_NAME_PATCH.test(path) || STUDENT_GENDER_PATCH.test(path))) && !(request.method === "PATCH" && STUDENT_BIRTH_PATCH.test(path))) return json({ error: { code: "PLATFORM_NOT_FOUND", message: "BO operation not found" } }, 404);
 
     const credential = await teamCredential(request, env, "BO");
 
@@ -231,32 +233,37 @@ export async function handleBoWriteRequest(
     // Reject malformed, missing or ambiguous Center and any legacy status payload.
     let studentProfileResource: { centerId: string } | undefined;
     const editingGender = STUDENT_GENDER_PATCH.test(path);
-    if (request.method === "PATCH" && (STUDENT_PROFILE_PATCH.test(path) || editingGender)) {
+    const editingBirth = STUDENT_BIRTH_PATCH.test(path);
+    if (request.method === "PATCH" && (STUDENT_PROFILE_PATCH.test(path) || editingGender || editingBirth)) {
       const query = new URL(request.url).searchParams;
       const ids = query.getAll("centerId");
       if ([...query.keys()].length !== 1 || ids.length !== 1 ||
           !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ids[0]!)) {
         return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Exactly one authorized Center selection is required" } }, 400);
       }
-      if (!body || typeof body !== "object" || Array.isArray(body) ||
+      if (!editingBirth && (!body || typeof body !== "object" || Array.isArray(body) ||
           Object.keys(body).length !== 2 ||
           Object.keys(body).some(key => key !== (editingGender ? "gender" : "displayName") && key !== "expectedVersion") ||
-          (editingGender && !["MALE", "FEMALE"].includes((body as {gender:string}).gender))) {
+          (editingGender && !["MALE", "FEMALE"].includes((body as {gender:string}).gender)))) {
         return json({ error: { code: "PLATFORM_INVALID_INPUT", message: editingGender ? "Student gender edit requires MALE or FEMALE and expectedVersion" : "Student name-only edit requires displayName and expectedVersion" } }, 400);
       }
       studentProfileResource = { centerId: ids[0]! };
     }
     let afterschoolPinResource: { centerId: string } | undefined;
-    if (request.method === "POST" && AFTERSCHOOL_PIN_PATH.test(path)) {
+    if (request.method === "POST" && (AFTERSCHOOL_PIN_PATH.test(path) || PERSON_AFTER_SCHOOL_ACTIVATION_PATH.test(path))) {
       const query = new URL(request.url).searchParams;
       const ids = query.getAll("centerId");
       if ([...query.keys()].length !== 1 || ids.length !== 1 ||
           !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ids[0]!))
         return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Exactly one selected Center is required" } }, 400);
-      if (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body).length !== 1 ||
+      if (PERSON_AFTER_SCHOOL_ACTIVATION_PATH.test(path)) {
+        if (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body).length !== 0)
+          return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Person activation accepts an empty body" } }, 400);
+      } else if (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body).length !== 1 ||
           !Object.hasOwn(body, "confirmedPhone") ||
-          typeof (body as Record<string, unknown>).confirmedPhone !== "string")
+          typeof (body as Record<string, unknown>).confirmedPhone !== "string") {
         return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Only confirmedPhone is accepted" } }, 400);
+      }
       afterschoolPinResource = { centerId: ids[0]! };
     }
 
@@ -439,6 +446,7 @@ export function isAllowedPostPath(path: string): boolean {
     || CALENDAR_EXCLUSION_COMMAND.test(path)
     || PARENT_PIN_PATH.test(path)
     || AFTERSCHOOL_PIN_PATH.test(path)
+    || PERSON_AFTER_SCHOOL_ACTIVATION_PATH.test(path)
     || STUDENT_COMPANION_FEED_PATH.test(path)
     || path === PARENT_CREATE_PATH || path === STUDENT_INTAKE_PATH || path === STUDENT_INTAKE_CENTER_PATH
     || path === STAGING_CENTER_AFFILIATION_FIXTURE_PATH

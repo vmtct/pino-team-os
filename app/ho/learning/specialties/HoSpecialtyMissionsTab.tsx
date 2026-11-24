@@ -50,7 +50,7 @@ export function HoSpecialtyMissionsTab({
   return <section aria-label="Nhiệm vụ của Chuyên Đề" className={styles.stack}>
     <section aria-label="Liên kết nhiệm vụ" className="detail-panel"><div className={styles.stack}>
       <h3>Liên kết nhiệm vụ</h3>
-      <div className={styles.form} data-specialty-link-form>
+      {ordered.length ? <div className={styles.form} data-specialty-link-form>
         <label className={styles.field}><span className="pds-property-label">Cấp</span>
           <select className="pds-property-input" value={activeLevel} disabled={busy||disabled||!ordered.length}
             onChange={event=>{setLevelId(event.target.value);setSelected(null);setError("");}}>
@@ -65,8 +65,7 @@ export function HoSpecialtyMissionsTab({
             const targetId=activeLevel,missionId=selected.id;
             void call(()=>onLink(targetId,missionId),"Đã xác minh liên kết nhiệm vụ.");
           }}>Liên kết</button></div>
-      </div>
-      {!ordered.length?<p role="status">Chuyên Đề chưa có Cấp để liên kết.</p>:null}
+      </div> : <p role="status">Để liên kết nhiệm vụ, vào Tổng quan → Sửa Cấp và thêm ít nhất một cấp.</p>}
     </div></section>
     <section aria-label="Nhiệm vụ liên kết" className="detail-panel"><div className={styles.stack}>
       <div className={styles.heading}><h3>Nhiệm vụ liên kết <span className="chip">{linked.size}</span></h3><a className="option-item" href="/ho/learning/missions">Danh mục Nhiệm vụ ↗</a></div>

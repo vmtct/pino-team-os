@@ -5,7 +5,7 @@ import {parseHoSpecialtyV2Command} from "./ho-specialty-v2-command-facade";
 import {postSpecialtyGraphCommand} from "./ho-specialty-v2-graph-client";
 import {specialtyPublishWarnings} from "./ho-specialty-v2-publish";
 import {BoApiError} from "./bo-api-error";
-import type {SpecialtyV2Detail,SpecialtyV2Summary} from "./ho-specialty-v2-reader";
+import type {SpecialtyV2Detail} from "./ho-specialty-v2-reader";
 
 const id=(v:number)=>"01a03c6e-cc58-7d81-ac8e-"+v.toString(16).padStart(12,"0");
 const draft:SpecialtyV2Detail={
@@ -31,15 +31,10 @@ void describe("PAP-1695 S1P HO DSA inline Publish",()=>{
   assert.deepEqual(parseHoSpecialtyV2Command({type:"LINK_MISSION",expectedVersion:1,levelId:id(3),missionId:id(4)}),
    {type:"LINK_MISSION",expectedVersion:1,levelId:id(3),missionId:id(4)});
  });
- void it("disables invalid Level/Mission prerequisite combinations without inventing server Mission authority",()=>{
-  assert.deepEqual(specialtyPublishWarnings(draft,[]),[]);
-  assert.match(specialtyPublishWarnings({...draft,missionCountDistinct:0,levels:[{...draft.levels[0]!,missionIds:[]}]},[]).join(" "),/chưa liên kết nhiệm vụ/);
-  const wrong:SpecialtyV2Summary={...active,id:id(5),pathProgramId:id(6)};
-  assert.match(specialtyPublishWarnings({...draft,prerequisiteIds:[id(5)]},[wrong]).join(" "),/Tiên quyết/);
-  const inactive:SpecialtyV2Summary={...draft,id:id(5)};
-  assert.match(specialtyPublishWarnings({...draft,prerequisiteIds:[id(5)]},[inactive]).join(" "),/Tiên quyết/);
-  const valid:SpecialtyV2Summary={...active,id:id(5)};
-  assert.deepEqual(specialtyPublishWarnings({...draft,prerequisiteIds:[id(5)]},[valid]),[]);
+ void it("requires a linked Mission and leaves prerequisite authority to Core",()=>{
+  assert.deepEqual(specialtyPublishWarnings(draft),[]);
+  assert.match(specialtyPublishWarnings({...draft,missionCountDistinct:0,levels:[{...draft.levels[0]!,missionIds:[]}] }).join(" "),/Liên kết ít nhất một Nhiệm vụ trước khi xuất bản\./);
+  assert.deepEqual(specialtyPublishWarnings({...draft,prerequisiteIds:[id(5)]}),[]);
  });
  void it("requires Core POST ACTIVE and independent GET ACTIVE readback, never synthetic success",async()=>{
   const calls:{method:string;path:string}[]=[];

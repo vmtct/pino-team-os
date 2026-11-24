@@ -8,7 +8,8 @@ const base={display:true,search:false,filter:false,sort:false,group:false,inline
 const searchable={...base,search:true,sort:true};
 const filterable={...base,filter:true,sort:true};
 export const postFields=[
- {key:"name",label:"Học viên",type:"text",icon:"Aa",width:205,permission:POST_PREVIEW_READ,readOnly:true,capabilities:searchable},
+ {key:"name",label:"Person",type:"text",icon:"Aa",width:220,permission:POST_PREVIEW_READ,readOnly:true,capabilities:searchable},
+ {key:"program",label:"Chương trình",type:"select",icon:"▣",width:165,permission:POST_PREVIEW_READ,readOnly:true,options:["PINO Afterschool","MyTime by PINO"],capabilities:filterable},
  {key:"caption",label:"Caption",type:"textarea",icon:"Aa",width:270,permission:POST_PREVIEW_READ,readOnly:true,capabilities:searchable},
  {key:"author",label:"Tác giả",type:"text",icon:"Aa",width:175,permission:POST_PREVIEW_READ,readOnly:true,capabilities:searchable},
  {key:"mediaCount",label:"Media",type:"number",icon:"#",width:100,permission:POST_PREVIEW_READ,readOnly:true,capabilities:filterable},
@@ -24,7 +25,7 @@ export const postFields=[
 export type PostFields=typeof postFields;
 const order=postFields.map(f=>f.key);
 export const postQuery:TableQuery<PostFields>={search:"",filters:{logic:"AND",rules:[]},sort:null,group:null,order,visible:order,page:1,pageSize:15};
-const primary=["name","caption","author","status","center","source","mediaCount","commentCount"] as const;
+const primary=["program","name","caption","author","status","center","source","mediaCount","commentCount"] as const;
 const audit=["createdAt","createdBy","updatedAt","updatedBy"] as const;
 const sections=[{id:"overview",label:"Thông tin bài đăng",fields:primary},{id:"system",label:"Thông tin hệ thống",fields:audit}] as const;
 export const postDefinition={
@@ -35,7 +36,7 @@ export const postDefinition={
  identity:{field:"name",pinned:"left",hideable:false,reorderable:false},
  columns:order.map(field=>({field,visible:true})),
  search:{fields:["name","caption","author"],normalization:"vi-diacritic-insensitive"},
- filters:{fields:["mediaCount","commentCount","source","status"],mode:"flat",logic:"AND"},
+ filters:{fields:["program","mediaCount","commentCount","source","status"],mode:"flat",logic:"AND"},
  sort:{fields:["name","caption","author","mediaCount","commentCount","source","status"],mode:"single",nulls:"last",tieBreak:"record-id"},
  group:{fields:[],mode:"single"},
  views:{builtIn:[{id:"draft",label:"Nháp",state:{...postQuery,filters:{logic:"AND",rules:[{field:"status",op:"eq",value:"Nháp"}]}}},{id:"published",label:"Đã đăng",state:{...postQuery,filters:{logic:"AND",rules:[{field:"status",op:"eq",value:"Đã đăng riêng tư"}]}}}],saved:{kind:"local-ui"},actions:["add","apply","rename","delete","reorder"]},
@@ -52,5 +53,5 @@ export const postsRegistry=new TddRegistry();
 export const postsSchema=postsRegistry.register(postDefinition);
 export const postBoFields:BoField[]=sections.flatMap(section=>section.fields).map(key=>{const f=postFields.find(x=>x.key===key)!;return {key:f.key,label:f.label,type:f.type,icon:f.icon,w:f.width,readonly:true,...("options" in f?{options:[...f.options]}:{})}});
 export const postModule:BoModule={label:"Posts",group:"Piner App",fields:postBoFields};
-export const canCreateDraft=(student:string,students:readonly string[])=>students.includes(student);
+export const canCreateDraft=(person:string,people:readonly string[])=>people.includes(person);
 export const canPublish=(caption:string,mediaCount:number)=>caption.trim().length>0&&mediaCount>0;

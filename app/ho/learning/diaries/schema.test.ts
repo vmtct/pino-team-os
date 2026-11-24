@@ -74,12 +74,15 @@ test("PAP-1221 HO fails closed on incorrect Core center/detail/ID",async()=>{
  await assert.rejects(readGlobalDiary(reader({...row,centerId:other}).fn,id,center,new AbortController().signal),/mismatch/);
  await assert.rejects(readGlobalDiary(reader({...row,id:other}).fn,id,center,new AbortController().signal),/mismatch/);
 });
-test("PAP-1221 HO rejects Core denial and missing date filter, no data fallback",async()=>{
+test("PAP-1221 HO rejects Core denial and reads without a date filter",async()=>{
  for(const code of [401,403,404,409,503]){
   await assert.rejects(readGlobalDiaries(reader(null,code).fn,"","2026-10-31",new AbortController().signal),new RegExp(String(code)));
  }
- const r=reader({});
- await assert.rejects(hoDiaryProvider.list(hoDiaryQuery,{surface:"HO"},r.fn,new AbortController().signal),/valid Diary day/);
+ const r=reader({centerId:null,localDate:null,diaries:[row],hasMore:false,limit:100,offset:0});
+ const result=await hoDiaryProvider.list(hoDiaryQuery,{surface:"HO"},r.fn,new AbortController().signal);
+ assert.equal(result.records.length,1);
+ assert.equal(r.calls[0],"/api/ho/learning/path-diaries?limit=100&offset=0");
  await assert.rejects(hoDiaryProvider.list(hoDiaryQueryForDay("2026-10-31"),{surface:"BO",centerId:center},r.fn,new AbortController().signal),/HO GLOBAL scope/);
- assert.equal(r.calls.length,0);
+ assert.equal(r.calls.length,2);
+ assert.match(r.calls[1]??"",/mission-links/);
 });

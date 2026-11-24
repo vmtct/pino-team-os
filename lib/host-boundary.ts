@@ -92,8 +92,9 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   }
   if (pathname.startsWith("/api/bo/identity/afterschool-users/")) {
     const command = /^\/api\/bo\/identity\/afterschool-users\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/pin\/(issue-initial|reset)$/.test(pathname);
+    const personActivation = /^\/api\/bo\/identity\/afterschool-users\/person\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/pin\/issue-initial$/.test(pathname);
     const history = /^\/api\/bo\/identity\/afterschool-users\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/history$/.test(pathname);
-    return { action: hostname === BO_STAGING_HOSTNAME && ((method === "POST" && command) || (method === "GET" && history)) ? "next" : "not_found" };
+    return { action: hostname === BO_STAGING_HOSTNAME && ((method === "POST" && (command || personActivation)) || (method === "GET" && (history || pathname === "/api/bo/identity/afterschool-users/person-options"))) ? "next" : "not_found" };
   }
   if (pathname === "/api/bo/identity/afterschool-users") {
     return { action: hostname === BO_STAGING_HOSTNAME && method === "GET" ? "next" : "not_found" };
@@ -254,7 +255,7 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   // PAP-1932 / SCH-STUDENT-MGMT: narrow gender PATCH ingress. BO BFF and Core
   // independently enforce selected-Center authorization, CAS, and audit.
   // No other Student descendants or host/verb combinations are admitted.
-  const studentGenderEdit = /^\/api\/bo\/students\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/gender$/.test(pathname);
+  const studentGenderEdit = /^\/api\/bo\/students\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/(?:gender|birth-profile)$/.test(pathname);
   if (studentGenderEdit) {
     return hostname === BO_STAGING_HOSTNAME && method === "PATCH" ? { action: "next" } : { action: "not_found" };
   }
@@ -398,6 +399,12 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
         ? { action: "next" } : { action: "not_found" };
     }
     if (/^\/api\/bo\/learning\/path-diaries(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/mission-links)?)?$/i.test(pathname)) {
+      return hostname === BO_STAGING_HOSTNAME && method === "GET"
+        ? { action: "next" } : { action: "not_found" };
+    }
+    // PAP-2261 · Core BO — student-scoped Path Diary read for PAP-2221.
+    // Exact Center+Student GET only; BFF and Core independently validate ACL/scope.
+    if (/^\/api\/bo\/learning\/students\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/path-diaries$/i.test(pathname)) {
       return hostname === BO_STAGING_HOSTNAME && method === "GET"
         ? { action: "next" } : { action: "not_found" };
     }

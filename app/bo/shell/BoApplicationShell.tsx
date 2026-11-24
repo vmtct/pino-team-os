@@ -35,6 +35,7 @@ const directModules = {
   "pinoria-wish-events": { label: "Wish Events", group: "Pinoria", fields: [] },
   "opening-evidence": { label: "Mở lớp & ca", group: "SCHOOL", fields: [] },
   "classroom-diaries": { label: "Nhật ký lớp học", group: "SCHOOL", fields: [] },
+  "sales/leads": { label: "Leads", group: "Operations", fields: [] },
   "open-studio-passes": { label: "Pass Trạm Nghệ Thuật", group: "Open Studio", fields: [] },
   "payroll-daily": { label: "Bảng lương ngày", group: "WORKFORCE", fields: [] },
   "payroll-exceptions": { label: "Ngoại lệ & thêm giờ", group: "WORKFORCE", fields: [] },
@@ -42,7 +43,7 @@ const directModules = {
 const stagingSource: BoWorkspaceSource = {
   ...unifiedBoWorkspaceSource,
   modules: { ...unifiedBoWorkspaceSource.modules, ...directModules },
-  routeForModule: key => Object.hasOwn(directModules, key) ? "/bo/" + key : unifiedBoWorkspaceSource.routeForModule!(key),
+  routeForModule: key => key === "sales/leads" ? "/bo/sales/leads?m1Preview=1" : Object.hasOwn(directModules, key) ? "/bo/" + key : unifiedBoWorkspaceSource.routeForModule!(key),
 };
 
 /** One BO chrome owner for content-only and workspace-owning routes on both hosts. */

@@ -2,7 +2,9 @@
 /** Shared PINO DSA View+Create Drawer. PAP-1669 / PAP-1665 PLT-ATTR FSG2. */
 import { useState } from "react";
 import { DrawerFrame } from "@/app/components/workspace-renderer/DrawerFrame";
-import { PropertySections } from "@/app/components/workspace-renderer/Properties";
+import { PropertySections, type CreateDrawerField } from "@/app/components/workspace-renderer/Properties";
+import { BoStudentBirthDateLocalField } from "./BoStudentDetailLocalField";
+import { useBoCenterSelection } from "./BoCenterSelection";
 import { BoTypedEditor } from "./BoTypedEditor";
 import { BoParentReadTabs } from "./BoParentReadTabs";
 import { BoWorkforceAssignmentNoteEditor } from "./BoWorkforceAssignmentNoteEditor";
@@ -15,6 +17,7 @@ export interface BoQuickViewCreate {
   editable: (field: BoField) => boolean;
   editorField?: (field: BoField) => BoField;
   editorValue?: (field: BoField, value: BoValue) => BoValue;
+  createFields?: Readonly<Record<string, CreateDrawerField>>;
   onChange: (key: string, value: BoValue) => void;
   onCreate: () => void | Promise<void>;
   busy?: boolean;
@@ -31,7 +34,9 @@ export function BoQuickView({ module, record, onClose, onDetail, hideDetailActio
   const [draft, setDraft] = useState<BoRecord>({ id: "", name: "" });
   const [error, setError] = useState("");
   const [edit, setEdit] = useState<{ field: BoField; anchor: HTMLElement } | null>(null);
-  const fields = create && !record ? create.fields ?? module.fields : module.fields;
+  const center = useBoCenterSelection();
+  const student = moduleKey === "students" ? record : null;
+  const fields = student ? module.fields.filter(field => !["birthDay", "birthMonth", "birthYear"].includes(field.key)) : create && !record ? create.fields ?? module.fields : module.fields;
   const row = record ?? create?.draft ?? draft;
   const original = edit ? row[edit.field.key] : undefined;
   const projected = edit ? create?.editorValue?.(edit.field, original) : undefined;
@@ -50,10 +55,11 @@ export function BoQuickView({ module, record, onClose, onDetail, hideDetailActio
       ? <BoParentReadTabs module={module} record={record} />
       : <PropertySections variant="drawer" fields={fields} record={row}
           sections={[{ id: "properties", label: "Thuộc tính", fields: fields.map(f => f.key) }]}
-          legacyStyles={legacyStyles} canEdit={canEdit}
+          legacyStyles={legacyStyles} canEdit={canEdit} createFields={create?.createFields}
           onEdit={(field, anchor) => setEdit({
             field: create?.editorField ? create.editorField(field) : { ...field, readonly: false }, anchor
           })} />}
+    {student && <BoStudentBirthDateLocalField key={student.id + ":" + (center?.selected ?? "")} record={student} centerId={center?.selected ?? ""} readOnly />}
     {extraSection ?? (!legacyStyles && moduleKey === "workforce-assignments" && record
       ? <BoWorkforceAssignmentNoteEditor record={record} onSaved={() => window.location.reload()} /> : null)}
     {detailLoading ? <p role="status" className="settings-hint">Đang tải chi tiết…</p>

@@ -24,7 +24,7 @@ function Fixture(){
  const [position,setPosition]=useState<"table"|"drawer"|"detail">("table");const [query,setQuery]=useState<TableQuery<PostFields>>(postQuery);
  const current=useRef<Item[]>([]); const nextId=useRef(0);
  useEffect(()=>()=>{current.current.forEach(item=>URL.revokeObjectURL(item.url));current.current=[];},[]);
- const record=useMemo(()=>({id:"qa-post-media",name:"QA Minh Khang",caption:"",author:"PINO Afterschool",status:"Nháp",center:"Synthetic Center A",source:rows.length?"Upload trực tiếp":"Chưa có",mediaCount:rows.length,commentCount:0,createdAt:null,createdBy:null,updatedAt:null,updatedBy:null}),[rows.length]);
+ const record=useMemo(()=>({id:"qa-post-media",name:"QA Minh Khang",program:"",caption:"",author:"PINO Afterschool",status:"Nháp",center:"Synthetic Center A",source:rows.length?"Upload trực tiếp":"Chưa có",mediaCount:rows.length,commentCount:0,createdAt:null,createdBy:null,updatedAt:null,updatedBy:null}),[rows.length]);
  const loaders=useMemo<SlotLoaders>(()=>({"posts-local-content":async(slot,rec,ctx,signal)=>{
   signal.throwIfAborted();if(ctx!==context||rec.id!=="qa-post-media"||slot.id!=="media")throw Error("fixture scope");
   const active=rows.find(r=>r.id===preview);

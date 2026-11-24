@@ -4,9 +4,9 @@ import type {PersonRow} from "./HoPersonDirectory";
 
 type Reader=ReturnType<typeof createPersonReader>;
 export function personRow(p:PersonDto):PersonRow{
- const labels={STUDENT:"Student",STAFF:"Staff",GUEST:"MyTime Guest"};
- const label=(kind:"STUDENT"|"STAFF"|"GUEST")=>{const role=p.roles.find(r=>r.kind===kind);return role?(role.displayName??role.id):null;};
- return {id:p.id,name:p.displayName??p.id,roles:p.roles.map(r=>labels[r.kind]),identityState:p.roles.length?"Linked":"Unlinked",avatarState:p.avatar.status,student:label("STUDENT"),staff:label("STAFF"),guest:label("GUEST"),parent:null,avatarId:p.avatar.id,nickname:p.avatar.nickname,createdAt:p.createdAt,updatedAt:p.updatedAt,createdBy:p.createdBy,updatedBy:p.updatedBy};
+ const labels={STUDENT:"Student",STAFF:"Staff",PARENT:"Parent",GUEST:"MyTime Guest"};
+ const label=(kind:"STUDENT"|"STAFF"|"PARENT"|"GUEST")=>{const role=p.roles.find(r=>r.kind===kind);return role?(role.displayName??role.id):null;};
+ return {id:p.id,name:p.displayName??p.id,roles:p.roles.map(r=>labels[r.kind]),identityState:p.roles.length?"Linked":"Unlinked",avatarState:p.avatar.status,student:label("STUDENT"),staff:label("STAFF"),guest:label("GUEST"),parent:label("PARENT"),avatarId:p.avatar.id,nickname:p.avatar.nickname,createdAt:p.createdAt,updatedAt:p.updatedAt,createdBy:p.createdBy,updatedBy:p.updatedBy};
 }
 export async function loadPersonDirectory(reader:Pick<Reader,"page"|"unlinkedCounts">,signal:AbortSignal){
  const items:PersonDto[]=[];let after:string|null=null;

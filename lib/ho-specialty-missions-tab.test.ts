@@ -22,10 +22,10 @@ const mission:SpecialtyMissionOption={
   id:"mission-1",code:"ART-208",name:"Vẽ vật thể 3D",
   status:"ACTIVE",reconciliation:"READY",pathProgramId:"art",
 };
-function html(disabled=false,invalidCatalog=false){
+function html(disabled=false,invalidCatalog=false,hasLevels=true){
   return renderToStaticMarkup(createElement(HoSpecialtyMissionsTab,{
     pathProgramId:"art",
-    levels:[{id:"level-1",name:"Cấp 1",order:1,missionIds:["mission-1"]}],
+    levels:hasLevels?[{id:"level-1",name:"Cấp 1",order:1,missionIds:["mission-1"]}]:[],
     missionCatalog:invalidCatalog?[]:[mission],
     disabled,
     onLink:async()=>({verified:true as const,version:2}),
@@ -55,4 +55,10 @@ test("PAP-1495: readonly integration cannot link or remove until Core writer is 
   const text=html(true);
   assert.match(text,/Liên kết/);
   assert.match(text,/disabled=""/);
+});
+
+test("PAP-2267: a draft without levels explains how to proceed before showing the picker",()=>{
+  const text=html(false,false,false);
+  assert.match(text,/Tổng quan → Sửa Cấp/);
+  assert.doesNotMatch(text,/data-specialty-link-form|role="combobox"/);
 });
