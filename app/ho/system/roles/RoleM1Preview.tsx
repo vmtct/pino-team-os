@@ -53,15 +53,17 @@ function PermissionPicker({catalog,selected,onChange,disabled=false}:{catalog:Bo
     {!groups.length&&<p role="status">Không có quyền khớp.</p>}
   </section></TosCard></div>;
 }
-export function RoleM1Preview({scopeKey,permissionKeys}:{scopeKey:string;permissionKeys:string[]}){
+/** The same typed view is mounted by authenticated Staging and the local synthetic-only host. */
+export function RoleM1Content({scopeKey,permissionKeys,localCatalog}:{scopeKey:string;permissionKeys:string[];localCatalog?:BoAccessPermission[]}){
   const context=useMemo<AuthorizationContext>(()=>({surface:"HO",authorize:key=>permissionKeys.includes(key)}),[permissionKeys]);
   const [state,setState]=useState(()=>createPreviewState(roleM1,scopeKey));
   const [query,setQuery]=useState(initialQuery);
   const [selected,setSelected]=useState<string|null>(null),[full,setFull]=useState(false);
   const [create,setCreate]=useState(false),[draft,setDraft]=useState(emptyDraft),[keys,setKeys]=useState<string[]>([]);
   const [target,setTarget]=useState<RoleTarget>("Manager");
-  const [catalog,setCatalog]=useState<BoAccessPermission[]|null>(null),[error,setError]=useState(false),[confirm,setConfirm]=useState(false);
+  const [catalog,setCatalog]=useState<BoAccessPermission[]|null>(localCatalog??null),[error,setError]=useState(false),[confirm,setConfirm]=useState(false);
   useEffect(()=>{
+    if(localCatalog)return;
     const abort=new AbortController();
     void fetch("/api/bo/access/permissions",{method:"GET",credentials:"same-origin",cache:"no-store",signal:abort.signal}).then(async response=>{
       if(!response.ok)throw Error("Catalog unavailable");
@@ -70,7 +72,7 @@ export function RoleM1Preview({scopeKey,permissionKeys}:{scopeKey:string;permiss
       if(!abort.signal.aborted)setCatalog(data);
     }).catch(()=>{if(!abort.signal.aborted)setError(true);});
     return ()=>abort.abort();
-  },[]);
+  },[localCatalog]);
   const row=state.records.find(r=>r.id===selected);
   const candidate=catalog&&makePreviewRole(draft,target,keys,catalog);
   const bindings:TddActionBindings={
@@ -92,5 +94,9 @@ export function RoleM1Preview({scopeKey,permissionKeys}:{scopeKey:string;permiss
     {row&&!full&&<TddRenderer view={{kind:"drawer",props:{...common,record:project(row),onClose:close,onDetail:()=>setFull(true)}}}/>}
     {create&&<TddRenderer view={{kind:"form",props:{...common,mode:"create",title:"Tạo vai trò",onClose:()=>setCreate(false),actionBindings:bindings,content:<><CreateCustomRoleFields draft={draft} onChange={setDraft}/><div className="ho-role-editor"><TosCard className="ho-role-card"><div className="ho-role-field-row"><label htmlFor="role-target">Đối tượng</label><select id="role-target" value={target} onChange={e=>{setTarget(e.target.value==="Staff"?"Staff":"Manager");setKeys([]);}}><option value="Manager">Manager · BO</option><option value="Staff">Staff · TOS</option></select></div><p>{target==="Manager"?"BO · Chi nhánh được phân công":"TOS · Phạm vi Staff được phân công"}</p></TosCard></div>{error?<p role="alert">Không tải được danh mục quyền.</p>:catalog?<PermissionPicker catalog={eligiblePermissions(catalog,target)} selected={keys} onChange={setKeys}/>:<p role="status">Đang tải danh mục quyền…</p>}</>}}}/>}
   </TddPreferencePolicy.Provider>;
-  return <HoWorkspace module="roles" content={content}/>;
+  return content;
+}
+
+export function RoleM1Preview(props:{scopeKey:string;permissionKeys:string[]}){
+  return <HoWorkspace module="roles" content={<RoleM1Content {...props}/>}/>;
 }
