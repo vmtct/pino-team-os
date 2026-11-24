@@ -993,6 +993,10 @@
         "lib/pap2173-private-media-handler.test.ts"
       ],
       "externalReferences": [
+        {"file":"app/bo/content/posts/BoPostSubmitShell.tsx","owner":"PAP-2337"},
+        {"file":"app/bo/content/posts/PostPreviewShell.tsx","owner":"PAP-2337"},
+        {"file":"app/bo/content/posts/post-preview-contract.ts","owner":"PAP-2337"},
+        {"file":"app/bo/content/posts/post-preview-fixture.ts","owner":"PAP-2337"},
           {
             "file": "lib/ho-routes.ts",
             "owner": "PAP-1221"
