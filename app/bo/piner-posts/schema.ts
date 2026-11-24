@@ -15,7 +15,7 @@ export const postFields=[
  {key:"mediaCount",label:"Media",type:"number",icon:"#",width:100,permission:POST_PREVIEW_READ,readOnly:true,capabilities:filterable},
  {key:"commentCount",label:"Bình luận",type:"number",icon:"#",width:110,permission:POST_PREVIEW_READ,readOnly:true,capabilities:filterable},
  {key:"source",label:"Nguồn",type:"select",icon:"▣",width:150,permission:POST_PREVIEW_READ,readOnly:true,options:["Diary","Upload trực tiếp","Chưa có"],capabilities:filterable},
- {key:"status",label:"Trạng thái",type:"select",icon:"▣",width:170,permission:POST_PREVIEW_READ,readOnly:true,options:["Nháp","Đã đăng riêng tư","Thu hồi"],capabilities:filterable},
+ {key:"status",label:"Trạng thái",type:"select",icon:"▣",width:170,permission:POST_PREVIEW_READ,readOnly:true,options:["Nháp","Chờ duyệt","Đã đăng riêng tư","Thu hồi"],capabilities:filterable},
  {key:"center",label:"Chi nhánh",type:"text",icon:"Aa",width:170,permission:POST_PREVIEW_READ,readOnly:true,capabilities:base},
  {key:"createdAt",label:"Created Time",type:"datetime",icon:"▦",width:175,permission:POST_PREVIEW_READ,readOnly:true,capabilities:base},
  {key:"createdBy",label:"Created By",type:"text",icon:"Aa",width:170,permission:POST_PREVIEW_READ,readOnly:true,capabilities:base},

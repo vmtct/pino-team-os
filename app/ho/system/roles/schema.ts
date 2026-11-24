@@ -4,6 +4,7 @@ import type { SurfaceDefinition, SurfaceProvider } from "@/lib/workspace-adapter
 import {roleCreateActions} from "./role-lifecycle-model";
 
 const read = { display:true, search:true, filter:true, sort:true, group:true, inlineEdit:false } as const;
+const readOnlyMetadata = {display:true,search:false,filter:false,sort:false,group:false,inlineEdit:false} as const;
 export const roleFields = [
   {key:"name",label:"Tên vai trò",type:"text",icon:"Aa",width:280,permission:"access.role.view",readOnly:true,capabilities:read},
   {key:"roleType",label:"Loại",type:"text",icon:"▣",width:110,permission:"access.role.view",readOnly:true,capabilities:read},
@@ -11,13 +12,18 @@ export const roleFields = [
   {key:"permissionCount",label:"Số quyền",type:"number",icon:"≡",width:110,permission:"access.role.view",readOnly:true,capabilities:read},
   {key:"assignmentCount",label:"Số phân công",type:"number",icon:"@",width:135,permission:"access.role.view",readOnly:true,capabilities:read},
   {key:"roleKey",label:"Role Key",type:"text",icon:"⌘",width:180,permission:"access.role.view",readOnly:true,capabilities:read},
+  {key:"description",label:"Mô tả",type:"textarea",icon:"Aa",width:220,permission:"access.role.view",readOnly:true,validation:{maxLength:500},capabilities:readOnlyMetadata},
+  {key:"createdAt",label:"Created Time",type:"datetime",icon:"◷",width:170,permission:"access.role.view",readOnly:true,capabilities:readOnlyMetadata},
+  {key:"createdBy",label:"Created By",type:"text",icon:"@",width:150,permission:"access.role.view",readOnly:true,capabilities:readOnlyMetadata},
+  {key:"updatedAt",label:"Last Modified Time",type:"datetime",icon:"◷",width:170,permission:"access.role.view",readOnly:true,capabilities:readOnlyMetadata},
+  {key:"updatedBy",label:"Last Modified By",type:"text",icon:"@",width:150,permission:"access.role.view",readOnly:true,capabilities:readOnlyMetadata},
 ] as const satisfies readonly FieldSchema[];
 type F=typeof roleFields;
-const sections=[{id:"role-info",label:"Thông tin Role",fields:["name","roleType","status","permissionCount","assignmentCount","roleKey"]}] as const;
+const sections=[{id:"role-info",label:"Thông tin Role",fields:["name","roleKey","description","roleType","status","permissionCount","assignmentCount"]},{id:"audit",label:"Thông tin hệ thống",fields:["createdAt","createdBy","updatedAt","updatedBy"]}] as const;
 export const roleQuery:TableQuery<F> = {
   search:"",filters:{logic:"AND",rules:[]},sort:{field:"name",direction:"asc"},group:null,
-  order:["name","roleType","status","permissionCount","assignmentCount","roleKey"],
-  visible:["name","roleType","status","permissionCount","assignmentCount"],
+  order:["name","roleType","status","permissionCount","assignmentCount","roleKey","description","createdAt","createdBy","updatedAt","updatedBy"],
+  visible:["name","roleType","status","permissionCount","assignmentCount","createdAt","createdBy","updatedAt","updatedBy"],
   page:1,pageSize:15,
 };
 export const roleDefinition = {
@@ -28,6 +34,7 @@ export const roleDefinition = {
   columns:[
    {field:"name",visible:true},{field:"roleType",visible:true},{field:"status",visible:true},
    {field:"permissionCount",visible:true},{field:"assignmentCount",visible:true},{field:"roleKey",visible:false},
+   {field:"description",visible:false},{field:"createdAt",visible:true},{field:"createdBy",visible:true},{field:"updatedAt",visible:true},{field:"updatedBy",visible:true},
   ],
   search:{fields:["name","roleType","status","roleKey"],normalization:"vi-diacritic-insensitive"},
   filters:{fields:["name","roleType","status","permissionCount","assignmentCount"],mode:"flat",logic:"AND"},
@@ -50,7 +57,7 @@ export const roleDefinition = {
 } as const satisfies SurfaceDefinition<F>;
 
 type Row=ModuleRow<F>;
-type DirectoryRole={id:string;roleKey:string;displayName:string;roleType:"system"|"custom";status:"active"|"archived";permissionCount:number;assignmentCount:number};
+type DirectoryRole={id:string;roleKey:string;displayName:string;roleType:"system"|"custom";status:"active"|"archived";permissionCount:number;assignmentCount:number;description:string|null;createdAt:string;updatedAt:string};
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 async function roles(fetcher:typeof fetch,signal:AbortSignal):Promise<readonly Row[]>{
  const response=await fetcher("/api/bo/access/roles",{method:"GET",signal,cache:"no-store"});
@@ -59,11 +66,15 @@ async function roles(fetcher:typeof fetch,signal:AbortSignal):Promise<readonly R
  const json:unknown=await response.json();signal.throwIfAborted();
  if(!json||typeof json!=="object"||!("data" in json)||!Array.isArray(json.data))throw Error("Invalid Role directory");
  const rows=json.data as DirectoryRole[];
- if(rows.some(r=>!r||!uuid.test(r.id)||typeof r.displayName!=="string"||typeof r.roleKey!=="string"||
+ if(rows.some(r=>!r||typeof r.id!=="string"||!uuid.test(r.id)||typeof r.displayName!=="string"||typeof r.roleKey!=="string"||
    !["system","custom"].includes(r.roleType)||!["active","archived"].includes(r.status)||
-   !Number.isSafeInteger(r.permissionCount)||!Number.isSafeInteger(r.assignmentCount)))throw Error("Invalid Role record");
+   !Number.isSafeInteger(r.permissionCount)||r.permissionCount<0||!Number.isSafeInteger(r.assignmentCount)||r.assignmentCount<0||
+   !(r.description===null||typeof r.description==="string")||
+   typeof r.createdAt!=="string"||!Number.isFinite(Date.parse(r.createdAt))||
+   typeof r.updatedAt!=="string"||!Number.isFinite(Date.parse(r.updatedAt))))throw Error("Invalid Role record");
  return rows.map(r=>({id:r.id,name:r.displayName,roleType:r.roleType,status:r.status,
-   permissionCount:r.permissionCount,assignmentCount:r.assignmentCount,roleKey:r.roleKey}));
+   permissionCount:r.permissionCount,assignmentCount:r.assignmentCount,roleKey:r.roleKey,
+   description:r.description??"",createdAt:r.createdAt,updatedAt:r.updatedAt,createdBy:"—",updatedBy:"—"}));
 }
 export const roleProvider:SurfaceProvider<F>={
  pagination:"local-ui",

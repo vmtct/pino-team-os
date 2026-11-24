@@ -1,7 +1,7 @@
 "use client";
 // PAP-2192 / PLT-ACCESS — native TDD presentation; no live role commands.
 import { useId, useMemo, useState } from "react";
-import { TddRegistry, type AuthorizationContext, type FieldSchema, type ModuleRow, type TableQuery, type TddActionBindings } from "@/lib/workspace-schema";
+import { TddRegistry, type AuthorizationContext, type FieldSchema, type ModuleRow, type TableQuery, type TddActionBindings, type MutationAdapter } from "@/lib/workspace-schema";
 import { TddRenderer } from "@/app/components/workspace-renderer/Renderer";
 import { TddPreferencePolicy } from "@/app/components/workspace-renderer/Record";
 import { HoWorkspace } from "@/app/ho/HoWorkspace";
@@ -11,24 +11,17 @@ import type { BoAccessPermission } from "@/lib/bo-access-model";
 import { roleDefinition, roleFields, roleQuery, verifyRolePermissionTabApproval } from "./schema";
 import { CreateCustomRoleFields } from "./RoleLifecycleForms";
 import { matchesPlatform, type PlatformFilter } from "./HoRoleEditor";
-import { roleM1, makePreviewRole, archivePreviewRole, eligiblePermissions, rolePreviewCatalog, type PreviewRole } from "./role-m1-preview";
+import { roleM1, makePreviewRole, archivePreviewRole, eligiblePermissions, rolePreviewCatalog, canEditPreviewRole, previewRoleVersion, editPreviewRole, type PreviewRole } from "./role-m1-preview";
 import type { RoleDraft } from "./role-lifecycle-model";
 
-const read = {display:true,search:false,filter:false,sort:false,group:false,inlineEdit:false} as const;
-const extra = [
-  {key:"description",label:"Mô tả",type:"text",icon:"Aa",width:220},
-  {key:"createdAt",label:"Created Time",type:"datetime",icon:"◷",width:170},
-  {key:"createdBy",label:"Created By",type:"text",icon:"@",width:150},
-  {key:"updatedAt",label:"Last Modified Time",type:"datetime",icon:"◷",width:170},
-  {key:"updatedBy",label:"Last Modified By",type:"text",icon:"@",width:150},
-] as const;
-const fields = [...roleFields, ...extra.map(field=>({...field,permission:"access.role.view",readOnly:true,capabilities:read} as const))] as const satisfies readonly FieldSchema[];
+const [roleName,roleType,roleStatus,permissionCount,assignmentCount,roleKey,descriptionField,...auditFields] = roleFields;
+const fields = [{...roleName,readOnly:false,required:true,validation:{minLength:1,maxLength:120},capabilities:{...roleName.capabilities,inlineEdit:true}},
+  roleType,roleStatus,permissionCount,assignmentCount,roleKey,
+  {...descriptionField,readOnly:false,capabilities:{...descriptionField.capabilities,inlineEdit:true}},...auditFields] as const satisfies readonly FieldSchema[];
 type F = typeof fields;
-const audit = ["createdAt","createdBy","updatedAt","updatedBy"] as const;
-const sections = [{id:"role-info",label:"Thông tin Role",fields:["name","roleKey","description","roleType","status","permissionCount","assignmentCount"]},{id:"audit",label:"Thông tin hệ thống",fields:audit}] as const;
 const registry = new TddRegistry(verifyRolePermissionTabApproval);
-const schema = registry.register<F>({...roleDefinition,fields,table:{...roleDefinition.table,columns:[...roleDefinition.table.columns,...extra.map(field=>({field:field.key,visible:field.key!=="description"}))]},drawer:{...roleDefinition.drawer,sections},detail:{...roleDefinition.detail,overview:{sections}},data:{id:"pap2192-preview-only",list:async()=>({rows:[],total:0}),detail:async()=>null}});
-const initialQuery:TableQuery<F> = {...roleQuery,order:[...roleQuery.order,"description",...audit],visible:[...roleQuery.visible,...audit]};
+const schema = registry.register<F>({...roleDefinition,fields,capabilities:{...roleDefinition.capabilities,edit:"access.role.edit"},table:{...roleDefinition.table,inlineEdit:{enabled:true,fields:["name","description"]}},data:{id:"pap2192-preview-only",list:async()=>({rows:[],total:0}),detail:async()=>null}});
+const initialQuery:TableQuery<F> = {...roleQuery,order:[...roleQuery.order],visible:[...roleQuery.visible]};
 const emptyDraft=():RoleDraft=>({roleKey:"",displayName:"",description:""});
 function project(role:PreviewRole):ModuleRow<F>{return {...role,createdBy:"—",updatedBy:"—",permissionCount:role.permissionKeys.length};}
 function PermissionPicker({catalog,selected,onChange,disabled=false}:{catalog:BoAccessPermission[];selected:string[];onChange:(keys:string[])=>void;disabled?:boolean}){
@@ -67,6 +60,33 @@ export function RoleM1Content({scopeKey,permissionKeys}:{scopeKey:string;permiss
   const [confirm,setConfirm]=useState(false);
   const row=state.records.find(r=>r.id===selected);
   const candidate=makePreviewRole(draft,keys,catalog);
+  const canEdit=context.authorize("access.role.edit");
+  const adapter=useMemo<MutationAdapter<F>>(()=>({update:async(id,patch,expectedVersion,authorization,signal)=>{
+    signal.throwIfAborted();
+    if(authorization.surface!=="HO"||!authorization.authorize("access.role.view")||!authorization.authorize("access.role.edit"))return {status:"denied"};
+    const current=state.records.find(r=>r.id===id);
+    if(!current||!canEditPreviewRole(current))return {status:"denied"};
+    if(previewRoleVersion(current)!==expectedVersion)return {status:"conflict"};
+    const next=editPreviewRole(current,patch);
+    if(!next)return {status:"invalid",fields:["name","description"]};
+    return {status:"saved",row:project(next),version:previewRoleVersion(next)};
+  }}),[state.records]);
+  const onSaved=(record:ModuleRow<F>)=>{
+    const original=state.records.find(r=>r.id===record.id);
+    if(!original)return;
+    setState(prev=>{
+      const current=prev.records.find(r=>r.id===record.id);
+      if(!current||previewRoleVersion(current)!==previewRoleVersion(original))return prev;
+      const next=editPreviewRole(current,{name:record.name,description:record.description});
+      return next?reducePreview(prev,{type:"replace",id:current.id,record:next}):prev;
+    });
+  };
+  const versionForRow=(id:string)=>{
+    const current=state.records.find(r=>r.id===id);
+    return current&&canEditPreviewRole(current)?previewRoleVersion(current):"";
+  };
+  const tableWrites=canEdit?{adapter,versionForRow,onSaved}:undefined;
+  const recordWrites=row&&canEdit&&canEditPreviewRole(row)?{adapter,version:previewRoleVersion(row),onSaved}:undefined;
   const bindings:TddActionBindings={
     openCreate:{kind:"navigation",run:()=>{setDraft(emptyDraft());setKeys([]);setCreate(true);}},
     cancelCreate:{kind:"navigation",run:()=>setCreate(false)},
@@ -79,11 +99,11 @@ export function RoleM1Content({scopeKey,permissionKeys}:{scopeKey:string;permiss
   const close=()=>{setSelected(null);setFull(false);setConfirm(false);};
   const content=<TddPreferencePolicy.Provider value="ephemeral">
     <p role="status">M1 · Dữ liệu mô phỏng, không lưu vào hệ thống.</p>
-    {row&&full?<TddRenderer view={{kind:"detail",props:{...common,record:project(row),subject:{type:"access_role",id:row.id},onBack:close,
+    {row&&full?<TddRenderer view={{kind:"detail",props:{...common,record:project(row),writes:recordWrites,subject:{type:"access_role",id:row.id},onBack:close,
       renderApprovedExtension:(_record,_context,tab)=>tab==="permissions"?<PermissionPicker catalog={eligiblePermissions(catalog)} selected={row.permissionKeys} disabled={row.status!=="active"} onChange={permissionKeys=>setState(prev=>reducePreview(prev,{type:"replace",id:row.id,record:{...row,permissionKeys}}))}/>:null,
       overviewAfter:<TosCard className="ho-role-card"><TosButton variant="secondary" disabled={!archivePreviewRole(row)} onClick={()=>setConfirm(true)}>Lưu trữ vai trò</TosButton>{confirm&&<div role="alertdialog" aria-label="Xác nhận lưu trữ"><p>Lưu trữ {row.name}?</p><TosButton variant="secondary" onClick={()=>setConfirm(false)}>Hủy</TosButton><TosButton variant="primary" onClick={()=>{const archived=archivePreviewRole(row);if(archived)setState(prev=>reducePreview(prev,{type:"replace",id:row.id,record:archived}));setConfirm(false);}}>Xác nhận lưu trữ</TosButton></div>}</TosCard>}}}/>:
-      <TddRenderer view={{kind:"table",props:{...common,query,rows:state.records.map(project),total:state.records.length,status:"ready",actionBindings:bindings,onQueryChange:setQuery,onOpen:r=>{setSelected(r.id);setFull(false);}}}}/>}
-    {row&&!full&&<TddRenderer view={{kind:"drawer",props:{...common,record:project(row),onClose:close,onDetail:()=>setFull(true)}}}/>}
+      <TddRenderer view={{kind:"table",props:{...common,query,rows:state.records.map(project),total:state.records.length,status:"ready",writes:tableWrites,actionBindings:bindings,onQueryChange:setQuery,onOpen:r=>{setSelected(r.id);setFull(false);}}}}/>}
+    {row&&!full&&<TddRenderer view={{kind:"drawer",props:{...common,record:project(row),writes:recordWrites,onClose:close,onDetail:()=>setFull(true)}}}/>}
     {create&&<TddRenderer view={{kind:"form",props:{...common,mode:"create",title:"Tạo vai trò",onClose:()=>setCreate(false),actionBindings:bindings,content:<div className="ho-role-editor"><CreateCustomRoleFields draft={draft} onChange={setDraft}/><PermissionPicker catalog={eligiblePermissions(catalog)} selected={keys} onChange={setKeys}/></div>}}}/>}
   </TddPreferencePolicy.Provider>;
   return content;

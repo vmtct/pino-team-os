@@ -1,7 +1,17 @@
 "use client";
-import {useState} from "react";
-import {DrawerFrame,TableFrame,TosButton} from "@pino/design-system/react";
-import styles from "./posts.module.css";
-type Post = {id:string;caption:string;person:string;status:"Nháp"|"Chờ duyệt"|"Đã đăng";media:string[]};
-const initial:Post[]=[{id:"POST-1024",caption:"Từng nốt nhạc nhỏ là một bước tiến lớn.",person:"QA Minh Khang",status:"Nháp",media:["Ảnh Piano 01"]},{id:"POST-1023",caption:"Mùa thu trong mắt con.",person:"QA An Nhiên",status:"Chờ duyệt",media:["Ảnh Hội họa 01"]}];
-export function BoPostSubmitShell(){const [posts,setPosts]=useState(initial);const [active,setActive]=useState<string|null>(null);const [caption,setCaption]=useState("");const row=posts.find(p=>p.id===active);function open(p:Post){setActive(p.id);setCaption(p.caption)}function submit(){if(!row||!caption.trim()||!row.media.length)return;setPosts(ps=>ps.map(p=>p.id===row.id?{...p,caption,status:"Chờ duyệt"}:p));setActive(null)}return <main className={styles.root+" pap2337-bo"}><header><small>PINER APP / CONTENT</small><h1>Bài đăng</h1><p>M1 FE Shell · Dữ liệu minh họa trong bộ nhớ, không kết nối Core. Gửi duyệt chưa tạo yêu cầu thật; BO không có quyền xuất bản.</p></header><TableFrame<Post> surface="bo" caption="Bài đăng · dữ liệu minh họa" rows={posts} rowKey={p=>p.id} columns={[{key:"id",label:"Post",render:p=>p.id},{key:"person",label:"Person",render:p=>p.person},{key:"caption",label:"Caption",render:p=>p.caption},{key:"status",label:"Trạng thái",render:p=>p.status},{key:"createdTime",label:"Created Time",render:()=> "—"},{key:"createdBy",label:"Created By",render:()=> "—"},{key:"modifiedTime",label:"Last Modified Time",render:()=> "—"},{key:"modifiedBy",label:"Last Modified By",render:()=> "—"},{key:"action",label:"Thao tác",render:p=><TosButton type="button" variant="secondary" onClick={()=>open(p)}>Chi tiết</TosButton>}]} />{row&&<DrawerFrame surface="bo" title={row.id+" · Chi tiết bài đăng"} onClose={()=>setActive(null)} footer={<>{row.status==="Nháp"&&<TosButton type="button" disabled={!caption.trim()||!row.media.length} onClick={submit}>Gửi duyệt</TosButton>}<TosButton type="button" variant="secondary" onClick={()=>setActive(null)}>Đóng</TosButton></>}><label>Person<input value={row.person} readOnly/></label><label>Caption<textarea value={caption} disabled={row.status!=="Nháp"} onChange={e=>setCaption(e.target.value)}/></label><label>Media<input value={row.media.join(", ")} readOnly/></label><label>Trạng thái<input value={row.status} readOnly/></label></DrawerFrame>}</main>}
+/** PAP-2337 / PNR-APP-HUB — same native BO product UI, fixture session only. */
+import {useEffect,useState} from "react";
+import {BoPostsDraftRuntime} from "@/app/bo/piner-posts/BoPostsDraftRuntime";
+import {createPostPreviewSession} from "@/app/bo/piner-posts/post-preview-session";
+import {postPreviewNavigation} from "@/app/bo/piner-posts/post-preview-navigation";
+import {TddPreferencePolicy} from "@/app/components/workspace-renderer/Record";
+export function BoPostSubmitShell(){
+ const [preview,setPreview]=useState<{session:ReturnType<typeof createPostPreviewSession>;navigation:ReturnType<typeof postPreviewNavigation>}|null>(null);
+ useEffect(()=>{
+  const local=location.origin==="http://192.168.1.6:8800"&&self.origin==="null";
+  const staging=location.origin==="https://bo.staging.pinohouse.art";
+  if((!local&&!staging)||location.pathname!=="/bo/piner-posts"||new URLSearchParams(location.search).get("m1Preview")!=="1")return;
+  const session=createPostPreviewSession();const navigation=postPreviewNavigation();setPreview({session,navigation});return()=>session.dispose();
+ },[]);
+ return preview?<TddPreferencePolicy.Provider value="ephemeral"><BoPostsDraftRuntime session={preview.session} centerLabel="PINO Cần Thơ (mẫu)" previewNavigation={preview.navigation}/></TddPreferencePolicy.Provider>:null;
+}

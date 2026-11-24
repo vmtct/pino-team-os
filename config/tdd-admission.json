@@ -958,6 +958,9 @@
         "app/bo/piner-posts/draft-retry-journal.ts",
         "app/bo/piner-posts/native-draft-binding.ts",
         "app/bo/piner-posts/native-draft-session.ts",
+        "app/bo/piner-posts/post-preview-navigation.ts",
+        "app/bo/piner-posts/post-preview-session.ts",
+        "app/bo/piner-posts/post-preview-photos.ts",
         "app/bo/piner-posts/page.tsx",
         "app/bo/piner-posts/schema.ts",
         "app/bo/piner-posts/NativePrivateMediaPanel.tsx",
@@ -993,6 +996,7 @@
         "lib/pap2173-private-media-handler.test.ts"
       ],
       "externalReferences": [
+        {"file":"app/bo/content/posts/BoPostSubmitShell.tsx","owner":"PAP-2337"},
           {
             "file": "lib/ho-routes.ts",
             "owner": "PAP-1221"

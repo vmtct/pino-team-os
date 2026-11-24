@@ -9,6 +9,24 @@
   },
   "consumers": [
     {
+      "file": "app/bo/content/posts/PostPreviewShell.tsx",
+      "uses": 1,
+      "mode": "tabbed",
+      "jira": "PAP-2337",
+      "tabSource": "literal",
+      "tabs": [["overview","Tổng quan"],["media","Media & Diary"],["history","Lịch sử"]],
+      "g4": {
+        "surface": "BO",
+        "module": "piner-posts",
+        "authPort": 9335,
+        "route": "/bo/piner-posts",
+        "tableSelector": "table tbody tr",
+        "detailSelector": "#detail-screen",
+        "runner": "scripts/pap2337-post-detail-live-cdp.mjs"
+      }
+    },
+
+    {
       "file": "app/bo/afterschool-accounts/AfterschoolAccounts.tsx",
       "uses": 1,
       "mode": "tabbed",
