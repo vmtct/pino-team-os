@@ -4,7 +4,11 @@ on:
     paths:
       - 'app/ho/content/post-approval/**'
       - 'app/bo/content/posts/**'
-      - 'app/bo/navigation.ts'
+      - 'app/bo/piner-posts/**'
+      - 'lib/pap2337-native-post-expansion.test.ts'
+      - 'lib/pap2337-post-preview.test.ts'
+      - 'scripts/build-native-m1-post.mjs'
+      - 'scripts/native-m1-local/post-entry.tsx'
       - '.github/workflows/pap2337-post-approval-m1.yml'
   workflow_dispatch:
 permissions:
@@ -21,16 +25,16 @@ jobs:
           cache: npm
       - run: npm ci --no-audit --no-fund
       - run: npm run typecheck
-      - name: Verify M1 post editorial contract
+      - name: Verify synthetic lifecycle and actor boundary
+        run: node --import tsx --test lib/pap2337-post-preview.test.ts lib/pap2337-native-post-expansion.test.ts lib/pap2172-private-media-shell.test.ts
+      - name: Verify shared native renderer wiring
         run: |
           node - <<'NODE'
-          const fs=require('fs');
-          const ho=fs.readFileSync('app/ho/content/post-approval/HoPostApprovalShell.tsx','utf8');
-          const bo=fs.readFileSync('app/bo/content/posts/BoPostSubmitShell.tsx','utf8');
-          const nav=fs.readFileSync('app/bo/navigation.ts','utf8');
-          for(const x of ['Hide Post','Lưu & Xuất bản','Chỉnh sửa Person','Chỉnh sửa Center','Chỉnh sửa Diary nguồn']) if(!ho.includes(x))throw Error('HO missing '+x);
-          if(ho.includes('pap2336-detailnav">'))throw Error('HO drawer must not have tabs');
-          if(!bo.includes('Gửi duyệt')||bo.includes('Xuất bản'))throw Error('BO must submit, not publish');
-          if(!bo.includes('BoPostSubmitShell'))throw Error('BO Submit shell missing');
-          console.log('PAP-2337 M1 FE contract PASS');
+          const fs=require('fs'),read=p=>fs.readFileSync(p,'utf8');
+          const ho=read('app/ho/content/post-approval/HoPostApprovalShell.tsx');
+          const bo=read('app/bo/content/posts/BoPostSubmitShell.tsx');
+          const shared=read('app/bo/content/posts/PostPreviewShell.tsx');
+          if(!ho.includes('PostPreviewShell surface="ho"')||!bo.includes('BoPostsDraftRuntime session=')||!bo.includes('createPostPreviewSession'))throw Error('Native wrapper mismatch');
+          for(const x of ['Hide Post','Lưu & Xuất bản','Gửi duyệt','PropertySections','TableFrame','DrawerFrame','DetailFrame','onPaste','transitionPost']) if(!shared.includes(x))throw Error('Shared renderer missing '+x);
+          if(!shared.includes('!ho&&draft.status==="Nháp"')||!shared.includes('ho&&draft.status==="Chờ duyệt"'))throw Error('Actor action boundary missing');
           NODE
