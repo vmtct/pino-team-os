@@ -5,12 +5,12 @@ import {TddRenderer} from "@/app/components/workspace-renderer/Renderer";
 import {TddDetail,RecordState} from "@/app/components/workspace-renderer/Record";
 import {BoQuickView} from "@/app/bo/components/registration/BoQuickView";
 import {TddHostMenu} from "@/app/components/workspace-adapters/SurfaceWorkspace";
-import {browserTddNavigation} from "@/lib/workspace-adapters/navigation";
+import {browserTddNavigation,type AdapterNavigation} from "@/lib/workspace-adapters/navigation";
 import type {TableQuery,ModuleRow} from "@/lib/workspace-schema";
 import {norm,type BoRecord,type BoValue} from "@/lib/bo-registration";
 import {postModule} from "./schema";
 import {draftSchema,draftQuery,type DraftFields} from "./native-draft-binding";
-import type {NativeDraftSession} from "./native-draft-session";
+import type {DraftRuntimeSession} from "./post-preview-session";
 import {CoreDraftRequestError,type CoreDraftRow} from "./core-draft-client";
 import {NativePrivateMediaPanel} from "./NativePrivateMediaPanel";
 import {resolvePerson,type PersonChoice,type PostProgramKey} from "./data-port";
@@ -20,12 +20,12 @@ const blank=(center:string):BoRecord=>({id:"",name:"",program:"PINO Afterschool"
 const programKey=(label:unknown):PostProgramKey=>label==="MyTime by PINO"?"MYTIME":"AFTERSCHOOL";
 const noPeople=(program:PostProgramKey)=>program==="MYTIME"?"Chưa có Person Guest đủ điều kiện tại MyTime của cơ sở này.":"Chưa có Person đủ điều kiện trong Afterschool của cơ sở này.";
 function errorText(e:unknown){return e instanceof Error?e.message:"Không thể tải hoặc lưu Post.";}
-export function BoPostsDraftRuntime({session,centerLabel}:{session:NativeDraftSession;centerLabel:string}){
- return <ScopedDraft key={session.userId+":"+session.controller.centerId} session={session} centerLabel={centerLabel}/>;
+export function BoPostsDraftRuntime({session,centerLabel,previewNavigation}:{session:DraftRuntimeSession;centerLabel:string;previewNavigation?:AdapterNavigation<DraftFields>}){
+ return <ScopedDraft key={session.userId+":"+session.controller.centerId} session={session} centerLabel={centerLabel} previewNavigation={previewNavigation}/>;
 }
-function ScopedDraft({session,centerLabel}:{session:NativeDraftSession;centerLabel:string}){
+function ScopedDraft({session,centerLabel,previewNavigation}:{session:DraftRuntimeSession;centerLabel:string;previewNavigation?:AdapterNavigation<DraftFields>}){
  const {registry,context,controller,mutation}=session,menu=useContext(TddHostMenu);
- const navigation=useMemo(()=>browserTddNavigation("BO","piner-posts",draftQuery),[]);
+ const navigation=useMemo(()=>previewNavigation??browserTddNavigation("BO","piner-posts",draftQuery),[previewNavigation]);
  const [position,setPosition]=useState(()=>navigation.read());
  const [reload,setReload]=useState(0);
  const [listResult,setListResult]=useState<{generation:number;rows:readonly Row[];status:State}|null>(null);
