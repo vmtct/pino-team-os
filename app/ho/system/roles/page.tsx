@@ -29,5 +29,5 @@ export default async function Page({searchParams}:{searchParams:Promise<{m1Previ
     if(query.record===undefined&&query.m1Preview===undefined)return <HoRolesTdd/>;
     forbidden();
   }
-  return <RoleM1Preview key={actor.userId} scopeKey={actor.userId} permissionKeys={actor.permissionKeys.filter(key=>key==="access.role.view"||key==="access.role.create")}/>;
+  return <RoleM1Preview key={actor.userId} scopeKey={actor.userId} permissionKeys={actor.permissionKeys.filter(key=>key==="access.role.view"||key==="access.role.create"||key==="access.role.edit")}/>;
 }

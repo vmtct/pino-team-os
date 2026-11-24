@@ -57,3 +57,19 @@ export function roleReviewRoute(query:{m1Preview?:string|string[];record?:string
     return query.m1Preview===undefined?"live":"invalid";
   return /^ROLE-MOCK-[0-9]{3,}$/.test(query.record)?"preview":"invalid";
 }
+
+// M1-only metadata edit; never a Core command or audit receipt.
+export function canEditPreviewRole(role:PreviewRole):boolean {
+  return role.fixture && role.id.startsWith(roleM1.idPrefix) && role.roleType==="custom" && role.status==="active" && role.roleKey!=="founder";
+}
+export function previewRoleVersion(role:PreviewRole):string {
+  return JSON.stringify([role.id,role.name,role.description,role.status,role.permissionKeys]);
+}
+export function editPreviewRole(role:PreviewRole,patch:unknown):PreviewRole|null {
+  if(!canEditPreviewRole(role)||!patch||typeof patch!=="object"||Array.isArray(patch))return null;
+  const values=patch as Record<string,unknown>;
+  const keys=Object.keys(values);
+  if(!keys.length||keys.some(k=>k!=="name"&&k!=="description")||keys.some(k=>typeof values[k]!=="string"))return null;
+  const input=roleCreateInput({roleKey:role.roleKey,displayName:typeof values.name==="string"?values.name:role.name,description:typeof values.description==="string"?values.description:role.description});
+  return input?{...role,name:input.displayName,description:input.description??""}:null;
+}
