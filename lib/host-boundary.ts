@@ -40,8 +40,6 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   }
   const workshop = workshopHostDecision(hostname, pathname, method);
   if (workshop) return {action:workshop};
-  // PAP-2337: isolated synthetic M1 review, staging BO only.
-  if (pathname.toLowerCase() === "/bo/content/posts") return {action:hostname === BO_STAGING_HOSTNAME && pathname === "/bo/content/posts" && (method === "GET" || method === "HEAD") ? "next" : "not_found"};
   // PAP-2181: exact private native Enrollment page; no Production or cross-surface admission.
   if (pathname.toLowerCase().startsWith("/bo/enrollments")) return { action: hostname === BO_STAGING_HOSTNAME && (pathname === "/bo/enrollments" || pathname === "/bo/enrollments/") && (method === "GET" || method === "HEAD") ? "next" : "not_found" };
   const guest = guestHostDecision(hostname, pathname, method);
