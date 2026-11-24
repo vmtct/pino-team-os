@@ -6,3 +6,13 @@
 @media (max-width:600px) {
  .row { grid-template-columns: minmax(0,1fr); }
 }
+
+/* PAP-2337: media content layout only; the native TDD/DS retains shell and controls. */
+.diaryGrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; }
+.diaryCard,.mediaCard { display:grid; gap:6px; min-width:0; align-content:start; }
+.diaryCard img,.mediaCard img { display:block; width:100%; height:auto; aspect-ratio:4/3; object-fit:cover; border-radius:6px; }
+.composer { display:grid; gap:8px; margin:12px 0; padding:12px; border:1px solid var(--border,#ddd); border-radius:8px; }
+.attachments { display:flex; flex-wrap:wrap; gap:8px; }
+.attachment { display:flex; align-items:center; gap:4px; }
+.attachment img { display:block; width:64px; height:48px; object-fit:cover; }
+.carousel { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; }
