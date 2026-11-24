@@ -14,15 +14,50 @@ test("PAP-1170 PINO package exact artifact",()=>{
  assert.equal(createHash("sha256").update(archive).digest("hex"),config.tarballSha256);
  const manifest=JSON.parse(readFileSync(require.resolve("@pino/design-system/manifest.json"),"utf8"));
  assert.equal(manifest.version,config.version);
- assert.equal(config.version,"0.4.1");
- assert.equal(config.sourceCommit,"5590b5205effcc0ade93ac3fcb55c07a4ecf135f");
- assert.equal(config.sourceMainSha,"72637d7a0e0ae92d97541c23b2c438b52391a4df");
- assert.equal(config.sourcePullRequest,"https://github.com/vmtct/pino-design-system/pull/6");
- assert.equal(config.tarballSha256,"e2eed0afb3dc39ff943a7b57bedf444e1523aa3100bd55d090b186502369f7d8");
- assert.equal(config.previousRelease.version,"0.3.0");
- assert.equal(config.previousRelease.sourcePullRequest,"https://github.com/vmtct/pino-design-system/pull/4");
- assert.equal(config.previousRelease.sourceMainSha,"ce28e29f3c657251679b9577889730bcdd9e9542");
- assert.equal(createHash("sha256").update(readFileSync(resolve(config.previousRelease.vendoredTarball))).digest("hex"),config.previousRelease.tarballSha256);
+ // PAP-2363 / PLT-LEAD: pin exact released artifact and retain every historical digest.
+ const expected = [
+   [
+     "0.4.3",
+     "9af10aa2df5f64b6bf74f96eac8e12171bf26e0a",
+     "2427d0c5b92e62542f8e185f0a90fa887b402156",
+     8,
+     "5aff8cd7c77aa2d30fbb671b039ad6b1c4406645dbf7df93a7efe3a59237fc87"
+   ],
+   [
+     "0.4.2",
+     "db034e81fba8aaccf7c63b98de9e5dc07cb55ffa",
+     "10ed47b028d5f77702a0051154cdb6cec1b0ed5b",
+     7,
+     "77a0a6e1cd5f56e431788407600fe19b79d48f55c57df6fd9ea86e880d7fb799"
+   ],
+   [
+     "0.4.1",
+     "5590b5205effcc0ade93ac3fcb55c07a4ecf135f",
+     "72637d7a0e0ae92d97541c23b2c438b52391a4df",
+     6,
+     "e2eed0afb3dc39ff943a7b57bedf444e1523aa3100bd55d090b186502369f7d8"
+   ],
+   [
+     "0.3.0",
+     "906e4a38070169223df7fc21ed841f5d57111362",
+     "ce28e29f3c657251679b9577889730bcdd9e9542",
+     4,
+     "2b7cd14fed8804685379facc0f92f82008d4bc2f825974c34ee20af4deeca6d5"
+   ]
+ ] as const;
+ let release=config;
+ for(const [version,sourceCommit,sourceMainSha,pr,digest] of expected){
+  assert.ok(release,version);
+  assert.equal(release.version,version);
+  assert.equal(release.sourceCommit,sourceCommit);
+  assert.equal(release.sourceMainSha,sourceMainSha);
+  assert.equal(release.sourcePullRequest,"https://github.com/vmtct/pino-design-system/pull/"+pr);
+  assert.equal(release.vendoredTarball,"vendor/pino-design-system/pino-design-system-"+version+".tgz");
+  assert.equal(release.tarballSha256,digest);
+  assert.equal(createHash("sha256").update(readFileSync(resolve(release.vendoredTarball))).digest("hex"),digest);
+  release=release.previousRelease;
+ }
+ assert.equal(release,undefined);
  assert.equal(manifest.sourceOwner,"PINO");
 });
 test("PAP-1170 shared TDD and TOS React SSR",()=>{
