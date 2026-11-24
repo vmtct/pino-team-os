@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useContext, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { TddHostMenu } from "@/app/components/workspace-adapters/SurfaceWorkspace";
+import { applyBoFilterSettings, type BoFilterField, type BoFilterSettings } from "@/lib/bo-filter-settings-state";
 import { BoFullDetail } from "@/app/bo/components/BoFullDetail";
 import { BoProperties } from "@/app/bo/components/BoProperties";
 import { BoDataGrid, BoDataGridBadge, BoDataGridStatus, BoDrawer, type BoDataGridColumn } from "@/app/bo/components/data-grid";
@@ -86,6 +88,7 @@ function PropertySection<T extends Record<string, unknown>>({
 }
 
 export function LeadHouseholdM1Preview({localReview=false}: {localReview?: boolean} = {}) {
+  const menu = useContext(TddHostMenu);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -174,6 +177,11 @@ export function LeadHouseholdM1Preview({localReview=false}: {localReview?: boole
     { key: "lifecycle", header: "Trạng thái", minWidth: 120, render: record => <BoDataGridStatus value={record.lifecycle === "ACTIVE" ? "Đang hoạt động" : "Đã lưu trữ"} tone={record.lifecycle === "ACTIVE" ? "success" : "neutral"} /> },
     ...LEAD_M1_AUDIT_COLUMNS.map(field => ({ key: field.key, header: field.label, minWidth: field.type === "datetime" ? 150 : 130, render: (record: LeadM1Record) => record[field.key] ?? field.fallback })),
   ], []);
+
+  const filterFields = useMemo<BoFilterField[]>(() => columns.map(column => ({key:column.key, type:"text", filterable:["phone","lifecycle"].includes(column.key)})), [columns]);
+  const [tableSettings,setTableSettings] = useState<BoFilterSettings>(() => ({group:{combinator:"and",filters:[]},visibleKeys:columns.map(column=>column.key)}));
+  const [sortDirection,setSortDirection] = useState<"asc"|"desc">("asc");
+  const tableRows = useMemo(() => [...applyBoFilterSettings(filteredRecords,tableSettings,filterFields)].sort((a,b) => a.contactName.localeCompare(b.contactName,"vi")*(sortDirection==="asc"?1:-1)),[filteredRecords,tableSettings,filterFields,sortDirection]);
 
   function setPreviewParam(key: string, value: string | null, history: "push" | "replace" = "push") {
     const params = new URLSearchParams(searchParams.toString());
@@ -273,7 +281,7 @@ export function LeadHouseholdM1Preview({localReview=false}: {localReview?: boole
   return <main className={styles.page}>
     {!selectedLead ? <><header className={styles.heading}>
       <div>
-        <h1>Leads</h1>
+        <div className={styles.titleRow}>{menu("lead-menu-btn")}<h1>Leads</h1></div>
         <p>Danh bạ đầu mối theo số điện thoại; thành viên và nhu cầu được gom dưới cùng một Lead.</p>
       </div>
       <div className={styles.headingActions}>
@@ -287,15 +295,22 @@ export function LeadHouseholdM1Preview({localReview=false}: {localReview?: boole
     {fixtureNotice ? <p className={styles.previewNotice} role="status">{fixtureNotice}</p> : null}
 
     <BoDataGrid
-      rows={filteredRecords}
+      rows={tableRows}
       columns={columns}
+      rowsAlreadyFiltered
+      typedFilterSettings={tableSettings}
+      typedFilterFields={filterFields}
+      onTypedFilterSettingsChange={setTableSettings}
+      sortKey="contact"
+      sortDirection={sortDirection}
+      onSortChange={(_,direction)=>setSortDirection(direction)}
       rowKey={record => record.id}
       caption="Danh bạ Leads"
       search={query}
       onSearchChange={setQuery}
       searchPlaceholder="Tìm tên, số điện thoại, thành viên, chương trình…"
       state="ready"
-      resultLabel={filteredRecords.length + " / " + records.length + " Leads"}
+      resultLabel={tableRows.length + " / " + records.length + " Leads"}
       selectedRowKey={selectedLeadId ?? quickViewId}
       onRowOpen={record => setPreviewParam("quickView", record.id)}
       quickViewOpener
@@ -313,7 +328,7 @@ export function LeadHouseholdM1Preview({localReview=false}: {localReview?: boole
       returnTo={backToTable}
       activeTab={activeTab}
       designVariant="business-v25"
-      actions={<div className={styles.detailActions}><BoDataGridBadge>DỮ LIỆU MẪU</BoDataGridBadge><button type="button" onClick={() => openEdit(selectedLead)}>Chỉnh sửa</button></div>}
+      actions={<div className={styles.detailActions}>{menu("lead-detail-menu-btn")}<BoDataGridBadge>DỮ LIỆU MẪU</BoDataGridBadge><button type="button" onClick={() => openEdit(selectedLead)}>Chỉnh sửa</button></div>}
       tabs={[
         { id: "detail", label: "Tổng quan", content: <LeadOverview record={selectedLead} onSave={(name, phone) => saveInlineContact(selectedLead.id, name, phone)} onConvert={() => openConvert(selectedLead)} /> },
         { id: "members", label: "Thành viên", content: <LeadMembers record={selectedLead} onSave={(memberId, name, age, roles) => saveInlineMember(selectedLead.id, memberId, name, age, roles)} onSaveInterests={(memberId, kinds) => saveMemberInterests(selectedLead.id, memberId, kinds)} /> },
@@ -487,7 +502,7 @@ function LeadRelationships({ record }: { record: LeadM1Record }) {
 function LeadHistory() {
   return <section className={styles.detailContent}>
     <h2>Lịch sử thay đổi</h2>
-    <div className={styles.emptyHistory}><strong>Chưa có Core audit history trong M1 preview</strong><p>Không dựng sự kiện, thời điểm hoặc người thao tác giả. Khi M2/M3 tích hợp projection được phép, tab này sẽ hiển thị history thật.</p></div>
+    <div className={styles.emptyHistory}><strong>Chưa có lịch sử thay đổi</strong></div>
   </section>;
 }
 
@@ -533,12 +548,12 @@ function LeadCreateEditDrawer({
     onClose={onClose}
     footer={<div className={styles.drawerFooter}>
       {step === 2 ? <button type="button" onClick={() => { setLocalError(""); onStepChange(1); }}>← Quay lại</button> : <button type="button" onClick={onClose}>Hủy</button>}
-      {step === 1 ? <button type="button" className={styles.primaryButton} onClick={() => { if (!draft.contactName.trim() || !draft.phone.trim()) { setLocalError("Nhập người liên hệ và số điện thoại trước khi tiếp tục."); return; } setLocalError(""); onStepChange(2); }}>Tiếp tục: Thành viên →</button> : <button type="button" className={styles.primaryButton} onClick={onSave}>Lưu fixture mẫu</button>}
+      {step === 1 ? <button type="button" className={styles.primaryButton} onClick={() => { if (!draft.contactName.trim() || !draft.phone.trim()) { setLocalError("Nhập người liên hệ và số điện thoại trước khi tiếp tục."); return; } setLocalError(""); onStepChange(2); }}>Tiếp tục: Thành viên →</button> : <button type="button" className={styles.primaryButton} onClick={onSave}>Lưu mẫu</button>}
     </div>}
   >
     <div className={styles.drawerContent}>
       <div className={styles.stepProgress}><span data-active={step === 1 || undefined}>1 · Thông tin liên hệ</span><i /><span data-active={step === 2 || undefined}>2 · Thành viên</span></div>
-      <div className={styles.fixtureStrip}>Mọi thay đổi chỉ nằm trong state của preview. Không gửi API hoặc ghi Core.</div>
+
       {step === 1 ? <>
         <PropertySection title="Thông tin liên hệ" schema={CONTACT_FIELD_SCHEMA} values={{ contactName: draft.contactName, phone: draft.phone }} mode={mode === "create" ? "CREATE" : "EDIT"} onChange={(key, value) => onDraftChange({ ...draft, [key]: value as string })} />
         <section className={styles.interestSection}>
