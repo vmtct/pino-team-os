@@ -1,5 +1,6 @@
 /** PAP-2337 / PNR-APP-HUB — isolated presentation data; never opens a live session. */
 import type {AuthorizationContext} from "@/lib/workspace-schema";
+import {postPreviewPhotos} from "./post-preview-photos";
 import {bindNativeDraft} from "./native-draft-binding";
 import {CoreDraftRequestError,type CoreDraftRow} from "./core-draft-client";
 import type {NativeDraftSession} from "./native-draft-session";
@@ -7,17 +8,7 @@ import type {PostProgramKey,PersonChoice} from "./data-port";
 const CENTER="CENTER-MOCK-001";
 const people:Record<PostProgramKey,readonly PersonChoice[]>={AFTERSCHOOL:[{id:"PERSON-MOCK-001",label:"Minh Khang · Học viên · 8 tuổi · •••• 1234"}],MYTIME:[{id:"PERSON-MOCK-002",label:"An Nhiên · Khách MyTime · 12 tuổi · •••• 5678"}]};
 const publisher=(program:PostProgramKey)=>program==="AFTERSCHOOL"?"PINO Afterschool":"MyTime by PINO";
-const SAMPLE_PNG="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jR1sAAAAASUVORK5CYII=";
-function sampleImage(tone:string):string {
- if(typeof document==="undefined")return SAMPLE_PNG;
- const canvas=document.createElement("canvas");canvas.width=640;canvas.height=480;
- const ctx=canvas.getContext("2d");if(!ctx)return SAMPLE_PNG;
- ctx.fillStyle="#f3e8d7";ctx.fillRect(0,0,640,480);
- ctx.fillStyle=tone;ctx.beginPath();ctx.arc(320,208,136,0,Math.PI*2);ctx.fill();
- ctx.fillStyle="#d6a76c";ctx.beginPath();ctx.moveTo(62,380);ctx.lineTo(216,128);ctx.lineTo(364,380);ctx.lineTo(480,200);ctx.lineTo(580,380);ctx.closePath();ctx.fill();
- ctx.fillStyle="#4c3429";ctx.font="22px sans-serif";ctx.textAlign="center";ctx.fillText("PINO · Ảnh mẫu",320,430);return canvas.toDataURL("image/png");
-}
-function blobOf(src:string){return new Blob([Uint8Array.from(atob(src.split(",")[1]),c=>c.charCodeAt(0))],{type:"image/png"});}
+function blobOf(src:string){return new Blob([Uint8Array.from(atob(src.split(",")[1]),c=>c.charCodeAt(0))],{type:"image/jpeg"});}
 function dataUrl(file:Blob):Promise<string>{return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>typeof reader.result==="string"?resolve(reader.result):reject(Error("Ảnh không hợp lệ."));reader.onerror=reject;reader.readAsDataURL(file);});}
 function row(id:string,personId:string,program:PostProgramKey,caption:string):CoreDraftRow {
  const person=people[program].find(p=>p.id===personId);if(!person)throw new CoreDraftRequestError(404,"create");
@@ -32,7 +23,7 @@ export type DraftRuntimeSession=Pick<NativeDraftSession,"registry"|"schema"|"mut
 type MediaItem={id:string;file:Blob;version:number;src:string;diaryId?:string;retouched:boolean};
 export function createPostPreviewSession():DraftRuntimeSession&{dispose:()=>void} {
  let closed=false,sequence=1,mediaSequence=1;
- const diaries=[{id:"DIARY-MOCK-001",label:"16/11 · Piano",src:sampleImage("#87a4aa")},{id:"DIARY-MOCK-002",label:"19/11 · Piano",src:sampleImage("#c27e61")},{id:"DIARY-MOCK-003",label:"20/11 · Piano",src:sampleImage("#788b68")}];
+ const diaries=[{id:"DIARY-MOCK-001",label:"16/11 · Piano",src:postPreviewPhotos[0].src},{id:"DIARY-MOCK-002",label:"19/11 · Piano",src:postPreviewPhotos[1].src},{id:"DIARY-MOCK-003",label:"20/11 · Piano",src:postPreviewPhotos[2].src}];
  const claims=new Map<string,string>([[diaries[0].id,"POST-MOCK-001"],[diaries[2].id,"POST-MOCK-999"]]);
  const initial=row("POST-MOCK-001","PERSON-MOCK-001","AFTERSCHOOL","Từng nốt nhạc nhỏ là một bước tiến lớn.");
  const rows=new Map<string,CoreDraftRow>([[initial.id,{...initial,mediaCount:1,source:"Diary"}]]);

@@ -960,6 +960,7 @@
         "app/bo/piner-posts/native-draft-session.ts",
         "app/bo/piner-posts/post-preview-navigation.ts",
         "app/bo/piner-posts/post-preview-session.ts",
+        "app/bo/piner-posts/post-preview-photos.ts",
         "app/bo/piner-posts/page.tsx",
         "app/bo/piner-posts/schema.ts",
         "app/bo/piner-posts/NativePrivateMediaPanel.tsx",
