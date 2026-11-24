@@ -1,4 +1,5 @@
 // PAP-2192 / PLT-ACCESS — UI fixtures only. Never a Core role or assignment.
+import type { BoAccessPermission } from "@/lib/bo-access-model";
 import type { PreviewFeature, PreviewRecord } from "@/lib/m1-preview/contract";
 import { roleCreateInput, type RoleDraft } from "./role-lifecycle-model";
 type CatalogPermission = {key:string; applicablePlatforms?: readonly string[] | null; surfaceApplicability:string; allowedScopes:readonly string[]};
@@ -32,3 +33,17 @@ export function archivePreviewRole(role: PreviewRole): PreviewRole | null {
   return role.fixture && role.id.startsWith(roleM1.idPrefix) && role.status === "active" && role.assignmentCount === 0
     ? { ...role, status: "archived" } : null;
 }
+
+// These are synthetic catalog examples, not live grants or a complete Core catalog.
+type Example=BoAccessPermission & {applicablePlatforms:("BO"|"TOS")[]};
+const example=(key:string,domain:string,displayLabel:string,surface:"BO"|"TOS",kind:"read"|"mutation",scope:Example["allowedScopes"]):Example=>({key:"fixture."+key,domain,displayLabel,description:"M1 synthetic example",accessKind:kind,surfaceApplicability:surface,applicablePlatforms:[surface],allowedScopes:scope,contextualPolicy:null});
+export const rolePreviewCatalog=[
+ example("student.view","Student","Xem học viên","BO","read",["CENTER"]),
+ example("student.edit","Student","Chỉnh sửa học viên","BO","mutation",["CENTER"]),
+ example("enrollment.view","Enrollment","Xem ghi danh","BO","read",["CENTER"]),
+ example("schedule.view","Schedule","Xem lịch học","BO","read",["CENTER"]),
+ example("class.view","Class","Xem lớp học","TOS","read",["RUNNING_CLASS"]),
+ example("class.attendance","Class","Điểm danh","TOS","mutation",["RUNNING_CLASS"]),
+ example("mission.view","Mission","Xem nhiệm vụ","TOS","read",["CENTER","PATH"]),
+ example("mission.complete","Mission","Hoàn thành nhiệm vụ","TOS","mutation",["RUNNING_CLASS"]),
+];

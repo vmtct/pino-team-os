@@ -1,6 +1,6 @@
 "use client";
 // PAP-2192 / PLT-ACCESS — native TDD presentation; no live role commands.
-import { useEffect, useId, useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { TddRegistry, type AuthorizationContext, type FieldSchema, type ModuleRow, type TableQuery, type TddActionBindings } from "@/lib/workspace-schema";
 import { TddRenderer } from "@/app/components/workspace-renderer/Renderer";
 import { TddPreferencePolicy } from "@/app/components/workspace-renderer/Record";
@@ -11,7 +11,7 @@ import type { BoAccessPermission } from "@/lib/bo-access-model";
 import { roleDefinition, roleFields, roleQuery, verifyRolePermissionTabApproval } from "./schema";
 import { CreateCustomRoleFields } from "./RoleLifecycleForms";
 import { matchesPlatform, type PlatformFilter } from "./HoRoleEditor";
-import { roleM1, makePreviewRole, archivePreviewRole, eligiblePermissions, type PreviewRole } from "./role-m1-preview";
+import { roleM1, makePreviewRole, archivePreviewRole, eligiblePermissions, rolePreviewCatalog, type PreviewRole } from "./role-m1-preview";
 import type { RoleDraft } from "./role-lifecycle-model";
 
 const read = {display:true,search:false,filter:false,sort:false,group:false,inlineEdit:false} as const;
@@ -57,26 +57,16 @@ function PermissionPicker({catalog,selected,onChange,disabled=false}:{catalog:Bo
   </section></TosCard></div>;
 }
 /** The same typed view is mounted by authenticated Staging and the local synthetic-only host. */
-export function RoleM1Content({scopeKey,permissionKeys,localCatalog}:{scopeKey:string;permissionKeys:string[];localCatalog?:BoAccessPermission[]}){
+export function RoleM1Content({scopeKey,permissionKeys}:{scopeKey:string;permissionKeys:string[]}){
   const context=useMemo<AuthorizationContext>(()=>({surface:"HO",authorize:key=>permissionKeys.includes(key)}),[permissionKeys]);
   const [state,setState]=useState(()=>createPreviewState(roleM1,scopeKey));
   const [query,setQuery]=useState(initialQuery);
   const [selected,setSelected]=useState<string|null>(null),[full,setFull]=useState(false);
   const [create,setCreate]=useState(false),[draft,setDraft]=useState(emptyDraft),[keys,setKeys]=useState<string[]>([]);
-  const [catalog,setCatalog]=useState<BoAccessPermission[]|null>(localCatalog??null),[error,setError]=useState(false),[confirm,setConfirm]=useState(false);
-  useEffect(()=>{
-    if(localCatalog)return;
-    const abort=new AbortController();
-    void fetch("/api/bo/access/permissions",{method:"GET",credentials:"same-origin",cache:"no-store",signal:abort.signal}).then(async response=>{
-      if(!response.ok)throw Error("Catalog unavailable");
-      const data=(await response.json()).data;
-      if(!Array.isArray(data)||data.some(p=>!p||typeof p.key!=="string"||typeof p.domain!=="string"||typeof p.displayLabel!=="string"||!Array.isArray(p.allowedScopes)))throw Error("Invalid catalog");
-      if(!abort.signal.aborted)setCatalog(data);
-    }).catch(()=>{if(!abort.signal.aborted)setError(true);});
-    return ()=>abort.abort();
-  },[localCatalog]);
+  const catalog=rolePreviewCatalog;
+  const [confirm,setConfirm]=useState(false);
   const row=state.records.find(r=>r.id===selected);
-  const candidate=catalog&&makePreviewRole(draft,keys,catalog);
+  const candidate=makePreviewRole(draft,keys,catalog);
   const bindings:TddActionBindings={
     openCreate:{kind:"navigation",run:()=>{setDraft(emptyDraft());setKeys([]);setCreate(true);}},
     cancelCreate:{kind:"navigation",run:()=>setCreate(false)},
@@ -90,11 +80,11 @@ export function RoleM1Content({scopeKey,permissionKeys,localCatalog}:{scopeKey:s
   const content=<TddPreferencePolicy.Provider value="ephemeral">
     <p role="status">M1 · Dữ liệu mô phỏng, không lưu vào hệ thống.</p>
     {row&&full?<TddRenderer view={{kind:"detail",props:{...common,record:project(row),subject:{type:"access_role",id:row.id},onBack:close,
-      renderApprovedExtension:(_record,_context,tab)=>tab==="permissions"?<PermissionPicker catalog={eligiblePermissions(catalog??[])} selected={row.permissionKeys} disabled={row.status!=="active"} onChange={permissionKeys=>setState(prev=>reducePreview(prev,{type:"replace",id:row.id,record:{...row,permissionKeys}}))}/>:null,
+      renderApprovedExtension:(_record,_context,tab)=>tab==="permissions"?<PermissionPicker catalog={eligiblePermissions(catalog)} selected={row.permissionKeys} disabled={row.status!=="active"} onChange={permissionKeys=>setState(prev=>reducePreview(prev,{type:"replace",id:row.id,record:{...row,permissionKeys}}))}/>:null,
       overviewAfter:<TosCard className="ho-role-card"><TosButton variant="secondary" disabled={!archivePreviewRole(row)} onClick={()=>setConfirm(true)}>Lưu trữ vai trò</TosButton>{confirm&&<div role="alertdialog" aria-label="Xác nhận lưu trữ"><p>Lưu trữ {row.name}?</p><TosButton variant="secondary" onClick={()=>setConfirm(false)}>Hủy</TosButton><TosButton variant="primary" onClick={()=>{const archived=archivePreviewRole(row);if(archived)setState(prev=>reducePreview(prev,{type:"replace",id:row.id,record:archived}));setConfirm(false);}}>Xác nhận lưu trữ</TosButton></div>}</TosCard>}}}/>:
       <TddRenderer view={{kind:"table",props:{...common,query,rows:state.records.map(project),total:state.records.length,status:"ready",actionBindings:bindings,onQueryChange:setQuery,onOpen:r=>{setSelected(r.id);setFull(false);}}}}/>}
     {row&&!full&&<TddRenderer view={{kind:"drawer",props:{...common,record:project(row),onClose:close,onDetail:()=>setFull(true)}}}/>}
-    {create&&<TddRenderer view={{kind:"form",props:{...common,mode:"create",title:"Tạo vai trò",onClose:()=>setCreate(false),actionBindings:bindings,content:<div className="ho-role-editor"><CreateCustomRoleFields draft={draft} onChange={setDraft}/>{error?<p role="alert">Không tải được danh mục quyền.</p>:catalog?<PermissionPicker catalog={eligiblePermissions(catalog)} selected={keys} onChange={setKeys}/>:<p role="status">Đang tải danh mục quyền…</p>}</div>}}}/>}
+    {create&&<TddRenderer view={{kind:"form",props:{...common,mode:"create",title:"Tạo vai trò",onClose:()=>setCreate(false),actionBindings:bindings,content:<div className="ho-role-editor"><CreateCustomRoleFields draft={draft} onChange={setDraft}/><PermissionPicker catalog={eligiblePermissions(catalog)} selected={keys} onChange={setKeys}/></div>}}}/>}
   </TddPreferencePolicy.Provider>;
   return content;
 }

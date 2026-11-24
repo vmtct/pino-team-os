@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { roleM1, makePreviewRole, archivePreviewRole, eligiblePermissions, type PreviewRole } from "../app/ho/system/roles/role-m1-preview";
+import { roleM1, makePreviewRole, archivePreviewRole, eligiblePermissions, rolePreviewCatalog, type PreviewRole } from "../app/ho/system/roles/role-m1-preview";
 import { createPreviewState, reducePreview } from "./m1-preview/state";
 const draft={roleKey:"demo-operator",displayName:"Demo operator",description:"Preview"};
 const catalog=[
@@ -39,4 +39,12 @@ test("unified BO/TOS permission selection without a role target attribute",()=>{
  assert.equal(Object.hasOwn(row!,"target"),false);
  assert.equal(Object.hasOwn(roleM1.seed,"target"),false);
  for(const key of ["d","e","f"])assert.equal(makePreviewRole(draft,[key],catalog),null);
+});
+test("same eight isolated permission examples for both review hosts",()=>{
+ assert.equal(rolePreviewCatalog.length,8);
+ assert.equal(eligiblePermissions(rolePreviewCatalog).length,8);
+ assert.equal(new Set(rolePreviewCatalog.map(p=>p.key)).size,8);
+ assert.ok(rolePreviewCatalog.every(p=>p.key.startsWith("fixture.")));
+ assert.deepEqual(makePreviewRole(draft,["fixture.student.view","fixture.class.view"],rolePreviewCatalog)?.permissionKeys,["fixture.class.view","fixture.student.view"]);
+ assert.equal(makePreviewRole(draft,["student.view"],rolePreviewCatalog),null);
 });
