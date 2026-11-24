@@ -45,6 +45,13 @@ export function safeHoReturnTo(raw: string | null | undefined): string | null {
     if (parsed.origin !== "https://ho.staging.pinohouse.art" || !approved.has(parsed.pathname) || parsed.hash) return null;
     // PAP-1645 / PAP-1491: strip harmless campaign metadata before validating
     // returnTo, without allowing arbitrary query keys or an off-host target.
+    // PAP-2353: normalize the retired Staff M1 review marker, never grant admission here.
+    if (parsed.pathname === HO_PAGE_PATHS.staffs && parsed.searchParams.has("m1Preview")) {
+      const markers = parsed.searchParams.getAll("m1Preview");
+      const records = parsed.searchParams.getAll("record");
+      if (markers.length !== 1 || markers[0] !== "1" || records.length > 1 || (records.length === 1 && !/^STAFF-MOCK-[0-9]{3,}$/.test(records[0]!))) return null;
+      parsed.searchParams.delete("m1Preview");
+    }
     const functionalKeys = [...parsed.searchParams.keys()].filter(key => !ignoredTrackingKeys.has(key));
     if(parsed.pathname===HO_PAGE_PATHS.wishPolicies||parsed.pathname===HO_PAGE_PATHS.wishBanners){
       if(functionalKeys.some(k=>!["record","tab","wishSelection","wishRevision"].includes(k)))return null;
