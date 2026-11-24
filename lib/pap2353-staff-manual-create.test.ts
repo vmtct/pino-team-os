@@ -2,8 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { TddRegistry, validateQuery } from "./workspace-schema";
-import { emptyStaffDraft, manualStaffDefinition, manualStaffFields, manualStaffQuery, validateStaffDraft } from "../app/ho/staff/manual-create-contract";
-import { createStaffPreviewRecord, newStaffPreview, readStaffPreview, staffPreviewCenter, staffPreviewSeed } from "../app/ho/staff/manual-create-preview";
+import { emptyStaffDraft, manualStaffDefinition, manualStaffFields, manualStaffQuery, manualStaffAuditKeys, validateStaffDraft } from "../app/ho/staff/manual-create-contract";
+import { createStaffPreviewRecord, newStaffPreview, readStaffPreview, staffPreviewCenter, staffPreviewSeed, projectStaffPreviewRow } from "../app/ho/staff/manual-create-preview";
 const draft = () => ({ ...emptyStaffDraft(), name: "QA Staff", phone: "+84900000002", centerId: staffPreviewCenter.id, loginEmail: "qa@example.invalid" });
 test("PAP-2353 requires name, phone, and admitted center; optional login defaults absent", () => {
   assert.equal(validateStaffDraft(emptyStaffDraft(), [staffPreviewCenter], null).ok, false);
@@ -28,11 +28,22 @@ test("PAP-2353 login policy rejects mismatches and never projects credentials", 
 test("PAP-2353 TDD shares registered overview and drawer fields; synthetic audit stays null", () => {
   assert.deepEqual(manualStaffDefinition.drawer.sections, manualStaffDefinition.detail.overview.sections);
   assert(!manualStaffFields.some(field => ["password", "confirmation"].includes(field.key)));
-  assert.deepEqual([staffPreviewSeed.createdAt, staffPreviewSeed.createdByUser, staffPreviewSeed.updatedAt, staffPreviewSeed.updatedByUser], [null, null, null, null]);
+  assert.deepEqual([staffPreviewSeed.createdAt, staffPreviewSeed.createdBy, staffPreviewSeed.updatedAt, staffPreviewSeed.updatedBy], [null, null, null, null]);
 });
 
 test("PAP-2353 native schema registers and initial query is valid", () => {
   const schema = new TddRegistry().register({ ...manualStaffDefinition, data: { id: "qa-staff-contract", list: async () => ({ rows: [staffPreviewSeed], total: 1 }), detail: async id => id === staffPreviewSeed.id ? staffPreviewSeed : null } });
   validateQuery(schema, manualStaffQuery);
   assert.equal(schema.drawer.sections[0].fields.includes("phone"), true);
+});
+test("PAP-2353 default-on four audit columns and missing-actor presentation", () => {
+  const keys = ["createdAt", "createdBy", "updatedAt", "updatedBy"];
+  assert.deepEqual(manualStaffAuditKeys, keys);
+  assert.deepEqual(manualStaffDefinition.table.columns.filter(column => column.visible).slice(-4).map(column => column.field), keys);
+  assert.deepEqual(manualStaffQuery.order.slice(-4), keys);
+  assert.deepEqual(manualStaffQuery.visible.slice(-4), keys);
+  const projected = projectStaffPreviewRow(staffPreviewSeed);
+  assert.equal(projected.createdBy, "—"); assert.equal(projected.updatedBy, "—");
+  assert.equal(staffPreviewSeed.createdBy, null); assert.equal(staffPreviewSeed.updatedBy, null);
+  assert.equal(projected.createdAt, null); assert.equal(projected.updatedAt, null);
 });

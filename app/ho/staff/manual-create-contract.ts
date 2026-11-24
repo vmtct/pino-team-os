@@ -15,23 +15,26 @@ export const manualStaffFields = [
   { ...base, key: "center", label: "Cơ sở", type: "text", icon: "Aa" },
   { ...base, key: "loginEmail", label: "Email đăng nhập", type: "email", icon: "Aa" },
   { ...base, key: "createdAt", label: "Created Time", type: "datetime", icon: "▦" },
-  { ...base, key: "createdByUser", label: "Created By", type: "text", icon: "Aa" },
+  { ...base, key: "createdBy", label: "Created By", type: "text", icon: "Aa" },
   { ...base, key: "updatedAt", label: "Last Modified Time", type: "datetime", icon: "▦" },
-  { ...base, key: "updatedByUser", label: "Last Modified By", type: "text", icon: "Aa" },
+  { ...base, key: "updatedBy", label: "Last Modified By", type: "text", icon: "Aa" },
 ] as const satisfies readonly FieldSchema[];
 export type ManualStaffFields = typeof manualStaffFields;
 export type ManualStaffRow = ModuleRow<ManualStaffFields>;
 export const manualStaffSections = [
   { id: "staff-info", label: "Thông tin Staff", fields: ["name", "phone", "email", "gender", "birthDate", "center", "status", "role", "loginEmail"] },
-  { id: "audit", label: "Thông tin hệ thống", fields: ["createdAt", "createdByUser", "updatedAt", "updatedByUser"] },
+  { id: "audit", label: "Thông tin hệ thống", fields: ["createdAt", "createdBy", "updatedAt", "updatedBy"] },
 ] as const;
+export const manualStaffAuditKeys = ["createdAt", "createdBy", "updatedAt", "updatedBy"] as const;
+export const manualStaffColumns = [...staffQuery.order, ...manualStaffAuditKeys] as const;
 export const manualStaffDefinition = {
   ...staffDefinition,
   fields: manualStaffFields,
+  table: { ...staffDefinition.table, columns: manualStaffColumns.map(field => ({ field, visible: true })) },
   drawer: { ...staffDefinition.drawer, sections: manualStaffSections },
   detail: { ...staffDefinition.detail, overview: { sections: manualStaffSections } },
 } as const satisfies SurfaceDefinition<ManualStaffFields>;
-export const manualStaffQuery: TableQuery<ManualStaffFields> = { ...staffQuery };
+export const manualStaffQuery: TableQuery<ManualStaffFields> = { ...staffQuery, order: manualStaffColumns, visible: manualStaffColumns };
 
 export type StaffDraft = { name: string; phone: string; email: string; gender: string; birthDate: string; centerId: string; loginEmail: string };
 export type StaffLoginDraft = { password: string; confirmation: string };
