@@ -14,22 +14,14 @@ import { matchesPlatform, type PlatformFilter } from "./HoRoleEditor";
 import { roleM1, makePreviewRole, archivePreviewRole, eligiblePermissions, rolePreviewCatalog, canEditPreviewRole, previewRoleVersion, editPreviewRole, type PreviewRole } from "./role-m1-preview";
 import type { RoleDraft } from "./role-lifecycle-model";
 
-const read = {display:true,search:false,filter:false,sort:false,group:false,inlineEdit:false} as const;
-const extra = [
-  {key:"createdAt",label:"Created Time",type:"datetime",icon:"◷",width:170},
-  {key:"createdBy",label:"Created By",type:"text",icon:"@",width:150},
-  {key:"updatedAt",label:"Last Modified Time",type:"datetime",icon:"◷",width:170},
-  {key:"updatedBy",label:"Last Modified By",type:"text",icon:"@",width:150},
-] as const;
-const descriptionField={key:"description",label:"Mô tả",type:"textarea",icon:"Aa",width:220,permission:"access.role.view",readOnly:false,validation:{maxLength:500},capabilities:{...read,inlineEdit:true}} as const;
-const [roleName,...otherRoleFields]=roleFields;
-const fields = [{...roleName,readOnly:false,required:true,validation:{minLength:1,maxLength:120},capabilities:{...roleName.capabilities,inlineEdit:true}},...otherRoleFields,descriptionField,...extra.map(field=>({...field,permission:"access.role.view",readOnly:true,capabilities:read} as const))] as const satisfies readonly FieldSchema[];
+const [roleName,roleType,roleStatus,permissionCount,assignmentCount,roleKey,descriptionField,...auditFields] = roleFields;
+const fields = [{...roleName,readOnly:false,required:true,validation:{minLength:1,maxLength:120},capabilities:{...roleName.capabilities,inlineEdit:true}},
+  roleType,roleStatus,permissionCount,assignmentCount,roleKey,
+  {...descriptionField,readOnly:false,capabilities:{...descriptionField.capabilities,inlineEdit:true}},...auditFields] as const satisfies readonly FieldSchema[];
 type F = typeof fields;
-const audit = ["createdAt","createdBy","updatedAt","updatedBy"] as const;
-const sections = [{id:"role-info",label:"Thông tin Role",fields:["name","roleKey","description","roleType","status","permissionCount","assignmentCount"]},{id:"audit",label:"Thông tin hệ thống",fields:audit}] as const;
 const registry = new TddRegistry(verifyRolePermissionTabApproval);
-const schema = registry.register<F>({...roleDefinition,fields,capabilities:{...roleDefinition.capabilities,edit:"access.role.edit"},table:{...roleDefinition.table,inlineEdit:{enabled:true,fields:["name","description"]},columns:[...roleDefinition.table.columns,{field:"description",visible:false},...extra.map(field=>({field:field.key,visible:true}))]},drawer:{...roleDefinition.drawer,sections},detail:{...roleDefinition.detail,overview:{sections}},data:{id:"pap2192-preview-only",list:async()=>({rows:[],total:0}),detail:async()=>null}});
-const initialQuery:TableQuery<F> = {...roleQuery,order:[...roleQuery.order,"description",...audit],visible:[...roleQuery.visible,...audit]};
+const schema = registry.register<F>({...roleDefinition,fields,capabilities:{...roleDefinition.capabilities,edit:"access.role.edit"},table:{...roleDefinition.table,inlineEdit:{enabled:true,fields:["name","description"]}},data:{id:"pap2192-preview-only",list:async()=>({rows:[],total:0}),detail:async()=>null}});
+const initialQuery:TableQuery<F> = {...roleQuery,order:[...roleQuery.order],visible:[...roleQuery.visible]};
 const emptyDraft=():RoleDraft=>({roleKey:"",displayName:"",description:""});
 function project(role:PreviewRole):ModuleRow<F>{return {...role,createdBy:"—",updatedBy:"—",permissionCount:role.permissionKeys.length};}
 function PermissionPicker({catalog,selected,onChange,disabled=false}:{catalog:BoAccessPermission[];selected:string[];onChange:(keys:string[])=>void;disabled?:boolean}){
