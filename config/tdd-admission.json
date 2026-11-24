@@ -28,10 +28,7 @@
       "externalReferences": [
         {"file":"app/ho/HoWorkspace.tsx","owner":"PAP-990"},
         {"file":"lib/ho-routes.ts","owner":"PAP-990"},
-        {"file":"lib/ho-system.ts","owner":"PAP-1153"},
-        {"file":"app/components/workspace-renderer/Editor.tsx","owner":"PAP-2372"},
-        {"file":"app/components/workspace-renderer/Properties.tsx","owner":"PAP-2372"},
-        {"file":"app/components/workspace-renderer/Record.tsx","owner":"PAP-2372"}
+        {"file":"lib/ho-system.ts","owner":"PAP-1153"}
       ]
     },
     {
