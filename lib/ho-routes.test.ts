@@ -68,3 +68,13 @@ test("middleware and auth pages preserve safe return-to only for HO",()=>{
  assert.match(login,/safeHoReturnTo\(new URLSearchParams\(window\.location\.search\)\.get\("returnTo"\)\)/);
  assert.match(password,/safeHoReturnTo\(new URLSearchParams\(window\.location\.search\)\.get\("returnTo"\)\)/);
 });
+
+test("PAP-2353 canonical Staff return-to handles legacy review and analytics without widening admission",()=>{
+ const p=HO_PAGE_PATHS.staffs;
+ assert.equal(safeHoReturnTo(p+"?utm_source=chatgpt.com"),p);
+ assert.equal(safeHoReturnTo(p+"?m1Preview=1&utm_source=chatgpt.com"),p);
+ assert.equal(safeHoReturnTo(p+"?m1Preview=1&record=STAFF-MOCK-001&utm_source=chatgpt.com"),p+"?record=STAFF-MOCK-001");
+ for(const suffix of ["?m1Preview=0","?m1Preview=1&m1Preview=1","?m1Preview=1&redirect=//evil.example","?m1Preview=1&record=0198d050-56c1-7ac5-b9ab-b0e45d912345","?m1Preview=1&record=STAFF-MOCK-001&record=STAFF-MOCK-002"])assert.equal(safeHoReturnTo(p+suffix),null);
+ assert.equal(safeHoReturnTo("/ho/centers?m1Preview=1"),null);
+ assert.equal(safeHoReturnTo(p+"?record=0198d050-56c1-7ac5-b9ab-b0e45d912345"),p+"?record=0198d050-56c1-7ac5-b9ab-b0e45d912345");
+});
