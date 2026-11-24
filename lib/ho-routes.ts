@@ -54,6 +54,16 @@ export function safeHoReturnTo(raw: string | null | undefined): string | null {
       if (markers.length !== 1 || markers[0] !== "1" || records.length > 1 || (records.length === 1 && !/^STAFF-MOCK-[0-9]{3,}$/.test(records[0]!))) return null;
       parsed.searchParams.delete("m1Preview");
     }
+    // PAP-2359: Role uses the explicit preview marker to distinguish review
+    // from a live-list fallback. Preserve it so the server can enforce review ACL.
+    if(parsed.pathname===HO_PAGE_PATHS.roles && parsed.searchParams.has("m1Preview")){
+      const p=parsed.searchParams;
+      const keys=[...p.keys()].filter(k=>!ignoredTrackingKeys.has(k));
+      if(keys.some(k=>!["m1Preview","record"].includes(k))||p.getAll("m1Preview").length!==1||p.get("m1Preview")!=="1"||p.getAll("record").length>1)return null;
+      const record=p.get("record");
+      if(record!==null&&!/^ROLE-MOCK-[0-9]{3,}$/.test(record))return null;
+      return parsed.pathname+"?m1Preview=1"+(record!==null?"&record="+encodeURIComponent(record):"");
+    }
     const functionalKeys = [...parsed.searchParams.keys()].filter(key => !ignoredTrackingKeys.has(key));
     // PAP-2359: validate the existing HO Custom Attributes table's shareable URL state.
     if(parsed.pathname===HO_PAGE_PATHS.customAttributes && functionalKeys.some(k=>k!=="record")){
