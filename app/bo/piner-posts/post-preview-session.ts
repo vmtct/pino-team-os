@@ -78,6 +78,6 @@ export function createPostPreviewSession():DraftRuntimeSession&{dispose:()=>void
   source(diaryId){if(closed||read(id).status!=="Nháp")return;if(!diaryId)sources.delete(id);else if(claims.get(diaryId)===id)sources.set(id,diaryId);}
  });
  return {...binding,controller,userId:"synthetic-presentation-only",canEditMedia:()=>!closed,mediaController,composer,
-  async submitPreview(id,version,signal){const prior=writable(id,signal);if(prior.version!==version||!prior.caption.trim()||!prior.mediaCount)throw new CoreDraftRequestError(409);const next={...prior,status:"Chờ duyệt",version:prior.version+1};rows.set(id,next);return next;},
+  async submitPreview(id,version,signal){const prior=writable(id,signal);if(prior.version!==version||!String(prior.caption??"").trim()||!prior.mediaCount)throw new CoreDraftRequestError(409);const next={...prior,status:"Chờ duyệt",version:prior.version+1};rows.set(id,next);return next;},
   async personChoices(program,signal){guard(signal);return people[program];},dispose(){closed=true;binding.unbind();for(const item of media.values())item.dispose();media.clear();rows.clear();mediaFiles.clear();claims.clear();sources.clear();}};
 }
