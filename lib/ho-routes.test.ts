@@ -65,8 +65,8 @@ test("middleware and auth pages preserve safe return-to only for HO",()=>{
  assert.match(middleware,/forwarded\.delete\("x-pino-ho-return-to"\)/);
  assert.match(middleware,/login\.searchParams\.set\("returnTo", ret\)/);
  assert.match(layout,/safeHoReturnTo\(requestHeaders\.get\("x-pino-ho-return-to"\)\)/);
- assert.match(login,/safeHoReturnTo\(new URLSearchParams\(window\.location\.search\)\.get\("returnTo"\)\)/);
- assert.match(password,/safeHoReturnTo\(new URLSearchParams\(window\.location\.search\)\.get\("returnTo"\)\)/);
+ assert.match(login,/hoStagingReturnFromSearch\(window\.location\.search\)/);
+ assert.match(password,/hoStagingReturnFromSearch\(window\.location\.search\)/);
 });
 
 test("PAP-2353 canonical Staff return-to handles legacy review and analytics without widening admission",()=>{

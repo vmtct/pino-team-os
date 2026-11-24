@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { roleM1, makePreviewRole, archivePreviewRole, eligiblePermissions, rolePreviewCatalog, roleReviewRoute, type PreviewRole } from "../app/ho/system/roles/role-m1-preview";
+import { roleM1, makePreviewRole, archivePreviewRole, eligiblePermissions, rolePreviewCatalog, roleReviewRoute, canEditPreviewRole, previewRoleVersion, editPreviewRole, type PreviewRole } from "../app/ho/system/roles/role-m1-preview";
 import { createPreviewState, reducePreview } from "./m1-preview/state";
 const draft={roleKey:"demo-operator",displayName:"Demo operator",description:"Preview"};
 const catalog=[
@@ -59,4 +59,22 @@ test("canonical Roles route selects isolated review and preserves real details",
  assert.equal(roleReviewRoute({record:["ROLE-MOCK-001","ROLE-MOCK-002"]}),"invalid");
  assert.equal(roleReviewRoute({m1Preview:"0"}),"invalid");
  assert.equal(roleReviewRoute({record:"STAFF-MOCK-001"}),"invalid");
+});
+test("mock inline edit preserves identity, keys, permissions and audit; rejects invalid or protected fields",()=>{
+ const role={...roleM1.seed,permissionKeys:["fixture.student.view"]};
+ const edited=editPreviewRole(role,{name:"  New name  ",description:"Updated"})!;
+ assert.equal(edited.name,"New name");
+ assert.equal(edited.description,"Updated");
+ assert.deepEqual(edited,{...role,name:"New name",description:"Updated"});
+ assert.notEqual(previewRoleVersion(role),previewRoleVersion(edited));
+ assert.equal(editPreviewRole(edited,{description:""})?.description,"");
+ for(const patch of [{name:" "},{name:"x".repeat(121)},{description:"x".repeat(501)},{roleKey:"other"},{permissionKeys:[]},{updatedAt:"now"},{name:3},{}])assert.equal(editPreviewRole(role,patch),null);
+ for(const locked of [{...role,status:"archived" as const},{...role,roleKey:"founder"},{...role,id:"real"}]){
+   assert.equal(canEditPreviewRole(locked),false);
+   assert.equal(editPreviewRole(locked,{name:"changed"}),null);
+ }
+ const state=createPreviewState(roleM1,"founder");
+ const next=reducePreview(state,{type:"replace",id:role.id,record:edited});
+ assert.equal(next.records[0].name,"New name");
+ assert.equal(state.records[0].name,"Vai trò mẫu");
 });
