@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { HO_PAGE_PATHS, HO_HOME_PATH, safeHoReturnTo, hoRecordId } from "./ho-routes";
+import { HO_PAGE_PATHS, HO_HOME_PATH, safeHoReturnTo, hoRecordId, retiredStaffReviewRoute } from "./ho-routes";
 import { hoRoutes } from "./ho-system";
 import { decideHostBoundary } from "./host-boundary";
 const ho="ho.staging.pinohouse.art";
@@ -73,8 +73,19 @@ test("PAP-2353 canonical Staff return-to handles legacy review and analytics wit
  const p=HO_PAGE_PATHS.staffs;
  assert.equal(safeHoReturnTo(p+"?utm_source=chatgpt.com"),p);
  assert.equal(safeHoReturnTo(p+"?m1Preview=1&utm_source=chatgpt.com"),p);
- assert.equal(safeHoReturnTo(p+"?m1Preview=1&record=STAFF-MOCK-001&utm_source=chatgpt.com"),p+"?record=STAFF-MOCK-001");
+ assert.equal(safeHoReturnTo(p+"?m1Preview=1&record=STAFF-MOCK-001&utm_source=chatgpt.com"),p);
  for(const suffix of ["?m1Preview=0","?m1Preview=1&m1Preview=1","?m1Preview=1&redirect=//evil.example","?m1Preview=1&record=0198d050-56c1-7ac5-b9ab-b0e45d912345","?m1Preview=1&record=STAFF-MOCK-001&record=STAFF-MOCK-002"])assert.equal(safeHoReturnTo(p+suffix),null);
  assert.equal(safeHoReturnTo("/ho/centers?m1Preview=1"),null);
+ assert.equal(safeHoReturnTo(p+"?record=STAFF-MOCK-001"),null);
  assert.equal(safeHoReturnTo(p+"?record=0198d050-56c1-7ac5-b9ab-b0e45d912345"),p+"?record=0198d050-56c1-7ac5-b9ab-b0e45d912345");
+});
+
+test("PAP-2353 retired Staff preview cannot serve synthetic records",()=>{
+ const record="0198d050-56c1-7ac5-b9ab-b0e45d912345";
+ assert.equal(retiredStaffReviewRoute({}),"live");
+ assert.equal(retiredStaffReviewRoute({record}),"live");
+ assert.equal(retiredStaffReviewRoute({m1Preview:"1"}),"redirect");
+ assert.equal(retiredStaffReviewRoute({m1Preview:"1",record:"STAFF-MOCK-001"}),"redirect");
+ for(const query of [{record:"STAFF-MOCK-001"},{m1Preview:"1",record},{m1Preview:["1","1"]},{m1Preview:"0"},{m1Preview:"1",returnTo:"//evil.example"}])assert.equal(retiredStaffReviewRoute(query),"invalid");
+ assert.equal(safeHoReturnTo(HO_PAGE_PATHS.staffs+"?m1Preview=1&__proto__=x"),null);
 });

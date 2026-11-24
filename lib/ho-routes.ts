@@ -39,6 +39,18 @@ const approved = new Set<string>(["/ho",...Object.values(HO_PAGE_PATHS)]);
 const recordId = /^[A-Za-z0-9_-]{1,100}$/;
 /** Analytics parameters are untrusted input, never part of the post-login return destination. */
 const ignoredTrackingKeys = new Set(["utm_source","utm_medium","utm_campaign","utm_term","utm_content"]);
+// PAP-2353: retired Staff mock review URLs may return to the real directory only.
+export function retiredStaffReviewRoute(query: Record<string, string | string[] | undefined>): "live" | "redirect" | "invalid" {
+  const marker=query.m1Preview, record=query.record;
+  if(marker!==undefined){
+    if(marker!=="1" || (record!==undefined && (typeof record!=="string" || !/^STAFF-MOCK-[0-9]{3,}$/.test(record))))return "invalid";
+    if(Object.keys(query).some(key=>key!=="m1Preview" && key!=="record" && !ignoredTrackingKeys.has(key)))return "invalid";
+    return "redirect";
+  }
+  if(Array.isArray(record))return "invalid";
+  if(typeof record==="string" && /^STAFF-MOCK-/i.test(record))return "invalid";
+  return "live";
+}
 /** Prevent cross-host navigation, encoded path tricks and auth/callback loops. */
 export function safeHoReturnTo(raw: string | null | undefined): string | null {
   if (!raw || raw.length > 512 || !raw.startsWith("/") || raw.startsWith("//") || /[\\\x00-\x1f]/.test(raw)) return null;
@@ -47,12 +59,15 @@ export function safeHoReturnTo(raw: string | null | undefined): string | null {
     if (parsed.origin !== "https://ho.staging.pinohouse.art" || !approved.has(parsed.pathname) || parsed.hash) return null;
     // PAP-1645 / PAP-1491: strip harmless campaign metadata before validating
     // returnTo, without allowing arbitrary query keys or an off-host target.
-    // PAP-2353: normalize the retired Staff M1 review marker, never grant admission here.
-    if (parsed.pathname === HO_PAGE_PATHS.staffs && parsed.searchParams.has("m1Preview")) {
-      const markers = parsed.searchParams.getAll("m1Preview");
-      const records = parsed.searchParams.getAll("record");
-      if (markers.length !== 1 || markers[0] !== "1" || records.length > 1 || (records.length === 1 && !/^STAFF-MOCK-[0-9]{3,}$/.test(records[0]!))) return null;
-      parsed.searchParams.delete("m1Preview");
+    if (parsed.pathname === HO_PAGE_PATHS.staffs) {
+      const query: Record<string, string | string[]> = Object.create(null);
+      for(const key of new Set(parsed.searchParams.keys())){
+        const values=parsed.searchParams.getAll(key);
+        query[key]=values.length===1?values[0]!:values;
+      }
+      const outcome=retiredStaffReviewRoute(query);
+      if(outcome==="invalid")return null;
+      if(outcome==="redirect")return HO_PAGE_PATHS.staffs;
     }
     // PAP-2359: Role uses the explicit preview marker to distinguish review
     // from a live-list fallback. Preserve it so the server can enforce review ACL.

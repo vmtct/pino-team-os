@@ -45,7 +45,6 @@ const legacy:Record<string,string>={
 const previews:Record<string,{path:string;expected:string;record?:string;negative:string}>={
  "/bo/piner-posts":{path:"/bo/piner-posts?m1Preview=1",expected:"/bo/piner-posts?m1Preview=1",negative:"record="+id},
  "/bo/sales/leads":{path:"/bo/sales/leads?m1Preview=1",expected:"/bo/sales/leads?m1Preview=1",record:"lead=LEAD-MOCK-001&tab=members",negative:"lead="+id},
- "/ho/staff":{path:"/ho/staff?m1Preview=1",expected:"/ho/staff",record:"record=STAFF-MOCK-001",negative:"record="+id},
  "/ho/system/roles":{path:"/ho/system/roles?m1Preview=1",expected:"/ho/system/roles?m1Preview=1",record:"record=ROLE-MOCK-001",negative:"record="+id},
 };
 function discoverPreviewPages(dir:string):string[]{
@@ -106,6 +105,9 @@ test("HO_BO_DEEPLINK_CONTINUITY_P0: native preview entrypoints cannot ship untes
 });
 test("HO_BO_DEEPLINK_CONTINUITY_P0: route-specific detail, tab, grid, center and recovery examples",async()=>{
  const samples:[string,string,string][]=[
+  [ho,"/ho/staff?record="+id,"/ho/staff?record="+id],
+  [ho,"/ho/staff?m1Preview=1","/ho/staff"],
+  [ho,"/ho/staff?m1Preview=1&record=STAFF-MOCK-001","/ho/staff"],
   [ho,"/ho/pinoria/worlds?record="+id+"&tab=scenes","/ho/pinoria/worlds?record="+id+"&tab=scenes"],
   [ho,"/ho/pinoria/starter-sets?record="+id+"&tab=members","/ho/pinoria/starter-sets?record="+id+"&tab=members"],
   [ho,"/ho/pinoria/wish-banners?record="+id+"&tab=items&wishSelection=pending&wishRevision=2","/ho/pinoria/wish-banners?record="+id+"&tab=items&wishSelection=pending&wishRevision=2"],
@@ -120,6 +122,7 @@ test("HO_BO_DEEPLINK_CONTINUITY_P0: route-specific detail, tab, grid, center and
   await recoverInvalidStaffPasswordSession(async()=>new Response(null,{status:204}),{hostname:host,pathname:url.pathname,search:url.search,replace:v=>result.push(String(v))});
   assert.equal(new URL(result[0]!,"https://"+host).searchParams.get("returnTo"),expected,path+" expired session");
  }
+ for(const suffix of ["record=STAFF-MOCK-001","m1Preview=0","m1Preview=1&record="+id,"m1Preview=1&returnTo=//evil.example"])assert.equal(parse(ho,"/ho/staff?"+suffix),null);
  for(const host of [bo,ho]){
   const own=host===ho?"/ho/centers":"/bo";
   for(const input of ["//evil.example"+own,"https://evil.example"+own,own+"?returnTo=//evil.example",own+"?m1Preview=1",own+"?record=a&record=b"])
