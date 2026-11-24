@@ -4,6 +4,7 @@ import {attributeModule} from "./ho-attribute-model";
 /** Single public-page manifest for the staging Head Office surface. No BO or production routes. */
 export const HO_PAGE_PATHS = {
   bills: "/ho/billing/bills",
+  productPlans: "/ho/billing/product-plans",
   centers: "/ho/centers",
   walkinPasses: "/ho/open-studio/walkin",
   mytimeWorkshops: "/ho/mytime-workshops",
@@ -53,6 +54,18 @@ export function safeHoReturnTo(raw: string | null | undefined): string | null {
       const records = parsed.searchParams.getAll("record");
       if (markers.length !== 1 || markers[0] !== "1" || records.length > 1 || (records.length === 1 && !/^STAFF-MOCK-[0-9]{3,}$/.test(records[0]!))) return null;
       parsed.searchParams.delete("m1Preview");
+    }
+    // PAP-2183: Product Plan preview return path is synthetic-only until M4.
+    if(parsed.pathname===HO_PAGE_PATHS.productPlans){
+      const p=parsed.searchParams;
+      const keys=[...p.keys()].filter(k=>!ignoredTrackingKeys.has(k));
+      if(keys.some(k=>!["m1Preview","record"].includes(k))||p.getAll("m1Preview").length>1||(p.has("m1Preview")&&p.get("m1Preview")!=="1")||p.getAll("record").length>1)return null;
+      const record=p.get("record");
+      if(record!==null&&!/^PRODUCT-PLAN-MOCK-[0-9]{3,}$/.test(record))return null;
+      const q=new URLSearchParams();
+      if(p.has("m1Preview"))q.set("m1Preview","1");
+      if(record)q.set("record",record);
+      return parsed.pathname+(q.size?"?"+q.toString():"");
     }
     // PAP-2359: Role uses the explicit preview marker to distinguish review
     // from a live-list fallback. Preserve it so the server can enforce review ACL.

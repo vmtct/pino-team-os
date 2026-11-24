@@ -7,8 +7,8 @@ import { decideHostBoundary } from "./host-boundary";
 const ho="ho.staging.pinohouse.art";
 test("HO route manifest keeps the approved distinct pages",()=>{
  // PAP-1606 / PAP-1601 PLT-UI-LOCALE-BO-HO: include approved Language Mapping alongside Custom Attributes.
- assert.equal(Object.keys(HO_PAGE_PATHS).length,30);
- assert.equal(new Set(Object.values(HO_PAGE_PATHS)).size,30);
+ assert.equal(Object.keys(HO_PAGE_PATHS).length,31);
+ assert.equal(new Set(Object.values(HO_PAGE_PATHS)).size,31);
  assert.equal(HO_PAGE_PATHS.postApproval,"/ho/content/post-approval");
  for(const host of ["bo.staging.pinohouse.art","tos.staging.pinohouse.art","ho.pinohouse.art"])assert.equal(decideHostBoundary(host,HO_PAGE_PATHS.postApproval).action,"not_found");
  assert.equal(HO_PAGE_PATHS.languageMappings,"/ho/language-mappings");
@@ -77,4 +77,11 @@ test("PAP-2353 canonical Staff return-to handles legacy review and analytics wit
  for(const suffix of ["?m1Preview=0","?m1Preview=1&m1Preview=1","?m1Preview=1&redirect=//evil.example","?m1Preview=1&record=0198d050-56c1-7ac5-b9ab-b0e45d912345","?m1Preview=1&record=STAFF-MOCK-001&record=STAFF-MOCK-002"])assert.equal(safeHoReturnTo(p+suffix),null);
  assert.equal(safeHoReturnTo("/ho/centers?m1Preview=1"),null);
  assert.equal(safeHoReturnTo(p+"?record=0198d050-56c1-7ac5-b9ab-b0e45d912345"),p+"?record=0198d050-56c1-7ac5-b9ab-b0e45d912345");
+});
+test("PAP-2183 Product Plans return path is HO-only and preserves the synthetic review ID",()=>{
+ const path=HO_PAGE_PATHS.productPlans;
+ assert.equal(path,"/ho/billing/product-plans");
+ assert.equal(safeHoReturnTo(path+"?m1Preview=1&record=PRODUCT-PLAN-MOCK-001"),path+"?m1Preview=1&record=PRODUCT-PLAN-MOCK-001");
+ for(const q of ["?m1Preview=0","?m1Preview=1&m1Preview=1","?record=0199f000-0001-7000-8000-000000000001","?record=ROLE-MOCK-001","?next=/bo"])assert.equal(safeHoReturnTo(path+q),null);
+ for(const host of ["bo.staging.pinohouse.art","tos.staging.pinohouse.art","ho.pinohouse.art"])assert.equal(decideHostBoundary(host,path).action,"not_found");
 });

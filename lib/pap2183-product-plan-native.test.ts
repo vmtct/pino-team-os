@@ -1,0 +1,37 @@
+// PAP-2183 / PAP-2372 — native schema and opt-in shared direct property contract.
+import test from "node:test";
+import assert from "node:assert/strict";
+import {createElement as h} from "react";
+import {renderToStaticMarkup} from "react-dom/server";
+import {TddRenderer} from "../app/components/workspace-renderer/Renderer";
+import {composeTabs,allowsField,validateQuery,type AuthorizationContext,type MutationAdapter} from "./workspace-schema";
+import {planRegistry,planSchema,planQuery,projectPlan,PLAN_READ,PLAN_EDIT,type PlanFields} from "../app/ho/billing/product-plans/schema";
+import {productPlanM1} from "../app/ho/billing/product-plans/product-plan-m1-preview";
+const record=projectPlan(productPlanM1.seed);
+const context:AuthorizationContext={surface:"HO",authorize:key=>[PLAN_READ,PLAN_EDIT].includes(key)};
+const readonly:AuthorizationContext={surface:"HO",authorize:key=>key===PLAN_READ};
+const adapter:MutationAdapter<PlanFields>={update:async()=>{throw Error("No writes during render");}};
+const base={registry:planRegistry,schema:planSchema,context,record};
+test("Product Plan field manifest, audit defaults, immutable identity, reserved history",()=>{
+ validateQuery(planSchema,planQuery,context);
+ assert.deepEqual(composeTabs(planSchema).map(t=>t.id),["overview","history"]);
+ for(const key of ["createdAt","createdBy","updatedAt","updatedBy"])assert.ok(planQuery.visible.includes(key as typeof planQuery.visible[number]));
+ assert.deepEqual(planSchema.fields.filter(f=>allowsField(planSchema,context,f.key,"inlineEdit")).map(f=>f.key),["price","badge","enabled"]);
+ assert.equal(planSchema.fields.some(f=>allowsField(planSchema,readonly,f.key,"inlineEdit")),false);
+ assert.deepEqual(planSchema.drawer.actions,[]);
+ assert.equal(record.createdAt,null);
+});
+test("native drawer and detail opt in to direct fields only; default popover preserved",()=>{
+ const writes={adapter,version:"1",onSaved:()=>{},directFields:["price","badge","enabled"]};
+ const drawer=(ctx=context,direct=true)=>renderToStaticMarkup(h(TddRenderer<PlanFields>,{view:{kind:"drawer",props:{...base,context:ctx,writes:direct?writes:{adapter,version:"1",onSaved:()=>{}},onClose:()=>{},onDetail:()=>{}}}}));
+ const detail=renderToStaticMarkup(h(TddRenderer<PlanFields>,{view:{kind:"detail",props:{...base,writes,onBack:()=>{},subject:{type:"product_plan",id:record.id}}}}));
+ for(const html of [drawer(),detail]){
+   for(const key of ["price","badge","enabled"])assert.match(html,new RegExp('data-tdd-direct-field="'+key+'"'));
+   assert.equal((html.match(/data-pds-appearance="underline"/g)??[]).length,3);
+   assert.doesNotMatch(html,/data-tdd-direct-field="cadence"/);
+ }
+ assert.doesNotMatch(drawer(readonly),/data-pds-appearance="underline"/);
+ assert.doesNotMatch(drawer(context,false),/data-tdd-direct-field=/);
+ assert.match(drawer(context,false),/data-detail-edit="price"/);
+ assert.match(detail,/Lịch sử/);
+});
