@@ -31,7 +31,7 @@ const registry = new TddRegistry(verifyRolePermissionTabApproval);
 const schema = registry.register<F>({...roleDefinition,fields,table:{...roleDefinition.table,columns:[...roleDefinition.table.columns,...extra.map(field=>({field:field.key,visible:field.key!=="description"}))]},drawer:{...roleDefinition.drawer,sections},detail:{...roleDefinition.detail,overview:{sections}},data:{id:"pap2192-preview-only",list:async()=>({rows:[],total:0}),detail:async()=>null}});
 const initialQuery:TableQuery<F> = {...roleQuery,order:[...roleQuery.order,"target","description",...audit],visible:[...roleQuery.visible,"target",...audit]};
 const emptyDraft=():RoleDraft=>({roleKey:"",displayName:"",description:""});
-function project(role:PreviewRole):ModuleRow<F>{return {...role,permissionCount:role.permissionKeys.length};}
+function project(role:PreviewRole):ModuleRow<F>{return {...role,createdBy:"—",updatedBy:"—",permissionCount:role.permissionKeys.length};}
 function PermissionPicker({catalog,selected,onChange,disabled=false}:{catalog:BoAccessPermission[];selected:string[];onChange:(keys:string[])=>void;disabled?:boolean}){
   const [search,setSearch]=useState("");
   const [platform,setPlatform]=useState<PlatformFilter>("all");
@@ -98,5 +98,5 @@ export function RoleM1Content({scopeKey,permissionKeys,localCatalog}:{scopeKey:s
 }
 
 export function RoleM1Preview(props:{scopeKey:string;permissionKeys:string[]}){
-  return <HoWorkspace module="roles" content={<RoleM1Content {...props}/>}/>;
+  return <HoWorkspace module="roles" content={<RoleM1Content scopeKey={props.scopeKey} permissionKeys={props.permissionKeys}/>}/>;
 }
