@@ -251,7 +251,7 @@ export function LeadHouseholdM1Preview({localReview=false}: {localReview?: boole
       setStep(1);
       return;
     }
-    if (draft.members.some(member => !member.name.trim() || member.roles.length === 0 || (member.age !== null && (member.age < 0 || member.age > 120)))) {
+    if (draft.members.some(member => !member.name.trim() || member.roles.length === 0 || (!member.primaryContact && member.roles.includes("PARENT")) || (member.age !== null && (member.age < 0 || member.age > 120)))) {
       setFormError("Mỗi thành viên cần có họ tên và ít nhất một vai trò; tuổi phải hợp lệ.");
       setStep(2);
       return;
@@ -426,10 +426,10 @@ function LeadOverview({ record, onSave, onConvert }: { record: LeadM1Record; onS
   const [error, setError] = useState("");
   return <div className={styles.detailContent}>
     <section className={styles.propertySection}><h3>Liên hệ chính · Chỉnh sửa trực tiếp</h3>
-      {editing ? <div className={styles.memberFields}>
+      {editing ? <div className={styles.inlineContactFields}>
         <label>Họ tên<input value={name} onChange={event => setName(event.target.value)} /></label>
         <label>Số điện thoại<input value={phone} onChange={event => setPhone(event.target.value)} /></label>
-        <button type="button" onClick={() => { if (onSave(name, phone)) { setEditing(false); setError(""); } else setError("Tên hoặc số điện thoại không hợp lệ / trùng Lead."); }}>Lưu</button>
+        <button type="button" className={styles.primaryButton} onClick={() => { if (onSave(name, phone)) { setEditing(false); setError(""); } else setError("Tên hoặc số điện thoại không hợp lệ / trùng Lead."); }}>Lưu</button>
         <button type="button" onClick={() => { setEditing(false); setError(""); setName(record.contactName); setPhone(record.phone); }}>Hủy</button>
       </div> : <button type="button" onClick={() => setEditing(true)}>Sửa liên hệ</button>}
       {error ? <p role="alert">{error}</p> : null}
@@ -467,7 +467,7 @@ function LeadMembers({ record, onSave, onSaveInterests }: { record: LeadM1Record
     { key: "interests", header: "Chương trình quan tâm", minWidth: 220, render: member => <div className={styles.badgeWrap}>{record.intents.filter(intent => intent.memberIds.includes(member.id)).map(intent => <BoDataGridBadge key={intent.id}>{LEAD_M1_INTEREST_LABELS[intent.kind]}</BoDataGridBadge>)}</div> },
     { key: "edit", header: "Thao tác", minWidth: 95, render: member => <button type="button" onClick={() => { setEditingId(member.id); setName(member.name); setAge(member.age === null ? "" : String(member.age)); setRoles([...member.roles]); setInterests(record.intents.filter(intent => intent.memberIds.includes(member.id)).map(intent => intent.kind)); setError(""); }}>Sửa</button> },
   ];
-  return <section className={styles.detailContent}><div className={styles.sectionHeading}><h2>Household members</h2><BoDataGridBadge>{record.members.length} thành viên</BoDataGridBadge></div>
+  return <section className={styles.detailContent}><div className={styles.sectionHeading}><h2>Thành viên</h2><BoDataGridBadge>{record.members.length} thành viên</BoDataGridBadge></div>
     <BoDataGrid rows={record.members} columns={columns} rowKey={member => member.id} caption="Lead members" showToolbar={false} />
     {editingId ? <section className={styles.propertySection} aria-label="Chỉnh sửa thành viên trực tiếp">
       <h3>Chỉnh sửa · {record.members.find(member => member.id === editingId)?.name}</h3>
@@ -481,7 +481,7 @@ function LeadMembers({ record, onSave, onSaveInterests }: { record: LeadM1Record
       </div>
       {error ? <p role="alert">{error}</p> : null}
     </section> : null}
-    <p className={styles.helperNote}>Các Member trong fixture chỉ là candidates thuộc Lead. M1 không tạo Student/Parent/Guest Actor thật.</p>
+    <p className={styles.helperNote}>Vai trò dự kiến, chưa tạo hồ sơ.</p>
   </section>;
 }
 
@@ -495,7 +495,7 @@ function LeadRelationships({ record }: { record: LeadM1Record }) {
   ];
   return <section className={styles.detailContent}><div className={styles.sectionHeading}><h2>Quan hệ trong household</h2><BoDataGridBadge>{record.relationships.length} quan hệ</BoDataGridBadge></div>
     <BoDataGrid rows={record.relationships} columns={columns} rowKey={relation => relation.id} caption="Declared household relationships" showToolbar={false} />
-    <p className={styles.helperNote}>Quan hệ Parent → Student/Guest ở đây là khai báo để nhân viên nhận diện household. Không phải Guardian relationship đã xác thực và không cấp quyền.</p>
+    <p className={styles.helperNote}>Quan hệ khai báo chưa xác minh, không cấp quyền giám hộ.</p>
   </section>;
 }
 
@@ -519,7 +519,11 @@ function LeadCreateEditDrawer({
   const interestFields = PROGRAM_OPTIONS;
 
   function updateMember(index: number, patch: Partial<LeadM1Member>) {
-    onDraftChange({ ...draft, members: draft.members.map((member, current) => current === index ? { ...member, ...patch } : member) });
+    const members = draft.members.map((member, current) => {
+      const next = current === index ? { ...member, ...patch } : member;
+      return next.primaryContact ? next : { ...next, roles: next.roles.filter(role => role !== "PARENT") };
+    });
+    onDraftChange({ ...draft, members });
   }
   function addMember() {
     onDraftChange({ ...draft, members: [...draft.members, { id: "DRAFT-MEM-" + String(draft.members.length + 1), name: "", age: null, gender: "—", roles: [], primaryContact: false }] });
@@ -580,7 +584,7 @@ function LeadCreateEditDrawer({
               <label>Giới tính<select value={member.gender} onChange={event => updateMember(index, { gender: event.target.value as LeadM1Member["gender"] })}><option>—</option><option>Nữ</option><option>Nam</option><option>Khác</option></select></label>
             </div>
             <div className={styles.roleOptions} aria-label={"Vai trò của thành viên " + (index + 1)}>
-              {ROLE_OPTIONS.map(role => <label key={role}><input type="checkbox" checked={member.roles.includes(role)} onChange={event => updateMember(index, { roles: event.target.checked ? [...member.roles, role] : member.roles.filter(item => item !== role) })} />{leadM1RoleLabel(role)}</label>)}
+              {(member.primaryContact ? ROLE_OPTIONS : ROLE_OPTIONS.filter(role => role !== "PARENT")).map(role => <label key={role}><input type="checkbox" checked={member.roles.includes(role)} onChange={event => updateMember(index, { roles: event.target.checked ? [...member.roles, role] : member.roles.filter(item => item !== role) })} />{leadM1RoleLabel(role)}</label>)}
             </div>
             <label className={styles.primaryContactOption}><input type="checkbox" checked={member.primaryContact} onChange={event => updateMember(index, { primaryContact: event.target.checked })} />Người liên hệ chính</label>
           </article>)}

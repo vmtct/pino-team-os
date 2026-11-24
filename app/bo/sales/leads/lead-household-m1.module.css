@@ -98,3 +98,10 @@
 .drawerContent > * { min-width:0; }
 .stepProgress span { min-width:0; overflow-wrap:anywhere; }
 .headingActions { align-self:start; }
+
+/* PAP-2286 inline contact edit follows compact action anatomy. */
+.inlineContactFields { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto auto; gap:8px; align-items:end; min-width:0; }
+.inlineContactFields label { display:grid; gap:6px; min-width:0; }
+.inlineContactFields input { box-sizing:border-box; width:100%; min-width:0; height:34px; padding:6px 9px; font:inherit; border:1px solid var(--bo-color-border-strong); border-radius:7px; background:var(--bo-color-surface); color:var(--bo-color-text); }
+.inlineContactFields .primaryButton { min-width:64px; }
+@media(max-width:700px){.inlineContactFields{grid-template-columns:repeat(2,minmax(0,1fr));}.inlineContactFields label{grid-column:1/-1;}}
