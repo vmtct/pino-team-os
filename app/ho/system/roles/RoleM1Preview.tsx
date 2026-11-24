@@ -11,11 +11,12 @@ import type { BoAccessPermission } from "@/lib/bo-access-model";
 import { roleDefinition, roleFields, roleQuery, verifyRolePermissionTabApproval } from "./schema";
 import { CreateCustomRoleFields } from "./RoleLifecycleForms";
 import { matchesPlatform, type PlatformFilter } from "./HoRoleEditor";
-import { roleM1, makePreviewRole, archivePreviewRole, type PreviewRole } from "./role-m1-preview";
+import { roleM1, makePreviewRole, archivePreviewRole, eligiblePermissions, type PreviewRole, type RoleTarget } from "./role-m1-preview";
 import type { RoleDraft } from "./role-lifecycle-model";
 
 const read = {display:true,search:false,filter:false,sort:false,group:false,inlineEdit:false} as const;
 const extra = [
+  {key:"target",label:"Đối tượng",type:"text",icon:"@",width:135},
   {key:"description",label:"Mô tả",type:"text",icon:"Aa",width:220},
   {key:"createdAt",label:"Created Time",type:"datetime",icon:"◷",width:170},
   {key:"createdBy",label:"Created By",type:"text",icon:"@",width:150},
@@ -25,10 +26,10 @@ const extra = [
 const fields = [...roleFields, ...extra.map(field=>({...field,permission:"access.role.view",readOnly:true,capabilities:read} as const))] as const satisfies readonly FieldSchema[];
 type F = typeof fields;
 const audit = ["createdAt","createdBy","updatedAt","updatedBy"] as const;
-const sections = [{id:"role-info",label:"Thông tin Role",fields:["name","roleKey","description","roleType","status","permissionCount","assignmentCount"]},{id:"audit",label:"Thông tin hệ thống",fields:audit}] as const;
+const sections = [{id:"role-info",label:"Thông tin Role",fields:["name","roleKey","description","roleType","target","status","permissionCount","assignmentCount"]},{id:"audit",label:"Thông tin hệ thống",fields:audit}] as const;
 const registry = new TddRegistry(verifyRolePermissionTabApproval);
 const schema = registry.register<F>({...roleDefinition,fields,table:{...roleDefinition.table,columns:[...roleDefinition.table.columns,...extra.map(field=>({field:field.key,visible:field.key!=="description"}))]},drawer:{...roleDefinition.drawer,sections},detail:{...roleDefinition.detail,overview:{sections}},data:{id:"pap2192-preview-only",list:async()=>({rows:[],total:0}),detail:async()=>null}});
-const initialQuery:TableQuery<F> = {...roleQuery,order:[...roleQuery.order,"description",...audit],visible:[...roleQuery.visible,...audit]};
+const initialQuery:TableQuery<F> = {...roleQuery,order:[...roleQuery.order,"target","description",...audit],visible:[...roleQuery.visible,"target",...audit]};
 const emptyDraft=():RoleDraft=>({roleKey:"",displayName:"",description:""});
 function project(role:PreviewRole):ModuleRow<F>{return {...role,permissionCount:role.permissionKeys.length};}
 function PermissionPicker({catalog,selected,onChange,disabled=false}:{catalog:BoAccessPermission[];selected:string[];onChange:(keys:string[])=>void;disabled?:boolean}){
@@ -58,21 +59,22 @@ export function RoleM1Preview({scopeKey,permissionKeys}:{scopeKey:string;permiss
   const [query,setQuery]=useState(initialQuery);
   const [selected,setSelected]=useState<string|null>(null),[full,setFull]=useState(false);
   const [create,setCreate]=useState(false),[draft,setDraft]=useState(emptyDraft),[keys,setKeys]=useState<string[]>([]);
+  const [target,setTarget]=useState<RoleTarget>("Manager");
   const [catalog,setCatalog]=useState<BoAccessPermission[]|null>(null),[error,setError]=useState(false),[confirm,setConfirm]=useState(false);
   useEffect(()=>{
     const abort=new AbortController();
     void fetch("/api/bo/access/permissions",{method:"GET",credentials:"same-origin",cache:"no-store",signal:abort.signal}).then(async response=>{
       if(!response.ok)throw Error("Catalog unavailable");
       const data=(await response.json()).data;
-      if(!Array.isArray(data)||data.some(p=>!p||typeof p.key!=="string"||typeof p.domain!=="string"||typeof p.displayLabel!=="string"))throw Error("Invalid catalog");
+      if(!Array.isArray(data)||data.some(p=>!p||typeof p.key!=="string"||typeof p.domain!=="string"||typeof p.displayLabel!=="string"||!Array.isArray(p.allowedScopes)))throw Error("Invalid catalog");
       if(!abort.signal.aborted)setCatalog(data);
     }).catch(()=>{if(!abort.signal.aborted)setError(true);});
     return ()=>abort.abort();
   },[]);
   const row=state.records.find(r=>r.id===selected);
-  const candidate=catalog&&makePreviewRole(draft,keys,catalog.map(p=>p.key));
+  const candidate=catalog&&makePreviewRole(draft,target,keys,catalog);
   const bindings:TddActionBindings={
-    openCreate:{kind:"navigation",run:()=>{setDraft(emptyDraft());setKeys([]);setCreate(true);}},
+    openCreate:{kind:"navigation",run:()=>{setDraft(emptyDraft());setKeys([]);setTarget("Manager");setCreate(true);}},
     cancelCreate:{kind:"navigation",run:()=>setCreate(false)},
     saveCreate:{kind:"mutation",disabled:!candidate||state.records.some(r=>r.roleKey===candidate.roleKey),run:()=>{
       if(!candidate||state.records.some(r=>r.roleKey===candidate.roleKey))return {state:"invalid"};
@@ -84,11 +86,11 @@ export function RoleM1Preview({scopeKey,permissionKeys}:{scopeKey:string;permiss
   const content=<TddPreferencePolicy.Provider value="ephemeral">
     <p role="status">M1 · Dữ liệu mô phỏng, không lưu vào hệ thống.</p>
     {row&&full?<TddRenderer view={{kind:"detail",props:{...common,record:project(row),subject:{type:"access_role",id:row.id},onBack:close,
-      renderApprovedExtension:(_record,_context,tab)=>tab==="permissions"?<PermissionPicker catalog={catalog??[]} selected={row.permissionKeys} disabled={row.status!=="active"} onChange={permissionKeys=>setState(prev=>reducePreview(prev,{type:"replace",id:row.id,record:{...row,permissionKeys}}))}/>:null,
+      renderApprovedExtension:(_record,_context,tab)=>tab==="permissions"?<PermissionPicker catalog={eligiblePermissions(catalog??[],row.target)} selected={row.permissionKeys} disabled={row.status!=="active"} onChange={permissionKeys=>setState(prev=>reducePreview(prev,{type:"replace",id:row.id,record:{...row,permissionKeys}}))}/>:null,
       overviewAfter:<TosCard className="ho-role-card"><TosButton variant="secondary" disabled={!archivePreviewRole(row)} onClick={()=>setConfirm(true)}>Lưu trữ vai trò</TosButton>{confirm&&<div role="alertdialog" aria-label="Xác nhận lưu trữ"><p>Lưu trữ {row.name}?</p><TosButton variant="secondary" onClick={()=>setConfirm(false)}>Hủy</TosButton><TosButton variant="primary" onClick={()=>{const archived=archivePreviewRole(row);if(archived)setState(prev=>reducePreview(prev,{type:"replace",id:row.id,record:archived}));setConfirm(false);}}>Xác nhận lưu trữ</TosButton></div>}</TosCard>}}}/>:
       <TddRenderer view={{kind:"table",props:{...common,query,rows:state.records.map(project),total:state.records.length,status:"ready",actionBindings:bindings,onQueryChange:setQuery,onOpen:r=>{setSelected(r.id);setFull(false);}}}}/>}
     {row&&!full&&<TddRenderer view={{kind:"drawer",props:{...common,record:project(row),onClose:close,onDetail:()=>setFull(true)}}}/>}
-    {create&&<TddRenderer view={{kind:"form",props:{...common,mode:"create",title:"Tạo vai trò",onClose:()=>setCreate(false),actionBindings:bindings,content:<><CreateCustomRoleFields draft={draft} onChange={setDraft}/>{error?<p role="alert">Không tải được danh mục quyền.</p>:catalog?<PermissionPicker catalog={catalog} selected={keys} onChange={setKeys}/>:<p role="status">Đang tải danh mục quyền…</p>}</>}}}/>}
+    {create&&<TddRenderer view={{kind:"form",props:{...common,mode:"create",title:"Tạo vai trò",onClose:()=>setCreate(false),actionBindings:bindings,content:<><CreateCustomRoleFields draft={draft} onChange={setDraft}/><div className="ho-role-editor"><TosCard className="ho-role-card"><div className="ho-role-field-row"><label htmlFor="role-target">Đối tượng</label><select id="role-target" value={target} onChange={e=>{setTarget(e.target.value==="Staff"?"Staff":"Manager");setKeys([]);}}><option value="Manager">Manager · BO</option><option value="Staff">Staff · TOS</option></select></div><p>{target==="Manager"?"BO · Chi nhánh được phân công":"TOS · Phạm vi Staff được phân công"}</p></TosCard></div>{error?<p role="alert">Không tải được danh mục quyền.</p>:catalog?<PermissionPicker catalog={eligiblePermissions(catalog,target)} selected={keys} onChange={setKeys}/>:<p role="status">Đang tải danh mục quyền…</p>}</>}}}/>}
   </TddPreferencePolicy.Provider>;
   return <HoWorkspace module="roles" content={content}/>;
 }
