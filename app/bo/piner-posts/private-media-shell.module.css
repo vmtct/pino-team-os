@@ -16,3 +16,6 @@
 .attachment { display:flex; align-items:center; gap:4px; }
 .attachment img { display:block; width:64px; height:48px; object-fit:cover; }
 .carousel { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,240px)); gap:12px; }
+
+.composer { max-width:720px; }
+.composer textarea { min-height:54px; }
