@@ -19,13 +19,13 @@ export function CreateCustomRoleFields({draft,onChange,disabled=false}:{
 }){
   const id=useId();
   const fields= { name:draft.displayName,roleKey:draft.roleKey,description:draft.description };
-  return <>
+  return <div className="ho-role-editor"><TosCard className="ho-role-card">
     <PropertySections variant="drawer" fields={drawerFields} sections={drawerSections} record={{id:"",...fields}} createFields={{
-      name:{id:id+"-name",value:draft.displayName,required:true,maxLength:120,disabled,onChange:value=>onChange({...draft,displayName:value})},
-      roleKey:{id:id+"-key",value:draft.roleKey,required:true,maxLength:80,disabled,onChange:value=>onChange({...draft,roleKey:value})},
-      description:{id:id+"-description",value:draft.description,disabled,onChange:value=>onChange({...draft,description:value}),control:<textarea className="property-control os-create-select" id={id+"-description"} rows={3} maxLength={500} disabled={disabled} value={draft.description} onChange={e=>onChange({...draft,description:e.target.value})}/>}
+      name:{id:id+"-name",value:draft.displayName,required:true,maxLength:120,disabled,onChange:value=>onChange({...draft,displayName:value}),control:<div className="ho-role-field-row"><input id={id+"-name"} placeholder="Nhập tên vai trò" required maxLength={120} disabled={disabled} value={draft.displayName} onChange={e=>onChange({...draft,displayName:e.target.value})}/></div>},
+      roleKey:{id:id+"-key",value:draft.roleKey,required:true,maxLength:80,disabled,onChange:value=>onChange({...draft,roleKey:value}),control:<div className="ho-role-field-row"><input id={id+"-key"} placeholder="vd: center-manager" required maxLength={80} disabled={disabled} value={draft.roleKey} onChange={e=>onChange({...draft,roleKey:e.target.value})}/></div>},
+      description:{id:id+"-description",value:draft.description,disabled,onChange:value=>onChange({...draft,description:value}),control:<div className="ho-role-field-row"><textarea id={id+"-description"} placeholder="Mô tả vai trò (không bắt buộc)" rows={3} maxLength={500} disabled={disabled} value={draft.description} onChange={e=>onChange({...draft,description:e.target.value})}/></div>}
     }}/>
-  </>;
+  </TosCard></div>;
 }
 export function ArchiveCustomRoleAction({ role, label, onArchive }: { role: RoleCandidate; label: string; onArchive?: (roleId: string, expectedUpdatedAt: string)=>Promise<unknown> }) {
   const [confirm, setConfirm] = useState<RoleCandidate | null>(null);

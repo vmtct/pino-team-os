@@ -1,6 +1,6 @@
 "use client";
 // PAP-2192 / PLT-ACCESS — native TDD presentation; no live role commands.
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { TddRegistry, type AuthorizationContext, type FieldSchema, type ModuleRow, type TableQuery, type TddActionBindings } from "@/lib/workspace-schema";
 import { TddRenderer } from "@/app/components/workspace-renderer/Renderer";
 import { TddPreferencePolicy } from "@/app/components/workspace-renderer/Record";
@@ -35,6 +35,9 @@ function project(role:PreviewRole):ModuleRow<F>{return {...role,createdBy:"—",
 function PermissionPicker({catalog,selected,onChange,disabled=false}:{catalog:BoAccessPermission[];selected:string[];onChange:(keys:string[])=>void;disabled?:boolean}){
   const [search,setSearch]=useState("");
   const [platform,setPlatform]=useState<PlatformFilter>("all");
+  const [expanded,setExpanded]=useState<Record<string,boolean>>({});
+  const searchId=useId();
+  const platforms=(["all","BO","TOS"] as const).filter(value=>value==="all"||catalog.some(p=>matchesPlatform(p,value)));
   const groups=useMemo(()=>{
     const result=new Map<string,BoAccessPermission[]>();
     for(const permission of catalog){
@@ -44,13 +47,14 @@ function PermissionPicker({catalog,selected,onChange,disabled=false}:{catalog:Bo
     return [...result.entries()].sort(([a],[b])=>a.localeCompare(b));
   },[catalog,search,platform]);
   return <div className="ho-role-editor"><TosCard className="ho-role-card ho-role-permission-card"><section aria-label="Quyền truy cập">
-    <h3>Quyền truy cập · {selected.length} đã chọn</h3>
-    <div className="ho-role-platform-chips">{(["all","HO","BO","TOS"] as const).map(value=><button type="button" key={value} aria-pressed={value===platform} onClick={()=>setPlatform(value)}>{value==="all"?"Tất cả":value}</button>)}</div>
-    <label className="ho-role-search">Tìm kiếm quyền<input type="search" value={search} onChange={e=>setSearch(e.target.value)}/></label>
-    {groups.map(([domain,permissions])=><details key={domain} className="ho-role-group" open={!!search||undefined}><summary>{domain} · {permissions.filter(p=>selected.includes(p.key)).length}/{permissions.length}</summary>
-      <fieldset disabled={disabled}><legend>{domain}</legend>{permissions.map(p=><label className="ho-role-permission-row" key={p.key}><input type="checkbox" checked={selected.includes(p.key)} onChange={()=>onChange(selected.includes(p.key)?selected.filter(k=>k!==p.key):[...selected,p.key])}/><span className="ho-role-permission-info"><strong>{p.displayLabel}</strong><small>{p.key}</small></span></label>)}</fieldset>
-    </details>)}
-    {!groups.length&&<p role="status">Không có quyền khớp.</p>}
+    <div className="ho-role-permission-header"><div><h3>Quyền truy cập</h3><p>Chọn quyền theo nhóm nghiệp vụ</p></div><div className="ho-role-metrics" aria-live="polite"><strong>{selected.length} / {catalog.length} quyền</strong></div></div>
+    <div className="ho-role-platforms" role="group" aria-label="Lọc quyền theo nền tảng"><span className="ho-role-platforms-label">Nền tảng</span><div className="ho-role-platform-chips">{platforms.map(value=><button type="button" key={value} aria-pressed={value===platform} onClick={()=>setPlatform(value)}><span>{value==="all"?"Tất cả":value}</span><strong>{catalog.filter(p=>matchesPlatform(p,value)).length}</strong></button>)}</div></div>
+    <div className="ho-role-controls"><label className="ho-role-search" htmlFor={searchId}>Tìm kiếm quyền<input id={searchId} type="search" placeholder="Tên quyền hoặc permission key" value={search} onChange={e=>setSearch(e.target.value)}/></label></div>
+    <div className="ho-role-groups">{groups.map(([domain,permissions])=>{
+      const open=expanded[domain]??Boolean(search);
+      return <div className="ho-role-group" key={domain}><div className="ho-role-group-head"><strong className="ho-role-group-title">{domain}</strong><span className="ho-role-group-count">{permissions.filter(p=>selected.includes(p.key)).length}/{permissions.length} quyền</span><button type="button" className="ho-role-group-expand" aria-expanded={open} aria-label={(open?"Thu gọn nhóm ":"Mở rộng nhóm ")+domain} onClick={()=>setExpanded(prev=>({...prev,[domain]:!open}))}><span aria-hidden="true">{open?"⌄":"›"}</span></button></div>
+      {open&&<fieldset disabled={disabled}><legend className="ho-role-legend">{domain}</legend>{permissions.map(p=><label className="ho-role-permission-row" key={p.key}><input type="checkbox" checked={selected.includes(p.key)} onChange={()=>onChange(selected.includes(p.key)?selected.filter(k=>k!==p.key):[...selected,p.key])}/><span className="ho-role-permission-info"><strong>{p.displayLabel}</strong><small>{p.key} · {p.allowedScopes.join("/")}</small></span></label>)}</fieldset>}</div>;
+    })}{!groups.length&&<p className="ho-role-empty" role="status">Không có quyền khớp tìm kiếm.</p>}</div>
   </section></TosCard></div>;
 }
 /** The same typed view is mounted by authenticated Staging and the local synthetic-only host. */
@@ -92,7 +96,7 @@ export function RoleM1Content({scopeKey,permissionKeys,localCatalog}:{scopeKey:s
       overviewAfter:<TosCard className="ho-role-card"><TosButton variant="secondary" disabled={!archivePreviewRole(row)} onClick={()=>setConfirm(true)}>Lưu trữ vai trò</TosButton>{confirm&&<div role="alertdialog" aria-label="Xác nhận lưu trữ"><p>Lưu trữ {row.name}?</p><TosButton variant="secondary" onClick={()=>setConfirm(false)}>Hủy</TosButton><TosButton variant="primary" onClick={()=>{const archived=archivePreviewRole(row);if(archived)setState(prev=>reducePreview(prev,{type:"replace",id:row.id,record:archived}));setConfirm(false);}}>Xác nhận lưu trữ</TosButton></div>}</TosCard>}}}/>:
       <TddRenderer view={{kind:"table",props:{...common,query,rows:state.records.map(project),total:state.records.length,status:"ready",actionBindings:bindings,onQueryChange:setQuery,onOpen:r=>{setSelected(r.id);setFull(false);}}}}/>}
     {row&&!full&&<TddRenderer view={{kind:"drawer",props:{...common,record:project(row),onClose:close,onDetail:()=>setFull(true)}}}/>}
-    {create&&<TddRenderer view={{kind:"form",props:{...common,mode:"create",title:"Tạo vai trò",onClose:()=>setCreate(false),actionBindings:bindings,content:<><CreateCustomRoleFields draft={draft} onChange={setDraft}/><div className="ho-role-editor"><TosCard className="ho-role-card"><div className="ho-role-field-row"><label htmlFor="role-target">Đối tượng</label><select id="role-target" value={target} onChange={e=>{setTarget(e.target.value==="Staff"?"Staff":"Manager");setKeys([]);}}><option value="Manager">Manager · BO</option><option value="Staff">Staff · TOS</option></select></div><p>{target==="Manager"?"BO · Chi nhánh được phân công":"TOS · Phạm vi Staff được phân công"}</p></TosCard></div>{error?<p role="alert">Không tải được danh mục quyền.</p>:catalog?<PermissionPicker catalog={eligiblePermissions(catalog,target)} selected={keys} onChange={setKeys}/>:<p role="status">Đang tải danh mục quyền…</p>}</>}}}/>}
+    {create&&<TddRenderer view={{kind:"form",props:{...common,mode:"create",title:"Tạo vai trò",onClose:()=>setCreate(false),actionBindings:bindings,content:<div className="ho-role-editor"><CreateCustomRoleFields draft={draft} onChange={setDraft}/><div className="ho-role-editor"><TosCard className="ho-role-card"><div className="ho-role-field-row form-row"><label className="ho-role-field-label" htmlFor="role-target">Đối tượng</label><select id="role-target" value={target} onChange={e=>{setTarget(e.target.value==="Staff"?"Staff":"Manager");setKeys([]);}}><option value="Manager">Manager · BO</option><option value="Staff">Staff · TOS</option></select><p className="ho-role-readonly">{target==="Manager"?"BO · Chi nhánh được phân công":"TOS · Phạm vi Staff được phân công"}</p></div></TosCard></div>{error?<p role="alert">Không tải được danh mục quyền.</p>:catalog?<PermissionPicker key={target} catalog={eligiblePermissions(catalog,target)} selected={keys} onChange={setKeys}/>:<p role="status">Đang tải danh mục quyền…</p>}</div>}}}/>}
   </TddPreferencePolicy.Provider>;
   return content;
 }
