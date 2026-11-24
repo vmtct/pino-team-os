@@ -125,7 +125,9 @@
         "app/ho/system/roles/schema.ts",
         "app/ho/system/roles/RoleLifecycleForms.tsx",
         "app/ho/system/roles/role-lifecycle-model.ts",
-        "app/ho/system/roles/useRoleCreateFlow.ts"
+        "app/ho/system/roles/useRoleCreateFlow.ts",
+        "app/ho/system/roles/RoleM1Preview.tsx",
+        "app/ho/system/roles/role-m1-preview.ts"
       ],
       "externalReferences": [
         {
@@ -160,6 +162,7 @@
       "tests": [
         "lib/pap1169-ho-role-edit.test.ts",
         "lib/pap2192-role-lifecycle-model.test.ts",
+        "lib/pap2192-role-m1.test.ts",
         "lib/host-boundary.test.ts"
       ]
     },
