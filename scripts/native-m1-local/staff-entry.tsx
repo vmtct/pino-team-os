@@ -3,7 +3,7 @@ import {createRoot} from "react-dom/client";
 import {BoRegistrationWorkspace,type BoWorkspaceSource} from "@/app/bo/components/registration/BoRegistrationWorkspace";
 import {StaffManualWorkspace} from "@/app/ho/staff/StaffManualWorkspace";
 import {manualStaffDefinition,manualStaffQuery,type ManualStaffFields} from "@/app/ho/staff/manual-create-contract";
-import {newStaffPreview,readStaffPreview,createStaffPreviewRecord,staffPreviewCenter} from "@/app/ho/staff/manual-create-preview";
+import {newStaffPreview,readStaffPreview,createStaffPreviewRecord,staffPreviewCenter,projectStaffPreviewRow} from "@/app/ho/staff/manual-create-preview";
 import {TddRegistry,validateQuery,type AuthorizationContext,type ModuleSchema} from "@/lib/workspace-schema";
 import type {AuthenticatedSurfaceAdapter} from "@/lib/workspace-adapters/contracts";
 import type {AdapterNavigation,AdapterLocation} from "@/lib/workspace-adapters/navigation";
@@ -25,8 +25,8 @@ let state=newStaffPreview(principal);
 const context:AuthorizationContext=Object.freeze({surface:"HO",authorize:(permission:string)=>permission===manualStaffDefinition.capabilities.read});
 const registry=new TddRegistry();
 const schema:ModuleSchema<ManualStaffFields>=registry.register({...manualStaffDefinition,data:{id:"local-synthetic-presentation",list:async(query,_context,signal)=>{
-  signal.throwIfAborted();validateQuery(schema,query,context);return {rows:structuredClone(state.records),total:state.records.length};
-},detail:async(id,_context,signal)=>{signal.throwIfAborted();return readStaffPreview(state,id)??null;}}});
+  signal.throwIfAborted();validateQuery(schema,query,context);return {rows:state.records.map(projectStaffPreviewRow),total:state.records.length};
+},detail:async(id,_context,signal)=>{signal.throwIfAborted();const row=readStaffPreview(state,id);return row?projectStaffPreviewRow(row):null;}}});
 const adapter:AuthenticatedSurfaceAdapter<ManualStaffFields>={
   registry,schema,context,scope:{surface:"HO"},userId:principal,
   capabilities:{read:true,edit:false,create:false,delete:false,reveal:false,audit:false},
