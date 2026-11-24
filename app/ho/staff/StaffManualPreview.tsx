@@ -10,7 +10,7 @@ import { TddPreferencePolicy } from "@/app/components/workspace-renderer/Record"
 import { HoWorkspace } from "../HoWorkspace";
 import { StaffManualWorkspace } from "./StaffManualWorkspace";
 import { manualStaffDefinition, manualStaffQuery, type ManualStaffFields } from "./manual-create-contract";
-import { newStaffPreview, readStaffPreview, createStaffPreviewRecord, staffPreviewCenter } from "./manual-create-preview";
+import { newStaffPreview, readStaffPreview, createStaffPreviewRecord, staffPreviewCenter, projectStaffPreviewRow } from "./manual-create-preview";
 type Ready = { adapter: AuthenticatedSurfaceAdapter<ManualStaffFields>; navigation: AdapterNavigation<ManualStaffFields> };
 export function StaffManualPreview({ principalId }: { principalId: string }) {
   const state = useRef(newStaffPreview(principalId));
@@ -23,11 +23,11 @@ export function StaffManualPreview({ principalId }: { principalId: string }) {
       pagination: "local-ui",
       async list(_query, scope, _fetcher, signal) {
         signal.throwIfAborted(); if (scope.surface !== "HO") throw Error("HO only");
-        return { records: state.current.records.map(row => ({ row })), total: state.current.records.length };
+        return { records: state.current.records.map(row => ({ row: projectStaffPreviewRow(row) })), total: state.current.records.length };
       },
       async detail(id, scope, _fetcher, signal) {
         signal.throwIfAborted(); if (scope.surface !== "HO") throw Error("HO only");
-        const row = readStaffPreview(state.current, id); return row ? { row } : null;
+        const row = readStaffPreview(state.current, id); return row ? { row: projectStaffPreviewRow(row) } : null;
       },
     };
     void createHoTddAdapter({ registry: new TddRegistry(), definition: manualStaffDefinition, provider }, controller.signal).then(result => {
