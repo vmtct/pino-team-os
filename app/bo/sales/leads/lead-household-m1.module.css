@@ -55,3 +55,11 @@
   .stepProgress { grid-template-columns: minmax(0, 1fr) 14px minmax(0, 1fr); gap: 5px; }
 
 }
+/* PAP-2286: business layout only; presentation provided by PINO DS PAP-2363. */
+.titleRow { display:flex; gap:8px; min-width:0; }
+.inlineField { display:grid; width:100%; min-width:0; gap:3px; }
+.convertMember { display:grid; grid-template-columns:minmax(0,1fr); gap:8px; min-width:0; }
+.convertMemberHeader { display:flex; gap:8px; min-width:0; }
+.propertyRows { grid-template-columns:minmax(90px,.75fr) minmax(0,1.25fr); }
+.memberFields { grid-template-columns:repeat(3,minmax(0,1fr)); }
+@media (max-width: 700px) { .memberFields { grid-template-columns:minmax(0,1fr); } .propertyRows { grid-template-columns:minmax(0,1fr); } }
