@@ -85,7 +85,7 @@ function PropertySection<T extends Record<string, unknown>>({
   </section>;
 }
 
-export function LeadHouseholdM1Preview() {
+export function LeadHouseholdM1Preview({localReview=false}: {localReview?: boolean} = {}) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -273,21 +273,16 @@ export function LeadHouseholdM1Preview() {
   return <main className={styles.page}>
     {!selectedLead ? <><header className={styles.heading}>
       <div>
-        <span>Sales · PLT-LEAD · M1 FE Shell</span>
         <h1>Leads</h1>
         <p>Danh bạ đầu mối theo số điện thoại; thành viên và nhu cầu được gom dưới cùng một Lead.</p>
       </div>
       <div className={styles.headingActions}>
-        <BoDataGridBadge>PREVIEW · DỮ LIỆU GIẢ LẬP</BoDataGridBadge>
+        <BoDataGridBadge>DỮ LIỆU MẪU</BoDataGridBadge>
         <button type="button" onClick={openCreate}>＋ Tạo Lead mẫu</button>
       </div>
     </header>
 
-    <aside className={styles.previewNotice} role="note">
-      <strong>Chế độ Founder review · M1</strong>
-      <span>Fixture local, chỉ tồn tại trong bộ nhớ trình duyệt. Không đọc/ghi Acquisition API, Person, Actor, Guardian hoặc Core. Refresh sẽ khôi phục fixture chuẩn.</span>
-      <a href={pathname}>Quay về màn Acquisition Intent hiện tại</a>
-    </aside>
+    {!localReview ? <aside className={styles.previewNotice} role="note"><a href={pathname}>Acquisition Intent</a></aside> : null}
 
     {fixtureNotice ? <p className={styles.previewNotice} role="status">{fixtureNotice}</p> : null}
 
@@ -295,7 +290,7 @@ export function LeadHouseholdM1Preview() {
       rows={filteredRecords}
       columns={columns}
       rowKey={record => record.id}
-      caption="Lead household directory · M1 preview fixture"
+      caption="Danh bạ Leads"
       search={query}
       onSearchChange={setQuery}
       searchPlaceholder="Tìm tên, số điện thoại, thành viên, chương trình…"
@@ -329,7 +324,7 @@ export function LeadHouseholdM1Preview() {
 
     {quickViewId && !drawer ? <BoDrawer
       title={quickViewLead?.contactName ?? "Lead"}
-      eyebrow="Quick View · Lead household"
+      eyebrow="Xem nhanh Lead"
       mode="view"
       size="lg"
       onClose={() => setPreviewParam("quickView", null)}
@@ -338,7 +333,7 @@ export function LeadHouseholdM1Preview() {
 
     {convertLead ? <BoDrawer
       title="Chuyển đổi Lead"
-      eyebrow="M1 · Conversion preview · Không ghi Core"
+      eyebrow="Xem trước"
       mode="view"
       size="lg"
       onClose={() => { setConvertLeadId(null); setConvertMessage(""); }}
@@ -348,8 +343,8 @@ export function LeadHouseholdM1Preview() {
       </div>}
     >
       <div className={styles.drawerContent}>
-        <div className={styles.fixtureStrip}>Đây là shell duyệt luồng chuyển đổi, không thực hiện conversion thật.</div>
-        <BoProperties compact items={[{ key: "contact", label: "Liên hệ chính", value: convertLead.contactName }, { key: "phone", label: "Số điện thoại", value: convertLead.phone }, { key: "actors", label: "Actor khả dụng", value: "Parent · Student · Guest (mapping tại M2/M3)" }]} />
+        <div className={styles.fixtureStrip}>Chỉ xem trước, chưa tạo hồ sơ.</div>
+        <BoProperties compact items={[{ key: "contact", label: "Liên hệ chính", value: convertLead.contactName }, { key: "phone", label: "Số điện thoại", value: convertLead.phone }, { key: "actors", label: "Actor khả dụng", value: "Parent · Student · Guest" }]} />
         <section className={styles.memberSection}>
           <h3>Person · Liên hệ chính</h3>
           <div className={styles.memberFields}>
@@ -396,12 +391,12 @@ export function LeadHouseholdM1Preview() {
 
 function LeadQuickView({ record }: { record: LeadM1Record }) {
   return <div className={styles.quickView}>
-    <div className={styles.fixtureStrip}>DỮ LIỆU MẪU · PREVIEW ONLY</div>
+    <div className={styles.fixtureStrip}>DỮ LIỆU MẪU</div>
     <PropertySection title="Thông tin liên hệ" schema={CONTACT_FIELD_SCHEMA} values={{ contactName: record.contactName, phone: record.phone }} mode="VIEW" />
     <BoProperties compact items={[
       { key: "status", label: "Trạng thái Lead", value: record.lifecycle === "ACTIVE" ? "Đang hoạt động" : "Đã lưu trữ" },
       { key: "members", label: "Household", value: leadM1MemberSummary(record) },
-      { key: "person", label: "Person liên kết", value: "— · Chưa mô phỏng identity match" },
+      { key: "person", label: "Person liên kết", value: "—" },
       { key: "actors", label: "Actors hiện hữu", value: "—" },
     ]} />
     <section><h3>Thành viên</h3><ul>{record.members.map(member => <li key={member.id}><strong>{member.name}</strong><span>{member.age === null ? "Tuổi —" : member.age + " tuổi"} · {member.roles.map(leadM1RoleLabel).join(" · ")}</span></li>)}</ul></section>
@@ -424,20 +419,19 @@ function LeadOverview({ record, onSave, onConvert }: { record: LeadM1Record; onS
       </div> : <button type="button" onClick={() => setEditing(true)}>Sửa liên hệ</button>}
       {error ? <p role="alert">{error}</p> : null}
     </section>
-    <div className={styles.fixtureStrip}>Fixture local · không phải Core record</div>
     <BoProperties items={[
       { key: "contact", label: "Người liên hệ", value: record.contactName },
       { key: "phone", label: "Số điện thoại", value: record.phone },
       { key: "status", label: "Trạng thái Lead", value: <BoDataGridStatus value={record.lifecycle === "ACTIVE" ? "Đang hoạt động" : "Đã lưu trữ"} tone={record.lifecycle === "ACTIVE" ? "success" : "neutral"} /> },
       { key: "household", label: "Household", value: record.members.length + " thành viên" },
-      { key: "person", label: "Person liên kết", value: "— · Chưa mô phỏng identity match" },
+      { key: "person", label: "Person liên kết", value: "—" },
       { key: "actors", label: "Actors hiện hữu", value: "—" },
       { key: "createdAt", label: "Created Time", value: "—" },
       { key: "createdBy", label: "Created By", value: "—" },
       { key: "updatedAt", label: "Last Modified Time", value: "—" },
       { key: "updatedBy", label: "Last Modified By", value: "—" },
     ]} />
-    <p className={styles.helperNote}>Số điện thoại là khóa nhận diện Lead trong acquisition. Phone match không tự tạo Person, Parent, Student, Guest hay quyền Guardian.</p>
+    <p className={styles.helperNote}>Trùng số điện thoại không đồng nghĩa đã xác minh danh tính.</p>
     <div className={styles.detailActions}><button type="button" className={styles.primaryButton} onClick={onConvert}>Convert Lead · Xem trước</button></div>
   </div>;
 }
@@ -533,7 +527,7 @@ function LeadCreateEditDrawer({
 
   return <BoDrawer
     title={mode === "create" ? "Tạo Lead mẫu" : "Chỉnh sửa Lead mẫu"}
-    eyebrow="M1 FE Shell · Local fixture only"
+    eyebrow="Dữ liệu mẫu"
     mode={mode}
     size="lg"
     onClose={onClose}

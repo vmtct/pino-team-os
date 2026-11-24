@@ -22,5 +22,5 @@ const source:BoWorkspaceSource={
 };
 createRoot(document.getElementById("root")!).render(
   <BoRegistrationWorkspace source={source} moduleKey="sales/leads" currentUser={{displayName:"M1 · Dữ liệu mẫu"}}
-    content={<TddPreferencePolicy.Provider value="ephemeral"><LeadHouseholdM1Preview/></TddPreferencePolicy.Provider>}/>
+    content={<TddPreferencePolicy.Provider value="ephemeral"><LeadHouseholdM1Preview localReview/></TddPreferencePolicy.Provider>}/>
 );
