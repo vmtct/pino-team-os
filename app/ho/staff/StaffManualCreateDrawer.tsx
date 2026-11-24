@@ -25,15 +25,15 @@ export function StaffManualCreateDrawer({ schema, context, centers, onClose, onC
   };
   add("name", "Họ tên", undefined, true);
   add("phone", "Số điện thoại", <input className="property-control os-create-select" type="tel" id="staff-create-phone" required value={draft.phone} disabled={busy} onChange={e => change("phone", e.target.value)} />, true);
-  add("email", "Email", <input className="property-control os-create-select" type="email" id="staff-create-email" value={draft.email} disabled={busy} onChange={e => change("email", e.target.value)} />);
+  add("email", "Email", <input className="property-control os-create-select" type="email" id="staff-create-email" required value={draft.email} disabled={busy} onChange={e => change("email", e.target.value)} />, true);
   add("gender", "Giới tính", <select className="property-control os-create-select" id="staff-create-gender" value={draft.gender} disabled={busy} onChange={e => change("gender", e.target.value)}><option value="">—</option>{["Nam", "Nữ", "Khác"].map(value => <option key={value}>{value}</option>)}</select>);
   add("birthDate", "Sinh Nhật", <input className="property-control os-create-select" type="date" id="staff-create-birthDate" value={draft.birthDate} disabled={busy} onChange={e => change("birthDate", e.target.value)} />);
   createFields.center = { id: "staff-create-center", value: draft.centerId, required: true, onChange: value => change("centerId", value), control: <select className="property-control os-create-select" id="staff-create-center" required disabled={busy} value={draft.centerId} onChange={e => change("centerId", e.target.value)}><option value="">— Chọn cơ sở —</option>{centers.map(center => <option key={center.id} value={center.id}>{center.label}</option>)}</select> };
   const extra = [createOnly("createLogin", "Tạo tài khoản đăng nhập")];
-  createFields.createLogin = { id: "staff-create-login", value: "", onChange: () => {}, control: <input id="staff-create-login" type="checkbox" disabled={busy} checked={login} onChange={e => { setLogin(e.target.checked); change("loginEmail", ""); clearSecrets(); }} /> };
+  createFields.createLogin = { id: "staff-create-login", value: "", onChange: () => {}, control: <input id="staff-create-login" type="checkbox" disabled={busy} checked={login} onChange={e => { setLogin(e.target.checked); setError(""); clearSecrets(); }} /> };
   if (login) {
     extra.push(...fields.filter(field => field.key === "loginEmail"), createOnly("password", "Mật khẩu"), createOnly("confirmation", "Xác nhận mật khẩu"));
-    add("loginEmail", "Email đăng nhập", <input className="property-control os-create-select" id="staff-create-loginEmail" type="email" required value={draft.loginEmail} disabled={busy} onChange={e => change("loginEmail", e.target.value)} />, true);
+    createFields.loginEmail = { id: "staff-create-loginEmail", label: "Email đăng nhập", value: draft.email, onChange: () => {}, disabled: true, control: <input className="property-control os-create-select" id="staff-create-loginEmail" type="email" value={draft.email} disabled /> };
     for (const [key, value, setter] of [["password", password, setPassword], ["confirmation", confirmation, setConfirmation]] as const) {
       createFields[key] = { id: "staff-create-" + key, value: "", onChange: () => {}, required: true, control: <input className="property-control os-create-select" id={"staff-create-" + key} type="password" autoComplete="new-password" minLength={10} maxLength={128} required disabled={busy} value={value} onChange={e => { setter(e.target.value); setError(""); }} /> };
     }

@@ -4,18 +4,23 @@ import { randomBytes } from "node:crypto";
 import { TddRegistry, validateQuery } from "./workspace-schema";
 import { emptyStaffDraft, manualStaffDefinition, manualStaffFields, manualStaffQuery, manualStaffAuditKeys, validateStaffDraft } from "../app/ho/staff/manual-create-contract";
 import { createStaffPreviewRecord, newStaffPreview, readStaffPreview, staffPreviewCenter, staffPreviewSeed, projectStaffPreviewRow } from "../app/ho/staff/manual-create-preview";
-const draft = () => ({ ...emptyStaffDraft(), name: "QA Staff", phone: "+84900000002", centerId: staffPreviewCenter.id, loginEmail: "qa@example.invalid" });
-test("PAP-2353 requires name, phone, and admitted center; optional login defaults absent", () => {
+const draft = () => ({ ...emptyStaffDraft(), name: "QA Staff", phone: "+84900000002", centerId: staffPreviewCenter.id, email: "qa@example.invalid" });
+test("PAP-2353 requires name, phone, email and admitted center; optional login defaults absent", () => {
   assert.equal(validateStaffDraft(emptyStaffDraft(), [staffPreviewCenter], null).ok, false);
   assert.equal(validateStaffDraft({ ...draft(), centerId: "unknown" }, [staffPreviewCenter], null).ok, false);
+  assert.equal(validateStaffDraft({ ...draft(), email: "" }, [staffPreviewCenter], null).ok, false);
+  assert.equal(validateStaffDraft({ ...draft(), email: "invalid" }, [staffPreviewCenter], null).ok, false);
   const result = validateStaffDraft(draft(), [staffPreviewCenter], null);
-  assert(result.ok); assert.equal(result.command.login, null); assert.equal(result.command.phone, "0900000002");
+  assert(result.ok); assert.equal(result.command.login, null); assert.equal(result.command.phone, "0900000002"); assert.equal(result.command.email, "qa@example.invalid");
 });
 test("PAP-2353 login policy rejects mismatches and never projects credentials", () => {
   const secret = randomBytes(16).toString("hex");
   assert.equal(validateStaffDraft(draft(), [staffPreviewCenter], { password: secret, confirmation: "" }).ok, false);
-  const result = validateStaffDraft(draft(), [staffPreviewCenter], { password: secret, confirmation: secret });
+  assert.equal(validateStaffDraft({ ...draft(), email: "" }, [staffPreviewCenter], { password: secret, confirmation: secret }).ok, false);
+  const result = validateStaffDraft({ ...draft(), email: " QA@EXAMPLE.INVALID " }, [staffPreviewCenter], { password: secret, confirmation: secret });
   assert(result.ok);
+  assert.equal(result.command.login?.email, result.command.email);
+  assert.equal(result.command.email, "qa@example.invalid");
   const state = createStaffPreviewRecord(newStaffPreview("qa-principal"), result.command);
   const row = readStaffPreview(state, "STAFF-MOCK-002"); assert(row);
   assert.equal(row.loginEmail, "qa@example.invalid");
