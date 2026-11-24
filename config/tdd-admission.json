@@ -958,6 +958,8 @@
         "app/bo/piner-posts/draft-retry-journal.ts",
         "app/bo/piner-posts/native-draft-binding.ts",
         "app/bo/piner-posts/native-draft-session.ts",
+        "app/bo/piner-posts/post-preview-navigation.ts",
+        "app/bo/piner-posts/post-preview-session.ts",
         "app/bo/piner-posts/page.tsx",
         "app/bo/piner-posts/schema.ts",
         "app/bo/piner-posts/NativePrivateMediaPanel.tsx",
@@ -994,9 +996,6 @@
       ],
       "externalReferences": [
         {"file":"app/bo/content/posts/BoPostSubmitShell.tsx","owner":"PAP-2337"},
-        {"file":"app/bo/content/posts/PostPreviewShell.tsx","owner":"PAP-2337"},
-        {"file":"app/bo/content/posts/post-preview-contract.ts","owner":"PAP-2337"},
-        {"file":"app/bo/content/posts/post-preview-fixture.ts","owner":"PAP-2337"},
           {
             "file": "lib/ho-routes.ts",
             "owner": "PAP-1221"
