@@ -70,10 +70,10 @@ function PropertySection<T extends Record<string, unknown>>({
     <h3>{title}</h3>
     <div className={styles.drawerContent} role="list">
       {schema.map(field => <div className={styles.propertyRows} role="listitem" key={field.key}>
-        <div className={styles.helperNote}>{field.label}{field.required ? " *" : ""}</div>
+        <div className="pds-compact-muted">{field.label}{field.required ? " *" : ""}</div>
         <div className={styles.mono}>
           {mode === "VIEW" ? String(values[field.key] ?? "—") : (
-            <input
+            <input className="pds-compact-field"
               aria-label={field.label}
               value={String(values[field.key] ?? "")}
               required={Boolean(field.required)}
@@ -172,7 +172,7 @@ export function LeadHouseholdM1Preview({localReview=false}: {localReview?: boole
     { key: "contact", header: "Người liên hệ", minWidth: 210, sticky: true, sortable: true, render: record => <div className={styles.identityCell}><strong>{record.contactName}</strong><small>{record.id}</small><BoDataGridBadge>DỮ LIỆU MẪU</BoDataGridBadge></div> },
     { key: "phone", header: "Số điện thoại", minWidth: 140, render: record => <span className={styles.mono}>{record.phone}</span> },
     { key: "household", header: "Thành viên", minWidth: 170, render: record => <div className={styles.stackCell}><strong>{record.members.length} thành viên</strong><small>{leadM1MemberSummary(record)}</small></div> },
-    { key: "interest", header: "Chương trình quan tâm", minWidth: 230, render: record => <div className={styles.badgeWrap}>{record.intents.map(intent => <BoDataGridBadge key={intent.id}>{LEAD_M1_INTEREST_LABELS[intent.kind]}</BoDataGridBadge>)}</div> },
+    { key: "interest", header: "Chương trình quan tâm", minWidth: 230, render: record => <div className={styles.badgeWrap + " pds-choice-group"}>{record.intents.map(intent => <BoDataGridBadge key={intent.id}>{LEAD_M1_INTEREST_LABELS[intent.kind]}</BoDataGridBadge>)}</div> },
     { key: "source", header: "Nguồn", minWidth: 150, render: record => <div className={styles.stackCell}>{Array.from(new Set(record.intents.map(intent => intent.source))).map(source => <small key={source}>{source}</small>)}</div> },
     { key: "lifecycle", header: "Trạng thái", minWidth: 120, render: record => <BoDataGridStatus value={record.lifecycle === "ACTIVE" ? "Đang hoạt động" : "Đã lưu trữ"} tone={record.lifecycle === "ACTIVE" ? "success" : "neutral"} /> },
     ...LEAD_M1_AUDIT_COLUMNS.map(field => ({ key: field.key, header: field.label, minWidth: field.type === "datetime" ? 150 : 130, render: (record: LeadM1Record) => record[field.key] ?? field.fallback })),
@@ -291,9 +291,9 @@ export function LeadHouseholdM1Preview({localReview=false}: {localReview?: boole
         <div className={styles.titleRow}>{menu("lead-menu-btn")}<h1>Leads</h1></div>
         <p>Danh bạ đầu mối theo số điện thoại; thành viên và nhu cầu được gom dưới cùng một Lead.</p>
       </div>
-      <div className={styles.headingActions}>
+      <div className={styles.headingActions + " pds-compact-actions"}>
         <BoDataGridBadge>DỮ LIỆU MẪU</BoDataGridBadge>
-        <button type="button" onClick={openCreate}>＋ Tạo Lead mẫu</button>
+        <button className="primary-btn" type="button" onClick={openCreate}>＋ Tạo Lead mẫu</button>
       </div>
     </header>
 
@@ -321,7 +321,7 @@ export function LeadHouseholdM1Preview({localReview=false}: {localReview?: boole
       selectedRowKey={selectedLeadId ?? quickViewId}
       onRowOpen={record => setPreviewParam("quickView", record.id)}
       quickViewOpener
-      toolbarActions={<label className={styles.filterControl}>Trạng thái<select value={lifecycle} onChange={event => setLifecycle(event.target.value as typeof lifecycle)}><option value="ALL">Tất cả</option><option value="ACTIVE">Đang hoạt động</option><option value="ARCHIVED">Đã lưu trữ</option></select></label>}
+      toolbarActions={<label className={styles.filterControl}>Trạng thái<select className="pds-compact-field" value={lifecycle} onChange={event => setLifecycle(event.target.value as typeof lifecycle)}><option value="ALL">Tất cả</option><option value="ACTIVE">Đang hoạt động</option><option value="ARCHIVED">Đã lưu trữ</option></select></label>}
       emptyTitle="Không có Lead phù hợp"
       emptyMessage="Thay đổi từ khóa hoặc bộ lọc trạng thái."
     />
@@ -350,7 +350,7 @@ export function LeadHouseholdM1Preview({localReview=false}: {localReview?: boole
       mode="view"
       size="lg"
       onClose={() => setPreviewParam("quickView", null)}
-      footer={quickViewLead ? <div className={styles.drawerFooter}><button type="button" className={styles.primaryButton} onClick={() => openFullDetail(quickViewLead.id)}>Mở chi tiết đầy đủ →</button></div> : null}
+      footer={quickViewLead ? <div className={styles.drawerFooter + " pds-compact-actions"}><button type="button" className="primary-btn" onClick={() => openFullDetail(quickViewLead.id)}>Mở chi tiết đầy đủ →</button></div> : null}
     >{quickViewLead ? <LeadQuickView record={quickViewLead} /> : <p role="alert">Lead fixture không còn tồn tại trong bộ nhớ preview. Refresh để khôi phục fixture chuẩn.</p>}</BoDrawer> : null}
 
     {convertLead ? <BoDrawer
@@ -359,36 +359,36 @@ export function LeadHouseholdM1Preview({localReview=false}: {localReview?: boole
       mode="view"
       size="lg"
       onClose={() => { setConvertLeadId(null); setConvertMessage(""); }}
-      footer={<div className={styles.drawerFooter}>
-        <button type="button" onClick={() => setConvertLeadId(null)}>Hủy</button>
-        <button type="button" className={styles.primaryButton} onClick={previewConversion}>Xác nhận xem trước</button>
+      footer={<div className={styles.drawerFooter + " pds-compact-actions"}>
+        <button className="secondary-btn" type="button" onClick={() => setConvertLeadId(null)}>Hủy</button>
+        <button type="button" className="primary-btn" onClick={previewConversion}>Xác nhận xem trước</button>
       </div>}
     >
       <div className={styles.drawerContent}>
-        <div className={styles.fixtureStrip}>Chỉ xem trước, chưa tạo hồ sơ.</div>
+        <div className="pds-compact-muted">Chỉ xem trước, chưa tạo hồ sơ.</div>
         <BoProperties compact items={[{ key: "contact", label: "Liên hệ chính", value: convertLead.contactName }, { key: "phone", label: "Số điện thoại", value: convertLead.phone }, { key: "actors", label: "Actor khả dụng", value: "Parent · Student · Guest" }]} />
         <section className={styles.memberSection}>
           <h3>Person · Liên hệ chính</h3>
           <div className={styles.memberFields}>
-            <label>Person<select value={contactPersonMode} onChange={event => setContactPersonMode(event.target.value as "NEW" | "EXISTING")}><option value="NEW">Tạo mới</option><option value="EXISTING">Liên kết hiện có</option></select></label>
-            <label>Person ID<input placeholder="PERSON-..." value={contactPersonId} disabled={contactPersonMode !== "EXISTING"} onChange={event => setContactPersonId(event.target.value)} /></label>
-            <label>Tên canonical<input value={contactCanonicalName} onChange={event => setContactCanonicalName(event.target.value)} /></label>
+            <label className="pds-compact-label">Person<select className="pds-compact-field" value={contactPersonMode} onChange={event => setContactPersonMode(event.target.value as "NEW" | "EXISTING")}><option value="NEW">Tạo mới</option><option value="EXISTING">Liên kết hiện có</option></select></label>
+            <label className="pds-compact-label">Person ID<input className="pds-compact-field" placeholder="PERSON-..." value={contactPersonId} disabled={contactPersonMode !== "EXISTING"} onChange={event => setContactPersonId(event.target.value)} /></label>
+            <label className="pds-compact-label">Tên canonical<input className="pds-compact-field" value={contactCanonicalName} onChange={event => setContactCanonicalName(event.target.value)} /></label>
           </div>
-          <div className={styles.roleOptions} aria-label="Actors liên hệ chính">{ROLE_OPTIONS.map(role => <label key={role}><input type="checkbox" checked={contactActorRoles.includes(role)} onChange={event => setContactActorRoles(current => event.target.checked ? [...current, role] : current.filter(item => item !== role))} />{leadM1RoleLabel(role)}</label>)}</div>
+          <div className={styles.roleOptions + " pds-choice-group"} aria-label="Actors liên hệ chính">{ROLE_OPTIONS.map(role => <label key={role}><input type="checkbox" checked={contactActorRoles.includes(role)} onChange={event => setContactActorRoles(current => event.target.checked ? [...current, role] : current.filter(item => item !== role))} />{leadM1RoleLabel(role)}</label>)}</div>
           <h3>Chọn thành viên để chuyển đổi</h3>
-          {convertLead.members.filter(member => !member.primaryContact).map(member => <div className={styles.convertMember} key={member.id}>
+          {convertLead.members.filter(member => !member.primaryContact).map(member => <div className={styles.convertMember + " pds-compact-card"} key={member.id}><div className={styles.convertMemberHeader}>
             <input type="checkbox" aria-label={"Chọn " + member.name} checked={convertSelected.includes(member.id)} onChange={event => setConvertSelected(current => event.target.checked ? [...current, member.id] : current.filter(id => id !== member.id))} />
-            <span>{member.name} · {member.roles.map(leadM1RoleLabel).join(" / ")}</span>
-            {convertSelected.includes(member.id) ? <span className={styles.memberFields}>
-              <span>Person<select aria-label={"Person " + member.name} value={memberPersonModes[member.id] ?? "NEW"} onChange={event => setMemberPersonModes(current => ({ ...current, [member.id]: event.target.value as "NEW" | "EXISTING" }))}><option value="NEW">Tạo mới</option><option value="EXISTING">Liên kết hiện có</option></select></span>
-              <span>Person ID<input aria-label={"Person ID " + member.name} placeholder="PERSON-..." disabled={memberPersonModes[member.id] !== "EXISTING"} value={memberPersonIds[member.id] ?? ""} onChange={event => setMemberPersonIds(current => ({ ...current, [member.id]: event.target.value }))} /></span>
-              <span>Tên canonical<input aria-label={"Tên canonical " + member.name} value={memberCanonicalNames[member.id] ?? ""} onChange={event => setMemberCanonicalNames(current => ({ ...current, [member.id]: event.target.value }))} /></span>
-              <span className={styles.roleOptions}>{ROLE_OPTIONS.filter(role => role !== "PARENT").map(role => <span key={role}><input type="checkbox" aria-label={leadM1RoleLabel(role) + " " + member.name} checked={(memberActorRoles[member.id] ?? []).includes(role)} onChange={event => setMemberActorRoles(current => ({ ...current, [member.id]: event.target.checked ? [...(current[member.id] ?? []), role] : (current[member.id] ?? []).filter(item => item !== role) }))} />{leadM1RoleLabel(role)}</span>)}</span>
-            </span> : null}
+            <span>{member.name} · {member.roles.map(leadM1RoleLabel).join(" / ")}</span></div>
+            {convertSelected.includes(member.id) ? <><span className={styles.memberFields}>
+              <span className="pds-compact-label">Person<select className="pds-compact-field" aria-label={"Person " + member.name} value={memberPersonModes[member.id] ?? "NEW"} onChange={event => setMemberPersonModes(current => ({ ...current, [member.id]: event.target.value as "NEW" | "EXISTING" }))}><option value="NEW">Tạo mới</option><option value="EXISTING">Liên kết hiện có</option></select></span>
+              <span className="pds-compact-label">Person ID<input className="pds-compact-field" aria-label={"Person ID " + member.name} placeholder="PERSON-..." disabled={memberPersonModes[member.id] !== "EXISTING"} value={memberPersonIds[member.id] ?? ""} onChange={event => setMemberPersonIds(current => ({ ...current, [member.id]: event.target.value }))} /></span>
+              <span className="pds-compact-label">Tên canonical<input className="pds-compact-field" aria-label={"Tên canonical " + member.name} value={memberCanonicalNames[member.id] ?? ""} onChange={event => setMemberCanonicalNames(current => ({ ...current, [member.id]: event.target.value }))} /></span></span>
+              <span className={styles.roleOptions + " pds-choice-group"}>{ROLE_OPTIONS.filter(role => role !== "PARENT").map(role => <span key={role}><input type="checkbox" aria-label={leadM1RoleLabel(role) + " " + member.name} checked={(memberActorRoles[member.id] ?? []).includes(role)} onChange={event => setMemberActorRoles(current => ({ ...current, [member.id]: event.target.checked ? [...(current[member.id] ?? []), role] : (current[member.id] ?? []).filter(item => item !== role) }))} />{leadM1RoleLabel(role)}</span>)}</span>
+            </> : null}
           </div>)}
         </section>
         <section className={styles.relationshipSection}><h3>Quan hệ khai báo (chưa xác nhận)</h3>
-          {convertLead.relationships.map(relation => <label className={styles.primaryContactOption} key={relation.id}>
+          {convertLead.relationships.map(relation => <label className={styles.primaryContactOption + " pds-choice"} key={relation.id}>
             <input type="checkbox" checked={guardianConfirmedIds.includes(relation.id)} onChange={event => setGuardianConfirmedIds(current => event.target.checked ? [...current, relation.id] : current.filter(id => id !== relation.id))} />
             <span>{convertLead.members.find(member => member.id === relation.fromMemberId)?.name ?? "—"} → {convertLead.members.find(member => member.id === relation.toMemberId)?.name ?? "—"} · {relation.label} · {guardianConfirmedIds.includes(relation.id) ? "Đã chọn xác nhận trong preview" : "Chưa xác nhận"}</span>
           </label>)}
@@ -413,7 +413,7 @@ export function LeadHouseholdM1Preview({localReview=false}: {localReview?: boole
 
 function LeadQuickView({ record }: { record: LeadM1Record }) {
   return <div className={styles.quickView}>
-    <div className={styles.fixtureStrip}>DỮ LIỆU MẪU</div>
+    <div className="pds-compact-muted">DỮ LIỆU MẪU</div>
     <PropertySection title="Thông tin liên hệ" schema={CONTACT_FIELD_SCHEMA} values={{ contactName: record.contactName, phone: record.phone }} mode="VIEW" />
     <BoProperties compact items={[
       { key: "status", label: "Trạng thái Lead", value: record.lifecycle === "ACTIVE" ? "Đang hoạt động" : "Đã lưu trữ" },
@@ -421,8 +421,8 @@ function LeadQuickView({ record }: { record: LeadM1Record }) {
       { key: "person", label: "Person liên kết", value: "—" },
       { key: "actors", label: "Actors hiện hữu", value: "—" },
     ]} />
-    <section><h3>Thành viên</h3><ul className={styles.memberList}>{record.members.map(member => <li key={member.id}><strong>{member.name}</strong><span>{member.age === null ? "Tuổi —" : member.age + " tuổi"} · {member.roles.map(leadM1RoleLabel).join(" · ")}</span></li>)}</ul></section>
-    <section><h3>Quan tâm</h3><div className={styles.badgeWrap}>{record.intents.map(intent => <BoDataGridBadge key={intent.id}>{LEAD_M1_INTEREST_LABELS[intent.kind]}</BoDataGridBadge>)}</div></section>
+    <section><h3>Thành viên</h3><ul className="pds-compact-list">{record.members.map(member => <li key={member.id}><strong>{member.name}</strong><span>{member.age === null ? "Tuổi —" : member.age + " tuổi"} · {member.roles.map(leadM1RoleLabel).join(" · ")}</span></li>)}</ul></section>
+    <section><h3>Quan tâm</h3><div className={styles.badgeWrap + " pds-choice-group"}>{record.intents.map(intent => <BoDataGridBadge key={intent.id}>{LEAD_M1_INTEREST_LABELS[intent.kind]}</BoDataGridBadge>)}</div></section>
   </div>;
 }
 
@@ -431,11 +431,11 @@ function LeadInlineText({ value, label, onCommit, inputMode }: { value: string; 
   const [error, setError] = useState(false);
   const canceled = useRef(false);
   return <span className={styles.inlineField}>
-    <input className={styles.inlineInput} aria-label={label} aria-invalid={error || undefined} value={draft} inputMode={inputMode}
+    <input className="pds-direct-field" aria-label={label} aria-invalid={error || undefined} value={draft} inputMode={inputMode}
       onChange={event => { setDraft(event.target.value); setError(false); }}
       onBlur={() => { if (canceled.current) { canceled.current = false; return; } if (draft === value) return; if (onCommit(draft)) setError(false); else setError(true); }}
       onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); } if (event.key === "Escape") { event.preventDefault(); canceled.current = true; setDraft(value); setError(false); event.currentTarget.blur(); } }} />
-    {error ? <small role="alert" className={styles.inlineError}>Giá trị không hợp lệ</small> : null}
+    {error ? <small role="alert" className="pds-field-error">Giá trị không hợp lệ</small> : null}
   </span>;
 }
 function LeadOverview({ record, onSave, onConvert, onSaveInterests }: { record: LeadM1Record; onSave: (name: string, phone: string) => boolean; onConvert: () => void; onSaveInterests: (kinds: LeadM1IntentKind[]) => void }) {
@@ -452,9 +452,9 @@ function LeadOverview({ record, onSave, onConvert, onSaveInterests }: { record: 
       { key: "updatedAt", label: "Last Modified Time", value: "—" },
       { key: "updatedBy", label: "Last Modified By", value: "—" },
     ]} />
-    {!record.members.length ? <div className={styles.inlineChoices} aria-label="Chương trình quan tâm">{PROGRAM_OPTIONS.map(option => <label key={option.kind}><input type="checkbox" checked={record.intents.some(intent => intent.kind === option.kind)} onChange={event => { const kinds=record.intents.map(intent => intent.kind); onSaveInterests(event.target.checked ? [...kinds, option.kind] : kinds.filter(kind => kind !== option.kind)); }} />{LEAD_M1_INTEREST_LABELS[option.kind]}</label>)}</div> : null}
-    <p className={styles.helperNote}>Trùng số điện thoại không đồng nghĩa đã xác minh danh tính.</p>
-    <div className={styles.detailActions}><button type="button" className={styles.primaryButton} onClick={onConvert}>Convert Lead · Xem trước</button></div>
+    {!record.members.length ? <div className="pds-choice-group" aria-label="Chương trình quan tâm">{PROGRAM_OPTIONS.map(option => <label key={option.kind}><input type="checkbox" checked={record.intents.some(intent => intent.kind === option.kind)} onChange={event => { const kinds=record.intents.map(intent => intent.kind); onSaveInterests(event.target.checked ? [...kinds, option.kind] : kinds.filter(kind => kind !== option.kind)); }} />{LEAD_M1_INTEREST_LABELS[option.kind]}</label>)}</div> : null}
+    <p className="pds-compact-muted">Trùng số điện thoại không đồng nghĩa đã xác minh danh tính.</p>
+    <div className={styles.detailActions}><button type="button" className="secondary-btn" onClick={onConvert}>Convert Lead · Xem trước</button></div>
   </div>;
 }
 function LeadMembers({ record, onSave, onSaveInterests }: { record: LeadM1Record; onSave: (members: LeadM1Member[]) => boolean; onSaveInterests: (memberId: string, kinds: LeadM1IntentKind[]) => void }) {
@@ -466,21 +466,21 @@ function LeadMembers({ record, onSave, onSaveInterests }: { record: LeadM1Record
   const columns: BoDataGridColumn<LeadM1Member>[] = [
     { key: "name", header: "Thành viên", minWidth: 180, render: member => <div className={styles.stackCell}><LeadInlineText key={member.id+member.name} label={"Họ tên "+member.id} value={member.name} onCommit={name => patch(member, {name:name.trim()})} /><small>{member.id}</small></div> },
     { key: "age", header: "Tuổi", minWidth: 75, render: member => <LeadInlineText key={member.id+String(member.age)} label={"Tuổi "+member.id} value={member.age === null ? "" : String(member.age)} inputMode="numeric" onCommit={value => patch(member, {age:value.trim() ? Number(value) : null})} /> },
-    { key: "gender", header: "Giới tính", minWidth: 95, render: member => <select className={styles.inlineInput} aria-label={"Giới tính "+member.id} value={member.gender} onChange={event => patch(member, {gender:event.target.value as LeadM1Member["gender"]})}><option>—</option><option>Nữ</option><option>Nam</option><option>Khác</option></select> },
-    { key: "roles", header: "Vai trò", minWidth: 170, render: member => <div className={styles.inlineChoices} aria-label={"Vai trò "+member.id}>{(member.primaryContact ? ROLE_OPTIONS : ROLE_OPTIONS.filter(role => role !== "PARENT")).map(role => <label key={role}><input type="checkbox" checked={member.roles.includes(role)} onChange={event => patch(member, {roles:event.target.checked ? [...member.roles,role] : member.roles.filter(item => item !== role)})} />{leadM1RoleLabel(role)}</label>)}</div> },
+    { key: "gender", header: "Giới tính", minWidth: 95, render: member => <select className="pds-direct-field" aria-label={"Giới tính "+member.id} value={member.gender} onChange={event => patch(member, {gender:event.target.value as LeadM1Member["gender"]})}><option>—</option><option>Nữ</option><option>Nam</option><option>Khác</option></select> },
+    { key: "roles", header: "Vai trò", minWidth: 170, render: member => <div className="pds-choice-group" aria-label={"Vai trò "+member.id}>{(member.primaryContact ? ROLE_OPTIONS : ROLE_OPTIONS.filter(role => role !== "PARENT")).map(role => <label key={role}><input type="checkbox" checked={member.roles.includes(role)} onChange={event => patch(member, {roles:event.target.checked ? [...member.roles,role] : member.roles.filter(item => item !== role)})} />{leadM1RoleLabel(role)}</label>)}</div> },
     { key: "contact", header: "Liên hệ chính", minWidth: 110, render: member => <input type="checkbox" aria-label={"Liên hệ chính "+member.id} checked={member.primaryContact} onChange={event => patch(member, {primaryContact:event.target.checked,roles:event.target.checked ? member.roles : member.roles.filter(role=>role!=="PARENT")})} /> },
-    { key: "interests", header: "Chương trình quan tâm", minWidth: 240, render: member => <div className={styles.inlineChoices}>{PROGRAM_OPTIONS.map(option => <label key={option.kind}><input type="checkbox" checked={record.intents.some(intent=>intent.kind===option.kind&&intent.memberIds.includes(member.id))} onChange={event=>{const kinds=record.intents.filter(intent=>intent.memberIds.includes(member.id)).map(intent=>intent.kind);onSaveInterests(member.id,event.target.checked?[...kinds,option.kind]:kinds.filter(kind=>kind!==option.kind));}} />{LEAD_M1_INTEREST_LABELS[option.kind]}</label>)}</div> },
-    { key: "remove", header: "", minWidth: 60, render: member => <button type="button" className={styles.inlineRemove} aria-label={"Gỡ "+member.name} onClick={()=>commit(record.members.filter(item=>item.id!==member.id))}>Gỡ</button> },
+    { key: "interests", header: "Chương trình quan tâm", minWidth: 240, render: member => <div className="pds-choice-group">{PROGRAM_OPTIONS.map(option => <label key={option.kind}><input type="checkbox" checked={record.intents.some(intent=>intent.kind===option.kind&&intent.memberIds.includes(member.id))} onChange={event=>{const kinds=record.intents.filter(intent=>intent.memberIds.includes(member.id)).map(intent=>intent.kind);onSaveInterests(member.id,event.target.checked?[...kinds,option.kind]:kinds.filter(kind=>kind!==option.kind));}} />{LEAD_M1_INTEREST_LABELS[option.kind]}</label>)}</div> },
+    { key: "remove", header: "", minWidth: 60, render: member => <button type="button" className="pds-text-action" aria-label={"Gỡ "+member.name} onClick={()=>commit(record.members.filter(item=>item.id!==member.id))}>Gỡ</button> },
   ];
-  return <section className={styles.detailContent}><div className={styles.sectionHeading}><h2>Thành viên</h2><BoDataGridBadge>{record.members.length} thành viên</BoDataGridBadge></div>
+  return <section className={styles.detailContent}><div className={styles.sectionHeading + " pds-compact-heading"}><h2>Thành viên</h2><BoDataGridBadge>{record.members.length} thành viên</BoDataGridBadge></div>
     <BoDataGrid rows={record.members} columns={columns} rowKey={member => member.id} caption="Lead members" showToolbar={false} />
-    <form className={styles.inlineComposer} onSubmit={event=>{event.preventDefault();if(!newName.trim())return;const id=record.id+"-MEM-"+Date.now();if(commit([...record.members,{id,name:newName.trim(),age:null,gender:"—",roles:[newRole],primaryContact:false}]))setNewName("");}}>
-      <input className={styles.inlineInput} aria-label="Tên thành viên mới" placeholder="Tên thành viên mới" value={newName} onChange={event=>setNewName(event.target.value)} required />
-      <select className={styles.inlineInput} aria-label="Vai trò thành viên mới" value={newRole} onChange={event=>setNewRole(event.target.value as LeadM1Role)}><option value="STUDENT">Student</option><option value="GUEST">Guest</option></select>
-      <button type="submit" className={styles.inlineRemove}>＋ Thêm thành viên</button>
+    <form className="pds-compact-form" onSubmit={event=>{event.preventDefault();if(!newName.trim())return;const id=record.id+"-MEM-"+Date.now();if(commit([...record.members,{id,name:newName.trim(),age:null,gender:"—",roles:[newRole],primaryContact:false}]))setNewName("");}}>
+      <input className="pds-direct-field" aria-label="Tên thành viên mới" placeholder="Tên thành viên mới" value={newName} onChange={event=>setNewName(event.target.value)} required />
+      <select className="pds-direct-field" aria-label="Vai trò thành viên mới" value={newRole} onChange={event=>setNewRole(event.target.value as LeadM1Role)}><option value="STUDENT">Student</option><option value="GUEST">Guest</option></select>
+      <button type="submit" className="pds-text-action">＋ Thêm thành viên</button>
     </form>
-    {error ? <p role="alert" className={styles.inlineError}>{error}</p> : null}
-    <p className={styles.helperNote}>Vai trò dự kiến, chưa tạo hồ sơ.</p>
+    {error ? <p role="alert" className="pds-field-error">{error}</p> : null}
+    <p className="pds-compact-muted">Vai trò dự kiến, chưa tạo hồ sơ.</p>
   </section>;
 }
 function validLeadRelationship(relation: LeadM1Relationship, members: LeadM1Member[]) {
@@ -494,22 +494,22 @@ function LeadRelationships({ record, onSave }: { record: LeadM1Record; onSave: (
   function commit(items: LeadM1Relationship[]) { const ok=onSave(items);setError(ok?"":"Quan hệ không hợp lệ hoặc đã tồn tại.");return ok; }
   function patch(relation:LeadM1Relationship,next:Partial<LeadM1Relationship>){commit(record.relationships.map(item=>item.id===relation.id?{...item,...next}:item));}
   const columns: BoDataGridColumn<LeadM1Relationship>[] = [
-    { key:"from",header:"Từ người",minWidth:180,render:relation=><select className={styles.inlineInput} aria-label={"Từ người "+relation.id} value={relation.fromMemberId} onChange={event=>patch(relation,{fromMemberId:event.target.value})}>{parents.map(member=><option key={member.id} value={member.id}>{member.name}</option>)}</select> },
-    { key:"relation",header:"Quan hệ",minWidth:140,render:relation=><select className={styles.inlineInput} aria-label={"Quan hệ "+relation.id} value={relation.label} onChange={event=>patch(relation,{label:event.target.value})}>{labels.map(value=><option key={value}>{value}</option>)}</select> },
-    { key:"to",header:"Đến người",minWidth:180,render:relation=><select className={styles.inlineInput} aria-label={"Đến người "+relation.id} value={relation.toMemberId} onChange={event=>patch(relation,{toMemberId:event.target.value})}>{children.map(member=><option key={member.id} value={member.id}>{member.name}</option>)}</select> },
+    { key:"from",header:"Từ người",minWidth:180,render:relation=><select className="pds-direct-field" aria-label={"Từ người "+relation.id} value={relation.fromMemberId} onChange={event=>patch(relation,{fromMemberId:event.target.value})}>{parents.map(member=><option key={member.id} value={member.id}>{member.name}</option>)}</select> },
+    { key:"relation",header:"Quan hệ",minWidth:140,render:relation=><select className="pds-direct-field" aria-label={"Quan hệ "+relation.id} value={relation.label} onChange={event=>patch(relation,{label:event.target.value})}>{labels.map(value=><option key={value}>{value}</option>)}</select> },
+    { key:"to",header:"Đến người",minWidth:180,render:relation=><select className="pds-direct-field" aria-label={"Đến người "+relation.id} value={relation.toMemberId} onChange={event=>patch(relation,{toMemberId:event.target.value})}>{children.map(member=><option key={member.id} value={member.id}>{member.name}</option>)}</select> },
     { key:"status",header:"Xác nhận",minWidth:145,render:()=> <BoDataGridStatus value="Khai báo · chưa xác minh" tone="warning" /> },
-    { key:"remove",header:"",minWidth:60,render:relation=><button type="button" className={styles.inlineRemove} aria-label={"Gỡ quan hệ "+relation.id} onClick={()=>commit(record.relationships.filter(item=>item.id!==relation.id))}>Gỡ</button> },
+    { key:"remove",header:"",minWidth:60,render:relation=><button type="button" className="pds-text-action" aria-label={"Gỡ quan hệ "+relation.id} onClick={()=>commit(record.relationships.filter(item=>item.id!==relation.id))}>Gỡ</button> },
   ];
-  return <section className={styles.detailContent}><div className={styles.sectionHeading}><h2>Quan hệ trong household</h2><BoDataGridBadge>{record.relationships.length} quan hệ</BoDataGridBadge></div>
+  return <section className={styles.detailContent}><div className={styles.sectionHeading + " pds-compact-heading"}><h2>Quan hệ trong household</h2><BoDataGridBadge>{record.relationships.length} quan hệ</BoDataGridBadge></div>
     <BoDataGrid rows={record.relationships} columns={columns} rowKey={relation=>relation.id} caption="Declared household relationships" showToolbar={false} />
-    <form className={styles.inlineComposer} onSubmit={event=>{event.preventDefault();if(commit([...record.relationships,{id:record.id+"-REL-"+Date.now(),fromMemberId:from,toMemberId:to,label,status:"DECLARED"}])){setFrom("");setTo("");}}}>
-      <select className={styles.inlineInput} aria-label="Parent mới" value={from} onChange={event=>setFrom(event.target.value)} required><option value="">Chọn Parent</option>{parents.map(member=><option key={member.id} value={member.id}>{member.name}</option>)}</select>
-      <select className={styles.inlineInput} aria-label="Thành viên liên kết mới" value={to} onChange={event=>setTo(event.target.value)} required><option value="">Chọn thành viên</option>{children.map(member=><option key={member.id} value={member.id}>{member.name}</option>)}</select>
-      <select className={styles.inlineInput} aria-label="Quan hệ mới" value={label} onChange={event=>setLabel(event.target.value)}>{labels.map(value=><option key={value}>{value}</option>)}</select>
-      <button type="submit" className={styles.inlineRemove}>＋ Thêm quan hệ</button>
+    <form className="pds-compact-form" onSubmit={event=>{event.preventDefault();if(commit([...record.relationships,{id:record.id+"-REL-"+Date.now(),fromMemberId:from,toMemberId:to,label,status:"DECLARED"}])){setFrom("");setTo("");}}}>
+      <select className="pds-direct-field" aria-label="Parent mới" value={from} onChange={event=>setFrom(event.target.value)} required><option value="">Chọn Parent</option>{parents.map(member=><option key={member.id} value={member.id}>{member.name}</option>)}</select>
+      <select className="pds-direct-field" aria-label="Thành viên liên kết mới" value={to} onChange={event=>setTo(event.target.value)} required><option value="">Chọn thành viên</option>{children.map(member=><option key={member.id} value={member.id}>{member.name}</option>)}</select>
+      <select className="pds-direct-field" aria-label="Quan hệ mới" value={label} onChange={event=>setLabel(event.target.value)}>{labels.map(value=><option key={value}>{value}</option>)}</select>
+      <button type="submit" className="pds-text-action">＋ Thêm quan hệ</button>
     </form>
-    {error?<p role="alert" className={styles.inlineError}>{error}</p>:null}
-    <p className={styles.helperNote}>Quan hệ khai báo chưa xác minh, không cấp quyền giám hộ.</p>
+    {error?<p role="alert" className="pds-field-error">{error}</p>:null}
+    <p className="pds-compact-muted">Quan hệ khai báo chưa xác minh, không cấp quyền giám hộ.</p>
   </section>;
 }
 
@@ -564,22 +564,22 @@ function LeadCreateEditDrawer({
     mode={mode}
     size="lg"
     onClose={onClose}
-    footer={<div className={styles.drawerFooter}>
-      {step === 2 ? <button type="button" onClick={() => { setLocalError(""); onStepChange(1); }}>← Quay lại</button> : <button type="button" onClick={onClose}>Hủy</button>}
-      {step === 1 ? <button type="button" className={styles.primaryButton} onClick={() => { if (!draft.contactName.trim() || !draft.phone.trim()) { setLocalError("Nhập người liên hệ và số điện thoại trước khi tiếp tục."); return; } setLocalError(""); onStepChange(2); }}>Tiếp tục: Thành viên →</button> : <button type="button" className={styles.primaryButton} onClick={onSave}>Lưu mẫu</button>}
+    footer={<div className={styles.drawerFooter + " pds-compact-actions"}>
+      {step === 2 ? <button className="secondary-btn" type="button" onClick={() => { setLocalError(""); onStepChange(1); }}>← Quay lại</button> : <button className="secondary-btn" type="button" onClick={onClose}>Hủy</button>}
+      {step === 1 ? <button type="button" className="primary-btn" onClick={() => { if (!draft.contactName.trim() || !draft.phone.trim()) { setLocalError("Nhập người liên hệ và số điện thoại trước khi tiếp tục."); return; } setLocalError(""); onStepChange(2); }}>Tiếp tục: Thành viên →</button> : <button type="button" className="primary-btn" onClick={onSave}>Lưu mẫu</button>}
     </div>}
   >
     <div className={styles.drawerContent}>
-      <div className={styles.stepProgress}><span data-active={step === 1 || undefined}>1 · Thông tin liên hệ</span><i /><span data-active={step === 2 || undefined}>2 · Thành viên</span></div>
+      <div className={styles.stepProgress}><span className="pds-step" data-active={step === 1 || undefined}>1 · Thông tin liên hệ</span><i className="pds-step-rule" /><span className="pds-step" data-active={step === 2 || undefined}>2 · Thành viên</span></div>
 
       {step === 1 ? <>
         <PropertySection title="Thông tin liên hệ" schema={CONTACT_FIELD_SCHEMA} values={{ contactName: draft.contactName, phone: draft.phone }} mode={mode === "create" ? "CREATE" : "EDIT"} onChange={(key, value) => onDraftChange({ ...draft, [key]: value as string })} />
         <section className={styles.interestSection}>
-          <div className={styles.sectionHeading}><div><h3>Chương trình quan tâm</h3><p>Chọn riêng theo từng chương trình; có thể chọn cả hai.</p></div><BoDataGridBadge>Tùy chọn</BoDataGridBadge></div>
+          <div className={styles.sectionHeading + " pds-compact-heading"}><div><h3>Chương trình quan tâm</h3><p>Chọn riêng theo từng chương trình; có thể chọn cả hai.</p></div><BoDataGridBadge>Tùy chọn</BoDataGridBadge></div>
           <div className={styles.programGrid}>
-            {(["AFTERSCHOOL", "MYTIME"] as const).map(program => <article className={styles.programCard} key={program}>
+            {(["AFTERSCHOOL", "MYTIME"] as const).map(program => <article className={styles.programCard + " pds-compact-card"} key={program}>
               <strong>{program === "AFTERSCHOOL" ? "PINO Afterschool" : "MyTime by PINO"}</strong>
-              <div>{interestFields.filter(field => field.program === program).map(field => <label className={styles.interestOption} key={field.kind}>
+              <div>{interestFields.filter(field => field.program === program).map(field => <label className={styles.interestOption + " pds-choice"} key={field.kind}>
                 <input type="checkbox" checked={draft.interests.includes(field.kind)} onChange={event => onDraftChange({ ...draft, interests: event.target.checked ? [...draft.interests, field.kind] : draft.interests.filter(kind => kind !== field.kind) })} />
                 <span>{field.label}</span>
               </label>)}</div>
@@ -588,37 +588,37 @@ function LeadCreateEditDrawer({
         </section>
       </> : <>
         <section className={styles.memberSection}>
-          <div className={styles.sectionHeading}><div><h3>Thành viên trong household</h3><p>Vai trò dự kiến, chưa phải Actor thật.</p></div><button type="button" onClick={addMember}>＋ Thêm thành viên</button></div>
+          <div className={styles.sectionHeading + " pds-compact-heading"}><div><h3>Thành viên trong household</h3><p>Vai trò dự kiến, chưa phải Actor thật.</p></div><button className="secondary-btn" type="button" onClick={addMember}>＋ Thêm thành viên</button></div>
           {!draft.members.length ? <p className={styles.emptyHint}>Chưa có thành viên. Có thể tạo Lead độc lập.</p> : null}
-          {draft.members.map((member, index) => <article className={styles.memberDraft} key={member.id}>
-            <div className={styles.memberDraftHeader}><strong>Thành viên {index + 1}</strong><button type="button" onClick={() => removeMember(index)}>Gỡ</button></div>
+          {draft.members.map((member, index) => <article className={styles.memberDraft + " pds-compact-card"} key={member.id}>
+            <div className={styles.memberDraftHeader + " pds-compact-heading"}><strong>Thành viên {index + 1}</strong><button className="secondary-btn" type="button" onClick={() => removeMember(index)}>Gỡ</button></div>
             <div className={styles.memberFields}>
-              <label>Họ và tên<input value={member.name} onChange={event => updateMember(index, { name: event.target.value })} /></label>
-              <label>Tuổi<input type="number" min={0} max={120} value={member.age ?? ""} onChange={event => updateMember(index, { age: event.target.value === "" ? null : Number(event.target.value) })} /></label>
-              <label>Giới tính<select value={member.gender} onChange={event => updateMember(index, { gender: event.target.value as LeadM1Member["gender"] })}><option>—</option><option>Nữ</option><option>Nam</option><option>Khác</option></select></label>
+              <label className="pds-compact-label">Họ và tên<input className="pds-compact-field" value={member.name} onChange={event => updateMember(index, { name: event.target.value })} /></label>
+              <label className="pds-compact-label">Tuổi<input className="pds-compact-field" type="number" min={0} max={120} value={member.age ?? ""} onChange={event => updateMember(index, { age: event.target.value === "" ? null : Number(event.target.value) })} /></label>
+              <label className="pds-compact-label">Giới tính<select className="pds-compact-field" value={member.gender} onChange={event => updateMember(index, { gender: event.target.value as LeadM1Member["gender"] })}><option>—</option><option>Nữ</option><option>Nam</option><option>Khác</option></select></label>
             </div>
-            <div className={styles.roleOptions} aria-label={"Vai trò của thành viên " + (index + 1)}>
+            <div className={styles.roleOptions + " pds-choice-group"} aria-label={"Vai trò của thành viên " + (index + 1)}>
               {(member.primaryContact ? ROLE_OPTIONS : ROLE_OPTIONS.filter(role => role !== "PARENT")).map(role => <label key={role}><input type="checkbox" checked={member.roles.includes(role)} onChange={event => updateMember(index, { roles: event.target.checked ? [...member.roles, role] : member.roles.filter(item => item !== role) })} />{leadM1RoleLabel(role)}</label>)}
             </div>
-            <label className={styles.primaryContactOption}><input type="checkbox" checked={member.primaryContact} onChange={event => updateMember(index, { primaryContact: event.target.checked })} />Người liên hệ chính</label>
+            <label className={styles.primaryContactOption + " pds-choice"}><input type="checkbox" checked={member.primaryContact} onChange={event => updateMember(index, { primaryContact: event.target.checked })} />Người liên hệ chính</label>
           </article>)}
         </section>
         {draft.members.length ? <section className={styles.relationshipSection}>
-          <div className={styles.sectionHeading}><div><h3>Quan hệ được khai báo</h3><p>Parent → Student hoặc Guest nhỏ tuổi; không xác thực quyền giám hộ.</p></div><BoDataGridBadge>{draft.relationships.length} quan hệ</BoDataGridBadge></div>
+          <div className={styles.sectionHeading + " pds-compact-heading"}><div><h3>Quan hệ được khai báo</h3><p>Parent → Student hoặc Guest nhỏ tuổi; không xác thực quyền giám hộ.</p></div><BoDataGridBadge>{draft.relationships.length} quan hệ</BoDataGridBadge></div>
           <div className={styles.relationshipComposer}>
-            <label>Parent<select value={relationshipFrom} onChange={event => setRelationshipFrom(event.target.value)}><option value="">Chọn Parent</option>{draft.members.filter(member => member.roles.includes("PARENT")).map(member => <option key={member.id} value={member.id}>{member.name || "Chưa nhập tên"}</option>)}</select></label>
-            <label>Student / Guest nhỏ tuổi<select value={relationshipTo} onChange={event => setRelationshipTo(event.target.value)}><option value="">Chọn thành viên</option>{draft.members.filter(member => member.roles.includes("STUDENT") || (member.roles.includes("GUEST") && member.age !== null && member.age < 18)).map(member => <option key={member.id} value={member.id}>{member.name || "Chưa nhập tên"}</option>)}</select></label>
-            <label>Quan hệ<select value={relationshipLabel} onChange={event => setRelationshipLabel(event.target.value)}><option>Mẹ</option><option>Cha</option><option>Người giám hộ</option><option>Khác</option></select></label>
-            <button type="button" onClick={addRelationship}>＋ Thêm</button>
+            <label className="pds-compact-label">Parent<select className="pds-compact-field" value={relationshipFrom} onChange={event => setRelationshipFrom(event.target.value)}><option value="">Chọn Parent</option>{draft.members.filter(member => member.roles.includes("PARENT")).map(member => <option key={member.id} value={member.id}>{member.name || "Chưa nhập tên"}</option>)}</select></label>
+            <label className="pds-compact-label">Student / Guest nhỏ tuổi<select className="pds-compact-field" value={relationshipTo} onChange={event => setRelationshipTo(event.target.value)}><option value="">Chọn thành viên</option>{draft.members.filter(member => member.roles.includes("STUDENT") || (member.roles.includes("GUEST") && member.age !== null && member.age < 18)).map(member => <option key={member.id} value={member.id}>{member.name || "Chưa nhập tên"}</option>)}</select></label>
+            <label className="pds-compact-label">Quan hệ<select className="pds-compact-field" value={relationshipLabel} onChange={event => setRelationshipLabel(event.target.value)}><option>Mẹ</option><option>Cha</option><option>Người giám hộ</option><option>Khác</option></select></label>
+            <button className="secondary-btn" type="button" onClick={addRelationship}>＋ Thêm</button>
           </div>
           {draft.relationships.map(item => <div className={styles.relationshipLine} key={item.id}>
             <span>{draft.members.find(member => member.id === item.fromMemberId)?.name ?? "—"} → {draft.members.find(member => member.id === item.toMemberId)?.name ?? "—"} · {item.label}</span>
             <BoDataGridStatus value="Khai báo" tone="warning" />
-            <button type="button" aria-label={"Gỡ quan hệ " + item.label} onClick={() => onDraftChange({ ...draft, relationships: draft.relationships.filter(relation => relation.id !== item.id) })}>Gỡ</button>
+            <button className="secondary-btn" type="button" aria-label={"Gỡ quan hệ " + item.label} onClick={() => onDraftChange({ ...draft, relationships: draft.relationships.filter(relation => relation.id !== item.id) })}>Gỡ</button>
           </div>)}
         </section> : null}
       </>}
-      {error || localError ? <p className={styles.formError} role="alert">{error || localError}</p> : null}
+      {error || localError ? <p className="pds-field-error" role="alert">{error || localError}</p> : null}
     </div>
   </BoDrawer>;
 }
