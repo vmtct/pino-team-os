@@ -66,10 +66,10 @@ function PropertySection<T extends Record<string, unknown>>({
 }) {
   return <section className={styles.propertySection} aria-label={title}>
     <h3>{title}</h3>
-    <div className={styles.propertyRows} role="list">
-      {schema.map(field => <div className="property-row" role="listitem" key={field.key}>
-        <div className="property-label">{field.label}{field.required ? " *" : ""}</div>
-        <div className="property-control">
+    <div className={styles.drawerContent} role="list">
+      {schema.map(field => <div className={styles.propertyRows} role="listitem" key={field.key}>
+        <div className={styles.helperNote}>{field.label}{field.required ? " *" : ""}</div>
+        <div className={styles.mono}>
           {mode === "VIEW" ? String(values[field.key] ?? "—") : (
             <input
               aria-label={field.label}
@@ -271,7 +271,7 @@ export function LeadHouseholdM1Preview() {
   const currentUrl = pathname + "?" + searchParams.toString();
 
   return <main className={styles.page}>
-    <header className={styles.heading}>
+    {!selectedLead ? <><header className={styles.heading}>
       <div>
         <span>Sales · PLT-LEAD · M1 FE Shell</span>
         <h1>Leads</h1>
@@ -309,12 +309,15 @@ export function LeadHouseholdM1Preview() {
       emptyMessage="Thay đổi từ khóa hoặc bộ lọc trạng thái."
     />
 
+    </> : null}
+
     {selectedLead ? <BoFullDetail
       title={selectedLead.contactName}
       description={selectedLead.id + " · Dữ liệu mẫu"}
       currentUrl={currentUrl}
       returnTo={backToTable}
       activeTab={activeTab}
+      designVariant="business-v25"
       actions={<div className={styles.detailActions}><BoDataGridBadge>DỮ LIỆU MẪU</BoDataGridBadge><button type="button" onClick={() => openEdit(selectedLead)}>Chỉnh sửa</button></div>}
       tabs={[
         { id: "detail", label: "Tổng quan", content: <LeadOverview record={selectedLead} onSave={(name, phone) => saveInlineContact(selectedLead.id, name, phone)} onConvert={() => openConvert(selectedLead)} /> },
