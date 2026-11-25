@@ -1003,6 +1003,7 @@
         "app/bo/piner-posts/native-draft-binding.ts",
         "app/bo/piner-posts/native-draft-session.ts",
         "app/bo/piner-posts/post-preview-navigation.ts",
+        "app/bo/piner-posts/post-preview-query.ts",
         "app/bo/piner-posts/post-preview-session.ts",
         "app/bo/piner-posts/post-preview-photos.ts",
         "app/bo/piner-posts/page.tsx",
