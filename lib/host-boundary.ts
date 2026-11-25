@@ -347,6 +347,9 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
     if (p === "/api/ho/workforce/shift-templates") return method === "GET" || method === "POST" ? { action: "next" } : { action: "not_found" };
     if (/^\/api\/ho\/workforce\/shift-templates\/[0-9a-f-]{36}\/(?:update|status)$/.test(p)) return method === "POST" ? { action: "next" } : { action: "not_found" };
     if (/^\/api\/ho\/workforce\/global-termweeks\/[0-9a-f-]{36}\/update$/.test(p)) return method === "POST" ? { action: "next" } : { action: "not_found" };
+    // PAP-2373: only the two exact native HO role lifecycle POSTs.
+    if (p === "/api/ho/system/roles/create" || /^\/api\/ho\/system\/roles\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/archive$/.test(p))
+      return { action: method === "POST" ? "next" : "not_found" };
     if (method === "POST" && (staffRoleWrite || hoRoleDefinitionWrite)) return { action: "next" };
     if (method === "POST" && staffPasswordReset) return { action: "next" };
     if ((method === "GET" || method === "POST") && staffRateWrite) return { action: "next" };

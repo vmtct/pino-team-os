@@ -16,7 +16,8 @@ const cases=[
  [boHost,lead+"?m1Preview=1&lead=LEAD-MOCK-001&tab=members",lead+"?lead=LEAD-MOCK-001&tab=members"],
  [boHost,lead+"?lead=LEAD-MOCK-001&tab=members",lead+"?lead=LEAD-MOCK-001&tab=members"],
  [boHost,lead+"?centerId="+center+"&leadIntent="+id+"&q=music&sort=createdAt&dir=desc&size=50&f_status=SUBMITTED",lead+"?centerId="+center+"&leadIntent="+id+"&q=music&sort=createdAt&dir=desc&size=50&f_status=SUBMITTED"],
- [boHost,"/bo/piner-posts?m1Preview=1","/bo/piner-posts?m1Preview=1"],
+ [boHost,"/bo/piner-posts?m1Preview=1","/bo/piner-posts"],
+ [boHost,"/bo/piner-posts?m1Preview=1&record=POST-MOCK-001&tab=media","/bo/piner-posts?record=POST-MOCK-001&tab=media"],
  [hoHost,HO_PAGE_PATHS.staffs+"?m1Preview=1&record=STAFF-MOCK-001",HO_PAGE_PATHS.staffs+"?record=STAFF-MOCK-001"],
  [hoHost,HO_PAGE_PATHS.worlds+"?record="+id+"&tab=scenes",HO_PAGE_PATHS.worlds+"?record="+id+"&tab=scenes"],
  [hoHost,HO_PAGE_PATHS.customAttributes+"?sort=displayName&order=asc&size=30&page=2&entityType=Student&scope=CENTER&centerId="+center,HO_PAGE_PATHS.customAttributes+"?sort=displayName&order=asc&size=30&page=2&entityType=Student&scope=CENTER&centerId="+center],
@@ -25,7 +26,7 @@ test("PAP-2359: authored deep links survive anonymous login and tracking on both
  for(const [host,path,expected] of cases){
   const parse=host===boHost?safeBoStagingReturnTo:safeHoReturnTo;
   assert.equal(parse(path),expected,path);
-  const response=middleware(new NextRequest("https://"+host+path+"&utm_source=chatgpt.com"));
+  const response=middleware(new NextRequest("https://"+host+path+(path.includes("?")?"&":"?")+"utm_source=chatgpt.com"));
   assert.equal(response.status,307,path);
   const dest=new URL(response.headers.get("location")!);
   assert.equal(dest.pathname,"/staff-login",path);
@@ -62,7 +63,7 @@ test("PAP-2359: HO password recovery retains one validated target and rejects du
 });
 test("PAP-2359: a session hint carries the same sanitized link; no preview on production hosts",()=>{
  for(const [host,path,expected] of cases){
-  const result=middleware(new NextRequest("https://"+host+path+"&utm_source=chatgpt.com",{headers:{cookie:"pino_staff_password_session=fixture-only"}}));
+  const result=middleware(new NextRequest("https://"+host+path+(path.includes("?")?"&":"?")+"utm_source=chatgpt.com",{headers:{cookie:"pino_staff_password_session=fixture-only"}}));
   assert.equal(result.headers.get("x-middleware-next"),"1",path);
   assert.equal(result.headers.get(host===boHost?"x-middleware-request-x-pino-bo-return-to":"x-middleware-request-x-pino-ho-return-to"),expected,path);
  }
