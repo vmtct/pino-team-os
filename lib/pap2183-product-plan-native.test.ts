@@ -1,5 +1,6 @@
 // PAP-2183 / PAP-2372 — native schema and opt-in shared direct property contract.
 import test from "node:test";
+import {readFileSync} from "node:fs";
 import assert from "node:assert/strict";
 import {createElement as h} from "react";
 import {renderToStaticMarkup} from "react-dom/server";
@@ -45,4 +46,8 @@ test("canonical review path validates exact synthetic state and explicit local o
  for(const q of ["record=PRODUCT-PLAN-MOCK-002","record=real-id","record=","record=PRODUCT-PLAN-MOCK-001&record=PRODUCT-PLAN-MOCK-001","m1Preview=0","m1Preview=1&m1Preview=1","tab=unknown","next=/bo"])assert.equal(parse(q,true),null);
  for(const origin of ["http://desktop-isrdren:8800","http://desktop-isrdren.tail3ee007.ts.net:8800"])assert.equal(isProductPlanLocalOrigin(origin),true);
  for(const origin of ["http://192.168.1.6:8800","http://localhost:8800","https://ho.staging.pinohouse.art","http://desktop-isrdren.evil:8800","http://desktop-isrdren:8801"])assert.equal(isProductPlanLocalOrigin(origin),false);
+});
+test("PAP-2183 Staging native component imports canonical BO/HO design tokens",()=>{
+ const content=readFileSync("app/ho/billing/product-plans/ProductPlanM1Content.tsx","utf8");
+ assert.match(content,/import "@pino\/design-system\/bo-tokens\.css";/);
 });
