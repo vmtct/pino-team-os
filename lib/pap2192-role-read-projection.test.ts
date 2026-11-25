@@ -44,7 +44,7 @@ test("ambiguous canonical Role identities fail closed in Table and Detail",async
 });
 test("PAP-2373 read versions are exact and absent for protected or noncanonical records",async()=>{
  for(const record of [
-  {...role,roleType:"system"}, {...role,roleKey:"founder"}, {...role,status:"archived"},
+  {...role,roleType:"system"}, {...role,roleKey:"founder"}, {...role,roleKey:"Founder"}, {...role,roleKey:" "}, {...role,status:"archived"},
   {...role,id:role.id.toUpperCase()}, {...role,id:"01a17d3f-8697-4080-bdf1-33e939758059"},
   {...role,updatedAt:"2026-11-24T01:00:00Z"},
  ]){

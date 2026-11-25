@@ -55,3 +55,20 @@ export function parseRoleInlineRequest(value:unknown):RoleInlineRequest|null {
   }
   return Object.freeze({id:value.id,expectedVersion:value.expectedVersion,patch:Object.freeze(patch)});
 }
+
+/** Pure presentation selection only. Never an authorization decision or a
+ * write binding. A directory row without the exact reviewed version cannot
+ * produce an editor selection, even when its metadata is readable. */
+export function roleInlineSelection(input:unknown):Readonly<{id:string;expectedVersion:string;field:RoleField}>|null {
+ if(!isRecord(input)||!exact(input,["host","surface","moduleKey","canRead","canEdit","row","version","field"])||
+    input.surface!=="HO"||input.moduleKey!=="roles"||input.canRead!==true||input.canEdit!==true||
+    (input.host!=="table"&&input.host!=="drawer")||typeof input.field!=="string"||!roleField(input.field)||
+    (input.host==="table"&&input.field!=="name")||!instant(input.version)||!isRecord(input.row))return null;
+ const row=input.row;
+ if(typeof row.id!=="string"||!uuid.test(row.id)||row.roleType!=="custom"||row.status!=="active"||
+    typeof row.roleKey!=="string"||!row.roleKey.trim()||row.roleKey.trim().toLowerCase()==="founder"||
+    row.updatedAt!==input.version||typeof row[input.field]!=="string")return null;
+ const value=row[input.field] as string;
+ if(value!==value.trim()||(input.field==="name"?(!value||value.length>120):value.length>500))return null;
+ return Object.freeze({id:row.id,expectedVersion:input.version,field:input.field});
+}

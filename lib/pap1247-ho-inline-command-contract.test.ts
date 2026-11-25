@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {matchesRoleInlineDeclaration,parseRoleInlineRequest,ROLE_METADATA_COMMAND} from "./workspace-adapters/ho-inline-command-contract";
+import {matchesRoleInlineDeclaration,parseRoleInlineRequest,roleInlineSelection,ROLE_METADATA_COMMAND} from "./workspace-adapters/ho-inline-command-contract";
 const field=(key:string,type:string)=>({key,type,permission:"access.role.view",readOnly:false,capabilities:{display:true,inlineEdit:true}});
 const definition={surface:"HO",key:"roles",capabilities:{read:"access.role.view",edit:"access.role.edit"},
   fields:[field("name","text"),field("description","textarea")],table:{inlineEdit:{enabled:true,fields:["name"]}}};
@@ -34,4 +34,19 @@ test("PAP-1247 exact canonical identity, CAS version and allowed fields only",()
    {...input,patch:{status:"active"}},{...input,patch:{assignmentCount:0}},
    {...input,patch:{id}},{...input,patch:{url:"/api/anything"}}])
    assert.equal(parseRoleInlineRequest(bad),null);
+});
+test("PAP-1247 Table/Drawer selection is bounded to the exact reviewed Role projection",()=>{
+ const row={id,roleKey:"custom-example",roleType:"custom",status:"active",updatedAt:expectedVersion,name:"Sample",description:""};
+ const selection={host:"table",surface:"HO",moduleKey:"roles",canRead:true,canEdit:true,row,version:expectedVersion,field:"name"};
+ assert.deepEqual(roleInlineSelection(selection),{id,expectedVersion,field:"name"});
+ assert.deepEqual(roleInlineSelection({...selection,host:"drawer",field:"description"}),{id,expectedVersion,field:"description"});
+ for(const bad of [
+  {...selection,field:"description"},{...selection,host:"detail"},{...selection,surface:"BO"},
+  {...selection,moduleKey:"product-plans"},{...selection,canRead:false},{...selection,canEdit:false},
+  {...selection,version:undefined},{...selection,version:"2026-11-25T04:00:01.000Z"},
+  {...selection,field:"permissionKeys"},{...selection,handler:"arbitrary"},
+  {...selection,row:{...row,roleKey:"Founder"}},{...selection,row:{...row,roleType:"system"}},
+  {...selection,row:{...row,status:"archived"}},{...selection,row:{...row,id:"ROLE-MOCK-001"}},
+  {...selection,row:{...row,name:" Sample "}},{...selection,row:{...row,name:null}},
+ ])assert.equal(roleInlineSelection(bad),null);
 });

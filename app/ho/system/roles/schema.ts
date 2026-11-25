@@ -83,7 +83,7 @@ async function roles(fetcher:typeof fetch,signal:AbortSignal):Promise<readonly R
 /** PAP-2373: expose only the exact canonical source version; never grant editing. */
 function roleReadRecord(row:Row){
  const version=row.updatedAt;
- const eligible=row.roleType==="custom"&&row.status==="active"&&row.roleKey!=="founder"&&
+ const eligible=row.roleType==="custom"&&row.status==="active"&&typeof row.roleKey==="string"&&!!row.roleKey.trim()&&row.roleKey.trim().toLowerCase()!=="founder"&&
    /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(row.id)&&
    typeof version==="string"&&Number.isFinite(Date.parse(version))&&new Date(version).toISOString()===version;
  return {row,...(eligible?{version}:{})};
