@@ -20,7 +20,7 @@ function setup(){
  const c=createPrivateMediaController(api,w=>!w||write,()=>"media-command-"+String(++keyNo).padStart(6,"0"),{createObjectURL:()=>"blob:qa",revokeObjectURL:u=>{revoked.push(u);}});
  return {c,calls,revoked,deny:()=>{write=false;}};
 }
-test("ambiguous confirm retries exact command, never reserves again; revoke verified by fresh list",async()=>{const x=setup();await x.c.list(signal);await assert.rejects(x.c.upload(file,signal));assert(x.c.hasPending());await assert.rejects(x.c.upload(file,signal));assert.equal((await x.c.retry(signal)).mediaCount,1);assert.equal(x.calls.length,3);assert.deepEqual(x.calls[1],x.calls[2]);assert(!x.c.hasPending());assert.equal((await x.c.openPreview(A,signal)).url,"blob:qa");assert.equal((await x.c.remove(A,signal)).mediaCount,0);assert.deepEqual(x.revoked,["blob:qa"]);x.c.dispose();});
+test("ambiguous confirm retries exact command, never reserves again; revoke verified by fresh list",async()=>{const x=setup();await x.c.list(signal);await assert.rejects(x.c.upload(file,signal));assert(x.c.hasPending());assert.equal(x.c.lastUploadReceipt(),null);await assert.rejects(x.c.upload(file,signal));assert.equal((await x.c.retry(signal)).mediaCount,1);assert.equal(x.calls.length,3);assert.deepEqual(x.calls[1],x.calls[2]);assert(!x.c.hasPending());assert.deepEqual(x.c.lastUploadReceipt(),{attachmentId:A,attachmentVersion:2,postVersion:3});assert.equal((await x.c.openPreview(A,signal)).url,"blob:qa");assert.equal((await x.c.remove(A,signal)).mediaCount,0);assert.equal(x.c.lastUploadReceipt(),null);assert.deepEqual(x.revoked,["blob:qa"]);x.c.dispose();});
 test("permission loss denies pending replay and does not issue new command",async()=>{const x=setup();await x.c.list(signal);await assert.rejects(x.c.upload(file,signal));x.deny();await assert.rejects(x.c.retry(signal));assert.equal(x.calls.length,2);x.c.dispose();await assert.rejects(x.c.list(signal));});
 
 test("Media readback uses complete canonical parent, never overlays version on old caption",async()=>{
@@ -44,7 +44,7 @@ test("expired reservation reconciles only through exact original reserve receipt
  });
  const c=createPrivateMediaController(api,()=>true,()=>"media-command-"+String(++keyNo).padStart(6,"0"));
  await c.list(signal);await assert.rejects(c.upload(file,signal));assert(c.hasPending());assert.equal(reserveCalls,2);
- expired=true;assert.equal((await c.retry(signal)).postVersion,3);assert(!c.hasPending());assert.equal(confirmCalls,2);assert.equal(reserveCalls,3);assert.equal(new Set(keys).size,1);
+ expired=true;assert.equal((await c.retry(signal)).postVersion,3);assert(!c.hasPending());assert.equal(c.lastUploadReceipt(),null);assert.equal(confirmCalls,2);assert.equal(reserveCalls,3);assert.equal(new Set(keys).size,1);
  c.dispose();
 });
 test("preview closed while response in-flight never creates a blob URL",async()=>{

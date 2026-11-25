@@ -54,7 +54,7 @@ export function createPostPreviewSession():DraftRuntimeSession&{dispose:()=>void
   const result:MediaController={
    list,async upload(file,signal){writable(id,signal);if(files(id).length>=5||!["image/png","image/jpeg","image/webp"].includes(file.type)||file.size>5*1024*1024||file.size<1)throw Error("Ảnh không hợp lệ.");const src=await dataUrl(file);writable(id,signal);if(files(id).length>=5)throw Error("Tối đa 5 ảnh.");const diaryId=sources.get(id);bump(id,[...files(id),{id:newId(),file,version:read(id).version+1,src,diaryId,retouched:Boolean(diaryId)}]);return list(signal);},
    async remove(key,signal){writable(id,signal);if(!files(id).some(m=>m.id===key))throw new CoreDraftRequestError(404);bump(id,files(id).filter(m=>m.id!==key));return list(signal);},
-   retry:list,hasPending:()=>false,
+   retry:list,hasPending:()=>false,lastUploadReceipt:()=>null,
    async openPreview(key,signal){guard(signal);const value=files(id).find(m=>m.id===key);if(!value)throw new CoreDraftRequestError(404);return {id:key,url:value.src};},
    closePreview(){},dispose(){}
   };
