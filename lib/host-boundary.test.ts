@@ -552,6 +552,13 @@ test("PAP-2030 exact historical Wish Item record is HO staging GET only",()=>{
  for(const host of ["bo.staging.pinohouse.art","tos.staging.pinohouse.art",BO_HOSTNAME])assert.deepEqual(decideHostBoundary(host,p,"GET"),{action:"not_found"});
  for(const suffix of ["/x","/0","/3/extra"])assert.deepEqual(decideHostBoundary("ho.staging.pinohouse.art","/api/ho/pinoria/pls-wish/config/item-record/"+roleId+suffix,"GET"),{action:"not_found"});
 });
+test("PAP-2371 exact HO Learning Space ingress only",()=>{
+ const root="/api/ho/learning-spaces",host=HO_STAGING_HOSTNAME,id=roleId;
+ for(const [suffix,methods] of [["",["GET","POST"]],["/"+id,["GET","PATCH","DELETE"]],["/"+id+"/classes",["GET"]],["/"+id+"/history",["GET"]],["/",[]],["/bad",[]],["/"+id+"/extra",[]]] as const){
+  for(const m of ["GET","HEAD","POST","PATCH","DELETE","PUT","OPTIONS"]){assert.deepEqual(decideHostBoundary(host,root+suffix,m),{action:(methods as readonly string[]).includes(m)?"next":"not_found"});for(const other of [BO_STAGING_HOSTNAME,TOS_STAGING_HOSTNAME,BO_HOSTNAME,"ho.pinohouse.art"])assert.deepEqual(decideHostBoundary(other,root+suffix,m),{action:"not_found"});}
+ }
+ assert.deepEqual(decideHostBoundary(host,"/api/HO/learning-spaces","GET"),{action:"not_found"});
+});
 
 test("PAP-2358 exact HO Staging Staff create and historical receipt only",()=>{
   for(const path of ["/api/ho/staff/create","/api/ho/staff/create/receipt"]){
@@ -562,4 +569,15 @@ test("PAP-2358 exact HO Staging Staff create and historical receipt only",()=>{
   }
   for(const path of ["/api/ho/staff/create/other","/api/ho/staff/create/receipt/other","/api/ho/staff/CREATE","/api/ho/staff/create/"])
     assert.deepEqual(decideHostBoundary(HO_STAGING_HOSTNAME,path,"POST"),{action:"not_found"});
+});
+
+test("PAP-2358 exact HO Staging Staff directory GET only",()=>{
+  const base="/api/ho/staff/directory",id="01900000-0000-7000-8000-000000000001";
+  for(const path of [base,base+"/"+id]){
+    assert.deepEqual(decideHostBoundary(HO_STAGING_HOSTNAME,path,"GET"),{action:"next"});
+    for(const method of ["HEAD","POST","PATCH","DELETE","PUT","OPTIONS"])assert.deepEqual(decideHostBoundary(HO_STAGING_HOSTNAME,path,method),{action:"not_found"});
+    for(const host of [BO_HOSTNAME,BO_STAGING_HOSTNAME,TOS_HOSTNAME,TOS_STAGING_HOSTNAME,"ho.pinohouse.art","localhost"])assert.deepEqual(decideHostBoundary(host,path,"GET"),{action:"not_found"});
+  }
+  for(const path of [base+"/",base+"/bad",base+"/"+id+"/extra",base+"/01900000-0000-4000-8000-000000000001","/api/ho/staff/DIRECTORY"])
+    assert.deepEqual(decideHostBoundary(HO_STAGING_HOSTNAME,path,"GET"),{action:"not_found"});
 });

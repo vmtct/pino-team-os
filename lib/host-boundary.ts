@@ -1,3 +1,4 @@
+import {HO_LEARNING_SPACE_API,learningSpaceRoute} from "./ho-learning-space-contract";
 import {guestHostDecision} from "./bo-mytime-guest-host-contract";
 import {workshopHostDecision} from "./mytime-workshop-host-contract";
 import {postDraftHostDecision} from "./bo-post-draft-host-contract";
@@ -32,6 +33,14 @@ export type HostBoundaryDecision =
 
 export function decideHostBoundary(host: string, pathname: string, method = "GET"): HostBoundaryDecision {
   const hostname = normalizeHostname(host);
+  // PAP-2358: exact native Staff directory ingress, HO Staging read only.
+  const staffDirectoryBase="/api/ho/staff/directory";
+  const staffDirectoryPath=pathname.toLowerCase();
+  if(staffDirectoryPath===staffDirectoryBase||staffDirectoryPath.startsWith(staffDirectoryBase+"/")){
+    const id=pathname.slice(staffDirectoryBase.length+1);
+    const exact=pathname===staffDirectoryBase||(pathname.startsWith(staffDirectoryBase+"/")&&/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(id));
+    return {action:hostname===HO_STAGING_HOSTNAME&&method==="GET"&&exact?"next":"not_found"};
+  }
   // PAP-2358: exact Staff creation and historical receipt namespace, HO Staging POST only.
   const staffCreateBase="/api/ho/staff/create";
   if(pathname.toLowerCase()===staffCreateBase||pathname.toLowerCase().startsWith(staffCreateBase+"/")){
@@ -44,6 +53,8 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
     const read=pathname===personApi||pathname===personApi+"/unlinked-counts"||/^\/api\/ho\/identity\/persons\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(pathname);
     return {action:hostname===HO_STAGING_HOSTNAME&&(pathname===personPage&&(method==="GET"||method==="HEAD")||read&&method==="GET")?"next":"not_found"};
   }
+  // PAP-2371: exact private HO Learning Space methods only.
+  if(pathname.toLowerCase()===HO_LEARNING_SPACE_API||pathname.toLowerCase().startsWith(HO_LEARNING_SPACE_API+"/"))return {action:hostname===HO_STAGING_HOSTNAME&&learningSpaceRoute(pathname,method)?"next":"not_found"};
   const workshop = workshopHostDecision(hostname, pathname, method);
   if (workshop) return {action:workshop};
   // PAP-2181: exact private native Enrollment page; no Production or cross-surface admission.

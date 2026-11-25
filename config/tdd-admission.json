@@ -11,18 +11,26 @@
         "app/ho/learning-spaces/page.tsx",
         "app/ho/learning-spaces/LearningSpaceM1Content.tsx",
         "app/ho/learning-spaces/schema.ts",
-        "app/ho/learning-spaces/learning-space-m1-preview.ts"
+
+        "app/ho/learning-spaces/learning-space-client.ts",
+        "app/ho/learning-spaces/learning-space-live-schema.ts",
+        "app/ho/learning-spaces/learning-space-provider.ts",
+        "lib/ho-learning-space-contract.ts"
       ],
       "schema": {
-        "file": "app/ho/learning-spaces/schema.ts",
-        "export": "spaceSchema"
+        "file": "app/ho/learning-spaces/learning-space-live-schema.ts",
+        "export": "liveSpaceSchema"
       },
       "binding": {
         "file": "app/ho/learning-spaces/LearningSpaceM1Content.tsx"
       },
       "tests": [
         "lib/pap2369-learning-space-native.test.ts",
-        "app/ho/learning-spaces/learning-space-m1-preview.test.ts",
+
+        "app/ho/learning-spaces/learning-space-client.test.ts",
+        "app/ho/learning-spaces/learning-space-live-schema.test.ts",
+        "app/ho/learning-spaces/learning-space-provider.test.ts",
+        "lib/ho-learning-space-handler.test.ts",
         "lib/ho-routes.test.ts"
       ],
       "externalReferences": [
