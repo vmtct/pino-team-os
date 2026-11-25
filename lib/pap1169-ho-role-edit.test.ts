@@ -134,3 +134,18 @@ test("PAP-2373 metadata-only request fails before Core on extra grants, mismatch
  assert.equal((await handleHoRoleEdit(request(),{...env,APP_ENV:"production"},metadataId)).status,404);
  assert.ok([401,403,503].includes((await handleHoRoleEdit(request(),env,metadataId)).status));
 });
+
+test("PAP-2373 typed metadata is limited to native Role detail and preserves generic read-only adapter",()=>{
+ const ui=readFileSync("app/ho/system/roles/HoRolesTdd.tsx","utf8");
+ const editor=readFileSync("app/ho/system/roles/HoRoleEditor.tsx","utf8");
+ assert.match(ui,/metadataAuthorized=\{nativeLifecycle&&context\.authorize\("access\.role\.view"\)&&context\.authorize\("access\.role\.edit"\)\}/);
+ assert.match(editor,/metadataAuthorized\?<PropertySections/);
+ assert.match(editor,/onCommit=\{commitMetadata\} onSaved=\{\(\)=>onSaved\(\)\}/);
+ assert.match(editor,/!dirty&&\(!busy\|\|metadataPending\)/);
+ assert.match(editor,/if\(!canCommitMetadata\|\|lock\.current/);
+ assert.match(editor,/setMetadataBlocked\(true\)/);
+ assert.match(editor,/next!==null&&next\.role===result\.receipt/);
+ assert.equal(roleDefinition.table.inlineEdit.enabled,false);
+ assert.equal(roleDefinition.fields.every(field=>!field.capabilities.inlineEdit),true);
+ assert.doesNotMatch(ui,/mutation:/);
+});

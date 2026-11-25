@@ -157,6 +157,8 @@
         "app/ho/system/roles/HoRolesTdd.tsx",
         "app/ho/system/roles/HoRoleEditor.tsx",
         "app/ho/system/roles/role-editor-receipt.ts",
+        "app/ho/system/roles/role-metadata-edit.ts",
+        "app/ho/system/roles/role-metadata-flow.ts",
         "app/ho/system/roles/schema.ts",
         "app/ho/system/roles/RoleLifecycleForms.tsx",
         "app/ho/system/roles/role-lifecycle-model.ts",
@@ -184,6 +186,10 @@
         {
           "file": "lib/workspace-adapters/session.ts",
           "owner": "PAP-1166"
+        },
+        {
+          "file": "lib/workspace-adapters/ho-inline-command-contract.ts",
+          "owner": "PAP-1247"
         }
       ],
       "schema": {
@@ -198,6 +204,7 @@
         "lib/pap1169-ho-role-edit.test.ts",
         "lib/pap2373-role-editor-receipt.test.ts",
         "lib/pap2373-role-metadata-flow.test.ts",
+        "lib/pap1247-ho-inline-command-contract.test.ts",
         "lib/pap2192-role-lifecycle-model.test.ts",
         "lib/pap2192-role-m1.test.ts",
         "lib/host-boundary.test.ts"
