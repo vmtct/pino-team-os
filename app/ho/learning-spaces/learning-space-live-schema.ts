@@ -30,3 +30,6 @@ export async function loadSpaceClassRows(client:Pick<Client,"detail"|"classes">,
  }
  throw Error("Class directory exceeds safe bound");
 }
+
+// The production renderer consumes this exact registered schema, with no fetch at module evaluation.
+export const {registry:liveSpaceRegistry,schema:liveSpaceSchema}=createLiveSpaceSchema(createLearningSpaceClient());
