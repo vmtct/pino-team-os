@@ -118,7 +118,7 @@ test("HO_BO_DEEPLINK_CONTINUITY_P0: route-specific detail, tab, grid, center and
   [ho,"/ho/pinoria/wish-banners?record="+id+"&tab=items&wishSelection=pending&wishRevision=2","/ho/pinoria/wish-banners?record="+id+"&tab=items&wishSelection=pending&wishRevision=2"],
   [ho,"/ho/system/custom-attributes?sort=displayName&size=30&page=2&scope=CENTER&centerId="+center,"/ho/system/custom-attributes?sort=displayName&size=30&page=2&scope=CENTER&centerId="+center],
   [bo,"/bo/subscriptions?centerId="+center+"&record="+id+"&tab=enrollment","/bo?module=subscriptions&centerId="+center+"&record="+id+"&tab=enrollment"],
-  [bo,"/bo/piner-posts?centerId="+center+"&record="+id+"&tab=media","/bo/piner-posts?centerId="+center+"&record="+id+"&tab=media"],
+  [bo,"/bo/piner-posts?centerId="+center+"&record=POST-MOCK-001&tab=media","/bo/piner-posts?centerId="+center+"&record=POST-MOCK-001&tab=media"],
   [bo,"/bo/sales/leads?centerId="+center+"&leadIntent="+id+"&q=music&dir=desc&size=50&f_status=SUBMITTED","/bo/sales/leads?centerId="+center+"&leadIntent="+id+"&q=music&dir=desc&size=50&f_status=SUBMITTED"],
  ];
  for(const [host,path,expected] of samples){
@@ -132,4 +132,13 @@ test("HO_BO_DEEPLINK_CONTINUITY_P0: route-specific detail, tab, grid, center and
   for(const input of ["//evil.example"+own,"https://evil.example"+own,own+"?returnTo=//evil.example",own+"?m1Preview=1",own+"?record=a&record=b"])
    assert.equal(parse(host,input),null,input);
  }
+});
+
+test("PAP-2337: malformed authenticated Post preview requests fail before streaming",()=>{
+ const path="/bo/piner-posts",headers={cookie:"pino_staff_password_session=fixture-only"};
+ for(const q of ["record="+id,"record=POST-MOCK-001&record=POST-MOCK-002","m1Preview=0","tab=media","returnTo=//evil.example"]){
+  for(const method of ["GET","HEAD"])assert.equal(middleware(new NextRequest("https://"+bo+path+"?"+q,{headers,method})).status,404,q);
+ }
+ for(const q of ["","?record=POST-MOCK-001&tab=media","?m1Preview=1&record=POST-MOCK-001&tab=media","?centerId="+center])assert.equal(middleware(new NextRequest("https://"+bo+path+q,{headers})).headers.get("x-middleware-next"),"1",q);
+ assert.equal(middleware(new NextRequest("https://"+bo+path+"?record=POST-MOCK-001&_rsc=abc",{headers:{...headers,rsc:"1"}})).headers.get("x-middleware-next"),"1");
 });
