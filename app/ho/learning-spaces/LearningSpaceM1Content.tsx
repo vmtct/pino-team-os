@@ -33,12 +33,12 @@ function SpaceCreateDrawer({context,onClose,onCreate}:{context:AuthorizationCont
  const createFields:Record<string,CreateDrawerField>={};
  for(const key of Object.keys(draft) as (keyof Draft)[]){
   const id="space-create-"+key;
-  const common={id,className:"property-control os-create-select",value:draft[key],onChange:(e:React.ChangeEvent<HTMLInputElement|HTMLSelectElement>)=>change(key,e.target.value)};
+  const common={id,className:"property-control pds-direct-field","data-pino-ds":"bo","data-pds-appearance":"underline",value:draft[key],onChange:(e:React.ChangeEvent<HTMLInputElement|HTMLSelectElement>)=>change(key,e.target.value)};
   createFields[key]={id,value:draft[key],onChange:v=>change(key,v),required:key!=="hardCapacity",
    ...(key==="center"?{control:<select {...common} required><option value="">— Chọn cơ sở —</option>{mockCenters.map(c=><option key={c}>{c}</option>)}</select>}:
     key==="status"?{control:<select {...common}>{spaceStatuses.map(s=><option key={s}>{s}</option>)}</select>}:
     key==="optimalCapacity"||key==="hardCapacity"?{control:<input {...common} type="number" min={1} step={1} required={key==="optimalCapacity"}/>}:
-    {maxLength:key==="name"?200:64})};
+    {control:<input {...common} type="text" required maxLength={key==="name"?200:64}/>})};
  }
  return <DrawerFrame title="Tạo không gian học" path={spaceSchema.label} onClose={onClose} footer={<><button type="button" className="secondary-btn" onClick={onClose}>Hủy</button><button type="button" className="primary-btn" onClick={()=>{const message=onCreate(draft);if(message)setError(message);}}>＋ Tạo không gian học</button></>}>
  <PropertySections variant="drawer" fields={fields} record={{id:"",name:draft.name}} sections={sections} createFields={createFields}/>
