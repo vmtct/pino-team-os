@@ -150,6 +150,41 @@ function nativeLeadsRoute(root, issues) {
   return valid;
 }
 
+/** PAP-2225 / PAP-901: exact expansion of the existing authenticated classes workspace. */
+function nativeRunningClassesRoute(root,issues){
+ const route="/bo/running-classes",base="app/bo/running-classes/";
+ if(!read(root,POLICY).includes('"'+route+'"'))return false;
+ const files=[base+"page.tsx",base+"RunningClassStagingEntry.tsx",base+"running-class-review-access.ts",base+"running-class-review.ts",base+"running-class-review-query.ts",base+"running-class-review-access.test.ts",base+"running-class-review-query.test.ts","lib/pap2225-running-class-m1.test.ts"];
+ if(files.some(f=>!fs.existsSync(path.join(root,f)))){issues.push(route+": missing exact native fixture contract");return false;}
+ const [page,view,access,fixture,query]=files.map(f=>read(root,f));
+ const required=[
+ [page,'if(env.APP_ENV==="staging"||isBoStagingHost(host)){if(host!=="bo.staging.pinohouse.art"||!boSkeletonEnabled(env,host))notFound();}'],
+ [page,'else return <BoOperationalView view="running-classes"/>;'],
+ [page,'if(parseRunningClassReviewQuery(runningClassSearchParams(await searchParams))===null)notFound();'],
+ [view,'const user=useBoStagingUser(),center=useBoCenterSelection();'],
+ [view,'if(!user||!center||center.error)return <RecordState status="denied"/>;'],
+ [view,'if(!selected||!center.centers.some(c=>c.id===selected))return <RecordState status="denied"/>;'],
+ [view,'return <ScopedReview key={selected} centerId={selected} user={user}/>;'],
+ [view,'canReviewRunningClass(centerId,boApi.context,fetch,abort.signal)'],
+ [view,'if(state!=="ready")return <RecordState status={state}/>;'],
+ [view,'ephemeral:true,modules:'],
+ [view,'load:async key=>{if(key!=="classes")throw Error("Fixture module only");return review.list();}'],
+ [view,'const options=useMemo(()=>({centerId}),[centerId]);'],
+ [view,'<BoRegistrationWorkspace source={source} moduleKey="classes" options={options} currentUser={user}/>'],
+ [access,'if(signal.aborted||ctx.surface!=="BO"||ctx.entitled!==true||!ctx.permissionKeys?.includes("delivery.schedule.manage"))return false;'],
+ [access,'await scopedClassesFetcher(fetcher,centerId)("/api/bo/delivery/bootstrap-state",{signal,method:"GET",cache:"no-store"});'],
+ [access,'}catch{return false;}'],
+ [fixture,'const records=new Map<string,ClassRecord>([[seed.id,seed]]);'],
+ [query,'RUNNING-CLASS-MOCK-001']
+ ];
+ const valid=mountsExactNamedComponent(files[0],page,"./RunningClassStagingEntry","RunningClassStagingEntry")&&
+ mountsExactNamedComponent(files[1],view,"../components/registration/BoRegistrationWorkspace","BoRegistrationWorkspace")&&
+ required.every(([source,needle])=>source.includes(needle))&&
+ ![view,access,fixture].some(s=>/method:\s*["'](?:POST|PATCH|PUT|DELETE)["']|BoLocalReviewCenter|localStorage\.|sessionStorage\./.test(s));
+ if(!valid)issues.push(route+": invalid native scoped fixture contract");
+ return valid;
+}
+
 function canonicalRoutes(root, issues) {
   const base = path.join(root, "app/bo");
   const routes = new Set();
@@ -183,6 +218,7 @@ function canonicalRoutes(root, issues) {
     native.add("/bo/afterschool-accounts");
   }
   if(nativeOpeningEvidenceRoute(root,issues)){routes.add("/bo/opening-evidence");native.add("/bo/opening-evidence");}
+  if(nativeRunningClassesRoute(root,issues)){routes.add("/bo/running-classes");native.add("/bo/running-classes");}
   if(nativeWishEventRoute(root,issues)){routes.add("/bo/pinoria-wish-events");native.add("/bo/pinoria-wish-events");}
   if (fs.existsSync(path.join(root, "app/bo/sales/leads/page.tsx")) && read(root, POLICY).includes('"/bo/sales/leads"')) {
     if (nativeLeadsRoute(root, issues)) { routes.add("/bo/sales/leads"); native.add("/bo/sales/leads"); }

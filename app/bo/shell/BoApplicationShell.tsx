@@ -104,7 +104,7 @@ export function BoApplicationShell({ currentUser, staging, children }: {
       ...(showGuests ? {"guests": {label:"Khách",group:"Operations",fields:[]}} : {}),
       ...(showWorkshop ? {"mytime-workshops": {label:"Workshop MyTime",group:"Operations",fields:[]}} : {}),
     },
-    routeForModule: key => key === "afterschool-accounts" && showAccounts
+    routeForModule: key => key === "classes" ? "/bo/running-classes"+(centerId?"?"+new URLSearchParams({centerId}):"") : key === "afterschool-accounts" && showAccounts
       ? "/bo/afterschool-accounts?" + new URLSearchParams({ centerId })
       : key === "piner-posts" && showPosts ? "/bo/piner-posts?" + new URLSearchParams({ centerId })
       : key==="guests"&&showGuests ? "/bo/guests?"+new URLSearchParams({centerId})
@@ -119,7 +119,7 @@ export function BoApplicationShell({ currentUser, staging, children }: {
   const productionKey = destinationKey(productionDestination?.href ?? "/bo");
   const stagingKey = pathname === "/bo" || pathname === "/bo/"
     ? query.get("module") ?? "students"
-    : nativePayrollModule(pathname) ?? openingEvidenceBoModule(pathname) ?? pathname.slice("/bo/".length);
+    : pathname==="/bo/running-classes"?"classes":nativePayrollModule(pathname) ?? openingEvidenceBoModule(pathname) ?? pathname.slice("/bo/".length);
   return <BoRegistrationWorkspace shellOnly currentUser={currentUser}
     moduleKey={staging ? stagingKey : productionKey}
     source={staging ? scopedSource : productionSource}
