@@ -1,4 +1,5 @@
 "use client";
+import "@pino/design-system/bo-tokens.css";
 // PAP-2183 / PLT-PRODUCT-PLAN: one native typed renderer, isolated M1 commands.
 import {useContext,useEffect,useMemo,useRef,useState} from "react";
 import {TddRenderer} from "@/app/components/workspace-renderer/Renderer";
