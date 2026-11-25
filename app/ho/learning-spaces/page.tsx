@@ -23,5 +23,5 @@ export default async function Page({searchParams}:{searchParams:Promise<Record<s
  const {env}=await getCloudflareContext({async:true}) as unknown as {env:HoEnv};
  const actor=await authorizeHoShell(incoming,env);
  if(!actor.entitled||!actor.permissionKeys.includes(SPACE_READ))forbidden();
- return <HoWorkspace module="learningSpaces" content={<LearningSpaceM1Content key={actor.userId} scopeKey={actor.userId} permissionKeys={actor.permissionKeys.filter(k=>k===SPACE_READ||k===SPACE_EDIT)} initialRecord={query.record} liveReadOnly liveWrites/>}/>;
+ return <HoWorkspace module="learningSpaces" content={<LearningSpaceM1Content key={actor.userId} scopeKey={actor.userId} permissionKeys={actor.permissionKeys.filter(k=>k===SPACE_READ||k===SPACE_EDIT)} initialRecord={query.record}/>}/>;
 }
