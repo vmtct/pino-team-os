@@ -1,4 +1,5 @@
 import {guestHostDecision} from "./bo-mytime-guest-host-contract";
+import {leadHouseholdHostDecision} from "./bo-lead-household-route";
 import {workshopHostDecision} from "./mytime-workshop-host-contract";
 import {postDraftHostDecision} from "./bo-post-draft-host-contract";
 import {boPlsWishHostDecision} from "./bo-pls-wish-host-contract";
@@ -38,6 +39,8 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
     const read=pathname===personApi||pathname===personApi+"/unlinked-counts"||/^\/api\/ho\/identity\/persons\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(pathname);
     return {action:hostname===HO_STAGING_HOSTNAME&&(pathname===personPage&&(method==="GET"||method==="HEAD")||read&&method==="GET")?"next":"not_found"};
   }
+  const leadHousehold = leadHouseholdHostDecision(hostname, pathname, method);
+  if (leadHousehold) return {action:leadHousehold};
   const workshop = workshopHostDecision(hostname, pathname, method);
   if (workshop) return {action:workshop};
   // PAP-2181: exact private native Enrollment page; no Production or cross-surface admission.

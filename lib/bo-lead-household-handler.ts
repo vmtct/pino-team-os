@@ -3,13 +3,8 @@ import {callBoAccessCoreWithCredential,type BoAccessCoreBinding,type BoAccessReq
 import {teamCredential,TeamAuthError,type TeamAccessEnv} from "./team-auth";
 import {BO_STAGING_HOSTNAME,normalizeHostname} from "./host-boundary";
 export interface LeadHouseholdEnv extends TeamAccessEnv {APP_ENV?:string;PINO_BO_CORE:BoAccessCoreBinding}
-const base="acquisition/households";
+import {leadHouseholdRoute} from "./bo-lead-household-route";
 const root="/api/bo/";
-const uuid="[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
-const record=new RegExp("^"+base+"/"+uuid+"$");
-const history=new RegExp("^"+base+"/"+uuid+"/history$");
-const action=new RegExp("^"+base+"/"+uuid+"/(contact|members|primary|relationships|archive)$");
-const child=new RegExp("^"+base+"/"+uuid+"/(members|relationships)/"+uuid+"/(update|retire|confirm)$");
 const versionFields=["expectedVersion"];
 class BadInput extends Error{}
 function json(status:number,body:unknown,requestId?:string){return Response.json(body,{status,headers:{"cache-control":"no-store","x-content-type-options":"nosniff","referrer-policy":"no-referrer",...(requestId?{"x-request-id":requestId}:{})}});}
@@ -27,9 +22,10 @@ export async function handleLeadHousehold(request:Request,env:LeadHouseholdEnv):
  const url=new URL(request.url);
  if(env.APP_ENV!=="staging"||url.origin!=="https://"+BO_STAGING_HOSTNAME||normalizeHostname(request.headers.get("host")??"")!==BO_STAGING_HOSTNAME||!url.pathname.startsWith(root)||url.hash||url.username||url.password)return fail(404,"PLATFORM_NOT_FOUND");
  const path=url.pathname.slice(root.length),method=request.method;
- const search=path===base+"/search",create=path===base,detail=record.test(path),hist=history.test(path),a=action.exec(path),c=child.exec(path);
- if(!search&&!create&&!detail&&!hist&&!a&&!c||c?.[1]==="members"&&c[2]==="confirm")return fail(404,"PLATFORM_NOT_FOUND");
- if(method!==(detail||hist?"GET":"POST"))return fail(405,"PLATFORM_METHOD_NOT_ALLOWED");
+ const route=leadHouseholdRoute(path);
+ if(!route)return fail(404,"PLATFORM_NOT_FOUND");
+ if(method!==route.method)return fail(405,"PLATFORM_METHOD_NOT_ALLOWED");
+ const {search,create,hist,a,c}=route;
  for(const k of url.searchParams.keys())if(!hist||!["limit","cursor"].includes(k)||url.searchParams.getAll(k).length!==1)throw new BadInput();
  if(request.headers.get("cookie")?.split(";").some(v=>v.trim().startsWith("pino_support_session=")))return fail(403,"ACCESS_PERMISSION_DENIED");
  const core:BoAccessRequest={method,path};
