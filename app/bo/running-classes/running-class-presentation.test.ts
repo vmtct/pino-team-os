@@ -1,0 +1,10 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {initialClassDraft,type ClassCatalog} from "./running-class-draft";
+import {projectClassRow,projectClassProperties,validateClassEdit,RUNNING_CLASS_MOCK_ID,classTableModule,type ClassRecord} from "./running-class-presentation";
+const catalog:ClassCatalog={centers:[{id:"c",displayName:"Center",status:"ACTIVE"}],paths:[{id:"p",displayName:"Piano",status:"ACTIVE"}],spaces:[{id:"s",centerId:"c",displayName:"Room",status:"ACTIVE"}]};
+const record:ClassRecord={...initialClassDraft("c"),id:RUNNING_CLASS_MOCK_ID,version:1,status:"INACTIVE",operationalName:"Piano",pathProgramId:"p",learningSpaceId:"s",windowStartsLocal:"18:00",windowEndsLocal:"19:30",optimalConcurrentCapacity:8};
+test("native row preserves baseline aliases and never fabricates audit data",()=>{const r=projectClassRow(record,catalog);assert.equal(r.name,"Piano");assert.equal(r.center,"Center");assert.equal(r.window,"18:00 – 19:30");assert.equal(r.createdAt,null);assert.equal(projectClassProperties(record,catalog).learningSpaceId,"Room");assert.equal(classTableModule({label:"Classes",group:"School",fields:[]}).fields.length,4);});
+test("name-only edit does not need effective date; immutable fields excluded",()=>{const result=validateClassEdit(record,{...record,operationalName:"New",centerId:"foreign",deliveryTopology:"FLEXIBLE_STUDIO"},catalog,"","2026-11-25");assert.equal(result.ok,true);if(result.ok)assert.deepEqual(result.command,{id:record.id,expectedVersion:1,changes:{operationalName:"New"},effectiveFromLocalDate:null});});
+test("recurrence/capacity change requires valid effective date, with explicit version",()=>{for(const date of ["","2026-11-24","2026-02-30"])assert.equal(validateClassEdit(record,{...record,weekdayIso:7},catalog,date,"2026-11-25").ok,false);const r=validateClassEdit(record,{...record,weekdayIso:7},catalog,"2026-12-01","2026-11-25");assert.equal(r.ok,true);if(r.ok)assert.equal(r.command.expectedVersion,1);});
+test("unchanged draft cannot submit",()=>assert.equal(validateClassEdit(record,record,catalog,"","2026-11-25").ok,false));
