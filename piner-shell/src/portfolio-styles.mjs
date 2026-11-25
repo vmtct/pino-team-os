@@ -36,12 +36,10 @@ export const PORTFOLIO_CSS=String.raw`
 .portfolio-post .portfolio-post-header time{font-size:11px;color:#77717d}
 .portfolio-post .portfolio-visibility{flex:none;padding:6px 10px;border-radius:999px;background:#f0eaf0;color:#805a7b;font-size:10px;font-weight:650}
 .portfolio-post .portfolio-cover{border-radius:14px;overflow:hidden;cursor:default;touch-action:pan-y}
-.portfolio-post .portfolio-feed-arrow{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:44px;display:grid;place-items:center;border:0;background:transparent;color:#fff;cursor:pointer;padding:0;filter:drop-shadow(0 1px 2px #0008)}
-.portfolio-post .portfolio-feed-arrow::before{content:'';position:absolute;inset:9px;background:#30263833;border-radius:50%}
-.portfolio-post .portfolio-feed-arrow svg{position:relative;width:20px;height:20px}
+.portfolio-post .portfolio-feed-arrow{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:44px;display:grid;place-items:center;border:0;background:transparent;color:#fff;cursor:pointer;padding:0}
+.portfolio-post .portfolio-feed-arrow svg{position:relative;width:20px;height:20px;filter:drop-shadow(0 1px 2px #0007)}
 .portfolio-post [data-feed-step="-1"]{left:4px}
 .portfolio-post [data-feed-step="1"]{right:4px}
-.portfolio-post .portfolio-feed-arrow:hover::before,.portfolio-post .portfolio-feed-arrow:focus-visible::before{background:#30263866}
 .portfolio-post .portfolio-cover img{aspect-ratio:6/5}
 .portfolio-post .portfolio-illustration{position:absolute;left:10px;top:8px;padding:5px 11px;border-radius:999px;background:#ffffffe0;color:#58485a;font-size:10px;font-weight:700}
 .portfolio-post .portfolio-count{top:8px;right:8px}
