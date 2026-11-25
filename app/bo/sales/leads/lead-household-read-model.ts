@@ -44,6 +44,7 @@ export class LeadReadModel {
     this.directory=emptyPage();
     await this.loadDirectory(null);
   }
+  async refreshDirectory(){await this.search(this.searchInput);}
   async nextDirectory() {
     if (this.directory.phase!=="loading" && this.directory.nextCursor) await this.loadDirectory(this.directory.nextCursor);
   }

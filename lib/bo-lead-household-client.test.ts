@@ -43,3 +43,12 @@ test("PAP-2288 exact child path and version, no age observation supplied by clie
  assert.equal(calls[0]?.url,base+"/"+id+"/members/"+id+"/update");
  assert.deepEqual(JSON.parse(String(calls[0]?.init?.body)),{member,expectedVersion:2});
 });
+
+test("PAP-2288 exact child receipt identity and nullable primary are enforced",async()=>{
+ const other="01a03c6e-cc58-7d81-ac8e-123456789abd";
+ await assert.rejects(fixture({data:{leadId:id,version:3,memberId:other}}).api.retireMember(id,id,2,key),LeadApiError);
+ await assert.rejects(fixture({data:{leadId:id,version:3}}).api.primary(id,2,null,key),LeadApiError);
+ assert.equal((await fixture({data:{leadId:id,version:3,memberId:null}}).api.primary(id,2,null,key)).memberId,null);
+ await assert.rejects(fixture({data:{leadId:id,version:3,relationshipId:other}}).api.confirmRelation(id,id,2,key),LeadApiError);
+ assert.equal((await fixture({data:{leadId:id,version:3,relationshipId:id}}).api.retireRelation(id,id,2,key)).relationshipId,id);
+});

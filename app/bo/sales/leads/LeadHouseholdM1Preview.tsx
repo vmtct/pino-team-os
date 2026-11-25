@@ -2,7 +2,8 @@
 
 import { useContext, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { LeadReadModel } from "./lead-household-read-model";
-import type { LeadHouseholdApi } from "./lead-household-provider";
+import { LeadCommandFence, type LeadHouseholdApi } from "./lead-household-provider";
+import type { LeadDetail } from "@/lib/bo-lead-household-client";
 import { leadReadRow, leadReadDetail, leadAuditTime, leadInquiryLabel } from "./lead-household-read-presentation";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { TddHostMenu } from "@/app/components/workspace-adapters/SurfaceWorkspace";
@@ -90,7 +91,7 @@ function PropertySection<T extends Record<string, unknown>>({
   </section>;
 }
 
-export function LeadHouseholdM1Preview({localReview=false,readApi}: {localReview?: boolean; readApi?: Pick<LeadHouseholdApi,"search"|"detail"|"history">} = {}) {
+export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi}: {localReview?: boolean; readApi?: Pick<LeadHouseholdApi,"search"|"detail"|"history">;commandApi?:LeadHouseholdApi} = {}) {
   const menu = useContext(TddHostMenu);
   const router = useRouter();
   const pathname = usePathname();
@@ -98,6 +99,8 @@ export function LeadHouseholdM1Preview({localReview=false,readApi}: {localReview
   const [fixtureRecords, setRecords] = useState<LeadM1Record[]>([LEAD_M1_FIXTURE]);
   const [,refreshRead] = useReducer((v:number)=>v+1,0);
   const readModel = useMemo(()=>readApi?new LeadReadModel(readApi,refreshRead):null,[readApi]);
+  const commandFence=useMemo(()=>commandApi&&commandApi===readApi&&!localReview?new LeadCommandFence(commandApi):null,[commandApi,readApi,localReview]);
+  const [commandNotice,setCommandNotice]=useState("");
   const records = readModel ? readModel.directory.items.map(leadReadRow) : fixtureRecords;
   useEffect(()=>()=>readModel?.dispose(),[readModel]);
   const [query, setQuery] = useState("");
@@ -134,6 +137,26 @@ export function LeadHouseholdM1Preview({localReview=false,readApi}: {localReview
   useEffect(()=>{if(readModel&&detailReady&&activeTab==="history")void readModel.openHistory();},[readModel,detailReady,activeTab,selectedLeadId]);
   const convertLead = records.find(record => record.id === convertLeadId) ?? null;
 
+  async function executeContact(operation:()=>Promise<LeadDetail>):Promise<boolean>{
+    if(!commandFence||!readModel)return false;
+    setCommandNotice("");
+    const result=operation();refreshRead();
+    try {
+      const detail=await result;
+      await Promise.all([readModel.refreshDirectory(),readModel.selected.id===detail.id?readModel.select(detail.id):Promise.resolve()]);
+      setCommandNotice("Đã tải lại thông tin Lead.");
+      return true;
+    }catch{
+      setCommandNotice(commandFence.state==="uncertain"?"Chưa xác định kết quả. Chỉ thử lại cùng yêu cầu.":commandFence.state==="conflict"?"Dữ liệu đã thay đổi. Tải lại trước khi chỉnh sửa.":commandFence.state==="reload_required"?"Đã nhận kết quả, cần tải lại Lead.":"Không thể cập nhật Lead.");
+      return false;
+    }finally{refreshRead();}
+  }
+  function saveCanonicalContact(field:"name"|"phone",value:string):Promise<boolean>{
+    const target=readModel?.selected.record;
+    if(!commandFence||commandFence.state!=="idle"||!target||target.id!==selectedLeadId||target.status!=="ACTIVE")return Promise.resolve(false);
+    const contact={phone:field==="phone"?value:target.phone,contactDisplayName:field==="name"?value.trim()||null:target.contactDisplayName};
+    return executeContact(()=>commandFence.submit({kind:"contact",leadId:target.id,expectedVersion:target.version,contact}));
+  }
   function openConvert(record: LeadM1Record) {
     setConvertLeadId(record.id);
     setConvertSelected(record.members.filter(member => member.roles.includes("STUDENT") || member.roles.includes("GUEST")).map(member => member.id));
@@ -300,6 +323,9 @@ export function LeadHouseholdM1Preview({localReview=false,readApi}: {localReview
   const currentUrl = pathname + (searchParams.size ? "?" + searchParams.toString() : "");
 
   return <main className={styles.page}>
+    {commandFence&&commandNotice?<p role="status" className={styles.previewNotice}>{commandNotice}</p>:null}
+    {commandFence?.state==="uncertain"?<button type="button" className="secondary-btn" onClick={()=>void executeContact(()=>commandFence.retry())}>Thử lại cùng yêu cầu</button>:null}
+    {commandFence&&(commandFence.state==="reload_required"||commandFence.state==="conflict")&&commandFence.reloadTarget?<button type="button" className="secondary-btn" onClick={()=>{const id=commandFence.reloadTarget;if(id)void executeContact(()=>commandFence.reload(id));}}>Tải lại Lead</button>:null}
     {readModel&&selectedLeadId&&!selectedLead?<div role="status"><button className="secondary-btn" onClick={()=>setPreviewParam("lead",null)}>← Danh bạ Leads</button><LeadReadStatus phase={readModel.selected.phase} error={readModel.selected.error?.status} onRetry={()=>void readModel.select(selectedLeadId)} /></div>:null}
     {!selectedLead && !(readModel&&selectedLeadId) ? <><header className={styles.heading}>
       <div>
@@ -353,7 +379,7 @@ export function LeadHouseholdM1Preview({localReview=false,readApi}: {localReview
       designVariant="business-v25"
       actions={<div className={styles.detailActions}>{menu("lead-detail-menu-btn")}{selectedLead.fixture?<BoDataGridBadge>DỮ LIỆU MẪU</BoDataGridBadge>:null}</div>}
       tabs={[
-        { id: "detail", label: "Tổng quan", content: <LeadOverview record={selectedLead} onSave={(name, phone) => saveInlineContact(selectedLead.id, name, phone)} onConvert={() => openConvert(selectedLead)} onSaveInterests={kinds => saveLeadInterests(selectedLead.id, kinds)} /> },
+        { id: "detail", label: "Tổng quan", content: <LeadOverview record={selectedLead} liveContact={commandFence&&currentDetail&&currentDetail.id===selectedLead.id&&currentDetail.status==="ACTIVE"?{name:currentDetail.contactDisplayName,phone:currentDetail.phone,version:currentDetail.version,disabled:commandFence.state!=="idle",save:saveCanonicalContact}:undefined} onSave={(name, phone) => saveInlineContact(selectedLead.id, name, phone)} onConvert={() => openConvert(selectedLead)} onSaveInterests={kinds => saveLeadInterests(selectedLead.id, kinds)} /> },
         { id: "members", label: "Thành viên", content: <LeadMembers record={selectedLead} onSave={members => updateMembers(selectedLead.id, members)} onSaveInterests={(memberId, kinds) => saveMemberInterests(selectedLead.id, memberId, kinds)} /> },
         { id: "relationships", label: "Quan hệ", content: <LeadRelationships record={selectedLead} onSave={relationships => updateRelationships(selectedLead.id, relationships)} /> },
         { id: "history", label: "Lịch sử", content: readModel?<LeadInquiryHistory model={readModel}/>:<LeadHistory /> },
@@ -454,11 +480,27 @@ function LeadInlineText({ value, label, onCommit, inputMode }: { value: string; 
     {error ? <small role="alert" className="pds-field-error">Giá trị không hợp lệ</small> : null}
   </span>;
 }
-function LeadOverview({ record, onSave, onConvert, onSaveInterests }: { record: LeadM1Record; onSave: (name: string, phone: string) => boolean; onConvert: () => void; onSaveInterests: (kinds: LeadM1IntentKind[]) => void }) {
+type LiveContact={name:string|null;phone:string;version:number;disabled:boolean;save:(field:"name"|"phone",value:string)=>Promise<boolean>};
+function LeadContactInline({value,label,disabled,onSave,inputMode}:{value:string;label:string;disabled:boolean;onSave:(value:string)=>Promise<boolean>;inputMode?:"tel"}){
+  const [draft,setDraft]=useState(value);
+  const [error,setError]=useState(false);
+  const canceled=useRef(false),inFlight=useRef(false);
+  async function commit(){
+    if(canceled.current){canceled.current=false;return;}
+    if(disabled||inFlight.current||draft===value)return;
+    inFlight.current=true;
+    try{const ok=await onSave(draft);if(!ok){setDraft(value);setError(true);}}finally{inFlight.current=false;}
+  }
+  return <span className={styles.inlineField}><input className="pds-direct-field" data-pds-appearance="underline" aria-label={label} value={draft} disabled={disabled} aria-invalid={error||undefined} inputMode={inputMode}
+    onChange={e=>{setDraft(e.target.value);setError(false);}} onBlur={()=>void commit()}
+    onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();e.currentTarget.blur();}if(e.key==="Escape"){e.preventDefault();canceled.current=true;setDraft(value);setError(false);e.currentTarget.blur();}}}/>
+    {error?<small role="alert" className="pds-field-error">Chưa cập nhật</small>:null}</span>;
+}
+function LeadOverview({ record, onSave, onConvert, onSaveInterests,liveContact }: { record: LeadM1Record; onSave: (name: string, phone: string) => boolean; onConvert: () => void; onSaveInterests: (kinds: LeadM1IntentKind[]) => void;liveContact?:LiveContact }) {
   return <div className={styles.detailContent}>
     <BoProperties items={[
-      { key: "contact", label: "Người liên hệ", value: !record.fixture?record.contactName:<LeadInlineText key={record.id + record.contactName} label="Người liên hệ" value={record.contactName} onCommit={name => onSave(name, record.phone)} /> },
-      { key: "phone", label: "Số điện thoại", value: !record.fixture?record.phone:<LeadInlineText key={record.id + record.phone} label="Số điện thoại" inputMode="tel" value={record.phone} onCommit={phone => onSave(record.contactName, phone)} /> },
+      { key: "contact", label: "Người liên hệ", value: liveContact?<LeadContactInline key={record.id+":"+liveContact.version+":name"} value={liveContact.name??""} label="Người liên hệ" disabled={liveContact.disabled} onSave={name=>liveContact.save("name",name)}/>:!record.fixture?record.contactName:<LeadInlineText key={record.id + record.contactName} label="Người liên hệ" value={record.contactName} onCommit={name => onSave(name, record.phone)} /> },
+      { key: "phone", label: "Số điện thoại", value: liveContact?<LeadContactInline key={record.id+":"+liveContact.version+":phone"} value={liveContact.phone} label="Số điện thoại" inputMode="tel" disabled={liveContact.disabled} onSave={phone=>liveContact.save("phone",phone)}/>:!record.fixture?record.phone:<LeadInlineText key={record.id + record.phone} label="Số điện thoại" inputMode="tel" value={record.phone} onCommit={phone => onSave(record.contactName, phone)} /> },
       { key: "status", label: "Trạng thái Lead", value: <BoDataGridStatus value={record.lifecycle === "ACTIVE" ? "Đang hoạt động" : "Đã lưu trữ"} tone={record.lifecycle === "ACTIVE" ? "success" : "neutral"} /> },
       { key: "household", label: "Household", value: record.members.length + " thành viên" },
       { key: "person", label: "Person liên kết", value: "—" },

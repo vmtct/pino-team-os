@@ -28,6 +28,8 @@ export function newLeadCommandKey(){return crypto.randomUUID();}
 function object(value:unknown):value is Record<string,unknown>{return !!value&&typeof value==="object"&&!Array.isArray(value);}
 function isPage(value:unknown):boolean{return object(value)&&Array.isArray(value.items)&&typeof value.hasMore==="boolean"&&(value.nextCursor===null||typeof value.nextCursor==="string")&&value.hasMore===(typeof value.nextCursor==="string"&&value.nextCursor.length>0);}
 function isReceipt(value:unknown):boolean{return object(value)&&typeof value.leadId==="string"&&uuid.test(value.leadId)&&typeof value.version==="number"&&Number.isSafeInteger(value.version)&&value.version>0;}
+function memberReceipt(expected?:string|null){return (v:unknown):boolean=>isReceipt(v)&&object(v)&&(expected===undefined?typeof v.memberId==="string"&&uuid.test(v.memberId):v.memberId===expected);}
+function relationReceipt(expected?:string){return (v:unknown):boolean=>isReceipt(v)&&object(v)&&(expected===undefined?typeof v.relationshipId==="string"&&uuid.test(v.relationshipId):v.relationshipId===expected);}
 function isDetail(value:unknown):boolean{return object(value)&&typeof value.id==="string"&&uuid.test(value.id)&&typeof value.version==="number"&&Number.isSafeInteger(value.version)&&value.version>0&&Array.isArray(value.members)&&Array.isArray(value.relationships)&&Array.isArray(value.intents)&&typeof value.intentHistoryHasMore==="boolean";}
 export function createLeadHouseholdApi(fetcher:typeof fetch=fetch){
  async function request<T>(suffix:string,method:"GET"|"POST",validate:(value:unknown)=>boolean,body?:unknown,commandKey?:string,signal?:AbortSignal):Promise<T>{
@@ -45,14 +47,14 @@ export function createLeadHouseholdApi(fetcher:typeof fetch=fetch){
   history:(leadId:string,input:{limit?:number;cursor?:string}={},signal?:AbortSignal)=>{const p=new URLSearchParams();if(input.limit!==undefined)p.set("limit",String(input.limit));if(input.cursor!==undefined)p.set("cursor",input.cursor);return request<LeadPage<LeadIntent>>("/"+id(leadId)+"/history"+(p.size?"?"+p.toString():""),"GET",isPage,undefined,undefined,signal);},
   create:(input:LeadCreate,commandKey:string)=>request<LeadCreateReceipt>("","POST",v=>isReceipt(v)&&object(v)&&typeof v.created==="boolean",input,commandKey),
   contact:(leadId:string,expectedVersion:number,contact:LeadContactInput,commandKey:string)=>command<LeadReceipt>(leadId,"/contact",expectedVersion,{contact},commandKey),
-  addMember:(leadId:string,expectedVersion:number,member:LeadMemberInput,commandKey:string)=>command<LeadMemberReceipt>(leadId,"/members",expectedVersion,{member},commandKey),
-  updateMember:(leadId:string,memberId:string,expectedVersion:number,member:LeadMemberInput,commandKey:string)=>command<LeadMemberReceipt>(leadId,"/members/"+id(memberId)+"/update",expectedVersion,{member},commandKey),
-  retireMember:(leadId:string,memberId:string,expectedVersion:number,commandKey:string)=>command<LeadMemberReceipt>(leadId,"/members/"+id(memberId)+"/retire",expectedVersion,{},commandKey),
-  primary:(leadId:string,expectedVersion:number,memberId:string|null,commandKey:string)=>command<LeadMemberReceipt>(leadId,"/primary",expectedVersion,{memberId:memberId===null?null:id(memberId)},commandKey),
-  addRelation:(leadId:string,expectedVersion:number,relationship:LeadRelationInput,commandKey:string)=>command<LeadRelationReceipt>(leadId,"/relationships",expectedVersion,{relationship},commandKey),
-  updateRelation:(leadId:string,relationshipId:string,expectedVersion:number,relationship:LeadRelationInput,commandKey:string)=>command<LeadRelationReceipt>(leadId,"/relationships/"+id(relationshipId)+"/update",expectedVersion,{relationship},commandKey),
-  confirmRelation:(leadId:string,relationshipId:string,expectedVersion:number,commandKey:string)=>command<LeadRelationReceipt>(leadId,"/relationships/"+id(relationshipId)+"/confirm",expectedVersion,{},commandKey),
-  retireRelation:(leadId:string,relationshipId:string,expectedVersion:number,commandKey:string)=>command<LeadRelationReceipt>(leadId,"/relationships/"+id(relationshipId)+"/retire",expectedVersion,{},commandKey),
+  addMember:(leadId:string,expectedVersion:number,member:LeadMemberInput,commandKey:string)=>command<LeadMemberReceipt>(leadId,"/members",expectedVersion,{member},commandKey,memberReceipt()),
+  updateMember:(leadId:string,memberId:string,expectedVersion:number,member:LeadMemberInput,commandKey:string)=>command<LeadMemberReceipt>(leadId,"/members/"+id(memberId)+"/update",expectedVersion,{member},commandKey,memberReceipt(memberId)),
+  retireMember:(leadId:string,memberId:string,expectedVersion:number,commandKey:string)=>command<LeadMemberReceipt>(leadId,"/members/"+id(memberId)+"/retire",expectedVersion,{},commandKey,memberReceipt(memberId)),
+  primary:(leadId:string,expectedVersion:number,memberId:string|null,commandKey:string)=>command<LeadMemberReceipt>(leadId,"/primary",expectedVersion,{memberId:memberId===null?null:id(memberId)},commandKey,memberReceipt(memberId)),
+  addRelation:(leadId:string,expectedVersion:number,relationship:LeadRelationInput,commandKey:string)=>command<LeadRelationReceipt>(leadId,"/relationships",expectedVersion,{relationship},commandKey,relationReceipt()),
+  updateRelation:(leadId:string,relationshipId:string,expectedVersion:number,relationship:LeadRelationInput,commandKey:string)=>command<LeadRelationReceipt>(leadId,"/relationships/"+id(relationshipId)+"/update",expectedVersion,{relationship},commandKey,relationReceipt(relationshipId)),
+  confirmRelation:(leadId:string,relationshipId:string,expectedVersion:number,commandKey:string)=>command<LeadRelationReceipt>(leadId,"/relationships/"+id(relationshipId)+"/confirm",expectedVersion,{},commandKey,relationReceipt(relationshipId)),
+  retireRelation:(leadId:string,relationshipId:string,expectedVersion:number,commandKey:string)=>command<LeadRelationReceipt>(leadId,"/relationships/"+id(relationshipId)+"/retire",expectedVersion,{},commandKey,relationReceipt(relationshipId)),
   archive:(leadId:string,expectedVersion:number,reason:string,commandKey:string)=>command<LeadReceipt>(leadId,"/archive",expectedVersion,{reason},commandKey),
  };
 }
