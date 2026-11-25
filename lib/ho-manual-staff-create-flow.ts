@@ -15,7 +15,7 @@ export type HoStaffCreatePending = {
 };
 export type HoStaffCreateState = { pending:HoStaffCreatePending|null };
 export const createHoStaffCreateState=():HoStaffCreateState=>({pending:null});
-function intent(command:StaffCreateCommand):string{
+export function manualStaffIntent(command:StaffCreateCommand):string{
   return JSON.stringify([command.name,command.phone,command.email,command.gender,command.birthDate,command.centerId,command.login!==null,command.existingPersonId??null]);
 }
 export class HoStaffCreatePendingError extends Error {
@@ -29,7 +29,7 @@ export function createHoStaffCreateFlow(state:HoStaffCreateState,options:{
 }={}){
   const submit=options.submit??createHoManualStaff, makeKey=options.makeKey??(()=>crypto.randomUUID());
   return async(command:StaffCreateCommand):Promise<HoManualStaffReceipt>=>{
-    const prior=state.pending,signature=intent(command);
+    const prior=state.pending,signature=manualStaffIntent(command);
     if(prior&&prior.phase!=="uncertain")throw new HoStaffCreatePendingError("busy");
     if(prior&&prior.intent!==signature)throw new HoStaffCreatePendingError("different-intent");
     const key=prior?.key??makeKey();

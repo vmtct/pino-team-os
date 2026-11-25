@@ -26,7 +26,7 @@ export function StaffManualWorkspace({ adapter, navigation, centers, onCreate, d
   const close = () => { setOpen(false); requestAnimationFrame(() => launch.current?.focus()); };
   if (adapter.scope.surface !== "HO" || adapter.context.surface !== "HO" || !adapter.context.authorize("team.bo.access")) return <p role="alert">Không có quyền xem Staff.</p>;
   return <>
-    <SurfaceWorkspace {...detailSlots} key={revision} adapter={adapter} navigation={navigation} initialQuery={manualStaffQuery} drawerReadOnly tableHeaderActions={onCreate ? <button ref={launch} type="button" className="primary-btn" onClick={() => setOpen(true)}>＋ Tạo nhân sự</button> : undefined} />
-    {open && onCreate && <StaffManualCreateDrawer schema={adapter.schema} context={adapter.context} centers={centers} personReader={personReader} allowLogin={allowLogin} recovery={recovery?{pending:recovery.pending,readback:async()=>{const committed=await recovery.readback();if(committed)setRevision(r=>r+1);return committed;}}:undefined} onClose={close} onCreate={async command => { await onCreate(command); setRevision(r => r + 1); }} />}
+    <SurfaceWorkspace {...detailSlots} key={revision} adapter={adapter} navigation={navigation} initialQuery={manualStaffQuery} drawerReadOnly tableHeaderActions={onCreate ? <button ref={launch} type="button" className="primary-btn" onClick={() => setOpen(true)}>{recovery?.restored?.()?"Khôi phục yêu cầu tạo Staff":"＋ Tạo nhân sự"}</button> : undefined} />
+    {open && onCreate && <StaffManualCreateDrawer schema={adapter.schema} context={adapter.context} centers={centers} personReader={personReader} allowLogin={allowLogin} recovery={recovery?{pending:recovery.pending,restored:recovery.restored,readback:async()=>{const committed=await recovery.readback();if(committed)setRevision(r=>r+1);return committed;}}:undefined} onClose={close} onCreate={async command => { await onCreate(command); setRevision(r => r + 1); }} />}
   </>;
 }
