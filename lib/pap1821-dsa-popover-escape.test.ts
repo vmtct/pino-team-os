@@ -54,3 +54,26 @@ test("PAP-1821: original shared editor cleanup restores anchor focus (no duplica
   assert.match(drawer, /<BoTypedEditor/);
   assert.match(drawer, /<DrawerFrame/);
 });
+
+test("PAP-1247: direct input owns Escape before React dispatch, not Tab", () => {
+  const direct = { matches: (value: string) => value.includes("[data-tdd-direct-field] input") };
+  const target = { closest: () => null };
+  const event = (key: string) => ({key, target, composedPath: () => [direct, target]}) as unknown as KeyboardEvent;
+  const calls: string[] = [];
+  assert.equal(editorOwnsDialogKey(event("Escape")), true);
+  press(editorOwnsDialogKey(event("Escape")), calls);
+  assert.deepEqual(calls, []);
+  assert.equal(editorOwnsDialogKey(event("Tab")), false);
+  const outside = {key:"Escape", target, composedPath: () => [target]} as unknown as KeyboardEvent;
+  press(editorOwnsDialogKey(outside), calls);
+  assert.deepEqual(calls, ["prevent", "drawer-close"]);
+});
+test("PAP-1247: consumed Escape does not close Drawer, ordinary Tab still traps", () => {
+  const calls: string[] = [];
+  const first = {focus: () => calls.push("first")};
+  const state = {editorOpen:false, containsActive:false, active:null, first, last:first, close:() => calls.push("close")};
+  handleDialogKey({key:"Escape", shiftKey:false, defaultPrevented:true, preventDefault:() => calls.push("prevent")},state);
+  assert.equal(calls.length, 0);
+  handleDialogKey({key:"Tab", shiftKey:false, preventDefault:() => calls.push("prevent")},state);
+  assert.deepEqual(calls, ["prevent","first"]);
+});
