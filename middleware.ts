@@ -106,6 +106,12 @@ export function middleware(request: NextRequest) {
       if(request.headers.get("rsc")==="1")params.delete("_rsc");
       if(!parsePostReviewQuery(params))return new NextResponse("Not Found",{status:404,headers:{"cache-control":"no-store"}});
     }
+    // PAP-2369: exact canonical synthetic-only HO preview, reject invalid links before streaming.
+    if(normalizeHostname(host)===HO_STAGING_HOSTNAME && request.nextUrl.pathname==="/ho/learning-spaces" && ["GET","HEAD"].includes(request.method)){
+      const params=new URLSearchParams(request.nextUrl.searchParams);
+      if(request.headers.get("rsc")==="1")params.delete("_rsc");
+      if(!safeHoReturnTo(request.nextUrl.pathname+(params.size?"?"+params.toString():"")))return new NextResponse("Not Found",{status:404,headers:{"cache-control":"no-store"}});
+    }
     return NextResponse.next({ request: { headers: forwarded } });
   }
   if (decision.action === "not_found") {
