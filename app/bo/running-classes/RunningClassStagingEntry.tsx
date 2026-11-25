@@ -1,6 +1,6 @@
 "use client";
 /** PLT-DELIVERY / PAP-2225: actual authenticated BO boundary; no canonical write or real record projection. */
-import {useEffect,useState} from "react";
+import {useEffect,useMemo,useState} from "react";
 import {BoRegistrationWorkspace,type BoWorkspaceSource} from "../components/registration/BoRegistrationWorkspace";
 import {useBoCenterSelection} from "../components/registration/BoCenterSelection";
 import {useBoStagingUser} from "../components/registration/BoRuntimeBoundary";
@@ -21,6 +21,9 @@ export function RunningClassStagingEntry(){
  return <ScopedReview key={selected} centerId={selected} user={user}/>;
 }
 function ScopedReview({centerId,user}:{centerId:string;user:{displayName:string|null}}){
+ // PAP-2225: native history changes rerender the Next entry. Keep the
+ // shared workspace loader scope stable until the authorized Center changes.
+ const options=useMemo(()=>({centerId}),[centerId]);
  const [state,setState]=useState<"loading"|"denied"|"ready">("loading");
  const [source]=useState<BoWorkspaceSource>(()=>{const review=createRunningClassReview();return {
   ephemeral:true,modules:{...school.modules,classes:classTableModule(school.modules.classes)},runningClassReview:review,
@@ -30,5 +33,5 @@ function ScopedReview({centerId,user}:{centerId:string;user:{displayName:string|
  };});
  useEffect(()=>{const abort=new AbortController();void canReviewRunningClass(centerId,boApi.context,fetch,abort.signal).then(allowed=>{if(!abort.signal.aborted)setState(allowed?"ready":"denied");});return()=>abort.abort();},[centerId]);
  if(state!=="ready")return <RecordState status={state}/>;
- return <TddPreferencePolicy.Provider value="ephemeral"><BoRegistrationWorkspace source={source} moduleKey="classes" options={{centerId}} currentUser={user}/></TddPreferencePolicy.Provider>;
+ return <TddPreferencePolicy.Provider value="ephemeral"><BoRegistrationWorkspace source={source} moduleKey="classes" options={options} currentUser={user}/></TddPreferencePolicy.Provider>;
 }
