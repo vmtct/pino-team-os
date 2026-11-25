@@ -20,6 +20,7 @@ const code=await build({stdin:{contents:`
 import {createRoot} from "react-dom/client";
 import {LeadHouseholdM1Preview} from "./app/bo/sales/leads/LeadHouseholdM1Preview";
 import {LeadApiError} from "./lib/bo-lead-household-client";
+import {LeadRecoveryJournal} from "./app/bo/sales/leads/lead-recovery-journal";
 const a="${a}",b="${b}",c="${c}";
 const rows=[a,b].map((id,i)=>({id,phone:"090000000"+i,contactDisplayName:"Synthetic Lead "+(i+1),status:"ACTIVE",primaryContactMemberId:null,version:1,createdAt:"2026-11-25T00:00:00Z",updatedAt:"2026-11-25T00:01:00Z",createdBy:null,updatedBy:null,centerId:null,memberCount:i+1,intentCount:1}));
 const member={id:c,status:"ACTIVE",version:1,displayName:"Synthetic Student",intendedRoles:["STUDENT"],gender:null,birthPrecision:"YEAR",birthYear:2018,birthMonth:null,birthDay:null,reportedAge:null,ageObservedAt:null,interestKinds:["MYTIME_PIANO"]};
@@ -48,7 +49,7 @@ const api={
  async retireMember(id,memberId,version,key){const row=target(id,version);window.syntheticCommandCalls.push({id,memberId,version,key});const index=household.findIndex(m=>m.id===memberId);if(index<0||row.primaryContactMemberId===memberId)throw new LeadApiError(409,"CONFLICT",null);household.splice(index,1);return childReceipt(row,memberId)},
  async contact(id,version,contact,key){const call={id,version,contact,key};window.syntheticCommandCalls.push(call);const row=rows.find(r=>r.id===id);if(!row||row.version!==version)throw new LeadApiError(409,"CONFLICT",null);if(contact.contactDisplayName==="Conflict"){row.contactDisplayName="Concurrent name";row.version++;throw new LeadApiError(409,"CONFLICT",null)}if(contact.contactDisplayName==="Uncertain"&&window.syntheticCommandCalls.filter(c=>c.key===key).length===1)throw new LeadApiError(503,"UNAVAILABLE",null);Object.assign(row,contact,{version:version+1});return {leadId:id,version:row.version}}
 };
-createRoot(document.querySelector("main")).render(<LeadHouseholdM1Preview readApi={new URLSearchParams(location.search).has("fixture")?undefined:api} commandApi={new URLSearchParams(location.search).has("commands")?api:undefined}/>);
+createRoot(document.querySelector("main")).render(<LeadHouseholdM1Preview readApi={new URLSearchParams(location.search).has("fixture")?undefined:api} commandApi={new URLSearchParams(location.search).has("commands")?api:undefined} recoveryJournal={new URLSearchParams(location.search).has("journal")?new LeadRecoveryJournal(sessionStorage,a):undefined}/>);
 `,resolveDir:process.cwd(),loader:"tsx"},jsx:"automatic",bundle:true,write:false,outdir:"out",loader:{".css":"empty"},define:{"process.env.NODE_ENV":'"production"'},plugins:[{name:"isolated-next-navigation",setup(p){p.onResolve({filter:/^next\/(navigation|link|image|dynamic)$/},args=>({path:args.path,namespace:"lead-test"}));p.onLoad({filter:/.*/,namespace:"lead-test"},args=>({contents:shims[args.path],loader:"jsx",resolveDir:process.cwd()}));}}]});
 const js=code.outputFiles.find(f=>f.path.endsWith(".js")).text;
 test("PAP-2288 mounted native Lead table, cursor, drawer, detail, history and failure states",async()=>{
@@ -213,6 +214,24 @@ test("PAP-2288 mounted Create exact replay and Archive reason/intent guard",asyn
   log=await calls();assert.equal(log.length,4);assert.equal(log[2].version,1);assert.equal(log[3].version,1);assert.equal(log[3].reason,"Closed synthetic intake");assert.equal(log[2].id,log[3].id);assert.notEqual(log[2].key,log[3].key);
   await page.getByText("Thành viên",{exact:true}).first().click();
   try{await page.waitForURL(u=>u.searchParams.get("tab")==="members");const row=page.getByRole("row").filter({hasText:"Synthetic Guest"});await row.waitFor();assert.equal(await row.getByRole("button",{name:"Gỡ Synthetic Guest",exact:true}).isDisabled(),true);}catch(e){console.log("Archived member diagnostics",page.url(),await page.locator("body").innerText());throw e;}
+  assert.deepEqual(errors,[]);
+ }finally{await browser.close();}
+});
+
+test("PAP-2288 mounted reload known receipt readback and unknown outcome lock",async()=>{
+ const browser=await chromium.launch();
+ try{
+  const page=await browser.newPage();page.setDefaultTimeout(12000);const errors=[];page.on("pageerror",e=>errors.push(e.message));
+  await page.route("**/*",r=>r.request().isNavigationRequest()&&new URL(r.request().url()).hostname==="fixture.invalid"?r.fulfill({contentType:"text/html",body:"<main></main>"}):r.abort());
+  await page.goto("https://fixture.invalid/bo/sales/leads?lead="+a+"&commands=1&journal=1");await page.addScriptTag({content:js});
+  const name=page.getByRole("textbox",{name:"Người liên hệ",exact:true});await name.waitFor();
+  await name.fill("Uncertain");await name.press("Enter");await page.getByRole("button",{name:"Thử lại cùng yêu cầu",exact:true}).waitFor();
+  const raw=await page.evaluate(()=>sessionStorage.getItem("pino.leads.pending.v1"));assert.ok(raw);assert.ok(!raw.includes("Uncertain"));assert.ok(!raw.includes("0900000000"));
+  await page.reload();await page.addScriptTag({content:js});await page.getByRole("alert").filter({hasText:"Chưa xác định kết quả yêu cầu trước"}).waitFor();await name.waitFor();assert.equal(await name.isDisabled(),true);assert.equal(await page.getByRole("button",{name:"Thử lại cùng yêu cầu",exact:true}).count(),0);assert.equal(await page.getByRole("button",{name:"Lưu trữ Lead",exact:true}).isDisabled(),true);assert.deepEqual(await page.evaluate(()=>window.syntheticCommandCalls),[]);
+  // Isolated synthetic setup of a known committed receipt, never a runtime unlock of unknown state.
+  await page.evaluate(({id,key})=>sessionStorage.setItem("pino.leads.pending.v1",JSON.stringify({schema:1,scope:id,key,kind:"create",target:null,expectedVersion:null,receipt:{leadId:id,version:1}})),{id:a,key:"8fbaea47-bcdc-4c50-8ca5-2b6335e4ebee"});
+  await page.reload();await page.addScriptTag({content:js});await page.getByRole("button",{name:"Tải lại Lead",exact:true}).waitFor();await name.waitFor();assert.equal(await name.isDisabled(),true);
+  await page.getByRole("button",{name:"Tải lại Lead",exact:true}).click();await page.getByText("Đã tải lại thông tin Lead.",{exact:true}).waitFor();await name.waitFor();assert.equal(await name.isDisabled(),false);assert.equal(await page.evaluate(()=>sessionStorage.getItem("pino.leads.pending.v1")),null);assert.deepEqual(await page.evaluate(()=>window.syntheticCommandCalls),[]);
   assert.deepEqual(errors,[]);
  }finally{await browser.close();}
 });

@@ -1,4 +1,5 @@
 "use client";
+import type {LeadRecoveryJournal} from "./lead-recovery-journal";
 
 import { useContext, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { LeadReadModel } from "./lead-household-read-model";
@@ -91,7 +92,7 @@ function PropertySection<T extends Record<string, unknown>>({
   </section>;
 }
 
-export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi}: {localReview?: boolean; readApi?: Pick<LeadHouseholdApi,"search"|"detail"|"history">;commandApi?:LeadHouseholdApi} = {}) {
+export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi,recoveryJournal}: {localReview?: boolean; readApi?: Pick<LeadHouseholdApi,"search"|"detail"|"history">;commandApi?:LeadHouseholdApi;recoveryJournal?:LeadRecoveryJournal} = {}) {
   const menu = useContext(TddHostMenu);
   const router = useRouter();
   const pathname = usePathname();
@@ -99,7 +100,7 @@ export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi}: {
   const [fixtureRecords, setRecords] = useState<LeadM1Record[]>([LEAD_M1_FIXTURE]);
   const [,refreshRead] = useReducer((v:number)=>v+1,0);
   const readModel = useMemo(()=>readApi?new LeadReadModel(readApi,refreshRead):null,[readApi]);
-  const commandFence=useMemo(()=>commandApi&&commandApi===readApi&&!localReview?new LeadCommandFence(commandApi):null,[commandApi,readApi,localReview]);
+  const commandFence=useMemo(()=>commandApi&&commandApi===readApi&&!localReview?new LeadCommandFence(commandApi,undefined,recoveryJournal):null,[commandApi,readApi,localReview,recoveryJournal]);
   const [commandNotice,setCommandNotice]=useState("");
   const commandBusyRef=useRef(false);
   const [commandBusy,setCommandBusy]=useState(false);
@@ -360,6 +361,7 @@ export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi}: {
   const currentUrl = pathname + (searchParams.size ? "?" + searchParams.toString() : "");
 
   return <main className={styles.page}>
+    {commandFence?.state==="recovery_blocked"?<p role="alert" className={styles.previewNotice}>Chưa xác định kết quả yêu cầu trước hoặc không đọc được nhật ký khôi phục. Không thể chỉnh sửa Lead cho đến khi có xác nhận kết quả từ hệ thống.</p>:null}
     {commandFence&&commandNotice&&!drawer&&!archiveTarget?<p role="status" className={styles.previewNotice}>{commandNotice}</p>:null}
     {!drawer&&!archiveTarget&&commandFence?.state==="uncertain"?<button type="button" className="secondary-btn" disabled={commandBusy} onClick={()=>void executeContact(()=>commandFence.retry())}>Thử lại cùng yêu cầu</button>:null}
     {!drawer&&!archiveTarget&&commandFence&&(commandFence.state==="reload_required"||commandFence.state==="conflict")&&commandFence.reloadTarget?<button type="button" className="secondary-btn" disabled={commandBusy} onClick={()=>{const id=commandFence.reloadTarget;if(id)void executeContact(()=>commandFence.reload(id));}}>Tải lại Lead</button>:null}
