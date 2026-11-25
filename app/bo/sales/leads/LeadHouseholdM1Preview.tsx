@@ -282,8 +282,8 @@ export function LeadHouseholdM1Preview({localReview=false}: {localReview?: boole
     if (drawer?.mode === "create") setPreviewParam("lead", nextRecord.id);
   }
 
-  const backToTable = pathname + "?m1Preview=1";
-  const currentUrl = pathname + "?" + searchParams.toString();
+  const backToTable = localReview ? pathname + "?m1Preview=1" : pathname;
+  const currentUrl = pathname + (searchParams.size ? "?" + searchParams.toString() : "");
 
   return <main className={styles.page}>
     {!selectedLead ? <><header className={styles.heading}>
@@ -297,7 +297,6 @@ export function LeadHouseholdM1Preview({localReview=false}: {localReview?: boole
       </div>
     </header>
 
-    {!localReview ? <aside className={styles.previewNotice} role="note"><a href={pathname}>Acquisition Intent</a></aside> : null}
 
     {fixtureNotice ? <p className={styles.previewNotice} role="status">{fixtureNotice}</p> : null}
 
