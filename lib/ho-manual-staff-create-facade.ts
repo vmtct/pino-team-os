@@ -27,7 +27,7 @@ export function parseHoManualStaffCommand(value:unknown):StaffCreateCommand|null
   if(!b||!exactKeys(b,["name","phone","email","gender","birthDate","centerId","login"]))return null;
   if(typeof b.name!=="string"||!b.name.trim()||b.name.trim().length>160||
      typeof b.phone!=="string"||!/^0\d{9}$/.test(b.phone)||
-     typeof b.email!=="string"||b.email.length>254||!/^\S+@\S+\.\S+$/.test(b.email)||
+     typeof b.email!=="string"||b.email.length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(b.email)||
      !canonical(b.centerId))return null;
   const email=b.email.trim().toLowerCase();
   if(b.gender!==null&&(typeof b.gender!=="string"||!["Nam","Nữ","Khác"].includes(b.gender)))return null;
