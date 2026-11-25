@@ -103,3 +103,9 @@ export function BoContentCenterBoundary({ staging, children }: { staging: boolea
   return <Context.Provider value={staging ? selection : null}>{staging ? children : <div data-bo-design-system="v23">{children}</div>}</Context.Provider>;
 }
 export const useBoCenterSelection = () => useContext(Context);
+
+/** PAP-2225: local opaque sandbox presentation only; never supplies live authority. */
+export function BoLocalReviewCenter({center,children}:{center:DirectoryCenter;children:React.ReactNode}) {
+  if(typeof window==="undefined"||self.origin!=="null"||location.pathname!=="/bo/running-classes"||!["http://desktop-isrdren:8800","http://desktop-isrdren.tail3ee007.ts.net:8800"].includes(location.origin)||center.id!=="RC-MOCK-CENTER")throw Error("Local review only");
+  return <Context.Provider value={{centers:[center],selected:center.id,source:"centers",loading:false,error:"",selectCenter:()=>{}}}>{children}</Context.Provider>;
+}
