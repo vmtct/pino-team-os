@@ -4,6 +4,37 @@
     {
       "profile": "TDD_DEFAULT",
       "surface": "HO",
+      "key": "learningSpaces",
+      "route": "/ho/learning-spaces",
+      "file": "app/ho/learning-spaces/page.tsx",
+      "files": [
+        "app/ho/learning-spaces/page.tsx",
+        "app/ho/learning-spaces/LearningSpaceM1Content.tsx",
+        "app/ho/learning-spaces/schema.ts",
+        "app/ho/learning-spaces/learning-space-m1-preview.ts"
+      ],
+      "schema": {
+        "file": "app/ho/learning-spaces/schema.ts",
+        "export": "spaceSchema"
+      },
+      "binding": {
+        "file": "app/ho/learning-spaces/LearningSpaceM1Content.tsx"
+      },
+      "tests": [
+        "lib/pap2369-learning-space-native.test.ts",
+        "app/ho/learning-spaces/learning-space-m1-preview.test.ts",
+        "lib/ho-routes.test.ts"
+      ],
+      "externalReferences": [
+        {"file":"lib/host-boundary.ts","owner":"PAP-1169"},
+        {"file":"app/ho/HoWorkspace.tsx","owner":"PAP-990"},
+        {"file":"lib/ho-routes.ts","owner":"PAP-990"},
+        {"file":"lib/ho-system.ts","owner":"PAP-1153"}
+      ]
+    },
+    {
+      "profile": "TDD_DEFAULT",
+      "surface": "HO",
       "key": "productPlans",
       "route": "/ho/billing/product-plans",
       "file": "app/ho/billing/product-plans/page.tsx",
@@ -996,6 +1027,7 @@
         "app/bo/piner-posts/native-draft-binding.ts",
         "app/bo/piner-posts/native-draft-session.ts",
         "app/bo/piner-posts/post-preview-navigation.ts",
+        "app/bo/piner-posts/post-preview-query.ts",
         "app/bo/piner-posts/post-preview-session.ts",
         "app/bo/piner-posts/post-preview-photos.ts",
         "app/bo/piner-posts/page.tsx",

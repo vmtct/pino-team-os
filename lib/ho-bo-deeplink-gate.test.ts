@@ -20,7 +20,7 @@ const center="01a0b29a-3acd-7a18-a0f2-cf6016548ab5";
 // Adding a registered route requires a deliberate receipt here, with
 // representative functional query examples wherever the page emits them.
 const hoPaths=[
- "/ho/billing/bills","/ho/billing/product-plans","/ho/centers","/ho/open-studio/walkin","/ho/mytime-workshops",
+ "/ho/billing/bills","/ho/billing/product-plans","/ho/learning-spaces","/ho/centers","/ho/open-studio/walkin","/ho/mytime-workshops",
  "/ho/workforce/term-weeks","/ho/operating-cycle/global-terms","/ho/workforce/shift-templates",
  "/ho/staff","/ho/workforce/staff-links","/ho/learning/paths","/ho/learning/syllabi",
  "/ho/learning/missions","/ho/learning/specialties","/ho/learning/diaries","/ho/content/post-approval",
@@ -43,6 +43,7 @@ const legacy:Record<string,string>={
  parents:"/bo?module=parents",missions:"/bo?module=missions",
 };
 const previews:Record<string,{path:string;expected:string;record?:string;negative:string}>={
+ "/ho/learning-spaces":{path:"/ho/learning-spaces",expected:"/ho/learning-spaces",record:"record=LEARNING-SPACE-MOCK-001",negative:"record="+id},
  "/ho/billing/product-plans":{path:"/ho/billing/product-plans?m1Preview=1",expected:"/ho/billing/product-plans",record:"record=PRODUCT-PLAN-MOCK-001",negative:"record="+id},
  "/bo/piner-posts":{path:"/bo/piner-posts?m1Preview=1",expected:"/bo/piner-posts",record:"record=POST-MOCK-001&tab=media",negative:"record="+id},
  "/bo/sales/leads":{path:"/bo/sales/leads?m1Preview=1",expected:"/bo/sales/leads",record:"lead=LEAD-MOCK-001&tab=members",negative:"lead="+id},
@@ -97,7 +98,7 @@ test("HO_BO_DEEPLINK_CONTINUITY_P0: native preview entrypoints cannot ship untes
  for(const [path,entry] of Object.entries(previews)){
   const host=path.startsWith("/ho/")?ho:bo;
   checkFlow(host,entry.path,entry.expected);
-  if(entry.record)checkFlow(host,entry.path+"&"+entry.record,entry.expected+(entry.expected.includes("?")?"&":"?")+entry.record);
+  if(entry.record)checkFlow(host,entry.path+(entry.path.includes("?")?"&":"?")+entry.record,entry.expected+(entry.expected.includes("?")?"&":"?")+entry.record);
   for(const suffix of ["m1Preview=0","m1Preview=1&m1Preview=1","m1Preview=1&returnTo=//evil.example","m1Preview=1&"+entry.negative]){
    assert.equal(parse(host,path+"?"+suffix),null,path+"?"+suffix);
   }
@@ -108,6 +109,12 @@ test("HO_BO_DEEPLINK_CONTINUITY_P0: native preview entrypoints cannot ship untes
  for(const query of ["record="+id,"record=PRODUCT-PLAN-MOCK-002","record=","record=PRODUCT-PLAN-MOCK-001&record=PRODUCT-PLAN-MOCK-001","tab=unknown","next=/bo"])
    assert.equal(parse(ho,plans+"?"+query),null,plans+"?"+query);
  assert.equal(parse(bo,plans),null);
+ // PAP-2369: canonical native preview only; no legacy selector or real ID.
+ const spaces="/ho/learning-spaces";
+ checkFlow(ho,spaces+"?record=LEARNING-SPACE-MOCK-001",spaces+"?record=LEARNING-SPACE-MOCK-001");
+ for(const query of ["record="+id,"record=LEARNING-SPACE-MOCK-002","record=","record=LEARNING-SPACE-MOCK-001&record=LEARNING-SPACE-MOCK-001","m1Preview=1","tab=unknown","next=/bo"])
+   assert.equal(parse(ho,spaces+"?"+query),null,spaces+"?"+query);
+ assert.equal(parse(bo,spaces),null);
  assert.equal(roleReviewRoute({m1Preview:"1"}),"preview");
  assert.equal(roleReviewRoute({record:id,m1Preview:"1"}),"invalid");
 });
@@ -118,7 +125,7 @@ test("HO_BO_DEEPLINK_CONTINUITY_P0: route-specific detail, tab, grid, center and
   [ho,"/ho/pinoria/wish-banners?record="+id+"&tab=items&wishSelection=pending&wishRevision=2","/ho/pinoria/wish-banners?record="+id+"&tab=items&wishSelection=pending&wishRevision=2"],
   [ho,"/ho/system/custom-attributes?sort=displayName&size=30&page=2&scope=CENTER&centerId="+center,"/ho/system/custom-attributes?sort=displayName&size=30&page=2&scope=CENTER&centerId="+center],
   [bo,"/bo/subscriptions?centerId="+center+"&record="+id+"&tab=enrollment","/bo?module=subscriptions&centerId="+center+"&record="+id+"&tab=enrollment"],
-  [bo,"/bo/piner-posts?centerId="+center+"&record="+id+"&tab=media","/bo/piner-posts?centerId="+center+"&record="+id+"&tab=media"],
+  [bo,"/bo/piner-posts?centerId="+center+"&record=POST-MOCK-001&tab=media","/bo/piner-posts?centerId="+center+"&record=POST-MOCK-001&tab=media"],
   [bo,"/bo/sales/leads?centerId="+center+"&leadIntent="+id+"&q=music&dir=desc&size=50&f_status=SUBMITTED","/bo/sales/leads?centerId="+center+"&leadIntent="+id+"&q=music&dir=desc&size=50&f_status=SUBMITTED"],
  ];
  for(const [host,path,expected] of samples){
@@ -132,4 +139,22 @@ test("HO_BO_DEEPLINK_CONTINUITY_P0: route-specific detail, tab, grid, center and
   for(const input of ["//evil.example"+own,"https://evil.example"+own,own+"?returnTo=//evil.example",own+"?m1Preview=1",own+"?record=a&record=b"])
    assert.equal(parse(host,input),null,input);
  }
+});
+
+test("PAP-2337: malformed authenticated Post preview requests fail before streaming",()=>{
+ const path="/bo/piner-posts",headers={cookie:"pino_staff_password_session=fixture-only"};
+ for(const q of ["record="+id,"record=POST-MOCK-001&record=POST-MOCK-002","m1Preview=0","tab=media","returnTo=//evil.example"]){
+  for(const method of ["GET","HEAD"])assert.equal(middleware(new NextRequest("https://"+bo+path+"?"+q,{headers,method})).status,404,q);
+ }
+ for(const q of ["","?record=POST-MOCK-001&tab=media","?m1Preview=1&record=POST-MOCK-001&tab=media","?centerId="+center])assert.equal(middleware(new NextRequest("https://"+bo+path+q,{headers})).headers.get("x-middleware-next"),"1",q);
+ assert.equal(middleware(new NextRequest("https://"+bo+path+"?record=POST-MOCK-001&_rsc=abc",{headers:{...headers,rsc:"1"}})).headers.get("x-middleware-next"),"1");
+});
+
+test("PAP-2369: malformed authenticated Learning Space links fail before streaming",()=>{
+ const path="/ho/learning-spaces",headers={cookie:"pino_staff_password_session=fixture-only"};
+ for(const q of ["record="+id,"record=LEARNING-SPACE-MOCK-001&record=LEARNING-SPACE-MOCK-001","m1Preview=1","tab=unknown","next=/bo"]){
+  for(const method of ["GET","HEAD"])assert.equal(middleware(new NextRequest("https://"+ho+path+"?"+q,{headers,method})).status,404,q);
+ }
+ for(const q of ["","?record=LEARNING-SPACE-MOCK-001","?utm_source=chatgpt.com&record=LEARNING-SPACE-MOCK-001"])assert.equal(middleware(new NextRequest("https://"+ho+path+q,{headers})).headers.get("x-middleware-next"),"1",q);
+ assert.equal(middleware(new NextRequest("https://"+ho+path+"?record=LEARNING-SPACE-MOCK-001&_rsc=abc",{headers:{...headers,rsc:"1"}})).headers.get("x-middleware-next"),"1");
 });
