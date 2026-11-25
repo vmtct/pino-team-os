@@ -1,6 +1,7 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
 import {handleBoPostWorkflowRead,matchPostWorkflowRead} from "./bo-post-workflow-read-handler";
+import {postDraftHostDecision} from "./bo-post-draft-host-contract";
 import type {BoAccessRequest} from "./bo-core";
 import type {BoPostDraftEnv} from "./bo-post-draft-handler";
 const uid=(n:number)=>"01900000-0000-7000-8000-"+String(n).padStart(12,"0");
@@ -20,4 +21,17 @@ test("PAP-2386 read BFF rejects scope widening, foreign host, support and mutati
  for(const [r,status] of [[req(path,{host:"https://bo.pinohouse.art"}),404],[req(path,{method:"POST"}),405],[req(path,{headers:{origin:"https://other.invalid"}}),403],[req(path,{headers:{"sec-fetch-site":"cross-site"}}),403],[req(path,{headers:{cookie:""}}),401],[req(path,{headers:{cookie:"pino_staff_password_session=synthetic-session; pino_support_session=synthetic"}}),403],[req(path,{query:q+"&centerId="+center}),400],[req(path,{query:q+"&limit=1"}),400],[req(path,{headers:{"idempotency-key":"synthetic-command-0001"}}),400]] as const)assert.equal((await handleBoPostWorkflowRead(r,env,path)).status,status);
  assert.equal((await handleBoPostWorkflowRead(req(path),{...env,APP_ENV:"production"},path)).status,404);
  assert.equal(matchPostWorkflowRead(root+"/diaries/"+diary+"/photos/other"),null);assert.equal(calls.length,0);
+});
+
+test("PAP-2386 exact Post workflow host admission preserves all prior routes",()=>{
+ const reads=[root+"/workflow-state",root+"/diaries",root+"/diaries/"+diary+"/photos",root+"/diaries/"+diary+"/photos/"+evidence];
+ const writes=[root+"/submit",root+"/diary-selection",root+"/attachments/"+evidence+"/diary-provenance"];
+ for(const [paths,method] of [[reads,"GET"],[writes,"POST"]] as const)for(const path of paths){
+  const p="/api/bo/"+path;
+  assert.equal(postDraftHostDecision("bo.staging.pinohouse.art",p,method),"next");
+  assert.equal(postDraftHostDecision("bo.staging.pinohouse.art",p,method==="GET"?"POST":"GET"),"not_found");
+  assert.equal(postDraftHostDecision("bo.pinohouse.art",p,method),"not_found");
+  assert.equal(postDraftHostDecision("ho.staging.pinohouse.art",p,method),"not_found");
+ }
+ assert.equal(postDraftHostDecision("bo.staging.pinohouse.art","/api/bo/"+root+"/diaries/other","GET"),"not_found");
 });

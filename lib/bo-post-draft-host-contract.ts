@@ -2,6 +2,9 @@
 const PAGE="/bo/piner-posts",BASE="/api/bo/learning/piner-posts",PEOPLE=BASE+"/people";
 const DETAIL=/^\/api\/bo\/learning\/piner-posts\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const MEDIA=/^\/api\/bo\/learning\/piner-posts\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/attachments(?:\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/(confirm|preview|revoke))?$/;
+const UUID="[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
+const WORKFLOW_WRITE=new RegExp("^"+BASE+"/"+UUID+"/(?:submit|diary-selection|attachments/"+UUID+"/diary-provenance)$");
+const WORKFLOW_READ=new RegExp("^"+BASE+"/"+UUID+"/(?:workflow-state|diaries(?:/"+UUID+"/photos(?:/"+UUID+")?)?)$");
 export function postDraftHostDecision(host:string,path:string,method:string):"next"|"not_found"|null {
  const lower=path.toLowerCase();
  if(!lower.startsWith(PAGE)&&!lower.startsWith(BASE))return null;
@@ -9,6 +12,8 @@ export function postDraftHostDecision(host:string,path:string,method:string):"ne
  if(path===PAGE)return method==="GET"||method==="HEAD"?"next":"not_found";
  if(path===BASE)return method==="GET"||method==="POST"?"next":"not_found";
  if(path===PEOPLE)return method==="GET"?"next":"not_found";
+ if(WORKFLOW_READ.test(path))return method==="GET"?"next":"not_found";
+ if(WORKFLOW_WRITE.test(path))return method==="POST"?"next":"not_found";
  const media=MEDIA.exec(path);if(media){const operation=media[1];return (method==="GET"&&(!operation||operation==="preview"))||(method==="POST"&&operation!=="preview")?"next":"not_found";}
  if(DETAIL.test(path))return method==="GET"||method==="PATCH"?"next":"not_found";
  return "not_found";
