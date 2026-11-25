@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {createRoleMetadataFlow,createRoleMetadataClient} from "../app/ho/system/roles/role-metadata-flow";
+import {createRoleMetadataFlow,createRoleMetadataClient,createRoleMetadataFence} from "../app/ho/system/roles/role-metadata-flow";
 const row={id:"01a17d3f-8697-7080-bdf1-33e939758059",roleKey:"custom-example",roleType:"custom",status:"active",
  displayName:"Old",description:null,permissionKeys:["access.role.view"],permissionCount:1,assignmentCount:0,
  updatedAt:"2026-11-24T10:00:00.000Z"};
@@ -109,4 +109,40 @@ test("typed metadata client does not retry or claim success on malformed or unce
   assert.equal((await client(malformed,signal())).status,"invalid");
   assert.equal(submits,1);
  }
+});
+
+test("distinct Role hosts share pending and uncertain state without sharing transport",async()=>{
+ const fence=createRoleMetadataFence();
+ let current=row,submits=0,release!:()=>void;
+ const held=new Promise<void>(resolve=>{release=resolve});
+ const table=createRoleMetadataFlow({read:async()=>{await held;return current;},submit:async()=>{
+  submits++;throw Error("lost response");
+ }},fence);
+ const drawer=createRoleMetadataFlow({read:async()=>current,submit:async()=>{
+  submits++;current={...fresh,displayName:"Later",updatedAt:"2026-11-24T10:00:02.000Z"};return "accepted";
+ }},fence);
+ const first=table(row.id,row.updatedAt,{name:"New"},signal());
+ assert.equal((await drawer(row.id,row.updatedAt,{name:"Later"},signal())).status,"busy");
+ release();
+ assert.equal((await first).status,"uncertain");
+ assert.equal((await drawer(row.id,row.updatedAt,{name:"Later"},signal())).status,"uncertain");
+ assert.equal(submits,1);
+ current=fresh;
+ assert.equal((await drawer(row.id,row.updatedAt,{name:"Later"},signal())).status,"conflict");
+ assert.equal((await drawer(row.id,fresh.updatedAt,{name:"Later"},signal())).status,"saved");
+ assert.equal(submits,2);
+});
+
+test("new workspace fences are isolated and a remounted client can retain its prior fence",async()=>{
+ const fence=createRoleMetadataFence();
+ let submits=0;
+ const ports={read:async()=>row,idempotencyKey:()=>"synthetic-test",fetcher:async()=>{
+  submits++;return new Response(null,{status:503});
+ }};
+ const input={id:row.id,expectedVersion:row.updatedAt,patch:{name:"New"}};
+ assert.equal((await createRoleMetadataClient(ports,fence)(input,signal())).status,"uncertain");
+ assert.equal((await createRoleMetadataClient(ports,fence)(input,signal())).status,"uncertain");
+ assert.equal(submits,1);
+ assert.equal((await createRoleMetadataClient(ports,createRoleMetadataFence())(input,signal())).status,"uncertain");
+ assert.equal(submits,2);
 });

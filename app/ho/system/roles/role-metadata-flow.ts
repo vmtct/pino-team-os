@@ -9,12 +9,17 @@ type Ports = {
  submit:(command:MetadataEditCommand,signal:AbortSignal,patch:unknown)=>Promise<"accepted"|"conflict"|"rejected"|"uncertain">;
 };
 
+/** Share only inside one authenticated Role workspace, never across principals.
+ * Distinct presentation hosts must not lose a pending or ambiguous command on remount. */
+export function createRoleMetadataFence(){
+ return {pending:new Set<string>(),uncertainVersions:new Map<string,string>()};
+}
+type RoleMetadataFence=ReturnType<typeof createRoleMetadataFence>;
+
 /** PAP-2373: transport-independent orchestration; no authorization or route admission.
  * An ambiguous submission is never automatically repeated. */
-export function createRoleMetadataFlow(ports:Ports){
- const pending=new Set<string>();
- // Instance-local ambiguity fence: a new attempt requires a genuinely newer readback.
- const uncertainVersions=new Map<string,string>();
+export function createRoleMetadataFlow(ports:Ports,fence:RoleMetadataFence=createRoleMetadataFence()){
+ const {pending,uncertainVersions}=fence;
  return async (id:string,expectedVersion:string,patch:unknown,signal:AbortSignal):Promise<MetadataOutcome>=>{
   if(pending.has(id))return {status:"busy"};
   pending.add(id);
@@ -56,7 +61,7 @@ export function createRoleMetadataClient(ports:{
  read:Ports["read"];
  fetcher:typeof fetch;
  idempotencyKey:()=>string;
-}){
+},fence:RoleMetadataFence=createRoleMetadataFence()){
  const flow=createRoleMetadataFlow({
   read:ports.read,
   submit:async(command,signal,patch)=>{
@@ -75,7 +80,7 @@ export function createRoleMetadataClient(ports:{
    if(!body||typeof body!=="object"||!("data" in body)||!verifyRoleMetadataEdit(command,body.data))return "uncertain";
    return "accepted";
   },
- });
+ },fence);
  return async(input:RoleInlineRequest,signal:AbortSignal):Promise<MetadataOutcome>=>{
   const request=parseRoleInlineRequest(input);
   return request?flow(request.id,request.expectedVersion,request.patch,signal):{status:"invalid"};
