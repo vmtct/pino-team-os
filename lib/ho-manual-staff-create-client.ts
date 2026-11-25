@@ -25,6 +25,6 @@ export async function createHoManualStaff(command:StaffCreateCommand,key:string,
     throw new HoManualStaffCreateError(kind,response.status);
   }
   const receipt=parseHoManualStaffReceipt(await response.json().catch(()=>null),command.centerId,command.login!==null);
-  if(!receipt)throw new HoManualStaffCreateError("uncertain",502);
+  if(!receipt||(command.existingPersonId!==undefined&&receipt.personId!==command.existingPersonId))throw new HoManualStaffCreateError("uncertain",502);
   return receipt;
 }

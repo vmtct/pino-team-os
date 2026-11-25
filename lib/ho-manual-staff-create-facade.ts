@@ -27,7 +27,10 @@ const reject=(code:string,status:number)=>json({error:{code}},status);
 
 export function parseHoManualStaffCommand(value:unknown):StaffCreateCommand|null{
   const b=object(value);
-  if(!b||!exactKeys(b,["name","phone","email","gender","birthDate","centerId","login"]))return null;
+  const required=["name","phone","email","gender","birthDate","centerId","login"];
+  if(!b||!exactKeys(b,Object.hasOwn(b,"existingPersonId")?[...required,"existingPersonId"]:required))return null;
+  const existingPersonId=b.existingPersonId;
+  if(Object.hasOwn(b,"existingPersonId")&&(typeof existingPersonId!=="string"||!/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(existingPersonId)))return null;
   if(typeof b.name!=="string"||!b.name.trim()||b.name.trim().length>160||
      typeof b.phone!=="string"||!/^0\d{9}$/.test(b.phone)||
      typeof b.email!=="string"||b.email.length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(b.email)||
@@ -43,7 +46,7 @@ export function parseHoManualStaffCommand(value:unknown):StaffCreateCommand|null
       typeof l.password!=="string"||l.password.length<10||l.password.length>128)return null;
     login={email,password:l.password};
   }
-  return {name:b.name.trim(),phone:b.phone,email,gender:b.gender,birthDate:b.birthDate,centerId:b.centerId,login};
+  return {name:b.name.trim(),phone:b.phone,email,gender:b.gender,birthDate:b.birthDate,centerId:b.centerId,login,...(typeof existingPersonId==="string"?{existingPersonId}:{})};
 }
 export async function handleHoManualStaffCreate(request:Request,env:HoManualStaffCreateEnv):Promise<Response>{
   try{
@@ -69,7 +72,7 @@ export async function handleHoManualStaffCreate(request:Request,env:HoManualStaf
       return reject(status===409?"HO_STAFF_CREATION_CONFLICT":status===400?"PLATFORM_INVALID_INPUT":"HO_STAFF_CREATION_UNAVAILABLE",status);
     }
     const receipt=parseHoManualStaffReceipt(response.body,command.centerId,command.login!==null);
-    if(!receipt)return reject("HO_STAFF_RECEIPT_INVALID",502);
+    if(!receipt||(command.existingPersonId!==undefined&&receipt.personId!==command.existingPersonId))return reject("HO_STAFF_RECEIPT_INVALID",502);
     return json({data:receipt},201);
   }catch(error){
     if(error instanceof BoShellGateError)return reject("HO_ACCESS_DENIED",error.status);

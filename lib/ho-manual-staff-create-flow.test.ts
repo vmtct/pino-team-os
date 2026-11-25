@@ -1,7 +1,7 @@
 // PAP-2358 · WFM-STAFF. Local synthetic lifecycle regression.
 import test from "node:test";
 import assert from "node:assert/strict";
-import {createHoStaffCreateFlow,createHoStaffCreateState} from "./ho-manual-staff-create-flow";
+import {createHoStaffCreateFlow,createHoStaffCreateState,reconcileHoStaffCreate} from "./ho-manual-staff-create-flow";
 import {HoManualStaffCreateError} from "./ho-manual-staff-create-client";
 import type {StaffCreateCommand} from "../app/ho/staff/manual-create-contract";
 import type {HoManualStaffReceipt} from "./ho-manual-staff-create-receipt";
@@ -35,4 +35,15 @@ test("definite initial rejection releases key, next intent uses a fresh key",asy
  const state=createHoStaffCreateState();let n=0;
  const flow=createHoStaffCreateFlow(state,{makeKey:()=>"key-"+ ++n,submit:async(_c,k)=>{if(k==="key-1")throw new HoManualStaffCreateError("invalid",400);return receipt;}});
  await assert.rejects(flow(cmd),{kind:"invalid"});assert.equal(state.pending,null);await flow({...cmd,name:"Corrected"});assert.equal(n,2);
+});
+
+test("explicit Person is part of retry identity and committed readback must match",async()=>{
+ const state=createHoStaffCreateState(),selected={...cmd,existingPersonId:"person"};
+ const flow=createHoStaffCreateFlow(state,{makeKey:()=>"selected-key",submit:async()=>{throw new HoManualStaffCreateError("uncertain",null);}});
+ await assert.rejects(flow(selected),{kind:"uncertain"});
+ await assert.rejects(flow({...selected,existingPersonId:"other"}),{kind:"different-intent"});
+ await assert.rejects(reconcileHoStaffCreate(state,async()=>({state:"COMMITTED",receipt:{...receipt,personId:"other"}})),{kind:"uncertain"});
+ assert.equal(state.pending?.existingPersonId,"person");
+ assert.deepEqual(await reconcileHoStaffCreate(state,async()=>({state:"COMMITTED",receipt})),{state:"COMMITTED",receipt});
+ assert.equal(state.pending,null);
 });

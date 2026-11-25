@@ -10,12 +10,13 @@ export type HoStaffCreatePending = {
   intent:string;
   centerId:string;
   withLogin:boolean;
+  existingPersonId?:string;
   phase:"submitting"|"uncertain"|"reading";
 };
 export type HoStaffCreateState = { pending:HoStaffCreatePending|null };
 export const createHoStaffCreateState=():HoStaffCreateState=>({pending:null});
 function intent(command:StaffCreateCommand):string{
-  return JSON.stringify([command.name,command.phone,command.email,command.gender,command.birthDate,command.centerId,command.login!==null]);
+  return JSON.stringify([command.name,command.phone,command.email,command.gender,command.birthDate,command.centerId,command.login!==null,command.existingPersonId??null]);
 }
 export class HoStaffCreatePendingError extends Error {
   constructor(readonly kind:"busy"|"different-intent"|"no-pending"){
@@ -32,7 +33,7 @@ export function createHoStaffCreateFlow(state:HoStaffCreateState,options:{
     if(prior&&prior.phase!=="uncertain")throw new HoStaffCreatePendingError("busy");
     if(prior&&prior.intent!==signature)throw new HoStaffCreatePendingError("different-intent");
     const key=prior?.key??makeKey();
-    state.pending={key,intent:signature,centerId:command.centerId,withLogin:command.login!==null,phase:"submitting"};
+    state.pending={key,intent:signature,centerId:command.centerId,withLogin:command.login!==null,...(command.existingPersonId?{existingPersonId:command.existingPersonId}:{}),phase:"submitting"};
     try{
       const receipt=await submit(command,key);
       state.pending=null;
@@ -40,7 +41,7 @@ export function createHoStaffCreateFlow(state:HoStaffCreateState,options:{
     }catch(error){
       // After an uncertain result even a later denial/conflict is not proof the first command failed.
       state.pending=prior||!(error instanceof HoManualStaffCreateError)||error.kind==="uncertain"
-        ? {key,intent:signature,centerId:command.centerId,withLogin:command.login!==null,phase:"uncertain"} : null;
+        ? {key,intent:signature,centerId:command.centerId,withLogin:command.login!==null,...(command.existingPersonId?{existingPersonId:command.existingPersonId}:{}),phase:"uncertain"} : null;
       throw error;
     }
   };
@@ -55,7 +56,7 @@ export async function reconcileHoStaffCreate(state:HoStaffCreateState,read=readH
   try{
     const result=await read(prior.centerId,prior.key,prior.withLogin);
     if(result.state==="COMMITTED"){
-      if(result.receipt.centerId!==prior.centerId||(result.receipt.accessState==="PROVISIONED")!==prior.withLogin)
+      if((prior.existingPersonId!==undefined&&result.receipt.personId!==prior.existingPersonId)||result.receipt.centerId!==prior.centerId||(result.receipt.accessState==="PROVISIONED")!==prior.withLogin)
         throw new HoManualStaffCreateError("uncertain",502);
       state.pending=null;
     }else state.pending=prior;

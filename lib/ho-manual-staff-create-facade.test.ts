@@ -14,7 +14,7 @@ test("optional login is bound to primary email and password policy",()=>{
   assert.equal(parseHoManualStaffCommand({...command,login:value}),null);
 });
 test("strict shape rejects role, scope, identity, malformed center and invalid date",()=>{
- for(const value of [null,[],{}, {...command,roleId:id(2)}, {...command,scope:"GLOBAL"}, {...command,existingPersonId:id(3)},
+ for(const value of [null,[],{}, {...command,roleId:id(2)}, {...command,scope:"GLOBAL"}, {...command,existingPersonId:"invalid"}, {...command,existingPersonId:null}, {...command,existingPersonId:"01912345-6789-4abc-8def-000000000003"},
   {...command,status:"active"}, {...command,centerId:"forged"}, {...command,birthDate:"2026-02-30"}, {...command,phone:"bad"}])
   assert.equal(parseHoManualStaffCommand(value),null);
 });
@@ -127,4 +127,14 @@ test("directory BFF rejects unauthorized paths and malformed Core projections",a
  for(const data of [[nativeRow,nativeRow],[{...nativeRow,password:"synthetic"}],[{...nativeRow,id:"fake"}]]){
    const f=bindingFixture({status:200,response:{data}});assert.equal((await handleHoManualStaffDirectory(directoryRequest(),f.env)).status,502);
  }
+});
+
+test("explicit canonical Person is forwarded and receipt must match selected identity",async()=>{
+ const selected={...command,existingPersonId:id(3)};
+ assert.equal(parseHoManualStaffCommand(selected)?.existingPersonId,id(3));
+ const f=bindingFixture();
+ assert.equal((await handleHoManualStaffCreate(bffRequest({body:selected}),f.env)).status,201);
+ assert.deepEqual(f.calls[2]?.body,{...selected,name:"Synthetic Staff",email:"staff@example.invalid"});
+ const mismatch=bindingFixture({response:{data:{...receipt,personId:id(8)}}});
+ assert.equal((await handleHoManualStaffCreate(bffRequest({body:selected}),mismatch.env)).status,502);
 });
