@@ -5,20 +5,29 @@ import {privateMediaSlot,validatePrivateMediaSelection,type PrivateMediaShellSta
 import type {DraftRuntimeSession} from "./post-preview-session";
 import type {NativeDraftSession} from "./native-draft-session";
 import {CoreDraftRequestError,type CoreDraftRow} from "./core-draft-client";
+import {verifiedSubmittedOrder} from "./native-review-order";
 import {NativeDiarySources} from "./NativeDiarySources";
 import {readVerifiedMediaRecord} from "./private-media-controller";
-type MediaPanelSession=Pick<DraftRuntimeSession,"mediaController"|"canEditMedia"|"context"|"composer"|"submitReview"|"canSubmit"|"diaryComposer"|"canCompose">&{controller:Pick<NativeDraftSession["controller"],"detail">};
+type MediaPanelSession=Pick<DraftRuntimeSession,"mediaController"|"canEditMedia"|"context"|"composer"|"submitReview"|"canSubmit"|"diaryComposer"|"canCompose"|"workflowRead">&{controller:Pick<NativeDraftSession["controller"],"detail">};
 type Controller=ReturnType<NativeDraftSession["mediaController"]>;
 type Listing=Awaited<ReturnType<Controller["list"]>>;
 function MediaShell({state,actions}:{state:PrivateMediaShellState;actions:PrivateMediaShellActions}){return <>{privateMediaSlot(state,actions)}</>;}
 export function NativePrivateMediaPanel({session,postId,onVerified,readOnly=false,review,afterschool=false}:{session:MediaPanelSession;postId:string;onVerified:(row:CoreDraftRow)=>void;readOnly?:boolean;review?:PostReviewPresentation;afterschool?:boolean}){
  const [listing,setListing]=useState<Listing|null>(null),[status,setStatus]=useState<"loading"|"ready"|"denied"|"error">("loading"),[busy,setBusy]=useState(false),[pending,setPending]=useState(false),[error,setError]=useState(""),[preview,setPreview]=useState<{id:string;url:string}|undefined>();
  const [authoredOrder,setAuthoredOrder]=useState<{signature:string;ids:string[]}|null>(null),[workflowPending,setWorkflowPending]=useState<{pending:boolean;retryPostId:string|null}|null>(null);
+ const [submittedOrder,setSubmittedOrder]=useState<{version:number;ids:string[]}|null>(null);
  const controllerRef=useRef<Controller|null>(null),active=useRef<AbortController|null>(null),callback=useRef(onVerified);
  useEffect(()=>{callback.current=onVerified;},[onVerified]);
+ async function pendingOrder(data:Listing,row:CoreDraftRow,signal:AbortSignal){
+  if(row.status!=="Chờ duyệt"||!session.workflowRead)return null;
+  const value=session.canSubmit?.()?await session.workflowRead.submissionState(postId,signal):afterschool&&session.canCompose?.()?await session.workflowRead.state(postId,signal):null;
+  if(!value)return null;
+  if(value.status!=="PENDING_APPROVAL"||value.version!==row.version)throw Error("Post đã thay đổi.");
+  return {version:value.version,ids:verifiedSubmittedOrder(value.submittedAttachmentIds,value.version,data)};
+ }
  async function accept(data:Listing,signal:AbortSignal){
   const row=await readVerifiedMediaRecord(data,postId,session.controller.detail,signal);
-  signal.throwIfAborted();setListing(data);setStatus("ready");callback.current(row);
+  const immutable=await pendingOrder(data,row,signal);signal.throwIfAborted();setSubmittedOrder(immutable);setListing(data);setStatus("ready");callback.current(row);
  }
  function failure(e:unknown){
   controllerRef.current?.closePreview();setPreview(undefined);
@@ -33,7 +42,7 @@ export function NativePrivateMediaPanel({session,postId,onVerified,readOnly=fals
    const data=await controller.list(ctl.signal);
    const row=await readVerifiedMediaRecord(data,postId,session.controller.detail,ctl.signal);
    const recovery=session.submitReview&&session.canSubmit?.()?await session.submitReview.pending(ctl.signal):null;
-   ctl.signal.throwIfAborted();setListing(data);setStatus("ready");setPending(controller.hasPending());setWorkflowPending(recovery);callback.current(row);
+   const immutable=await pendingOrder(data,row,ctl.signal);ctl.signal.throwIfAborted();setSubmittedOrder(immutable);setListing(data);setStatus("ready");setPending(controller.hasPending());setWorkflowPending(recovery);callback.current(row);
   }).catch(()=>{if(!ctl.signal.aborted){setPending(controller?.hasPending()??false);setStatus(session.context.authorize("piner.post.view")?"error":"denied");}}).finally(()=>{if(active.current===ctl)active.current=null;});
   return()=>{active.current?.abort();active.current=null;controller?.closePreview();controllerRef.current=null;};
  },[session,postId]);
@@ -44,11 +53,11 @@ export function NativePrivateMediaPanel({session,postId,onVerified,readOnly=fals
  const refresh=()=>run(async(c,s)=>{c.closePreview();setPreview(undefined);await accept(await c.list(s),s);});
  const nativeReview=session.submitReview&&session.canSubmit?.()?session.submitReview:null;
  const signature=listing?.attachments.map(a=>a.id).sort().join(",")??"";
- const order=authoredOrder?.signature===signature?authoredOrder.ids:listing?.attachments.map(a=>a.id)??[];
+ const order=readOnly?(submittedOrder?.version===listing?.postVersion?submittedOrder?.ids??[]:[]):authoredOrder?.signature===signature?authoredOrder.ids:listing?.attachments.map(a=>a.id)??[];
  const canEdit=!readOnly&&session.canEditMedia()&&!workflowPending?.pending;const composer=session.composer?.(postId);
- const submitNative=(retry:boolean)=>run(async(_c,s)=>{
+ const submitNative=(retry:boolean)=>run(async(c,s)=>{
   if(!nativeReview||!listing)return;
-  try{const row=retry?await nativeReview.retry(postId,s):await nativeReview.submit(postId,listing.postVersion,order,s);s.throwIfAborted();callback.current(row);}
+  try{const row=retry?await nativeReview.retry(postId,s):await nativeReview.submit(postId,listing.postVersion,order,s);s.throwIfAborted();await accept(await c.list(s),s);callback.current(row);}
   finally{if(!s.aborted){try{const state=await nativeReview.pending(s);s.throwIfAborted();setWorkflowPending(state);}catch{if(!s.aborted)setWorkflowPending({pending:true,retryPostId:null});}}}
  });
  const moveImage=(id:string,delta:number)=>{const next=[...order],i=next.indexOf(id),j=i+delta;if(i<0||j<0||j>=next.length||busy||readOnly||workflowPending?.pending)return;[next[i],next[j]]=[next[j]!,next[i]!];setAuthoredOrder({signature,ids:next});};
@@ -62,7 +71,9 @@ export function NativePrivateMediaPanel({session,postId,onVerified,readOnly=fals
   retry:refresh
  }}/>{nativeReview&&status==="ready"&&listing&&review?<section className="v24-prop-section" aria-label="Xem trước bài đăng">
  <div className="v24-section-heading"><h4>Xem trước &amp; gửi duyệt</h4></div>
- <p>{review.caption.trim()||"Chưa có caption."}</p>
+ <div className="pap2337-bo-reviewHeading"><span className="pap2337-bo-draftLabel">{readOnly?"Chờ duyệt":"Nháp"}</span><small>{order.length}/5 ảnh</small></div>
+ {order.length?<><div className="pap2337-bo-hero">{preview&&order.includes(preview.id)&&preview.url.startsWith("blob:")?<picture><img src={preview.url} alt="Ảnh xem trước bài đăng" width={640} height={480}/></picture>:<button type="button" className="secondary-btn" disabled={busy} onClick={()=>run(async(c,s)=>{setPreview(await c.openPreview(order[0]!,s));})}>Xem ảnh bìa</button>}{preview&&order.includes(preview.id)?<span className="pap2337-bo-imageCounter">{order.indexOf(preview.id)+1}/{order.length}</span>:null}{!preview||preview.id===order[0]?<span className="pap2337-bo-coverLabel">Ảnh bìa</span>:null}</div><div className="pap2337-bo-filmstrip" role="list" aria-label="Ảnh theo thứ tự gửi duyệt">{order.map((id,index)=><div className="pap2337-bo-filmItem" role="listitem" key={id}><button type="button" className="pap2337-bo-filmThumb" aria-label={"Xem ảnh "+(index+1)} aria-pressed={preview?.id===id} disabled={busy} onClick={()=>run(async(c,s)=>{setPreview(await c.openPreview(id,s));})}>{index+1}</button></div>)}</div></>:<p>{readOnly?"Chưa xác minh được thứ tự ảnh đã gửi.":"Chưa có ảnh."}</p>}
+ <div className="pap2337-bo-captionPreview"><strong>Caption</strong><p>{review.caption.trim()||"Chưa có caption."}</p></div>
  {readOnly?<p role="status">Bài đăng đang chờ HO duyệt.</p>:<><ol aria-label="Thứ tự ảnh gửi duyệt">{order.map((id,index)=><li key={id}><span>Ảnh {listing.attachments.findIndex(a=>a.id===id)+1}{index===0?" · Ảnh bìa":""}</span>{" "}<button className="secondary-btn" type="button" disabled={busy||Boolean(workflowPending?.pending)||index===0} aria-label={"Chuyển ảnh "+(index+1)+" lên"} onClick={()=>moveImage(id,-1)}>↑</button>{" "}<button className="secondary-btn" type="button" disabled={busy||Boolean(workflowPending?.pending)||index===order.length-1} aria-label={"Chuyển ảnh "+(index+1)+" xuống"} onClick={()=>moveImage(id,1)}>↓</button></li>)}</ol>
  <button className="primary-btn" type="button" disabled={busy||pending||workflowPending===null||workflowPending.pending||!order.length||!review.caption.trim()} onClick={()=>submitNative(false)}>Gửi duyệt</button></>}
  {workflowPending?.pending?<><p role="status">Yêu cầu trước chưa rõ kết quả. Cần xác minh trước khi thao tác tiếp.</p>{workflowPending.retryPostId===postId?<button className="secondary-btn" type="button" disabled={busy} onClick={()=>submitNative(true)}>Thử lại yêu cầu gửi duyệt</button>:<p>Không có yêu cầu gốc trong phiên này. Không gửi lại tự động.</p>}</>:null}
