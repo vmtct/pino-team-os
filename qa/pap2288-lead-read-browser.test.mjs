@@ -25,10 +25,17 @@ const rows=[a,b].map((id,i)=>({id,phone:"090000000"+i,contactDisplayName:"Synthe
 const member={id:c,status:"ACTIVE",version:1,displayName:"Synthetic Student",intendedRoles:["STUDENT"],gender:null,birthPrecision:"YEAR",birthYear:2018,birthMonth:null,birthDay:null,reportedAge:null,ageObservedAt:null,interestKinds:["MYTIME_PIANO"]};
 const intent={id:c,kind:"GENERAL_INQUIRY",sourceBrand:"PINO_HOUSE",sourceSurface:"STAFF",status:"SUBMITTED",createdAt:"2026-11-25T00:00:00Z",version:1};
 window.syntheticCommandCalls=[];
+const household=[member];const newMemberId="01a03c6e-cc58-7d81-ac8e-123456789abf";
+function target(id,version){const row=rows.find(r=>r.id===id);if(!row||row.version!==version)throw new LeadApiError(409,"CONFLICT",null);return row;}
+function childReceipt(row,memberId){row.version++;row.memberCount=household.length;return {leadId:row.id,version:row.version,memberId};}
 const api={
  async search(input){if(input.q==="deny")throw new LeadApiError(403,"DENIED",null);if(input.q==="empty")return {items:[],hasMore:false,nextCursor:null};return input.cursor?{items:[rows[1]],hasMore:false,nextCursor:null}:{items:[rows[0]],hasMore:true,nextCursor:"next"}},
- async detail(id){const row=rows.find(r=>r.id===id);if(!row)throw new LeadApiError(404,"NOT_FOUND",null);return {...row,members:[member],relationships:[],intents:[],intentHistoryHasMore:false}},
+ async detail(id){const row=rows.find(r=>r.id===id);if(!row)throw new LeadApiError(404,"NOT_FOUND",null);return {...row,members:structuredClone(household),relationships:[],intents:[],intentHistoryHasMore:false}},
  async history(){return {items:[intent],hasMore:false,nextCursor:null}},
+ async updateMember(id,memberId,version,member,key){const row=target(id,version);window.syntheticCommandCalls.push({id,memberId,version,member,key});const child=household.find(m=>m.id===memberId);if(!child)throw new LeadApiError(404,"NOT_FOUND",null);Object.assign(child,member,{version:child.version+1});return childReceipt(row,memberId)},
+ async primary(id,version,memberId,key){const row=target(id,version);window.syntheticCommandCalls.push({id,memberId,version,key});row.primaryContactMemberId=memberId;return childReceipt(row,memberId)},
+ async addMember(id,version,member,key){const row=target(id,version);window.syntheticCommandCalls.push({id,version,member,key});household.push({...member,id:newMemberId,status:"ACTIVE",version:1,ageObservedAt:null});return childReceipt(row,newMemberId)},
+ async retireMember(id,memberId,version,key){const row=target(id,version);window.syntheticCommandCalls.push({id,memberId,version,key});const index=household.findIndex(m=>m.id===memberId);if(index<0||row.primaryContactMemberId===memberId)throw new LeadApiError(409,"CONFLICT",null);household.splice(index,1);return childReceipt(row,memberId)},
  async contact(id,version,contact,key){const call={id,version,contact,key};window.syntheticCommandCalls.push(call);const row=rows.find(r=>r.id===id);if(!row||row.version!==version)throw new LeadApiError(409,"CONFLICT",null);if(contact.contactDisplayName==="Conflict"){row.contactDisplayName="Concurrent name";row.version++;throw new LeadApiError(409,"CONFLICT",null)}if(contact.contactDisplayName==="Uncertain"&&window.syntheticCommandCalls.filter(c=>c.key===key).length===1)throw new LeadApiError(503,"UNAVAILABLE",null);Object.assign(row,contact,{version:version+1});return {leadId:id,version:row.version}}
 };
 createRoot(document.querySelector("main")).render(<LeadHouseholdM1Preview readApi={new URLSearchParams(location.search).has("fixture")?undefined:api} commandApi={new URLSearchParams(location.search).has("commands")?api:undefined}/>);
@@ -100,5 +107,37 @@ test("PAP-2288 mounted contact success, conflict reload and exact uncertain repl
   const log=await calls();
   assert.equal(log.length,4);assert.deepEqual(log[2],log[3]);assert.equal(log[2].version,3);
   assert.equal(log[0].contact.phone,"0900000000");assert.deepEqual(errors,[]);
+ }finally{await browser.close();}
+});
+
+test("PAP-2288 mounted member commands preserve declaration precision and acquisition history",async()=>{
+ const browser=await chromium.launch();
+ try{
+  const page=await browser.newPage();page.setDefaultTimeout(12000);
+  const errors=[];page.on("pageerror",e=>errors.push(e.message));
+  await page.route("**/*",r=>r.request().isNavigationRequest()&&new URL(r.request().url()).hostname==="fixture.invalid"?r.fulfill({contentType:"text/html",body:"<main></main>"}):r.abort());
+  await page.goto("https://fixture.invalid/bo/sales/leads?lead="+a+"&tab=members&commands=1");await page.addScriptTag({content:js});
+  const calls=()=>page.evaluate(()=>window.syntheticCommandCalls);
+  const updated=page.getByText("Đã tải lại thông tin Lead.",{exact:true});
+  const name=page.getByRole("textbox",{name:"Họ tên "+c,exact:true});
+  await name.waitFor();assert.equal(await name.inputValue(),"Synthetic Student");
+  assert.equal(await page.getByRole("textbox",{name:"Tuổi "+c,exact:true}).count(),0);
+  await name.fill("Student Updated");await name.press("Enter");await updated.waitFor();
+  assert.equal(await name.inputValue(),"Student Updated");
+  let log=await calls();assert.equal(log[0].member.birthPrecision,"YEAR");assert.equal(log[0].member.birthYear,2018);assert.deepEqual(log[0].member.interestKinds,["MYTIME_PIANO"]);
+  const primary=page.getByRole("checkbox",{name:"Liên hệ chính "+c,exact:true});
+  await primary.check();await updated.waitFor();assert.equal(await primary.isChecked(),true);
+  assert.equal(await page.getByRole("button",{name:"Gỡ Student Updated",exact:true}).isDisabled(),true);
+  await primary.uncheck();await updated.waitFor();assert.equal(await primary.isChecked(),false);
+  await page.getByRole("combobox",{name:"Giới tính "+c,exact:true}).selectOption("FEMALE");await updated.waitFor();
+  assert.equal(await page.getByRole("combobox",{name:"Giới tính "+c,exact:true}).inputValue(),"FEMALE");
+  await page.getByRole("checkbox",{name:"Afterschool · Piano",exact:true}).check();await updated.waitFor();
+  log=await calls();assert.deepEqual(log[4].member.interestKinds,["MYTIME_PIANO","AFTERSCHOOL_PIANO"]);assert.equal(log[4].member.gender,"FEMALE");
+  await page.getByRole("textbox",{name:"Tên thành viên mới",exact:true}).fill("New Guest");
+  await page.getByRole("combobox",{name:"Vai trò thành viên mới",exact:true}).selectOption("GUEST");
+  await page.getByRole("button",{name:"＋ Thêm thành viên",exact:true}).click();await updated.waitFor();
+  const remove=page.getByRole("button",{name:"Gỡ New Guest",exact:true});await remove.waitFor();await remove.click();await updated.waitFor();assert.equal(await remove.count(),0);
+  log=await calls();assert.equal(log.length,7);assert.deepEqual(log.map(x=>x.version),[1,2,3,4,5,6,7]);assert.ok(log.every(x=>x.id===a));assert.equal(log[1].memberId,c);assert.equal(log[2].memberId,null);assert.deepEqual(log[5].member.intendedRoles,["GUEST"]);assert.equal(log[5].member.birthPrecision,"UNKNOWN");
+  await page.getByText("Lịch sử",{exact:true}).click();await page.getByText("Tư vấn chung",{exact:true}).waitFor();assert.deepEqual(errors,[]);
  }finally{await browser.close();}
 });
