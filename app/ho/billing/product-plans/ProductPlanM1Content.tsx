@@ -43,7 +43,7 @@ export function ProductPlanM1Content({scopeKey,permissionKeys,initialRecord}:{sc
    if(!old)return {status:"denied"};
    if(String(old.version)!==expectedVersion)return {status:"conflict"};
    const next=previewProductPlanUpdate(old,patch,old.version);
-   if(!next)return {status:"invalid",fields:["name","price","badge","enabled"]};
+   if(!next)return {status:"invalid",fields:["name","cadence","termWeeks","price","badge","enabled"]};
    const updated=reducePreview(current.current,{type:"replace",id,record:next});
    current.current=updated;
    setState(updated);
@@ -52,7 +52,7 @@ export function ProductPlanM1Content({scopeKey,permissionKeys,initialRecord}:{sc
  const onSaved=()=>{};
  const versionForRow=(id:string)=>String(state.records.find(r=>r.id===id)?.version??"");
  const tableWrites=canEdit?{adapter,versionForRow,onSaved}:undefined;
- const recordWrites=canEdit&&row?{adapter,version:String(row.version),onSaved,directFields:["name","price","badge","enabled"]}:undefined;
+ const recordWrites=canEdit&&row?{adapter,version:String(row.version),onSaved,directFields:["name","cadence","termWeeks","price","badge","enabled"]}:undefined;
  const common={registry:planRegistry,context};
  const navigate=(id:string|null)=>{
    if(self.origin==="null")return;
