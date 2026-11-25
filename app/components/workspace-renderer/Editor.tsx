@@ -50,10 +50,10 @@ export function DirectPropertyEditor<F extends readonly FieldSchema[]>({schema,c
   const value=draft.source===text?draft.value:text;
   if(!metadata||!writes.directFields?.includes(field.key)||!writes.version.trim()||
      !allowsField(schema,context,field.key,"inlineEdit")||
-     !["currency","number","select","boolean"].includes(metadata.type))return null;
+     !["text","currency","number","select","boolean"].includes(metadata.type))return null;
   const commit=async(raw:string)=>{
     if(pending.current||!allowsField(schema,context,field.key,"inlineEdit"))return;
-    let next:BoValue=raw;
+    let next:BoValue=metadata.type==="text"?raw.trim():raw;
     if(metadata.type==="number"||metadata.type==="currency"){
       if(!/^\d+$/.test(raw.trim())){setError("Giá trị chưa hợp lệ.");return;}
       next=Number(raw);
@@ -62,7 +62,7 @@ export function DirectPropertyEditor<F extends readonly FieldSchema[]>({schema,c
       next=raw==="true";
     }
     if(fieldValueErrors(metadata,next).length){setError("Giá trị chưa hợp lệ.");return;}
-    if(next===original){setError("");return;}
+    if(next===original){setDraft({source:text,value:text});setError("");return;}
     const request=new AbortController();pending.current=request;setSaving(true);setError("");
     try{
       const result=await writeProperty(schema,context,record,field.key,next,writes.version,writes.adapter,request.signal);
@@ -78,7 +78,7 @@ export function DirectPropertyEditor<F extends readonly FieldSchema[]>({schema,c
       <select {...direct} value={text} onChange={event=>void commit(event.target.value)}>
         {metadata.type==="boolean"?<><option value="true">Có</option><option value="false">Không</option></>:metadata.options?.map(option=><option key={option} value={option}>{option}</option>)}
       </select>:
-      <input {...direct} inputMode="numeric" value={value} onChange={event=>{setDraft({source:text,value:event.target.value});setError("");}}
+      <input {...direct} inputMode={metadata.type==="text"?"text":"numeric"} value={value} onChange={event=>{setDraft({source:text,value:event.target.value});setError("");}}
         onBlur={()=>{if(cancelled.current){cancelled.current=false;return;}if(value!==text)void commit(value);}}
         onKeyDown={event=>{if(event.key==="Enter"){event.preventDefault();event.currentTarget.blur();}else if(event.key==="Escape"){event.preventDefault();event.stopPropagation();cancelled.current=true;setDraft({source:text,value:text});setError("");event.currentTarget.blur();}}}/>}
     {saving?<span role="status">Đang lưu…</span>:null}

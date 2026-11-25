@@ -8,7 +8,7 @@ const choice={...base,filter:true,sort:true,group:true} as const;
 const meta={permission:PLAN_READ,readOnly:true} as const;
 const writable={permission:PLAN_READ,readOnly:false,required:true} as const;
 export const planFields=[
- {key:"name",label:"Gói học",type:"text",icon:"Aa",width:225,...meta,capabilities:searchable},
+ {key:"name",label:"Gói học",type:"text",icon:"Aa",width:225,...writable,validation:{minLength:1,maxLength:120},capabilities:{...searchable,inlineEdit:true}},
  {key:"cadence",label:"Buổi/tuần",type:"number",icon:"#",width:112,...meta,capabilities:choice},
  {key:"termWeeks",label:"Số tuần",type:"number",icon:"#",width:105,...meta,capabilities:choice},
  {key:"price",label:"Giá niêm yết",type:"currency",icon:"₫",width:155,...writable,validation:{min:0,max:Number.MAX_SAFE_INTEGER,integer:true},capabilities:{...base,sort:true,inlineEdit:true}},
@@ -38,12 +38,12 @@ export const planDefinition={
  search:{fields:["name"],normalization:"vi-diacritic-insensitive"},filters:{fields:["name","cadence","termWeeks","badge","enabled"],mode:"flat",logic:"AND"},
  sort:{fields:["name","cadence","termWeeks","price","badge","enabled"],mode:"single",nulls:"last",tieBreak:"record-id"},group:{fields:["cadence","termWeeks","badge","enabled"],mode:"single"},
  views:{builtIn:[],saved:{kind:"local-ui"},actions:["add","apply","rename","delete","reorder"]},pagination:{sizes:[8,15,30],defaultSize:15,mode:"local-ui"},
- inlineEdit:{fields:["price","badge","enabled"],enabled:true},interaction:{settings:["properties","grouping","filters","quick-views"],quickView:"separate-opener",keyboard:"canonical",undo:"local-ui-only"}},
- drawer:{density:"one-column",sections,actions:[]},detail:{overview:{sections},businessTabs:[],history:{kind:"unavailable",reason:"Chưa có lịch sử thay đổi khả dụng."}},
+ inlineEdit:{fields:["name","price","badge","enabled"],enabled:true},interaction:{settings:["properties","grouping","filters","quick-views"],quickView:"separate-opener",keyboard:"canonical",undo:"local-ui-only"}},
+ drawer:{density:"one-column",sections,actions:[]},detail:{overview:{sections},businessTabs:[{id:"subscriptions",label:"Subscription",kind:"relation-grid",relatedModule:"subscriptions",source:{adapter:"product-plan-subscriptions-preview",permission:PLAN_READ}}],history:{kind:"unavailable",reason:"Chưa có lịch sử thay đổi khả dụng."}},
 } as const satisfies ModuleSchema<PlanFields>;
 export const planRegistry=new TddRegistry();
 export const planSchema=planRegistry.register(planDefinition);
 export function projectPlan(p:ProductPlanPreview):ModuleRow<PlanFields>{
- return {id:p.id,name:p.cadence+" buổi/tuần · "+p.termWeeks+" tuần",cadence:p.cadence,termWeeks:p.termWeeks,
+ return {id:p.id,name:p.name,cadence:p.cadence,termWeeks:p.termWeeks,
  price:p.price,badge:p.badge,enabled:p.enabled,createdAt:p.createdAt,createdBy:p.createdBy??"—",updatedAt:p.updatedAt,updatedBy:p.updatedBy??"—",planId:p.id,currency:p.currency,version:p.version};
 }

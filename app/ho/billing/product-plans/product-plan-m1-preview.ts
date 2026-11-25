@@ -4,7 +4,7 @@ import type { PreviewFeature, PreviewRecord } from "@/lib/m1-preview/contract";
 export const productPlanBadges = ["ENTRY", "HERO", "STANDARD"] as const;
 export type ProductPlanBadge = typeof productPlanBadges[number];
 export type ProductPlanPreview = PreviewRecord & {
-  cadence: number; termWeeks: number; price: number; currency: "VND";
+  name: string; cadence: number; termWeeks: number; price: number; currency: "VND";
   badge: ProductPlanBadge; enabled: boolean; version: number;
 };
 export const productPlanM1: PreviewFeature<ProductPlanPreview> = {
@@ -12,7 +12,7 @@ export const productPlanM1: PreviewFeature<ProductPlanPreview> = {
   idPrefix: "PRODUCT-PLAN-MOCK-", operations: ["replace"],
   seed: { id: "PRODUCT-PLAN-MOCK-001", fixture: true, createdAt: null,
     createdBy: null, updatedAt: null, updatedBy: null,
-    cadence: 1, termWeeks: 12, price: 1990000, currency: "VND",
+    name: "1 buổi/tuần · 12 tuần", cadence: 1, termWeeks: 12, price: 1990000, currency: "VND",
     badge: "ENTRY", enabled: true, version: 1 },
 };
 export function previewProductPlanUpdate(
@@ -22,11 +22,12 @@ export function previewProductPlanUpdate(
       current.version !== expectedVersion || !patch || typeof patch !== "object" || Array.isArray(patch)) return null;
   const values = patch as Record<string, unknown>;
   const keys = Object.keys(values);
-  if (!keys.length || keys.some(k => !["price", "badge", "enabled"].includes(k))) return null;
+  if (!keys.length || keys.some(k => !["name", "price", "badge", "enabled"].includes(k))) return null;
+  if ("name" in values && (typeof values.name !== "string" || !values.name.trim() || values.name.trim().length > 120)) return null;
   if ("price" in values && (typeof values.price !== "number" || !Number.isSafeInteger(values.price) || values.price < 0)) return null;
   if ("badge" in values && !productPlanBadges.includes(values.badge as ProductPlanBadge)) return null;
   if ("enabled" in values && typeof values.enabled !== "boolean") return null;
-  return { ...current, ...values, version: current.version + 1 };
+  return { ...current, ...values, ...("name" in values ? {name: (values.name as string).trim()} : {}), version: current.version + 1 };
 }
 
 /** Canonical pathname review: legacy selector is normalization-only, never admission. */
@@ -44,4 +45,17 @@ export function parseProductPlanReviewQuery(query: URLSearchParams, allowLegacy 
 export function isProductPlanLocalOrigin(origin: string) {
   return origin === "http://desktop-isrdren:8800" ||
     origin === "http://desktop-isrdren.tail3ee007.ts.net:8800";
+}
+/** Synthetic relation fixture; stable plan ID, never name-based matching. */
+export type ProductPlanSubscriptionPreview = {
+  id:string; productPlanId:string; student:string; center:string; status:string;
+  startsOn:string; endsOn:string; createdAt:null; createdBy:null; updatedAt:null; updatedBy:null;
+};
+const subscriptionSeed:readonly ProductPlanSubscriptionPreview[]=[{
+  id:"SUBSCRIPTION-MOCK-001", productPlanId:productPlanM1.seed.id, student:"Học viên mẫu",
+  center:"Center mẫu",status:"Đang học",startsOn:"2026-12-01",endsOn:"2027-02-22",
+  createdAt:null,createdBy:null,updatedAt:null,updatedBy:null,
+}];
+export function previewPlanSubscriptions(planId:string, rows=subscriptionSeed){
+  return planId===productPlanM1.seed.id?rows.filter(row=>row.productPlanId===planId):[];
 }

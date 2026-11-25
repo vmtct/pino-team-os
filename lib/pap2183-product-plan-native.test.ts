@@ -14,20 +14,20 @@ const adapter:MutationAdapter<PlanFields>={update:async()=>{throw Error("No writ
 const base={registry:planRegistry,schema:planSchema,context,record};
 test("Product Plan field manifest, audit defaults, immutable identity, reserved history",()=>{
  validateQuery(planSchema,planQuery,context);
- assert.deepEqual(composeTabs(planSchema).map(t=>t.id),["overview","history"]);
+ assert.deepEqual(composeTabs(planSchema).map(t=>t.id),["overview","subscriptions","history"]);
  for(const key of ["createdAt","createdBy","updatedAt","updatedBy"])assert.ok(planQuery.visible.includes(key as typeof planQuery.visible[number]));
- assert.deepEqual(planSchema.fields.filter(f=>allowsField(planSchema,context,f.key,"inlineEdit")).map(f=>f.key),["price","badge","enabled"]);
+ assert.deepEqual(planSchema.fields.filter(f=>allowsField(planSchema,context,f.key,"inlineEdit")).map(f=>f.key),["name","price","badge","enabled"]);
  assert.equal(planSchema.fields.some(f=>allowsField(planSchema,readonly,f.key,"inlineEdit")),false);
  assert.deepEqual(planSchema.drawer.actions,[]);
  assert.equal(record.createdAt,null);assert.equal(record.createdBy,"—");assert.equal(record.updatedBy,"—");assert.equal(productPlanM1.seed.createdBy,null);assert.equal(productPlanM1.seed.updatedBy,null);
 });
 test("native drawer and detail opt in to direct fields only; default popover preserved",()=>{
- const writes={adapter,version:"1",onSaved:()=>{},directFields:["price","badge","enabled"]};
+ const writes={adapter,version:"1",onSaved:()=>{},directFields:["name","price","badge","enabled"]};
  const drawer=(ctx=context,direct=true)=>renderToStaticMarkup(h(TddRenderer<PlanFields>,{view:{kind:"drawer",props:{...base,context:ctx,writes:direct?writes:{adapter,version:"1",onSaved:()=>{}},onClose:()=>{},onDetail:()=>{}}}}));
  const detail=renderToStaticMarkup(h(TddRenderer<PlanFields>,{view:{kind:"detail",props:{...base,writes,onBack:()=>{},subject:{type:"product_plan",id:record.id}}}}));
  for(const html of [drawer(),detail]){
-   for(const key of ["price","badge","enabled"])assert.match(html,new RegExp('data-tdd-direct-field="'+key+'"'));
-   assert.equal((html.match(/data-pds-appearance="underline"/g)??[]).length,3);assert.equal((html.match(/data-pino-ds="bo"/g)??[]).length,3);
+   for(const key of ["name","price","badge","enabled"])assert.match(html,new RegExp('data-tdd-direct-field="'+key+'"'));
+   assert.equal((html.match(/data-pds-appearance="underline"/g)??[]).length,4);assert.equal((html.match(/data-pino-ds="bo"/g)??[]).length,4);
    assert.doesNotMatch(html,/data-tdd-direct-field="cadence"/);
  }
  assert.doesNotMatch(drawer(readonly),/data-pds-appearance="underline"/);
