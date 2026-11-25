@@ -22,8 +22,10 @@ export function previewProductPlanUpdate(
       current.version !== expectedVersion || !patch || typeof patch !== "object" || Array.isArray(patch)) return null;
   const values = patch as Record<string, unknown>;
   const keys = Object.keys(values);
-  if (!keys.length || keys.some(k => !["name", "price", "badge", "enabled"].includes(k))) return null;
+  if (!keys.length || keys.some(k => !["name", "cadence", "termWeeks", "price", "badge", "enabled"].includes(k))) return null;
   if ("name" in values && (typeof values.name !== "string" || !values.name.trim() || values.name.trim().length > 120)) return null;
+  if ("cadence" in values && (typeof values.cadence !== "number" || !Number.isSafeInteger(values.cadence) || values.cadence < 1 || values.cadence > 6)) return null;
+  if ("termWeeks" in values && (typeof values.termWeeks !== "number" || ![12,24,48].includes(values.termWeeks))) return null;
   if ("price" in values && (typeof values.price !== "number" || !Number.isSafeInteger(values.price) || values.price < 0)) return null;
   if ("badge" in values && !productPlanBadges.includes(values.badge as ProductPlanBadge)) return null;
   if ("enabled" in values && typeof values.enabled !== "boolean") return null;
