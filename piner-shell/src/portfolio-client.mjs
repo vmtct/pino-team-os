@@ -5,6 +5,19 @@ export const PORTFOLIO_CLIENT=String.raw`
  const retry=document.querySelector("[data-portfolio-retry]");
  if(retry)retry.addEventListener("click",()=>chrome?.dispatchEvent(new CustomEvent("piner:portfolio-retry",{bubbles:true})));
  if(!root||!chrome)return;
+ // PAP-2377 Feed carousel only; Gallery viewer and profile/provider lifecycle remain separate.
+ for(const card of root.querySelectorAll("[data-feed-post]")){
+  const frames=Array.from(card.querySelectorAll("[data-feed-slide]")),counter=card.querySelector("[data-feed-counter]");
+  let slide=0,touch=null;
+  function showFeed(n){slide=(n+frames.length)%frames.length;frames.forEach((el,i)=>{el.hidden=i!==slide;});if(counter)counter.textContent=(slide+1)+" / "+frames.length;}
+  function syncFeed(){const q=new URL(location.href).searchParams,n=Number(q.get("photo"));if(q.size===2&&q.getAll("post").length===1&&q.getAll("photo").length===1&&q.get("post")===card.dataset.feedPost&&/^[1-5]$/.test(q.get("photo"))&&n<=frames.length)showFeed(n-1);}
+  card.addEventListener("click",e=>{const arrow=e.target.closest("[data-feed-step]");if(arrow)showFeed(slide+Number(arrow.dataset.feedStep));});
+  card.addEventListener("keydown",e=>{if(frames.length>1&&(e.key==="ArrowLeft"||e.key==="ArrowRight")){e.preventDefault();showFeed(slide+(e.key==="ArrowLeft"?-1:1));}});
+  card.addEventListener("pointerdown",e=>{if(e.pointerType==="touch"&&!e.target.closest("button"))touch={x:e.clientX,y:e.clientY};});
+  card.addEventListener("pointercancel",()=>{touch=null;});
+  card.addEventListener("pointerup",e=>{if(touch&&frames.length>1){const dx=e.clientX-touch.x,dy=e.clientY-touch.y;if(Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy))showFeed(slide+(dx<0?1:-1));}touch=null;});
+  window.addEventListener("popstate",syncFeed);syncFeed();
+ }
  const selected=()=>chrome.querySelector("[data-student-id][aria-selected=true]")?.dataset.studentId??null;
  const initial=selected();
  let active=null,index=0,opener=null,startX=null;
