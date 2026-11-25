@@ -43,7 +43,7 @@ const legacy:Record<string,string>={
  parents:"/bo?module=parents",missions:"/bo?module=missions",
 };
 const previews:Record<string,{path:string;expected:string;record?:string;negative:string}>={
- "/ho/learning-spaces":{path:"/ho/learning-spaces",expected:"/ho/learning-spaces",record:"record=LEARNING-SPACE-MOCK-001",negative:"record="+id},
+
  "/ho/billing/product-plans":{path:"/ho/billing/product-plans?m1Preview=1",expected:"/ho/billing/product-plans",record:"record=PRODUCT-PLAN-MOCK-001",negative:"record="+id},
  "/bo/piner-posts":{path:"/bo/piner-posts?m1Preview=1",expected:"/bo/piner-posts",record:"record=POST-MOCK-001&tab=media",negative:"record="+id},
  "/bo/sales/leads":{path:"/bo/sales/leads?m1Preview=1",expected:"/bo/sales/leads",record:"lead=LEAD-MOCK-001&tab=members",negative:"lead="+id},
@@ -109,10 +109,10 @@ test("HO_BO_DEEPLINK_CONTINUITY_P0: native preview entrypoints cannot ship untes
  for(const query of ["record="+id,"record=PRODUCT-PLAN-MOCK-002","record=","record=PRODUCT-PLAN-MOCK-001&record=PRODUCT-PLAN-MOCK-001","tab=unknown","next=/bo"])
    assert.equal(parse(ho,plans+"?"+query),null,plans+"?"+query);
  assert.equal(parse(bo,plans),null);
- // PAP-2369: canonical native preview only; no legacy selector or real ID.
+ // PAP-2371: canonical real route; synthetic fixture and selector rejected.
  const spaces="/ho/learning-spaces";
- checkFlow(ho,spaces+"?record=LEARNING-SPACE-MOCK-001",spaces+"?record=LEARNING-SPACE-MOCK-001");
- for(const query of ["record="+id,"record=LEARNING-SPACE-MOCK-002","record=","record=LEARNING-SPACE-MOCK-001&record=LEARNING-SPACE-MOCK-001","m1Preview=1","tab=unknown","next=/bo"])
+ checkFlow(ho,spaces+"?record="+id,spaces+"?record="+id);
+ for(const query of ["record=LEARNING-SPACE-MOCK-001","record=LEARNING-SPACE-MOCK-002","record=","record="+id+"&record="+id,"m1Preview=1","tab=unknown","next=/bo"])
    assert.equal(parse(ho,spaces+"?"+query),null,spaces+"?"+query);
  assert.equal(parse(bo,spaces),null);
  assert.equal(roleReviewRoute({m1Preview:"1"}),"preview");
@@ -153,9 +153,9 @@ test("PAP-2337: malformed authenticated Post preview requests fail before stream
 
 test("PAP-2369: malformed authenticated Learning Space links fail before streaming",()=>{
  const path="/ho/learning-spaces",headers={cookie:"pino_staff_password_session=fixture-only"};
- for(const q of ["record="+id,"record=LEARNING-SPACE-MOCK-001&record=LEARNING-SPACE-MOCK-001","m1Preview=1","tab=unknown","next=/bo"]){
+ for(const q of ["record=LEARNING-SPACE-MOCK-001","record="+id+"&record="+id,"m1Preview=1","tab=unknown","next=/bo"]){
   for(const method of ["GET","HEAD"])assert.equal(middleware(new NextRequest("https://"+ho+path+"?"+q,{headers,method})).status,404,q);
  }
- for(const q of ["","?record=LEARNING-SPACE-MOCK-001","?utm_source=chatgpt.com&record=LEARNING-SPACE-MOCK-001"])assert.equal(middleware(new NextRequest("https://"+ho+path+q,{headers})).headers.get("x-middleware-next"),"1",q);
- assert.equal(middleware(new NextRequest("https://"+ho+path+"?record=LEARNING-SPACE-MOCK-001&_rsc=abc",{headers:{...headers,rsc:"1"}})).headers.get("x-middleware-next"),"1");
+ for(const q of ["","?record="+id,"?utm_source=chatgpt.com&record="+id])assert.equal(middleware(new NextRequest("https://"+ho+path+q,{headers})).headers.get("x-middleware-next"),"1",q);
+ assert.equal(middleware(new NextRequest("https://"+ho+path+"?record="+id+"&_rsc=abc",{headers:{...headers,rsc:"1"}})).headers.get("x-middleware-next"),"1");
 });
