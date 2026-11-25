@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { PropertySections, TosCard, TosButton, type PropertyField } from "@pino/design-system/react";
 import type { BoAccessPermission, BoAccessRoleDetail } from "@/lib/bo-access-model";
 import { boApi } from "@/lib/bo-api";
+import {verifiedExistingRoleEdit} from "./role-editor-receipt";
 
 // PAP-1507 / PLT-ACCESS: module-owned, presentation-only helpers.
 export function groupSelectionState(selectedKeys:readonly string[],visibleKeys:readonly string[]):"none"|"mixed"|"all" {
@@ -162,9 +163,7 @@ export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, o
       if(!response.ok)throw Error("Không lưu được Role. Vui lòng kiểm tra lại.");
       const controller=new AbortController();
       const next=await loadRole(roleId,controller.signal);
-      if(next.role.displayName!==wanted.displayName ||
-        (next.role.description?.trim()||null)!==wanted.description ||
-        !same(next.role.permissionKeys,wanted.permissionKeys))
+      if(!verifiedExistingRoleEdit(current,wanted,next.role))
         throw Error("Core đã nhận yêu cầu nhưng chưa xác nhận được dữ liệu mới. Vui lòng tải lại Role.");
       setData(next);setDraft(fromRole(next.role));setConfirming(false);
       // Refresh the canonical TDD record/directory only after authoritative Core readback.
