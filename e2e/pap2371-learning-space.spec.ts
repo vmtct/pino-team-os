@@ -56,3 +56,14 @@ test("PAP-2371 read-only mode exposes no create or lifecycle write",async({page}
 test("PAP-2371 uncertain create survives reload and never automatically sends",async({page})=>{
  const f=await fixture(page,{uncertain:true});await fillCreate(page);await createButton(page).last().click();await expect(page.getByRole("button",{name:"Kiểm tra lại cùng lệnh"})).toBeVisible();await page.reload();await expect(page.getByRole("button",{name:"Kiểm tra lại cùng lệnh"})).toBeVisible();expect(f.writes).toHaveLength(1);await expect(createButton(page).first()).toBeDisabled();await page.getByRole("button",{name:"Kiểm tra lại cùng lệnh"}).click();await expect(page.getByRole("row",{name:"Mở Quick View Created Studio"})).toBeVisible();expect(f.writes).toHaveLength(2);expect(f.writes[0]).toEqual(f.writes[1]);expect(f.errors).toEqual([]);
 });
+test("PAP-2371 actual direct detail editor persists canonical patch and version",async({page})=>{
+ const f=await fixture(page,{query:"?record="+id});
+ await expect(page.getByRole("tab",{name:"Tổng quan"})).toBeVisible();
+ const editor=page.locator('[data-tdd-direct-field="name"] input');await expect(editor).toHaveValue("Test Studio");await editor.fill("Renamed Studio");await editor.press("Enter");
+ await expect.poll(()=>f.records.get(id)?.displayName).toBe("Renamed Studio");await expect(editor).toHaveValue("Renamed Studio");
+ expect(f.writes).toHaveLength(1);expect(f.writes[0]?.body.expectedVersion).toBe(1);expect(f.writes[0]?.body.centerId).toBe(center);expect(f.errors).toEqual([]);
+ await page.reload();await expect(editor).toHaveValue("Renamed Studio");expect(f.writes).toHaveLength(1);
+});
+test("PAP-2371 denied synthetic context exposes no records or write controls",async({page})=>{
+ const f=await fixture(page,{query:"?denied=1"});await expect(page.getByRole("alert")).toContainText("Không có quyền");await expect(createButton(page)).toHaveCount(0);await expect(page.getByRole("row",{name:"Mở Quick View Test Studio"})).toHaveCount(0);expect(f.writes).toEqual([]);expect(f.errors).toEqual([]);
+});

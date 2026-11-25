@@ -75,9 +75,14 @@ export function LearningSpaceM1Content({scopeKey,permissionKeys,initialRecord,li
   if(authorization.surface!=="HO"||!authorization.authorize(SPACE_READ)||slot.id!=="runningClasses")return <p role="status">Không có quyền xem nội dung.</p>;
   return <BusinessDataGrid caption="Lớp học" rows={await loadSpaceClassRows(client,record.id,signal)} columns={relationColumns} rowKey={r=>r.id} showToolbar={false} emptyTitle="Chưa có lớp học" emptyMessage="Không có lớp học sử dụng không gian này." />;
  }}:loaders,[client,liveReadOnly]);
- const canEdit=(!liveReadOnly||liveWrites)&&context.authorize(SPACE_READ)&&context.authorize(SPACE_EDIT);
- const fence=useMemo(()=>createSpaceCommandFence(client,undefined,liveReadOnly&&liveWrites&&typeof window!=="undefined"?spaceAttemptStore(scopeKey):undefined),[client,scopeKey,liveReadOnly,liveWrites]);
- const [commandState,setCommandState]=useState<"idle"|"pending"|"uncertain">(()=>fence.uncertain?"uncertain":"idle");
+ const permittedEdit=(!liveReadOnly||liveWrites)&&context.authorize(SPACE_READ)&&context.authorize(SPACE_EDIT);
+  const previewFence=useMemo(()=>createSpaceCommandFence(client),[client]);
+ const [recovery,setRecovery]=useState<{scope:string;fence:ReturnType<typeof createSpaceCommandFence>}|null>(null);
+ const fence=liveReadOnly&&liveWrites&&recovery?.scope===scopeKey?recovery.fence:previewFence;
+ const recoveryReady=!liveReadOnly||!liveWrites||recovery?.scope===scopeKey;
+ const canEdit=permittedEdit&&recoveryReady;
+  const [commandState,setCommandState]=useState<"idle"|"pending"|"uncertain">("idle");
+ useEffect(()=>{if(!liveReadOnly||!liveWrites)return;const next=createSpaceCommandFence(client,undefined,spaceAttemptStore(scopeKey));setRecovery({scope:scopeKey,fence:next});setCommandState(next.uncertain?"uncertain":"idle");},[client,scopeKey,liveReadOnly,liveWrites]);
  const readCenters=useCallback((signal:AbortSignal)=>liveReadOnly&&liveWrites&&context.authorize(SPACE_EDIT)?loadSpaceCenters(fetch,signal):Promise.resolve([]),[liveReadOnly,liveWrites,context]);
  const centerResource=useResource(readCenters);
  const finishLive=(result:Awaited<ReturnType<typeof fence.submit>>)=>{
@@ -114,8 +119,8 @@ export function LearningSpaceM1Content({scopeKey,permissionKeys,initialRecord,li
  }};
  const onSaved=()=>{};
  const common={registry:liveReadOnly?live.registry:spaceRegistry,context};
- const recordWrites=canEdit&&commandState==="idle"&&row?{adapter:liveReadOnly?liveAdapter:adapter,version:String(row.version),onSaved,directFields}:undefined;
- const tableWrites=canEdit&&commandState==="idle"?{adapter:liveReadOnly?liveAdapter:adapter,versionForRow:(id:string)=>String(tableRows.find(r=>r.id===id)?.version??""),onSaved}:undefined;
+ const recordWrites=canEdit&&commandState!=="uncertain"&&row?{adapter:liveReadOnly?liveAdapter:adapter,version:String(row.version),onSaved,directFields}:undefined;
+ const tableWrites=canEdit&&commandState!=="uncertain"?{adapter:liveReadOnly?liveAdapter:adapter,versionForRow:(id:string)=>String(tableRows.find(r=>r.id===id)?.version??""),onSaved}:undefined;
  const navigate=(id:string|null)=>{const url=new URL(location.href);if(id&&(liveReadOnly||id===spaceM1.seed.id))url.searchParams.set("record",id);else url.searchParams.delete("record");if(url.href!==location.href)history.pushState(null,"",url.pathname+url.search);};
  useEffect(()=>{const restore=()=>{const id=new URLSearchParams(location.search).get("record");setSelected(id);setFull(Boolean(id));setConfirm(false);};addEventListener("popstate",restore);return()=>removeEventListener("popstate",restore);},[]);
  const close=()=>{navigate(null);setSelected(null);setFull(false);setConfirm(false);setNotice("");};
