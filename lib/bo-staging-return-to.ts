@@ -34,10 +34,10 @@ export function safeBoStagingReturnTo(raw:string|null|undefined):string|null{
   if(moduleKey==="salaryPeriods"){path="/bo/payroll-periods";p.delete("module");}
  }else if(moduleKey!==null)return null;
  if(path!=="/bo"&&!isBoStagingRouteAdmitted(path))return null;
- // PAP-2359: explicit staging preview continuation; navigation only, not authorization.
- if(p.has("m1Preview")){
-  if(p.get("m1Preview")!=="1"||![ "/bo/sales/leads","/bo/piner-posts"].includes(path))return null;
-  const leads=path==="/bo/sales/leads";
+ // PAP-2286: canonical Lead fixture continuation; old preview links normalize. Navigation only, not authorization.
+ const leads=path==="/bo/sales/leads";
+ if(p.has("m1Preview")||(leads&&(p.has("lead")||p.has("quickView")))){
+  if(p.has("m1Preview")&&(p.get("m1Preview")!=="1"||![ "/bo/sales/leads","/bo/piner-posts"].includes(path)))return null;
   for(const k of p.keys()){
    if(k==="m1Preview")continue;
    if(k==="centerId"){if(!uuid.test(p.get(k)!))return null;continue;}
@@ -46,7 +46,8 @@ export function safeBoStagingReturnTo(raw:string|null|undefined):string|null{
   }
   if(p.has("lead")&&p.has("quickView"))return null;
   if(p.has("tab")&&(!p.has("lead")||!["detail","members","relationships","history"].includes(p.get("tab")!)))return null;
-  return path+"?"+p.toString();
+  if(leads)p.delete("m1Preview");
+  return path+(p.size?"?"+p.toString():"");
  }
  const key=path==="/bo"?moduleKey??"students":path.split("/")[2]!;
  const sub=key==="subscriptions",period=key==="payroll-periods",event=key==="pinoria-wish-events";
