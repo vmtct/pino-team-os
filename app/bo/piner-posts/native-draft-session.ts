@@ -9,6 +9,7 @@ import {bindNativeDraft} from "./native-draft-binding";
 import {createPrivateMediaController} from "./private-media-controller";
 import {privatePostMediaClient} from "./private-media-client";
 import {postWorkflowReadClient} from "./workflow-read-client";
+import {createNativeSubmitReview} from "./native-submit-review";
 import {createWorkflowCoordinator} from "./workflow-coordinator";
 import {postWorkflowClient} from "./workflow-client";
 import {CoreDraftRequestError} from "./core-draft-client";
@@ -91,10 +92,12 @@ export async function openNativeDraftSession(centerId:string,centerSource:Center
   };
   const binding=bindNativeDraft(controller,session.context);
   const canMedia=(write:boolean)=>Boolean(current()&&actor.authorize("piner.post.view")&&(!write||actor.authorize("piner.post.edit")));
-  return {...binding,controller,userId:principal.userId,
+  const canSubmit=()=>Boolean(current()&&session.context.authorize("piner.post.view")&&session.context.authorize("piner.post.submit"));
+  const submitReview=createNativeSubmitReview({centerId,canSubmit,detail:controller.detail,list:(postId,requestSignal)=>privatePostMediaClient(centerId,postId,guardedFetch).list(requestSignal),workflow});
+  return {...binding,controller,userId:principal.userId,submitReview,
    workflowRead,
    workflow,
-   canSubmit:()=>Boolean(current()&&session.context.authorize("piner.post.view")&&session.context.authorize("piner.post.submit")),
+   canSubmit,
    canCompose:()=>Boolean(current()&&session.context.authorize("piner.post.view")&&session.context.authorize("piner.post.diary.compose")),
    canEditMedia:()=>Boolean(current()&&actor.authorize("piner.post.view")&&actor.authorize("piner.post.edit")),
 
