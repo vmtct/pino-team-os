@@ -6,6 +6,9 @@ import { NativeCustomAttributeValues } from "@/app/components/custom-attributes/
  */
 import "@pino/design-system/bo-tokens.css";
 import "@pino/design-system/components.css";
+import "./parent-directory-density.css";
+import { PinoNavLocaleContext } from "@/lib/pino-nav-locale-context";
+import { pinoLocalizedLabel } from "@/lib/pino-nav-locale";
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { BoDataTable } from "@/app/bo/components/registration/BoDataTable";
 import { BoQuickView } from "@/app/bo/components/registration/BoQuickView";
@@ -48,6 +51,10 @@ export function ParentDirectoryDsa() {
   </section>;
 }
 function ScopedParents({centerId,centerName,menu}:{centerId:string;centerName?:string;menu?:React.ReactNode}) {
+  // PAP-2387 / SCH-PARENTS-GUARDIANS: reuse the BO navigation language.
+  const language=useContext(PinoNavLocaleContext)?.language??"vi";
+  const title=pinoLocalizedLabel("bo","Module Title","parents",parentNativeModule.label,language);
+  const createLabel=language==="vi"?"+ Phụ huynh":"+ Parent";
   const [table,setTable]=useState<BoTableState>(initial);
   const [rows,setRows]=useState<NativeParentRow[]>([]);
   const [status,setStatus]=useState<"loading"|"ready"|"error">("loading");
@@ -147,9 +154,9 @@ function ScopedParents({centerId,centerName,menu}:{centerId:string;centerName?:s
         {null}
       </DetailFrame> :
     <section id="list-screen">
-      <div className="page-heading"><div className="page-heading-left">{menu}<h1>Parents & Guardians</h1></div>
+      <div className="page-heading"><div className="page-heading-left">{menu}<h1>{title}</h1></div>
         <div className="heading-actions">{authorized&&grants.has("identity.parent.create")&&
-          <button className="primary-btn" type="button" onClick={()=>setCreating(true)}>＋ Parent</button>}</div>
+          <button className="primary-btn" type="button" onClick={()=>setCreating(true)}>{createLabel}</button>}</div>
       </div>
       {notice&&<p role="status">{notice}</p>}
       {error&&<p role="alert">{error} <button type="button" onClick={()=>setRefresh(x=>x+1)}>Thử lại</button></p>}
