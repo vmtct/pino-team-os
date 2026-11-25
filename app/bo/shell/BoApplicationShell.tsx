@@ -43,7 +43,7 @@ const directModules = {
 const stagingSource: BoWorkspaceSource = {
   ...unifiedBoWorkspaceSource,
   modules: { ...unifiedBoWorkspaceSource.modules, ...directModules },
-  routeForModule: key => key === "sales/leads" ? "/bo/sales/leads?m1Preview=1" : Object.hasOwn(directModules, key) ? "/bo/" + key : unifiedBoWorkspaceSource.routeForModule!(key),
+  routeForModule: key => Object.hasOwn(directModules, key) ? "/bo/" + key : unifiedBoWorkspaceSource.routeForModule!(key),
 };
 
 /** One BO chrome owner for content-only and workspace-owning routes on both hosts. */

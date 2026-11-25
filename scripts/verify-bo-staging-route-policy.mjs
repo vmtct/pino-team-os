@@ -137,11 +137,13 @@ function nativeLeadsRoute(root, issues) {
   const files = ["app/bo/sales/leads/page.tsx", "app/bo/sales/leads/SalesLeadPipelineView.tsx", "app/bo/shell/BoApplicationShell.tsx", "lib/pap901-staging-routes.test.ts"];
   if (files.some(file => !fs.existsSync(path.join(root, file)))) { issues.push("Leads: missing native route contract"); return false; }
   const [page, view, shell, test] = files.map(file => read(root, file));
-  const valid = page.includes('actor.permissionKeys.includes("acquisition.lead.manage")') &&
-    page.includes('APP_ENV === "staging"') && page.includes('<SalesLeadPipelineView allowM1Preview=') &&
-    view.includes('searchParams.get("m1Preview") === "1"') && view.includes('<LeadHouseholdM1Preview />') &&
-    view.includes('allowM1Preview || process.env.NODE_ENV === "development"') &&
-    shell.includes('"sales/leads": { label: "Leads"') && shell.includes('"/bo/sales/leads?m1Preview=1"') &&
+  const valid = page.includes('await authorizeBoShell(') &&
+    page.includes('actor.permissionKeys.includes("acquisition.lead.manage")') &&
+    page.includes('APP_ENV === "staging"') && page.includes('return <LeadHouseholdM1Preview />;') &&
+    page.includes('redirect(safeBoStagingReturnTo(') && page.includes('return <SalesLeadPipelineView />;') &&
+    view.includes('return <SalesLeadIntentPipelineView />;') && !view.includes('LeadHouseholdM1Preview') &&
+    shell.includes('"sales/leads": { label: "Leads"') && shell.includes('Object.hasOwn(directModules, key) ? "/bo/" + key') &&
+    !shell.includes('/bo/sales/leads?m1Preview=1') &&
     test.includes('isBoStagingRouteAdmitted("/bo/sales/leads"),true') &&
     !/<BoModuleFactory|<BoWorkforceRoute/.test(page);
   if (!valid) issues.push("Leads: invalid exact native staging route contract");
