@@ -10,6 +10,7 @@ import {TddRenderer} from "@/app/components/workspace-renderer/Renderer";
 import {HoWorkspace} from "@/app/ho/HoWorkspace";
 import {roleDefinition,roleFields,roleProvider,roleQuery,verifyRolePermissionTabApproval} from "./schema";
 import {HoRoleEditor} from "./HoRoleEditor";
+import {createRoleMetadataFence} from "./role-metadata-flow";
 import {CreateCustomRoleFields} from "./RoleLifecycleForms";
 import {useRoleCreateFlow,type RoleCreateOutcome} from "./useRoleCreateFlow";
 import {verifyCreatedRole,type RoleCreateInput} from "./role-lifecycle-model";
@@ -37,6 +38,7 @@ async function submitNativeCreate(input:RoleCreateInput):Promise<RoleCreateOutco
 /** Existing native Table/Drawer/Detail shell. No fallback mutation transport. */
 export function ReadyRoles({ready,submitCreate,onVerified,nativeLifecycle=false}:{ready:Ready;submitCreate?:SubmitCreate;onVerified:()=>void;nativeLifecycle?:boolean}){
  const {adapter}=ready;
+ const [metadataFence]=useState(createRoleMetadataFence);
  const authorized=adapter.schema.capabilities.create==="access.role.create" &&
    adapter.context.authorize("access.role.view") && adapter.context.authorize("access.role.create");
  const flow=useRoleCreateFlow(authorized,submitCreate,onVerified);
@@ -44,7 +46,7 @@ export function ReadyRoles({ready,submitCreate,onVerified,nativeLifecycle=false}
    <SurfaceWorkspace adapter={ready.adapter} navigation={ready.navigation} initialQuery={roleQuery} actionBindings={flow.bindings}
       detailApprovedExtension={(row,context,activeTab,_principalId,onSaved)=> <HoRoleEditor key={row.id} roleId={row.id}
         assignmentCount={Number(row.assignmentCount)} activeTab={activeTab}
-        onSaved={onSaved} authorized={context.authorize("access.role.edit")} metadataAuthorized={nativeLifecycle&&context.authorize("access.role.view")&&context.authorize("access.role.edit")} archiveAuthorized={nativeLifecycle&&context.authorize("access.role.archive")} />} />
+        onSaved={onSaved} authorized={context.authorize("access.role.edit")} metadataFence={metadataFence} metadataAuthorized={nativeLifecycle&&context.authorize("access.role.view")&&context.authorize("access.role.edit")} archiveAuthorized={nativeLifecycle&&context.authorize("access.role.archive")} />} />
    {flow.uncertain&&<p role="alert">Chưa xác minh được Role. Tải lại và kiểm tra danh sách trước khi thử lại.</p>}
    {flow.open&&<TddRenderer view={{kind:"form",props:{registry:adapter.registry,schema:adapter.schema,context:adapter.context,mode:"create",title:"Tạo vai trò",onClose:flow.close,actionBindings:flow.bindings,content:<CreateCustomRoleFields draft={flow.draft} onChange={flow.setDraft} disabled={flow.busy}/>}}}/>}
  </>;

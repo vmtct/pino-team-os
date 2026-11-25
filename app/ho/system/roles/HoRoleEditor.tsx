@@ -6,7 +6,7 @@ import { boApi } from "@/lib/bo-api";
 import {verifiedExistingRoleEdit} from "./role-editor-receipt";
 import {ArchiveCustomRoleAction} from "./RoleLifecycleForms";
 import {canArchiveRole,verifyArchivedRole} from "./role-lifecycle-model";
-import {createRoleMetadataClient} from "./role-metadata-flow";
+import {createRoleMetadataClient,createRoleMetadataFence} from "./role-metadata-flow";
 import {ROLE_METADATA_COMMAND,parseRoleInlineRequest} from "@/lib/workspace-adapters/ho-inline-command-contract";
 
 // PAP-1507 / PLT-ACCESS: module-owned, presentation-only helpers.
@@ -80,8 +80,8 @@ function fromRole(role:BoAccessRoleDetail):Draft {
   return {displayName:role.displayName,description:role.description??"",keys:sorted(role.permissionKeys)};
 }
 /** HO-specific editing surface; TDD owns navigation, DS owns cards and property rows. */
-export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, onSaved, archiveAuthorized=false, metadataAuthorized=false }: {
-  roleId:string; assignmentCount:number; authorized:boolean; activeTab:string; onSaved:()=>void; archiveAuthorized?:boolean; metadataAuthorized?:boolean;
+export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, onSaved, archiveAuthorized=false, metadataAuthorized=false, metadataFence }: {
+  roleId:string; assignmentCount:number; authorized:boolean; activeTab:string; onSaved:()=>void; archiveAuthorized?:boolean; metadataAuthorized?:boolean; metadataFence?:ReturnType<typeof createRoleMetadataFence>;
 }) {
   const [data,setData]=useState<Ready|null>(null);
   const [draft,setDraft]=useState<Draft|null>(null);
@@ -196,7 +196,7 @@ export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, o
         },
         fetcher:(input,init)=>fetch(input,init),
         idempotencyKey:()=>crypto.randomUUID(),
-      }));
+      },metadataFence));
       const result=await client(request,signal);
       const next=latestMetadataRead.current as Ready|null;
       if(result.status==="saved"&&!signal.aborted&&next!==null&&next.role===result.receipt){
