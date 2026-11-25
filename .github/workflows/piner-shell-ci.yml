@@ -33,7 +33,7 @@ jobs:
           node --check piner-shell/src/client.mjs
           node --check piner-shell/src/member-session.mjs
       - name: Unit — fail-closed auth, negative routes and R2 object fallback
-        run: node --test piner-shell/test/shell.test.mjs piner-shell/test/staging.test.mjs piner-shell/test/authenticated-chrome.test.mjs piner-shell/test/member-session.test.mjs
+        run: node --test piner-shell/test/shell.test.mjs piner-shell/test/staging.test.mjs piner-shell/test/authenticated-chrome.test.mjs piner-shell/test/member-session.test.mjs piner-shell/test/portfolio-view.test.mjs piner-shell/test/synthetic-review-decision.test.mjs piner-shell/test/static-review-portfolio.test.mjs
       - name: Bundle Worker without deployment or credentials
         run: npx --yes wrangler@4.122.0 deploy --dry-run --config piner-shell/wrangler.jsonc --outdir /tmp/piner-shell-bundle
       - name: Bundle isolated staging Worker without deployment
