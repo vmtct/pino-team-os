@@ -46,7 +46,7 @@ test("PAP-2386 native workflow capabilities remain distinct and rechecked after 
  const s=await openNativeDraftSession(A,"centers",signal,options);
  assert.equal(s.canCompose(),true);assert.equal(s.canSubmit(),false);
  assert.equal((await s.workflowRead.state(P,signal)).version,1);
- await assert.rejects(s.workflowAction({kind:"submit",postId:P,attachmentIds:[I],expectedVersion:1,idempotencyKey:"workflow-test-0001"},signal));
+ await assert.rejects(s.workflow.run({kind:"submit",postId:P,attachmentIds:[I],expectedVersion:1,idempotencyKey:"workflow-test-0001"},signal));
  assert.equal(calls.length,1);
  revoke=true;await assert.rejects(s.workflowRead.state(P,signal));assert.equal(s.canCompose(),false);
  s.dispose();await assert.rejects(s.workflowRead.state(P,signal));
@@ -63,8 +63,31 @@ test("PAP-2386 submit-only native session cannot compose and does not need creat
  }});
  assert.equal(s.canSubmit(),true);assert.equal(s.canCompose(),false);assert.equal(s.canCreate(),false);assert.equal(s.canEditMedia(),false);
  await assert.rejects(s.workflowRead.state(P,signal));
- const receipt=await s.workflowAction({kind:"submit",postId:P,attachmentIds:[I],expectedVersion:1,idempotencyKey:"workflow-test-0002"},signal);
+ const receipt=await s.workflow.run({kind:"submit",postId:P,attachmentIds:[I],expectedVersion:1,idempotencyKey:"workflow-test-0002"},signal);
  assert.equal(receipt.committedVersion,2);
+ assert.equal(await s.workflow.hasPending(signal),false);
  assert.deepEqual((await s.workflowRead.submissionState(P,signal)).submittedAttachmentIds,[I]);
- assert.deepEqual(calls,["/api/bo/learning/piner-posts/"+P+"/submit","/api/bo/learning/piner-posts/"+P+"/submission-state"]);s.dispose();
+ assert.deepEqual(calls,["/api/bo/learning/piner-posts/"+P+"/submit","/api/bo/learning/piner-posts/"+P+"/submission-state","/api/bo/learning/piner-posts/"+P+"/submission-state"]);s.dispose();
+});
+
+test("PAP-2386 native coordinator retains uncertain ordered submission until exact readback",async()=>{
+ const P="01900000-0000-7000-8000-000000000004",I="01900000-0000-7000-8000-000000000005",J="01900000-0000-7000-8000-000000000006";
+ const x=setup(["piner.post.view","piner.post.submit"]),calls:string[]=[];
+ let correct=false;
+ const s=await openNativeDraftSession(A,"centers",signal,{...x.options,fetcher:async(input,init)=>{
+  const path=new URL(String(input)).pathname;
+  if(!path.includes("/piner-posts/"))return x.options.fetcher(input,init);
+  calls.push(path);
+  if(path.endsWith("/submission-state"))return Response.json({data:{postId:P,centerId:A,status:"PENDING_APPROVAL",version:2,submittedAttachmentIds:correct?[I,J]:[J,I]}});
+  return Response.json({data:{post:{id:P,centerId:A,status:"PENDING_APPROVAL",version:2},committedVersion:2,replayed:correct}});
+ }});
+ const command={kind:"submit" as const,postId:P,attachmentIds:[I,J],expectedVersion:1,idempotencyKey:"workflow-readback-0001"};
+ await assert.rejects(s.workflow.run(command,signal));
+ assert.equal(await s.workflow.hasPending(signal),true);
+ await assert.rejects(s.workflow.run(command,signal));
+ await assert.rejects(s.workflow.retry({...command,attachmentIds:[J,I]},signal));
+ assert.equal(calls.length,2);
+ correct=true;await s.workflow.retry(command,signal);
+ assert.equal(await s.workflow.hasPending(signal),false);
+ assert.equal(calls.length,4);s.dispose();
 });

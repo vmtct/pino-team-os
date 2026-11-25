@@ -9,6 +9,7 @@ import {bindNativeDraft} from "./native-draft-binding";
 import {createPrivateMediaController} from "./private-media-controller";
 import {privatePostMediaClient} from "./private-media-client";
 import {postWorkflowReadClient} from "./workflow-read-client";
+import {createWorkflowCoordinator} from "./workflow-coordinator";
 import {postWorkflowClient} from "./workflow-client";
 import {CoreDraftRequestError} from "./core-draft-client";
 import {BO_STAGING_HOSTNAME} from "@/lib/host-boundary";
@@ -52,11 +53,25 @@ export async function openNativeDraftSession(centerId:string,centerSource:Center
   const journal=options.journal??createSessionDraftJournal(window.sessionStorage);
   const controller=createDraftController(actor,current,guardedFetch,undefined,journal);
   const binding=bindNativeDraft(controller,session.context);
+  const workflowRead=postWorkflowReadClient(centerId,guardedFetch);
+  const workflowScope={actorId:principal.userId,centerId,authorize:(p:string)=>session.context.authorize(p)};
+  const workflowCurrent=()=>current()?workflowScope:null;
+  const workflow=createWorkflowCoordinator(workflowScope,workflowCurrent,postWorkflowClient(centerId,guardedFetch),async(receipt,requestSignal)=>{
+   const c=receipt.command;
+   if(c.kind==="submit"){
+    const state=await workflowRead.submissionState(c.postId,requestSignal);
+    return state.version===receipt.committedVersion&&state.status==="PENDING_APPROVAL"&&JSON.stringify(state.submittedAttachmentIds)===JSON.stringify(c.attachmentIds);
+   }
+   const state=await workflowRead.state(c.postId,requestSignal);
+   if(state.version!==receipt.committedVersion||state.status!=="DRAFT")return false;
+   if(c.kind==="diary-selection")return JSON.stringify([...state.diaryIds].sort())===JSON.stringify(c.diaryIds);
+   return state.provenance.some(p=>p.attachmentId===c.attachmentId&&p.diaryId===c.diaryId&&p.evidenceId===c.evidenceId&&p.transform===c.transform&&p.attachmentVersion===c.expectedAttachmentVersion);
+  },journal);
   const mediaControllers=new Map<string,ReturnType<typeof createPrivateMediaController>>();
   const canMedia=(write:boolean)=>Boolean(current()&&actor.authorize("piner.post.view")&&(!write||actor.authorize("piner.post.edit")));
   return {...binding,controller,userId:principal.userId,
-   workflowRead:postWorkflowReadClient(centerId,guardedFetch),
-   workflowAction:postWorkflowClient(centerId,guardedFetch),
+   workflowRead,
+   workflow,
    canSubmit:()=>Boolean(current()&&session.context.authorize("piner.post.view")&&session.context.authorize("piner.post.submit")),
    canCompose:()=>Boolean(current()&&session.context.authorize("piner.post.view")&&session.context.authorize("piner.post.diary.compose")),
    canEditMedia:()=>Boolean(current()&&actor.authorize("piner.post.view")&&actor.authorize("piner.post.edit")),
@@ -68,7 +83,7 @@ export async function openNativeDraftSession(centerId:string,centerSource:Center
     requestSignal.throwIfAborted();
     return choices;
    },
-   dispose(){for(const media of mediaControllers.values())media.dispose();mediaControllers.clear();binding.unbind();controller.dispose();session.dispose();}
+   dispose(){workflow.dispose();for(const media of mediaControllers.values())media.dispose();mediaControllers.clear();binding.unbind();controller.dispose();session.dispose();}
   };
  }catch(e){session.dispose();throw e;}
 }
