@@ -50,8 +50,8 @@ export function RunningClassCreateDrawer({catalog,selectedCenterId,onClose,onCre
   for(const field of creationFields)if(Object.hasOwn(controls,field.key)){
     fields[field.key]={id:"rc-"+field.key,value:"",onChange:()=>{},control:controls[field.key as keyof ClassDraft]};
   }
-  const module:BoModule={label:"Running Class",group:"SCHOOL",fields:creationFields};
-  return <BoQuickView module={module} moduleKey="classes" record={null} onClose={onClose} create={{
+  const classModule:BoModule={label:"Running Class",group:"SCHOOL",fields:creationFields};
+  return <BoQuickView module={classModule} moduleKey="classes" record={null} onClose={onClose} create={{
     draft:{...draft,id:"",name:draft.operationalName,status:"INACTIVE"},fields:creationFields,editable:()=>false,createFields:fields,
     onChange:()=>{},error,title:"Tạo Running Class",path:"School / Running Class",
     onCreate:()=>{const result=validateClassDraft(draft,catalog);if(!result.ok){setError(Object.values(result.errors).join(" "));return;}try{onCreate(result.value);}catch(cause){setError(cause instanceof Error?cause.message:"Không thể tạo lớp mẫu.");}}
