@@ -1,4 +1,5 @@
 "use client";
+import "@pino/design-system/bo-tokens.css";
 // PAP-2369 · Native shared TDD, isolated preview state. No network commands.
 import { useContext,useMemo,useRef,useState,useEffect } from "react";
 import { TddRenderer } from "@/app/components/workspace-renderer/Renderer";
