@@ -43,7 +43,7 @@ export function ReadyRoles({ready,submitCreate,onVerified,nativeLifecycle=false}
  const {adapter}=ready;
  const [metadataFence]=useState(createRoleMetadataFence);
  const [metadataBinding]=useState<RoleMetadataBinding>(()=>({command:ROLE_METADATA_COMMAND,commit:createRoleMetadataClient({read:(id,signal)=>boApi.accessRole(id,(input,init)=>fetch(input,{...init,signal})),fetcher:(input,init)=>fetch(input,init),idempotencyKey:()=>crypto.randomUUID()},metadataFence)}));
- const roleMetadata:RoleMetadataPresentation|undefined=nativeLifecycle?{command:ROLE_METADATA_COMMAND,render:props=><RoleMetadataPropertyHost key={JSON.stringify([props.host,props.row.id,props.field,props.version])} {...props} schema={adapter.schema} context={adapter.context} binding={metadataBinding}/>}:undefined;
+ const roleMetadata:RoleMetadataPresentation|undefined=nativeLifecycle?{command:ROLE_METADATA_COMMAND,render:props=><RoleMetadataPropertyHost key={JSON.stringify([props.host,props.row.id,props.field,props.version])} host={props.host} row={props.row} version={props.version} field={props.field} anchor={props.anchor} onClose={props.onClose} onSaved={props.onSaved} schema={adapter.schema} context={adapter.context} binding={metadataBinding}/>}:undefined;
  const authorized=adapter.schema.capabilities.create==="access.role.create" &&
    adapter.context.authorize("access.role.view") && adapter.context.authorize("access.role.create");
  const flow=useRoleCreateFlow(authorized,submitCreate,onVerified);
