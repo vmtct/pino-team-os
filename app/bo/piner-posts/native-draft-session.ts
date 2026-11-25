@@ -9,6 +9,7 @@ import {bindNativeDraft} from "./native-draft-binding";
 import {createPrivateMediaController} from "./private-media-controller";
 import {privatePostMediaClient} from "./private-media-client";
 import {postWorkflowReadClient} from "./workflow-read-client";
+import {createNativeDiaryComposer} from "./native-diary-composer";
 import {createNativeSubmitReview} from "./native-submit-review";
 import {createWorkflowCoordinator} from "./workflow-coordinator";
 import {postWorkflowClient} from "./workflow-client";
@@ -94,11 +95,13 @@ export async function openNativeDraftSession(centerId:string,centerSource:Center
   const canMedia=(write:boolean)=>Boolean(current()&&actor.authorize("piner.post.view")&&(!write||actor.authorize("piner.post.edit")));
   const canSubmit=()=>Boolean(current()&&session.context.authorize("piner.post.view")&&session.context.authorize("piner.post.submit"));
   const submitReview=createNativeSubmitReview({centerId,canSubmit,detail:controller.detail,list:(postId,requestSignal)=>privatePostMediaClient(centerId,postId,guardedFetch).list(requestSignal),workflow});
-  return {...binding,controller,userId:principal.userId,submitReview,
+  const canCompose=()=>Boolean(current()&&session.context.authorize("piner.post.view")&&session.context.authorize("piner.post.diary.compose"));
+  const diaryComposer=createNativeDiaryComposer({centerId,canCompose,detail:controller.detail,read:workflowRead,list:(postId,requestSignal)=>privatePostMediaClient(centerId,postId,guardedFetch).list(requestSignal),workflow});
+  return {...binding,controller,userId:principal.userId,submitReview,diaryComposer,
    workflowRead,
    workflow,
    canSubmit,
-   canCompose:()=>Boolean(current()&&session.context.authorize("piner.post.view")&&session.context.authorize("piner.post.diary.compose")),
+   canCompose,
    canEditMedia:()=>Boolean(current()&&actor.authorize("piner.post.view")&&actor.authorize("piner.post.edit")),
 
    mediaController:(postId:string)=>{
