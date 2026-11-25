@@ -172,6 +172,18 @@
           "owner": "PAP-1117"
         },
         {
+          "file": "lib/ho-manual-staff-create-client.ts",
+          "owner": "PAP-2358"
+        },
+        {
+          "file": "lib/ho-manual-staff-create-flow.ts",
+          "owner": "PAP-2358"
+        },
+        {
+          "file": "lib/ho-manual-staff-readback-client.ts",
+          "owner": "PAP-2358"
+        },
+        {
           "file": "lib/workspace-adapters/session.ts",
           "owner": "PAP-1166"
         }
