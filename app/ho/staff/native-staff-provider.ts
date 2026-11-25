@@ -1,4 +1,5 @@
 // PAP-2358 · WFM-STAFF. Feature-local canonical read provider, not route-admitted.
+import { BoApiError } from "@/lib/bo-api-error";
 import type {SurfaceProvider} from "@/lib/workspace-adapters/contracts";
 import type {ManualStaffFields,ManualStaffRow} from "./manual-create-contract";
 const canonical=(v:unknown):v is string=>typeof v==="string"&&/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(v);
@@ -16,7 +17,7 @@ export function projectHoStaffRow(value:unknown,detail=false):ManualStaffRow{
      (b.status!=="active"&&b.status!=="inactive")||!text(b.roleLabel)||!instant(b.createdAt)||!instant(b.updatedAt)||
      (b.createdByUserId!==null&&!canonical(b.createdByUserId))||(b.updatedByUserId!==null&&!canonical(b.updatedByUserId)))invalid();
   const row:ManualStaffRow={id:b.id,name:b.displayLabel,status:b.status==="active"?"Đang làm":"Ngưng",role:b.roleLabel,
-    createdAt:b.createdAt,updatedAt:b.updatedAt,createdBy:b.createdByUserId,updatedBy:b.updatedByUserId,
+    createdAt:b.createdAt,updatedAt:b.updatedAt,createdBy:null,updatedBy:null, // UUID provenance is not a legitimate actor display name.
     phone:null,email:null,gender:null,birthDate:null,center:null,loginEmail:null};
   if(!detail)return row;
   if(!text(b.mobile)||!text(b.email)||!text(b.gender)||(b.birthDate!==null&&!day(b.birthDate))||!text(b.loginEmail)||!Array.isArray(b.centers))invalid();
@@ -32,7 +33,7 @@ const path="/api/ho/staff/directory";
 async function load(fetcher:typeof fetch,url:string,signal:AbortSignal):Promise<unknown>{
   const response=await fetcher(url,{method:"GET",credentials:"same-origin",cache:"no-store",redirect:"error",signal});
   signal.throwIfAborted();
-  if(!response.ok)throw Error("HO Staff read unavailable");
+  if(!response.ok)throw new BoApiError(response.status,"HO Staff read unavailable",null);
   const root=obj(await response.json());signal.throwIfAborted();
   if(!root||!exact(root,["data"]))invalid();
   return root.data;

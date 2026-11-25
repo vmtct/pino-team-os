@@ -12,7 +12,7 @@ test("list is broad and unknown role/audit stays unknown",async()=>{
   assert.equal(url,"/api/ho/staff/directory");assert.equal(init?.cache,"no-store");return Response.json({data:[base]});
  },signal);
  assert.equal(result.total,1);const row=result.records[0]!.row;
- assert.equal(row.name,base.displayLabel);assert.equal(row.role,null);assert.equal(row.email,null);assert.equal(row.updatedBy,null);assert.equal(row.createdBy,id(2));
+ assert.equal(row.name,base.displayLabel);assert.equal(row.role,null);assert.equal(row.email,null);assert.equal(row.updatedBy,null);assert.equal(row.createdBy,null);
 });
 test("detail is exact canonical record and authoritative affiliation only",async()=>{
  const result=await nativeManualStaffProvider.detail(id(1),{surface:"HO"},async(url)=>{
