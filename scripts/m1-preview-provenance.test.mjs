@@ -7,7 +7,7 @@ import { createRegistration, readAssets } from "./m1-preview-provenance.mjs";
 
 const revision="a".repeat(40);
 const spec=()=>({jiraTask:"PAP-2345",epicCode:"PLT-M1-DELIVERY",surface:"ho",sourceRevision:revision,
-  reviewUrl:"http://192.168.1.6:8800/ho/staff?m1Preview=1",fixtureId:"STAFF-MOCK-001",
+  reviewUrl:"http://desktop-isrdren:8800/ho/staff",fixtureId:"STAFF-MOCK-001",
   sourceFiles:{route:"app/ho/staff/page.tsx",renderer:"app/ho/staff/StaffManualPreview.tsx",schema:"app/ho/staff/schema.ts",fixture:"app/ho/staff/manual-create-preview.ts"}});
 const readSource=path=>Buffer.from(path);
 const assets=()=>[{path:"index.html",bytes:Buffer.from("test-only")},{path:"assets/app.js",bytes:Buffer.from("test-only javascript")}];
@@ -28,7 +28,7 @@ test("source mismatch and artifact changes are distinguishable",()=>{
   assert.notEqual(r.artifact.sha256,createRegistration(spec(),revision,readSource,a).artifact.sha256);
 });
 test("reject noncanonical routes, bad source paths and identities",()=>{
-  for(const patch of [{reviewUrl:"http://192.168.1.6:8898/ho"},{reviewUrl:"http://192.168.1.6:8800/bo"},{reviewUrl:"https://ho.staging.pinohouse.art/ho"},{fixtureId:"real-id"},{jiraTask:"unknown"},{sourceFiles:{...spec().sourceFiles,route:"app/../lib/private.ts"}}]){
+  for(const patch of [{reviewUrl:"http://192.168.1.6:8800/ho/staff"},{reviewUrl:"http://desktop-isrdren:8800/ho/staff?m1Preview=1"},{reviewUrl:"http://desktop-isrdren:8800/ho/api/private"},{reviewUrl:"http://192.168.1.6:8898/ho"},{reviewUrl:"http://192.168.1.6:8800/bo"},{reviewUrl:"https://ho.staging.pinohouse.art/ho"},{fixtureId:"real-id"},{jiraTask:"unknown"},{sourceFiles:{...spec().sourceFiles,route:"app/../lib/private.ts"}}]){
     assert.throws(()=>createRegistration({...spec(),...patch},revision,readSource,assets()));
   }
 });

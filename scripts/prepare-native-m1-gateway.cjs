@@ -27,7 +27,7 @@ function patchGateway(bytes,expected=BASE){
     '  if (nativeM1(req,res)) return;'
   ]);
   insert('  if (!clientAllowed(socket)) return socket.destroy();',[
-    '  if (isNativeRequest(req.url)) return socket.destroy();'
+    '  if (nativeM1.blocksUpgrade(req.url)) return socket.destroy();'
   ]);
   new vm.Script(text,{filename:"gateway-8800.candidate.cjs"});
   return Buffer.from(text,"utf8");
