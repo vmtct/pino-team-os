@@ -80,7 +80,7 @@ export function DirectPropertyEditor<F extends readonly FieldSchema[]>({schema,c
       </select>:
       <input {...direct} inputMode="numeric" value={value} onChange={event=>{setDraft({source:text,value:event.target.value});setError("");}}
         onBlur={()=>{if(cancelled.current){cancelled.current=false;return;}if(value!==text)void commit(value);}}
-        onKeyDown={event=>{if(event.key==="Enter"){event.preventDefault();event.currentTarget.blur();}else if(event.key==="Escape"){event.preventDefault();cancelled.current=true;setDraft({source:text,value:text});setError("");event.currentTarget.blur();}}}/>}
+        onKeyDown={event=>{if(event.key==="Enter"){event.preventDefault();event.currentTarget.blur();}else if(event.key==="Escape"){event.preventDefault();event.stopPropagation();cancelled.current=true;setDraft({source:text,value:text});setError("");event.currentTarget.blur();}}}/>}
     {saving?<span role="status">Đang lưu…</span>:null}
     {error?<span role="alert" className="pds-field-error">{error}</span>:null}
   </span>;
