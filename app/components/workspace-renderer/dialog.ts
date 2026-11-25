@@ -3,8 +3,12 @@ type Focusable = { focus(): void };
  * synchronously unmounts the popover before the outer document listener runs.
  * Reading the live DOM alone can falsely classify this Escape as a Drawer key.
  */
-export function editorOwnsDialogKey(event: Pick<KeyboardEvent, "target" | "composedPath">): boolean {
-  const selector = ".edit-popover:not(.hidden)";
+export function editorOwnsDialogKey(event: Pick<KeyboardEvent, "target" | "composedPath"> & Partial<Pick<KeyboardEvent, "key">>): boolean {
+  // PAP-1247: direct inputs cancel on Escape even if the native document
+  // listener runs before React's delegated handler. Do not steal Tab.
+  const selector = event.key === "Escape"
+    ? ".edit-popover:not(.hidden), [data-tdd-direct-field] input"
+    : ".edit-popover:not(.hidden)";
   const target = event.target as Element | null;
   if (typeof target?.closest === "function" && target.closest(selector)) return true;
   return event.composedPath().some(node => {
@@ -13,11 +17,11 @@ export function editorOwnsDialogKey(event: Pick<KeyboardEvent, "target" | "compo
   });
 }
 /** Pure event policy shared by the existing DOM lifecycle and focused contract tests. */
-export function handleDialogKey(event: { readonly key: string; readonly shiftKey: boolean; preventDefault(): void }, state: {
+export function handleDialogKey(event: { readonly key: string; readonly shiftKey: boolean; readonly defaultPrevented?: boolean; preventDefault(): void }, state: {
   readonly editorOpen: boolean; readonly first?: Focusable; readonly last?: Focusable;
   readonly active: unknown; readonly containsActive: boolean; readonly close: () => void;
 }) {
-  if (state.editorOpen) return;
+  if (state.editorOpen || (event.key === "Escape" && event.defaultPrevented)) return;
   if (event.key === "Escape") { event.preventDefault(); state.close(); }
   if (event.key === "Tab") {
     if (event.shiftKey && (state.active === state.first || !state.containsActive)) { event.preventDefault(); state.last?.focus(); }
