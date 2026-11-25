@@ -24,3 +24,14 @@ test("scope mismatch, invalid media, duplicate keys and non-ready states fail cl
 test("untrusted text is escaped",()=>{const p=fixture("house");p.posts[0].caption='<script>alert(1)</script>';assert.doesNotMatch(renderPortfolio("house","home",p),/<script>/);});
 test("house renderer rejects a ready projection for another profile",()=>{const model=fixture("house");model.profileKey="OTHER";const html=renderHtml(parseRoute("/piner/house"),getShellAdapter(),{memberChrome:chrome,portfolio:model});assert.match(html,/data-portfolio-state="no-profile"/);assert.doesNotMatch(html,/PORTFOLIO-MOCK-001/);});
 test("native combined client and style include scoped interaction code",async()=>{const {CLIENT}=await import("../src/client.mjs");const {CSS}=await import("../src/styles.mjs");assert.doesNotThrow(()=>new Function(CLIENT));assert.match(CLIENT,/showModal/);assert.match(CLIENT,/piner:select-student/);assert.match(CSS,/\.portfolio-grid/);});
+
+test("PAP-2377 single feed card parity; feedback stays in unchanged viewer and metrics are fixture-only",()=>{
+ const model=fixture("house"),post=model.posts[0];Object.assign(post,{synthetic:true,publisherLabel:"Minh An",discipline:"Hội họa",title:"Tác phẩm mẫu",reactionCount:0,commentCount:0});
+ const html=renderPortfolio("house","home",model),card=html.match(/<article class="portfolio-post">[\s\S]*?<\/article>/)[0];
+ for(const t of ["portfolio-avatar","Minh An","Hội họa","Bài mẫu","MINH HỌA","portfolio-metrics","Tác phẩm mẫu","Một buổi sáng tạo"])assert.ok(card.includes(t));
+ assert.doesNotMatch(card,/portfolio-feedback|Con phối màu tốt/);assert.match(html,/<dialog[\s\S]*Con phối màu tốt/);
+ assert.equal((card.match(/<button\b/g)||[]).length,1);
+ post.synthetic=false;assert.doesNotMatch(renderPortfolio("house","home",model),/portfolio-metrics|portfolio-illustration|Bài mẫu/);
+ const grid=renderPortfolio("house","grid",model);assert.doesNotMatch(grid,/portfolio-post-header|portfolio-metrics|portfolio-title/);
+ post.publisherLabel="<script>bad</script>";post.title="<img onerror=alert(1)>";assert.doesNotMatch(renderPortfolio("house","home",model),/<script>|<img onerror/);
+});
