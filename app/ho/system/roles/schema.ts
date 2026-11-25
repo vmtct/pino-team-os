@@ -72,6 +72,10 @@ async function roles(fetcher:typeof fetch,signal:AbortSignal):Promise<readonly R
    !(r.description===null||typeof r.description==="string")||
    typeof r.createdAt!=="string"||!Number.isFinite(Date.parse(r.createdAt))||
    typeof r.updatedAt!=="string"||!Number.isFinite(Date.parse(r.updatedAt))))throw Error("Invalid Role record");
+ // A canonical directory must have one row per role identity. Never pick the
+ // first of conflicting records when resolving a Drawer or Full Detail.
+ if(new Set(rows.map(r=>r.id.toLowerCase())).size!==rows.length ||
+    new Set(rows.map(r=>r.roleKey)).size!==rows.length)throw Error("Ambiguous Role directory identity");
  return rows.map(r=>({id:r.id,name:r.displayName,roleType:r.roleType,status:r.status,
    permissionCount:r.permissionCount,assignmentCount:r.assignmentCount,roleKey:r.roleKey,
    description:r.description??"",createdAt:r.createdAt,updatedAt:r.updatedAt,createdBy:"—",updatedBy:"—"}));
