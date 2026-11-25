@@ -22,7 +22,7 @@ export default async function Page({searchParams}:{searchParams:Promise<{m1Previ
   }
   // Canonical HO layout/authentication is still required for both providers.
   const actor=await authorizeHoShell(incoming,env);
-  if(route==="live")return <HoRolesTdd/>;
+  if(route==="live")return <HoRolesTdd nativeLifecycle/>;
   const allowed=decideM1Preview({environment:env.APP_ENV,hostname:normalizeHostname(incoming.get("host")||""),surface:"HO",requested:true,featureEnabled:true,authenticated:actor.entitled,surfaceAuthorized:true,scopeAuthorized:true,featureReviewAuthorized:actor.permissionKeys.includes("access.role.view")&&actor.permissionKeys.includes("access.role.create")});
   if(!allowed.allowed){
     // Preserve preexisting live list for a viewer without the review capability.
