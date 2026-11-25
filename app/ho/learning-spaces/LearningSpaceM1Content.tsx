@@ -82,7 +82,7 @@ export function LearningSpaceM1Content({scopeKey,permissionKeys,initialRecord,li
  const recoveryReady=!liveReadOnly||!liveWrites||recovery?.scope===scopeKey;
  const canEdit=permittedEdit&&recoveryReady;
   const [commandState,setCommandState]=useState<"idle"|"pending"|"uncertain">("idle");
- useEffect(()=>{if(!liveReadOnly||!liveWrites)return;const next=createSpaceCommandFence(client,undefined,spaceAttemptStore(scopeKey));setRecovery({scope:scopeKey,fence:next});setCommandState(next.uncertain?"uncertain":"idle");},[client,scopeKey,liveReadOnly,liveWrites]);
+ useEffect(()=>{if(!liveReadOnly||!liveWrites)return;let active=true;queueMicrotask(()=>{if(!active)return;const next=createSpaceCommandFence(client,undefined,spaceAttemptStore(scopeKey));setRecovery({scope:scopeKey,fence:next});setCommandState(next.uncertain?"uncertain":"idle");});return()=>{active=false;};},[client,scopeKey,liveReadOnly,liveWrites]);
  const readCenters=useCallback((signal:AbortSignal)=>liveReadOnly&&liveWrites&&context.authorize(SPACE_EDIT)?loadSpaceCenters(fetch,signal):Promise.resolve([]),[liveReadOnly,liveWrites,context]);
  const centerResource=useResource(readCenters);
  const finishLive=(result:Awaited<ReturnType<typeof fence.submit>>)=>{

@@ -11,3 +11,11 @@ export function learningSpaceRoute(path:string,method:string):Route|null{
  if(parts.length===2&&method==="GET"&&(parts[1]==="classes"||parts[1]==="history"))return {method,suffix,kind:"related"};
  return null;
 }
+
+/** Canonical Staging navigation state, not authorization. */
+export function parseLiveSpaceQuery(params:URLSearchParams):{record?:string}|null{
+ const keys=[...params.keys()].filter(k=>!["utm_source","utm_medium","utm_campaign","utm_term","utm_content"].includes(k));
+ if(keys.some(k=>k!=="record")||params.getAll("record").length>1)return null;
+ const record=params.get("record");
+ return record===null?{}:id.test(record)?{record}:null;
+}
