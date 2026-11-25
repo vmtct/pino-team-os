@@ -18,16 +18,19 @@ test("native Media read and edit use exact selected actor, not create capability
  const calls:{method:string;path:string}[]=[];const options={...x.options,fetcher:async(input:RequestInfo|URL,init?:RequestInit)=>{
   const url=new URL(String(input));if(!url.pathname.includes("/attachments"))return x.options.fetcher(input,init);
   calls.push({method:init?.method??"GET",path:url.pathname+url.search});
-  if(init?.method==="POST")return Response.json({data:{attachment:{id:I,state:"RESERVED",mimeType:"image/png",byteSize:1,version:1,postVersion:2,expiresAt:"2026-11-19T12:30:00Z"},committedPostVersion:2,committedAttachmentVersion:1,replayed:false}});
+  const item={id:I,state:"READY",mimeType:"image/png",byteSize:1,version:2,postVersion:3,expiresAt:"2026-11-19T12:30:00Z"};
+  if(init?.method==="POST"&&url.pathname.endsWith("/confirm"))return Response.json({data:{attachment:item,committedPostVersion:3,committedAttachmentVersion:2,replayed:false}});
+  if(init?.method==="POST")return Response.json({data:{attachment:{...item,state:"RESERVED",version:1,postVersion:2},committedPostVersion:2,committedAttachmentVersion:1,replayed:false}});
+  if(calls.length>=4)return Response.json({data:{attachments:[item],mediaCount:1,postVersion:3}});
   return Response.json({data:{attachments:[],mediaCount:0,postVersion:1}});
  }};
  const s=await openNativeDraftSession(A,"centers",signal,options);assert.equal(s.canCreate(),false);assert.equal(s.canEditMedia(),true);
- const media=s.media(P);assert.equal((await media.list(signal)).mediaCount,0);assert.equal((await media.reserve(new Blob(["x"],{type:"image/png"}),1,"post-media-command-001",signal)).attachment.id,I);
- assert.equal(calls.length,2);assert(calls.every(c=>c.path.endsWith("?centerId="+A)));s.dispose();await assert.rejects(media.list(signal));assert.equal(calls.length,2);
+ const media=s.mediaController(P);assert.equal((await media.list(signal)).mediaCount,0);assert.equal((await media.upload(new Blob(["x"],{type:"image/png"}),signal)).attachments[0]?.id,I);
+ assert.equal(calls.length,4);assert(calls.every(c=>c.path.endsWith("?centerId="+A)));s.dispose();await assert.rejects(media.list(signal));assert.equal(calls.length,4);
 });
 test("create-only cannot reserve media even with Draft view",async()=>{
  const x=setup(["piner.post.view","piner.post.create"]),s=await openNativeDraftSession(A,"centers",signal,x.options);
- assert.equal(s.canEditMedia(),false);await assert.rejects(s.media("01900000-0000-7000-8000-000000000004").reserve(new Blob(["x"],{type:"image/png"}),1,"post-media-command-001",signal));assert(!x.calls.some(p=>p.includes("/attachments")));s.dispose();
+ assert.equal(s.canEditMedia(),false);await assert.rejects(s.mediaController("01900000-0000-7000-8000-000000000004").upload(new Blob(["x"],{type:"image/png"}),signal));assert(!x.calls.some(p=>p.includes("/attachments")));s.dispose();
 });
 
 test("native Media controller is retained per post and disposed with the actor session",async()=>{const x=setup(["piner.post.view"]),s=await openNativeDraftSession(A,"centers",signal,x.options),P="01900000-0000-7000-8000-000000000004";const c=s.mediaController(P);assert.equal(s.mediaController(P),c);s.dispose();await assert.rejects(c.list(signal));assert.throws(()=>s.mediaController(P));});
@@ -72,7 +75,7 @@ test("PAP-2386 submit-only native session cannot compose and does not need creat
 
 test("PAP-2386 native coordinator retains uncertain ordered submission until exact readback",async()=>{
  const P="01900000-0000-7000-8000-000000000004",I="01900000-0000-7000-8000-000000000005",J="01900000-0000-7000-8000-000000000006";
- const x=setup(["piner.post.view","piner.post.submit"]),calls:string[]=[];
+ const x=setup(["piner.post.view","piner.post.submit","piner.post.edit"]),calls:string[]=[];
  let correct=false;
  const s=await openNativeDraftSession(A,"centers",signal,{...x.options,fetcher:async(input,init)=>{
   const path=new URL(String(input)).pathname;
@@ -84,6 +87,8 @@ test("PAP-2386 native coordinator retains uncertain ordered submission until exa
  const command={kind:"submit" as const,postId:P,attachmentIds:[I,J],expectedVersion:1,idempotencyKey:"workflow-readback-0001"};
  await assert.rejects(s.workflow.run(command,signal));
  assert.equal(await s.workflow.hasPending(signal),true);
+ await assert.rejects(s.controller.editCaption(P,1,"Changed",signal));
+ await assert.rejects(s.mediaController(P).upload(new Blob(["x"],{type:"image/png"}),signal));
  await assert.rejects(s.workflow.run(command,signal));
  await assert.rejects(s.workflow.retry({...command,attachmentIds:[J,I]},signal));
  assert.equal(calls.length,2);

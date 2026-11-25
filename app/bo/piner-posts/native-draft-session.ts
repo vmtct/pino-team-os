@@ -51,12 +51,12 @@ export async function openNativeDraftSession(centerId:string,centerSource:Center
    }
   };
   const journal=options.journal??createSessionDraftJournal(window.sessionStorage);
-  const controller=createDraftController(actor,current,guardedFetch,undefined,journal);
-  const binding=bindNativeDraft(controller,session.context);
+  const draft=createDraftController(actor,current,guardedFetch,undefined,journal);
+
   const workflowRead=postWorkflowReadClient(centerId,guardedFetch);
   const workflowScope={actorId:principal.userId,centerId,authorize:(p:string)=>session.context.authorize(p)};
   const workflowCurrent=()=>current()?workflowScope:null;
-  const workflow=createWorkflowCoordinator(workflowScope,workflowCurrent,postWorkflowClient(centerId,guardedFetch),async(receipt,requestSignal)=>{
+  const workflowCoordinator=createWorkflowCoordinator(workflowScope,workflowCurrent,postWorkflowClient(centerId,guardedFetch),async(receipt,requestSignal)=>{
    const c=receipt.command;
    if(c.kind==="submit"){
     const state=await workflowRead.submissionState(c.postId,requestSignal);
@@ -68,6 +68,28 @@ export async function openNativeDraftSession(centerId:string,centerSource:Center
    return state.provenance.some(p=>p.attachmentId===c.attachmentId&&p.diaryId===c.diaryId&&p.evidenceId===c.evidenceId&&p.transform===c.transform&&p.attachmentVersion===c.expectedAttachmentVersion);
   },journal);
   const mediaControllers=new Map<string,ReturnType<typeof createPrivateMediaController>>();
+  let active=false;
+  async function fenced<T>(kind:"draft"|"workflow"|"media",postId:string|null,requestSignal:AbortSignal,operation:()=>Promise<T>):Promise<T>{
+   requestSignal.throwIfAborted();
+   if(active)throw Error("Yêu cầu trước chưa hoàn tất.");
+   active=true;
+   try{
+    if(kind!=="draft"&&await draft.hasRetainedCommand(requestSignal))throw Error("Cần xác minh thay đổi Post trước.");
+    if(kind!=="workflow"&&await workflowCoordinator.hasPending(requestSignal))throw Error("Cần xác minh yêu cầu Post trước.");
+    if([...mediaControllers.entries()].some(([id,media])=>media.hasPending()&&(kind!=="media"||id!==postId)))throw Error("Cần xác minh ảnh trước.");
+    requestSignal.throwIfAborted();
+    return await operation();
+   }finally{active=false;}
+  }
+  const controller={...draft,
+   createDraft:(...args:Parameters<typeof draft.createDraft>)=>fenced("draft",null,args[3],()=>draft.createDraft(...args)),
+   editCaption:(...args:Parameters<typeof draft.editCaption>)=>fenced("draft",args[0],args[3],()=>draft.editCaption(...args))
+  };
+  const workflow={...workflowCoordinator,
+   run:(...args:Parameters<typeof workflowCoordinator.run>)=>fenced("workflow",args[0].postId,args[1],()=>workflowCoordinator.run(...args)),
+   retry:(...args:Parameters<typeof workflowCoordinator.retry>)=>fenced("workflow",args[0].postId,args[1],()=>workflowCoordinator.retry(...args))
+  };
+  const binding=bindNativeDraft(controller,session.context);
   const canMedia=(write:boolean)=>Boolean(current()&&actor.authorize("piner.post.view")&&(!write||actor.authorize("piner.post.edit")));
   return {...binding,controller,userId:principal.userId,
    workflowRead,
@@ -75,8 +97,21 @@ export async function openNativeDraftSession(centerId:string,centerSource:Center
    canSubmit:()=>Boolean(current()&&session.context.authorize("piner.post.view")&&session.context.authorize("piner.post.submit")),
    canCompose:()=>Boolean(current()&&session.context.authorize("piner.post.view")&&session.context.authorize("piner.post.diary.compose")),
    canEditMedia:()=>Boolean(current()&&actor.authorize("piner.post.view")&&actor.authorize("piner.post.edit")),
-   media:(postId:string)=>{if(!current()||!actor.authorize("piner.post.view"))throw new CoreDraftRequestError(403);return privatePostMediaClient(centerId,postId,guardedFetch);},
-   mediaController:(postId:string)=>{if(!canMedia(false))throw new CoreDraftRequestError(403);let media=mediaControllers.get(postId);if(!media){media=createPrivateMediaController(privatePostMediaClient(centerId,postId,guardedFetch),canMedia);mediaControllers.set(postId,media);}return media;},
+
+   mediaController:(postId:string)=>{
+    if(!canMedia(false))throw new CoreDraftRequestError(403);
+    let media=mediaControllers.get(postId);
+    if(!media){
+     const local=createPrivateMediaController(privatePostMediaClient(centerId,postId,guardedFetch),canMedia);
+     media={...local,
+      upload:(file,requestSignal)=>fenced("media",postId,requestSignal,()=>local.upload(file,requestSignal)),
+      remove:(id,requestSignal)=>fenced("media",postId,requestSignal,()=>local.remove(id,requestSignal)),
+      retry:requestSignal=>fenced("media",postId,requestSignal,()=>local.retry(requestSignal))
+     };
+     mediaControllers.set(postId,media);
+    }
+    return media;
+   },
    async personChoices(programKey:PostProgramKey,requestSignal:AbortSignal):Promise<readonly PersonChoice[]>{
     if(!binding.canCreate())throw new CoreDraftRequestError(403);
     const choices=await controller.personChoices(programKey,requestSignal);
