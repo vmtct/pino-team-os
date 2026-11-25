@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {createRoleMetadataFlow} from "../app/ho/system/roles/role-metadata-flow";
+import {createRoleMetadataFlow,createRoleMetadataClient} from "../app/ho/system/roles/role-metadata-flow";
 const row={id:"01a17d3f-8697-7080-bdf1-33e939758059",roleKey:"custom-example",roleType:"custom",status:"active",
  displayName:"Old",description:null,permissionKeys:["access.role.view"],permissionCount:1,assignmentCount:0,
  updatedAt:"2026-11-24T10:00:00.000Z"};
@@ -74,4 +74,39 @@ test("definitively rejected commands do not fence a later explicit attempt",asyn
  const flow=createRoleMetadataFlow({read:async()=>row,submit:async()=>{submits++;return "rejected";}});
  for(let i=0;i<2;i++)assert.equal((await flow(row.id,row.updatedAt,{name:"New"},signal())).status,"unavailable");
  assert.equal(submits,2);
+});
+
+test("typed metadata client submits only the reviewed field and independently reads the persisted result",async()=>{
+ let reads=0,submits=0;
+ const input={id:row.id,expectedVersion:row.updatedAt,patch:{name:" New "}};
+ const client=createRoleMetadataClient({read:async()=>++reads===1?row:fresh,idempotencyKey:()=>"pap2373-fixture-key",
+  fetcher:async(url,init)=>{
+   submits++;
+   assert.equal(url,"/api/ho/system/roles/"+row.id+"/update");
+   assert.equal(init?.method,"POST");assert.equal(init?.credentials,"same-origin");assert.equal(init?.redirect,"error");
+   assert.deepEqual(JSON.parse(String(init?.body)),{id:row.id,expectedVersion:row.updatedAt,patch:{name:"New"}});
+   assert.equal(new Headers(init?.headers).get("idempotency-key"),"pap2373-fixture-key");
+   return Response.json({data:fresh});
+  }});
+ assert.deepEqual(await client(input,signal()),{status:"saved",receipt:fresh});
+ assert.deepEqual([reads,submits],[2,1]);
+});
+test("typed metadata client does not retry or claim success on malformed or uncertain response",async()=>{
+ for(const mode of ["invalid-receipt","server-error","lost","conflict","denied"] as const){
+  let submits=0,reads=0;
+  const client=createRoleMetadataClient({read:async()=>{reads++;return row},idempotencyKey:()=>"pap2373-fixture-key",
+   fetcher:async()=>{submits++;
+    if(mode==="lost")throw Error("lost");
+    if(mode==="invalid-receipt")return Response.json({data:row});
+    return Response.json({}, {status:mode==="server-error"?503:mode==="conflict"?409:403});
+   }});
+  const input={id:row.id,expectedVersion:row.updatedAt,patch:{name:"New"}};
+  const result=await client(input,signal());
+  assert.equal(result.status,mode==="conflict"?"conflict":mode==="denied"?"unavailable":"uncertain");
+  assert.deepEqual([reads,submits],[1,1]);
+  if(result.status==="uncertain"){assert.equal((await client(input,signal())).status,"uncertain");assert.equal(submits,1);}
+  const malformed={...input,patch:{name:"New",permissionKeys:[]}};
+  assert.equal((await client(malformed,signal())).status,"invalid");
+  assert.equal(submits,1);
+ }
 });
