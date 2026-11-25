@@ -3,6 +3,40 @@
   "modules": [
     {
       "profile": "TDD_DEFAULT",
+      "surface": "HO",
+      "key": "productPlans",
+      "route": "/ho/billing/product-plans",
+      "file": "app/ho/billing/product-plans/page.tsx",
+      "files": [
+        "app/ho/billing/product-plans/page.tsx",
+        "app/ho/billing/product-plans/ProductPlanM1Content.tsx",
+        "app/ho/billing/product-plans/schema.ts",
+        "app/ho/billing/product-plans/product-plan-m1-preview.ts"
+      ],
+      "schema": {
+        "file": "app/ho/billing/product-plans/schema.ts",
+        "export": "planSchema"
+      },
+      "binding": {
+        "file": "app/ho/billing/product-plans/ProductPlanM1Content.tsx"
+      },
+      "tests": [
+        "lib/pap2183-product-plan-native.test.ts",
+        "app/ho/billing/product-plans/product-plan-m1-preview.test.ts",
+        "lib/ho-routes.test.ts"
+      ],
+      "externalReferences": [
+        {
+          "file": "lib/host-boundary.ts",
+          "owner": "PAP-1169"
+        },
+        {"file":"app/ho/HoWorkspace.tsx","owner":"PAP-990"},
+        {"file":"lib/ho-routes.ts","owner":"PAP-990"},
+        {"file":"lib/ho-system.ts","owner":"PAP-1153"}
+      ]
+    },
+    {
+      "profile": "TDD_DEFAULT",
       "surface": "BO",
       "key": "classroom-diaries",
       "route": "/bo/classroom-diaries",
@@ -122,7 +156,13 @@
         "app/ho/system/roles/page.tsx",
         "app/ho/system/roles/HoRolesTdd.tsx",
         "app/ho/system/roles/HoRoleEditor.tsx",
-        "app/ho/system/roles/schema.ts"
+        "app/ho/system/roles/role-editor-receipt.ts",
+        "app/ho/system/roles/schema.ts",
+        "app/ho/system/roles/RoleLifecycleForms.tsx",
+        "app/ho/system/roles/role-lifecycle-model.ts",
+        "app/ho/system/roles/useRoleCreateFlow.ts",
+        "app/ho/system/roles/RoleM1Preview.tsx",
+        "app/ho/system/roles/role-m1-preview.ts"
       ],
       "externalReferences": [
         {
@@ -156,6 +196,10 @@
       },
       "tests": [
         "lib/pap1169-ho-role-edit.test.ts",
+        "lib/pap2373-role-editor-receipt.test.ts",
+        "lib/pap2373-role-metadata-flow.test.ts",
+        "lib/pap2192-role-lifecycle-model.test.ts",
+        "lib/pap2192-role-m1.test.ts",
         "lib/host-boundary.test.ts"
       ]
     },
@@ -951,6 +995,9 @@
         "app/bo/piner-posts/draft-retry-journal.ts",
         "app/bo/piner-posts/native-draft-binding.ts",
         "app/bo/piner-posts/native-draft-session.ts",
+        "app/bo/piner-posts/post-preview-navigation.ts",
+        "app/bo/piner-posts/post-preview-session.ts",
+        "app/bo/piner-posts/post-preview-photos.ts",
         "app/bo/piner-posts/page.tsx",
         "app/bo/piner-posts/schema.ts",
         "app/bo/piner-posts/NativePrivateMediaPanel.tsx",
@@ -986,6 +1033,7 @@
         "lib/pap2173-private-media-handler.test.ts"
       ],
       "externalReferences": [
+        {"file":"app/bo/content/posts/BoPostSubmitShell.tsx","owner":"PAP-2337"},
           {
             "file": "lib/ho-routes.ts",
             "owner": "PAP-1221"

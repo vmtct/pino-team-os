@@ -1,12 +1,12 @@
 "use client";
 import { FormEvent, useEffect, useState } from "react";
 import styles from "../../staff-login/staff-login.module.css";
-import { safeHoReturnTo, HO_HOME_PATH } from "@/lib/ho-routes";
+import { hoStagingReturnFromSearch, hoStagingAuthPath, HO_HOME_PATH } from "@/lib/ho-routes";
 import { BO_STAGING_RETURN_HOST, boStagingReturnFromSearch, boStagingAuthContinuation } from "@/lib/bo-staging-return-to";
 
-function homePath() { if (window.location.hostname === "ho.staging.pinohouse.art") return safeHoReturnTo(new URLSearchParams(window.location.search).get("returnTo")) ?? HO_HOME_PATH; if (window.location.hostname === BO_STAGING_RETURN_HOST) return boStagingReturnFromSearch(window.location.search) ?? "/bo"; return window.location.hostname === "bo.pinohouse.art" ? "/bo" : "/dashboard"; }
+function homePath() { if (window.location.hostname === "ho.staging.pinohouse.art") return hoStagingReturnFromSearch(window.location.search) ?? HO_HOME_PATH; if (window.location.hostname === BO_STAGING_RETURN_HOST) return boStagingReturnFromSearch(window.location.search) ?? "/bo"; return window.location.hostname === "bo.pinohouse.art" ? "/bo" : "/dashboard"; }
 
-function loginPath() { return window.location.hostname === BO_STAGING_RETURN_HOST ? boStagingAuthContinuation("/staff-login",window.location.search) : "/staff-login"; }
+function loginPath() { return window.location.hostname === BO_STAGING_RETURN_HOST ? boStagingAuthContinuation("/staff-login",window.location.search) : window.location.hostname === "ho.staging.pinohouse.art" ? hoStagingAuthPath("/staff-login",hoStagingReturnFromSearch(window.location.search)) : "/staff-login"; }
 
 export default function StaffPasswordChange() {
   const [password, setPassword] = useState("");

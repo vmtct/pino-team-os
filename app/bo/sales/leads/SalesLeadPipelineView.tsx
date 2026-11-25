@@ -9,7 +9,6 @@ import { boApi, BoApiError, type BoAcquisitionCreateInput, type BoAcquisitionInt
 import { boDataGridRange } from "@/lib/bo-data-grid-state";
 import { isIntentDetailCurrent, resolveActionBoundIntentId, shouldRestoreActionBoundIntent } from "@/lib/bo-lead-action-binding";
 import styles from "./sales-leads.module.css";
-import { LeadHouseholdM1Preview } from "./LeadHouseholdM1Preview";
 
 type Load<T> = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; data: T };
 type DetailLoad = { state: "loading"; intentId: string } | { state: "error"; intentId: string; message: string } | { state: "ready"; intentId: string; data: BoAcquisitionIntent };
@@ -328,10 +327,8 @@ function SalesLeadIntentPipelineView() {
   );
 }
 
-export function SalesLeadPipelineView({ allowM1Preview = false, forceM1Preview = false }: { allowM1Preview?: boolean; forceM1Preview?: boolean }) {
-  const searchParams = useSearchParams();
-  const previewEnabled = forceM1Preview || ((allowM1Preview || process.env.NODE_ENV === "development") && searchParams.get("m1Preview") === "1");
-  return previewEnabled ? <LeadHouseholdM1Preview /> : <SalesLeadIntentPipelineView />;
+export function SalesLeadPipelineView() {
+  return <SalesLeadIntentPipelineView />;
 }
 function compareLeadRows(left: BoAcquisitionIntent, right: BoAcquisitionIntent, key: string) {
   if (key === "contact") return left.phone.localeCompare(right.phone) || left.id.localeCompare(right.id);

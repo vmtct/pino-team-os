@@ -34,12 +34,42 @@ export function safeBoStagingReturnTo(raw:string|null|undefined):string|null{
   if(moduleKey==="salaryPeriods"){path="/bo/payroll-periods";p.delete("module");}
  }else if(moduleKey!==null)return null;
  if(path!=="/bo"&&!isBoStagingRouteAdmitted(path))return null;
+ // PAP-2286: canonical Lead fixture continuation; old preview links normalize. Navigation only, not authorization.
+ const posts=path==="/bo/piner-posts";
+ if(posts&&p.has("m1Preview")){
+  if(p.get("m1Preview")!=="1")return null;
+  for(const k of p.keys())if(!["m1Preview","centerId","record","tab"].includes(k))return null;
+  const center=p.get("centerId"),record=p.get("record"),tab=p.get("tab");
+  if(center&&!uuid.test(center)||record&&!/^POST-MOCK-[0-9]{3,}$/.test(record)||tab&&(!record||!["overview","media","history"].includes(tab)))return null;
+  const out=new URLSearchParams();for(const k of ["centerId","record","tab"])if(p.has(k))out.set(k,p.get(k)!);
+  return path+(out.size?"?"+out.toString():"");
+ }
+ const leads=path==="/bo/sales/leads";
+ if(p.has("m1Preview")||(leads&&(p.has("lead")||p.has("quickView")))){
+  if(p.has("m1Preview")&&(p.get("m1Preview")!=="1"||!leads))return null;
+  for(const k of p.keys()){
+   if(k==="m1Preview")continue;
+   if(k==="centerId"){if(!uuid.test(p.get(k)!))return null;continue;}
+   if(!leads||!["lead","quickView","tab"].includes(k))return null;
+   if(k!=="tab"&&!/^LEAD-MOCK-[0-9]{3,}$/.test(p.get(k)!))return null;
+  }
+  if(p.has("lead")&&p.has("quickView"))return null;
+  if(p.has("tab")&&(!p.has("lead")||!["detail","members","relationships","history"].includes(p.get("tab")!)))return null;
+  if(leads)p.delete("m1Preview");
+  return path+(p.size?"?"+p.toString():"");
+ }
  const key=path==="/bo"?moduleKey??"students":path.split("/")[2]!;
  const sub=key==="subscriptions",period=key==="payroll-periods",event=key==="pinoria-wish-events";
  for(const k of p.keys()){
   const v=p.get(k)!;
   if(k==="module"&&path==="/bo")continue;
-  if(!general.has(k)&&!(sub&&["specialtyRecord","studentId"].includes(k))&&!(period&&payroll.has(k))&&!(event&&wish.has(k)))return null;
+  // The shared grid URL writer uses q/dir/size/f_<field>; these are bounded presentation hints.
+  const grid=k==="q"||k==="dir"||k==="size"||(/^f_[A-Za-z][A-Za-z0-9_]{0,63}$/.test(k)&&!["f_constructor","f_prototype"].includes(k));
+  const leadIntent=path==="/bo/sales/leads"&&k==="leadIntent";
+  if(!general.has(k)&&!grid&&!leadIntent&&!(sub&&["specialtyRecord","studentId"].includes(k))&&!(period&&payroll.has(k))&&!(event&&wish.has(k)))return null;
+  if(k==="dir"&&v!=="asc"&&v!=="desc")return null;
+  if(k==="size"&&(!/^[1-9]\d{0,2}$/.test(v)||Number(v)>100))return null;
+  if(leadIntent&&!uuid.test(v))return null;
   if(k==="centerId"&&!uuid.test(v))return null;
   if(k==="record"&&(sub||period||event||key==="enrollments"?!uuid.test(v):!id.test(v)))return null;
   if(["specialtyRecord","studentId","incomeStaff","incomeException","incomeDrawer"].includes(k)&&!uuid.test(v))return null;

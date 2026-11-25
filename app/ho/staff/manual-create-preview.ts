@@ -5,7 +5,7 @@ import type { ManualStaffRow, StaffCenterOption, StaffCreateCommand } from "./ma
 export type StaffPreviewRecord = ManualStaffRow & PreviewRecord;
 export const staffPreviewCenter: StaffCenterOption = { id: "m1-staff-center", label: "PINO Cần Thơ · M1" };
 export const staffPreviewSeed: StaffPreviewRecord = {
-  id: "STAFF-MOCK-001", fixture: true, name: "Nhân sự mẫu M1", phone: "0900000001", email: null, gender: null, birthDate: null,
+  id: "STAFF-MOCK-001", fixture: true, name: "Nhân sự mẫu M1", phone: "0900000001", email: "staff-m1@example.invalid", gender: null, birthDate: null,
   center: staffPreviewCenter.label, status: "Đang làm", role: "Staff", loginEmail: null,
   createdAt: null, createdBy: null, updatedAt: null, updatedBy: null,
 };

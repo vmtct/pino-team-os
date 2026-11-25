@@ -5,7 +5,7 @@ import {TddRegistry,allows,type ApprovalVerifier,type AuthorizationContext,type 
 import {postDefinition,postFields,postQuery} from "./schema";
 import type {createDraftController} from "./draft-controller";
 import {CoreDraftRequestError} from "./core-draft-client";
-type Controller=ReturnType<typeof createDraftController>;
+type Controller=Pick<ReturnType<typeof createDraftController>,"centerId"|"list"|"detail"|"editCaption">;
 export const draftFields=postFields.map(f=>f.key==="caption"?{
  ...f,permission:"piner.post.view",readOnly:false,capabilities:{...f.capabilities,inlineEdit:true},validation:{maxLength:2000}
  } as const:{...f,permission:"piner.post.view"} as const);

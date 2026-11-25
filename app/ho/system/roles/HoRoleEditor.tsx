@@ -3,6 +3,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { PropertySections, TosCard, TosButton, type PropertyField } from "@pino/design-system/react";
 import type { BoAccessPermission, BoAccessRoleDetail } from "@/lib/bo-access-model";
 import { boApi } from "@/lib/bo-api";
+import {verifiedExistingRoleEdit} from "./role-editor-receipt";
+import {ArchiveCustomRoleAction} from "./RoleLifecycleForms";
+import {canArchiveRole,verifyArchivedRole} from "./role-lifecycle-model";
 
 // PAP-1507 / PLT-ACCESS: module-owned, presentation-only helpers.
 export function groupSelectionState(selectedKeys:readonly string[],visibleKeys:readonly string[]):"none"|"mixed"|"all" {
@@ -75,8 +78,8 @@ function fromRole(role:BoAccessRoleDetail):Draft {
   return {displayName:role.displayName,description:role.description??"",keys:sorted(role.permissionKeys)};
 }
 /** HO-specific editing surface; TDD owns navigation, DS owns cards and property rows. */
-export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, onSaved }: {
-  roleId:string; assignmentCount:number; authorized:boolean; activeTab:string; onSaved:()=>void;
+export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, onSaved, archiveAuthorized=false }: {
+  roleId:string; assignmentCount:number; authorized:boolean; activeTab:string; onSaved:()=>void; archiveAuthorized?:boolean;
 }) {
   const [data,setData]=useState<Ready|null>(null);
   const [draft,setDraft]=useState<Draft|null>(null);
@@ -162,9 +165,7 @@ export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, o
       if(!response.ok)throw Error("Không lưu được Role. Vui lòng kiểm tra lại.");
       const controller=new AbortController();
       const next=await loadRole(roleId,controller.signal);
-      if(next.role.displayName!==wanted.displayName ||
-        (next.role.description?.trim()||null)!==wanted.description ||
-        !same(next.role.permissionKeys,wanted.permissionKeys))
+      if(!verifiedExistingRoleEdit(current,wanted,next.role))
         throw Error("Core đã nhận yêu cầu nhưng chưa xác nhận được dữ liệu mới. Vui lòng tải lại Role.");
       setData(next);setDraft(fromRole(next.role));setConfirming(false);
       // Refresh the canonical TDD record/directory only after authoritative Core readback.
@@ -172,6 +173,26 @@ export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, o
       setNotice("Đã lưu và xác minh Role trên Core.");
     }catch(cause){setError(cause instanceof Error?cause.message:"Không lưu được Role.");}
     finally{setBusy(false);lock.current=false;}
+  }
+  async function archiveReviewed(id:string,expectedUpdatedAt:string):Promise<unknown>{
+    if(!archiveAuthorized||lock.current||busy||dirty||!original||id!==original.id||
+      expectedUpdatedAt!==original.updatedAt||!canArchiveRole(original))throw Error("Role archive unavailable");
+    lock.current=true;setBusy(true);setError("");setNotice("");
+    try{
+      const response=await fetch("/api/ho/system/roles/"+encodeURIComponent(id)+"/archive",{
+        method:"POST",credentials:"same-origin",cache:"no-store",redirect:"error",
+        headers:{"content-type":"application/json","idempotency-key":crypto.randomUUID()},
+        body:JSON.stringify({expectedUpdatedAt}),
+      });
+      if(response.status!==200)throw Error("Role archive not verified");
+      const payload:unknown=await response.json();
+      if(!payload||typeof payload!=="object"||!("data" in payload)||!verifyArchivedRole(original,payload.data))
+        throw Error("Role archive not verified");
+      const next=await loadRole(id,new AbortController().signal);
+      if(!verifyArchivedRole(original,next.role))throw Error("Role archive readback mismatch");
+      setData(next);setDraft(fromRole(next.role));setConfirming(false);onSaved();
+      return next.role;
+    }finally{lock.current=false;setBusy(false);}
   }
   if(loading)return <p role="status">Đang tải chi tiết và danh mục quyền…</p>;
   if(!data||!draft)return <p role="alert">{error||"Không tải được Role."}</p>;
@@ -208,6 +229,7 @@ export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, o
     }} sections={[{id:"role-identity",label:"Thông tin kỹ thuật",fields:identityFields.map(f=>f.key)}]}
       variant="detail" surface="ho" />
     </div>
+    {archiveAuthorized&&original?<ArchiveCustomRoleAction role={original} label={original.displayName} onArchive={!dirty&&!busy?archiveReviewed:undefined}/>:null}
     </div>
     <div hidden={activeTab!=="permissions"}>
     <TosCard className="ho-role-card ho-role-permission-card">
