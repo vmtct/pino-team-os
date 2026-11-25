@@ -1,5 +1,6 @@
 // PAP-1943 / PNR-APP-HUB — brand and geometry follow approved authoritative i5 Piner prototype.
 import {PROGRAMS,TABS,routeFor,assertFailClosed} from "./adapter.mjs";
+import {renderPortfolio} from "./portfolio-view.mjs";
 const PINO="https://assets.pinohouse.art/site/core/Pino%20Sigil.png";
 const WORDMARK="/piner_app_logo_no_yellow_transparent.png";
 const h=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -16,7 +17,7 @@ function launch(chrome){
  '</nav>'+(chrome?'<div class="member-actions"><button type="button" data-sign-out>Đăng xuất</button></div>':"")+'<p class="launch-note">Piner APP · Không gian sáng tạo của bạn</p></main>';
 }
 function icon(tab){return {home:"⌂",grid:"▦",reels:"▶",community:"◌"}[tab];}
-function member(space,tab,adapter,afterschoolLoginAvailable,chrome){
+function member(space,tab,adapter,afterschoolLoginAvailable,chrome,portfolio){
  assertFailClosed(adapter);
  const program=PROGRAMS[space];
  const tabLabel={home:"Bảng tin",grid:"Bộ sưu tập",reels:"Reels",community:"Cộng đồng"}[tab];
@@ -26,7 +27,8 @@ function member(space,tab,adapter,afterschoolLoginAvailable,chrome){
  const skeleton=tab==="grid"?'<div class="grid-skeleton" aria-hidden="true"><i></i><i></i><i></i><i></i></div>':
   tab==="reels"?'<div class="reel-skeleton" aria-hidden="true"></div>':'<div class="post-skeleton" aria-hidden="true"><div class="skeleton-heading"></div><div class="skeleton-picture"></div><div class="skeleton-caption"></div></div>';
  const memberNotice=chrome?'<div class="empty-state" data-adapter-state="empty"><span class="empty-art" aria-hidden="true">◇</span><strong>'+(space==="mytime"?"MyTime by PINO":tabLabel)+'</strong><p>'+(space==="mytime"?"Chưa kết nối tài khoản MyTime.":chrome.studentState==="error"?"Chưa tải được danh sách học viên. Vui lòng thử lại.":"Chưa có nội dung được kết nối.")+'</p></div>':notice;
- const content='<div class="feed-inner">'+(tab==="community"?"":'<h1>'+h(tabLabel)+'</h1>')+memberNotice+(chrome?"":skeleton+skeleton)+'<p class="ending">Đang chuẩn bị '+h(program.label)+'</p></div>';
+ const portfolioContent=chrome?renderPortfolio(space,tab,portfolio):null;
+ const content='<div class="feed-inner">'+(tab==="community"?"":'<h1>'+h(tabLabel)+'</h1>')+(portfolioContent??(memberNotice+(chrome?"":skeleton+skeleton)))+'<p class="ending">Đang chuẩn bị '+h(program.label)+'</p></div>';
  const students=chrome&&space==="house"?chrome.students:[];
  const selected=students.find(s=>s.id===chrome?.selectedId)??(students.length===1?students[0]:null);
  const label=chrome?(space==="mytime"?"Tài khoản":selected?h(selected.label):"Chọn học viên"):(space==="house"?"Chọn hồ sơ":"Tài khoản");
@@ -43,7 +45,7 @@ function member(space,tab,adapter,afterschoolLoginAvailable,chrome){
  '<nav class="bottom-nav" data-piner-shared="bottom-nav" aria-label="Điều hướng Piner APP">'+nav+'</nav></section>';
 }
 // PAP-2194 presentation only: public worker never supplies memberChrome.
-export function renderHtml(route,adapter,{afterschoolLoginAvailable=false,memberChrome=null}={}){
+export function renderHtml(route,adapter,{afterschoolLoginAvailable=false,memberChrome=null,portfolio=null}={}){
  assertFailClosed(adapter);
  const chrome=memberChrome&&Array.isArray(memberChrome.students)?memberChrome:null;
  const title=route.kind==="launcher"?"Piner APP · PINO Afterschool + MyTime by PINO":PROGRAMS[route.space].label+" · Piner APP";
@@ -53,7 +55,7 @@ export function renderHtml(route,adapter,{afterschoolLoginAvailable=false,member
  '<meta name="theme-color" content="#faf8f3"><meta name="robots" content="noindex,nofollow"><link rel="icon" href="data:,">',
  '<title>'+h(title)+'</title><meta name="description" content="Piner APP — PINO Afterschool và MyTime by PINO.">',
  '<link rel="stylesheet" href="/piner-shell.css?v=pap2194">',
- '</head><body><div class="backdrop"><div class="phone'+(route.kind==="launcher"?" launch-phone":"")+'" data-piner-shell="pap1943" data-runtime="fe-only"'+(chrome?' data-member-chrome="true"':"")+(chrome?.runtime?' data-member-session="true"':"")+'>'+(route.kind==="launcher"?launch(chrome):member(route.space,route.tab,adapter,afterschoolLoginAvailable,chrome))+'</div></div>',
+ '</head><body><div class="backdrop"><div class="phone'+(route.kind==="launcher"?" launch-phone":"")+'" data-piner-shell="pap1943" data-runtime="fe-only"'+(chrome?' data-member-chrome="true"':"")+(chrome?.runtime?' data-member-session="true"':"")+'>'+(route.kind==="launcher"?launch(chrome):member(route.space,route.tab,adapter,afterschoolLoginAvailable,chrome,portfolio))+'</div></div>',
  '<script defer src="/piner-shell.js?v=pap2194"></script></body></html>'
  ].join("");
 }
