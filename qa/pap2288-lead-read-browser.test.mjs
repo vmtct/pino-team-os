@@ -26,12 +26,19 @@ const member={id:c,status:"ACTIVE",version:1,displayName:"Synthetic Student",int
 const intent={id:c,kind:"GENERAL_INQUIRY",sourceBrand:"PINO_HOUSE",sourceSurface:"STAFF",status:"SUBMITTED",createdAt:"2026-11-25T00:00:00Z",version:1};
 window.syntheticCommandCalls=[];
 const household=[member];const newMemberId="01a03c6e-cc58-7d81-ac8e-123456789abf";
+const relationships=[];const relationshipId="01a03c6e-cc58-7d81-ac8e-123456789ac1";
+if(new URLSearchParams(location.search).has("relations")){const parent={...member,id:"01a03c6e-cc58-7d81-ac8e-123456789ac0",displayName:"Synthetic Parent",intendedRoles:["PARENT"],birthPrecision:"UNKNOWN",birthYear:null,interestKinds:[]};household.push(parent);rows[0].primaryContactMemberId=parent.id;rows[0].memberCount=2;}
+function relationReceipt(row){row.version++;return {leadId:row.id,version:row.version,relationshipId};}
 function target(id,version){const row=rows.find(r=>r.id===id);if(!row||row.version!==version)throw new LeadApiError(409,"CONFLICT",null);return row;}
 function childReceipt(row,memberId){row.version++;row.memberCount=household.length;return {leadId:row.id,version:row.version,memberId};}
 const api={
  async search(input){if(input.q==="deny")throw new LeadApiError(403,"DENIED",null);if(input.q==="empty")return {items:[],hasMore:false,nextCursor:null};return input.cursor?{items:[rows[1]],hasMore:false,nextCursor:null}:{items:[rows[0]],hasMore:true,nextCursor:"next"}},
- async detail(id){const row=rows.find(r=>r.id===id);if(!row)throw new LeadApiError(404,"NOT_FOUND",null);return {...row,members:structuredClone(household),relationships:[],intents:[],intentHistoryHasMore:false}},
+ async detail(id){const row=rows.find(r=>r.id===id);if(!row)throw new LeadApiError(404,"NOT_FOUND",null);return {...row,members:structuredClone(household),relationships:structuredClone(relationships),intents:[],intentHistoryHasMore:false}},
  async history(){return {items:[intent],hasMore:false,nextCursor:null}},
+ async addRelation(id,version,relationship,key){const row=target(id,version);window.syntheticCommandCalls.push({kind:"addRelation",id,version,relationship,key});relationships.push({...relationship,id:relationshipId,status:"DECLARED",version:1});return relationReceipt(row)},
+ async updateRelation(id,relationshipId,version,relationship,key){const row=target(id,version);window.syntheticCommandCalls.push({kind:"updateRelation",id,relationshipId,version,relationship,key});const r=relationships.find(r=>r.id===relationshipId&&r.status==="DECLARED");if(!r)throw new LeadApiError(409,"CONFLICT",null);Object.assign(r,relationship,{version:r.version+1});return relationReceipt(row)},
+ async confirmRelation(id,relationshipId,version,key){const row=target(id,version);window.syntheticCommandCalls.push({kind:"confirmRelation",id,relationshipId,version,key});const r=relationships.find(r=>r.id===relationshipId&&r.status==="DECLARED");if(!r)throw new LeadApiError(409,"CONFLICT",null);r.status="CONFIRMED";r.version++;return relationReceipt(row)},
+ async retireRelation(id,relationshipId,version,key){const row=target(id,version);window.syntheticCommandCalls.push({kind:"retireRelation",id,relationshipId,version,key});const i=relationships.findIndex(r=>r.id===relationshipId);if(i<0)throw new LeadApiError(404,"NOT_FOUND",null);relationships.splice(i,1);return relationReceipt(row)},
  async updateMember(id,memberId,version,member,key){const row=target(id,version);window.syntheticCommandCalls.push({id,memberId,version,member,key});const child=household.find(m=>m.id===memberId);if(!child)throw new LeadApiError(404,"NOT_FOUND",null);Object.assign(child,member,{version:child.version+1});return childReceipt(row,memberId)},
  async primary(id,version,memberId,key){const row=target(id,version);window.syntheticCommandCalls.push({id,memberId,version,key});row.primaryContactMemberId=memberId;return childReceipt(row,memberId)},
  async addMember(id,version,member,key){const row=target(id,version);window.syntheticCommandCalls.push({id,version,member,key});household.push({...member,id:newMemberId,status:"ACTIVE",version:1,ageObservedAt:null});return childReceipt(row,newMemberId)},
@@ -138,6 +145,33 @@ test("PAP-2288 mounted member commands preserve declaration precision and acquis
   await page.getByRole("button",{name:"＋ Thêm thành viên",exact:true}).click();await updated.waitFor();
   const remove=page.getByRole("button",{name:"Gỡ New Guest",exact:true});await remove.waitFor();await remove.click();await updated.waitFor();assert.equal(await remove.count(),0);
   log=await calls();assert.equal(log.length,7);assert.deepEqual(log.map(x=>x.version),[1,2,3,4,5,6,7]);assert.ok(log.every(x=>x.id===a));assert.equal(log[1].memberId,c);assert.equal(log[2].memberId,null);assert.deepEqual(log[5].member.intendedRoles,["GUEST"]);assert.equal(log[5].member.birthPrecision,"UNKNOWN");
+  await page.getByText("Lịch sử",{exact:true}).click();await page.getByText("Tư vấn chung",{exact:true}).waitFor();assert.deepEqual(errors,[]);
+ }finally{await browser.close();}
+});
+
+test("PAP-2288 mounted directed relationship declaration lifecycle",async()=>{
+ const browser=await chromium.launch();
+ try{
+  const page=await browser.newPage();page.setDefaultTimeout(12000);
+  const errors=[];page.on("pageerror",e=>errors.push(e.message));
+  await page.route("**/*",r=>r.request().isNavigationRequest()&&new URL(r.request().url()).hostname==="fixture.invalid"?r.fulfill({contentType:"text/html",body:"<main></main>"}):r.abort());
+  await page.goto("https://fixture.invalid/bo/sales/leads?lead="+a+"&tab=relationships&commands=1&relations=1");await page.addScriptTag({content:js});
+  const parent="01a03c6e-cc58-7d81-ac8e-123456789ac0",relation="01a03c6e-cc58-7d81-ac8e-123456789ac1";
+  const updated=page.getByText("Đã tải lại thông tin Lead.",{exact:true});
+  await page.getByRole("combobox",{name:"Parent mới",exact:true}).selectOption(parent);
+  await page.getByRole("combobox",{name:"Thành viên liên kết mới",exact:true}).selectOption(c);
+  await page.getByRole("combobox",{name:"Quan hệ mới",exact:true}).selectOption("Mẹ");
+  await page.getByRole("button",{name:"＋ Thêm quan hệ",exact:true}).click();await updated.waitFor();
+  const label=page.getByRole("combobox",{name:"Quan hệ "+relation,exact:true});await label.waitFor();assert.equal(await label.inputValue(),"Mẹ");
+  await label.selectOption("Người giám hộ");await updated.waitFor();assert.equal(await label.inputValue(),"Người giám hộ");
+  await page.getByRole("button",{name:"Xác nhận khai báo "+relation,exact:true}).click();await updated.waitFor();
+  await page.getByText("Đã xác nhận khai báo",{exact:true}).waitFor();assert.equal(await label.isDisabled(),true);
+  await page.getByText("Thành viên",{exact:true}).first().click();
+  const retireChild=page.getByRole("button",{name:"Gỡ Synthetic Student",exact:true});await retireChild.waitFor();assert.equal(await retireChild.isDisabled(),true);
+  await page.getByText("Quan hệ",{exact:true}).first().click();
+  const retire=page.getByRole("button",{name:"Gỡ quan hệ "+relation,exact:true});await retire.click();await updated.waitFor();assert.equal(await retire.count(),0);
+  const log=await page.evaluate(()=>window.syntheticCommandCalls);
+  assert.deepEqual(log.map(x=>x.version),[1,2,3,4]);assert.ok(log.every(x=>x.id===a));assert.deepEqual(log[0].relationship,{fromMemberId:parent,toMemberId:c,relationLabel:"Mẹ"});assert.equal(log[1].relationship.relationLabel,"Người giám hộ");assert.ok(log.slice(1).every(x=>x.relationshipId===relation));assert.deepEqual(log.map(x=>x.kind),["addRelation","updateRelation","confirmRelation","retireRelation"]);
   await page.getByText("Lịch sử",{exact:true}).click();await page.getByText("Tư vấn chung",{exact:true}).waitFor();assert.deepEqual(errors,[]);
  }finally{await browser.close();}
 });
