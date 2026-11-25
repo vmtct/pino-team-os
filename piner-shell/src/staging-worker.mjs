@@ -3,6 +3,7 @@
 import base from "./worker.mjs";
 import {parseRoute} from "./adapter.mjs";
 import {readMemberChrome} from "./member-session.mjs";
+import {readStaticReviewPortfolio} from "./static-review-portfolio.mjs";
 const PIN_ROUTES = new Map([
   ["/api/piner/afterschool/pin/login", "POST"],
   ["/api/piner/afterschool/pin/change", "POST"],
@@ -60,9 +61,10 @@ export default {
       const forwarded = isCanonicalLogin && allowedMethods.includes(request.method)
         ? new Request(new URL(INTERNAL_LOGIN_PATH, request.url), request)
         : request;
+      const portfolio = shellRead && memberChrome ? await readStaticReviewPortfolio(request, env, memberChrome) : null;
       response = allowedMethods
         ? await forwardAfterschoolPin(forwarded, env?.AFTERSCHOOL_PIN_WORKER, allowedMethods)
-        : isPinRoute ? new Response(null, { status: 404 }) : await base.fetch(request, env, ctx, { afterschoolLoginAvailable: typeof env?.AFTERSCHOOL_PIN_WORKER?.fetch === "function", memberChrome });
+        : isPinRoute ? new Response(null, { status: 404 }) : await base.fetch(request, env, ctx, { afterschoolLoginAvailable: typeof env?.AFTERSCHOOL_PIN_WORKER?.fetch === "function", memberChrome, portfolio });
     }
     const headers = new Headers(response.headers);
     headers.set("X-Piner-Environment", "staging");

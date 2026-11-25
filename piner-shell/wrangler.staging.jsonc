@@ -5,6 +5,7 @@
   "compatibility_date": "2026-11-13",
   "workers_dev": true,
   "observability": { "enabled": true },
+  "vars": { "APP_ENV": "staging", "PINER_SYNTHETIC_REVIEW_ENABLED": "false" },
   "services": [
     { "binding": "AFTERSCHOOL_PIN_WORKER", "service": "piner-space-staging" },
     { "binding": "PINER_SYNTHETIC_REVIEW", "service": "piner-space-staging", "entrypoint": "PinerSyntheticReviewControlPlane" }
