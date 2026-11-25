@@ -6,7 +6,8 @@
   "workers_dev": true,
   "observability": { "enabled": true },
   "services": [
-    { "binding": "AFTERSCHOOL_PIN_WORKER", "service": "piner-space-staging" }
+    { "binding": "AFTERSCHOOL_PIN_WORKER", "service": "piner-space-staging" },
+    { "binding": "PINER_SYNTHETIC_REVIEW", "service": "piner-space-staging", "entrypoint": "PinerSyntheticReviewControlPlane" }
   ],
   "r2_buckets": [
     { "binding": "PINER_BRAND_R2", "bucket_name": "app-piner" }
