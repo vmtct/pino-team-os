@@ -1,3 +1,4 @@
+import {PORTFOLIO_CSS} from "./portfolio-styles.mjs";
 export const CSS=String.raw`
 :root{color-scheme:light;--ink:#283241;--muted:#647077;--canvas:#faf8f3;--edge:#eae8e2;--mint:#eefaf6;--warm:#fffaf3}
 *{box-sizing:border-box}
@@ -160,4 +161,4 @@ button,a{-webkit-tap-highlight-color:transparent}
 [data-member-session] [data-member-status]{font-size:12px;color:#805a7b;margin:4px 8px}
 [data-member-session] [data-member-status]:empty{display:none}
 
-`;
+`+PORTFOLIO_CSS;
