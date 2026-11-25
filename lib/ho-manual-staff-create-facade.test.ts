@@ -32,7 +32,7 @@ test("opt-in receipt requires both account IDs and matching branch",()=>{
  assert.equal(parseHoManualStaffReceipt({data:{...account,assignmentId:null}},id(1),true),null);
 });
 
-import { handleHoManualStaffCreate, handleHoManualStaffReceipt, type HoManualStaffCreateEnv } from "./ho-manual-staff-create-facade";
+import { handleHoManualStaffCreate, handleHoManualStaffReceipt, handleHoManualStaffDirectory, type HoManualStaffCreateEnv } from "./ho-manual-staff-create-facade";
 import { HO_STAGING_HOSTNAME } from "./host-boundary";
 import type { BoAccessRequest } from "./bo-core";
 
@@ -102,5 +102,29 @@ test("receipt BFF rejects unauthorized requests, extra profile and malformed his
  const f=bindingFixture({admitted:false});assert.equal((await handleHoManualStaffReceipt(receiptRequest(),f.env)).status,403);assert.ok(f.calls.every(r=>r.method==="GET"));
  for(const result of [{state:"COMMITTED",receipt:{...receipt,centerId:id(9)}},{state:"COMMITTED",receipt:{...receipt,password:"synthetic"}},{state:"NOT_OBSERVED",fingerprint:"synthetic"}]){
   const bad=bindingFixture({status:200,response:{data:result}});assert.equal((await handleHoManualStaffReceipt(receiptRequest(),bad.env)).status,502);
+ }
+});
+
+const nativeRow={id:id(2),displayLabel:"Synthetic Staff",status:"active",roleLabel:null,createdAt:"2026-11-25T00:00:00Z",updatedAt:"2026-11-25T00:00:00Z",createdByUserId:null,updatedByUserId:null};
+const directoryRequest=(path="/api/ho/staff/directory",cookie="pino_staff_password_session=synthetic-session",host=HO_STAGING_HOSTNAME,method="GET")=>new Request("https://"+host+path,{method,headers:{host,cookie}});
+test("native directory BFF reads exact list and detail after actual admission",async()=>{
+ const f=bindingFixture({status:200,response:{data:[nativeRow]}});
+ const response=await handleHoManualStaffDirectory(directoryRequest(),f.env);
+ assert.equal(response.status,200);assert.equal(response.headers.get("cache-control"),"no-store");
+ assert.deepEqual(await response.json(),{data:[nativeRow]});
+ assert.deepEqual(f.calls[2],{method:"GET",path:"ho/workforce/manual-staff/directory"});
+ const detail={...nativeRow,mobile:null,email:null,gender:null,birthDate:null,loginEmail:null,centers:[]};
+ const g=bindingFixture({status:200,response:{data:detail}});
+ assert.equal((await handleHoManualStaffDirectory(directoryRequest("/api/ho/staff/directory/"+id(2)),g.env)).status,200);
+ assert.equal(g.calls[2]?.path,"ho/workforce/manual-staff/directory/"+id(2));
+});
+test("directory BFF rejects unauthorized paths and malformed Core projections",async()=>{
+ for(const [req,status] of [[directoryRequest("/api/ho/staff/directory?center=x"),404],[directoryRequest("/api/ho/staff/directory/STAFF-MOCK-001"),404],[directoryRequest(undefined,undefined,"other.invalid"),404],[directoryRequest(undefined,undefined,undefined,"POST"),405],[directoryRequest(undefined,""),401]] as const){
+   const f=bindingFixture();assert.equal((await handleHoManualStaffDirectory(req,f.env)).status,status);assert.equal(f.calls.length,0);
+ }
+ const deny=bindingFixture({admitted:false});assert.equal((await handleHoManualStaffDirectory(directoryRequest(),deny.env)).status,403);
+ assert.ok(deny.calls.every(r=>r.path==="context"||r.path==="ho/admission"));
+ for(const data of [[nativeRow,nativeRow],[{...nativeRow,password:"synthetic"}],[{...nativeRow,id:"fake"}]]){
+   const f=bindingFixture({status:200,response:{data}});assert.equal((await handleHoManualStaffDirectory(directoryRequest(),f.env)).status,502);
  }
 });

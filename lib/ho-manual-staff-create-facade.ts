@@ -5,6 +5,7 @@ import { BoShellGateError } from "./bo-shell-gate";
 import { HO_STAGING_HOSTNAME, normalizeHostname } from "./host-boundary";
 import { callBoAccessCoreWithStaffPassword, type BoAccessCoreBinding } from "./bo-core";
 import { teamCredential, TeamAuthError } from "./team-auth";
+import { projectHoStaffRow } from "../app/ho/staff/native-staff-provider";
 import { parseHoManualStaffReceipt } from "./ho-manual-staff-create-receipt";
 export { parseHoManualStaffReceipt } from "./ho-manual-staff-create-receipt";
 import type { StaffCreateCommand } from "../app/ho/staff/manual-create-contract";
@@ -109,5 +110,44 @@ export async function handleHoManualStaffReceipt(request:Request,env:HoManualSta
     if(error instanceof BoShellGateError)return reject("HO_ACCESS_DENIED",error.status);
     if(error instanceof TeamAuthError)return reject("IDENTITY_UNAUTHORIZED",error.status);
     return reject("HO_STAFF_RECEIPT_UNAVAILABLE",503);
+  }
+}
+
+// PAP-2358 · WFM-STAFF. Private native directory BFF, not route-admitted.
+export async function handleHoManualStaffDirectory(request:Request,env:HoManualStaffCreateEnv):Promise<Response>{
+  try{
+    const url=new URL(request.url),base="/api/ho/staff/directory";
+    const id=url.pathname===base?null:url.pathname.startsWith(base+"/")?url.pathname.slice(base.length+1):"";
+    if(env.APP_ENV!=="staging"||normalizeHostname(request.headers.get("host")||url.hostname)!==HO_STAGING_HOSTNAME||
+      url.search||(id!==null&&!/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(id)))return reject("PLATFORM_NOT_FOUND",404);
+    if(request.method!=="GET")return reject("PLATFORM_METHOD_NOT_ALLOWED",405);
+    if(request.body!==null||request.headers.has("idempotency-key"))return reject("PLATFORM_INVALID_INPUT",400);
+    const actor=await authorizeHoShell(request.headers,env);
+    if(!actor.userId)return reject("HO_ACCESS_DENIED",403);
+    const credential=await teamCredential(request,env,"BO");
+    if(credential.kind!=="password")return reject("IDENTITY_UNAUTHORIZED",401);
+    const response=await callBoAccessCoreWithStaffPassword(env.PINO_BO_CORE,{
+      method:"GET",path:"ho/workforce/manual-staff/directory"+(id?"/"+id:""),
+    },credential.token);
+    if(response.status!==200)return reject("HO_STAFF_READ_UNAVAILABLE",[400,401,403,404,429,503].includes(response.status)?response.status:502);
+    const root=object(response.body);
+    if(!root||!exactKeys(root,["data"]))return reject("HO_STAFF_READ_INVALID",502);
+    const data=root.data;
+    try{
+      if(id===null){
+        if(!Array.isArray(data))return reject("HO_STAFF_READ_INVALID",502);
+        const ids=new Set<string>();
+        for(const value of data){
+          const row=projectHoStaffRow(value);
+          if(ids.has(row.id))return reject("HO_STAFF_READ_INVALID",502);
+          ids.add(row.id);
+        }
+      }else if(data!==null&&projectHoStaffRow(data,true).id!==id)return reject("HO_STAFF_READ_INVALID",502);
+    }catch{return reject("HO_STAFF_READ_INVALID",502);}
+    return json({data},200);
+  }catch(error){
+    if(error instanceof BoShellGateError)return reject("HO_ACCESS_DENIED",error.status);
+    if(error instanceof TeamAuthError)return reject("IDENTITY_UNAUTHORIZED",error.status);
+    return reject("HO_STAFF_READ_UNAVAILABLE",503);
   }
 }
