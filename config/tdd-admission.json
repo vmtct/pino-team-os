@@ -26,6 +26,10 @@
         "lib/ho-routes.test.ts"
       ],
       "externalReferences": [
+        {
+          "file": "lib/host-boundary.ts",
+          "owner": "PAP-1169"
+        },
         {"file":"app/ho/HoWorkspace.tsx","owner":"PAP-990"},
         {"file":"lib/ho-routes.ts","owner":"PAP-990"},
         {"file":"lib/ho-system.ts","owner":"PAP-1153"}
