@@ -1,4 +1,5 @@
 import {test} from "node:test";
+import {LeadRecoveryJournal} from "../app/bo/sales/leads/lead-recovery-journal";
 import assert from "node:assert/strict";
 import {LeadApiError,createLeadHouseholdApi,type LeadDetail,type LeadMember,type LeadReceipt} from "./bo-lead-household-client";
 import {LeadCommandFence,memberInput,presentLeadDetail,presentLeadRow,type LeadHouseholdApi,type LeadCommand} from "../app/bo/sales/leads/lead-household-provider";
@@ -42,3 +43,22 @@ test("PAP-2288 inconsistent receipt version retains uncertainty",async()=>{
  const fence=new LeadCommandFence(api({contact:()=>Promise.resolve({leadId:id,version:3})}),()=>"key");
  await assert.rejects(fence.submit(command()),LeadApiError);assert.equal(fence.state,"uncertain");
 });
+
+test("PAP-2288 durable command fence restores known receipt without replay",async()=>{
+ const s=memoryStorage();const scope=id,key="8fbaea47-bcdc-4c50-8ca5-2b6335e4ebee";let writes=0,reads=0;
+ const a=api({contact:()=>{writes++;return Promise.resolve({leadId:id,version:2});},detail:()=>{reads++;return Promise.resolve(detail(reads===1?1:2));}});
+ const first=new LeadCommandFence(a,()=>key,new LeadRecoveryJournal(s,scope));await assert.rejects(first.submit(command()));assert.equal(first.state,"reload_required");
+ const next=new LeadCommandFence(a,()=>key,new LeadRecoveryJournal(s,scope));assert.equal(next.state,"reload_required");await assert.rejects(next.submit(command()));await assert.rejects(next.retry());await next.reload(id);assert.equal(writes,1);assert.equal(next.state,"idle");assert.equal(new LeadRecoveryJournal(s,scope).inspect().state,"empty");
+});
+test("PAP-2288 durable fence denies unknown reload and preserves in-memory exact retry",async()=>{
+ const s=memoryStorage();const key="8fbaea47-bcdc-4c50-8ca5-2b6335e4ebee";let writes=0;
+ const a=api({contact:()=>++writes===1?Promise.reject(new TypeError("lost ACK")):Promise.resolve({leadId:id,version:2})});
+ const first=new LeadCommandFence(a,()=>key,new LeadRecoveryJournal(s,id));await assert.rejects(first.submit(command()));
+ const next=new LeadCommandFence(a,()=>key,new LeadRecoveryJournal(s,id));assert.equal(next.state,"recovery_blocked");await assert.rejects(next.submit(command()));await assert.rejects(next.retry());await assert.rejects(next.reload(id));assert.equal(writes,1);
+ await first.retry();assert.equal(writes,2);assert.equal(new LeadRecoveryJournal(s,id).inspect().state,"empty");
+});
+test("PAP-2288 durable journal unavailable blocks command before dispatch",async()=>{
+ let writes=0;const a=api({contact:()=>{writes++;return Promise.resolve({leadId:id,version:2});}});
+ const f=new LeadCommandFence(a,()=>"8fbaea47-bcdc-4c50-8ca5-2b6335e4ebee",new LeadRecoveryJournal({...memoryStorage(),setItem:()=>{throw Error("storage");}},id));await assert.rejects(f.submit(command()));assert.equal(f.state,"recovery_blocked");assert.equal(writes,0);
+});
+function memoryStorage(){let raw:string|null=null;return {getItem:()=>raw,setItem:(_slot:string,value:string)=>{raw=value;},removeItem:()=>{raw=null;}};}

@@ -1,5 +1,6 @@
 /** PAP-2288 PLT-LEAD — canonical presentation and single-command lifecycle. */
 import {createLeadHouseholdApi,LeadApiError,newLeadCommandKey,type LeadDetail,type LeadRow,type LeadMember,type LeadMemberInput,type LeadReceipt,type LeadInterest,type LeadCreate,type LeadContactInput,type LeadRelationInput} from "@/lib/bo-lead-household-client";
+import type {LeadRecoveryJournal} from "./lead-recovery-journal";
 export type LeadHouseholdApi=ReturnType<typeof createLeadHouseholdApi>;
 export function presentLeadRow(row:LeadRow){
  return {id:row.id,contactName:row.contactDisplayName,phone:row.phone,lifecycle:row.status,version:row.version,memberCount:row.memberCount,intentCount:row.intentCount,createdAt:row.createdAt,createdBy:row.createdBy,updatedAt:row.updatedAt,updatedBy:row.updatedBy};
@@ -12,7 +13,7 @@ export function memberInput(member:LeadMember,patch:Partial<LeadMemberInput>={})
  const {displayName,intendedRoles,gender,birthPrecision,birthYear,birthMonth,birthDay,reportedAge,interestKinds}=member;
  return {...{displayName,intendedRoles:[...intendedRoles],gender,birthPrecision,birthYear,birthMonth,birthDay,reportedAge,interestKinds:[...interestKinds]},...patch};
 }
-export type LeadCommandState="idle"|"pending"|"uncertain"|"conflict"|"reload_required";
+export type LeadCommandState="idle"|"pending"|"uncertain"|"conflict"|"reload_required"|"recovery_blocked";
 export type LeadCommand =
  | {kind:"create";input:LeadCreate}
  | {kind:"contact";leadId:string;expectedVersion:number;contact:LeadContactInput}
@@ -46,13 +47,20 @@ export class LeadCommandFence{
  private phase:LeadCommandState="idle";
  private receipt:LeadReceipt|null=null;
  private conflict:LeadCommand|null=null;
- constructor(private readonly api:LeadHouseholdApi,private readonly makeKey=newLeadCommandKey){}
+ private receiptKey:string|null=null;
+ constructor(private readonly api:LeadHouseholdApi,private readonly makeKey=newLeadCommandKey,private readonly journal?:LeadRecoveryJournal){
+  const recovered=journal?.inspect();
+  if(recovered?.state==="readback"){this.receipt=recovered.receipt;this.receiptKey=recovered.entry.key;this.phase="reload_required";}
+  else if(recovered&&recovered.state!=="empty")this.phase="recovery_blocked";
+ }
  get state(){return this.phase;}
  get reloadTarget(){return this.receipt?.leadId??(this.conflict&&this.conflict.kind!=="create"?this.conflict.leadId:null);}
  get isCreateConflict(){return this.phase==="conflict"&&this.conflict?.kind==="create";}
  async submit(command:LeadCommand):Promise<LeadDetail>{
   if(this.phase!=="idle")throw new LeadApiError(409,"LEAD_COMMAND_NOT_READY",null);
-  this.pending={command:structuredClone(command),key:this.makeKey()};
+  const pending={command:structuredClone(command),key:this.makeKey()};
+  try{this.journal?.begin(pending.command,pending.key);}catch{this.phase="recovery_blocked";throw new LeadApiError(409,"LEAD_RECOVERY_BLOCKED",null);}
+  this.pending=pending;
   return this.execute();
  }
  async retry():Promise<LeadDetail>{
@@ -61,17 +69,23 @@ export class LeadCommandFence{
  }
  private async execute():Promise<LeadDetail>{
   const p=this.pending;if(!p)throw new LeadApiError(409,"LEAD_COMMAND_NOT_READY",null);
-  const uncertain=this.phase==="uncertain";this.phase="pending";
+  const uncertain=this.phase==="uncertain";
+  if(this.journal){const entry=this.journal.inspect();if(entry.state!=="unknown"||entry.entry.key!==p.key){this.phase="recovery_blocked";throw new LeadApiError(409,"LEAD_RECOVERY_BLOCKED",null);}}
+  this.phase="pending";
   let receipt:LeadReceipt;
   try{receipt=await invoke(this.api,structuredClone(p.command),p.key);}
   catch(error){
    if(uncertain||!(error instanceof LeadApiError)||error.status>=500||error.status===408||error.status===429){this.phase="uncertain";}
-   else if(error.status===409){this.phase="conflict";this.conflict=p.command;this.pending=null;}
-   else{this.phase="idle";this.pending=null;}
+   else{
+    try{this.journal?.rejectInitial(p.key);}catch{this.phase="recovery_blocked";this.pending=null;throw new LeadApiError(409,"LEAD_RECOVERY_BLOCKED",null);}
+    if(error.status===409){this.phase="conflict";this.conflict=p.command;this.pending=null;}
+    else{this.phase="idle";this.pending=null;}
+   }
    throw error;
   }
   if(p.command.kind!=="create"&&(receipt.leadId!==p.command.leadId||receipt.version!==p.command.expectedVersion+1)){this.phase="uncertain";throw new LeadApiError(502,"LEAD_RECEIPT_MISMATCH",null);}
-  this.receipt=receipt;this.pending=null;this.phase="reload_required";
+  try{this.journal?.acceptReceipt(p.key,receipt);}catch{this.phase="recovery_blocked";this.pending=null;throw new LeadApiError(409,"LEAD_RECOVERY_BLOCKED",null);}
+  this.receipt=receipt;this.receiptKey=p.key;this.pending=null;this.phase="reload_required";
   return this.reload(receipt.leadId);
  }
  async reload(leadId:string):Promise<LeadDetail>{
@@ -82,7 +96,8 @@ export class LeadCommandFence{
   try{
    const detail=await this.api.detail(leadId);
    if(detail.id!==leadId||receipt&&detail.version<receipt.version)throw new LeadApiError(502,"LEAD_READBACK_MISMATCH",null);
-   this.receipt=null;this.conflict=null;this.phase="idle";return detail;
+   if(receipt&&this.journal){if(!this.receiptKey)throw new LeadApiError(409,"LEAD_RECOVERY_BLOCKED",null);this.journal.completeReadback(this.receiptKey,detail);}
+   this.receipt=null;this.receiptKey=null;this.conflict=null;this.phase="idle";return detail;
   }catch(error){this.phase=before;throw error;}
  }
  /** Reconcile only the original phone within the actual actor's visible scope. No global absence claim. */
