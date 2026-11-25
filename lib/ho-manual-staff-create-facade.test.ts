@@ -32,7 +32,7 @@ test("opt-in receipt requires both account IDs and matching branch",()=>{
  assert.equal(parseHoManualStaffReceipt({data:{...account,assignmentId:null}},id(1),true),null);
 });
 
-import { handleHoManualStaffCreate, type HoManualStaffCreateEnv } from "./ho-manual-staff-create-facade";
+import { handleHoManualStaffCreate, handleHoManualStaffReceipt, type HoManualStaffCreateEnv } from "./ho-manual-staff-create-facade";
 import { HO_STAGING_HOSTNAME } from "./host-boundary";
 import type { BoAccessRequest } from "./bo-core";
 
@@ -81,4 +81,26 @@ test("malformed commands stop before write; Core errors are scrubbed and mismatc
  const error=bindingFixture({status:409,response:{error:{message:"synthetic-sensitive-detail"}}});const denied=await handleHoManualStaffCreate(bffRequest(),error.env);
  assert.equal(denied.status,409);assert.deepEqual(await denied.json(),{error:{code:"HO_STAFF_CREATION_CONFLICT"}});
  const mismatch=bindingFixture({response:{data:{...receipt,centerId:id(9)}}});assert.equal((await handleHoManualStaffCreate(bffRequest(),mismatch.env)).status,502);
+});
+
+const receiptRequest=(overrides:Parameters<typeof bffRequest>[0]={})=>bffRequest({path:"/api/ho/staff/create/receipt",body:{centerId:id(1)},...overrides});
+test("receipt BFF calls exact admitted readback and projects historical result",async()=>{
+ const f=bindingFixture({status:200,response:{data:{state:"COMMITTED",receipt}}});
+ const response=await handleHoManualStaffReceipt(receiptRequest(),f.env);
+ assert.equal(response.status,200);assert.equal(response.headers.get("cache-control"),"no-store");
+ assert.deepEqual(await response.json(),{data:{state:"COMMITTED",receipt}});
+ assert.deepEqual(f.calls.map(r=>r.path),["context","ho/admission","ho/workforce/manual-staff/create/receipt"]);
+ assert.deepEqual(f.calls[2],{method:"POST",path:"ho/workforce/manual-staff/create/receipt",body:{centerId:id(1)},idempotencyKey:"qa-create-123"});
+ const missing=bindingFixture({status:200,response:{data:{state:"NOT_OBSERVED"}}});
+ assert.deepEqual(await (await handleHoManualStaffReceipt(receiptRequest(),missing.env)).json(),{data:{state:"NOT_OBSERVED"}});
+});
+test("receipt BFF rejects unauthorized requests, extra profile and malformed historical result",async()=>{
+ for(const [overrides,status] of [[{method:"GET"},405],[{origin:"https://wrong.invalid"},403],[{path:"/api/ho/staff/create/receipt?key=bad"},404],[{cookie:""},401],[{body:{centerId:id(1),password:"synthetic"}},400]] as const){
+  const f=bindingFixture();assert.equal((await handleHoManualStaffReceipt(receiptRequest(overrides),f.env)).status,status);
+  assert.ok(f.calls.every(r=>r.method==="GET"));
+ }
+ const f=bindingFixture({admitted:false});assert.equal((await handleHoManualStaffReceipt(receiptRequest(),f.env)).status,403);assert.ok(f.calls.every(r=>r.method==="GET"));
+ for(const result of [{state:"COMMITTED",receipt:{...receipt,centerId:id(9)}},{state:"COMMITTED",receipt:{...receipt,password:"synthetic"}},{state:"NOT_OBSERVED",fingerprint:"synthetic"}]){
+  const bad=bindingFixture({status:200,response:{data:result}});assert.equal((await handleHoManualStaffReceipt(receiptRequest(),bad.env)).status,502);
+ }
 });

@@ -76,3 +76,38 @@ export async function handleHoManualStaffCreate(request:Request,env:HoManualStaf
     return reject("HO_STAFF_CREATION_UNAVAILABLE",503);
   }
 }
+
+// PAP-2358: historical committed result, not a live ACL assertion.
+export async function handleHoManualStaffReceipt(request:Request,env:HoManualStaffCreateEnv):Promise<Response>{
+  try{
+    const url=new URL(request.url);
+    if(env.APP_ENV!=="staging"||normalizeHostname(request.headers.get("host")||url.hostname)!==HO_STAGING_HOSTNAME||
+       url.pathname!=="/api/ho/staff/create/receipt"||url.search)return reject("PLATFORM_NOT_FOUND",404);
+    if(request.method!=="POST")return reject("PLATFORM_METHOD_NOT_ALLOWED",405);
+    if(request.headers.get("origin")!=="https://"+HO_STAGING_HOSTNAME||
+       request.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase()!=="application/json")return reject("HO_REQUEST_DENIED",403);
+    const idempotencyKey=request.headers.get("idempotency-key")?.trim();
+    if(!idempotencyKey||!keyPattern.test(idempotencyKey))return reject("PLATFORM_INVALID_INPUT",400);
+    const actor=await authorizeHoShell(request.headers,env);
+    if(!actor.userId)return reject("HO_ACCESS_DENIED",403);
+    const credential=await teamCredential(request,env,"BO");
+    if(credential.kind!=="password")return reject("IDENTITY_UNAUTHORIZED",401);
+    const body=object(await request.json().catch(()=>null));
+    if(!body||!exactKeys(body,["centerId"])||!canonical(body.centerId))return reject("PLATFORM_INVALID_INPUT",400);
+    const response=await callBoAccessCoreWithStaffPassword(env.PINO_BO_CORE,{
+      method:"POST",path:"ho/workforce/manual-staff/create/receipt",body:{centerId:body.centerId},idempotencyKey,
+    },credential.token);
+    if(response.status!==200)return reject("HO_STAFF_RECEIPT_UNAVAILABLE",[400,401,403,404,429,503].includes(response.status)?response.status:502);
+    const root=object(response.body),data=object(root?.data);
+    if(data&&exactKeys(data,["state"])&&data.state==="NOT_OBSERVED")return json({data:{state:"NOT_OBSERVED"}},200);
+    if(data&&exactKeys(data,["state","receipt"])&&data.state==="COMMITTED"){
+      const receipt=parseHoManualStaffReceipt({data:data.receipt},body.centerId,object(data.receipt)?.accessState==="PROVISIONED");
+      if(receipt)return json({data:{state:"COMMITTED",receipt}},200);
+    }
+    return reject("HO_STAFF_RECEIPT_INVALID",502);
+  }catch(error){
+    if(error instanceof BoShellGateError)return reject("HO_ACCESS_DENIED",error.status);
+    if(error instanceof TeamAuthError)return reject("IDENTITY_UNAUTHORIZED",error.status);
+    return reject("HO_STAFF_RECEIPT_UNAVAILABLE",503);
+  }
+}
