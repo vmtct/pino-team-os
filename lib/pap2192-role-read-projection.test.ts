@@ -16,7 +16,8 @@ test("native role list and detail expose actual read-only metadata and audit tim
  const row=list.records[0]!.row;
  assert.equal(row.description,role.description);assert.equal(row.createdAt,role.createdAt);assert.equal(row.updatedAt,role.updatedAt);
  assert.equal(row.createdBy,"—");assert.equal(row.updatedBy,"—");
- assert.deepEqual(await roleProvider.detail(role.id,scope,fetcher([role]),signal),{row});
+ assert.equal(list.records[0]!.version,role.updatedAt);
+ assert.deepEqual(await roleProvider.detail(role.id,scope,fetcher([role]),signal),{row,version:role.updatedAt});
  assert.equal(await roleProvider.detail("missing",scope,fetcher([role]),signal),null);
  assert.equal((await roleProvider.list(roleQuery,scope,fetcher([{...role,description:null}]),signal)).records[0]!.row.description,"");
  assert.equal(roleProvider.mutation,undefined);assert.equal(roleDefinition.table.inlineEdit.enabled,false);
@@ -40,4 +41,18 @@ test("ambiguous canonical Role identities fail closed in Table and Detail",async
   await assert.rejects(roleProvider.list(roleQuery,scope,fetcher(records),signal),/Ambiguous Role directory identity/);
   await assert.rejects(roleProvider.detail(role.id,scope,fetcher(records),signal),/Ambiguous Role directory identity/);
  }
+});
+test("PAP-2373 read versions are exact and absent for protected or noncanonical records",async()=>{
+ for(const record of [
+  {...role,roleType:"system"}, {...role,roleKey:"founder"}, {...role,status:"archived"},
+  {...role,id:role.id.toUpperCase()}, {...role,id:"01a17d3f-8697-4080-bdf1-33e939758059"},
+  {...role,updatedAt:"2026-11-24T01:00:00Z"},
+ ]){
+  const list=await roleProvider.list(roleQuery,scope,fetcher([record]),signal);
+  assert.equal(list.records[0]!.row.id,record.id);
+  assert.equal(list.records[0]!.version,undefined);
+  assert.equal((await roleProvider.detail(record.id,scope,fetcher([record]),signal))?.version,undefined);
+ }
+ assert.equal(roleProvider.mutation,undefined);
+ assert.equal(roleDefinition.table.inlineEdit.enabled,false);
 });
