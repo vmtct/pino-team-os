@@ -12,27 +12,27 @@ import {CLASS_EDIT_KEYS,classPropertyFields,projectClassProperties,validateClass
 const weekdays=["Thứ hai","Thứ ba","Thứ tư","Thứ năm","Thứ sáu","Thứ bảy","Chủ nhật"];
 const topologyLabel:Record<ClassTopology,string>={FIXED_COHORT:"Fixed cohort",FLEXIBLE_STUDIO:"Flexible studio",OVERLAPPING_COHORT:"Overlapping cohort"};
 const active=(item:{status:string})=>item.status.toUpperCase()==="ACTIVE";
-const controlClass="property-control os-create-select";
+const controlClass="pds-direct-field";
 type Update=<K extends keyof ClassDraft>(key:K,value:ClassDraft[K])=>void;
 function classControls(draft:ClassDraft,catalog:ClassCatalog,update:Update,disabled=false):Record<keyof ClassDraft,ReactNode>{
   const input=(key:"operationalName"|"windowStartsLocal"|"windowEndsLocal",label:string,type:"text"|"time")=>
-    <input id={"rc-"+key} aria-label={label} className={controlClass} type={type} maxLength={type==="text"?200:undefined}
+    <input id={"rc-"+key} aria-label={label} className={controlClass} data-pino-ds="bo" data-pds-appearance="underline" type={type} maxLength={type==="text"?200:undefined}
       required disabled={disabled} value={draft[key]} onChange={e=>update(key,e.target.value)} />;
   const num=(key:"optimalConcurrentCapacity"|"hardConcurrentCapacity"|"defaultParticipationMinutes",label:string,required=false)=>
-    <input id={"rc-"+key} aria-label={label} className={controlClass} type="number" min={1} step={1}
+    <input id={"rc-"+key} aria-label={label} className={controlClass} data-pino-ds="bo" data-pds-appearance="underline" type="number" min={1} step={1}
       required={required} disabled={disabled} value={draft[key]??""} onChange={e=>update(key,e.target.value===""?null:Number(e.target.value))}/>;
   const select=(key:"centerId"|"pathProgramId"|"learningSpaceId",label:string,rows:readonly {id:string;displayName:string}[])=>
-    <select id={"rc-"+key} aria-label={label} className={controlClass} required disabled={disabled} value={draft[key]} onChange={e=>update(key,e.target.value)}>
+    <select id={"rc-"+key} aria-label={label} className={controlClass} data-pino-ds="bo" data-pds-appearance="underline" required disabled={disabled} value={draft[key]} onChange={e=>update(key,e.target.value)}>
       <option value="">Chọn {label}</option>{rows.map(r=><option key={r.id} value={r.id}>{r.displayName}</option>)}</select>;
   return {
     operationalName:input("operationalName","Tên lớp","text"),
     centerId:select("centerId","Cơ sở",catalog.centers.filter(active)),
     pathProgramId:select("pathProgramId","Path",catalog.paths.filter(active)),
     learningSpaceId:select("learningSpaceId","Không gian học",eligibleClassSpaces(catalog,draft.centerId)),
-    weekdayIso:<select id="rc-weekdayIso" aria-label="Thứ" className={controlClass} disabled={disabled} value={draft.weekdayIso} onChange={e=>update("weekdayIso",Number(e.target.value))}>{weekdays.map((day,i)=><option key={day} value={i+1}>{day}</option>)}</select>,
+    weekdayIso:<select id="rc-weekdayIso" aria-label="Thứ" className={controlClass} data-pino-ds="bo" data-pds-appearance="underline" disabled={disabled} value={draft.weekdayIso} onChange={e=>update("weekdayIso",Number(e.target.value))}>{weekdays.map((day,i)=><option key={day} value={i+1}>{day}</option>)}</select>,
     windowStartsLocal:input("windowStartsLocal","Giờ bắt đầu","time"),
     windowEndsLocal:input("windowEndsLocal","Giờ kết thúc","time"),
-    deliveryTopology:<select id="rc-deliveryTopology" aria-label="Mô hình" className={controlClass} disabled={disabled} value={draft.deliveryTopology} onChange={e=>update("deliveryTopology",e.target.value as ClassTopology)}>{CLASS_TOPOLOGIES.map(t=><option key={t} value={t}>{topologyLabel[t]}</option>)}</select>,
+    deliveryTopology:<select id="rc-deliveryTopology" aria-label="Mô hình" className={controlClass} data-pino-ds="bo" data-pds-appearance="underline" disabled={disabled} value={draft.deliveryTopology} onChange={e=>update("deliveryTopology",e.target.value as ClassTopology)}>{CLASS_TOPOLOGIES.map(t=><option key={t} value={t}>{topologyLabel[t]}</option>)}</select>,
     optimalConcurrentCapacity:num("optimalConcurrentCapacity","Sức chứa tối ưu",true),
     hardConcurrentCapacity:num("hardConcurrentCapacity","Sức chứa tối đa"),
     defaultParticipationMinutes:num("defaultParticipationMinutes","Thời lượng tham gia (phút)",draft.deliveryTopology==="FLEXIBLE_STUDIO")
@@ -69,12 +69,12 @@ export function RunningClassDetailProperties({record,catalog,centerToday,onSave,
   const props=projectClassProperties(record,catalog);
   return <>
     <PropertySections variant="detail" fields={classPropertyFields} record={props}
-      sections={[{id:"properties",label:"Thông tin chính",fields:classPropertyFields.map(f=>f.key)}]}
+      sections={[{id:"identity",label:"Thông tin chính",fields:["operationalName","id","centerId","pathProgramId","learningSpaceId","status","version"]},{id:"schedule",label:"Lịch học",fields:["weekdayIso","windowStartsLocal","windowEndsLocal","deliveryTopology"]},{id:"capacity",label:"Sức chứa",fields:["optimalConcurrentCapacity","hardConcurrentCapacity","defaultParticipationMinutes"]},{id:"audit",label:"Thông tin hệ thống",fields:["createdAt","createdBy","updatedAt","updatedBy"]}]}
       canEdit={f=>Boolean(draft&&editable&&CLASS_EDIT_KEYS.some(k=>k===f.key))}
       onEdit={()=>{}} directControl={f=>controls[f.key as keyof ClassDraft]}
-      sectionActions={()=>editable&&!draft?<button type="button" className="secondary-btn" onClick={()=>{setDraft({...record});setEffective("");setError("");}}>Chỉnh sửa</button>:null}/>
+      sectionActions={sectionId=>sectionId==="identity"&&editable&&!draft?<button type="button" className="secondary-btn" onClick={()=>{setDraft({...record});setEffective("");setError("");}}>Chỉnh sửa</button>:null}/>
     {draft&&editable?<div className="v24-prop-section"><label htmlFor="rc-effective">Ngày hiệu lực khi thay đổi lịch hoặc sức chứa</label>
-      <input className={controlClass} id="rc-effective" type="date" min={centerToday} value={effective} onChange={e=>setEffective(e.target.value)}/>
+      <input className={controlClass} data-pino-ds="bo" data-pds-appearance="underline" id="rc-effective" type="date" min={centerToday} value={effective} onChange={e=>setEffective(e.target.value)}/>
       <p className="settings-hint">Không thay đổi các buổi học đã được tạo hoặc Enrollment hiện hữu.</p>
       {error?<p className="edit-error" role="alert">{error}</p>:null}
       <button type="button" className="secondary-btn" onClick={()=>{setDraft(null);setError("");}}>Hủy</button>{" "}

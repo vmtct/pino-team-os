@@ -34,7 +34,7 @@ const label = (rows: readonly {id:string;displayName:string}[],id:string) => row
 export function projectClassRow(record:ClassRecord,catalog:ClassCatalog):BoRecord {
   return {...record,name:record.operationalName,path:label(catalog.paths,record.pathProgramId),center:label(catalog.centers,record.centerId),
     weekday:record.weekdayIso,window:record.windowStartsLocal+" – "+record.windowEndsLocal,capacity:record.optimalConcurrentCapacity,topology:record.deliveryTopology,
-    createdAt:null,createdBy:null,updatedAt:null,updatedBy:null};
+    createdAt:null,createdBy:"—",updatedAt:null,updatedBy:"—"};
 }
 export function projectClassProperties(record:ClassRecord,catalog:ClassCatalog):BoRecord {
   return {...projectClassRow(record,catalog),centerId:label(catalog.centers,record.centerId),
