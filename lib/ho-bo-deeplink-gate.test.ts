@@ -34,10 +34,10 @@ const boPaths=[
  "/bo/workforce-assignments","/bo/payroll-periods","/bo/payroll-daily","/bo/payroll-exceptions",
  "/bo/pinoria-avatars","/bo/afterschool-accounts","/bo/open-studio-passes","/bo/classroom-diaries",
  "/bo/piner-posts","/bo/sales/leads","/bo/guests","/bo/mytime-workshops","/bo/enrollments",
- "/bo/opening-evidence","/bo/pinoria-wish-events",
+ "/bo/opening-evidence","/bo/pinoria-wish-events","/bo/running-classes",
 ];
 const legacy:Record<string,string>={
- students:"/bo?module=students",classes:"/bo?module=classes",subscriptions:"/bo?module=subscriptions",
+ students:"/bo?module=students",classes:"/bo/running-classes",subscriptions:"/bo?module=subscriptions",
  enrollments:"/bo/enrollments",visits:"/bo?module=visits",staffs:"/bo?module=staffs",
  timekeeping:"/bo?module=timekeeping",salaryPeriods:"/bo/payroll-periods",audits:"/bo?module=audits",
  parents:"/bo?module=parents",missions:"/bo?module=missions",
@@ -118,6 +118,7 @@ test("HO_BO_DEEPLINK_CONTINUITY_P0: route-specific detail, tab, grid, center and
   [ho,"/ho/pinoria/wish-banners?record="+id+"&tab=items&wishSelection=pending&wishRevision=2","/ho/pinoria/wish-banners?record="+id+"&tab=items&wishSelection=pending&wishRevision=2"],
   [ho,"/ho/system/custom-attributes?sort=displayName&size=30&page=2&scope=CENTER&centerId="+center,"/ho/system/custom-attributes?sort=displayName&size=30&page=2&scope=CENTER&centerId="+center],
   [bo,"/bo/subscriptions?centerId="+center+"&record="+id+"&tab=enrollment","/bo?module=subscriptions&centerId="+center+"&record="+id+"&tab=enrollment"],
+  [bo,"/bo/running-classes?centerId="+center+"&record=RUNNING-CLASS-MOCK-001","/bo/running-classes?centerId="+center+"&record=RUNNING-CLASS-MOCK-001"],
   [bo,"/bo/piner-posts?centerId="+center+"&record=POST-MOCK-001&tab=media","/bo/piner-posts?centerId="+center+"&record=POST-MOCK-001&tab=media"],
   [bo,"/bo/sales/leads?centerId="+center+"&leadIntent="+id+"&q=music&dir=desc&size=50&f_status=SUBMITTED","/bo/sales/leads?centerId="+center+"&leadIntent="+id+"&q=music&dir=desc&size=50&f_status=SUBMITTED"],
  ];
