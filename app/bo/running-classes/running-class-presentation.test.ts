@@ -1,0 +1,11 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {initialClassDraft,type ClassCatalog} from "./running-class-draft";
+import {projectClassRow,projectClassProperties,validateClassEdit,RUNNING_CLASS_MOCK_ID,classTableModule,type ClassRecord} from "./running-class-presentation";
+const catalog:ClassCatalog={centers:[{id:"c",displayName:"Center",status:"ACTIVE"}],paths:[{id:"p",displayName:"Piano",status:"ACTIVE"}],spaces:[{id:"s",centerId:"c",displayName:"Room",status:"ACTIVE"}]};
+const record:ClassRecord={...initialClassDraft("c"),id:RUNNING_CLASS_MOCK_ID,version:1,status:"INACTIVE",operationalName:"Piano",pathProgramId:"p",learningSpaceId:"s",windowStartsLocal:"18:00",windowEndsLocal:"19:30",optimalConcurrentCapacity:8};
+test("native row preserves baseline aliases and never fabricates audit data",()=>{const r=projectClassRow(record,catalog);assert.equal(r.name,"Piano");assert.equal(r.center,"Center");assert.equal(r.window,"18:00 – 19:30");assert.equal(r.createdAt,null);assert.equal(projectClassProperties(record,catalog).learningSpaceId,"Room");assert.equal(classTableModule({label:"Classes",group:"School",fields:[]}).fields.length,4);});
+test("inline edits commit without user date; immutable fields excluded",()=>{const result=validateClassEdit(record,{...record,operationalName:"New",centerId:"foreign",deliveryTopology:"FLEXIBLE_STUDIO"},catalog);assert.equal(result.ok,true);if(result.ok)assert.deepEqual(result.command,{id:record.id,expectedVersion:1,changes:{operationalName:"New"}});});
+test("schedule capacity and status can change directly",()=>{for(const patch of [{weekdayIso:7},{optimalConcurrentCapacity:9},{status:"ACTIVE"},{hardConcurrentCapacity:10}]){const r=validateClassEdit(record,{...record,...patch},catalog);assert.equal(r.ok,true);if(r.ok)assert.deepEqual(r.command.changes,patch);}});
+test("reject invalid status, foreign space, unknown path and invalid capacity",()=>{for(const patch of [{status:"OTHER"},{learningSpaceId:"foreign"},{pathProgramId:"unknown"},{optimalConcurrentCapacity:0}])assert.equal(validateClassEdit(record,{...record,...patch},catalog).ok,false);});
+test("unchanged draft cannot submit",()=>assert.equal(validateClassEdit(record,record,catalog).ok,false));

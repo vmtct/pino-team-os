@@ -28,7 +28,7 @@ function fixture(run) {
     const content=fs.readFileSync(path.join(repo,file),"utf8");
     // Existing PAP-901 factory fixtures have no TDD manifest; keep scopes independent.
     write(file,file===policy?content.replace(/\r\n/g,"\n").replace('  "/bo/payroll-daily",\n',"").replace('  "/bo/payroll-exceptions",\n',"").replace('  "/bo/pinoria-avatars",\n',"").replace('  "/bo/afterschool-accounts",\n',"").replace('  "/bo/open-studio-passes",\n',"")
-      .replace(/\s*"\/bo\/classroom-diaries",\r?\n/,"\n").replace('  "/bo/bills",\n',"").replace('  "/bo/missions",\n',"").replace('  "/bo/tvs",\n',"").replace('  "/bo/opening-evidence",\n',"").replace('  "/bo/piner-posts",\n',"").replace('  "/bo/sales/leads",\n',"").replace('  "/bo/pinoria-wish-events",\n',"").replace('  "/bo/mytime-guests",\n',"").replace('  "/bo/guests",\n',"").replace('  "/bo/mytime-workshops",\n',"").replace('  "/bo/enrollments",\n',""):content);
+      .replace(/\s*"\/bo\/classroom-diaries",\r?\n/,"\n").replace('  "/bo/bills",\n',"").replace('  "/bo/missions",\n',"").replace('  "/bo/tvs",\n',"").replace('  "/bo/opening-evidence",\n',"").replace('  "/bo/piner-posts",\n',"").replace('  "/bo/sales/leads",\n',"").replace('  "/bo/pinoria-wish-events",\n',"").replace('  "/bo/mytime-guests",\n',"").replace('  "/bo/guests",\n',"").replace('  "/bo/mytime-workshops",\n',"").replace('  "/bo/enrollments",\n',"").replace('  "/bo/running-classes",\n',""):content);
   }
   try { return run({ root, read, write }); }
   finally { fs.rmSync(root, { recursive: true, force: true }); }
@@ -316,4 +316,16 @@ test("PAP-2032 native Wish Events requires exact authorized runtime and Center/a
   const f=files[index],original=read(f);assert.ok(original.includes(needle));write(f,original.replace(needle,"BROKEN_CONTRACT"));assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/Wish Events: invalid native scoped route contract/);write(f,original);
  }
  fs.unlinkSync(path.join(root,files[8]));assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/Wish Events: missing native scoped route contract/);
+}));
+
+test("PAP-2225 native Running Classes requires exact authorized in-memory workspace",()=>fixture(({root,read,write})=>{
+ const files=["app/bo/running-classes/page.tsx","app/bo/running-classes/RunningClassStagingEntry.tsx","app/bo/running-classes/running-class-review-access.ts","app/bo/running-classes/running-class-review.ts","app/bo/running-classes/running-class-review-query.ts","app/bo/running-classes/running-class-review-access.test.ts","app/bo/running-classes/running-class-review-query.test.ts","lib/pap2225-running-class-m1.test.ts"];
+ for(const file of files)write(file,fs.readFileSync(path.join(repo,file),"utf8"));
+ write(policy,read(policy).replace('  "/bo/payroll-periods",','  "/bo/payroll-periods",\n  "/bo/running-classes",'));
+ assert.deepEqual(verifyBoStagingRoutePolicy(root).issues,[]);
+ for(const [index,from,to] of [[0,'./RunningClassStagingEntry','./OtherEntry'],[0,'!boSkeletonEnabled(env,host)','false'],[1,'!center.centers.some(c=>c.id===selected)','false'],[1,'if(state!=="ready")','if(false)'],[1,'../components/registration/BoRegistrationWorkspace','../OtherWorkspace'],[2,'!ctx.permissionKeys?.includes("delivery.schedule.manage")','false'],[2,'method:"GET"','method:"POST"'],[3,'new Map<string,ClassRecord>','new FakeStore']]){
+  const file=files[index],original=read(file);assert.ok(original.includes(from),from);write(file,original.replace(from,to));
+  assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/running-classes.*invalid native scoped fixture contract/);write(file,original);
+ }
+ fs.unlinkSync(path.join(root,files[5]));assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/running-classes.*missing exact native fixture contract/);
 }));
