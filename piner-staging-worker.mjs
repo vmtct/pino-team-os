@@ -1,3 +1,9 @@
+import { WorkerEntrypoint } from "cloudflare:workers";
+import { verifyPinerSyntheticReview } from "./lib/piner-afterschool-pin-bff.mjs";
+// PAP-2342: private RPC only; no route in default fetch.
+export class PinerSyntheticReviewControlPlane extends WorkerEntrypoint {
+  async verify(request) { return verifyPinerSyntheticReview(request, this.env); }
+}
 export { PinerOtpRateGuard } from "./lib/piner-auth-bff.mjs";
 import openNextWorker from "./.open-next/worker.js";
 import { dispatchPinerAfterschoolPin } from "./lib/piner-afterschool-pin-dispatch.mjs";
