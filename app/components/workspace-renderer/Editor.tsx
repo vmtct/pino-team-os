@@ -73,7 +73,7 @@ export function DirectPropertyEditor<F extends readonly FieldSchema[]>({schema,c
     finally{if(pending.current===request){pending.current=null;if(!request.signal.aborted)setSaving(false);}}
   };
   const direct={className:"pds-direct-field","data-pds-appearance":"underline","aria-label":field.label,"aria-invalid":Boolean(error)||undefined,disabled:saving};
-  return <span data-tdd-direct-field={field.key}>
+  return <span data-tdd-direct-field={field.key} data-pino-ds="bo">
     {metadata.type==="select"||metadata.type==="boolean"?
       <select {...direct} value={text} onChange={event=>void commit(event.target.value)}>
         {metadata.type==="boolean"?<><option value="true">Có</option><option value="false">Không</option></>:metadata.options?.map(option=><option key={option} value={option}>{option}</option>)}

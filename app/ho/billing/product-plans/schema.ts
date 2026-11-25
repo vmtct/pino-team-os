@@ -45,5 +45,5 @@ export const planRegistry=new TddRegistry();
 export const planSchema=planRegistry.register(planDefinition);
 export function projectPlan(p:ProductPlanPreview):ModuleRow<PlanFields>{
  return {id:p.id,name:p.cadence+" buổi/tuần · "+p.termWeeks+" tuần",cadence:p.cadence,termWeeks:p.termWeeks,
- price:p.price,badge:p.badge,enabled:p.enabled,createdAt:p.createdAt,createdBy:p.createdBy,updatedAt:p.updatedAt,updatedBy:p.updatedBy,planId:p.id,currency:p.currency,version:p.version};
+ price:p.price,badge:p.badge,enabled:p.enabled,createdAt:p.createdAt,createdBy:p.createdBy??"—",updatedAt:p.updatedAt,updatedBy:p.updatedBy??"—",planId:p.id,currency:p.currency,version:p.version};
 }
