@@ -5,12 +5,13 @@ import {privateMediaSlot,validatePrivateMediaSelection,type PrivateMediaShellSta
 import type {DraftRuntimeSession} from "./post-preview-session";
 import type {NativeDraftSession} from "./native-draft-session";
 import {CoreDraftRequestError,type CoreDraftRow} from "./core-draft-client";
+import {NativeDiarySources} from "./NativeDiarySources";
 import {readVerifiedMediaRecord} from "./private-media-controller";
-type MediaPanelSession=Pick<DraftRuntimeSession,"mediaController"|"canEditMedia"|"context"|"composer"|"submitReview"|"canSubmit">&{controller:Pick<NativeDraftSession["controller"],"detail">};
+type MediaPanelSession=Pick<DraftRuntimeSession,"mediaController"|"canEditMedia"|"context"|"composer"|"submitReview"|"canSubmit"|"diaryComposer"|"canCompose">&{controller:Pick<NativeDraftSession["controller"],"detail">};
 type Controller=ReturnType<NativeDraftSession["mediaController"]>;
 type Listing=Awaited<ReturnType<Controller["list"]>>;
 function MediaShell({state,actions}:{state:PrivateMediaShellState;actions:PrivateMediaShellActions}){return <>{privateMediaSlot(state,actions)}</>;}
-export function NativePrivateMediaPanel({session,postId,onVerified,readOnly=false,review}:{session:MediaPanelSession;postId:string;onVerified:(row:CoreDraftRow)=>void;readOnly?:boolean;review?:PostReviewPresentation}){
+export function NativePrivateMediaPanel({session,postId,onVerified,readOnly=false,review,afterschool=false}:{session:MediaPanelSession;postId:string;onVerified:(row:CoreDraftRow)=>void;readOnly?:boolean;review?:PostReviewPresentation;afterschool?:boolean}){
  const [listing,setListing]=useState<Listing|null>(null),[status,setStatus]=useState<"loading"|"ready"|"denied"|"error">("loading"),[busy,setBusy]=useState(false),[pending,setPending]=useState(false),[error,setError]=useState(""),[preview,setPreview]=useState<{id:string;url:string}|undefined>();
  const [authoredOrder,setAuthoredOrder]=useState<{signature:string;ids:string[]}|null>(null),[workflowPending,setWorkflowPending]=useState<{pending:boolean;retryPostId:string|null}|null>(null);
  const controllerRef=useRef<Controller|null>(null),active=useRef<AbortController|null>(null),callback=useRef(onVerified);
@@ -52,7 +53,7 @@ export function NativePrivateMediaPanel({session,postId,onVerified,readOnly=fals
  });
  const moveImage=(id:string,delta:number)=>{const next=[...order],i=next.indexOf(id),j=i+delta;if(i<0||j<0||j>=next.length||busy||readOnly||workflowPending?.pending)return;[next[i],next[j]]=[next[j]!,next[i]!];setAuthoredOrder({signature,ids:next});};
  const state:PrivateMediaShellState=status!=="ready"||!listing?{status:status==="ready"?"loading":status}:{status:"ready",rows:listing.attachments.map((a,index)=>({id:a.id,name:"Ảnh "+(index+1),bytes:a.byteSize,state:"ready"})),canEdit:canEdit&&!pending,busy,error,preview,composer:composer?.snapshot(),review};
- return <><MediaShell state={state} actions={{
+  return <>{afterschool&&session.diaryComposer&&session.canCompose?.()&&listing&&status==="ready"?<NativeDiarySources key={postId+":"+listing.postVersion} port={session.diaryComposer} postId={postId} listing={listing} readOnly={readOnly} blocked={busy||pending||Boolean(workflowPending?.pending)} onChanged={async signal=>{const c=controllerRef.current;if(!c)throw Error("Media unavailable");await accept(await c.list(signal),signal);if(nativeReview){const state=await nativeReview.pending(signal);signal.throwIfAborted();setWorkflowPending(state);}}}/>:null}<MediaShell state={state} actions={{
   select:files=>{if(!listing)return;const invalid=validatePrivateMediaSelection(files,listing.mediaCount);if(invalid){setError(invalid);return;}run(async(c,s)=>{setPreview(undefined);for(const file of files){s.throwIfAborted();await accept(await c.upload(file,s),s);}});},
   preview:id=>run(async(c,s)=>{setPreview(undefined);const p=await c.openPreview(id,s);s.throwIfAborted();setPreview(p);}),
   closePreview:()=>{controllerRef.current?.closePreview();setPreview(undefined);},
