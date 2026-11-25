@@ -12,6 +12,8 @@ type Ports = {
  * An ambiguous submission is never automatically repeated. */
 export function createRoleMetadataFlow(ports:Ports){
  const pending=new Set<string>();
+ // Instance-local ambiguity fence: a new attempt requires a genuinely newer readback.
+ const uncertainVersions=new Map<string,string>();
  return async (id:string,expectedVersion:string,patch:unknown,signal:AbortSignal):Promise<MetadataOutcome>=>{
   if(pending.has(id))return {status:"busy"};
   pending.add(id);
@@ -21,18 +23,24 @@ export function createRoleMetadataFlow(ports:Ports){
    const current=await ports.read(id,signal);
    signal.throwIfAborted();
    if(!current||typeof current!=="object"||!("id" in current)||current.id!==id)return {status:"invalid"};
+   const unresolved=uncertainVersions.get(id);
+   if(unresolved!==undefined&&(!("updatedAt" in current)||typeof current.updatedAt!=="string"||
+      !(Date.parse(current.updatedAt)>Date.parse(unresolved))))return {status:"uncertain"};
    if(!("updatedAt" in current)||current.updatedAt!==expectedVersion)return {status:"conflict"};
    const command=prepareRoleMetadataEdit(current,expectedVersion,patch);
    if(!command)return {status:"invalid"};
    submitted=true;
+   uncertainVersions.set(id,expectedVersion);
    const outcome=await ports.submit(command,signal);
-   if(outcome==="conflict")return {status:"conflict"};
-   if(outcome==="rejected")return {status:"unavailable"};
+   if(outcome==="conflict"){uncertainVersions.delete(id);return {status:"conflict"};}
+   if(outcome==="rejected"){uncertainVersions.delete(id);return {status:"unavailable"};}
    if(outcome!=="accepted")return {status:"uncertain"};
    signal.throwIfAborted();
    const receipt=await ports.read(id,signal);
    signal.throwIfAborted();
-   return verifyRoleMetadataEdit(command,receipt)?{status:"saved",receipt}:{status:"uncertain"};
+   if(!verifyRoleMetadataEdit(command,receipt))return {status:"uncertain"};
+   uncertainVersions.delete(id);
+   return {status:"saved",receipt};
   }catch{
    return {status:submitted?"uncertain":"unavailable"};
   }finally{

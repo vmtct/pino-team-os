@@ -46,3 +46,32 @@ test("same-record concurrent attempt is busy, aborted preflight never submits",a
  assert.equal((await flow(row.id,row.updatedAt,{name:"New"},aborted.signal)).status,"unavailable");
  assert.equal(submits,1);
 });
+
+test("ambiguous result fences repeat at the same version, permits only explicit newer valid edit",async()=>{
+ let current:unknown=row,submits=0;
+ const newest={...fresh,displayName:"Newer",updatedAt:"2026-11-24T10:00:02.000Z"};
+ const flow=createRoleMetadataFlow({read:async()=>current,submit:async command=>{
+  submits++;
+  if(submits===1)throw Error("response lost");
+  assert.equal(command.body.expectedUpdatedAt,fresh.updatedAt);
+  assert.deepEqual(command.body.permissionKeys,row.permissionKeys);
+  current=newest;return "accepted";
+ }});
+ assert.equal((await flow(row.id,row.updatedAt,{name:"New"},signal())).status,"uncertain");
+ assert.equal((await flow(row.id,row.updatedAt,{name:"New"},signal())).status,"uncertain");
+ assert.equal((await flow(row.id,row.updatedAt,{name:"Different"},signal())).status,"uncertain");
+ current={...row,updatedAt:"invalid"};
+ assert.equal((await flow(row.id,"invalid",{name:"New"},signal())).status,"uncertain");
+ current=fresh;
+ assert.equal((await flow(row.id,row.updatedAt,{name:"New"},signal())).status,"conflict");
+ assert.equal(submits,1);
+ assert.deepEqual(await flow(row.id,fresh.updatedAt,{name:"Newer"},signal()),{status:"saved",receipt:newest});
+ assert.equal(submits,2);
+});
+
+test("definitively rejected commands do not fence a later explicit attempt",async()=>{
+ let submits=0;
+ const flow=createRoleMetadataFlow({read:async()=>row,submit:async()=>{submits++;return "rejected";}});
+ for(let i=0;i<2;i++)assert.equal((await flow(row.id,row.updatedAt,{name:"New"},signal())).status,"unavailable");
+ assert.equal(submits,2);
+});
