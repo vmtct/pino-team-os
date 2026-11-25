@@ -42,7 +42,7 @@ export const PORTFOLIO_CSS=String.raw`
 .portfolio-post [data-feed-step="1"]{right:4px}
 .portfolio-post .portfolio-cover img{aspect-ratio:6/5}
 .portfolio-post .portfolio-illustration{position:absolute;left:10px;top:8px;padding:5px 11px;border-radius:999px;background:#ffffffe0;color:#58485a;font-size:10px;font-weight:700}
-.portfolio-post .portfolio-count{top:8px;right:8px}
+.portfolio-post .portfolio-count{top:8px;right:8px;background:transparent;border:0;border-radius:0;text-shadow:0 1px 2px #0007}
 .portfolio-post .portfolio-metrics{display:flex;gap:16px;align-items:center;padding:10px 5px 0;color:#805a7b;font-size:11px;font-weight:650}
 .portfolio-post .portfolio-metrics span{display:inline-flex;align-items:center;gap:6px}
 .portfolio-post .portfolio-metrics svg{width:18px;height:18px}
