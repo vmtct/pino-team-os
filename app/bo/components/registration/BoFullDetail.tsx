@@ -5,6 +5,8 @@ import { DetailFrame } from "@/app/components/workspace-renderer/DetailFrame";
 import { BoValue } from "./BoValue";
 import { BoRegistrationHistory } from "./BoRegistrationHistory";
 import { BoRunningClassEnrollment } from "./BoRunningClassEnrollment";
+import { RunningClassDetailProperties } from "../../running-classes/RunningClassDraftControls";
+import type { RunningClassReview } from "../../running-classes/running-class-review";
 import { BoStudentSubscriptionRelation } from "./BoStudentSubscriptionRelation";
 import {subscriptionDetailUrl} from "@/lib/bo-subscription-detail-url";
 import { BoSubscriptionInformationTab } from "@/app/bo/subscriptions/BoSubscriptionInformationTab";
@@ -39,7 +41,7 @@ const BoStudentSpecialtyTab = lazy(async () => {
 import type { BoModule, BoRecord } from "@/lib/bo-registration";
 
 export function BoFullDetail({
-  module, moduleKey, record, onBack, onStudentRenamed, mobileMenu, enableStudentSubscriptions = false, onEnrollmentChanged, onWorkforcePlanChanged, initialTab, onTabChanged, reviewOnly = false,
+  module, moduleKey, record, onBack, onStudentRenamed, mobileMenu, enableStudentSubscriptions = false, onEnrollmentChanged, onWorkforcePlanChanged, initialTab, onTabChanged, reviewOnly = false, runningClassReview, onRunningClassSaved,
 }: {
   module: BoModule;
   moduleKey: string;
@@ -51,6 +53,8 @@ export function BoFullDetail({
   onEnrollmentChanged?: () => void;
   onWorkforcePlanChanged?: (open: boolean) => void;
   reviewOnly?: boolean;
+  runningClassReview?: RunningClassReview;
+  onRunningClassSaved?: (record:BoRecord)=>void;
   initialTab?: string;
   onTabChanged?: (tab: string) => void;
 }) {
@@ -76,6 +80,7 @@ export function BoFullDetail({
     : moduleKey === "students"
     ? ["Detail", "Diary", "Lịch Sử"]
     : ["Detail", "Lịch Sử"];
+  const classRecord = moduleKey === "classes" ? runningClassReview?.find(record.id) : undefined;
   const selectedTabIndex = tabs.indexOf(tab);
   const activeTab = selectedTabIndex >= 0 ? tab : "Detail";
 
@@ -113,6 +118,8 @@ export function BoFullDetail({
               ? <BoStaffIncomeReadTab staffMemberId={record.id} />
             : activeTab === "Detail" && moduleKey === "subscriptions"
               ? <BoSubscriptionInformationTab subscriptionId={record.id} studentName={record.name} />
+            : activeTab === "Detail" && classRecord && runningClassReview
+              ? <RunningClassDetailProperties record={classRecord} catalog={runningClassReview.catalog} centerToday={runningClassReview.centerToday} editable={Boolean(onRunningClassSaved)} onSave={command=>onRunningClassSaved?.(runningClassReview.edit(command))}/>
             : activeTab === "Detail"
             ? <section className="v24-prop-section">
                 <div className="v24-section-heading">
@@ -153,7 +160,7 @@ export function BoFullDetail({
                   <BoStudentSpecialtyTab items={undefined} currentCenterLocalDate="" readOnly />
                 </Suspense>
               : activeTab === "Enrollment" && moduleKey === "classes"
-                ? <BoRunningClassEnrollment runningClassId={record.id} className={record.name} pathName={typeof record.path === "string" ? record.path : "—"} centerTimeZone={typeof record.centerTimeZone === "string" ? record.centerTimeZone : null} />
+                ? <BoRunningClassEnrollment fixtureEmpty={Boolean(runningClassReview)} runningClassId={record.id} className={record.name} pathName={typeof record.path === "string" ? record.path : "—"} centerTimeZone={typeof record.centerTimeZone === "string" ? record.centerTimeZone : null} />
               : activeTab === "Enrollment" && moduleKey === "subscriptions"
                 ? <Suspense fallback={<div role="status" className="v24-audit-empty">Đang tải Enrollment…</div>}><BoSubscriptionEnrollmentTab subscriptionId={record.id} onChanged={onEnrollmentChanged} /></Suspense>
               : activeTab === "Chuyên đề" && moduleKey === "subscriptions"
@@ -161,7 +168,7 @@ export function BoFullDetail({
                     <BoSubscriptionSpecialtyTab key={record.id + ":" + centerId} subscriptionId={record.id} centerId={centerId} centerReady={centerReady}/>
                   </Suspense>
               : subjectType
-                  ? <BoRegistrationHistory key={record.id} subjectType={subjectType} subjectId={record.id} />
+                  ? <BoRegistrationHistory fixtureEmpty={Boolean(runningClassReview)} key={record.id} subjectType={subjectType} subjectId={record.id} />
                   : <div className="v24-audit-empty" role="status">Lịch sử chưa khả dụng.</div>}
   </DetailFrame>;
 }
