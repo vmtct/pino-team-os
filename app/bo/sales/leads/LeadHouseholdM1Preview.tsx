@@ -101,6 +101,8 @@ export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi}: {
   const readModel = useMemo(()=>readApi?new LeadReadModel(readApi,refreshRead):null,[readApi]);
   const commandFence=useMemo(()=>commandApi&&commandApi===readApi&&!localReview?new LeadCommandFence(commandApi):null,[commandApi,readApi,localReview]);
   const [commandNotice,setCommandNotice]=useState("");
+  const commandBusyRef=useRef(false);
+  const [commandBusy,setCommandBusy]=useState(false);
   const records = readModel ? readModel.directory.items.map(leadReadRow) : fixtureRecords;
   useEffect(()=>()=>readModel?.dispose(),[readModel]);
   const [query, setQuery] = useState("");
@@ -137,20 +139,22 @@ export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi}: {
   useEffect(()=>{if(readModel&&detailReady&&activeTab==="history")void readModel.openHistory();},[readModel,detailReady,activeTab,selectedLeadId]);
   const convertLead = records.find(record => record.id === convertLeadId) ?? null;
 
-  async function executeContact(operation:()=>Promise<LeadDetail>):Promise<boolean>{
-    if(!commandFence||!readModel)return false;
-    setCommandNotice("");
-    const result=operation();refreshRead();
+  async function executeContact(operation:()=>Promise<LeadDetail|null>):Promise<boolean>{
+    if(!commandFence||!readModel||commandBusyRef.current)return false;
+    commandBusyRef.current=true;setCommandBusy(true);setCommandNotice("");
     try {
+      const result=operation();refreshRead();
       const detail=await result;
+      if(!detail){setCommandNotice("Không tìm thấy Lead trong phạm vi được phép xem. Kiểm tra lại thông tin trước khi gửi yêu cầu mới.");return false;}
       await Promise.all([readModel.refreshDirectory(),readModel.selected.id===detail.id?readModel.select(detail.id):Promise.resolve()]);
       const refreshFailed=readModel.directory.phase==="error"||(readModel.selected.id===detail.id&&readModel.selected.phase!=="ready");
       setCommandNotice(refreshFailed?"Đã xác nhận kết quả Lead; chưa tải lại được toàn bộ dữ liệu.":"Đã tải lại thông tin Lead.");
+      if(drawer?.mode==="create"){setDrawer(null);openFullDetail(detail.id);}
       return true;
     }catch{
       setCommandNotice(commandFence.state==="uncertain"?"Chưa xác định kết quả. Chỉ thử lại cùng yêu cầu.":commandFence.state==="conflict"?"Dữ liệu đã thay đổi. Tải lại trước khi chỉnh sửa.":commandFence.state==="reload_required"?"Đã nhận kết quả, cần tải lại Lead.":"Không thể cập nhật Lead.");
       return false;
-    }finally{refreshRead();}
+    }finally{commandBusyRef.current=false;setCommandBusy(false);refreshRead();}
   }
   function saveCanonicalContact(field:"name"|"phone",value:string):Promise<boolean>{
     const target=readModel?.selected.record;
@@ -299,6 +303,18 @@ export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi}: {
   }
 
   function saveDraft() {
+    if(readModel){
+      if(!commandFence||commandFence.state!=="idle"||commandBusyRef.current||drawer?.mode!=="create")return;
+      const phone=draft.phone.replace(/\D/g,"").replace(/^84/,"0");
+      if(!/^0\d{9}$/.test(phone)||!draft.contactName.trim()){setFormError("Nhập tên và số điện thoại hợp lệ.");setStep(1);return;}
+      const primaries=draft.members.filter(m=>m.primaryContact);
+      const interests=draft.interests.filter(isMemberInterest);
+      if(draft.members.length>20||primaries.length>1||draft.members.some(m=>!m.name.trim()||!m.roles.length||(!m.primaryContact&&m.roles.includes("PARENT"))||m.age!==null&&(!Number.isInteger(m.age)||m.age<0||m.age>120))){setFormError("Kiểm tra thông tin thành viên (tối đa 20) và liên hệ chính.");setStep(2);return;}
+      if(draft.relationships.length||interests.length!==draft.interests.length||interests.length&&!draft.members.some(m=>m.roles.some(r=>r!=="PARENT"))){setFormError("Chương trình quan tâm cần Student/Guest; khai báo quan hệ sau khi tạo Lead.");setStep(2);return;}
+      const members:LeadMemberInput[]=draft.members.map(m=>({displayName:m.name.trim(),intendedRoles:m.roles,gender:m.gender==="Nam"?"MALE":m.gender==="Nữ"?"FEMALE":m.gender==="Khác"?"OTHER":null,birthPrecision:"UNKNOWN",birthYear:null,birthMonth:null,birthDay:null,reportedAge:m.age,interestKinds:m.roles.some(r=>r!=="PARENT")?interests:[]}));
+      const primaryMemberIndex=draft.members.findIndex(m=>m.primaryContact);
+      setFormError("");void executeContact(()=>commandFence.submit({kind:"create",input:{contact:{phone,contactDisplayName:draft.contactName.trim()},members,primaryMemberIndex:primaryMemberIndex<0?null:primaryMemberIndex}}));return;
+    }
     if (!draft.contactName.trim()) { setFormError("Tên người liên hệ là bắt buộc."); setStep(1); return; }
     if (draft.members.filter(member => member.primaryContact).length > 1) { setFormError("Chỉ một thành viên được chọn là người liên hệ chính."); setStep(2); return; }
     if (!/^0\d{9}$/.test(draft.phone.replace(/\D/g, ""))) { setFormError("Số điện thoại mẫu phải có 10 chữ số và bắt đầu bằng 0."); setStep(1); return; }
@@ -347,7 +363,7 @@ export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi}: {
       </div>
       <div className={styles.headingActions + " pds-compact-actions"}>
         {!readModel?<BoDataGridBadge>DỮ LIỆU MẪU</BoDataGridBadge>:null}
-        <button className="primary-btn" type="button" disabled={Boolean(readModel)} onClick={openCreate}>{readModel?"＋ Tạo Lead":"＋ Tạo Lead mẫu"}</button>
+        <button className="primary-btn" type="button" disabled={Boolean(readModel)&&(!commandFence||commandBusy||commandFence.state!=="idle")} onClick={openCreate}>{readModel?"＋ Tạo Lead":"＋ Tạo Lead mẫu"}</button>
       </div>
     </header>
 
@@ -458,7 +474,10 @@ export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi}: {
       draft={draft}
       step={step}
       error={formError}
-      onClose={() => { setDrawer(null); setFormError(""); }}
+      live={Boolean(commandFence)}
+      locked={Boolean(commandFence)&&(commandBusy||commandFence?.state!=="idle")}
+      recovery={commandFence?<>{commandNotice?<p role="status">{commandNotice}</p>:null}{commandFence.state==="uncertain"?<button type="button" className="secondary-btn" disabled={commandBusy} onClick={()=>void executeContact(()=>commandFence.retry())}>Thử lại cùng yêu cầu</button>:null}{commandFence.isCreateConflict?<button type="button" className="secondary-btn" disabled={commandBusy} onClick={()=>void executeContact(()=>commandFence.reloadCreateConflict())}>Kiểm tra Lead đã có</button>:null}{commandFence.state==="reload_required"&&commandFence.reloadTarget?<button type="button" className="secondary-btn" disabled={commandBusy} onClick={()=>{const id=commandFence.reloadTarget;if(id)void executeContact(()=>commandFence.reload(id));}}>Tải lại Lead</button>:null}</>:undefined}
+      onClose={() => { if(commandFence&&(commandBusyRef.current||commandFence.state!=="idle"))return;setDrawer(null); setFormError(""); }}
       onStepChange={setStep}
       onDraftChange={setDraft}
       onSave={saveDraft}
@@ -609,9 +628,9 @@ function LeadHistory() {
 }
 
 function LeadCreateEditDrawer({
-  mode, draft, step, error, onClose, onStepChange, onDraftChange, onSave,
+  mode, draft, step, error, onClose, onStepChange, onDraftChange, onSave,live=false,locked=false,recovery,
 }: {
-  mode: "create" | "edit"; draft: LeadDraft; step: 1 | 2; error: string;
+  mode: "create" | "edit"; draft: LeadDraft; step: 1 | 2; error: string; live?:boolean;locked?:boolean;recovery?:React.ReactNode;
   onClose: () => void; onStepChange: (step: 1 | 2) => void; onDraftChange: (draft: LeadDraft) => void; onSave: () => void;
 }) {
   const [relationshipFrom, setRelationshipFrom] = useState("");
@@ -647,23 +666,24 @@ function LeadCreateEditDrawer({
   }
 
   return <BoDrawer
-    title={mode === "create" ? "Tạo Lead mẫu" : "Chỉnh sửa Lead mẫu"}
-    eyebrow="Dữ liệu mẫu"
+    title={live?"Tạo Lead":mode === "create" ? "Tạo Lead mẫu" : "Chỉnh sửa Lead mẫu"}
+    eyebrow={live?"Lead":"Dữ liệu mẫu"}
     mode={mode}
     size="lg"
     onClose={onClose}
     footer={<div className={styles.drawerFooter + " pds-compact-actions"}>
-      {step === 2 ? <button className="secondary-btn" type="button" onClick={() => { setLocalError(""); onStepChange(1); }}>← Quay lại</button> : <button className="secondary-btn" type="button" onClick={onClose}>Hủy</button>}
-      {step === 1 ? <button type="button" className="primary-btn" onClick={() => { if (!draft.contactName.trim() || !draft.phone.trim()) { setLocalError("Nhập người liên hệ và số điện thoại trước khi tiếp tục."); return; } setLocalError(""); onStepChange(2); }}>Tiếp tục: Thành viên →</button> : <button type="button" className="primary-btn" onClick={onSave}>Lưu mẫu</button>}
+      {step === 2 ? <button className="secondary-btn" type="button" disabled={locked} onClick={() => { setLocalError(""); onStepChange(1); }}>← Quay lại</button> : <button className="secondary-btn" type="button" disabled={locked} onClick={onClose}>Hủy</button>}
+      {step === 1 ? <button type="button" className="primary-btn" disabled={locked} onClick={() => { if (!draft.contactName.trim() || !draft.phone.trim()) { setLocalError("Nhập người liên hệ và số điện thoại trước khi tiếp tục."); return; } setLocalError(""); onStepChange(2); }}>Tiếp tục: Thành viên →</button> : <button type="button" className="primary-btn" disabled={locked} onClick={onSave}>{live?"Tạo Lead":"Lưu mẫu"}</button>}
     </div>}
   >
     <div className={styles.drawerContent}>
       <div className={styles.stepProgress}><span className="pds-step" data-active={step === 1 || undefined}>1 · Thông tin liên hệ</span><i className="pds-step-rule" /><span className="pds-step" data-active={step === 2 || undefined}>2 · Thành viên</span></div>
 
+      <fieldset disabled={locked} style={{border:0,padding:0,margin:0,minWidth:0}}>
       {step === 1 ? <>
         <PropertySection title="Thông tin liên hệ" schema={CONTACT_FIELD_SCHEMA} values={{ contactName: draft.contactName, phone: draft.phone }} mode={mode === "create" ? "CREATE" : "EDIT"} onChange={(key, value) => onDraftChange({ ...draft, [key]: value as string })} />
         <section className={styles.interestSection}>
-          <div className={styles.sectionHeading + " pds-compact-heading"}><div><h3>Chương trình quan tâm</h3><p>Chọn riêng theo từng chương trình; có thể chọn cả hai.</p></div><BoDataGridBadge>Tùy chọn</BoDataGridBadge></div>
+          <div className={styles.sectionHeading + " pds-compact-heading"}><div><h3>Chương trình quan tâm</h3><p>{live?"Áp dụng cho các thành viên Student/Guest được khai báo.":"Chọn riêng theo từng chương trình; có thể chọn cả hai."}</p></div><BoDataGridBadge>Tùy chọn</BoDataGridBadge></div>
           <div className={styles.programGrid}>
             {(["AFTERSCHOOL", "MYTIME"] as const).map(program => <article className={styles.programCard + " pds-compact-card"} key={program}>
               <strong>{program === "AFTERSCHOOL" ? "PINO Afterschool" : "MyTime by PINO"}</strong>
@@ -691,7 +711,8 @@ function LeadCreateEditDrawer({
             <label className={styles.primaryContactOption + " pds-choice"}><input type="checkbox" checked={member.primaryContact} onChange={event => updateMember(index, { primaryContact: event.target.checked })} />Người liên hệ chính</label>
           </article>)}
         </section>
-        {draft.members.length ? <section className={styles.relationshipSection}>
+        {live?<p className="pds-compact-muted">Sau khi tạo Lead, mở tab Quan hệ để khai báo liên kết giữa các thành viên.</p>:null}
+        {!live&&draft.members.length ? <section className={styles.relationshipSection}>
           <div className={styles.sectionHeading + " pds-compact-heading"}><div><h3>Quan hệ được khai báo</h3><p>Parent → Student hoặc Guest nhỏ tuổi; không xác thực quyền giám hộ.</p></div><BoDataGridBadge>{draft.relationships.length} quan hệ</BoDataGridBadge></div>
           <div className={styles.relationshipComposer}>
             <label className="pds-compact-label">Parent<select className="pds-compact-field" value={relationshipFrom} onChange={event => setRelationshipFrom(event.target.value)}><option value="">Chọn Parent</option>{draft.members.filter(member => member.roles.includes("PARENT")).map(member => <option key={member.id} value={member.id}>{member.name || "Chưa nhập tên"}</option>)}</select></label>
@@ -706,6 +727,8 @@ function LeadCreateEditDrawer({
           </div>)}
         </section> : null}
       </>}
+      </fieldset>
+      {recovery}
       {error || localError ? <p className="pds-field-error" role="alert">{error || localError}</p> : null}
     </div>
   </BoDrawer>;
