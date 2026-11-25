@@ -30,7 +30,7 @@ function member(space,tab,adapter,afterschoolLoginAvailable,chrome,portfolio){
  const profile=chrome?.students?.find(s=>s.id===chrome.selectedId)??(chrome?.students?.length===1?chrome.students[0]:null);
  const scoped=portfolio?.state==="ready"&&space==="house"&&(!profile||portfolio.profileKey!==profile.id)?{space,state:"no-profile"}:portfolio;
  const portfolioContent=chrome?renderPortfolio(space,tab,scoped):null;
- const content='<div class="feed-inner">'+(tab==="community"?"":'<h1>'+h(tabLabel)+'</h1>')+(portfolioContent??(memberNotice+(chrome?"":skeleton+skeleton)))+'<p class="ending">Đang chuẩn bị '+h(program.label)+'</p></div>';
+ const content='<div class="feed-inner">'+(tab==="community"?"":'<h1>'+h(tabLabel)+'</h1>')+(portfolioContent??(memberNotice+(chrome?"":skeleton+skeleton)))+(portfolioContent?"":'<p class="ending">Đang chuẩn bị '+h(program.label)+'</p>')+'</div>';
  const students=chrome&&space==="house"?chrome.students:[];
  const selected=students.find(s=>s.id===chrome?.selectedId)??(students.length===1?students[0]:null);
  const label=chrome?(space==="mytime"?"Tài khoản":selected?h(selected.label):"Chọn học viên"):(space==="house"?"Chọn hồ sơ":"Tài khoản");
