@@ -40,7 +40,7 @@ export const spaceDefinition={
  sort:{fields:["name","code","center","optimalCapacity","hardCapacity","status"],mode:"single",nulls:"last",tieBreak:"record-id"},group:{fields:["center","optimalCapacity","hardCapacity","status"],mode:"single"},
  views:{builtIn:[],saved:{kind:"local-ui"},actions:["add","apply","rename","delete","reorder"]},pagination:{sizes:[8,15,30],defaultSize:15,mode:"local-ui"},
  inlineEdit:{fields:directFields,enabled:true},interaction:{settings:["properties","grouping","filters","quick-views"],quickView:"separate-opener",keyboard:"canonical",undo:"local-ui-only"}},
- drawer:{density:"one-column",sections:spaceSections,actions:[]},
+ drawer:{density:"one-column",sections:spaceSections,actions:[{id:"clear-hard-capacity",label:"Bỏ giới hạn tối đa",capability:"edit"}]},
  detail:{overview:{sections:spaceSections},businessTabs:[{id:"runningClasses",label:"Lớp học",kind:"relation-grid",relatedModule:"runningClasses",source:{adapter:"learning-space-classes-preview",permission:SPACE_READ}}],history:{kind:"unavailable",reason:"Chưa có lịch sử thay đổi khả dụng."}}
 } as const satisfies ModuleSchema<SpaceSchemaFields>;
 export const spaceRegistry=new TddRegistry();
