@@ -323,7 +323,7 @@ test("PAP-2225 native Running Classes requires exact authorized in-memory worksp
  for(const file of files)write(file,fs.readFileSync(path.join(repo,file),"utf8"));
  write(policy,read(policy).replace('  "/bo/payroll-periods",','  "/bo/payroll-periods",\n  "/bo/running-classes",'));
  assert.deepEqual(verifyBoStagingRoutePolicy(root).issues,[]);
- for(const [index,from,to] of [[0,'./RunningClassStagingEntry','./OtherEntry'],[0,'!boSkeletonEnabled(env,host)','false'],[1,'!center.centers.some(c=>c.id===selected)','false'],[1,'if(state!=="ready")','if(false)'],[1,'../components/registration/BoRegistrationWorkspace','../OtherWorkspace'],[2,'!ctx.permissionKeys?.includes("delivery.schedule.manage")','false'],[2,'method:"GET"','method:"POST"'],[3,'new Map<string,ClassRecord>','new FakeStore']]){
+ for(const [index,from,to] of [[0,'./RunningClassStagingEntry','./OtherEntry'],[0,'!boSkeletonEnabled(env,host)','false'],[1,'!center.centers.some(c=>c.id===selected)','false'],[1,'if(state!=="ready")','if(false)'],[1,'const options=useMemo(()=>({centerId}),[centerId]);','const options={centerId};'],[1,'options={options}','options={{centerId}}'],[1,'../components/registration/BoRegistrationWorkspace','../OtherWorkspace'],[2,'!ctx.permissionKeys?.includes("delivery.schedule.manage")','false'],[2,'method:"GET"','method:"POST"'],[3,'new Map<string,ClassRecord>','new FakeStore']]){
   const file=files[index],original=read(file);assert.ok(original.includes(from),from);write(file,original.replace(from,to));
   assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/running-classes.*invalid native scoped fixture contract/);write(file,original);
  }
