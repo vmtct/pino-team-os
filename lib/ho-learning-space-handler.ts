@@ -4,18 +4,9 @@ import {HO_STAGING_HOSTNAME,normalizeHostname} from "./host-boundary";
 import {teamCredentialFromHeaders} from "./team-auth";
 import {BoShellGateError} from "./bo-shell-gate";
 import type {HoWorldEnv} from "./ho-world-handler";
-const root="/api/ho/learning-spaces",id=/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+import {learningSpaceRoute,type Route} from "./ho-learning-space-contract";
+const id=/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const permission="delivery.schedule.manage",max=4096;
-type Route={method:"GET"|"POST"|"PATCH"|"DELETE";suffix:string;kind:"list"|"detail"|"related"|"create"|"update"|"remove"};
-export function learningSpaceRoute(path:string,method:string):Route|null{
- if(path===root){if(method==="GET")return {method,suffix:"",kind:"list"};if(method==="POST")return {method,suffix:"",kind:"create"};return null;}
- if(!path.startsWith(root+"/"))return null;
- const suffix=path.slice(root.length),parts=suffix.slice(1).split("/");
- if(!id.test(parts[0]??""))return null;
- if(parts.length===1){if(method==="GET")return {method,suffix,kind:"detail"};if(method==="PATCH")return {method,suffix,kind:"update"};if(method==="DELETE")return {method,suffix,kind:"remove"};}
- if(parts.length===2&&method==="GET"&&(parts[1]==="classes"||parts[1]==="history"))return {method,suffix,kind:"related"};
- return null;
-}
 function json(status:number,body:unknown,requestId?:string){return new Response(JSON.stringify(body),{status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"private, no-store",...(requestId?{"x-request-id":requestId}:{})}});}
 const fail=(status:number,code:string)=>json(status,{error:{code,message:"Learning Space request unavailable"}});
 function validQuery(u:URL,r:Route){
