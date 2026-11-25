@@ -5,7 +5,7 @@ const fs=require("node:fs");
 const path=require("node:path");
 const {createHash}=require("node:crypto");
 const {createNativeM1Handler}=require("./native-m1-gateway.cjs");
-const ORIGIN="http://192.168.1.6:8800";
+const ORIGIN="http://desktop-isrdren:8800";
 const digest=/^[a-f0-9]{64}$/;
 const maxManifest=1024*1024;
 function isNativeRequest(raw){
@@ -15,6 +15,11 @@ function isNativeRequest(raw){
     return raw.includes("/__m1_assets/")||url.pathname.includes("/__m1_assets/")||
       (/^\/(bo|ho)\//.test(url.pathname)&&url.searchParams.has("m1Preview"));
   }catch{return raw.includes("/__m1_assets/")||raw.includes("m1Preview");}
+}
+function candidate(raw){
+  if(isNativeRequest(raw))return true;
+  try{return /^\/(bo|ho)\/.+/.test(new URL(raw,ORIGIN).pathname);}
+  catch{return /^\/(bo|ho)\//.test(raw??"");}
 }
 function readRegular(file,max){
   const stat=fs.lstatSync(file);
@@ -33,10 +38,10 @@ function fixedChild(parent,child){
 }
 function createRegistryDispatch(root){
   // Re-read the small registry on native requests; atomic replacement requires no restart.
-  // Invalid or missing registry never interrupts legacy traffic or proxies preview requests.
+  // Invalid inventory fails closed for potential module routes; top-level legacy paths remain unaffected.
   let cacheKey=null,dispatch=null;
-  return function native(req,res){
-    if(!isNativeRequest(req.url))return false;
+  function native(req,res){
+    if(!candidate(req.url))return false;
     try{
       const stat=fs.lstatSync(root);
       if(stat.isSymbolicLink()||!stat.isDirectory())throw Error("Invalid registry root");
@@ -54,15 +59,15 @@ function createRegistryDispatch(root){
         dispatch=createNativeM1Handler(entries);
         cacheKey=key;
       }
-      if(dispatch(req,res))return true;
-      res.writeHead(404,{"content-type":"text/plain; charset=utf-8","cache-control":"no-store","x-robots-tag":"noindex"});
-      res.end(req.method==="HEAD"?undefined:"Unregistered M1 preview");
+      return dispatch(req,res);
     }catch{
       cacheKey=null;dispatch=null;
       res.writeHead(503,{"content-type":"text/plain; charset=utf-8","cache-control":"no-store","x-robots-tag":"noindex"});
       res.end(req.method==="HEAD"?undefined:"M1 registry unavailable");
     }
     return true;
-  };
+  }
+  native.blocksUpgrade=raw=>native({url:raw,method:"UPGRADE"},{writeHead(){},end(){}});
+  return native;
 }
 module.exports={isNativeRequest,createRegistryDispatch};
