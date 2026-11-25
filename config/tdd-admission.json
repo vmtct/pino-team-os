@@ -140,7 +140,15 @@
         "app/ho/staff/StaffManualPreview.tsx",
         "app/ho/staff/StaffManualWorkspace.tsx",
         "app/ho/staff/manual-create-contract.ts",
-        "app/ho/staff/manual-create-preview.ts"
+        "app/ho/staff/manual-create-preview.ts",
+        "app/ho/staff/StaffNativeWorkspace.tsx",
+        "app/ho/staff/StaffPersonPicker.tsx",
+        "app/ho/staff/manual-staff-centers.ts",
+        "app/ho/staff/native-staff-provider.ts",
+        "app/ho/staff/staff-native-command.ts",
+        "app/ho/staff/staff-native-overview.ts",
+        "app/ho/staff/staff-person-reader.ts",
+        "app/ho/staff/staff-recovery-journal.ts"
       ],
       "externalReferences": [
         {
@@ -182,7 +190,13 @@
         "lib/pap1144-ho-staff-password-reset.test.ts",
         "lib/pap1147-ho-staff-role.test.ts",
         "lib/pap1117-ho-staff-properties.test.ts",
-        "lib/pap2353-staff-manual-create.test.ts"
+        "lib/pap2353-staff-manual-create.test.ts",
+        "app/ho/staff/manual-staff-centers.test.ts",
+        "app/ho/staff/native-staff-provider.test.ts",
+        "app/ho/staff/staff-native-command.test.ts",
+        "app/ho/staff/staff-native-overview.test.ts",
+        "app/ho/staff/staff-person-reader.test.ts",
+        "app/ho/staff/staff-recovery-journal.test.ts"
       ]
     },
     {
