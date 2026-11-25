@@ -1,4 +1,5 @@
-export const CLIENT=String.raw`
+import {PORTFOLIO_CLIENT} from "./portfolio-client.mjs";
+export const CLIENT=PORTFOLIO_CLIENT+String.raw`
 (function(){
  "use strict";
  // PAP-2194: presentation events only; session/context adapter owns side effects.
