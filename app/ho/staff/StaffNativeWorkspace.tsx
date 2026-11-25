@@ -1,6 +1,6 @@
 "use client";
 // PAP-2358 · WFM-STAFF. Native caller seam; route activation and create command remain separate.
-import {useEffect,useState,useMemo,useRef} from "react";
+import {useEffect,useState,useMemo} from "react";
 import {createHoTddAdapter,type AuthenticatedSurfaceAdapter} from "@/lib/workspace-adapters";
 import {browserTddNavigation,type AdapterNavigation} from "@/lib/workspace-adapters/navigation";
 import {TddRegistry} from "@/lib/workspace-schema";
@@ -16,19 +16,20 @@ import {staffNativeOverviewProperties} from "./staff-native-overview";
 
 import {createStaffPersonReader} from "./staff-person-reader";
 import {createNativeStaffCommand,type StaffCreateAdmission} from "./staff-native-command";
+import {createHoStaffCreateState} from "@/lib/ho-manual-staff-create-flow";
 type Ready={adapter:AuthenticatedSurfaceAdapter<ManualStaffFields>;navigation:AdapterNavigation<ManualStaffFields>};
 export function StaffNativeWorkspace({principalId,createAdmission}:{principalId:string;createAdmission?:StaffCreateAdmission}){
   const [ready,setReady]=useState<Ready|null>(null);
   const [centers,setCenters]=useState<readonly StaffCenterOption[]>([]);
   const [error,setError]=useState(false),[centerError,setCenterError]=useState(false),[retry,setRetry]=useState(0);
-  const current=useRef<{admission:StaffCreateAdmission|undefined;ready:Ready|null;centers:readonly StaffCenterOption[];principalId:string}>({admission:undefined,ready:null,centers:[],principalId});
-  useEffect(()=>{current.current={admission:createAdmission,ready,centers,principalId};},[createAdmission,ready,centers,principalId]);
+  const [operationState]=useState(createHoStaffCreateState);
   const command=useMemo(()=>createNativeStaffCommand({
-    admission:()=>current.current.admission,
-    authorized:()=>{const c=current.current;return c.principalId===principalId&&c.ready?.adapter.userId===principalId&&c.ready.adapter.context.authorize("team.bo.access")===true;},
-    centers:()=>current.current.centers,
-  }),[principalId]);
-  const personReader=useMemo(()=>createStaffPersonReader(),[ ]);
+    state:operationState,
+    admission:()=>createAdmission,
+    authorized:()=>ready?.adapter.userId===principalId&&ready.adapter.context.authorize("team.bo.access")===true,
+    centers:()=>centers,
+  }),[operationState,createAdmission,ready,centers,principalId]);
+  const personReader=useMemo(()=>createStaffPersonReader(),[]);
   useEffect(()=>{
     const controller=new AbortController();
     let adapter:AuthenticatedSurfaceAdapter<ManualStaffFields>|undefined;

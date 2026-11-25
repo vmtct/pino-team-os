@@ -3,6 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {createNativeStaffCommand,type StaffCreateAdmission} from "./staff-native-command";
 import type {StaffCreateCommand} from "./manual-create-contract";
+import {createHoStaffCreateState} from "@/lib/ho-manual-staff-create-flow";
 import {HoManualStaffCreateError} from "@/lib/ho-manual-staff-create-client";
 const command:StaffCreateCommand={name:"QA",phone:"0900000000",email:"qa@example.invalid",gender:null,birthDate:null,centerId:"center",login:null};
 const receipt={staffMemberId:"staff",personId:"person",membershipId:"member",centerId:"center",accessState:"NOT_PROVISIONED" as const};
@@ -22,4 +23,15 @@ test("uncertain readback retains same key until exact committed receipt",async()
  assert.equal(await control.readback(),false);assert(control.pending());
  await assert.rejects(control.create({...command,name:"other"}));committed=true;
  assert.equal(await control.readback(),true);assert(!control.pending());assert.deepEqual(keys,["same-key","same-key","same-key"]);
+});
+
+test("recreated caller keeps operation state without stale admission",async()=>{
+ const state=createHoStaffCreateState();
+ const base={state,authorized:()=>true,centers:()=>[{id:"center",label:"QA"}],makeKey:()=>"stable-key"};
+ const first=createNativeStaffCommand({...base,admission:()=>"record-only",submit:async()=>{throw new HoManualStaffCreateError("uncertain",null);}});
+ await assert.rejects(first.create(command));assert(first.pending());
+ const denied=createNativeStaffCommand({...base,admission:()=>undefined,read:async()=>{throw Error("unexpected request");}});
+ await assert.rejects(denied.readback());assert(denied.pending());
+ const next=createNativeStaffCommand({...base,admission:()=>"record-only",read:async(_c,key)=>{assert.equal(key,"stable-key");return {state:"COMMITTED",receipt};}});
+ assert.equal(await next.readback(),true);assert(!next.pending());
 });
