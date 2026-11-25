@@ -22,7 +22,7 @@ function fixture(t){
     fs.writeFileSync(path.join(dir,"index.html"),bytes);
     return {kind:"M1_OFFLINE_PREVIEW_REGISTRATION",schemaVersion:1,
       sourceRevision:"a".repeat(40),jiraTask:task,surface:route.split("/")[1],
-      fixtureId:id,reviewUrl:"http://192.168.1.6:8800"+route+"?m1Preview=1",
+      fixtureId:id,reviewUrl:"http://desktop-isrdren:8800"+route,
       artifact:{sha256,files}};
   }
   function register(registrations){
@@ -34,14 +34,14 @@ function fixture(t){
 }
 function request(handler,url,method="GET"){
   let status,headers,body;
-  const handled=handler({url,method},{writeHead(s,h){status=s;headers=h;},end(b){body=b;}});
+  const handled=handler({url,method,headers:{host:"desktop-isrdren:8800"}},{writeHead(s,h){status=s;headers=h;},end(b){body=b;}});
   return {handled,status,headers,body:body?.toString()};
 }
 test("missing registry preserves ordinary traffic and fails closed for reserved routes",t=>{
   const f=fixture(t),handler=createRegistryDispatch(f.root);
-  for(const route of ["/","/bo","/ho?module=staffs","/tos","/website","/mytime","/healthz","/ho/staff?record=STAFF-MOCK-001"])
+  for(const route of ["/","/bo","/ho?module=staffs","/tos","/website","/mytime","/healthz"])
     assert.equal(request(handler,route).handled,false);
-  assert.equal(request(handler,"/ho/staff?m1Preview=1").status,503);
+  assert.equal(request(handler,"/ho/staff").status,503);
   assert.equal(request(handler,"/ho/staff/__m1_assets/app.js").status,503);
 });
 test("two independent feature registrations and restart-free replacement",t=>{
@@ -49,25 +49,29 @@ test("two independent feature registrations and restart-free replacement",t=>{
   const staff=f.artifact("/ho/staff","STAFF-MOCK-001","PAP-2353","staff shell");
   const role=f.artifact("/ho/roles","ROLE-MOCK-001","PAP-2192","role shell");
   f.register([staff,role]);
-  assert.equal(request(handler,"/ho/staff?m1Preview=1").body,"staff shell");
-  assert.equal(request(handler,"/ho/roles?m1Preview=1").body,"role shell");
+  assert.equal(handler.blocksUpgrade("/ho/staff"),true);
+  assert.equal(handler.blocksUpgrade("/ho/unregistered"),false);
+  assert.equal(request(handler,"/ho/unregistered").handled,false);
+  assert.equal(request(handler,"/ho/staff").body,"staff shell");
+  assert.equal(request(handler,"/ho/roles").body,"role shell");
   assert.equal(request(handler,"/ho/staff?m1Preview=1&record=ROLE-MOCK-001").status,404);
   assert.equal(request(handler,"/ho/roles?m1Preview=1","POST").status,405);
   assert.equal(request(handler,"/bo/unregistered?m1Preview=1").status,404);
   f.register([role]);
+  assert.equal(request(handler,"/ho/staff").handled,false);
   assert.equal(request(handler,"/ho/staff?m1Preview=1").status,404);
-  assert.equal(request(handler,"/ho/roles?m1Preview=1").body,"role shell");
-  assert.equal(request(createRegistryDispatch(f.root),"/ho/roles?m1Preview=1").body,"role shell");
+  assert.equal(request(handler,"/ho/roles").body,"role shell");
+  assert.equal(request(createRegistryDispatch(f.root),"/ho/roles").body,"role shell");
 });
 test("tampered registry/artifact fails closed, legacy unaffected",t=>{
   const f=fixture(t),handler=createRegistryDispatch(f.root);
   const staff=f.artifact("/ho/staff","STAFF-MOCK-001","PAP-2353","staff shell");
   f.register([staff]);
-  assert.equal(request(handler,"/ho/staff?m1Preview=1").status,200);
+  assert.equal(request(handler,"/ho/staff").status,200);
   fs.writeFileSync(path.join(f.artifacts,staff.artifact.sha256,"index.html"),"other shell");
-  assert.equal(request(handler,"/ho/staff?m1Preview=1").status,503);
+  assert.equal(request(handler,"/ho/staff").status,503);
   f.register([{...staff,artifact:{...staff.artifact,sha256:"../outside"}}]);
-  assert.equal(request(handler,"/ho/staff?m1Preview=1").status,503);
+  assert.equal(request(handler,"/ho/staff").status,503);
   assert.equal(request(handler,"/ho").handled,false);
 });
 test("reserved query and asset detection for HTTP and upgrade",()=>{
@@ -89,7 +93,7 @@ test("exact gateway patch preserves LAN first, legacy fallback and upgrade guard
   assert.throws(()=>patchGateway(original,"0".repeat(64)),/baseline changed/);
   const candidate=patchGateway(original,hash(original));
   let onRequest,onUpgrade,legacyCalls=0,upgradeCalls=0;
-  const context={require:id=>id==="node:path"?path:{isNativeRequest,createRegistryDispatch:()=>req=>isNativeRequest(req.url)},
+  const context={require:id=>id==="node:path"?path:{isNativeRequest,createRegistryDispatch:()=>Object.assign(req=>isNativeRequest(req.url),{blocksUpgrade:isNativeRequest})},
     __dirname:"/example",http:{createServer:cb=>{onRequest=cb;return {on:(event,cb)=>{assert.equal(event,"upgrade");onUpgrade=cb;}}}},
     clientAllowed:socket=>socket.lan,report:res=>{res.denied=true;},legacy:()=>legacyCalls++,legacyUpgrade:()=>upgradeCalls++};
   vm.runInNewContext(candidate.toString(),context);

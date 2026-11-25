@@ -20,7 +20,7 @@ const center="01a0b29a-3acd-7a18-a0f2-cf6016548ab5";
 // Adding a registered route requires a deliberate receipt here, with
 // representative functional query examples wherever the page emits them.
 const hoPaths=[
- "/ho/billing/bills","/ho/centers","/ho/open-studio/walkin","/ho/mytime-workshops",
+ "/ho/billing/bills","/ho/billing/product-plans","/ho/centers","/ho/open-studio/walkin","/ho/mytime-workshops",
  "/ho/workforce/term-weeks","/ho/operating-cycle/global-terms","/ho/workforce/shift-templates",
  "/ho/staff","/ho/workforce/staff-links","/ho/learning/paths","/ho/learning/syllabi",
  "/ho/learning/missions","/ho/learning/specialties","/ho/learning/diaries","/ho/content/post-approval",
@@ -43,6 +43,7 @@ const legacy:Record<string,string>={
  parents:"/bo?module=parents",missions:"/bo?module=missions",
 };
 const previews:Record<string,{path:string;expected:string;record?:string;negative:string}>={
+ "/ho/billing/product-plans":{path:"/ho/billing/product-plans?m1Preview=1",expected:"/ho/billing/product-plans",record:"record=PRODUCT-PLAN-MOCK-001",negative:"record="+id},
  "/bo/piner-posts":{path:"/bo/piner-posts?m1Preview=1",expected:"/bo/piner-posts?m1Preview=1",negative:"record="+id},
  "/bo/sales/leads":{path:"/bo/sales/leads?m1Preview=1",expected:"/bo/sales/leads",record:"lead=LEAD-MOCK-001&tab=members",negative:"lead="+id},
  "/ho/staff":{path:"/ho/staff?m1Preview=1",expected:"/ho/staff",record:"record=STAFF-MOCK-001",negative:"record="+id},
@@ -52,7 +53,7 @@ function discoverPreviewPages(dir:string):string[]{
  return readdirSync(dir,{withFileTypes:true}).flatMap(entry=>{
   const file=join(dir,entry.name);
   if(entry.isDirectory())return discoverPreviewPages(file);
-  if(entry.name!=="page.tsx"||!/\bm1Preview\b/.test(readFileSync(file,"utf8")))return [];
+  if(entry.name!=="page.tsx"||!/\b(?:m1Preview|decideM1Preview)\b/.test(readFileSync(file,"utf8")))return [];
   return [file.replace(/\\/g,"/").replace(/^app/,"").replace(/\/page\.tsx$/,"")];
  });
 }
@@ -101,6 +102,12 @@ test("HO_BO_DEEPLINK_CONTINUITY_P0: native preview entrypoints cannot ship untes
    assert.equal(parse(host,path+"?"+suffix),null,path+"?"+suffix);
   }
  }
+ // PAP-2183: canonical path, exact mock ID, legacy normalization and no real ID.
+ const plans="/ho/billing/product-plans";
+ checkFlow(ho,plans+"?record=PRODUCT-PLAN-MOCK-001",plans+"?record=PRODUCT-PLAN-MOCK-001");
+ for(const query of ["record="+id,"record=PRODUCT-PLAN-MOCK-002","record=","record=PRODUCT-PLAN-MOCK-001&record=PRODUCT-PLAN-MOCK-001","tab=unknown","next=/bo"])
+   assert.equal(parse(ho,plans+"?"+query),null,plans+"?"+query);
+ assert.equal(parse(bo,plans),null);
  assert.equal(roleReviewRoute({m1Preview:"1"}),"preview");
  assert.equal(roleReviewRoute({record:id,m1Preview:"1"}),"invalid");
 });

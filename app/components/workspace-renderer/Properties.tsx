@@ -27,12 +27,13 @@ export type CreateDrawerField = {
   readonly control?: ReactNode;
 };
 /** Drawer uses property rows, never the viewport-driven Full Detail grid. */
-export function PropertySections({ fields, record, sections, variant, canEdit, onEdit, sectionActions, labelWidth = 160, onLabelWidthChange, createFields }: {
+export function PropertySections({ fields, record, sections, variant, canEdit, onEdit, sectionActions, labelWidth = 160, onLabelWidthChange, createFields, directControl }: {
   readonly fields: readonly BoField[]; readonly record: BoRecord;
   readonly sections: readonly { readonly id: string; readonly label: string; readonly fields: readonly string[]; readonly collapsed?: boolean }[];
   readonly variant: "drawer" | "detail"; readonly legacyStyles?: boolean;
   readonly sectionActions?: (sectionId: string) => ReactNode;
   readonly createFields?: Readonly<Record<string, CreateDrawerField>>;
+  readonly directControl?: (field: BoField) => ReactNode | undefined;
   readonly canEdit?: (field: BoField) => boolean;
   readonly onEdit?: (field: BoField, anchor: HTMLButtonElement) => void;
   readonly labelWidth?: number;
@@ -77,6 +78,7 @@ export function PropertySections({ fields, record, sections, variant, canEdit, o
     <div className={variant === "detail" ? "v24-prop-grid" : undefined}>{section.fields.map((key, index) => {
       const field = fields.find(f => f.key === key); if (!field) return null;
       const editable = Boolean(onEdit && canEdit?.(field));
+      const direct = editable ? directControl?.(field) : undefined;
       const creator = variant === "drawer" ? createFields?.[key] : undefined;
       return variant === "drawer" ? <div className="property-row" key={key} data-tdd-field={key}>
         {creator ? <label className="property-label" htmlFor={creator.id}><small>{field.icon}</small>{creator.label ?? field.label}</label>
@@ -87,7 +89,7 @@ export function PropertySections({ fields, record, sections, variant, canEdit, o
               aria-required={creator.required || undefined} required={creator.required} maxLength={creator.maxLength}
               autoComplete={creator.autoComplete} ref={creator.inputRef} value={creator.value} disabled={creator.disabled}
               onChange={e => creator.onChange(e.target.value)} />)
-        : editable ? <button type="button" className="v24-prop-value writable" data-prop={key} data-detail-edit={key}
+        : direct !== undefined ? <div className="property-control" data-prop={key}>{direct}</div> : editable ? <button type="button" className="v24-prop-value writable" data-prop={key} data-detail-edit={key}
             aria-label={"Sửa " + field.label} onClick={event => onEdit?.(field, event.currentTarget)}>
             <BoValue field={field} value={record[key]} full /><span className="v24-edit-glyph" aria-hidden="true">✎</span>
           </button> : <div className="v24-prop-value readonly" aria-label={"Chỉ đọc " + field.label} data-prop={key}>
@@ -106,7 +108,7 @@ export function PropertySections({ fields, record, sections, variant, canEdit, o
             onKeyDown={keyboardResize}
           /> : null}
         </div>
-        {editable ? <button type="button" className="v24-prop-value writable" data-prop={key} data-detail-edit={key} aria-label={"Sửa " + field.label} onClick={event => onEdit?.(field, event.currentTarget)}>
+        {direct !== undefined ? <div className="v24-prop-value" data-prop={key}>{direct}</div> : editable ? <button type="button" className="v24-prop-value writable" data-prop={key} data-detail-edit={key} aria-label={"Sửa " + field.label} onClick={event => onEdit?.(field, event.currentTarget)}>
           <BoValue field={field} value={record[key]} full /><span className="v24-edit-glyph" aria-hidden="true">✎</span>
         </button> : <div className="v24-prop-value readonly" aria-label={"Chỉ đọc " + field.label}>
           <BoValue field={field} value={record[key]} full /><span className="v24-lock" aria-hidden="true">⌁</span>

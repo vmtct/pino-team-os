@@ -16,8 +16,8 @@ export function createRegistration(spec, revision, readSource, assets) {
   if (!/^PAP-[1-9][0-9]*$/.test(spec.jiraTask ?? "") || !/^[A-Z][A-Z0-9-]+$/.test(spec.epicCode ?? "")) throw new Error("Invalid ownership");
   if (!["bo","ho"].includes(spec.surface) || !/^[A-Z][A-Z0-9-]*-MOCK-001$/.test(spec.fixtureId ?? "")) throw new Error("Invalid surface/fixture");
   const url = new URL(spec.reviewUrl);
-  if (url.origin !== "http://192.168.1.6:8800" || url.username || url.password || url.hash ||
-      !(url.pathname === "/" + spec.surface || url.pathname.startsWith("/" + spec.surface + "/"))) throw new Error("Noncanonical review route");
+  if (url.origin !== "http://desktop-isrdren:8800" || url.username || url.password || url.hash || url.search ||
+      !/^\/(?:bo|ho)\/(?:[a-z0-9-]+\/)*[a-z0-9-]+$/.test(url.pathname) || !url.pathname.startsWith("/" + spec.surface + "/") || /(?:^|\/)(?:api|auth|login|logout|admin|server)(?:\/|$)/.test(url.pathname)) throw new Error("Noncanonical review route");
   const sourceFiles = {};
   for (const role of ["route","renderer","schema","fixture"]) {
     const path = spec.sourceFiles?.[role];

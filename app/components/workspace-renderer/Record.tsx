@@ -8,7 +8,7 @@ import { PropertySections, type OverviewProperties } from "./Properties";
 import { TddHistory } from "./History";
 import { BusinessFormPanel, BusinessPanel, type BusinessFormBinding, type SlotLoaders } from "./Slots";
 import { recordProjection, renderScope } from "./projection";
-import { PropertyEditor, type TddWrites } from "./Editor";
+import { DirectPropertyEditor, PropertyEditor, type TddWrites } from "./Editor";
 import { latestRequest } from "./resource";
 
 /** PAP-1478: default live BO/HO browser preference, opt-out for in-memory exemplars. */
@@ -47,7 +47,7 @@ function DrawerRecord<F extends readonly FieldSchema[]>({ registry, schema: inpu
       setActionState("pending"); void request.current.run(signal => actions![action.id](projection.record, context, signal), () => setActionState(""), () => setActionState("error"));
     }}>{action.label}</button>) : null}</>}>
     {projection ? <PropertySections variant="drawer" fields={projection.fields} record={projection.record} sections={schema.drawer.sections}
-      canEdit={field => Boolean(writes?.version.trim()) && allowsField(schema, context, field.key, "inlineEdit")} onEdit={writes ? (field, anchor) => setEdit({ field, anchor }) : undefined} /> : <RecordState status={allows(schema, context, "read") ? status === "ready" ? "denied" : status : "denied"} onRetry={onRetry} />}
+      canEdit={field => Boolean(writes?.version.trim()) && allowsField(schema, context, field.key, "inlineEdit")} directControl={field=>writes?.directFields?.includes(field.key)&&["text","currency","number","select","boolean"].includes(field.type)?<DirectPropertyEditor schema={input} context={context} record={record} writes={writes} field={field}/>:undefined} onEdit={writes ? (field, anchor) => setEdit({ field, anchor }) : undefined} /> : <RecordState status={allows(schema, context, "read") ? status === "ready" ? "denied" : status : "denied"} onRetry={onRetry} />}
     {actionState === "error" ? <p role="alert">Không thể thực hiện thao tác. Thử lại sau.</p> : actionState === "pending" ? <p role="status">Đang thực hiện…</p> : null}
   </DrawerFrame>{edit && writes && projection ? <PropertyEditor schema={input} context={context} record={record} writes={writes} selection={edit} onClose={() => setEdit(null)} /> : null}</>;
 }
@@ -100,7 +100,7 @@ function DetailRecord<F extends readonly FieldSchema[]>({ schema, context, recor
   const overview = projection && active?.id === "overview" ? <>{renderOverviewProperties ? renderOverviewProperties({ fields: projection.fields, record: projection.record, sections: schema.detail.overview.sections.map(section => ({ ...section, fields: section.fields.filter(key => projection.fields.some(field => field.key === key)) })).filter(section => section.fields.length > 0) }) : <PropertySections variant="detail" fields={projection.fields} record={projection.record} sections={schema.detail.overview.sections} sectionActions={id => renderActionSlot?.("overview.section", id)}
     canEdit={field => Boolean(writes?.version.trim()) && allowsField(schema, context, field.key, "inlineEdit")}
     onEdit={writes ? (field, anchor) => setEdit({ field, anchor }) : undefined}
-    labelWidth={labelWidth} onLabelWidthChange={changeLabelWidth} />}{overviewAfter}</> : null;
+    directControl={field=>writes?.directFields?.includes(field.key)&&["text","currency","number","select","boolean"].includes(field.type)?<DirectPropertyEditor schema={schema} context={context} record={record} writes={writes} field={field}/>:undefined} labelWidth={labelWidth} onLabelWidthChange={changeLabelWidth} />}{overviewAfter}</> : null;
   return <><DetailFrame title={projection?.title ?? "Chi tiết"} mobileMenu={mobileMenu} onBack={onBack} returnFocus={returnFocus} actions={projection ? headerActions : null}
     tabs={tabs.map(t => ({ id: t.id, label: t.label }))} selected={active?.id} onSelect={id => { setSelected(id); onTabChange?.(id); }}>
     {projection && renderApprovedExtension && hasApprovedExtension
