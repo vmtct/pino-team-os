@@ -54,7 +54,7 @@ export function RunningClassCreateDrawer({catalog,selectedCenterId,onClose,onCre
   return <BoQuickView module={module} moduleKey="classes" record={null} onClose={onClose} create={{
     draft:{...draft,id:"",name:draft.operationalName,status:"INACTIVE"},fields:creationFields,editable:()=>false,createFields:fields,
     onChange:()=>{},error,title:"Tạo Running Class",path:"School / Running Class",
-    onCreate:()=>{const result=validateClassDraft(draft,catalog);if(!result.ok){setError(Object.values(result.errors).join(" "));return;}onCreate(result.value);}
+    onCreate:()=>{const result=validateClassDraft(draft,catalog);if(!result.ok){setError(Object.values(result.errors).join(" "));return;}try{onCreate(result.value);}catch(cause){setError(cause instanceof Error?cause.message:"Không thể tạo lớp mẫu.");}}
   }}/>;
 }
 export function RunningClassDetailProperties({record,catalog,centerToday,onSave,editable}:{
@@ -78,7 +78,7 @@ export function RunningClassDetailProperties({record,catalog,centerToday,onSave,
       <p className="settings-hint">Không thay đổi các buổi học đã được tạo hoặc Enrollment hiện hữu.</p>
       {error?<p className="edit-error" role="alert">{error}</p>:null}
       <button type="button" className="secondary-btn" onClick={()=>{setDraft(null);setError("");}}>Hủy</button>{" "}
-      <button type="button" className="primary-btn" onClick={()=>{const result=validateClassEdit(record,draft,catalog,effective,centerToday);if(!result.ok){setError(result.message);return;}onSave(result.command);setDraft(null);setError("");}}>Lưu</button>
+      <button type="button" className="primary-btn" onClick={()=>{const result=validateClassEdit(record,draft,catalog,effective,centerToday);if(!result.ok){setError(result.message);return;}try{onSave(result.command);setDraft(null);setError("");}catch(cause){setError(cause instanceof Error?cause.message:"Không thể lưu lớp mẫu.");}}}>Lưu</button>
     </div>:null}
   </>;
 }

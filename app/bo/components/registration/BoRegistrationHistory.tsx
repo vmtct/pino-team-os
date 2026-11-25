@@ -4,9 +4,10 @@ import { boApi, BoApiError } from "@/lib/bo-api";
 import { validateSubjectAuditPage, type BoAuditSubjectType, type BoSubjectAuditEvent } from "@/lib/bo-subject-history";
 import { auditActionLabel, norm } from "@/lib/bo-registration";
 /** Load only the selected subject. Global access/audit is never a history source. */
-export function BoRegistrationHistory({ subjectType, subjectId }: { subjectType: BoAuditSubjectType; subjectId: string }) {
+export function BoRegistrationHistory({ subjectType, subjectId, fixtureEmpty = false }: { subjectType: BoAuditSubjectType; subjectId: string; fixtureEmpty?: boolean }) {
   const [events, setEvents] = useState<BoSubjectAuditEvent[] | null>(null), [error, setError] = useState(""), [query, setQuery] = useState(""), [page, setPage] = useState(1);
   useEffect(() => {
+    if(fixtureEmpty){setEvents([]);setError("");return;}
     let current = true;
     void (async () => {
       const found: BoSubjectAuditEvent[] = [], cursors = new Set<string>(); let cursor: string | null = null;
@@ -23,7 +24,7 @@ export function BoRegistrationHistory({ subjectType, subjectId }: { subjectType:
       throw Error("bound");
     })().catch((e: unknown) => { if (current) { setEvents(null); setError(e instanceof BoApiError && e.status === 403 ? "Bạn không có quyền xem lịch sử." : e instanceof BoApiError && e.status === 409 ? "Không thể xác minh lịch sử của hồ sơ." : e instanceof BoApiError && e.status === 401 ? "Phiên đăng nhập đã hết hạn." : "Không thể tải lịch sử. Hãy thử lại."); } });
     return () => { current = false; };
-  }, [subjectType, subjectId]);
+  }, [subjectType, subjectId, fixtureEmpty]);
   const filtered = events?.filter(e => norm(auditActionLabel(e.action) + " " + e.actor_label).includes(norm(query))) ?? [];
   return <><label className="v24-history-filter v25-history-filter">⌕ <input id="v24-history-search" type="search" aria-label="Tìm lịch sử hồ sơ" placeholder="Tìm hành động hoặc người thực hiện..." maxLength={120} value={query} onChange={e => { setQuery(e.target.value); setPage(1); }} /></label>
     <div className="v25-audit-list" role="list" id="v24-history-events">{error ? <div className="v24-audit-empty" role="alert">{error}</div> : events === null ? <div className="v24-audit-empty" role="status">Đang tải lịch sử…</div> : !filtered.length ? <div className="v24-audit-empty">Không có sự kiện phù hợp.</div> : filtered.slice(0, page * 50).map(event => {
