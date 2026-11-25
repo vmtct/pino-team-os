@@ -187,6 +187,7 @@
         "app/ho/system/roles/page.tsx",
         "app/ho/system/roles/HoRolesTdd.tsx",
         "app/ho/system/roles/HoRoleEditor.tsx",
+        "app/ho/system/roles/RoleMetadataPropertyHost.tsx",
         "app/ho/system/roles/role-editor-receipt.ts",
         "app/ho/system/roles/role-metadata-edit.ts",
         "app/ho/system/roles/role-metadata-flow.ts",

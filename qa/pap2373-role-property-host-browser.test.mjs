@@ -8,7 +8,7 @@ test("PAP-2373 isolated native typed Table/Drawer editor host",async()=>{
  const built=await build({stdin:{contents:
   'import React,{useState} from "react";import {createRoot} from "react-dom/client";'+
   'import {roleDefinition} from "./app/ho/system/roles/schema";'+
-  'import {RoleMetadataPropertyHost,roleHostSelection} from "./app/components/workspace-renderer/RoleMetadataPropertyHost";'+
+  'import {RoleMetadataPropertyHost,roleHostSelection} from "./app/ho/system/roles/RoleMetadataPropertyHost";'+
   'import {ROLE_METADATA_COMMAND} from "./lib/workspace-adapters/ho-inline-command-contract";'+
   'const mode=new URLSearchParams(location.search).get("mode");const host=mode==="drawer"?"drawer":"table";const field=host==="drawer"?"description":"name";'+
   'const id="'+id+'",version="'+version+'";const row={id,roleKey:"custom-example",roleType:mode==="protected"?"system":"custom",status:"active",updatedAt:version,name:"Original",description:"Original description",permissionCount:1};'+

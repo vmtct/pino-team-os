@@ -1,5 +1,5 @@
 "use client";
-import {useRef,useState} from "react";
+import {useLayoutEffect,useRef,useState} from "react";
 import {PropertyEditor,type PropertyCommitResult} from "@pino/design-system/react";
 import {ROLE_METADATA_COMMAND,parseRoleInlineRequest,roleInlineSelection,type RoleInlineRequest} from "@/lib/workspace-adapters/ho-inline-command-contract";
 import type {AuthorizationContext,FieldSchema} from "@/lib/workspace-schema";
@@ -47,22 +47,24 @@ function verifiedValue(row:Readonly<Record<string,unknown>>,request:RoleInlineRe
 export function RoleMetadataPropertyHost(props:SelectionProps&{
  anchor:HTMLElement;onSaved:()=>void;onClose:()=>void;
 }){
- const latest=useRef(props);latest.current=props;
+ const latest=useRef(props);
+ useLayoutEffect(()=>{latest.current=props;},[props]);
  const [blocked,setBlocked]=useState(false);
+ const [reviewed]=useState(()=>({selection:roleHostSelection(props),binding:props.binding}));
  const selection=roleHostSelection(props);
- const selected=useRef(selection);
- const canEdit=()=>{
-  const now=roleHostSelection(latest.current),original=selected.current;
+ const matches=(current:SelectionProps)=>{
+  const now=roleHostSelection(current),original=reviewed.selection;
   return !blocked&&!!now&&!!original&&now.id===original.id&&now.field===original.field&&
-   now.expectedVersion===original.expectedVersion&&latest.current.binding===props.binding;
+   now.expectedVersion===original.expectedVersion&&current.binding===reviewed.binding;
  };
+ const canEdit=()=>matches(props);
  if(!selection)return null;
  const metadata=props.schema.fields.find(f=>f.key===selection.field)!;
  return <PropertyEditor field={{key:selection.field,label:metadata.label,type:selection.field==="name"?"text":"textarea",required:selection.field==="name"}}
    value={String(props.row[selection.field])} anchor={props.anchor} surface="ho"
    canEdit={canEdit} onClose={props.onClose} onSaved={()=>latest.current.onSaved()}
    onCommit={async(value,{signal}):Promise<PropertyCommitResult>=>{
-    if(signal.aborted||!canEdit())return {status:"denied"};
+    if(signal.aborted||!matches(latest.current))return {status:"denied"};
     const request=parseRoleInlineRequest({id:selection.id,expectedVersion:selection.expectedVersion,patch:{[selection.field]:value}});
     if(!request)return {status:"error"};
     try{
@@ -70,7 +72,7 @@ export function RoleMetadataPropertyHost(props:SelectionProps&{
      if(signal.aborted)return {status:"error"};
      if(result.status==="saved"){
       const saved=verifiedValue(props.row,request,selection.field,result.receipt);
-      if(saved!==null&&canEdit())return {status:"saved",value:saved};
+      if(saved!==null&&matches(latest.current))return {status:"saved",value:saved};
       setBlocked(true);return {status:"conflict"};
      }
      if(result.status==="uncertain"||result.status==="conflict"){setBlocked(true);return {status:"conflict"};}
