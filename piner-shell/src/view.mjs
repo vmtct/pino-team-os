@@ -27,7 +27,9 @@ function member(space,tab,adapter,afterschoolLoginAvailable,chrome,portfolio){
  const skeleton=tab==="grid"?'<div class="grid-skeleton" aria-hidden="true"><i></i><i></i><i></i><i></i></div>':
   tab==="reels"?'<div class="reel-skeleton" aria-hidden="true"></div>':'<div class="post-skeleton" aria-hidden="true"><div class="skeleton-heading"></div><div class="skeleton-picture"></div><div class="skeleton-caption"></div></div>';
  const memberNotice=chrome?'<div class="empty-state" data-adapter-state="empty"><span class="empty-art" aria-hidden="true">◇</span><strong>'+(space==="mytime"?"MyTime by PINO":tabLabel)+'</strong><p>'+(space==="mytime"?"Chưa kết nối tài khoản MyTime.":chrome.studentState==="error"?"Chưa tải được danh sách học viên. Vui lòng thử lại.":"Chưa có nội dung được kết nối.")+'</p></div>':notice;
- const portfolioContent=chrome?renderPortfolio(space,tab,portfolio):null;
+ const profile=chrome?.students?.find(s=>s.id===chrome.selectedId)??(chrome?.students?.length===1?chrome.students[0]:null);
+ const scoped=portfolio?.state==="ready"&&space==="house"&&(!profile||portfolio.profileKey!==profile.id)?{space,state:"no-profile"}:portfolio;
+ const portfolioContent=chrome?renderPortfolio(space,tab,scoped):null;
  const content='<div class="feed-inner">'+(tab==="community"?"":'<h1>'+h(tabLabel)+'</h1>')+(portfolioContent??(memberNotice+(chrome?"":skeleton+skeleton)))+'<p class="ending">Đang chuẩn bị '+h(program.label)+'</p></div>';
  const students=chrome&&space==="house"?chrome.students:[];
  const selected=students.find(s=>s.id===chrome?.selectedId)??(students.length===1?students[0]:null);
