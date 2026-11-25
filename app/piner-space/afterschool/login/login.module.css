@@ -1,0 +1,42 @@
+/* PINO canonical guestLoginCard and pinDemoForm visual tokens. */
+.card{background:transparent;border:0;border-radius:0;box-shadow:none;padding:0;margin:auto;display:flex;flex-direction:column;gap:11px;width:100%;max-width:340px;min-width:0;flex:0 0 auto}
+.card h1{font-size:23px;text-align:center;margin:0;font-weight:900;color:var(--ink)}
+.tagline{font-size:13px;color:var(--muted);text-align:center;margin:0 0 10px;line-height:1.5}
+.formTitle{font-size:17px;text-align:center;margin:0;font-weight:800}
+.form,.form label{display:flex;flex-direction:column;gap:10px;min-width:0}
+.form label{font-size:12px;font-weight:800;color:var(--ink)}
+.form input,.form select{min-height:44px;border:1px solid var(--line);border-radius:10px;background:#fff;padding:10px 12px;font:inherit;font-size:13px;color:var(--ink);width:100%;outline-offset:2px}
+.submit{min-height:44px;padding:8px 14px;border:0;border-radius:12px;background:var(--tone);color:#fff;font-size:13px;font-weight:850;cursor:pointer}
+.submit:disabled{opacity:.48;cursor:not-allowed}
+.error{padding:11px 12px;border:1px solid #dba2a2;border-radius:10px;background:#fff1f0;color:#8e3333;font-size:12px;line-height:1.5}
+.notice{margin:0;padding:11px 12px;border:1px solid var(--line);border-radius:12px;background:var(--tint);color:var(--ink);font-size:12px;line-height:1.6}
+.card small{font-size:11px;color:var(--muted);line-height:1.45;text-align:center}
+.launch-brand{height:clamp(174px,27.5dvh,245px);flex:0 0 clamp(174px,27.5dvh,245px);display:flex;justify-content:center;align-items:center;flex-direction:column}
+.launch-sigil{width:45px;height:45px;object-fit:contain;margin-bottom:-5px;filter:drop-shadow(0 2px 3px #967a6d22)}
+.launch-wordmark{width:clamp(108.8px,33.04%,140px);height:auto;max-height:80px;object-fit:contain}
+@media(max-width:345px){
+.launch-brand{height:clamp(155px,25dvh,180px);flex-basis:clamp(155px,25dvh,180px)}
+}
+
+.launch-brand{align-self:center;width:calc(min(100vw,430px) - 30px)}
+@media(max-width:345px){.launch-brand{width:calc(min(100vw,430px) - 22px)}}
+
+.authLayout{display:grid;grid-template-rows:minmax(max-content,1fr) auto minmax(0,1fr);grid-template-columns:minmax(0,1fr);min-height:100%;margin:0;row-gap:1px;justify-items:center}
+.authLayout .launch-brand{align-self:end;grid-row:1}
+.formBlock{grid-row:2;width:100%;min-width:0;display:flex;flex-direction:column;gap:11px}
+.formBlock .form{gap:14px}
+.formBlock .form input{min-height:52px}
+
+@media(max-width:345px){.authLayout{margin-block:-4px;min-height:calc(100% + 8px)}}
+
+/* PAP-2187: one accessible masked numeric input, six visual PIN slots. */
+.phoneHint{margin:0;text-align:center;font-size:13px;color:var(--muted)}
+.pinGroup{width:100%;gap:6px!important}
+.pinLabel{text-align:center;font-size:12px;color:var(--muted)}
+.pinCells{position:relative;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:clamp(5px,2vw,10px);width:100%}
+.pinCell{display:grid;place-items:center;min-width:0;height:52px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);font-size:25px;font-weight:800;line-height:1}
+.pinCell[data-filled=true]{border-color:var(--tone)}
+.pinCells:focus-within .pinCell[data-next=true]{outline:2px solid var(--tone);outline-offset:2px}
+.pinCells .pinInput{position:absolute;inset:0;opacity:0.01;cursor:text;width:100%;height:100%;margin:0;padding:0;caret-color:transparent;color:transparent;background:transparent;border:0;outline:none}
+.secondary{padding:8px 12px;min-height:44px;border:0;background:transparent;color:var(--tone);font-size:13px;font-weight:750;cursor:pointer}
+.secondary:disabled{opacity:.48;cursor:not-allowed}
