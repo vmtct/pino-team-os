@@ -195,7 +195,8 @@ function BoWorkspace({ moduleKey, options, currentUser, source, content, headerC
 
   const workspaceContent = <>{shellOnly && applicationMenuSlots === 0 ? menu("bo-application-menu-btn") : null}{content ? content : detail ? <BoFullDetail key={detail.id} module={definition} moduleKey={moduleKey} record={detail} mobileMenu={menu("detail-menu-btn")} onBack={back}
         reviewOnly={source.ephemeral && moduleKey === "students"}
-        {...(classReview ? {runningClassReview:classReview,onRunningClassSaved:(updated:BoRecord)=>{setRows(classReview.list());setDetail(updated);}} : {})}
+        runningClassReview={classReview}
+        onRunningClassSaved={classReview ? (updated:BoRecord)=>{setRows(classReview.list());setDetail(updated);} : undefined}
         onStudentRenamed={!source.ephemeral && !ho && moduleKey === "students" ? nextName => {
           setRows(rows => rows.map(row => row.id === detail.id ? { ...row, name: nextName } : row));
           setDetail(row => row && row.id === detail.id ? { ...row, name: nextName } : row);
