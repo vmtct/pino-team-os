@@ -26,3 +26,18 @@ test("invalid metadata, missing time, malformed ID and wrong surface fail closed
   await assert.rejects(roleProvider.list(roleQuery,scope,fetcher([bad]),signal),/Invalid Role record/);
  await assert.rejects(roleProvider.list(roleQuery,{surface:"BO",centerId:"center"},fetcher([role]),signal),/HO only/);
 });
+test("ambiguous canonical Role identities fail closed in Table and Detail",async()=>{
+ const second={...role,id:"01a17d3f-8697-7080-bdf1-33e939758060",roleKey:"custom-other"};
+ const unique=await roleProvider.list(roleQuery,scope,fetcher([role,second]),signal);
+ assert.equal(unique.total,2);
+ assert.equal((await roleProvider.detail(second.id,scope,fetcher([role,second]),signal))?.row.id,second.id);
+ assert.equal((await roleProvider.list(roleQuery,scope,fetcher([]),signal)).total,0);
+ for(const records of [
+  [role,{...second,id:role.id}],
+  [role,{...second,id:role.id.toUpperCase()}],
+  [role,{...second,roleKey:role.roleKey}],
+ ]){
+  await assert.rejects(roleProvider.list(roleQuery,scope,fetcher(records),signal),/Ambiguous Role directory identity/);
+  await assert.rejects(roleProvider.detail(role.id,scope,fetcher(records),signal),/Ambiguous Role directory identity/);
+ }
+});
