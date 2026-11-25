@@ -2,12 +2,12 @@
 /** PLT-DELIVERY / PAP-1043 / PAP-2225 — shared native renderer controls.
  * Command callbacks are injected by the owning workspace; no live API or storage here.
  */
-import {useState,type ReactNode} from "react";
+import {useRef,useState,type ReactNode} from "react";
 import {BoQuickView} from "../components/registration/BoQuickView";
 import {PropertySections,type CreateDrawerField} from "@/app/components/workspace-renderer/Properties";
 import type {BoModule} from "@/lib/bo-registration";
 import {CLASS_TOPOLOGIES,initialClassDraft,changeClassCenter,eligibleClassSpaces,validateClassDraft,type ClassCatalog,type ClassDraft,type ClassCreate,type ClassTopology} from "./running-class-draft";
-import {CLASS_EDIT_KEYS,classPropertyFields,projectClassProperties,validateClassEdit,type ClassRecord,type ClassEditCommand} from "./running-class-presentation";
+import {CLASS_EDIT_KEYS,CLASS_STATUSES,type ClassEditKey,classPropertyFields,projectClassProperties,validateClassEdit,type ClassRecord,type ClassEditCommand} from "./running-class-presentation";
 
 const weekdays=["Thứ hai","Thứ ba","Thứ tư","Thứ năm","Thứ sáu","Thứ bảy","Chủ nhật"];
 const topologyLabel:Record<ClassTopology,string>={FIXED_COHORT:"Fixed cohort",FLEXIBLE_STUDIO:"Flexible studio",OVERLAPPING_COHORT:"Overlapping cohort"};
@@ -57,28 +57,41 @@ export function RunningClassCreateDrawer({catalog,selectedCenterId,onClose,onCre
     onCreate:()=>{const result=validateClassDraft(draft,catalog);if(!result.ok){setError(Object.values(result.errors).join(" "));return;}try{onCreate(result.value);}catch(cause){setError(cause instanceof Error?cause.message:"Không thể tạo lớp mẫu.");}}
   }}/>;
 }
-export function RunningClassDetailProperties({record,catalog,centerToday,onSave,editable}:{
+type InlineValue = ClassRecord[ClassEditKey];
+function InlineClassField({field,record,catalog,commit}:{field:ClassEditKey;record:ClassRecord;catalog:ClassCatalog;commit:(field:ClassEditKey,value:InlineValue)=>boolean}){
+  const original=String(record[field]??"");
+  const [draft,setDraft]=useState(original);
+  const [error,setError]=useState(false);
+  const canceled=useRef(false);
+  const label=classPropertyFields.find(f=>f.key===field)?.label??field;
+  const numeric=["optimalConcurrentCapacity","hardConcurrentCapacity","defaultParticipationMinutes","weekdayIso"].includes(field);
+  const options=field==="pathProgramId"?catalog.paths.filter(active).map(p=>[p.id,p.displayName]):field==="learningSpaceId"?eligibleClassSpaces(catalog,record.centerId).map(s=>[s.id,s.displayName]):field==="weekdayIso"?weekdays.map((day,i)=>[String(i+1),day]):field==="status"?CLASS_STATUSES.map(s=>[s,s]):null;
+  const apply=(raw:string)=>{
+    const value=numeric?(raw===""?null:Number(raw)):raw;
+    if(raw===original){setError(false);return;}
+    if(commit(field,value)){setError(false);}else{setDraft(original);setError(true);}
+  };
+  const common={id:"rc-"+field,"aria-label":label,className:controlClass,"data-pino-ds":"bo","data-pds-appearance":"underline","aria-invalid":error};
+  if(options)return <select {...common} value={draft} onChange={e=>{setDraft(e.target.value);apply(e.target.value);}}>{!options.some(([id])=>id===original)&&<option value={original} disabled>{original}</option>}{options.map(([id,label])=><option key={id} value={id}>{label}</option>)}</select>;
+  return <input {...common} type={numeric?"number":field==="windowStartsLocal"||field==="windowEndsLocal"?"time":"text"} min={numeric?1:undefined} step={numeric?1:undefined} maxLength={field==="operationalName"?200:undefined} value={draft}
+    onChange={e=>{setDraft(e.target.value);setError(false);}}
+    onBlur={e=>{if(canceled.current){canceled.current=false;return;}apply(e.currentTarget.value);}}
+    onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();e.currentTarget.blur();}else if(e.key==="Escape"){e.preventDefault();canceled.current=true;setDraft(original);setError(false);e.currentTarget.blur();}}}/>;
+}
+export function RunningClassDetailProperties({record,catalog,onSave,editable}:{
   record:ClassRecord;catalog:ClassCatalog;centerToday:string;editable:boolean;onSave:(command:ClassEditCommand)=>void;
 }){
-  const [draft,setDraft]=useState<ClassDraft|null>(null);
-  const [effective,setEffective]=useState("");
   const [error,setError]=useState("");
-  const current=draft??record;
-  const update:Update=(key,value)=>{if(!draft||!CLASS_EDIT_KEYS.some(k=>k===key))return;setDraft({...draft,[key]:value});setError("");};
-  const controls=classControls(current,catalog,update);
-  const props=projectClassProperties(record,catalog);
+  const commit=(field:ClassEditKey,value:InlineValue)=>{
+    const result=validateClassEdit(record,{...record,[field]:value},catalog);
+    if(!result.ok){setError(result.message);return false;}
+    try{onSave(result.command);setError("");return true;}catch(cause){setError(cause instanceof Error?cause.message:"Không thể lưu lớp mẫu.");return false;}
+  };
   return <>
-    <PropertySections variant="detail" fields={classPropertyFields} record={props}
+    <PropertySections variant="detail" fields={classPropertyFields} record={projectClassProperties(record,catalog)}
       sections={[{id:"identity",label:"Thông tin chính",fields:["operationalName","id","centerId","pathProgramId","learningSpaceId","status","version"]},{id:"schedule",label:"Lịch học",fields:["weekdayIso","windowStartsLocal","windowEndsLocal","deliveryTopology"]},{id:"capacity",label:"Sức chứa",fields:["optimalConcurrentCapacity","hardConcurrentCapacity","defaultParticipationMinutes"]},{id:"audit",label:"Thông tin hệ thống",fields:["createdAt","createdBy","updatedAt","updatedBy"]}]}
-      canEdit={f=>Boolean(draft&&editable&&CLASS_EDIT_KEYS.some(k=>k===f.key))}
-      onEdit={()=>{}} directControl={f=>controls[f.key as keyof ClassDraft]}
-      sectionActions={sectionId=>sectionId==="identity"&&editable&&!draft?<button type="button" className="secondary-btn" onClick={()=>{setDraft({...record});setEffective("");setError("");}}>Chỉnh sửa</button>:null}/>
-    {draft&&editable?<div className="v24-prop-section"><label htmlFor="rc-effective">Ngày hiệu lực khi thay đổi lịch hoặc sức chứa</label>
-      <input className={controlClass} data-pino-ds="bo" data-pds-appearance="underline" id="rc-effective" type="date" min={centerToday} value={effective} onChange={e=>setEffective(e.target.value)}/>
-      <p className="settings-hint">Không thay đổi các buổi học đã được tạo hoặc Enrollment hiện hữu.</p>
-      {error?<p className="edit-error" role="alert">{error}</p>:null}
-      <button type="button" className="secondary-btn" onClick={()=>{setDraft(null);setError("");}}>Hủy</button>{" "}
-      <button type="button" className="primary-btn" onClick={()=>{const result=validateClassEdit(record,draft,catalog,effective,centerToday);if(!result.ok){setError(result.message);return;}try{onSave(result.command);setDraft(null);setError("");}catch(cause){setError(cause instanceof Error?cause.message:"Không thể lưu lớp mẫu.");}}}>Lưu</button>
-    </div>:null}
+      canEdit={f=>editable&&CLASS_EDIT_KEYS.some(k=>k===f.key)} onEdit={()=>{}}
+      directControl={f=><InlineClassField key={record.id+":"+f.key+":"+String(record[f.key as ClassEditKey])} field={f.key as ClassEditKey} record={record} catalog={catalog} commit={commit}/>}/>
+    {error?<p className="pds-field-error" role="alert">{error}</p>:null}
   </>;
 }

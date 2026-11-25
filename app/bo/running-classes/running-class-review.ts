@@ -1,7 +1,7 @@
 /** PLT-DELIVERY / PAP-1037 / PAP-2225: isolated in-memory M1 command boundary. */
 import type {BoRecord} from "@/lib/bo-registration";
 import {initialClassDraft,type ClassCatalog,type ClassCreate} from "./running-class-draft";
-import {projectClassRow,projectClassProperties,RUNNING_CLASS_MOCK_ID,type ClassRecord,type ClassEditCommand} from "./running-class-presentation";
+import {projectClassRow,projectClassProperties,validateClassEdit,RUNNING_CLASS_MOCK_ID,type ClassRecord,type ClassEditCommand} from "./running-class-presentation";
 export type RunningClassReview = {
   catalog: ClassCatalog;
   selectedCenterId: string;
@@ -17,8 +17,8 @@ export function createRunningClassReview():RunningClassReview {
   const centerId="RC-MOCK-CENTER";
   const catalog:ClassCatalog={
     centers:[{id:centerId,displayName:"Cần Thơ · Mẫu",status:"ACTIVE"}],
-    paths:[{id:"RC-MOCK-PATH",displayName:"Piano Nghệ Thuật",status:"ACTIVE"}],
-    spaces:[{id:"RC-MOCK-ROOM",centerId,displayName:"Piano Studio",status:"ACTIVE"}]
+    paths:[{id:"RC-MOCK-PATH",displayName:"Piano Nghệ Thuật",status:"ACTIVE"},{id:"RC-MOCK-PATH-ART",displayName:"Mỹ thuật sáng tạo",status:"ACTIVE"}],
+    spaces:[{id:"RC-MOCK-ROOM",centerId,displayName:"Piano Studio",status:"ACTIVE"},{id:"RC-MOCK-ROOM-ART",centerId,displayName:"Art Studio",status:"ACTIVE"}]
   };
   const seed:ClassRecord={...initialClassDraft(centerId),id:RUNNING_CLASS_MOCK_ID,version:1,status:"INACTIVE",
     operationalName:"Piano · Thứ hai",pathProgramId:"RC-MOCK-PATH",learningSpaceId:"RC-MOCK-ROOM",weekdayIso:1,
@@ -33,6 +33,7 @@ export function createRunningClassReview():RunningClassReview {
     create(command){const id="RUNNING-CLASS-MOCK-"+String(next++).padStart(3,"0");
       const record:ClassRecord={...command,id,version:1,status:"INACTIVE"};records.set(id,record);return projectClassRow(record,catalog);},
     edit(command){const current=mustFind(command.id);if(current.version!==command.expectedVersion)throw Error("Lớp mẫu đã thay đổi. Mở lại chi tiết.");
-      const record:ClassRecord={...current,...command.changes,version:current.version+1};records.set(record.id,record);return projectClassRow(record,catalog);}
+      const result=validateClassEdit(current,{...current,...command.changes},catalog);if(!result.ok)throw Error(result.message);
+      const record:ClassRecord={...current,...result.command.changes,version:current.version+1};records.set(record.id,record);return projectClassRow(record,catalog);}
   };
 }

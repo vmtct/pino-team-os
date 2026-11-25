@@ -1,13 +1,14 @@
 /** PLT-DELIVERY / PAP-1043 / PAP-2225 — presentation projection only. */
 import type { BoField, BoModule, BoRecord } from "@/lib/bo-registration";
-import { validateClassDraft, type ClassCatalog, type ClassCreate, type ClassDraft } from "./running-class-draft";
+import { validateClassDraft, type ClassCatalog, type ClassDraft } from "./running-class-draft";
 
 export const RUNNING_CLASS_MOCK_ID = "RUNNING-CLASS-MOCK-001";
-export const CLASS_EDIT_KEYS = ["operationalName","weekdayIso","windowStartsLocal","windowEndsLocal","optimalConcurrentCapacity","hardConcurrentCapacity","defaultParticipationMinutes"] as const;
+export const CLASS_STATUSES = ["ACTIVE","INACTIVE","ARCHIVED"] as const;
+export const CLASS_EDIT_KEYS = ["status","pathProgramId","learningSpaceId","operationalName","weekdayIso","windowStartsLocal","windowEndsLocal","optimalConcurrentCapacity","hardConcurrentCapacity","defaultParticipationMinutes"] as const;
 export type ClassEditKey = typeof CLASS_EDIT_KEYS[number];
-export type ClassEdit = Pick<ClassCreate, ClassEditKey>;
+export type ClassEdit = Pick<ClassRecord, ClassEditKey>;
 export type ClassRecord = ClassDraft & { id: string; status: string; version: number };
-export type ClassEditCommand = { id: string; expectedVersion: number; changes: Partial<ClassEdit>; effectiveFromLocalDate: string | null };
+export type ClassEditCommand = { id: string; expectedVersion: number; changes: Partial<ClassEdit> };
 
 function field(key:string,label:string,type:BoField["type"]="text", defaultVisible = true): BoField {
   return {key,label,type,icon:type==="number"?"#":type==="relation"?"↗":type==="date"||type==="datetime"?"▦":type==="select"?"▣":"Aa",w:160,readonly:true,defaultVisible};
@@ -40,24 +41,14 @@ export function projectClassProperties(record:ClassRecord,catalog:ClassCatalog):
   return {...projectClassRow(record,catalog),centerId:label(catalog.centers,record.centerId),
     pathProgramId:label(catalog.paths,record.pathProgramId),learningSpaceId:label(catalog.spaces,record.learningSpaceId)};
 }
-function localDate(value:string):boolean {
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const d=new Date(value+"T00:00:00Z");
-  return Number.isFinite(d.getTime()) && d.toISOString().slice(0,10)===value;
-}
-export function validateClassEdit(original:ClassRecord,draft:ClassDraft,catalog:ClassCatalog,effectiveFromLocalDate:string,centerToday:string):
+export function validateClassEdit(original:ClassRecord,draft:ClassRecord,catalog:ClassCatalog):
   {ok:true;command:ClassEditCommand}|{ok:false;message:string} {
-  const result=validateClassDraft({...draft,centerId:original.centerId,pathProgramId:original.pathProgramId,learningSpaceId:original.learningSpaceId,deliveryTopology:original.deliveryTopology},catalog);
+  if(!CLASS_STATUSES.some(s=>s===draft.status))return {ok:false,message:"Trạng thái không hợp lệ."};
+  const result=validateClassDraft({...draft,centerId:original.centerId,deliveryTopology:original.deliveryTopology},catalog);
   if(!result.ok)return {ok:false,message:Object.values(result.errors).join(" ")};
+  const normalized={...result.value,status:draft.status};
   const changes:Partial<ClassEdit>={};
-  for(const key of CLASS_EDIT_KEYS) {
-    const value=result.value[key];
-    if(value!==original[key]) Object.assign(changes,{[key]:value});
-  }
-  const keys=Object.keys(changes);
-  if(!keys.length)return {ok:false,message:"Không có thay đổi."};
-  const requiresDate=keys.some(key=>key!=="operationalName");
-  if(requiresDate&&(!localDate(effectiveFromLocalDate)||!localDate(centerToday)||effectiveFromLocalDate<centerToday))
-    return {ok:false,message:"Chọn ngày hiệu lực không trước ngày hiện tại của cơ sở."};
-  return {ok:true,command:{id:original.id,expectedVersion:original.version,changes,effectiveFromLocalDate:requiresDate?effectiveFromLocalDate:null}};
+  for(const key of CLASS_EDIT_KEYS)if(normalized[key]!==original[key])Object.assign(changes,{[key]:normalized[key]});
+  if(!Object.keys(changes).length)return {ok:false,message:"Không có thay đổi."};
+  return {ok:true,command:{id:original.id,expectedVersion:original.version,changes}};
 }
