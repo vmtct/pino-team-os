@@ -53,3 +53,6 @@ test("PAP-2371 referenced delete stays disabled and denied read never renders re
 test("PAP-2371 read-only mode exposes no create or lifecycle write",async({page})=>{
  const f=await fixture(page,{query:"?readonly=1&record="+id});await expect(page.getByRole("tab",{name:"Tổng quan"})).toBeVisible();await expect(createButton(page)).toHaveCount(0);await expect(page.getByRole("button",{name:"Xóa không gian học",exact:true})).toHaveCount(0);expect(f.writes).toEqual([]);expect(f.errors).toEqual([]);
 });
+test("PAP-2371 uncertain create survives reload and never automatically sends",async({page})=>{
+ const f=await fixture(page,{uncertain:true});await fillCreate(page);await createButton(page).last().click();await expect(page.getByRole("button",{name:"Kiểm tra lại cùng lệnh"})).toBeVisible();await page.reload();await expect(page.getByRole("button",{name:"Kiểm tra lại cùng lệnh"})).toBeVisible();expect(f.writes).toHaveLength(1);await expect(createButton(page).first()).toBeDisabled();await page.getByRole("button",{name:"Kiểm tra lại cùng lệnh"}).click();await expect(page.getByRole("row",{name:"Mở Quick View Created Studio"})).toBeVisible();expect(f.writes).toHaveLength(2);expect(f.writes[0]).toEqual(f.writes[1]);expect(f.errors).toEqual([]);
+});

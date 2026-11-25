@@ -34,8 +34,15 @@ function snapshot(command:SpaceCommand):SpaceCommand{
  const fields=validated(command.fields);
  return command.kind==="create"?{kind:"create",fields}:{kind:"update",id:command.id,version:command.version,fields};
 }
-export function createSpaceCommandFence(client:Client,newKey:()=>string=()=>crypto.randomUUID()){
- let attempt:Attempt|null=null,running=false;
+export type AttemptStore={read:()=>unknown;write:(attempt:Attempt|null)=>void};
+export function spaceAttemptStore(scopeKey:string):AttemptStore{
+ const key="pino.ho.learning-space.pending."+scopeKey;
+ return {read:()=>{const raw=sessionStorage.getItem(key);return raw===null?null:JSON.parse(raw);},write:attempt=>{if(attempt===null)sessionStorage.removeItem(key);else sessionStorage.setItem(key,JSON.stringify(attempt));}};
+}
+export function createSpaceCommandFence(client:Client,newKey:()=>string=()=>crypto.randomUUID(),store?:AttemptStore){
+ let attempt:Attempt|null=null,running=false,storageFailed=false;
+ try{const raw=store?.read();if(raw!==undefined&&raw!==null){if(typeof raw!=="object"||!("key" in raw)||typeof raw.key!=="string"||raw.key.length<8||raw.key.length>160||!("command" in raw))throw Error("Invalid pending attempt");const command=snapshot(raw.command as SpaceCommand);if(!["create","update","delete"].includes(command.kind))throw Error("Invalid command");attempt={key:raw.key,command,uncertain:true};}}catch{storageFailed=true;}
+ const clear=()=>{try{store?.write(null);attempt=null;return true;}catch{storageFailed=true;return false;}};
  async function run():Promise<CommandResult>{
   if(running||!attempt)return {status:"busy"};
   const a=attempt,c=a.command;running=true;
@@ -48,24 +55,24 @@ export function createSpaceCommandFence(client:Client,newKey:()=>string=()=>cryp
    acknowledged=true;
    if(c.kind==="delete"){
     try{await client.detail(r.id);throw Error("Deleted record still present");}catch(e){if(!(e instanceof SpaceApiError)||e.status!==404)throw e;}
-    attempt=null;return {status:"saved",row:null};
+    if(!clear()){a.uncertain=true;return {status:"uncertain"};}return {status:"saved",row:null};
    }
    const row=await client.detail(r.id);
    if("deleted" in r||row.id!==r.id||row.version<r.version||row.centerId!==c.fields.centerId)throw Error("Readback mismatch");
-   attempt=null;return {status:"saved",row};
+   if(!clear()){a.uncertain=true;return {status:"uncertain"};}return {status:"saved",row};
   }catch(e){
    if(acknowledged||a.uncertain||!(e instanceof SpaceApiError)||e.uncertain){a.uncertain=true;return {status:"uncertain"};}
-   attempt=null;return {status:e.status===409?"conflict":e.status===401||e.status===403?"denied":"invalid"};
+   if(!clear()){a.uncertain=true;return {status:"uncertain"};}return {status:e.status===409?"conflict":e.status===401||e.status===403?"denied":"invalid"};
   }finally{running=false;}
  }
  return {
-  get blocked(){return attempt!==null;},
-  get uncertain(){return attempt?.uncertain===true;},
+  get blocked(){return storageFailed||attempt!==null;},
+  get uncertain(){return storageFailed||attempt?.uncertain===true;},
   async submit(command:SpaceCommand):Promise<CommandResult>{
-   if(running||attempt)return {status:"busy"};
+   if(running||attempt||storageFailed)return {status:"busy"};
    let c:SpaceCommand;try{c=snapshot(command);}catch{return {status:"invalid"};}
-   attempt={key:newKey(),command:c,uncertain:false};return run();
+   const next={key:newKey(),command:c,uncertain:false};try{store?.write(next);}catch{storageFailed=true;return {status:"uncertain"};}attempt=next;return run();
   },
-  async retry():Promise<CommandResult>{if(!attempt?.uncertain)return {status:"busy"};return run();}
+  async retry():Promise<CommandResult>{if(!attempt?.uncertain)return {status:storageFailed?"uncertain":"busy"};return run();}
  };
 }

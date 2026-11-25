@@ -12,7 +12,7 @@ import { toLegacyModule,allowsField,type AuthorizationContext,type ModuleSchema,
 import { createPreviewState } from "@/lib/m1-preview/state";
 import { useResource } from "@/app/components/workspace-renderer/useResource";
 import {createLearningSpaceClient,SpaceApiError,type SpaceDto,type SpaceStatus} from "./learning-space-client";
-import {createSpaceCommandFence,loadSpaceCenters,mergeSpacePatch,projectLiveSpace,type SpaceCommand,type CenterOption} from "./learning-space-provider";
+import {createSpaceCommandFence,spaceAttemptStore,loadSpaceCenters,mergeSpacePatch,projectLiveSpace,type SpaceCommand,type CenterOption} from "./learning-space-provider";
 import {createLiveSpaceSchema,loadSpaceClassRows} from "./learning-space-live-schema";
 import { spaceM1,spaceStatuses,mockCenters,createSpace,updateSpace,deleteSpace,linkedClasses,type SpacePreview } from "./learning-space-m1-preview";
 import { SPACE_READ,SPACE_EDIT,spaceRegistry,spaceSchema,spaceQuery,projectSpace,directFields,type SpaceSchemaFields } from "./schema";
@@ -76,8 +76,8 @@ export function LearningSpaceM1Content({scopeKey,permissionKeys,initialRecord,li
   return <BusinessDataGrid caption="Lớp học" rows={await loadSpaceClassRows(client,record.id,signal)} columns={relationColumns} rowKey={r=>r.id} showToolbar={false} emptyTitle="Chưa có lớp học" emptyMessage="Không có lớp học sử dụng không gian này." />;
  }}:loaders,[client,liveReadOnly]);
  const canEdit=(!liveReadOnly||liveWrites)&&context.authorize(SPACE_READ)&&context.authorize(SPACE_EDIT);
- const fence=useMemo(()=>createSpaceCommandFence(client),[client]);
- const [commandState,setCommandState]=useState<"idle"|"pending"|"uncertain">("idle");
+ const fence=useMemo(()=>createSpaceCommandFence(client,undefined,liveReadOnly&&liveWrites&&typeof window!=="undefined"?spaceAttemptStore(scopeKey):undefined),[client,scopeKey,liveReadOnly,liveWrites]);
+ const [commandState,setCommandState]=useState<"idle"|"pending"|"uncertain">(()=>fence.uncertain?"uncertain":"idle");
  const readCenters=useCallback((signal:AbortSignal)=>liveReadOnly&&liveWrites&&context.authorize(SPACE_EDIT)?loadSpaceCenters(fetch,signal):Promise.resolve([]),[liveReadOnly,liveWrites,context]);
  const centerResource=useResource(readCenters);
  const finishLive=(result:Awaited<ReturnType<typeof fence.submit>>)=>{
