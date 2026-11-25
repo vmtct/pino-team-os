@@ -2,7 +2,7 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { BoPostsTdd } from "./BoPostsDraftEntry";
-import { parsePostReviewQuery } from "./post-preview-navigation";
+import { parsePostReviewQuery } from "./post-preview-query";
 export const dynamic = "force-dynamic";
 export default async function PinerPostsPage({searchParams}:{searchParams:Promise<Record<string,string|string[]|undefined>>}) {
  const incoming=await headers();
