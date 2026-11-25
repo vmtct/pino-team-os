@@ -4,6 +4,7 @@ import { boSkeletonRoute, isBoStagingHost, requiresBoStagingPageSession } from "
 import { safeHoReturnTo } from "@/lib/ho-routes";
 import { BO_RETURN_HEADER, BO_STAGING_RETURN_HOST, safeBoStagingReturnTo } from "@/lib/bo-staging-return-to";
 
+import {parseRunningClassReviewQuery,RC_REVIEW_PATH} from "@/app/bo/running-classes/running-class-review-query";
 import { parsePostReviewQuery } from "@/app/bo/piner-posts/post-preview-query";
 
 export function middleware(request: NextRequest) {
@@ -93,6 +94,10 @@ export function middleware(request: NextRequest) {
         if (ret) login.searchParams.set("returnTo",ret);
       }
       return NextResponse.redirect(login, 307);
+    }
+    if (isBoStagingHost(host) && request.nextUrl.pathname===RC_REVIEW_PATH && ["GET","HEAD"].includes(request.method)) {
+      const params=new URLSearchParams(request.nextUrl.searchParams);if(request.headers.get("rsc")==="1")params.delete("_rsc");
+      if(parseRunningClassReviewQuery(params)===null)return new NextResponse("Not Found",{status:404,headers:{"cache-control":"no-store"}});
     }
     // PAP-2337: reject invalid isolated Post fixture links before React streams a 200/notFound shell.
     if (normalizeHostname(host) === BO_STAGING_RETURN_HOST && request.nextUrl.pathname === "/bo/piner-posts" && ["GET","HEAD"].includes(request.method)) {

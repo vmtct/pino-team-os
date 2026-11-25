@@ -3,6 +3,7 @@ import {BO_LEGACY_QUERY_MODULES,BO_TARGET_ROUTES} from "./bo-url-contract";
 import {isBoStagingRouteAdmitted} from "../app/bo/architecture/bo-staging-route-policy";
 import {readLinkedSpecialtyRoute} from "./bo-subscription-detail-url";
 import {readWishDetailRoute} from "./pls-wish-detail-route";
+import {parseRunningClassReviewQuery,RC_REVIEW_PATH} from "../app/bo/running-classes/running-class-review-query";
 export const BO_STAGING_RETURN_HOST="bo.staging.pinohouse.art";
 export const BO_RETURN_HEADER="x-pino-bo-return-to";
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -24,6 +25,7 @@ export function safeBoStagingReturnTo(raw:string|null|undefined):string|null{
   if(p.getAll(k).length!==1||!v||v.length>256||/[\x00-\x1f\x7f\\]/.test(v))return null;
  }
  let moduleKey=p.get("module");
+ if(path===RC_REVIEW_PATH||(path==="/bo"&&moduleKey==="classes"))return parseRunningClassReviewQuery(p,path==="/bo");
  if(path==="/bo/subscriptions"){if(moduleKey!==null&&moduleKey!=="subscriptions")return null;path="/bo";moduleKey="subscriptions";p.set("module",moduleKey);}
  if(path==="/bo/registrations"){if(moduleKey!==null)return null;path="/bo/enrollments";p.delete("record");p.delete("sessionId");}
  if(path==="/bo/mytime-guests"){if(moduleKey!==null)return null;path="/bo/guests";}
