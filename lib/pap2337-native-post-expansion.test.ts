@@ -14,3 +14,6 @@ test("preview submit locks caption, media and Diary mutations",async()=>{
 test("preview rejects invalid program/person and real IDs; dispose revokes local presentation",async()=>{
  const s=createPostPreviewSession();await assert.rejects(s.controller.createDraft("PERSON-MOCK-002","AFTERSCHOOL","x",signal()));await assert.rejects(s.controller.detail("123e4567-e89b-12d3-a456-426614174000",signal()));s.dispose();await assert.rejects(s.controller.list(signal()));
 });
+
+import {parsePostReviewQuery} from "../app/bo/piner-posts/post-preview-navigation";
+test("canonical Post fixture query and legacy normalization",()=>{for(const [q,canonical] of [["",""],["m1Preview=1",""],["m1Preview=1&record=POST-MOCK-001&tab=media","record=POST-MOCK-001&tab=media"],["record=POST-MOCK-001&tab=history","record=POST-MOCK-001&tab=history"]] as const)assert.deepEqual(parsePostReviewQuery(new URLSearchParams(q)),{legacy:q.includes("m1Preview"),canonical});for(const q of ["m1Preview=0","m1Preview=1&m1Preview=1","record=01a1ef9f-d253-7e6b-ba2d-200887c4486f","record=POST-MOCK-001&record=POST-MOCK-002","record=","tab=media","record=POST-MOCK-001&tab=unknown","centerId=bad","returnTo=//evil.example"])assert.equal(parsePostReviewQuery(new URLSearchParams(q)),null,q);});
