@@ -21,6 +21,13 @@ export function postWorkflowReadClient(centerId:string,fetcher:typeof fetch=fetc
  }
  function scoped(d:Record<string,unknown>,postId:string){if(d.postId!==postId||d.centerId!==center)throw Error("Wrong readback scope");return version(d.version);}
  return {
+  async submissionState(postId:string,signal:AbortSignal){
+   const d=await get(postId,"submission-state",signal),v=scoped(d,postId);
+   if(d.status!=="DRAFT"&&d.status!=="PENDING_APPROVAL")throw Error("Invalid Post state");
+   const submittedAttachmentIds=d.status==="DRAFT"?(d.submittedAttachmentIds===null?null:undefined):unique(array(d.submittedAttachmentIds,5).map(id));
+   if(submittedAttachmentIds===undefined||submittedAttachmentIds?.length===0)throw Error("Invalid submitted order");
+   return {postId,centerId:center,version:v,status:d.status,submittedAttachmentIds};
+  },
   async state(postId:string,signal:AbortSignal){
    const d=await get(postId,"workflow-state",signal),v=scoped(d,postId);
    if(d.status!=="DRAFT"&&d.status!=="PENDING_APPROVAL")throw Error("Invalid Post state");

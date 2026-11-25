@@ -10,7 +10,7 @@ const setup=()=>{const calls:BoAccessRequest[]=[];const env:BoPostDraftEnv={APP_
 const req=(path:string,opts:{host?:string;query?:string;method?:string;headers?:Record<string,string>}={})=>new Request((opts.host??host)+"/api/bo/"+path+(opts.query??"?centerId="+center),{method:opts.method??"GET",headers:{cookie:"pino_staff_password_session=synthetic-session",...opts.headers}});
 test("PAP-2386 exact read BFF passes four paths and same BO credential",async()=>{
  const {calls,env}=setup();
- for(const path of [root+"/workflow-state",root+"/diaries",root+"/diaries/"+diary+"/photos",root+"/diaries/"+diary+"/photos/"+evidence]){
+ for(const path of [root+"/submission-state",root+"/workflow-state",root+"/diaries",root+"/diaries/"+diary+"/photos",root+"/diaries/"+diary+"/photos/"+evidence]){
   const r=await handleBoPostWorkflowRead(req(path),env,path);assert.equal(r.status,200);assert.equal(r.headers.get("cache-control"),"no-store");assert.deepEqual(calls.at(-1),{method:"GET",path:path+"?centerId="+center,resource:{centerId:center}});
  }
  const path=root+"/diaries",query="?centerId="+center+"&after="+diary+"&limit=10";
@@ -24,7 +24,7 @@ test("PAP-2386 read BFF rejects scope widening, foreign host, support and mutati
 });
 
 test("PAP-2386 exact Post workflow host admission preserves all prior routes",()=>{
- const reads=[root+"/workflow-state",root+"/diaries",root+"/diaries/"+diary+"/photos",root+"/diaries/"+diary+"/photos/"+evidence];
+ const reads=[root+"/submission-state",root+"/workflow-state",root+"/diaries",root+"/diaries/"+diary+"/photos",root+"/diaries/"+diary+"/photos/"+evidence];
  const writes=[root+"/submit",root+"/diary-selection",root+"/attachments/"+evidence+"/diary-provenance"];
  for(const [paths,method] of [[reads,"GET"],[writes,"POST"]] as const)for(const path of paths){
   const p="/api/bo/"+path;

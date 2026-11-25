@@ -31,7 +31,7 @@ export async function openNativeDraftSession(centerId:string,centerSource:Center
     const media=postRoute&&url.pathname.includes("/attachments");
     const uuid="[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
     const root="^"+postsBase+"/"+uuid+"/";
-    const submit=new RegExp(root+"submit$").test(url.pathname)&&method==="POST";
+    const submit=(new RegExp(root+"submit$").test(url.pathname)&&method==="POST")||(new RegExp(root+"submission-state$").test(url.pathname)&&method==="GET");
     const composeWrite=new RegExp(root+"(?:diary-selection|attachments/"+uuid+"/diary-provenance)$").test(url.pathname)&&method==="POST";
     const composeRead=new RegExp(root+"(?:workflow-state|diaries(?:/"+uuid+"/photos(?:/"+uuid+")?)?)$").test(url.pathname)&&method==="GET";
     if(postRoute&&(url.origin!==origin||url.searchParams.getAll("centerId").length!==1||url.searchParams.get("centerId")!==centerId))throw new CoreDraftRequestError(403);

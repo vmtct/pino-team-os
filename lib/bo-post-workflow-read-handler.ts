@@ -4,7 +4,7 @@ import {teamCredential,TeamAuthError} from "./team-auth";
 import type {BoPostDraftEnv} from "./bo-post-draft-handler";
 import {BO_STAGING_HOSTNAME} from "./host-boundary";
 const uuid="[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
-const id=new RegExp("^"+uuid+"$"),route=new RegExp("^learning/piner-posts/"+uuid+"/(workflow-state|diaries(?:/"+uuid+"/photos(?:/"+uuid+")?)?)$");
+const id=new RegExp("^"+uuid+"$"),route=new RegExp("^learning/piner-posts/"+uuid+"/(submission-state|workflow-state|diaries(?:/"+uuid+"/photos(?:/"+uuid+")?)?)$");
 export function matchPostWorkflowRead(path:string){return route.exec(path)?.[1]??null;}
 function json(body:unknown,status:number,requestId?:string){return Response.json(body,{status,headers:{"cache-control":"no-store","x-content-type-options":"nosniff",...(requestId?{"x-request-id":requestId}:{})}});}
 const fail=(status:number,code:string)=>json({error:{code}},status);

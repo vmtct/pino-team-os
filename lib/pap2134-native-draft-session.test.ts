@@ -57,10 +57,14 @@ test("PAP-2386 submit-only native session cannot compose and does not need creat
  const x=setup(["piner.post.view","piner.post.submit"]),calls:string[]=[];
  const s=await openNativeDraftSession(A,"centers",signal,{...x.options,fetcher:async(input,init)=>{
   const path=new URL(String(input)).pathname;if(!path.includes("/piner-posts/"))return x.options.fetcher(input,init);
-  calls.push(path);return Response.json({data:{post:{id:P,centerId:A,status:"PENDING_APPROVAL",version:2},committedVersion:2,replayed:false}});
+  calls.push(path);
+  if(path.endsWith("/submission-state"))return Response.json({data:{postId:P,centerId:A,status:"PENDING_APPROVAL",version:2,submittedAttachmentIds:[I]}});
+  return Response.json({data:{post:{id:P,centerId:A,status:"PENDING_APPROVAL",version:2},committedVersion:2,replayed:false}});
  }});
  assert.equal(s.canSubmit(),true);assert.equal(s.canCompose(),false);assert.equal(s.canCreate(),false);assert.equal(s.canEditMedia(),false);
  await assert.rejects(s.workflowRead.state(P,signal));
  const receipt=await s.workflowAction({kind:"submit",postId:P,attachmentIds:[I],expectedVersion:1,idempotencyKey:"workflow-test-0002"},signal);
- assert.equal(receipt.committedVersion,2);assert.deepEqual(calls,["/api/bo/learning/piner-posts/"+P+"/submit"]);s.dispose();
+ assert.equal(receipt.committedVersion,2);
+ assert.deepEqual((await s.workflowRead.submissionState(P,signal)).submittedAttachmentIds,[I]);
+ assert.deepEqual(calls,["/api/bo/learning/piner-posts/"+P+"/submit","/api/bo/learning/piner-posts/"+P+"/submission-state"]);s.dispose();
 });

@@ -4,7 +4,7 @@ const DETAIL=/^\/api\/bo\/learning\/piner-posts\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-
 const MEDIA=/^\/api\/bo\/learning\/piner-posts\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/attachments(?:\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/(confirm|preview|revoke))?$/;
 const UUID="[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
 const WORKFLOW_WRITE=new RegExp("^"+BASE+"/"+UUID+"/(?:submit|diary-selection|attachments/"+UUID+"/diary-provenance)$");
-const WORKFLOW_READ=new RegExp("^"+BASE+"/"+UUID+"/(?:workflow-state|diaries(?:/"+UUID+"/photos(?:/"+UUID+")?)?)$");
+const WORKFLOW_READ=new RegExp("^"+BASE+"/"+UUID+"/(?:submission-state|workflow-state|diaries(?:/"+UUID+"/photos(?:/"+UUID+")?)?)$");
 export function postDraftHostDecision(host:string,path:string,method:string):"next"|"not_found"|null {
  const lower=path.toLowerCase();
  if(!lower.startsWith(PAGE)&&!lower.startsWith(BASE))return null;

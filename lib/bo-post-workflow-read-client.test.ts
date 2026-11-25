@@ -22,3 +22,12 @@ test("PAP-2386 deny wrong scope, unclaimed provenance, invalid order and wrong e
  }
  const c=postWorkflowReadClient(center,async()=>Response.json({data:{...image,id:id(9)}}));await assert.rejects(c.photo(post,diary,evidence,signal));
 });
+
+test("PAP-2386 submission-only readback preserves immutable order without Diary fields",async()=>{
+ const data={...scope,status:"PENDING_APPROVAL",submittedAttachmentIds:[attachment,evidence]};
+ const c=postWorkflowReadClient(center,async(input,init)=>{assert(String(input).includes("/submission-state?centerId="+center));assert.equal(init?.method,"GET");return Response.json({data});});
+ assert.deepEqual(await c.submissionState(post,signal),data);
+ for(const d of [{...data,centerId:id(9)},{...data,submittedAttachmentIds:[]},{...data,submittedAttachmentIds:[attachment,attachment]}]){
+  const wrong=postWorkflowReadClient(center,async()=>Response.json({data:d}));await assert.rejects(wrong.submissionState(post,signal));
+ }
+});
