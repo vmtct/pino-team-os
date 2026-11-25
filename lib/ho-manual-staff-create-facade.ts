@@ -5,6 +5,8 @@ import { BoShellGateError } from "./bo-shell-gate";
 import { HO_STAGING_HOSTNAME, normalizeHostname } from "./host-boundary";
 import { callBoAccessCoreWithStaffPassword, type BoAccessCoreBinding } from "./bo-core";
 import { teamCredential, TeamAuthError } from "./team-auth";
+import { parseHoManualStaffReceipt } from "./ho-manual-staff-create-receipt";
+export { parseHoManualStaffReceipt } from "./ho-manual-staff-create-receipt";
 import type { StaffCreateCommand } from "../app/ho/staff/manual-create-contract";
 
 export interface HoManualStaffCreateEnv extends HoEnv { PINO_BO_CORE: BoAccessCoreBinding }
@@ -41,19 +43,6 @@ export function parseHoManualStaffCommand(value:unknown):StaffCreateCommand|null
     login={email,password:l.password};
   }
   return {name:b.name.trim(),phone:b.phone,email,gender:b.gender,birthDate:b.birthDate,centerId:b.centerId,login};
-}
-type Receipt={staffMemberId:string;personId:string;membershipId:string;centerId:string;accessState:"NOT_PROVISIONED"}
-  |{staffMemberId:string;personId:string;membershipId:string;centerId:string;accessState:"PROVISIONED";accessUserId:string;assignmentId:string};
-export function parseHoManualStaffReceipt(value:unknown,centerId:string,withLogin:boolean):Receipt|null{
-  const root=object(value),b=object(root?.data);
-  const fields=["staffMemberId","personId","membershipId","centerId","accessState"];
-  if(!b||!exactKeys(b,withLogin?[...fields,"accessUserId","assignmentId"]:fields)||
-     b.centerId!==centerId||!canonical(b.staffMemberId)||!canonical(b.personId)||!canonical(b.membershipId))return null;
-  const result={staffMemberId:b.staffMemberId,personId:b.personId,membershipId:b.membershipId,centerId};
-  if(!withLogin&&b.accessState==="NOT_PROVISIONED")return {...result,accessState:"NOT_PROVISIONED"};
-  if(withLogin&&b.accessState==="PROVISIONED"&&canonical(b.accessUserId)&&canonical(b.assignmentId))
-    return {...result,accessState:"PROVISIONED",accessUserId:b.accessUserId,assignmentId:b.assignmentId};
-  return null;
 }
 export async function handleHoManualStaffCreate(request:Request,env:HoManualStaffCreateEnv):Promise<Response>{
   try{
