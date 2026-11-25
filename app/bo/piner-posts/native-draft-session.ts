@@ -8,6 +8,8 @@ import {createSessionDraftJournal,type DraftRetryJournal} from "./draft-retry-jo
 import {bindNativeDraft} from "./native-draft-binding";
 import {createPrivateMediaController} from "./private-media-controller";
 import {privatePostMediaClient} from "./private-media-client";
+import {postWorkflowReadClient} from "./workflow-read-client";
+import {postWorkflowClient} from "./workflow-client";
 import {CoreDraftRequestError} from "./core-draft-client";
 import {BO_STAGING_HOSTNAME} from "@/lib/host-boundary";
 import type {PersonChoice,PostProgramKey} from "./data-port";
@@ -27,13 +29,18 @@ export async function openNativeDraftSession(centerId:string,centerSource:Center
     const url=new URL(String(input),origin),method=(init?.method??"GET").toUpperCase(),postsBase="/api/bo/learning/piner-posts";
     const postRoute=url.pathname===postsBase||url.pathname.startsWith(postsBase+"/"),people=url.pathname===postsBase+"/people";
     const media=postRoute&&url.pathname.includes("/attachments");
+    const uuid="[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
+    const root="^"+postsBase+"/"+uuid+"/";
+    const submit=new RegExp(root+"submit$").test(url.pathname)&&method==="POST";
+    const composeWrite=new RegExp(root+"(?:diary-selection|attachments/"+uuid+"/diary-provenance)$").test(url.pathname)&&method==="POST";
+    const composeRead=new RegExp(root+"(?:workflow-state|diaries(?:/"+uuid+"/photos(?:/"+uuid+")?)?)$").test(url.pathname)&&method==="GET";
     if(postRoute&&(url.origin!==origin||url.searchParams.getAll("centerId").length!==1||url.searchParams.get("centerId")!==centerId))throw new CoreDraftRequestError(403);
     if(people&&([...url.searchParams.keys()].some(k=>!["centerId","programKey","q","after","limit"].includes(k))||[...new Set(url.searchParams.keys())].some(k=>url.searchParams.getAll(k).length!==1)||!["AFTERSCHOOL","MYTIME"].includes(url.searchParams.get("programKey")??"")))throw new CoreDraftRequestError(403);
     if(media&&[...url.searchParams.keys()].some(k=>k!=="centerId"))throw new CoreDraftRequestError(403);
-    const permission=media?(method==="GET"?"piner.post.view":"piner.post.edit"):people?"piner.post.create":postRoute?(method==="POST"?"piner.post.create":method==="PATCH"?"piner.post.edit":"piner.post.view"):url.pathname==="/api/bo/learners"||method==="POST"?"piner.post.create":method==="PATCH"?"piner.post.edit":"piner.post.view";
-    if(!current()||!actor.authorize("piner.post.view")||!actor.authorize(permission))throw new CoreDraftRequestError(403);
+    const permission=submit?"piner.post.submit":composeWrite||composeRead?"piner.post.diary.compose":media?(method==="GET"?"piner.post.view":"piner.post.edit"):people?"piner.post.create":postRoute?(method==="POST"?"piner.post.create":method==="PATCH"?"piner.post.edit":"piner.post.view"):url.pathname==="/api/bo/learners"||method==="POST"?"piner.post.create":method==="PATCH"?"piner.post.edit":"piner.post.view";
+    if(!current()||!actor.authorize("piner.post.view")||!session.context.authorize(permission))throw new CoreDraftRequestError(403);
     const result=await session.transport(input,init);
-    if(result.ok){await session.refresh(requestSignal);if(!current()||!actor.authorize("piner.post.view")||!actor.authorize(permission))throw new CoreDraftRequestError(403);}
+    if(result.ok){await session.refresh(requestSignal);if(!current()||!actor.authorize("piner.post.view")||!session.context.authorize(permission))throw new CoreDraftRequestError(403);}
     return result;
    }catch(e){
     // Transport/session recheck can fail AFTER a command commits. Never map that
@@ -48,6 +55,10 @@ export async function openNativeDraftSession(centerId:string,centerSource:Center
   const mediaControllers=new Map<string,ReturnType<typeof createPrivateMediaController>>();
   const canMedia=(write:boolean)=>Boolean(current()&&actor.authorize("piner.post.view")&&(!write||actor.authorize("piner.post.edit")));
   return {...binding,controller,userId:principal.userId,
+   workflowRead:postWorkflowReadClient(centerId,guardedFetch),
+   workflowAction:postWorkflowClient(centerId,guardedFetch),
+   canSubmit:()=>Boolean(current()&&session.context.authorize("piner.post.view")&&session.context.authorize("piner.post.submit")),
+   canCompose:()=>Boolean(current()&&session.context.authorize("piner.post.view")&&session.context.authorize("piner.post.diary.compose")),
    canEditMedia:()=>Boolean(current()&&actor.authorize("piner.post.view")&&actor.authorize("piner.post.edit")),
    media:(postId:string)=>{if(!current()||!actor.authorize("piner.post.view"))throw new CoreDraftRequestError(403);return privatePostMediaClient(centerId,postId,guardedFetch);},
    mediaController:(postId:string)=>{if(!canMedia(false))throw new CoreDraftRequestError(403);let media=mediaControllers.get(postId);if(!media){media=createPrivateMediaController(privatePostMediaClient(centerId,postId,guardedFetch),canMedia);mediaControllers.set(postId,media);}return media;},

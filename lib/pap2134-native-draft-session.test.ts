@@ -31,3 +31,36 @@ test("create-only cannot reserve media even with Draft view",async()=>{
 });
 
 test("native Media controller is retained per post and disposed with the actor session",async()=>{const x=setup(["piner.post.view"]),s=await openNativeDraftSession(A,"centers",signal,x.options),P="01900000-0000-7000-8000-000000000004";const c=s.mediaController(P);assert.equal(s.mediaController(P),c);s.dispose();await assert.rejects(c.list(signal));assert.throws(()=>s.mediaController(P));});
+test("PAP-2386 native workflow capabilities remain distinct and rechecked after reads",async()=>{
+ const P="01900000-0000-7000-8000-000000000004",I="01900000-0000-7000-8000-000000000005";
+ const grants=["piner.post.view","piner.post.diary.compose"],x=setup(grants);
+ const calls:string[]=[];
+ let revoke=false;
+ const options={...x.options,fetcher:async(input:RequestInfo|URL,init?:RequestInit)=>{
+  const path=new URL(String(input)).pathname;
+  if(!path.includes("/piner-posts/"))return x.options.fetcher(input,init);
+  calls.push(path);
+  if(revoke)grants.splice(grants.indexOf("piner.post.diary.compose"),1);
+  return Response.json({data:{postId:P,centerId:A,version:1,status:"DRAFT",diaryIds:[],provenance:[],submittedAttachmentIds:null}});
+ }};
+ const s=await openNativeDraftSession(A,"centers",signal,options);
+ assert.equal(s.canCompose(),true);assert.equal(s.canSubmit(),false);
+ assert.equal((await s.workflowRead.state(P,signal)).version,1);
+ await assert.rejects(s.workflowAction({kind:"submit",postId:P,attachmentIds:[I],expectedVersion:1,idempotencyKey:"workflow-test-0001"},signal));
+ assert.equal(calls.length,1);
+ revoke=true;await assert.rejects(s.workflowRead.state(P,signal));assert.equal(s.canCompose(),false);
+ s.dispose();await assert.rejects(s.workflowRead.state(P,signal));
+ assert.equal(calls.length,2);
+});
+test("PAP-2386 submit-only native session cannot compose and does not need create/edit",async()=>{
+ const P="01900000-0000-7000-8000-000000000004",I="01900000-0000-7000-8000-000000000005";
+ const x=setup(["piner.post.view","piner.post.submit"]),calls:string[]=[];
+ const s=await openNativeDraftSession(A,"centers",signal,{...x.options,fetcher:async(input,init)=>{
+  const path=new URL(String(input)).pathname;if(!path.includes("/piner-posts/"))return x.options.fetcher(input,init);
+  calls.push(path);return Response.json({data:{post:{id:P,centerId:A,status:"PENDING_APPROVAL",version:2},committedVersion:2,replayed:false}});
+ }});
+ assert.equal(s.canSubmit(),true);assert.equal(s.canCompose(),false);assert.equal(s.canCreate(),false);assert.equal(s.canEditMedia(),false);
+ await assert.rejects(s.workflowRead.state(P,signal));
+ const receipt=await s.workflowAction({kind:"submit",postId:P,attachmentIds:[I],expectedVersion:1,idempotencyKey:"workflow-test-0002"},signal);
+ assert.equal(receipt.committedVersion,2);assert.deepEqual(calls,["/api/bo/learning/piner-posts/"+P+"/submit"]);s.dispose();
+});
