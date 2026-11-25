@@ -103,6 +103,8 @@ export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi}: {
   const [commandNotice,setCommandNotice]=useState("");
   const commandBusyRef=useRef(false);
   const [commandBusy,setCommandBusy]=useState(false);
+  const [archiveTarget,setArchiveTarget]=useState<string|null>(null);
+  const [archiveReason,setArchiveReason]=useState("");
   const records = readModel ? readModel.directory.items.map(leadReadRow) : fixtureRecords;
   useEffect(()=>()=>readModel?.dispose(),[readModel]);
   const [query, setQuery] = useState("");
@@ -150,6 +152,7 @@ export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi}: {
       const refreshFailed=readModel.directory.phase==="error"||(readModel.selected.id===detail.id&&readModel.selected.phase!=="ready");
       setCommandNotice(refreshFailed?"Đã xác nhận kết quả Lead; chưa tải lại được toàn bộ dữ liệu.":"Đã tải lại thông tin Lead.");
       if(drawer?.mode==="create"){setDrawer(null);openFullDetail(detail.id);}
+      if(archiveTarget===detail.id&&detail.status==="ARCHIVED"){setArchiveTarget(null);setArchiveReason("");}
       return true;
     }catch{
       setCommandNotice(commandFence.state==="uncertain"?"Chưa xác định kết quả. Chỉ thử lại cùng yêu cầu.":commandFence.state==="conflict"?"Dữ liệu đã thay đổi. Tải lại trước khi chỉnh sửa.":commandFence.state==="reload_required"?"Đã nhận kết quả, cần tải lại Lead.":"Không thể cập nhật Lead.");
@@ -167,6 +170,11 @@ export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi}: {
     if(!commandFence||commandFence.state!=="idle"||!target||target.id!==selectedLeadId||target.status!=="ACTIVE")return Promise.resolve(false);
     const command=make(target);
     return command?executeContact(()=>commandFence.submit(command)):Promise.resolve(false);
+  }
+  function submitArchive(){
+    const reason=archiveReason.trim();
+    if(!archiveTarget||archiveTarget!==selectedLeadId||!reason||reason.length>240)return;
+    void submitMember(target=>target.id===archiveTarget?{kind:"archive",leadId:target.id,expectedVersion:target.version,reason}:null);
   }
   function updateCanonicalMember(memberId:string,patch:Partial<LeadMemberInput>){
     return submitMember(target=>{
@@ -352,9 +360,9 @@ export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi}: {
   const currentUrl = pathname + (searchParams.size ? "?" + searchParams.toString() : "");
 
   return <main className={styles.page}>
-    {commandFence&&commandNotice?<p role="status" className={styles.previewNotice}>{commandNotice}</p>:null}
-    {commandFence?.state==="uncertain"?<button type="button" className="secondary-btn" onClick={()=>void executeContact(()=>commandFence.retry())}>Thử lại cùng yêu cầu</button>:null}
-    {commandFence&&(commandFence.state==="reload_required"||commandFence.state==="conflict")&&commandFence.reloadTarget?<button type="button" className="secondary-btn" onClick={()=>{const id=commandFence.reloadTarget;if(id)void executeContact(()=>commandFence.reload(id));}}>Tải lại Lead</button>:null}
+    {commandFence&&commandNotice&&!drawer&&!archiveTarget?<p role="status" className={styles.previewNotice}>{commandNotice}</p>:null}
+    {!drawer&&!archiveTarget&&commandFence?.state==="uncertain"?<button type="button" className="secondary-btn" disabled={commandBusy} onClick={()=>void executeContact(()=>commandFence.retry())}>Thử lại cùng yêu cầu</button>:null}
+    {!drawer&&!archiveTarget&&commandFence&&(commandFence.state==="reload_required"||commandFence.state==="conflict")&&commandFence.reloadTarget?<button type="button" className="secondary-btn" disabled={commandBusy} onClick={()=>{const id=commandFence.reloadTarget;if(id)void executeContact(()=>commandFence.reload(id));}}>Tải lại Lead</button>:null}
     {readModel&&selectedLeadId&&!selectedLead?<div role="status"><button className="secondary-btn" onClick={()=>setPreviewParam("lead",null)}>← Danh bạ Leads</button><LeadReadStatus phase={readModel.selected.phase} error={readModel.selected.error?.status} onRetry={()=>void readModel.select(selectedLeadId)} /></div>:null}
     {!selectedLead && !(readModel&&selectedLeadId) ? <><header className={styles.heading}>
       <div>
@@ -406,11 +414,11 @@ export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi}: {
       returnTo={backToTable}
       activeTab={activeTab}
       designVariant="business-v25"
-      actions={<div className={styles.detailActions}>{menu("lead-detail-menu-btn")}{selectedLead.fixture?<BoDataGridBadge>DỮ LIỆU MẪU</BoDataGridBadge>:null}</div>}
+      actions={<div className={styles.detailActions}>{menu("lead-detail-menu-btn")}{commandFence&&currentDetail?.id===selectedLead.id&&currentDetail.status==="ACTIVE"?<button type="button" className="secondary-btn" disabled={commandBusy||commandFence.state!=="idle"} onClick={()=>{setArchiveReason("");setCommandNotice("");setArchiveTarget(selectedLead.id);}}>Lưu trữ Lead</button>:null}{selectedLead.fixture?<BoDataGridBadge>DỮ LIỆU MẪU</BoDataGridBadge>:null}</div>}
       tabs={[
-        { id: "detail", label: "Tổng quan", content: <LeadOverview record={selectedLead} liveContact={commandFence&&currentDetail&&currentDetail.id===selectedLead.id&&currentDetail.status==="ACTIVE"?{name:currentDetail.contactDisplayName,phone:currentDetail.phone,version:currentDetail.version,disabled:commandFence.state!=="idle",save:saveCanonicalContact}:undefined} onSave={(name, phone) => saveInlineContact(selectedLead.id, name, phone)} onConvert={() => openConvert(selectedLead)} onSaveInterests={kinds => saveLeadInterests(selectedLead.id, kinds)} /> },
-        { id: "members", label: "Thành viên", content: <LeadMembers record={selectedLead} live={commandFence&&currentDetail?.id===selectedLead.id&&currentDetail.status==="ACTIVE"?{detail:currentDetail,disabled:commandFence.state!=="idle",update:updateCanonicalMember,add:(name,role)=>submitMember(target=>({kind:"addMember",leadId:target.id,expectedVersion:target.version,member:{displayName:name,intendedRoles:[role],gender:null,birthPrecision:"UNKNOWN",birthYear:null,birthMonth:null,birthDay:null,reportedAge:null,interestKinds:[]}})),primary:memberId=>submitMember(target=>({kind:"primary",leadId:target.id,expectedVersion:target.version,memberId})),retire:memberId=>submitMember(target=>({kind:"retireMember",leadId:target.id,expectedVersion:target.version,memberId}))}:undefined} onSave={members => updateMembers(selectedLead.id, members)} onSaveInterests={(memberId, kinds) => saveMemberInterests(selectedLead.id, memberId, kinds)} /> },
-        { id: "relationships", label: "Quan hệ", content: <LeadRelationships record={selectedLead} live={commandFence&&currentDetail?.id===selectedLead.id&&currentDetail.status==="ACTIVE"?{disabled:commandFence.state!=="idle",add:relationship=>submitMember(target=>({kind:"addRelation",leadId:target.id,expectedVersion:target.version,relationship})),update:(relationshipId,relationship)=>submitMember(target=>target.relationships.some(r=>r.id===relationshipId&&r.status==="DECLARED")?{kind:"updateRelation",leadId:target.id,expectedVersion:target.version,relationshipId,relationship}:null),confirm:relationshipId=>submitMember(target=>target.relationships.some(r=>r.id===relationshipId&&r.status==="DECLARED")?{kind:"confirmRelation",leadId:target.id,expectedVersion:target.version,relationshipId}:null),retire:relationshipId=>submitMember(target=>target.relationships.some(r=>r.id===relationshipId)?{kind:"retireRelation",leadId:target.id,expectedVersion:target.version,relationshipId}:null)}:undefined} onSave={relationships => updateRelationships(selectedLead.id, relationships)} /> },
+        { id: "detail", label: "Tổng quan", content: <LeadOverview record={selectedLead} liveContact={commandFence&&currentDetail&&currentDetail.id===selectedLead.id&&currentDetail.status==="ACTIVE"?{name:currentDetail.contactDisplayName,phone:currentDetail.phone,version:currentDetail.version,disabled:commandBusy||commandFence.state!=="idle",save:saveCanonicalContact}:undefined} onSave={(name, phone) => saveInlineContact(selectedLead.id, name, phone)} onConvert={() => openConvert(selectedLead)} onSaveInterests={kinds => saveLeadInterests(selectedLead.id, kinds)} /> },
+        { id: "members", label: "Thành viên", content: <LeadMembers record={selectedLead} live={commandFence&&currentDetail?.id===selectedLead.id&&currentDetail.status==="ACTIVE"?{detail:currentDetail,disabled:commandBusy||commandFence.state!=="idle",update:updateCanonicalMember,add:(name,role)=>submitMember(target=>({kind:"addMember",leadId:target.id,expectedVersion:target.version,member:{displayName:name,intendedRoles:[role],gender:null,birthPrecision:"UNKNOWN",birthYear:null,birthMonth:null,birthDay:null,reportedAge:null,interestKinds:[]}})),primary:memberId=>submitMember(target=>({kind:"primary",leadId:target.id,expectedVersion:target.version,memberId})),retire:memberId=>submitMember(target=>({kind:"retireMember",leadId:target.id,expectedVersion:target.version,memberId}))}:undefined} onSave={members => updateMembers(selectedLead.id, members)} onSaveInterests={(memberId, kinds) => saveMemberInterests(selectedLead.id, memberId, kinds)} /> },
+        { id: "relationships", label: "Quan hệ", content: <LeadRelationships record={selectedLead} live={commandFence&&currentDetail?.id===selectedLead.id&&currentDetail.status==="ACTIVE"?{disabled:commandBusy||commandFence.state!=="idle",add:relationship=>submitMember(target=>({kind:"addRelation",leadId:target.id,expectedVersion:target.version,relationship})),update:(relationshipId,relationship)=>submitMember(target=>target.relationships.some(r=>r.id===relationshipId&&r.status==="DECLARED")?{kind:"updateRelation",leadId:target.id,expectedVersion:target.version,relationshipId,relationship}:null),confirm:relationshipId=>submitMember(target=>target.relationships.some(r=>r.id===relationshipId&&r.status==="DECLARED")?{kind:"confirmRelation",leadId:target.id,expectedVersion:target.version,relationshipId}:null),retire:relationshipId=>submitMember(target=>target.relationships.some(r=>r.id===relationshipId)?{kind:"retireRelation",leadId:target.id,expectedVersion:target.version,relationshipId}:null)}:undefined} onSave={relationships => updateRelationships(selectedLead.id, relationships)} /> },
         { id: "history", label: "Lịch sử", content: readModel?<LeadInquiryHistory model={readModel}/>:<LeadHistory /> },
       ]}
     /> : null}
@@ -469,6 +477,9 @@ export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi}: {
       </div>
     </BoDrawer> : null}
 
+    {archiveTarget&&commandFence?<BoDrawer title="Lưu trữ Lead" eyebrow="Lead" mode="edit" size="lg" onClose={()=>{if(!commandBusyRef.current&&commandFence.state==="idle"){setArchiveTarget(null);setArchiveReason("");}}} footer={<div className={styles.drawerFooter+" pds-compact-actions"}><button className="secondary-btn" type="button" disabled={commandBusy||commandFence.state!=="idle"} onClick={()=>{setArchiveTarget(null);setArchiveReason("");}}>Hủy</button><button className="primary-btn" type="button" disabled={commandBusy||commandFence.state!=="idle"||currentDetail?.id!==archiveTarget||currentDetail.status!=="ACTIVE"||!archiveReason.trim()||archiveReason.trim().length>240} onClick={submitArchive}>Xác nhận lưu trữ</button></div>}>
+      <div className={styles.drawerContent}><p>Lead được lưu trữ, không bị xóa. Tất cả lượt tiếp nhận phải đã đóng trước khi lưu trữ.</p><label className="pds-compact-label">Lý do lưu trữ<textarea className="pds-compact-field" maxLength={240} required disabled={commandBusy||commandFence.state!=="idle"} value={archiveReason} onChange={event=>setArchiveReason(event.target.value)}/></label>{commandNotice?<p role="status">{commandNotice}</p>:null}{commandFence.state==="uncertain"?<button type="button" className="secondary-btn" disabled={commandBusy} onClick={()=>void executeContact(()=>commandFence.retry())}>Thử lại cùng yêu cầu</button>:null}{(commandFence.state==="conflict"||commandFence.state==="reload_required")&&commandFence.reloadTarget?<button type="button" className="secondary-btn" disabled={commandBusy} onClick={()=>{const id=commandFence.reloadTarget;if(id)void executeContact(()=>commandFence.reload(id));}}>Tải lại Lead</button>:null}</div>
+    </BoDrawer>:null}
     {drawer ? <LeadCreateEditDrawer
       mode={drawer.mode}
       draft={draft}
