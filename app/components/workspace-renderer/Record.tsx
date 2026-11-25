@@ -10,6 +10,7 @@ import { BusinessFormPanel, BusinessPanel, type BusinessFormBinding, type SlotLo
 import { recordProjection, renderScope } from "./projection";
 import { DirectPropertyEditor, PropertyEditor, type TddWrites } from "./Editor";
 import { latestRequest } from "./resource";
+import {rolePresentationSelection,type RoleMetadataPresentation} from "@/lib/workspace-adapters/ho-inline-command-contract";
 
 /** PAP-1478: default live BO/HO browser preference, opt-out for in-memory exemplars. */
 export const TddPreferencePolicy = createContext<"persistent" | "ephemeral">("persistent");
@@ -29,27 +30,30 @@ export function RecordState({ status, onRetry }: { readonly status: string; read
   return status === "error" ? <div role="alert">Không thể tải chi tiết. {onRetry ? <button type="button" onClick={onRetry}>Thử lại</button> : null}</div>
     : <p role="status">{status === "loading" ? "Đang tải chi tiết…" : status === "not-found" ? "Không tìm thấy bản ghi." : "Không có quyền xem bản ghi."}</p>;
 }
-type DrawerOptions<F extends readonly FieldSchema[]> = { readonly headerActions?: ReactNode; readonly onClose: () => void; readonly onDetail: () => void; readonly writes?: TddWrites<F>; readonly actions?: Readonly<Record<string, (record: BoRecord, context: AuthorizationContext, signal: AbortSignal) => Promise<void>>> };
+type DrawerOptions<F extends readonly FieldSchema[]> = { readonly headerActions?: ReactNode; readonly onClose: () => void; readonly onDetail: () => void; readonly writes?: TddWrites<F>; readonly roleMetadata?:RoleMetadataPresentation; readonly roleVersion?:string; readonly onRoleSaved?:()=>void; readonly actions?: Readonly<Record<string, (record: BoRecord, context: AuthorizationContext, signal: AbortSignal) => Promise<void>>> };
 export function TddDrawer<F extends readonly FieldSchema[]>(props: TddRecordProps<F> & DrawerOptions<F>) {
   const schema = registeredSchema(props.registry, props.schema);
   return <DrawerRecord key={renderScope(schema, props.context, props.record.id)} {...props} />;
 }
-function DrawerRecord<F extends readonly FieldSchema[]>({ registry, schema: input, context, record, status = "ready", onRetry, onClose, onDetail, writes, actions, headerActions }: TddRecordProps<F> & DrawerOptions<F>) {
+function DrawerRecord<F extends readonly FieldSchema[]>({ registry, schema: input, context, record, status = "ready", onRetry, onClose, onDetail, writes, actions, headerActions, roleMetadata, roleVersion, onRoleSaved }: TddRecordProps<F> & DrawerOptions<F>) {
   const schema = registeredSchema(registry, input);
   const [edit, setEdit] = useState<{ field: BoField; anchor: HTMLElement } | null>(null);
+  const [roleEdit,setRoleEdit]=useState<{field:string;version:string;anchor:HTMLElement}|null>(null);
   const [actionState, setActionState] = useState("");
   const request = useRef(latestRequest<void>());
   useEffect(() => { const current = request.current; return () => current.cancel(); }, []);
   const projection = status === "ready" ? recordProjection(schema, context, record) : null;
+  const roleSelection=(field:string)=>projection?rolePresentationSelection(schema,context,roleMetadata,"drawer",record,roleVersion,field,Boolean(writes)):null;
+  const roleCurrent=roleEdit?roleSelection(roleEdit.field):null;
   return <><DrawerFrame path={allows(schema, context, "read") ? schema.label : ""} title={projection?.title ?? "Chi tiết"} onClose={onClose} headerActions={projection ? headerActions : null}
     footer={<><button type="button" id="full-detail" className="primary-btn" disabled={!projection} onClick={onDetail}>↗ Full Detail</button>{projection ? schema.drawer.actions.filter(a => allows(schema, context, a.capability) && actions?.[a.id]).map(action => <button type="button" className="secondary-btn" key={action.id} disabled={actionState === "pending"} onClick={() => {
       if (!allows(schema, context, action.capability)) return;
       setActionState("pending"); void request.current.run(signal => actions![action.id](projection.record, context, signal), () => setActionState(""), () => setActionState("error"));
     }}>{action.label}</button>) : null}</>}>
     {projection ? <PropertySections variant="drawer" fields={projection.fields} record={projection.record} sections={schema.drawer.sections}
-      canEdit={field => Boolean(writes?.version.trim()) && allowsField(schema, context, field.key, "inlineEdit")} directControl={field=>writes?.directFields?.includes(field.key)&&["text","currency","number","select","boolean"].includes(field.type)?<DirectPropertyEditor schema={input} context={context} record={record} writes={writes} field={field}/>:undefined} onEdit={writes ? (field, anchor) => setEdit({ field, anchor }) : undefined} /> : <RecordState status={allows(schema, context, "read") ? status === "ready" ? "denied" : status : "denied"} onRetry={onRetry} />}
+      canEdit={field => (Boolean(writes?.version.trim()) && allowsField(schema, context, field.key, "inlineEdit")) || Boolean(roleSelection(field.key))} directControl={field=>writes?.directFields?.includes(field.key)&&["text","currency","number","select","boolean"].includes(field.type)?<DirectPropertyEditor schema={input} context={context} record={record} writes={writes} field={field}/>:undefined} onEdit={writes ? (field, anchor) => setEdit({ field, anchor }) : roleMetadata?(field,anchor)=>{const selection=roleSelection(field.key);if(selection)setRoleEdit({field:selection.field,version:selection.expectedVersion,anchor});}:undefined} /> : <RecordState status={allows(schema, context, "read") ? status === "ready" ? "denied" : status : "denied"} onRetry={onRetry} />}
     {actionState === "error" ? <p role="alert">Không thể thực hiện thao tác. Thử lại sau.</p> : actionState === "pending" ? <p role="status">Đang thực hiện…</p> : null}
-  </DrawerFrame>{edit && writes && projection ? <PropertyEditor schema={input} context={context} record={record} writes={writes} selection={edit} onClose={() => setEdit(null)} /> : null}</>;
+  </DrawerFrame>{roleEdit&&roleCurrent&&roleCurrent.expectedVersion===roleEdit.version&&roleMetadata&&onRoleSaved?roleMetadata.render({host:"drawer",row:record,version:roleEdit.version,field:roleEdit.field,anchor:roleEdit.anchor,onClose:()=>setRoleEdit(null),onSaved:onRoleSaved}):null}{edit && writes && projection ? <PropertyEditor schema={input} context={context} record={record} writes={writes} selection={edit} onClose={() => setEdit(null)} /> : null}</>;
 }
 export function TddDetail<F extends readonly FieldSchema[]>(props: TddRecordProps<F> & { readonly writes?: TddWrites<F>; readonly onBack: () => void; readonly subject: HistorySubject; readonly headerActions?: ReactNode; readonly renderActionSlot?: (slot: "overview.section" | "businessTab.toolbar", targetId: string) => ReactNode; readonly mobileMenu?: ReactNode; readonly loaders?: SlotLoaders; readonly businessForms?: BusinessFormBinding; readonly overviewAfter?: ReactNode; readonly historyContent?: ReactNode; readonly renderOverviewProperties?: (properties: OverviewProperties) => ReactNode; readonly renderApprovedExtension?: (record: BoRecord, context: AuthorizationContext, activeTab: string) => ReactNode; readonly activeTab?: string; readonly onTabChange?: (id: string) => void; readonly returnFocus?: () => HTMLElement | null }) {
   const schema = registeredSchema(props.registry, props.schema);

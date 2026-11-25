@@ -10,7 +10,10 @@ import {TddRenderer} from "@/app/components/workspace-renderer/Renderer";
 import {HoWorkspace} from "@/app/ho/HoWorkspace";
 import {roleDefinition,roleFields,roleProvider,roleQuery,verifyRolePermissionTabApproval} from "./schema";
 import {HoRoleEditor} from "./HoRoleEditor";
-import {createRoleMetadataFence} from "./role-metadata-flow";
+import {createRoleMetadataFence,createRoleMetadataClient} from "./role-metadata-flow";
+import {ROLE_METADATA_COMMAND,type RoleMetadataPresentation} from "@/lib/workspace-adapters/ho-inline-command-contract";
+import {RoleMetadataPropertyHost,type RoleMetadataBinding} from "./RoleMetadataPropertyHost";
+import {boApi} from "@/lib/bo-api";
 import {CreateCustomRoleFields} from "./RoleLifecycleForms";
 import {useRoleCreateFlow,type RoleCreateOutcome} from "./useRoleCreateFlow";
 import {verifyCreatedRole,type RoleCreateInput} from "./role-lifecycle-model";
@@ -39,11 +42,13 @@ async function submitNativeCreate(input:RoleCreateInput):Promise<RoleCreateOutco
 export function ReadyRoles({ready,submitCreate,onVerified,nativeLifecycle=false}:{ready:Ready;submitCreate?:SubmitCreate;onVerified:()=>void;nativeLifecycle?:boolean}){
  const {adapter}=ready;
  const [metadataFence]=useState(createRoleMetadataFence);
+ const [metadataBinding]=useState<RoleMetadataBinding>(()=>({command:ROLE_METADATA_COMMAND,commit:createRoleMetadataClient({read:(id,signal)=>boApi.accessRole(id,(input,init)=>fetch(input,{...init,signal})),fetcher:(input,init)=>fetch(input,init),idempotencyKey:()=>crypto.randomUUID()},metadataFence)}));
+ const roleMetadata:RoleMetadataPresentation|undefined=nativeLifecycle?{command:ROLE_METADATA_COMMAND,render:props=><RoleMetadataPropertyHost key={JSON.stringify([props.host,props.row.id,props.field,props.version])} {...props} schema={adapter.schema} context={adapter.context} binding={metadataBinding}/>}:undefined;
  const authorized=adapter.schema.capabilities.create==="access.role.create" &&
    adapter.context.authorize("access.role.view") && adapter.context.authorize("access.role.create");
  const flow=useRoleCreateFlow(authorized,submitCreate,onVerified);
  return <>
-   <SurfaceWorkspace adapter={ready.adapter} navigation={ready.navigation} initialQuery={roleQuery} actionBindings={flow.bindings}
+   <SurfaceWorkspace adapter={ready.adapter} navigation={ready.navigation} initialQuery={roleQuery} actionBindings={flow.bindings} roleMetadata={roleMetadata}
       detailApprovedExtension={(row,context,activeTab,_principalId,onSaved)=> <HoRoleEditor key={row.id} roleId={row.id}
         assignmentCount={Number(row.assignmentCount)} activeTab={activeTab}
         onSaved={onSaved} authorized={context.authorize("access.role.edit")} metadataFence={metadataFence} metadataAuthorized={nativeLifecycle&&context.authorize("access.role.view")&&context.authorize("access.role.edit")} archiveAuthorized={nativeLifecycle&&context.authorize("access.role.archive")} />} />

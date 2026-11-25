@@ -72,3 +72,20 @@ export function roleInlineSelection(input:unknown):Readonly<{id:string;expectedV
  if(value!==value.trim()||(input.field==="name"?(!value||value.length>120):value.length>500))return null;
  return Object.freeze({id:row.id,expectedVersion:input.version,field:input.field});
 }
+
+/** Presentation-only seam; never a generic write adapter or transport. */
+export type RoleMetadataPresentation = Readonly<{
+ command:typeof ROLE_METADATA_COMMAND;
+ render:(input:{host:"table"|"drawer";row:Readonly<Record<string,unknown>>;version:string;field:string;anchor:HTMLElement;onClose:()=>void;onSaved:()=>void})=>import("react").ReactNode;
+}>;
+export function rolePresentationSelection(schema:Definition,context:{surface:string;authorize:(permission:string)=>boolean},
+ presentation:RoleMetadataPresentation|undefined,host:"table"|"drawer",row:Readonly<Record<string,unknown>>,version:string|undefined,field:string,hasGenericWrites:boolean){
+ if(!presentation||presentation.command!==ROLE_METADATA_COMMAND||hasGenericWrites||schema.surface!=="HO"||schema.key!=="roles"||
+  schema.capabilities.read!=="access.role.view"||schema.capabilities.edit!==undefined||schema.table.inlineEdit.enabled||
+  schema.table.inlineEdit.fields.length||schema.fields.some(f=>f.capabilities.inlineEdit)||context.surface!=="HO")return null;
+ const metadata=schema.fields.find(f=>f.key===field);
+ if(!metadata||metadata.permission!=="access.role.view"||!metadata.capabilities.display||!metadata.readOnly||
+  metadata.type!==(field==="name"?"text":"textarea"))return null;
+ return roleInlineSelection({host,surface:schema.surface,moduleKey:schema.key,canRead:context.authorize("access.role.view"),
+  canEdit:context.authorize("access.role.edit"),row,version,field});
+}
