@@ -26,6 +26,7 @@ const member={id:c,status:"ACTIVE",version:1,displayName:"Synthetic Student",int
 const intent={id:c,kind:"GENERAL_INQUIRY",sourceBrand:"PINO_HOUSE",sourceSurface:"STAFF",status:"SUBMITTED",createdAt:"2026-11-25T00:00:00Z",version:1};
 window.syntheticCommandCalls=[];
 const household=[member];const newMemberId="01a03c6e-cc58-7d81-ac8e-123456789abf";
+const createdLeadId="01a03c6e-cc58-7d81-ac8e-123456789ac2";let createdMembers=[];let createdKey=null;let createdIntakeOpen=true;window.closeSyntheticIntake=()=>{createdIntakeOpen=false;};
 const relationships=[];const relationshipId="01a03c6e-cc58-7d81-ac8e-123456789ac1";
 if(new URLSearchParams(location.search).has("relations")){const parent={...member,id:"01a03c6e-cc58-7d81-ac8e-123456789ac0",displayName:"Synthetic Parent",intendedRoles:["PARENT"],birthPrecision:"UNKNOWN",birthYear:null,interestKinds:[]};household.push(parent);rows[0].primaryContactMemberId=parent.id;rows[0].memberCount=2;}
 function relationReceipt(row){row.version++;return {leadId:row.id,version:row.version,relationshipId};}
@@ -33,8 +34,10 @@ function target(id,version){const row=rows.find(r=>r.id===id);if(!row||row.versi
 function childReceipt(row,memberId){row.version++;row.memberCount=household.length;return {leadId:row.id,version:row.version,memberId};}
 const api={
  async search(input){if(input.q==="deny")throw new LeadApiError(403,"DENIED",null);if(input.q==="empty")return {items:[],hasMore:false,nextCursor:null};return input.cursor?{items:[rows[1]],hasMore:false,nextCursor:null}:{items:[rows[0]],hasMore:true,nextCursor:"next"}},
- async detail(id){const row=rows.find(r=>r.id===id);if(!row)throw new LeadApiError(404,"NOT_FOUND",null);return {...row,members:structuredClone(household),relationships:structuredClone(relationships),intents:[],intentHistoryHasMore:false}},
- async history(){return {items:[intent],hasMore:false,nextCursor:null}},
+ async detail(id){const row=rows.find(r=>r.id===id);if(!row)throw new LeadApiError(404,"NOT_FOUND",null);return {...row,members:structuredClone(id===createdLeadId?createdMembers:household),relationships:structuredClone(id===createdLeadId?[]:relationships),intents:[],intentHistoryHasMore:false}},
+ async history(id){return {items:id===createdLeadId?[{...intent,status:createdIntakeOpen?"SUBMITTED":"CLOSED"}]:[intent],hasMore:false,nextCursor:null}},
+ async create(input,key){window.syntheticCommandCalls.push({kind:"create",input,key});if(createdKey===key)return {leadId:createdLeadId,version:1,created:true};if(createdKey)throw new LeadApiError(409,"CONFLICT",null);createdKey=key;createdMembers=(input.members??[]).map(m=>({...m,id:newMemberId,status:"ACTIVE",version:1,ageObservedAt:null}));rows.push({...rows[0],...input.contact,id:createdLeadId,version:1,memberCount:createdMembers.length,intentCount:1,primaryContactMemberId:null});throw new LeadApiError(503,"UNAVAILABLE",null)},
+ async archive(id,version,reason,key){const row=target(id,version);window.syntheticCommandCalls.push({kind:"archive",id,version,reason,key});if(id===createdLeadId?createdIntakeOpen:row.intentCount>0)throw new LeadApiError(409,"ARCHIVE_BLOCKED",null);row.status="ARCHIVED";row.version++;return {leadId:id,version:row.version}},
  async addRelation(id,version,relationship,key){const row=target(id,version);window.syntheticCommandCalls.push({kind:"addRelation",id,version,relationship,key});relationships.push({...relationship,id:relationshipId,status:"DECLARED",version:1});return relationReceipt(row)},
  async updateRelation(id,relationshipId,version,relationship,key){const row=target(id,version);window.syntheticCommandCalls.push({kind:"updateRelation",id,relationshipId,version,relationship,key});const r=relationships.find(r=>r.id===relationshipId&&r.status==="DECLARED");if(!r)throw new LeadApiError(409,"CONFLICT",null);Object.assign(r,relationship,{version:r.version+1});return relationReceipt(row)},
  async confirmRelation(id,relationshipId,version,key){const row=target(id,version);window.syntheticCommandCalls.push({kind:"confirmRelation",id,relationshipId,version,key});const r=relationships.find(r=>r.id===relationshipId&&r.status==="DECLARED");if(!r)throw new LeadApiError(409,"CONFLICT",null);r.status="CONFIRMED";r.version++;return relationReceipt(row)},
@@ -173,5 +176,43 @@ test("PAP-2288 mounted directed relationship declaration lifecycle",async()=>{
   const log=await page.evaluate(()=>window.syntheticCommandCalls);
   assert.deepEqual(log.map(x=>x.version),[1,2,3,4]);assert.ok(log.every(x=>x.id===a));assert.deepEqual(log[0].relationship,{fromMemberId:parent,toMemberId:c,relationLabel:"Mẹ"});assert.equal(log[1].relationship.relationLabel,"Người giám hộ");assert.ok(log.slice(1).every(x=>x.relationshipId===relation));assert.deepEqual(log.map(x=>x.kind),["addRelation","updateRelation","confirmRelation","retireRelation"]);
   await page.getByText("Lịch sử",{exact:true}).click();await page.getByText("Tư vấn chung",{exact:true}).waitFor();assert.deepEqual(errors,[]);
+ }finally{await browser.close();}
+});
+
+test("PAP-2288 mounted Create exact replay and Archive reason/intent guard",async()=>{
+ const browser=await chromium.launch();
+ try{
+  const page=await browser.newPage();page.setDefaultTimeout(12000);
+  const errors=[];page.on("pageerror",e=>errors.push(e.message));
+  await page.route("**/*",r=>r.request().isNavigationRequest()&&new URL(r.request().url()).hostname==="fixture.invalid"?r.fulfill({contentType:"text/html",body:"<main></main>"}):r.abort());
+  await page.goto("https://fixture.invalid/bo/sales/leads?commands=1");await page.addScriptTag({content:js});
+  await page.getByRole("button",{name:"＋ Tạo Lead",exact:true}).click();
+  await page.getByRole("textbox",{name:"Người liên hệ",exact:true}).fill("Synthetic New Lead");
+  await page.getByRole("textbox",{name:"Số điện thoại",exact:true}).fill("0900000008");
+  await page.getByRole("button",{name:"Tiếp tục: Thành viên →",exact:true}).click();
+  await page.getByRole("button",{name:"＋ Thêm thành viên",exact:true}).click();
+  await page.getByRole("textbox",{name:"Họ và tên",exact:true}).fill("Synthetic Guest");
+  await page.getByRole("checkbox",{name:"Guest",exact:true}).check();
+  await page.getByRole("button",{name:"Tạo Lead",exact:true}).click();
+  const retry=page.getByRole("button",{name:"Thử lại cùng yêu cầu",exact:true});await retry.waitFor();
+  assert.equal(await page.getByRole("textbox",{name:"Họ và tên",exact:true}).isDisabled(),true);
+  await retry.click();
+  const name=page.getByRole("textbox",{name:"Người liên hệ",exact:true});await name.waitFor();assert.equal(await name.inputValue(),"Synthetic New Lead");
+  const calls=()=>page.evaluate(()=>window.syntheticCommandCalls);
+  let log=await calls();assert.equal(log.length,2);assert.deepEqual(log[0],log[1]);assert.equal(log[0].input.members[0].displayName,"Synthetic Guest");assert.deepEqual(log[0].input.members[0].intendedRoles,["GUEST"]);assert.equal(log[0].input.primaryMemberIndex,null);
+  await page.getByRole("button",{name:"Lưu trữ Lead",exact:true}).click();
+  const reason=page.getByRole("textbox",{name:"Lý do lưu trữ",exact:true}),confirm=page.getByRole("button",{name:"Xác nhận lưu trữ",exact:true});
+  assert.equal(await confirm.isDisabled(),true);
+  await reason.fill("Blocked active intent");await confirm.click();
+  await page.getByRole("button",{name:"Tải lại Lead",exact:true}).click();
+  await page.getByText("Đã tải lại thông tin Lead.",{exact:true}).waitFor();
+  await page.evaluate(()=>window.closeSyntheticIntake());
+  await reason.fill("  Closed synthetic intake  ");await confirm.click();
+  await page.getByText("Đã lưu trữ",{exact:true}).waitFor();
+  assert.equal(await page.getByRole("button",{name:"Lưu trữ Lead",exact:true}).count(),0);assert.equal(await name.count(),0);
+  log=await calls();assert.equal(log.length,4);assert.equal(log[2].version,1);assert.equal(log[3].version,1);assert.equal(log[3].reason,"Closed synthetic intake");assert.equal(log[2].id,log[3].id);assert.notEqual(log[2].key,log[3].key);
+  await page.getByText("Thành viên",{exact:true}).first().click();
+  try{await page.waitForURL(u=>u.searchParams.get("tab")==="members");const row=page.getByRole("row").filter({hasText:"Synthetic Guest"});await row.waitFor();assert.equal(await row.getByRole("button",{name:"Gỡ Synthetic Guest",exact:true}).isDisabled(),true);}catch(e){console.log("Archived member diagnostics",page.url(),await page.locator("body").innerText());throw e;}
+  assert.deepEqual(errors,[]);
  }finally{await browser.close();}
 });
