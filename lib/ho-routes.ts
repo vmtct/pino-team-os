@@ -5,6 +5,7 @@ import {attributeModule} from "./ho-attribute-model";
 export const HO_PAGE_PATHS = {
   bills: "/ho/billing/bills",
   productPlans: "/ho/billing/product-plans",
+  learningSpaces: "/ho/learning-spaces",
   centers: "/ho/centers",
   walkinPasses: "/ho/open-studio/walkin",
   mytimeWorkshops: "/ho/mytime-workshops",
@@ -54,6 +55,16 @@ export function safeHoReturnTo(raw: string | null | undefined): string | null {
       const records = parsed.searchParams.getAll("record");
       if (markers.length !== 1 || markers[0] !== "1" || records.length > 1 || (records.length === 1 && !/^STAFF-MOCK-[0-9]{3,}$/.test(records[0]!))) return null;
       parsed.searchParams.delete("m1Preview");
+    }
+    // PAP-2369: canonical synthetic-only Learning Space route until M4.
+    if(parsed.pathname===HO_PAGE_PATHS.learningSpaces){
+      const q=new URLSearchParams();
+      for(const [key,value] of parsed.searchParams){
+        if(ignoredTrackingKeys.has(key))continue;
+        if(key!=="record"||q.has(key)||value!=="LEARNING-SPACE-MOCK-001")return null;
+        q.set(key,value);
+      }
+      return parsed.pathname+(q.size?"?"+q.toString():"");
     }
     // PAP-2183: Product Plan preview return path is synthetic-only until M4.
     if(parsed.pathname===HO_PAGE_PATHS.productPlans){

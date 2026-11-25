@@ -36,7 +36,7 @@ async function getPage(classId:string,cursor:Cursor|null,signal:AbortSignal):Pro
     throw new Error("Dữ liệu Enrollment từ Core không hợp lệ.");
   return data;
 }
-export function BoRunningClassEnrollment({runningClassId,className,pathName,centerTimeZone}:{runningClassId:string;className:string;pathName:string;centerTimeZone:string|null}){
+export function BoRunningClassEnrollment({runningClassId,className,pathName,centerTimeZone,fixtureEmpty=false}:{runningClassId:string;className:string;pathName:string;centerTimeZone:string|null;fixtureEmpty?:boolean}){
   const [items,setItems]=useState<Item[]>([]);
   const [cursor,setCursor]=useState<Cursor|null>(null);
   const [asOfLocalDate,setAsOfLocalDate]=useState<string|null>(null);
@@ -53,6 +53,7 @@ export function BoRunningClassEnrollment({runningClassId,className,pathName,cent
     const controller=new AbortController();
     abort.current?.abort();abort.current=controller;
     setItems([]);setCursor(null);setAsOfLocalDate(null);setPhase("loading");setError("");setPage(1);
+    if(fixtureEmpty){setPhase("ready");return ()=>controller.abort();}
     void getPage(runningClassId,null,controller.signal).then(data=>{
       if(controller.signal.aborted)return;
       setItems(data.items);setCursor(data.nextCursor);setAsOfLocalDate(data.asOfLocalDate);setPhase("ready");
@@ -61,7 +62,7 @@ export function BoRunningClassEnrollment({runningClassId,className,pathName,cent
       setError(caught instanceof Error?caught.message:"Không thể tải Enrollment.");setPhase("error");
     });
     return ()=>controller.abort();
-  },[runningClassId,retry]);
+  },[runningClassId,retry,fixtureEmpty]);
   async function loadMore(){
     if(!cursor||busy)return;
     const controller=new AbortController();abort.current=controller;setBusy(true);setError("");

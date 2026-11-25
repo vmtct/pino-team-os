@@ -4,6 +4,37 @@
     {
       "profile": "TDD_DEFAULT",
       "surface": "HO",
+      "key": "learningSpaces",
+      "route": "/ho/learning-spaces",
+      "file": "app/ho/learning-spaces/page.tsx",
+      "files": [
+        "app/ho/learning-spaces/page.tsx",
+        "app/ho/learning-spaces/LearningSpaceM1Content.tsx",
+        "app/ho/learning-spaces/schema.ts",
+        "app/ho/learning-spaces/learning-space-m1-preview.ts"
+      ],
+      "schema": {
+        "file": "app/ho/learning-spaces/schema.ts",
+        "export": "spaceSchema"
+      },
+      "binding": {
+        "file": "app/ho/learning-spaces/LearningSpaceM1Content.tsx"
+      },
+      "tests": [
+        "lib/pap2369-learning-space-native.test.ts",
+        "app/ho/learning-spaces/learning-space-m1-preview.test.ts",
+        "lib/ho-routes.test.ts"
+      ],
+      "externalReferences": [
+        {"file":"lib/host-boundary.ts","owner":"PAP-1169"},
+        {"file":"app/ho/HoWorkspace.tsx","owner":"PAP-990"},
+        {"file":"lib/ho-routes.ts","owner":"PAP-990"},
+        {"file":"lib/ho-system.ts","owner":"PAP-1153"}
+      ]
+    },
+    {
+      "profile": "TDD_DEFAULT",
+      "surface": "HO",
       "key": "productPlans",
       "route": "/ho/billing/product-plans",
       "file": "app/ho/billing/product-plans/page.tsx",
@@ -1091,6 +1122,7 @@
       "binding": {"kind":"SURFACE_WORKSPACE_ADAPTER","file":"app/bo/mytime-guests/BoMyTimeGuests.tsx"},
       "tests": ["lib/pap2147-guest-provider.test.ts","lib/pap2147-guest-boundary.test.ts","lib/guest-intake-contract.test.ts","lib/pap2202-guardian-recovery.test.ts"],
       "externalReferences": [
+        {"file":"app/bo/components/registration/BoCenterSelection.tsx","owner":"PAP-1316"},
         {"file":"lib/host-boundary.ts","owner":"PAP-2147"},
         {"file":"lib/workspace-adapters/session.ts","owner":"PAP-1221"},
         {"file":"lib/ho-routes.ts","owner":"PAP-2164"},
@@ -1116,6 +1148,7 @@
       "binding": {"kind":"SURFACE_WORKSPACE_ADAPTER","file":"app/components/mytime-workshop/WorkshopWorkspace.tsx"},
       "tests": ["lib/mytime-workshop-api-client.test.ts","lib/mytime-workshop-runtime-binding.test.ts","lib/mytime-workshop-host-contract.test.ts","lib/mytime-workshop-navigation.test.ts","lib/mytime-workshop-reference-codec.test.ts","lib/mytime-workshop-datetime.test.ts"],
       "externalReferences": [
+        {"file":"app/bo/components/registration/BoCenterSelection.tsx","owner":"PAP-1316"},
         {"file":"lib/mytime-workshop-host-contract.ts","owner":"PAP-2164"},
         {"file":"lib/host-boundary.ts","owner":"PAP-2164"},
         {"file":"lib/workspace-adapters/session.ts","owner":"PAP-1221"},
@@ -1143,6 +1176,7 @@
       "binding": {"kind":"SURFACE_WORKSPACE_ADAPTER","file":"app/components/mytime-workshop/WorkshopWorkspace.tsx"},
       "tests": ["lib/mytime-workshop-api-client.test.ts","lib/mytime-workshop-runtime-binding.test.ts","lib/mytime-workshop-host-contract.test.ts","lib/mytime-workshop-navigation.test.ts","lib/mytime-workshop-datetime.test.ts"],
       "externalReferences": [
+        {"file":"app/bo/components/registration/BoCenterSelection.tsx","owner":"PAP-1316"},
         {"file":"lib/mytime-workshop-host-contract.ts","owner":"PAP-2164"},
         {"file":"lib/host-boundary.ts","owner":"PAP-2164"},
         {"file":"lib/workspace-adapters/session.ts","owner":"PAP-1221"},
@@ -1164,7 +1198,8 @@
       "schema":{"file":"app/bo/enrollments/schema.ts","export":"enrollmentSchema"},
       "binding":{"kind":"SURFACE_WORKSPACE_ADAPTER","file":"app/bo/enrollments/BoEnrollmentDirectory.tsx"},
       "tests":["app/bo/enrollments/schema.test.ts","app/bo/enrollments/provider.test.ts","app/bo/enrollments/enrollment-read-client.test.ts","app/bo/enrollments/route.test.ts"],
-      "externalReferences":[{"file":"lib/host-boundary.ts","owner":"PAP-2181"},{"file":"lib/workspace-adapters/session.ts","owner":"PAP-1221"},{"file":"lib/bo-skeleton.ts","owner":"PAP-901"},{"file":"lib/ho-routes.ts","owner":"PAP-1220"},{"file":"app/bo/components/registration/BoQuickView.tsx","owner":"PAP-1669"}]
+      "externalReferences":[
+        {"file":"app/bo/components/registration/BoCenterSelection.tsx","owner":"PAP-1316"},{"file":"lib/host-boundary.ts","owner":"PAP-2181"},{"file":"lib/workspace-adapters/session.ts","owner":"PAP-1221"},{"file":"lib/bo-skeleton.ts","owner":"PAP-901"},{"file":"lib/ho-routes.ts","owner":"PAP-1220"},{"file":"app/bo/components/registration/BoQuickView.tsx","owner":"PAP-1669"}]
     }
     ,{
       "profile":"TDD_DEFAULT",
