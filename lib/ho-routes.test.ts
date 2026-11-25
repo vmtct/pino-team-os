@@ -81,7 +81,7 @@ test("PAP-2353 canonical Staff return-to handles legacy review and analytics wit
 test("PAP-2183 Product Plans return path is HO-only and preserves the synthetic review ID",()=>{
  const path=HO_PAGE_PATHS.productPlans;
  assert.equal(path,"/ho/billing/product-plans");
- assert.equal(safeHoReturnTo(path+"?m1Preview=1&record=PRODUCT-PLAN-MOCK-001"),path+"?m1Preview=1&record=PRODUCT-PLAN-MOCK-001");
+ assert.equal(safeHoReturnTo(path+"?m1Preview=1&record=PRODUCT-PLAN-MOCK-001"),path+"?record=PRODUCT-PLAN-MOCK-001");
  for(const q of ["?m1Preview=0","?m1Preview=1&m1Preview=1","?record=0199f000-0001-7000-8000-000000000001","?record=ROLE-MOCK-001","?next=/bo"])assert.equal(safeHoReturnTo(path+q),null);
  for(const host of ["bo.staging.pinohouse.art","tos.staging.pinohouse.art","ho.pinohouse.art"])assert.equal(decideHostBoundary(host,path).action,"not_found");
 });

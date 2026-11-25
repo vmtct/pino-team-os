@@ -20,7 +20,7 @@ mkdirSync(output,{recursive:true});
 writeFileSync(join(output,"pino-logo.png"),logo);
 const assets="/ho/billing/product-plans/__m1_assets/";
 const shim={
- "next/link":`export default function Link({href,children,prefetch,...props}){return <a {...props} href={href==="/ho/billing/product-plans?m1Preview=1"?href:"#unavailable-local-module"} onClick={event=>{props.onClick?.(event);event.preventDefault();}}>{children}</a>}`,
+ "next/link":`export default function Link({href,children,prefetch,...props}){return <a {...props} href={href==="/ho/billing/product-plans"?href:"#unavailable-local-module"} onClick={event=>{props.onClick?.(event);event.preventDefault();}}>{children}</a>}`,
  "next/image":`export default function Image({alt,width,height,className}){return <img className={className} alt={alt} width={width} height={height} src="/ho/billing/product-plans/__m1_assets/pino-logo.png"/>}`,
  "next/navigation":`export const usePathname=()=>location.pathname;export const useSearchParams=()=>new URLSearchParams(location.search);export const useRouter=()=>({push(){throw Error("Local-only navigation")},replace(){throw Error("Local-only navigation")},refresh(){location.reload()}});export const redirect=()=>{throw Error("Local-only navigation")};`,
  "next/dynamic":`export default function dynamic(){return function UnavailableLocalModule(){return null;}}`,
@@ -34,7 +34,7 @@ const result=await build({entryPoints:["scripts/native-m1-local/product-plans-en
 for(const required of ["app/ho/billing/product-plans/ProductPlanM1Content.tsx","app/components/workspace-renderer/Editor.tsx","app/ho/billing/product-plans/schema.ts","app/ho/billing/product-plans/product-plan-m1-preview.ts","app/bo/components/registration/BoRegistrationWorkspace.tsx"])if(!Object.keys(result.metafile.inputs).some(p=>p.replaceAll("\\","/")===required))throw Error("Native source not bundled: "+required);
 if(!existsSync(join(output,"app.css")))throw Error("Native CSS missing");
 writeFileSync(join(output,"index.html"),'<!doctype html><html lang="vi" data-surface="ho"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Gói học · M1</title><link rel="stylesheet" href="'+assets+'app.css"></head><body><div id="root"></div><script src="'+assets+'app.js"></script></body></html>');
-const spec={jiraTask:"PAP-2183",epicCode:"PLT-PRODUCT-PLAN",surface:"ho",reviewUrl:"http://192.168.1.6:8800/ho/billing/product-plans?m1Preview=1",sourceRevision:revision,fixtureId:"PRODUCT-PLAN-MOCK-001",sourceFiles:{route:"app/ho/billing/product-plans/page.tsx",renderer:"app/ho/billing/product-plans/ProductPlanM1Content.tsx",schema:"app/ho/billing/product-plans/schema.ts",fixture:"app/ho/billing/product-plans/product-plan-m1-preview.ts"}};
+const spec={jiraTask:"PAP-2183",epicCode:"PLT-PRODUCT-PLAN",surface:"ho",reviewUrl:"http://desktop-isrdren:8800/ho/billing/product-plans",sourceRevision:revision,fixtureId:"PRODUCT-PLAN-MOCK-001",sourceFiles:{route:"app/ho/billing/product-plans/page.tsx",renderer:"app/ho/billing/product-plans/ProductPlanM1Content.tsx",schema:"app/ho/billing/product-plans/schema.ts",fixture:"app/ho/billing/product-plans/product-plan-m1-preview.ts"}};
 const registration=createRegistration(spec,revision,path=>git("show",revision+":"+path),readAssets(output));
 const receipt=output+"-registration.json";writeFileSync(receipt,JSON.stringify(registration,null,2));
 console.log(JSON.stringify({output,receipt,revision,artifact:registration.artifact.sha256,servingVerified:false}));

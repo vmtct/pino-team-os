@@ -28,3 +28,20 @@ export function previewProductPlanUpdate(
   if ("enabled" in values && typeof values.enabled !== "boolean") return null;
   return { ...current, ...values, version: current.version + 1 };
 }
+
+/** Canonical pathname review: legacy selector is normalization-only, never admission. */
+export const PRODUCT_PLAN_REVIEW_PATH = "/ho/billing/product-plans";
+export function parseProductPlanReviewQuery(query: URLSearchParams, allowLegacy = false) {
+  const keys = [...query.keys()];
+  if (keys.some(key => key !== "record" && key !== "m1Preview") ||
+      query.getAll("record").length > 1 || query.getAll("m1Preview").length > 1) return null;
+  const legacy = query.has("m1Preview");
+  if (legacy && (!allowLegacy || query.get("m1Preview") !== "1")) return null;
+  const record = query.get("record");
+  if (record !== null && record !== productPlanM1.seed.id) return null;
+  return { record: record ?? undefined, legacy };
+}
+export function isProductPlanLocalOrigin(origin: string) {
+  return origin === "http://desktop-isrdren:8800" ||
+    origin === "http://desktop-isrdren.tail3ee007.ts.net:8800";
+}

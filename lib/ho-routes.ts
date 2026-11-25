@@ -61,9 +61,9 @@ export function safeHoReturnTo(raw: string | null | undefined): string | null {
       const keys=[...p.keys()].filter(k=>!ignoredTrackingKeys.has(k));
       if(keys.some(k=>!["m1Preview","record"].includes(k))||p.getAll("m1Preview").length>1||(p.has("m1Preview")&&p.get("m1Preview")!=="1")||p.getAll("record").length>1)return null;
       const record=p.get("record");
-      if(record!==null&&!/^PRODUCT-PLAN-MOCK-[0-9]{3,}$/.test(record))return null;
+      if(record!==null&&record!=="PRODUCT-PLAN-MOCK-001")return null;
       const q=new URLSearchParams();
-      if(p.has("m1Preview"))q.set("m1Preview","1");
+      // Valid legacy selector normalizes to the canonical route.
       if(record)q.set("record",record);
       return parsed.pathname+(q.size?"?"+q.toString():"");
     }
