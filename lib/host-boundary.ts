@@ -32,6 +32,12 @@ export type HostBoundaryDecision =
 
 export function decideHostBoundary(host: string, pathname: string, method = "GET"): HostBoundaryDecision {
   const hostname = normalizeHostname(host);
+  // PAP-2358: exact Staff creation and historical receipt namespace, HO Staging POST only.
+  const staffCreateBase="/api/ho/staff/create";
+  if(pathname.toLowerCase()===staffCreateBase||pathname.toLowerCase().startsWith(staffCreateBase+"/")){
+    return {action:hostname===HO_STAGING_HOSTNAME&&method==="POST"&&
+      (pathname===staffCreateBase||pathname===staffCreateBase+"/receipt")?"next":"not_found"};
+  }
   // PAP-2180: exact Person namespace, staging HO read only.
   const personPage="/ho/system/people",personApi="/api/ho/identity/persons",personPath=pathname.toLowerCase();
   if([personPage,personApi,"/api/bo/identity/persons","/api/tos/identity/persons","/bo/system/people","/tos/system/people"].some(p=>personPath===p||personPath.startsWith(p+"/"))){

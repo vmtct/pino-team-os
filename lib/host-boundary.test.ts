@@ -552,3 +552,14 @@ test("PAP-2030 exact historical Wish Item record is HO staging GET only",()=>{
  for(const host of ["bo.staging.pinohouse.art","tos.staging.pinohouse.art",BO_HOSTNAME])assert.deepEqual(decideHostBoundary(host,p,"GET"),{action:"not_found"});
  for(const suffix of ["/x","/0","/3/extra"])assert.deepEqual(decideHostBoundary("ho.staging.pinohouse.art","/api/ho/pinoria/pls-wish/config/item-record/"+roleId+suffix,"GET"),{action:"not_found"});
 });
+
+test("PAP-2358 exact HO Staging Staff create and historical receipt only",()=>{
+  for(const path of ["/api/ho/staff/create","/api/ho/staff/create/receipt"]){
+    assert.deepEqual(decideHostBoundary(HO_STAGING_HOSTNAME,path,"POST"),{action:"next"});
+    for(const method of ["GET","HEAD","PATCH","DELETE"])assert.deepEqual(decideHostBoundary(HO_STAGING_HOSTNAME,path,method),{action:"not_found"});
+    for(const host of [BO_HOSTNAME,BO_STAGING_HOSTNAME,TOS_HOSTNAME,TOS_STAGING_HOSTNAME,"ho.pinohouse.art","localhost"])
+      assert.deepEqual(decideHostBoundary(host,path,"POST"),{action:"not_found"});
+  }
+  for(const path of ["/api/ho/staff/create/other","/api/ho/staff/create/receipt/other","/api/ho/staff/CREATE","/api/ho/staff/create/"])
+    assert.deepEqual(decideHostBoundary(HO_STAGING_HOSTNAME,path,"POST"),{action:"not_found"});
+});
