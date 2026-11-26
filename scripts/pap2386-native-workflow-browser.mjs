@@ -23,7 +23,7 @@ async function isolatedPage(browser,width){
 }
 try{
  browser=await chromium.launch({headless:true});
- const png=Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jR2QAAAAASUVORK5CYII=","base64");
+ const png=Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAGAAAABICAIAAACGBWc0AAAAhElEQVR4nO3QQQ0AIBDAsBOGErQjBgd82aPJBCyds5cezfeDeIAAAQIEKBwgQIAAAQoHCBAgQIDCAQIECBCgcIAAAQIEKBwgQIAAAQoHCBAgQIDCAQIECBCgcIAAAQIEKBwgQIAAAQoHCBAgQIDCAQIECBCgcIAAAQIEKBwgQIAAAQp3Afy7CEqsSDUTAAAAAElFTkSuQmCC","base64");
  for(const width of [390,1440]){
   const page=await isolatedPage(browser,width),errors=[];diagnosticPage=page;page.on("pageerror",e=>errors.push(e.message));
   await page.goto(origin+"/bo/piner-posts",{waitUntil:"domcontentloaded"});
@@ -44,7 +44,7 @@ try{
   const review=page.getByRole("region",{name:"Xem trước bài đăng"});await review.getByRole("img",{name:"Ảnh xem trước bài đăng"}).waitFor();await review.getByRole("button",{name:"Chuyển ảnh 2 lên"}).click();
   await review.getByRole("button",{name:"Gửi duyệt",exact:true}).click();await page.waitForFunction(()=>JSON.parse(document.querySelector('[data-testid=receipt]').textContent).version===9);
   r=await receipt();assert.equal(r.submitCalls,1);assert.deepEqual(r.order,[r.provenance[1].attachmentId,r.provenance[0].attachmentId]);await review.getByText("Bài đăng đang chờ HO duyệt.",{exact:true}).waitFor();
-  assert.equal(await review.getByRole("button",{name:"Gửi duyệt",exact:true}).count(),0);assert(await diary.getByRole("checkbox").first().isDisabled());assert.equal(errors.length,0,errors.join(";"));await page.screenshot({path:resolve(out,width+"-pending.png"),fullPage:true});await page.context().close();
+  assert.equal(await review.getByRole("button",{name:"Gửi duyệt",exact:true}).count(),0);assert(await diary.getByRole("checkbox").first().isDisabled());await review.getByRole("button",{name:"Xem ảnh 1",exact:true}).click();await page.waitForFunction(()=>{const i=document.querySelector('img[alt="Ảnh xem trước bài đăng"]');return i&&i.complete&&i.naturalWidth===96&&i.naturalHeight===72;});const geometry=await review.evaluate(async e=>{const hero=e.querySelector('.pap2337-bo-hero'),im=hero.querySelector('img'),thumbs=[...e.querySelectorAll('.pap2337-bo-filmThumb img')];const bitmap=await createImageBitmap(await(await fetch(im.src)).blob());const canvas=new OffscreenCanvas(1,1),ctx=canvas.getContext('2d');ctx.drawImage(bitmap,0,0,1,1);const rgb=[...ctx.getImageData(0,0,1,1).data].slice(0,3);bitmap.close();return {width:hero.getBoundingClientRect().width,viewport:innerWidth,scroll:document.documentElement.scrollWidth,thumbs:thumbs.filter(i=>i.complete&&i.naturalWidth===96).length,rgb};});assert(geometry.width<=420&&geometry.scroll<=geometry.viewport+1&&geometry.thumbs===2,JSON.stringify(geometry));assert.deepEqual(geometry.rgb,[220,90,60]);assert.equal(errors.length,0,errors.join(";"));await page.screenshot({path:resolve(out,width+"-pending.png"),fullPage:true});await page.context().close();
   const m=await isolatedPage(browser,width);await m.goto(origin+"/bo/piner-posts?mytime",{waitUntil:"domcontentloaded"});await m.getByRole("region",{name:"Xem trước bài đăng"}).waitFor();assert.equal(await m.getByRole("region",{name:"Diary nguồn"}).count(),0);await m.context().close();
   result.checks.push({width,selection:true,lostConfirmRecovery:true,raw:true,paste:true,order:true,immutablePending:true,mytimeNoDiary:true});
  }
