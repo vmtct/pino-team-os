@@ -69,7 +69,7 @@ export function BoParentReadTabs({ module, record, fullDetail = false, canEditNa
     const controller=new AbortController();
     queueMicrotask(()=>{if(!controller.signal.aborted){setStatus("loading");setDetail(null);}});
     (async()=>{
-      if(fixture){const value=fixture.detail(PARENT_MOCK_CENTER,record.id);if(!controller.signal.aborted){setDetail(value);setStatus("ready");}return;}
+      if(fixture){await Promise.resolve();const value=fixture.detail(PARENT_MOCK_CENTER,record.id);if(!controller.signal.aborted){setDetail(value);setStatus("ready");}return;}
       const r=await fetch("/api/bo/identity/parents/"+encodeURIComponent(record.id)+"/detail",{
         method:"GET",credentials:"same-origin",cache:"no-store",redirect:"error",signal:controller.signal
       });
