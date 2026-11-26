@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {createStaffRegistrationM1Service} from "../app/bo/workforce/staffs/staff-registration-m1-service";
+import {createStaffRegistrationM1Service,createStaffM1KeyFactory} from "../app/bo/workforce/staffs/staff-registration-m1-service";
 import {STAFF_DIRECTORY_MOCK_ID} from "../app/bo/workforce/staffs/staff-directory-m1-fixture";
 const identity={mode:"CREATE_STAFF_ONLY_PERSON"} as const;
 test("PAP-2411 synthetic approval is isolated and idempotent",async()=>{
@@ -23,4 +23,8 @@ test("PAP-2411 reject and intake state stay within each fixture instance",async(
   assert.equal((await b.staffRegistrationRequests()).length,1);
   assert.equal((await a.setStaffRegistrationIntake(false)).enabled,false);
   assert.equal((await b.staffRegistrationIntake()).enabled,true);
+});
+
+test("PAP-2411 fixture review keys are independent and do not need secure context",()=>{
+ const a=createStaffM1KeyFactory(),b=createStaffM1KeyFactory();assert.equal(a(),"M1-STAFF-REVIEW-1");assert.equal(a(),"M1-STAFF-REVIEW-2");assert.equal(b(),"M1-STAFF-REVIEW-1");
 });

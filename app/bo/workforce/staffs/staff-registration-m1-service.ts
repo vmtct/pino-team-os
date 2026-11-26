@@ -2,6 +2,8 @@ import type {StaffRegistrationReviewService} from "../../staff/StaffRegistration
 import type {StaffRegistrationIntakeService} from "../../staff/StaffRegistrationIntakeToggle";
 import type {BoStaffRegistrationRequest,BoStaffRegistrationApprovalResult} from "@/lib/bo-model";
 import {STAFF_DIRECTORY_MOCK_ID} from "./staff-directory-m1-fixture";
+/** Local fixture keys are per-instance and never used by live commands. */
+export function createStaffM1KeyFactory(){let sequence=0;return ()=>"M1-STAFF-REVIEW-"+(++sequence);}
 /** PAP-2411 local synthetic service: no network, storage, authentication or real account provisioning. */
 export function createStaffRegistrationM1Service():StaffRegistrationReviewService&StaffRegistrationIntakeService {
   const centerId="STAFF-MOCK-CENTER",roleId="STAFF-MOCK-ROLE";

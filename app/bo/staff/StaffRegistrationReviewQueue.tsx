@@ -36,10 +36,11 @@ type Draft = { key: string; roleId: string; scopeType: ScopeType; scopeId: strin
 type Catalog = { centers: BoCenter[]; paths: BoPathProgram[]; classes: BoRunningClass[] };
 type ReviewAttempt = { requestId: string; fingerprint: string; key: string };
 
-const blankDraft = (): Draft => ({ key: crypto.randomUUID(), roleId: "", scopeType: "GLOBAL", scopeId: "" });
+const liveReviewKey = () => crypto.randomUUID();
 
 export type StaffRegistrationReviewService = Pick<typeof boApi,"accessUsers"|"staffRegistrationRequests"|"accessRoles"|"scopeCatalog"|"staffRecords"|"learners"|"approveStaffRegistration"|"rejectStaffRegistration">;
-export function StaffRegistrationReviewQueue({service=boApi}:{service?:StaffRegistrationReviewService}={}) {
+export function StaffRegistrationReviewQueue({service=boApi,newKey=liveReviewKey}:{service?:StaffRegistrationReviewService;newKey?:()=>string}={}) {
+  const blankDraft = useCallback((): Draft => ({key:newKey(),roleId:"",scopeType:"GLOBAL",scopeId:""}),[newKey]);
   const [requests, setRequests] = useState<BoStaffRegistrationRequest[]>([]);
   const [roles, setRoles] = useState<BoAccessRole[]>([]);
   const [catalog, setCatalog] = useState<Catalog>({ centers: [], paths: [], classes: [] });
@@ -55,7 +56,7 @@ export function StaffRegistrationReviewQueue({service=boApi}:{service?:StaffRegi
   const [learnerSearch, setLearnerSearch] = useState("");
   const [learners, setLearners] = useState<BoLearnerDirectoryItem[]>([]);
   const [studentProfileId, setStudentProfileId] = useState("");
-  const [assignments, setAssignments] = useState<Draft[]>([blankDraft()]);
+  const [assignments, setAssignments] = useState<Draft[]>(()=>[blankDraft()]);
   const [rejectReason, setRejectReason] = useState("");
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
@@ -74,7 +75,7 @@ export function StaffRegistrationReviewQueue({service=boApi}:{service?:StaffRegi
     setRejectReason(""); setError("");
     approveAttempt.current = null;
     rejectAttempt.current = null;
-  }, [selectedId]);
+  }, [selectedId,blankDraft]);
 
   const selected = requests.find((item) => item.id === selectedId) ?? null;
   const activeRoles = useMemo(() => roles.filter((role) => role.status === "active" && role.roleKey !== "founder"), [roles]);
@@ -170,7 +171,7 @@ export function StaffRegistrationReviewQueue({service=boApi}:{service?:StaffRegi
       const attempt = approveAttempt.current;
       const idempotencyKey = attempt?.requestId === selected.id && attempt.fingerprint === fingerprint
         ? attempt.key
-        : crypto.randomUUID();
+        : newKey();
       approveAttempt.current = { requestId: selected.id, fingerprint, key: idempotencyKey };
       const result = await service.approveStaffRegistration(selected.id, normalized, identity, idempotencyKey, existingStaffMemberId || undefined);
       approveAttempt.current = null;
@@ -196,7 +197,7 @@ export function StaffRegistrationReviewQueue({service=boApi}:{service?:StaffRegi
       const attempt = rejectAttempt.current;
       const idempotencyKey = attempt?.requestId === selected.id && attempt.fingerprint === reason
         ? attempt.key
-        : crypto.randomUUID();
+        : newKey();
       rejectAttempt.current = { requestId: selected.id, fingerprint: reason, key: idempotencyKey };
       await service.rejectStaffRegistration(selected.id, reason, idempotencyKey);
       setSurface("table");

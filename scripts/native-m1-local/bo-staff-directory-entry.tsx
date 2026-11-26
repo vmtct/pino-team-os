@@ -6,7 +6,7 @@ import {unifiedBoWorkspaceSource} from "@/app/bo/architecture/bo-unified-workspa
 import {StaffDirectoryWorkspace} from "@/app/bo/workforce/staffs/StaffDirectoryWorkspace";
 import {staffDirectoryModule} from "@/app/bo/workforce/staffs/staff-directory-model";
 import {staffDirectoryFixture,STAFF_DIRECTORY_MOCK_ID} from "@/app/bo/workforce/staffs/staff-directory-m1-fixture";
-import {createStaffRegistrationM1Service} from "@/app/bo/workforce/staffs/staff-registration-m1-service";
+import {createStaffRegistrationM1Service,createStaffM1KeyFactory} from "@/app/bo/workforce/staffs/staff-registration-m1-service";
 import {StaffRegistrationReviewQueue} from "@/app/bo/staff/StaffRegistrationReviewQueue";
 import {StaffRegistrationIntakeToggle} from "@/app/bo/staff/StaffRegistrationIntakeToggle";
 import {TddPreferencePolicy} from "@/app/components/workspace-renderer/Record";
@@ -19,6 +19,6 @@ import "../../app/components/workspace-renderer/tdd-table-geometry.css";
 import "../../app/components/workspace-renderer/tdd-freeze.css";
 const route="/bo/workforce/staffs",centerId="STAFF-MOCK-CENTER",q=new URLSearchParams(location.search);
 if(!["http://desktop-isrdren:8800","http://desktop-isrdren.tail3ee007.ts.net:8800"].includes(location.origin)||location.pathname!==route||self.origin!=="null"||[...q.keys()].some(k=>!['record','view'].includes(k))||q.getAll("record").length>1||q.getAll("view").length>1||(q.has("record")&&q.get("record")!==STAFF_DIRECTORY_MOCK_ID)||(q.has("view")&&!['all','active','deactivated','register'].includes(q.get("view")!)))throw Error("Local sandbox only");
-const service=createStaffRegistrationM1Service();
+const service=createStaffRegistrationM1Service(),newKey=createStaffM1KeyFactory();
 const source:BoWorkspaceSource={ephemeral:true,readOnly:true,modules:{...unifiedBoWorkspaceSource.modules,staffs:staffDirectoryModule},routeForModule:key=>key==="staffs"?route:"#unavailable-local-module",scopeLabel:()=>"M1 - D\u1eef li\u1ec7u m\u1eabu",load:async(key,_fetcher,options)=>{if(key!=="staffs"||options.centerId!==centerId)throw Error("Unknown local fixture scope");return [staffDirectoryFixture()];}};
-createRoot(document.getElementById("root")!).render(<TddPreferencePolicy.Provider value="ephemeral"><BoLocalReviewCenter center={{id:centerId,displayName:"C\u1ea7n Th\u01a1 - M\u1eabu"}}><StaffDirectoryWorkspace source={source} currentUser={{displayName:"M1 - D\u1eef li\u1ec7u m\u1eabu"}} options={{view:q.get("view")??"all"}} centerId={centerId} registration={<><StaffRegistrationIntakeToggle service={service}/><StaffRegistrationReviewQueue service={service}/></>}/></BoLocalReviewCenter></TddPreferencePolicy.Provider>);
+createRoot(document.getElementById("root")!).render(<TddPreferencePolicy.Provider value="ephemeral"><BoLocalReviewCenter center={{id:centerId,displayName:"C\u1ea7n Th\u01a1 - M\u1eabu"}}><StaffDirectoryWorkspace source={source} currentUser={{displayName:"M1 - D\u1eef li\u1ec7u m\u1eabu"}} options={{view:q.get("view")??"all"}} centerId={centerId} registration={<><StaffRegistrationIntakeToggle service={service}/><StaffRegistrationReviewQueue service={service} newKey={newKey}/></>}/></BoLocalReviewCenter></TddPreferencePolicy.Provider>);
