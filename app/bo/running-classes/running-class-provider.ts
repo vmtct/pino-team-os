@@ -107,3 +107,5 @@ export async function openRunningClassProvider(options:{centerId:string;context:
   dispose:()=>{disposed=true;state=undefined;recovery.dispose();}
  };
 }
+
+export type RunningClassProvider=Awaited<ReturnType<typeof openRunningClassProvider>>;
