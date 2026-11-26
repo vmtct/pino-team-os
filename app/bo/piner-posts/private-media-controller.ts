@@ -7,7 +7,9 @@ type Upload={kind:"upload";file:Blob;postVersion:number;reserveKey:string;confir
 type Remove={kind:"remove";id:string;postVersion:number;attachmentVersion:number;key:string};
 type Pending=Upload|Remove;
 type UploadReceipt={attachmentId:string;attachmentVersion:number;postVersion:number};
-const knownRejection=(e:unknown)=>e instanceof CoreDraftRequestError&&[400,401,403,404,405,409].includes(e.status);
+const knownRejection=(e:unknown):e is CoreDraftRequestError=>e instanceof CoreDraftRequestError&&[400,401,403,404,405,409].includes(e.status);
+/** Local evidence of a first reserve rejection, never an ambiguous transport/confirm result. */
+export class DefinitiveMediaUploadRejection extends CoreDraftRequestError {}
 export function createPrivateMediaController(api:Api,authorize:(write:boolean)=>boolean,key=()=>crypto.randomUUID(),urls:Pick<typeof URL,"createObjectURL"|"revokeObjectURL">=URL){
  let closed=false,busy=false,pending:Pending|null=null,listing:Listing|null=null,preview:{id:string;url:string}|null=null,previewGeneration=0;
  let lastUpload:UploadReceipt|null=null;
@@ -52,7 +54,10 @@ export function createPrivateMediaController(api:Api,authorize:(write:boolean)=>
   }catch(e){
    // A first explicit rejection before any acknowledged mutation is definitive.
    // After reserve or uncertain transport, retain original command until replay.
-   if(!retry&&!acknowledged&&!(command.kind==="upload"&&command.reserved)&&knownRejection(e))pending=null;
+   if(!retry&&!acknowledged&&!(command.kind==="upload"&&command.reserved)&&knownRejection(e)){
+    pending=null;
+    if(command.kind==="upload")throw new DefinitiveMediaUploadRejection(e.status);
+   }
    throw e;
   }finally{busy=false;}
  }
