@@ -1,6 +1,6 @@
 /** PAP-2225 — one server-owned phase, no browser/query opt-in. */
 import {RC_REVIEW_PATH,parseRunningClassReviewQuery} from "./running-class-review-query";
-export const RUNNING_CLASS_LIVE_ADMISSION=false;
+export const RUNNING_CLASS_LIVE_ADMISSION=true;
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const tracking=["utm_source","utm_medium","utm_campaign","utm_term","utm_content"];
 export function parseRunningClassLiveQuery(input:URLSearchParams,legacy=false):string|null{

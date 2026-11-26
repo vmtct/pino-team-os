@@ -125,7 +125,7 @@ test("HO_BO_DEEPLINK_CONTINUITY_P0: route-specific detail, tab, grid, center and
   [ho,"/ho/pinoria/wish-banners?record="+id+"&tab=items&wishSelection=pending&wishRevision=2","/ho/pinoria/wish-banners?record="+id+"&tab=items&wishSelection=pending&wishRevision=2"],
   [ho,"/ho/system/custom-attributes?sort=displayName&size=30&page=2&scope=CENTER&centerId="+center,"/ho/system/custom-attributes?sort=displayName&size=30&page=2&scope=CENTER&centerId="+center],
   [bo,"/bo/subscriptions?centerId="+center+"&record="+id+"&tab=enrollment","/bo?module=subscriptions&centerId="+center+"&record="+id+"&tab=enrollment"],
-  [bo,"/bo/running-classes?centerId="+center+"&record=RUNNING-CLASS-MOCK-001","/bo/running-classes?centerId="+center+"&record=RUNNING-CLASS-MOCK-001"],
+  [bo,"/bo/running-classes?centerId="+center+"&record="+id,"/bo/running-classes?centerId="+center+"&record="+id],
   [bo,"/bo/piner-posts?centerId="+center+"&record=POST-MOCK-001&tab=media","/bo/piner-posts?centerId="+center+"&record=POST-MOCK-001&tab=media"],
   [bo,"/bo/sales/leads?centerId="+center+"&leadIntent="+id+"&q=music&dir=desc&size=50&f_status=SUBMITTED","/bo/sales/leads?centerId="+center+"&leadIntent="+id+"&q=music&dir=desc&size=50&f_status=SUBMITTED"],
  ];
@@ -158,4 +158,15 @@ test("PAP-2369: malformed authenticated Learning Space links fail before streami
  }
  for(const q of ["","?record="+id,"?utm_source=chatgpt.com&record="+id])assert.equal(middleware(new NextRequest("https://"+ho+path+q,{headers})).headers.get("x-middleware-next"),"1",q);
  assert.equal(middleware(new NextRequest("https://"+ho+path+"?record="+id+"&_rsc=abc",{headers:{...headers,rsc:"1"}})).headers.get("x-middleware-next"),"1");
+});
+
+test("PAP-2225 canonical native Running Class route rejects mock and malformed authenticated links before streaming",()=>{
+ const path="/bo/running-classes",headers={cookie:"pino_staff_password_session=fixture-only"};
+ for(const q of ["record=RUNNING-CLASS-MOCK-001","record="+id+"&record="+id,"m1Preview=1","centerId=bad","tab=history","returnTo=//evil.example"]){
+  for(const method of ["GET","HEAD"])assert.equal(middleware(new NextRequest("https://"+bo+path+"?"+q,{headers,method})).status,404,q);
+  assert.equal(parse(bo,path+"?"+q),null,q);
+ }
+ for(const q of ["","?record="+id,"?centerId="+center+"&record="+id])assert.equal(middleware(new NextRequest("https://"+bo+path+q,{headers})).headers.get("x-middleware-next"),"1",q);
+ assert.equal(middleware(new NextRequest("https://"+bo+path+"?record="+id+"&_rsc=abc",{headers:{...headers,rsc:"1"}})).headers.get("x-middleware-next"),"1");
+ checkFlow(bo,"/bo?module=classes&record="+id,path+"?record="+id);
 });

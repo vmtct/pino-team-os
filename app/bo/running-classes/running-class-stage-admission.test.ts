@@ -9,9 +9,9 @@ test("live mode accepts only canonical Center and record, normalizes legacy alia
  assert.equal(parseRunningClassLiveQuery(p("module=classes&record="+record),true),path+"?record="+record);
  for(const q of ["record=RUNNING-CLASS-MOCK-001","m1Preview=1","record="+record+"&record="+record,"centerId=bad","record="+record.toUpperCase(),"tab=history","module=classes"])assert.equal(parseRunningClassLiveQuery(p(q)),null,q);
 });
-test("current server phase keeps approved M1, real IDs and selectors not admitted",()=>{
- assert.equal(RUNNING_CLASS_LIVE_ADMISSION,false);
- assert.equal(parseRunningClassStageQuery(p("record=RUNNING-CLASS-MOCK-001")),path+"?record=RUNNING-CLASS-MOCK-001");
- assert.equal(parseRunningClassStageQuery(p("record="+record)),null);
+test("current server phase admits real IDs, never mock or selector",()=>{
+ assert.equal(RUNNING_CLASS_LIVE_ADMISSION,true);
+ assert.equal(parseRunningClassStageQuery(p("record=RUNNING-CLASS-MOCK-001")),null);
+ assert.equal(parseRunningClassStageQuery(p("record="+record)),path+"?record="+record);
  assert.equal(parseRunningClassStageQuery(p("m1Preview=1")),null);
 });
