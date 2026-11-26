@@ -46,7 +46,7 @@ const PROGRAM_OPTIONS: Array<{ kind: LeadM1IntentKind; program: "AFTERSCHOOL" | 
 ];
 const ROLE_OPTIONS: LeadM1Role[] = ["PARENT", "STUDENT", "GUEST"];
 const CONTACT_FIELD_SCHEMA = [
-  { key: "contactName", label: "Người liên hệ", required: true },
+  { key: "contactName", label: "Người liên hệ" },
   { key: "phone", label: "Số điện thoại", required: true },
 ] as const;
 
@@ -151,7 +151,7 @@ export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi,rec
       if(!detail){setCommandNotice("Không tìm thấy Lead trong phạm vi được phép xem. Kiểm tra lại thông tin trước khi gửi yêu cầu mới.");return false;}
       await Promise.all([readModel.refreshDirectory(),readModel.selected.id===detail.id?readModel.select(detail.id):Promise.resolve()]);
       const refreshFailed=readModel.directory.phase==="error"||(readModel.selected.id===detail.id&&readModel.selected.phase!=="ready");
-      setCommandNotice(refreshFailed?"Đã xác nhận kết quả Lead; chưa tải lại được toàn bộ dữ liệu.":"Đã tải lại thông tin Lead.");
+      setCommandNotice(refreshFailed?"Đã xác nhận kết quả Lead; chưa tải lại được toàn bộ dữ liệu.":drawer?.mode==="create"&&commandFence.createOutcome==="reused"?"Lead đã tồn tại. Đã mở Lead hiện có; chưa thêm thành viên hoặc thay đổi thông tin.":"Đã tải lại thông tin Lead.");
       if(drawer?.mode==="create"){setDrawer(null);openFullDetail(detail.id);}
       if(archiveTarget===detail.id&&detail.status==="ARCHIVED"){setArchiveTarget(null);setArchiveReason("");}
       return true;
@@ -315,14 +315,14 @@ export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi,rec
     if(readModel){
       if(!commandFence||commandFence.state!=="idle"||commandBusyRef.current||drawer?.mode!=="create")return;
       const phone=draft.phone.replace(/\D/g,"").replace(/^84/,"0");
-      if(!/^0\d{9}$/.test(phone)||!draft.contactName.trim()){setFormError("Nhập tên và số điện thoại hợp lệ.");setStep(1);return;}
+      if(!/^0\d{9}$/.test(phone)){setFormError("Nhập số điện thoại hợp lệ.");setStep(1);return;}
       const primaries=draft.members.filter(m=>m.primaryContact);
       const interests=draft.interests.filter(isMemberInterest);
       if(draft.members.length>20||primaries.length>1||draft.members.some(m=>!m.name.trim()||!m.roles.length||(!m.primaryContact&&m.roles.includes("PARENT"))||m.age!==null&&(!Number.isInteger(m.age)||m.age<0||m.age>120))){setFormError("Kiểm tra thông tin thành viên (tối đa 20) và liên hệ chính.");setStep(2);return;}
       if(draft.relationships.length||interests.length!==draft.interests.length||interests.length&&!draft.members.some(m=>m.roles.some(r=>r!=="PARENT"))){setFormError("Chương trình quan tâm cần Student/Guest; khai báo quan hệ sau khi tạo Lead.");setStep(2);return;}
       const members:LeadMemberInput[]=draft.members.map(m=>({displayName:m.name.trim(),intendedRoles:m.roles,gender:m.gender==="Nam"?"MALE":m.gender==="Nữ"?"FEMALE":m.gender==="Khác"?"OTHER":null,birthPrecision:"UNKNOWN",birthYear:null,birthMonth:null,birthDay:null,reportedAge:m.age,interestKinds:m.roles.some(r=>r!=="PARENT")?interests:[]}));
       const primaryMemberIndex=draft.members.findIndex(m=>m.primaryContact);
-      setFormError("");void executeContact(()=>commandFence.submit({kind:"create",input:{contact:{phone,contactDisplayName:draft.contactName.trim()},members,primaryMemberIndex:primaryMemberIndex<0?null:primaryMemberIndex}}));return;
+      setFormError("");void executeContact(()=>commandFence.submit({kind:"create",input:{contact:{phone,contactDisplayName:draft.contactName.trim()||null},members,primaryMemberIndex:primaryMemberIndex<0?null:primaryMemberIndex}}));return;
     }
     if (!draft.contactName.trim()) { setFormError("Tên người liên hệ là bắt buộc."); setStep(1); return; }
     if (draft.members.filter(member => member.primaryContact).length > 1) { setFormError("Chỉ một thành viên được chọn là người liên hệ chính."); setStep(2); return; }
@@ -686,7 +686,7 @@ function LeadCreateEditDrawer({
     onClose={onClose}
     footer={<div className={styles.drawerFooter + " pds-compact-actions"}>
       {step === 2 ? <button className="secondary-btn" type="button" disabled={locked} onClick={() => { setLocalError(""); onStepChange(1); }}>← Quay lại</button> : <button className="secondary-btn" type="button" disabled={locked} onClick={onClose}>Hủy</button>}
-      {step === 1 ? <button type="button" className="primary-btn" disabled={locked} onClick={() => { if (!draft.contactName.trim() || !draft.phone.trim()) { setLocalError("Nhập người liên hệ và số điện thoại trước khi tiếp tục."); return; } setLocalError(""); onStepChange(2); }}>Tiếp tục: Thành viên →</button> : <button type="button" className="primary-btn" disabled={locked} onClick={onSave}>{live?"Tạo Lead":"Lưu mẫu"}</button>}
+      {step === 1 ? <button type="button" className="primary-btn" disabled={locked} onClick={() => { if ((!live&&!draft.contactName.trim()) || !draft.phone.trim()) { setLocalError(live?"Nhập số điện thoại trước khi tiếp tục.":"Nhập người liên hệ và số điện thoại trước khi tiếp tục."); return; } setLocalError(""); onStepChange(2); }}>Tiếp tục: Thành viên →</button> : <button type="button" className="primary-btn" disabled={locked} onClick={onSave}>{live?"Tạo Lead":"Lưu mẫu"}</button>}
     </div>}
   >
     <div className={styles.drawerContent}>

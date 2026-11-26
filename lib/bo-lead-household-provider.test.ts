@@ -62,3 +62,14 @@ test("PAP-2288 durable journal unavailable blocks command before dispatch",async
  const f=new LeadCommandFence(a,()=>"8fbaea47-bcdc-4c50-8ca5-2b6335e4ebee",new LeadRecoveryJournal({...memoryStorage(),setItem:()=>{throw Error("storage");}},id));await assert.rejects(f.submit(command()));assert.equal(f.state,"recovery_blocked");assert.equal(writes,0);
 });
 function memoryStorage(){let raw:string|null=null;return {getItem:()=>raw,setItem:(_slot:string,value:string)=>{raw=value;},removeItem:()=>{raw=null;}};}
+
+test("PAP-2288 Create contact-only reuse and wrong-phone readback",async()=>{
+ const create:LeadCommand={kind:"create",input:{contact:{phone:"0900000000",contactDisplayName:null}}};
+ let reads=0,writes=0;
+ const f=new LeadCommandFence(api({create:()=>{writes++;return Promise.resolve({leadId:id,version:2,created:false});},detail:()=>Promise.resolve({...detail(),phone:++reads===1?"0900000001":"0900000000"})}),()=>"key");
+ await assert.rejects(f.submit(create));assert.equal(f.state,"reload_required");assert.equal(f.createOutcome,"reused");await f.reload(id);assert.equal(f.state,"idle");assert.equal(writes,1);assert.equal(f.createOutcome,"reused");
+});
+test("PAP-2288 duplicate receipt cannot imply member creation",async()=>{
+ const f=new LeadCommandFence(api({create:()=>Promise.resolve({leadId:id,version:2,created:false})}),()=>"key");
+ await assert.rejects(f.submit({kind:"create",input:{contact:{phone:"0900000000",contactDisplayName:null},members:[memberInput(member)]}}));assert.equal(f.state,"uncertain");assert.equal(f.createOutcome,null);
+});

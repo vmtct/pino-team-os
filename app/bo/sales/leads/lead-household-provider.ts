@@ -48,6 +48,9 @@ export class LeadCommandFence{
  private receipt:LeadReceipt|null=null;
  private conflict:LeadCommand|null=null;
  private receiptKey:string|null=null;
+ private createPhone:string|null=null;
+ private createResult:"created"|"reused"|null=null;
+ get createOutcome(){return this.createResult;}
  constructor(private readonly api:LeadHouseholdApi,private readonly makeKey=newLeadCommandKey,private readonly journal?:LeadRecoveryJournal){
   const recovered=journal?.inspect();
   if(recovered?.state==="readback"){this.receipt=recovered.receipt;this.receiptKey=recovered.entry.key;this.phase="reload_required";}
@@ -58,6 +61,9 @@ export class LeadCommandFence{
  get isCreateConflict(){return this.phase==="conflict"&&this.conflict?.kind==="create";}
  async submit(command:LeadCommand):Promise<LeadDetail>{
   if(this.phase!=="idle")throw new LeadApiError(409,"LEAD_COMMAND_NOT_READY",null);
+  this.createResult=null;
+  this.createPhone=command.kind==="create"?normalizePhone(command.input.contact.phone):null;
+  if(command.kind==="create"&&!this.createPhone)throw new LeadApiError(400,"INVALID_LEAD_PHONE",null);
   const pending={command:structuredClone(command),key:this.makeKey()};
   try{this.journal?.begin(pending.command,pending.key);}catch{this.phase="recovery_blocked";throw new LeadApiError(409,"LEAD_RECOVERY_BLOCKED",null);}
   this.pending=pending;
@@ -84,6 +90,11 @@ export class LeadCommandFence{
    throw error;
   }
   if(p.command.kind!=="create"&&(receipt.leadId!==p.command.leadId||receipt.version!==p.command.expectedVersion+1)){this.phase="uncertain";throw new LeadApiError(502,"LEAD_RECEIPT_MISMATCH",null);}
+  if(p.command.kind==="create"){
+   const created="created" in receipt?receipt.created:null;
+   if(typeof created!=="boolean"||(!created&&(p.command.input.members?.length??0)>0)){this.phase="uncertain";throw new LeadApiError(502,"LEAD_RECEIPT_MISMATCH",null);}
+   this.createResult=created?"created":"reused";
+  }
   try{this.journal?.acceptReceipt(p.key,receipt);}catch{this.phase="recovery_blocked";this.pending=null;throw new LeadApiError(409,"LEAD_RECOVERY_BLOCKED",null);}
   this.receipt=receipt;this.receiptKey=p.key;this.pending=null;this.phase="reload_required";
   return this.reload(receipt.leadId);
@@ -95,9 +106,9 @@ export class LeadCommandFence{
   this.phase="pending";
   try{
    const detail=await this.api.detail(leadId);
-   if(detail.id!==leadId||receipt&&detail.version<receipt.version)throw new LeadApiError(502,"LEAD_READBACK_MISMATCH",null);
+   if(detail.id!==leadId||receipt&&detail.version<receipt.version||receipt&&this.createPhone!==null&&detail.phone!==this.createPhone)throw new LeadApiError(502,"LEAD_READBACK_MISMATCH",null);
    if(receipt&&this.journal){if(!this.receiptKey)throw new LeadApiError(409,"LEAD_RECOVERY_BLOCKED",null);this.journal.completeReadback(this.receiptKey,detail);}
-   this.receipt=null;this.receiptKey=null;this.conflict=null;this.phase="idle";return detail;
+   this.receipt=null;this.receiptKey=null;this.conflict=null;this.createPhone=null;this.phase="idle";return detail;
   }catch(error){this.phase=before;throw error;}
  }
  /** Reconcile only the original phone within the actual actor's visible scope. No global absence claim. */
@@ -111,8 +122,8 @@ export class LeadCommandFence{
    for(let i=0;i<100;i++){
     const page=await this.api.search({q:phone,limit:100,...(cursor?{cursor}:{})});
     const row=page.items.find(item=>item.phone===phone);
-    if(row){const d=await this.api.detail(row.id);if(d.id!==row.id||d.phone!==phone)throw new LeadApiError(502,"LEAD_READBACK_MISMATCH",null);this.conflict=null;this.phase="idle";return d;}
-    if(!page.hasMore){this.conflict=null;this.phase="idle";return null;}
+    if(row){const d=await this.api.detail(row.id);if(d.id!==row.id||d.phone!==phone)throw new LeadApiError(502,"LEAD_READBACK_MISMATCH",null);this.conflict=null;this.createPhone=null;this.createResult="reused";this.phase="idle";return d;}
+    if(!page.hasMore){this.conflict=null;this.createPhone=null;this.phase="idle";return null;}
     if(!page.nextCursor||seen.has(page.nextCursor))throw new LeadApiError(502,"LEAD_CURSOR_INVALID",null);
     cursor=page.nextCursor;seen.add(cursor);
    }
