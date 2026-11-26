@@ -28,7 +28,7 @@ function fixture(run) {
     const content=fs.readFileSync(path.join(repo,file),"utf8");
     // Existing PAP-901 factory fixtures have no TDD manifest; keep scopes independent.
     write(file,file===policy?content.replace(/\r\n/g,"\n").replace('  "/bo/payroll-daily",\n',"").replace('  "/bo/payroll-exceptions",\n',"").replace('  "/bo/pinoria-avatars",\n',"").replace('  "/bo/afterschool-accounts",\n',"").replace('  "/bo/open-studio-passes",\n',"")
-      .replace(/\s*"\/bo\/classroom-diaries",\r?\n/,"\n").replace('  "/bo/bills",\n',"").replace('  "/bo/missions",\n',"").replace('  "/bo/tvs",\n',"").replace('  "/bo/opening-evidence",\n',"").replace('  "/bo/piner-posts",\n',"").replace('  "/bo/sales/leads",\n',"").replace('  "/bo/pinoria-wish-events",\n',"").replace('  "/bo/mytime-guests",\n',"").replace('  "/bo/guests",\n',"").replace('  "/bo/mytime-workshops",\n',"").replace('  "/bo/enrollments",\n',"").replace('  "/bo/running-classes",\n',""):content);
+      .replace(/\s*"\/bo\/classroom-diaries",\r?\n/,"\n").replace('  "/bo/bills",\n',"").replace('  "/bo/missions",\n',"").replace('  "/bo/tvs",\n',"").replace('  "/bo/opening-evidence",\n',"").replace('  "/bo/piner-posts",\n',"").replace('  "/bo/sales/leads",\n',"").replace('  "/bo/pinoria-wish-events",\n',"").replace('  "/bo/mytime-guests",\n',"").replace('  "/bo/guests",\n',"").replace('  "/bo/mytime-workshops",\n',"").replace('  "/bo/enrollments",\n',"").replace('  "/bo/running-classes",\n',"").replace('  "/bo/parents",\n',""):content);
   }
   try { return run({ root, read, write }); }
   finally { fs.rmSync(root, { recursive: true, force: true }); }
@@ -328,4 +328,16 @@ test("PAP-2225 native Running Classes requires exact authorized in-memory worksp
   assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/running-classes.*invalid native scoped fixture contract/);write(file,original);
  }
  fs.unlinkSync(path.join(root,files[5]));assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/running-classes.*missing exact native fixture contract/);
+}));
+
+test("PAP-2387/PAP-2389 exact native Parent admission requires authenticated isolated fixture",()=>fixture(({root,read,write})=>{
+ const base="app/bo/parents/";
+ const files=[base+"page.tsx",base+"ParentStagingEntry.tsx",base+"ParentDirectoryDsa.tsx",base+"parent-m1-context.tsx",base+"parent-m1-fixture.ts",base+"parent-native-data.ts",base+"parent-route.ts","lib/pap2387-parent-staging-boundary.test.ts","lib/pap2389-parent-route.test.ts"];
+ for(const f of files)write(f,fs.readFileSync(path.join(repo,f),"utf8"));
+ write(policy,read(policy).replace('  "/bo/payroll-periods",','  "/bo/payroll-periods",\n  "/bo/parents",'));
+ assert.deepEqual(verifyBoStagingRoutePolicy(root).issues,[]);
+ for(const [index,needle] of [[0,'env.APP_ENV!=="staging"'],[0,'await authorizeBoShell(new Headers(incoming),env)'],[0,'if(!actor.permissionKeys.includes("identity.parent_directory.view"))forbidden()'],[1,'user.email!==actorEmail'],[1,'!center.centers.some(c=>c.id===selected)'],[1,'loadNativeParentContext(centerId,ctl.signal,fetch,actorId)'],[1,'./ParentDirectoryDsa'],[1,'ephemeral:true,readOnly:true'],[2,'fixture?PARENT_MOCK_CENTER:id'],[3,'location.origin!=="https://bo.staging.pinohouse.art"||location.pathname!=="/bo/parents"'],[4,'if(centerId!==PARENT_MOCK_CENTER)throw Error("Synthetic Center required")'],[5,'raw.userId !== expectedActorId']]){
+  const f=files[index],original=read(f);assert.ok(original.includes(needle),needle);write(f,original.replace(needle,"BROKEN_CONTRACT"));assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/parents: invalid exact native Parent fixture contract/,needle);write(f,original);
+ }
+ fs.unlinkSync(path.join(root,files[7]));assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/parents: missing exact native Parent fixture contract/);
 }));

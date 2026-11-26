@@ -185,6 +185,50 @@ function nativeRunningClassesRoute(root,issues){
  return valid;
 }
 
+/** PAP-2387/PAP-2389: exact authenticated native Parent M1-B route. */
+function nativeParentRoute(root,issues){
+ const route="/bo/parents",base="app/bo/parents/";
+ if(!read(root,POLICY).includes('"'+route+'"'))return false;
+ const files=[base+"page.tsx",base+"ParentStagingEntry.tsx",base+"ParentDirectoryDsa.tsx",base+"parent-m1-context.tsx",base+"parent-m1-fixture.ts",base+"parent-native-data.ts",base+"parent-route.ts","lib/pap2387-parent-staging-boundary.test.ts","lib/pap2389-parent-route.test.ts"];
+ if(files.some(f=>!fs.existsSync(path.join(root,f)))){issues.push(route+": missing exact native Parent fixture contract");return false;}
+ const [page,view,native,provider,fixture,access,query]=files.map(f=>read(root,f));
+ const required=[
+ [page,'host!=="bo.staging.pinohouse.art"||env.APP_ENV!=="staging"||!boSkeletonEnabled(env,host)'],
+ [page,'if(!canonicalParentRoute(query))notFound()'],
+ [page,'await authorizeBoShell(new Headers(incoming),env)'],
+ [page,'if(!actor.permissionKeys.includes("identity.parent_directory.view"))forbidden()'],
+ [page,'actorId={actor.userId} actorEmail={actor.email}'],
+ [view,'user.email!==actorEmail'],
+ [view,'!center.centers.some(c=>c.id===selected)'],
+ [view,'loadNativeParentContext(centerId,ctl.signal,fetch,actorId)'],
+ [view,'canCreate&&grants.has("identity.parent.create")'],
+ [view,'canEdit&&grants.has("identity.parent.edit")'],
+ [view,'if(state.status!=="ready")return <RecordState status={state.status}/>'],
+ [view,'ephemeral:true,readOnly:true'],
+ [view,'load:async()=>{throw Error("Parent M1-B has no record transport")'],
+ [view,'content={<ParentDirectoryDsa/>}'],
+ [native,'fixture?PARENT_MOCK_CENTER:id'],
+ [native,'fixture?Promise.resolve().then(()=>fixture.list(centerId)):loadNativeParentDirectory'],
+ [provider,'location.origin!=="https://bo.staging.pinohouse.art"||location.pathname!=="/bo/parents"'],
+ [provider,'const [fixture]=useState(createParentFixture)'],
+ [fixture,'if(centerId!==PARENT_MOCK_CENTER)throw Error("Synthetic Center required")'],
+ [access,'raw.userId !== expectedActorId'],
+ [access,'grants.has("identity.parent_directory.view")'],
+ [access,'scopes.centers.some(c => c.id === centerId)'],
+ [query,'export const PARENT_ROUTE = "/bo/parents"']
+ ];
+ const valid=mountsExactNamedComponent(files[0],page,"./ParentStagingEntry","ParentStagingEntry")&&
+ mountsExactNamedComponent(files[1],view,"../components/registration/BoRegistrationWorkspace","BoRegistrationWorkspace")&&
+ mountsExactNamedComponent(files[1],view,"./ParentDirectoryDsa","ParentDirectoryDsa")&&
+ mountsExactNamedComponent(files[1],view,"./parent-m1-context","ParentStagingFixtureProvider")&&
+ mountsExactNamedComponent(files[2],native,"@/app/bo/components/registration/BoDataTable","BoDataTable")&&
+ mountsExactNamedComponent(files[2],native,"@/app/bo/components/registration/BoQuickView","BoQuickView")&&
+ required.every(([source,needle])=>source.includes(needle))&&
+ ![page,view].some(s=>/BoModuleFactory|BoWorkforceRoute|BoLocalReviewCenter|localStorage\.|sessionStorage\.|method:\s*["'](?:POST|PATCH|PUT|DELETE)["']/.test(s));
+ if(!valid)issues.push(route+": invalid exact native Parent fixture contract");
+ return valid;
+}
+
 function canonicalRoutes(root, issues) {
   const base = path.join(root, "app/bo");
   const routes = new Set();
@@ -219,6 +263,7 @@ function canonicalRoutes(root, issues) {
   }
   if(nativeOpeningEvidenceRoute(root,issues)){routes.add("/bo/opening-evidence");native.add("/bo/opening-evidence");}
   if(nativeRunningClassesRoute(root,issues)){routes.add("/bo/running-classes");native.add("/bo/running-classes");}
+  if(nativeParentRoute(root,issues)){routes.add("/bo/parents");native.add("/bo/parents");}
   if(nativeWishEventRoute(root,issues)){routes.add("/bo/pinoria-wish-events");native.add("/bo/pinoria-wish-events");}
   if (fs.existsSync(path.join(root, "app/bo/sales/leads/page.tsx")) && read(root, POLICY).includes('"/bo/sales/leads"')) {
     if (nativeLeadsRoute(root, issues)) { routes.add("/bo/sales/leads"); native.add("/bo/sales/leads"); }
