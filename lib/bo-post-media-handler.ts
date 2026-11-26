@@ -1,6 +1,7 @@
 /** PAP-2134 / PAP-2172: exact staging-only Post attachments BFF. */
 import {callBoAccessCoreWithCredential,type BoAccessRequest} from "./bo-core";
 import {teamCredential,TeamAuthError} from "./team-auth";
+import {verifyPostActor} from "./bo-post-actor-continuity";
 import {BO_STAGING_HOSTNAME} from "./host-boundary";
 import type {BoPostDraftEnv} from "./bo-post-draft-handler";
 const MAX=5*1024*1024,types=new Set(["image/jpeg","image/png","image/webp"]);
@@ -54,6 +55,8 @@ export async function handleBoPostMediaRequest(request:Request,env:BoPostDraftEn
    core.body={expectedPostVersion,mimeType:mime,...(operation==="confirm"?{expectedAttachmentVersion:version(attachment)}:{}),bytes:await bytes(request,MAX)};
   }
  }
+ const admission=await verifyPostActor(request,env.PINO_BO_CORE,credential,centerId,method==="GET"?"piner.post.view":"piner.post.edit");
+ if(admission!==200)return fail(admission,admission===400?"PLATFORM_INVALID_INPUT":"ACCESS_PERMISSION_DENIED");
  const result=await callBoAccessCoreWithCredential(env.PINO_BO_CORE,core,credential);
  if(operation==="preview"&&result.status===200)return preview(result.body,result.requestId);
  return json(result.body,result.status,result.requestId);

@@ -3,6 +3,7 @@ import {BO_LEGACY_QUERY_MODULES,BO_TARGET_ROUTES} from "./bo-url-contract";
 import {isBoStagingRouteAdmitted} from "../app/bo/architecture/bo-staging-route-policy";
 import {readLinkedSpecialtyRoute} from "./bo-subscription-detail-url";
 import {readWishDetailRoute} from "./pls-wish-detail-route";
+import {parseNativePostQuery} from "../app/bo/piner-posts/native-post-query";
 import {RC_REVIEW_PATH} from "../app/bo/running-classes/running-class-review-query";
 import {parseRunningClassStageQuery} from "../app/bo/running-classes/running-class-stage-admission";
 export const BO_STAGING_RETURN_HOST="bo.staging.pinohouse.art";
@@ -38,15 +39,7 @@ export function safeBoStagingReturnTo(raw:string|null|undefined):string|null{
  }else if(moduleKey!==null)return null;
  if(path!=="/bo"&&!isBoStagingRouteAdmitted(path))return null;
  // PAP-2286: canonical Lead fixture continuation; old preview links normalize. Navigation only, not authorization.
- const posts=path==="/bo/piner-posts";
- if(posts&&p.has("m1Preview")){
-  if(p.get("m1Preview")!=="1")return null;
-  for(const k of p.keys())if(!["m1Preview","centerId","record","tab"].includes(k))return null;
-  const center=p.get("centerId"),record=p.get("record"),tab=p.get("tab");
-  if(center&&!uuid.test(center)||record&&!/^POST-MOCK-[0-9]{3,}$/.test(record)||tab&&(!record||!["overview","media","history"].includes(tab)))return null;
-  const out=new URLSearchParams();for(const k of ["centerId","record","tab"])if(p.has(k))out.set(k,p.get(k)!);
-  return path+(out.size?"?"+out.toString():"");
- }
+ if(path==="/bo/piner-posts"){const q=parseNativePostQuery(p);return q?path+(q.canonical?"?"+q.canonical:""):null;}
  const leads=path==="/bo/sales/leads";
  if(p.has("m1Preview")||(leads&&(p.has("lead")||p.has("quickView")))){
   if(p.has("m1Preview")&&(p.get("m1Preview")!=="1"||!leads))return null;

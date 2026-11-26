@@ -6,7 +6,7 @@ import { BO_RETURN_HEADER, BO_STAGING_RETURN_HOST, safeBoStagingReturnTo } from 
 
 import {RC_REVIEW_PATH} from "@/app/bo/running-classes/running-class-review-query";
 import {parseRunningClassStageQuery} from "@/app/bo/running-classes/running-class-stage-admission";
-import { parsePostReviewQuery } from "@/app/bo/piner-posts/post-preview-query";
+import { parseNativePostQuery } from "@/app/bo/piner-posts/native-post-query";
 
 export function middleware(request: NextRequest) {
   // Source assets are served only through the authenticated staging controller.
@@ -100,12 +100,12 @@ export function middleware(request: NextRequest) {
       const params=new URLSearchParams(request.nextUrl.searchParams);if(request.headers.get("rsc")==="1")params.delete("_rsc");
       if(parseRunningClassStageQuery(params)===null)return new NextResponse("Not Found",{status:404,headers:{"cache-control":"no-store"}});
     }
-    // PAP-2337: reject invalid isolated Post fixture links before React streams a 200/notFound shell.
+    // PAP-2386: reject invalid canonical native Post links before streaming.
     if (normalizeHostname(host) === BO_STAGING_RETURN_HOST && request.nextUrl.pathname === "/bo/piner-posts" && ["GET","HEAD"].includes(request.method)) {
       const params=new URLSearchParams(request.nextUrl.searchParams);
       // Next internal RSC cache key is transport metadata, not fixture state.
       if(request.headers.get("rsc")==="1")params.delete("_rsc");
-      if(!parsePostReviewQuery(params))return new NextResponse("Not Found",{status:404,headers:{"cache-control":"no-store"}});
+      if(!parseNativePostQuery(params))return new NextResponse("Not Found",{status:404,headers:{"cache-control":"no-store"}});
     }
     // PAP-2369: exact canonical synthetic-only HO preview, reject invalid links before streaming.
     if(normalizeHostname(host)===HO_STAGING_HOSTNAME && request.nextUrl.pathname==="/ho/learning-spaces" && ["GET","HEAD"].includes(request.method)){
