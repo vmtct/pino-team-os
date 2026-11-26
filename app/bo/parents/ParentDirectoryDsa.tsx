@@ -9,7 +9,6 @@ import {parentMockId,PARENT_MOCK_CENTER} from "./parent-m1-fixture";
  */
 import "@pino/design-system/bo-tokens.css";
 import "@pino/design-system/components.css";
-import "./parent-directory-density.css";
 import { PinoNavLocaleContext } from "@/lib/pino-nav-locale-context";
 import { pinoLocalizedLabel } from "@/lib/pino-nav-locale";
 import { useCallback, useContext, useEffect, useRef, useState } from "react";

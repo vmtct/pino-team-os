@@ -22,6 +22,6 @@ test("PAP-2387 uses established Parent locale mapping and preserves native actio
   assert.ok(source.includes('grants.has("identity.parent.create")'));
   assert.ok(source.includes('onClick={()=>setCreating(true)}>{createLabel}'));
   assert.ok(source.includes('language==="vi"?"+ Phụ huynh":"+ Parent"'));
-  const css = readFileSync("app/bo/parents/parent-directory-density.css", "utf8");
+  const css = readFileSync("public/bo-authority-source/bo-form-extension.css", "utf8");
   assert.ok(css.includes("[data-parent-native-dsa] #typed-table .schema-column"));
 });
