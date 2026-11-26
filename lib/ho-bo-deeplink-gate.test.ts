@@ -45,7 +45,6 @@ const legacy:Record<string,string>={
 const previews:Record<string,{path:string;expected:string;record?:string;negative:string}>={
  "/ho/learning/missions":{path:"/ho/learning/missions",expected:"/ho/learning/missions",record:"record=MISSION-MOCK-001",negative:"record="+id},
 
- "/ho/billing/product-plans":{path:"/ho/billing/product-plans?m1Preview=1",expected:"/ho/billing/product-plans",record:"record=PRODUCT-PLAN-MOCK-001",negative:"record="+id},
  "/bo/sales/leads":{path:"/bo/sales/leads?m1Preview=1",expected:"/bo/sales/leads",record:"lead=LEAD-MOCK-001&tab=members",negative:"lead="+id},
 };
 function discoverPreviewPages(dir:string):string[]{
@@ -101,11 +100,10 @@ test("HO_BO_DEEPLINK_CONTINUITY_P0: native preview entrypoints cannot ship untes
    assert.equal(parse(host,path+"?"+suffix),null,path+"?"+suffix);
   }
  }
- // PAP-2183: canonical path, exact mock ID, legacy normalization and no real ID.
+ // PAP-2365: canonical real Product Plan links and tabs; no preview.
  const plans="/ho/billing/product-plans";
- checkFlow(ho,plans+"?record=PRODUCT-PLAN-MOCK-001",plans+"?record=PRODUCT-PLAN-MOCK-001");
- for(const query of ["record="+id,"record=PRODUCT-PLAN-MOCK-002","record=","record=PRODUCT-PLAN-MOCK-001&record=PRODUCT-PLAN-MOCK-001","tab=unknown","next=/bo"])
-   assert.equal(parse(ho,plans+"?"+query),null,plans+"?"+query);
+ for(const suffix of ["?record="+id,"?record="+id+"&tab=subscriptions","?record="+id+"&tab=history"])checkFlow(ho,plans+suffix,plans+suffix);
+ for(const query of ["m1Preview=1","record=PRODUCT-PLAN-MOCK-001","record=","record="+id+"&record="+id,"tab=unknown","tab=history","next=/bo"])assert.equal(parse(ho,plans+"?"+query),null,plans+"?"+query);
  assert.equal(parse(bo,plans),null);
  // PAP-2371: canonical real route; synthetic fixture and selector rejected.
  const spaces="/ho/learning-spaces";
@@ -124,6 +122,7 @@ test("HO_BO_DEEPLINK_CONTINUITY_P0: native preview entrypoints cannot ship untes
 test("HO_BO_DEEPLINK_CONTINUITY_P0: route-specific detail, tab, grid, center and recovery examples",async()=>{
  const samples:[string,string,string][]=[
   [ho,"/ho/staff?record="+id,"/ho/staff?record="+id],
+  [ho,"/ho/billing/product-plans?record="+id+"&tab=subscriptions","/ho/billing/product-plans?record="+id+"&tab=subscriptions"],
   [ho,"/ho/pinoria/worlds?record="+id+"&tab=scenes","/ho/pinoria/worlds?record="+id+"&tab=scenes"],
   [ho,"/ho/pinoria/starter-sets?record="+id+"&tab=members","/ho/pinoria/starter-sets?record="+id+"&tab=members"],
   [ho,"/ho/pinoria/wish-banners?record="+id+"&tab=items&wishSelection=pending&wishRevision=2","/ho/pinoria/wish-banners?record="+id+"&tab=items&wishSelection=pending&wishRevision=2"],

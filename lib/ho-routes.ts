@@ -1,6 +1,8 @@
 import {STAFF_PHASE_ONE_ENABLED,parseStaffPhaseOneQuery} from "../app/ho/staff/staff-phase-one-route";
 import {parseLiveSpaceQuery} from "./ho-learning-space-contract";
 import {parseNativeRoleQuery} from "../app/ho/system/roles/native-role-query";
+import {parseProductPlanNavigation} from "../app/ho/billing/product-plans/product-plan-stage-admission";
+import {nativePlanUrl} from "../app/ho/billing/product-plans/product-plan-native-binding";
 import {parseMissionM1Query} from "../app/ho/learning/missions/mission-m1-query";
 import {readWishDetailRoute,wishDetailUrl} from "./pls-wish-detail-route";
 import {validateAttributeDirectoryParams} from "./pap1841-attribute-directory-query";
@@ -71,17 +73,10 @@ export function safeHoReturnTo(raw: string | null | undefined): string | null {
       if(!state)return null;
       return parsed.pathname+(state.record?"?record="+encodeURIComponent(state.record):"");
     }
-    // PAP-2183: Product Plan preview return path is synthetic-only until M4.
+    // PAP-2365: real Product Plan record/tab; no preview selector.
     if(parsed.pathname===HO_PAGE_PATHS.productPlans){
-      const p=parsed.searchParams;
-      const keys=[...p.keys()].filter(k=>!ignoredTrackingKeys.has(k));
-      if(keys.some(k=>!["m1Preview","record"].includes(k))||p.getAll("m1Preview").length>1||(p.has("m1Preview")&&p.get("m1Preview")!=="1")||p.getAll("record").length>1)return null;
-      const record=p.get("record");
-      if(record!==null&&record!=="PRODUCT-PLAN-MOCK-001")return null;
-      const q=new URLSearchParams();
-      // Valid legacy selector normalizes to the canonical route.
-      if(record)q.set("record",record);
-      return parsed.pathname+(q.size?"?"+q.toString():"");
+      const state=parseProductPlanNavigation(parsed.searchParams);
+      return state?nativePlanUrl(state.record,state.tab):null;
     }
     // PAP-2373: only canonical native Role links survive session recovery.
     if(parsed.pathname===HO_PAGE_PATHS.roles){

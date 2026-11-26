@@ -1,6 +1,8 @@
 // PAP-2183 / PLT-PRODUCT-PLAN. Native typed HO schema; no real transport in M1.
 import {TddRegistry,type FieldSchema,type ModuleSchema,type ModuleRow,type TableQuery} from "@/lib/workspace-schema";
-import {productPlanBadges,type ProductPlanPreview} from "./product-plan-m1-preview";
+export const productPlanBadges = ["ENTRY","HERO","STANDARD"] as const;
+export type ProductPlanBadge=typeof productPlanBadges[number];
+type ProductPlanProjection={id:string;name:string;cadence:number;termWeeks:number;price:number;currency:"VND";badge:ProductPlanBadge;enabled:boolean;version:number;createdAt:string|null;createdBy:string|null;updatedAt:string|null;updatedBy:string|null};
 export const PLAN_READ="billing.view", PLAN_EDIT="billing.manage";
 const base={display:true,search:false,filter:false,sort:false,group:false,inlineEdit:false} as const;
 const searchable={...base,search:true,filter:true,sort:true} as const;
@@ -43,7 +45,7 @@ export const planDefinition={
 } as const satisfies ModuleSchema<PlanFields>;
 export const planRegistry=new TddRegistry();
 export const planSchema=planRegistry.register(planDefinition);
-export function projectPlan(p:ProductPlanPreview):ModuleRow<PlanFields>{
+export function projectPlan(p:ProductPlanProjection):ModuleRow<PlanFields>{
  return {id:p.id,name:p.name,cadence:p.cadence,termWeeks:p.termWeeks,
  price:p.price,badge:p.badge,enabled:p.enabled,createdAt:p.createdAt,createdBy:p.createdBy??"—",updatedAt:p.updatedAt,updatedBy:p.updatedBy??"—",planId:p.id,currency:p.currency,version:p.version};
 }

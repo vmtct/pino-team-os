@@ -49,21 +49,28 @@
       "file": "app/ho/billing/product-plans/page.tsx",
       "files": [
         "app/ho/billing/product-plans/page.tsx",
-        "app/ho/billing/product-plans/ProductPlanM1Content.tsx",
+        "app/ho/billing/product-plans/ProductPlanNativeContent.tsx",
         "app/ho/billing/product-plans/schema.ts",
-        "app/ho/billing/product-plans/product-plan-m1-preview.ts"
+        "app/ho/billing/product-plans/product-plan-native-binding.ts",
+        "app/ho/billing/product-plans/product-plan-native-contract.ts",
+        "app/ho/billing/product-plans/product-plan-stage-admission.ts",
+        "app/ho/billing/product-plans/product-plan-http-contract.ts",
+        "app/ho/billing/product-plans/product-plan-pending-journal.ts"
       ],
       "schema": {
-        "file": "app/ho/billing/product-plans/schema.ts",
-        "export": "planSchema"
+        "file": "app/ho/billing/product-plans/product-plan-native-binding.ts",
+        "export": "nativePlanSchema"
       },
       "binding": {
-        "file": "app/ho/billing/product-plans/ProductPlanM1Content.tsx"
+        "file": "app/ho/billing/product-plans/ProductPlanNativeContent.tsx"
       },
       "tests": [
         "lib/pap2183-product-plan-native.test.ts",
         "app/ho/billing/product-plans/product-plan-m1-preview.test.ts",
-        "lib/ho-routes.test.ts"
+        "lib/ho-routes.test.ts",
+        "app/ho/billing/product-plans/product-plan-stage-admission.test.ts",
+        "app/ho/billing/product-plans/product-plan-native-binding.test.ts",
+        "app/ho/billing/product-plans/product-plan-native-contract.test.ts"
       ],
       "externalReferences": [
         {

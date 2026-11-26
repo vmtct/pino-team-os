@@ -79,10 +79,10 @@ test("PAP-2395 canonical native Staff return-to rejects fixture and preserves re
  assert.equal(safeHoReturnTo("/ho/centers?m1Preview=1"),null);
  assert.equal(safeHoReturnTo(p+"?record=0198d050-56c1-7ac5-b9ab-b0e45d912345"),p+"?record=0198d050-56c1-7ac5-b9ab-b0e45d912345");
 });
-test("PAP-2183 Product Plans return path is HO-only and preserves the synthetic review ID",()=>{
- const path=HO_PAGE_PATHS.productPlans;
+test("PAP-2365 Product Plans return path is HO-only and preserves real record/tab",()=>{
+ const path=HO_PAGE_PATHS.productPlans,id="0199f000-0001-7000-8000-000000000001";
  assert.equal(path,"/ho/billing/product-plans");
- assert.equal(safeHoReturnTo(path+"?m1Preview=1&record=PRODUCT-PLAN-MOCK-001"),path+"?record=PRODUCT-PLAN-MOCK-001");
- for(const q of ["?m1Preview=0","?m1Preview=1&m1Preview=1","?record=0199f000-0001-7000-8000-000000000001","?record=ROLE-MOCK-001","?next=/bo"])assert.equal(safeHoReturnTo(path+q),null);
+ assert.equal(safeHoReturnTo(path+"?record="+id+"&tab=history&utm_source=chatgpt.com"),path+"?record="+id+"&tab=history");
+ for(const q of ["?m1Preview=0","?m1Preview=1","?m1Preview=1&m1Preview=1","?record=PRODUCT-PLAN-MOCK-001","?record=ROLE-MOCK-001","?record="+id+"&tab=history&tab=overview","?tab=subscriptions","?next=/bo"])assert.equal(safeHoReturnTo(path+q),null);
  for(const host of ["bo.staging.pinohouse.art","tos.staging.pinohouse.art","ho.pinohouse.art"])assert.equal(decideHostBoundary(host,path).action,"not_found");
 });
