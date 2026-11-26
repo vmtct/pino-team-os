@@ -5,7 +5,7 @@ const path="/bo/workforce/staffs";
 test("PAP-2411 view navigation retains Center and clears unrelated record",()=>{
   assert.equal(parseStaffsView("register"),"register");
   assert.equal(parseStaffsView("garbage"),"all");
-  assert.equal(staffDirectoryViewHref(path,"?centerId=center&record=old&tab=history","active"),path+"?centerId=center&view=active");
+  assert.equal(staffDirectoryViewHref(path,"?centerId=center&record=old&tab=history&surface=detail","active"),path+"?centerId=center&view=active");
   assert.equal(staffDirectoryViewHref(path,"?centerId=center&view=register","all"),path+"?centerId=center");
 });
 test("PAP-2411 never treats registration as directory rows",()=>{

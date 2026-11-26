@@ -20,3 +20,10 @@ test("PAP-2411 exact Staging GET/HEAD admission only",()=>{
   for(const invalid of [path+"/extra",path.replace("staffs","Staffs")])assert.equal(decideHostBoundary(BO_STAGING_HOSTNAME,invalid).action,"not_found");
   assert.equal(decideHostBoundary(BO_STAGING_HOSTNAME,path,"POST").action,"not_found");
 });
+
+test("PAP-2411 Full Detail is an exact record-bound navigation hint",()=>{
+ const expected=path+"?centerId="+center+"&view=active&record="+id+"&surface=detail";
+ assert.equal(canonicalStaffDirectoryRoute({centerId:center,view:"active",record:id,surface:"detail"}),expected);
+ assert.equal(safeBoStagingReturnTo(expected),expected);
+ for(const query of [{surface:"detail"},{record:id,surface:"drawer"},{record:id,surface:["detail","detail"]},{record:id,surface:"detail",view:"register"}])assert.equal(canonicalStaffDirectoryRoute(query),null);
+});

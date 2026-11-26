@@ -12,10 +12,12 @@ export function canonicalStaffDirectoryRoute(query: Query, legacy = false): stri
     if (typeof value !== "string") return null;
     if (key === "centerId" || key === "record") { if (!uuid.test(value)) return null; }
     else if (key === "view") { if (!views.has(value)) return null; }
+    else if (key === "surface") { if (value !== "detail") return null; }
     else return null;
     out.set(key,value);
   }
+  if (out.has("surface") && (!out.has("record") || out.get("view") === "register")) return null;
   const ordered = new URLSearchParams();
-  for (const key of ["centerId","view","record"]) if (out.has(key)) ordered.set(key,out.get(key)!);
+  for (const key of ["centerId","view","record","surface"]) if (out.has(key)) ordered.set(key,out.get(key)!);
   return STAFF_DIRECTORY_ROUTE + (ordered.size ? "?" + ordered.toString() : "");
 }

@@ -23,6 +23,7 @@ export function staffDirectoryViewHref(pathname: string, search: string, view: S
   const query = new URLSearchParams(search);
   query.delete("record");
   query.delete("tab");
+  query.delete("surface");
   if (view === "all") query.delete("view"); else query.set("view", view);
   return pathname + (query.size ? "?" + query.toString() : "");
 }
