@@ -1,10 +1,9 @@
 "use client";
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useMemo } from "react";
 import type { BoShellContext } from "@/lib/bo-shell-gate";
 import { BoRegistrationWorkspace, type BoWorkspaceSource } from "./BoRegistrationWorkspace";
-import { BoStaffsViews, parseStaffsView, staffDirectoryViewHref, type StaffsView } from "./BoStaffsViews";
+import { StaffDirectoryWorkspace } from "../../workforce/staffs/StaffDirectoryWorkspace";
 import { StaffRegistrationSection } from "../../staff/StaffRegistrationSection";
-import { staffDirectoryModule } from "../../workforce/staffs/staff-directory-model";
 import { unifiedBoWorkspaceSource } from "../../architecture/bo-unified-workspace-source";
 import { BoOperationalView } from "../../BoOperationalView";
 import dynamic from "next/dynamic";
@@ -71,51 +70,19 @@ function BoStaffsEntry({ currentUser, options }: {
   currentUser: Pick<BoShellContext, "displayName" | "email">;
   options: Record<string, string>;
 }) {
-  const [view, setView] = useState<StaffsView>(() => parseStaffsView(options.view));
-  useEffect(() => {
-    const sync = () => setView(parseStaffsView(new URLSearchParams(window.location.search).get("view")));
-    window.addEventListener("popstate", sync);
-    return () => window.removeEventListener("popstate", sync);
-  }, []);
-  const selectView = (next: StaffsView) => {
-    if (next === view) return;
-    const location = window.location;
-    window.history.pushState(null, "", staffDirectoryViewHref(location.pathname, location.search, next));
-    setView(next);
-  };
   const center = useBoCenterSelection();
-  const selected = center?.selected ?? "";
-  const scopedOptions = useMemo(() => ({ ...options, centerId: selected }), [options, selected]);
   const source = useMemo<BoWorkspaceSource>(() => ({
     ...unifiedBoWorkspaceSource,
-    modules: { ...unifiedBoWorkspaceSource.modules, staffs: staffDirectoryModule },
     isModuleReadOnly: (key) => key === "staffs" || unifiedBoWorkspaceSource.isModuleReadOnly?.(key) === true,
-    scopeLabel: (key, requestedOptions) => key === "staffs" && view === "register"
-      ? "Cơ sở đã chọn" : unifiedBoWorkspaceSource.scopeLabel(key, requestedOptions),
     async load(key, fetcher, requestedOptions) {
       if (key === "staffs") {
-        // PAP-1544 / PAP-1316: the legacy staff-records API is unscoped.
-        // Refuse all regular Staff directory tabs until Core exposes an
-        // independently authorized Center-bound read. Never client-filter PII.
-        throw Error("Danh sách nhân sự theo cơ sở tạm thời chưa khả dụng.");
+        // PAP-1544 / PAP-1316: legacy reader is unscoped. Preserve fail-closed.
+        throw Error("Danh s\u00e1ch nh\u00e2n s\u1ef1 theo c\u01a1 s\u1edf t\u1ea1m th\u1eddi ch\u01b0a kh\u1ea3 d\u1ee5ng.");
       }
       return unifiedBoWorkspaceSource.load(key, fetcher, requestedOptions);
     },
-  }), [view]);
-  const registrationContent = view === "register" ? <StaffsRegistrationContent view={view} onSelect={selectView} /> : undefined;
-  return <BoRegistrationWorkspace key={"staffs:" + view + ":" + selected} currentUser={currentUser}
-    source={source} moduleKey="staffs" options={scopedOptions}
-    content={registrationContent}
-    headerContent={<BoStaffsViews selected={view} onSelect={selectView} />} />;
-}
-
-function StaffsRegistrationContent({view,onSelect}: {view: StaffsView; onSelect: (view: StaffsView) => void}) {
-  const menu = useContext(TddHostMenu);
-  return <>
-    <div className="page-heading"><div className="page-heading-left">{menu("staff-register-menu-btn")}<h1>Nhân sự</h1></div></div>
-    <BoStaffsViews selected={view} onSelect={onSelect} />
-    <StaffRegistrationSection embedded />
-  </>;
+  }), []);
+  return <StaffDirectoryWorkspace currentUser={currentUser} options={options} centerId={center?.selected ?? ""} source={source} registration={<StaffRegistrationSection embedded />} />;
 }
 
 export function BoRuntimeEntry({ moduleKey, options }: { moduleKey: string; options: Record<string, string> }) {
