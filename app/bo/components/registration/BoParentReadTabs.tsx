@@ -2,6 +2,8 @@
 import { lazy, Suspense, useEffect, useState, type KeyboardEvent } from "react";
 import {useParentM1} from "@/app/bo/parents/parent-m1-context";
 import {PARENT_MOCK_CENTER} from "@/app/bo/parents/parent-m1-fixture";
+import {useParentLiveScope} from "@/app/bo/parents/parent-live-context";
+import {loadNativeParentLiveGrants,nativeParentUuid} from "@/app/bo/parents/parent-native-data";
 import { PropertySections } from "@/app/components/workspace-renderer/Properties";
 import { ParentCenterMultiSelect } from "@/app/bo/parents/ParentCenterMultiSelect";
 import { BoTypedEditor } from "./BoTypedEditor";
@@ -48,7 +50,7 @@ export function BoParentReadTabs({ module, record, fullDetail = false, canEditNa
   canEditName?: boolean; onSaveName?: (value: string) => Promise<void>;
   centerNames?: readonly string[];
 }) {
-  const fixture=useParentM1();
+  const fixture=useParentM1(),liveScope=useParentLiveScope();
   const [tab,setTab]=useState<ParentTab>("overview");
   // PAP-1814: native BO DSA name-only popover. Drawer remains read-only.
   const [edit,setEdit]=useState<{anchor: HTMLElement} | null>(null);
@@ -70,17 +72,20 @@ export function BoParentReadTabs({ module, record, fullDetail = false, canEditNa
     queueMicrotask(()=>{if(!controller.signal.aborted){setStatus("loading");setDetail(null);}});
     (async()=>{
       if(fixture){await Promise.resolve();const value=fixture.detail(PARENT_MOCK_CENTER,record.id);if(!controller.signal.aborted){setDetail(value);setStatus("ready");}return;}
-      const r=await fetch("/api/bo/identity/parents/"+encodeURIComponent(record.id)+"/detail",{
+      if(liveScope){if(!nativeParentUuid(record.id))throw Error("Invalid Parent ID");await loadNativeParentLiveGrants(liveScope,controller.signal);controller.signal.throwIfAborted();}
+      const query=liveScope?"?"+new URLSearchParams({centerId:liveScope.centerId}):"";
+      const r=await fetch("/api/bo/identity/parents/"+encodeURIComponent(record.id)+"/detail"+query,{
         method:"GET",credentials:"same-origin",cache:"no-store",redirect:"error",signal:controller.signal
       });
-      if(r.status===401||r.status===403||r.status===404){setStatus("permission");return;}
+      if(controller.signal.aborted)return;
+      if(r.status===401||r.status===403||r.status===404){setDetail(null);setStatus("permission");return;}
       if(!r.ok)throw Error("Parent detail read failed");
       const envelope=await r.json() as {data?:unknown};
       if(!valid(envelope.data,record.id))throw Error("Core Parent detail contract mismatch");
-      setDetail(envelope.data);setStatus("ready");
-    })().catch(()=>{if(!controller.signal.aborted)setStatus("error")});
+      if(!controller.signal.aborted){setDetail(envelope.data);setStatus("ready");}
+    })().catch(()=>{if(!controller.signal.aborted){setDetail(null);setStatus("error");}});
     return ()=>controller.abort();
-  },[record.id,retry,fixture]);
+  },[record.id,retry,fixture,liveScope]);
   function keydown(event:KeyboardEvent<HTMLButtonElement>,index:number){
     if(!["ArrowLeft","ArrowRight","Home","End"].includes(event.key))return;
     event.preventDefault();

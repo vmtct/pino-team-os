@@ -40,7 +40,18 @@ test("PAP-1543 / PAP-1316: canonical BO Parents never renders the unscoped direc
   // The replacement provider is server-attested, not a client-side filter.
   assert.match(data, /data\.scopeCenterId !== centerId/);
   assert.match(data, /new URLSearchParams\(\{ centerId, limit: "100", offset:/);
-  assert.match(native, /loadNativeParentContext\(centerId,ctl.signal\)/);
+  // PAP-2387/PAP-2389: live canonical route proves the same Center and actor before directory reads.
+  assert.match(native, /liveScope.centerId!==centerId/);
+  assert.match(native, /return loadNativeParentLiveGrants\(liveScope,signal\)/);
+  assert.match(native, /return loadNativeParentContext\(centerId,signal\)/);
+  assert.match(native, /reattest\(ctl.signal\).then\(value=>\{ctl.signal.throwIfAborted\(\);setGrants\(value\);return loadNativeParentDirectory\(centerId,ctl.signal\)/);
+  assert.match(data, /loadNativeParentContext\(scope.centerId,signal,fetcher,scope.actorId\)/);
+  assert.match(data, /raw.userId !== expectedActorId/);
+  assert.match(data, /scopes.centers.some\(c => c.id === centerId\)/);
+  const entry = readFileSync("app/bo/parents/ParentStagingEntry.tsx", "utf8");
+  assert.match(entry, /loadNativeParentLiveGrants\(scope,ctl.signal\)/);
+  assert.match(entry, /<ParentLiveScope.Provider value=\{scope\}>/);
+  assert.doesNotMatch(entry, /ParentStagingFixtureProvider|ParentM1Provider/);
   assert.match(native, /loadNativeParentDirectory\(centerId,ctl.signal\)/);
   assert.doesNotMatch(native, /TddRegistry|SurfaceWorkspace|createBoTddAdapter|TddRenderer|ParentTdd/);
 
