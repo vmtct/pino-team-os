@@ -3,10 +3,12 @@ import assert from "node:assert/strict";
 import {STAFF_PHASE_ONE_ENABLED,staffPhaseOneRoute,parseStaffPhaseOneQuery,invalidStaffPhaseOneRequest} from "../app/ho/staff/staff-phase-one-route";
 import {safeHoReturnTo} from "./ho-routes";
 const host="ho.staging.pinohouse.art",id="019a0000-0000-7000-8000-000000000003";
-test("PAP-2395 phase1 deployment switch remains off until Core readback",()=>{
- assert.equal(STAFF_PHASE_ONE_ENABLED,false);
- assert.equal(staffPhaseOneRoute("staging",host,{}),"disabled");
- assert.equal(staffPhaseOneRoute("staging",host,{record:id}),"disabled");
+test("PAP-2395 phase1 enabled after official MIG-0210 readback, only Staging",()=>{
+ assert.equal(STAFF_PHASE_ONE_ENABLED,true);
+ assert.equal(staffPhaseOneRoute("staging",host,{}),"native");
+ assert.equal(staffPhaseOneRoute("staging",host,{record:id}),"native");
+ assert.equal(staffPhaseOneRoute("staging",host,{record:id},false),"disabled");
+ assert.equal(staffPhaseOneRoute("production",host,{}),"disabled");
 });
 test("PAP-2395 native canonical route accepts only staging HO and real record state",()=>{
  for(const query of [{},{record:id},{record:id,utm_source:"chatgpt.com"}])assert.equal(staffPhaseOneRoute("staging",host,query,true),"native");

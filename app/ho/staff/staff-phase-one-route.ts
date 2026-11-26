@@ -1,6 +1,6 @@
 // PAP-2395 / WFM-STAFF. Server-owned deployment switch, never a URL or client flag.
-// Enable only after the amended record-only Core contract is officially served.
-export const STAFF_PHASE_ONE_ENABLED=false;
+// PAP-2392 #51166: Core ddaf664d / MIG-0210 officially served; Staging only.
+export const STAFF_PHASE_ONE_ENABLED=true;
 type Query=Record<string,string|string[]|undefined>;
 const tracking=new Set(["utm_source","utm_medium","utm_campaign","utm_term","utm_content"]);
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;

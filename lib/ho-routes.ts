@@ -56,13 +56,7 @@ export function safeHoReturnTo(raw: string | null | undefined): string | null {
       const state=parseStaffPhaseOneQuery(parsed.searchParams);
       return state?parsed.pathname+(state.record?"?record="+encodeURIComponent(state.record):""):null;
     }
-    // PAP-2353: normalize the retired Staff M1 review marker, never grant admission here.
-    if (parsed.pathname === HO_PAGE_PATHS.staffs && parsed.searchParams.has("m1Preview")) {
-      const markers = parsed.searchParams.getAll("m1Preview");
-      const records = parsed.searchParams.getAll("record");
-      if (markers.length !== 1 || markers[0] !== "1" || records.length > 1 || (records.length === 1 && !/^STAFF-MOCK-[0-9]{3,}$/.test(records[0]!))) return null;
-      parsed.searchParams.delete("m1Preview");
-    }
+
     // PAP-2371: canonical real record state, independently authorized by the page.
     if(parsed.pathname===HO_PAGE_PATHS.learningSpaces){
       const state=parseLiveSpaceQuery(parsed.searchParams);
