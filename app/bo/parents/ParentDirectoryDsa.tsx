@@ -2,6 +2,7 @@
 import { NativeCustomAttributeValues } from "@/app/components/custom-attributes/NativeCustomAttributeValues";
 import { CustomAttributeProperties } from "@/app/components/custom-attributes/CustomAttributeProperties";
 import {useParentM1,useParentM1Grants} from "./parent-m1-context";
+import {useParentLiveScope} from "./parent-live-context";
 import {parentMockId,PARENT_MOCK_CENTER} from "./parent-m1-fixture";
 /** PAP-1814 · Epic PAP-1384 / SCH-PARENTS-GUARDIANS.
  * Native BO DSA Parent Table → Quick Drawer → Full Detail.
@@ -22,7 +23,7 @@ import { DetailFrame } from "@/app/components/workspace-renderer/DetailFrame";
 import { defaultTable, type BoRecord, type BoTableState } from "@/lib/bo-registration";
 import { ParentCreateDrawer } from "./ParentCreateDrawer";
 import { parentNativeModule } from "./parent-native-model";
-import { loadNativeParentContext, loadNativeParentDirectory, nativeParentUuid,
+import { loadNativeParentContext, loadNativeParentLiveGrants, loadNativeParentDirectory, nativeParentUuid,
   saveNativeParentName, type NativeParentRow } from "./parent-native-data";
 
 const initial = (): BoTableState => ({ ...defaultTable(parentNativeModule.fields), pageSize: 15 });
@@ -54,7 +55,11 @@ export function ParentDirectoryDsa() {
 }
 function ScopedParents({centerId,centerName,menu}:{centerId:string;centerName?:string;menu?:React.ReactNode}) {
   // PAP-2387 / SCH-PARENTS-GUARDIANS: reuse the BO navigation language.
-  const fixture=useParentM1(),fixtureGrants=useParentM1Grants();
+  const fixture=useParentM1(),fixtureGrants=useParentM1Grants(),liveScope=useParentLiveScope();
+  const reattest=useCallback((signal:AbortSignal)=>{
+    if(liveScope){if(liveScope.centerId!==centerId)return Promise.reject(Error("Parent Center scope changed"));return loadNativeParentLiveGrants(liveScope,signal);}
+    return loadNativeParentContext(centerId,signal);
+  },[centerId,liveScope]);
   const language=useContext(PinoNavLocaleContext)?.language??"vi";
   const title=pinoLocalizedLabel("bo","Module Title","parents",parentNativeModule.label,language);
   const createLabel=language==="vi"?"+ Phụ huynh":"+ Parent";
@@ -84,16 +89,16 @@ function ScopedParents({centerId,centerName,menu}:{centerId:string;centerName?:s
   useEffect(()=>{
     const ctl=new AbortController();
     queueMicrotask(()=>{if(!ctl.signal.aborted){setAuthorized(false);setError("");}});
-    void (fixture?Promise.resolve(fixtureGrants??new Set<string>()):loadNativeParentContext(centerId,ctl.signal)).then(value=>{
+    void (fixture?Promise.resolve(fixtureGrants??new Set<string>()):reattest(ctl.signal)).then(value=>{
       if(!ctl.signal.aborted){setGrants(value);setAuthorized(true);}
-    }).catch(cause=>{if(!ctl.signal.aborted){setStatus("error");setError(readableError(cause));}});
+    }).catch(cause=>{if(!ctl.signal.aborted){setStatus("error");setError(readableError(cause));setGrants(new Set());setRows([]);setDrawer(null);setDetail(null);setCreating(false);}});
     return()=>ctl.abort();
-  },[centerId,fixture,fixtureGrants]);
+  },[centerId,fixture,fixtureGrants,reattest]);
   useEffect(()=>{
     if(!authorized)return;
     const ctl=new AbortController();
     queueMicrotask(()=>{if(!ctl.signal.aborted)setStatus("loading");});
-    void (fixture?Promise.resolve().then(()=>fixture.list(centerId)):loadNativeParentDirectory(centerId,ctl.signal)).then(value=>{
+    void (fixture?Promise.resolve().then(()=>fixture.list(centerId)):reattest(ctl.signal).then(value=>{ctl.signal.throwIfAborted();setGrants(value);return loadNativeParentDirectory(centerId,ctl.signal);})).then(value=>{
       if(ctl.signal.aborted)return;
       setRows(value);setStatus("ready");setError("");
       const target=new URL(window.location.href).searchParams.get("record");
@@ -102,10 +107,10 @@ function ScopedParents({centerId,centerName,menu}:{centerId:string;centerName?:s
         if(match&&!selectionOpen.current){selectionOpen.current=true;setDrawer(match);}
         else if(!match)setError("Parent không tồn tại hoặc không thuộc cơ sở được cấp quyền.");
       }else if(target&&fixture)setError("M1 chỉ hiển thị dữ liệu mẫu; bản ghi thật không được tải.");
-    }).catch(cause=>{if(!ctl.signal.aborted){setRows([]);setStatus("error");setError(readableError(cause));}});
+    }).catch(cause=>{if(!ctl.signal.aborted){setRows([]);setGrants(new Set());setDrawer(null);setDetail(null);setCreating(false);selectionOpen.current=false;setStatus("error");setError(readableError(cause));}});
     return()=>ctl.abort();
   // A write refresh must never silently switch Center or broaden Directory scope.
-  },[centerId,authorized,refresh,fixture]);
+  },[centerId,authorized,refresh,fixture,reattest]);
   useEffect(()=>{
     const onBack=()=>{
       const id=new URL(window.location.href).searchParams.get("record");
@@ -134,7 +139,8 @@ function ScopedParents({centerId,centerName,menu}:{centerId:string;centerName?:s
     const ctl=new AbortController();
     mutations.current?.abort();mutations.current=ctl;
     // Recheck Core actor/Center before attempting name-only PATCH.
-    const current=fixture?grants:await loadNativeParentContext(centerId,ctl.signal);
+    const current=fixture?grants:await reattest(ctl.signal);
+    ctl.signal.throwIfAborted();
     const actual=fixture?fixture.rename(centerId,detail.id,value,Number(detail.version)):await saveNativeParentName(centerId,detail,value,current,ctl.signal);
     if(ctl.signal.aborted)return;
     setGrants(current);setRows(list=>list.map(r=>r.id===actual.id?actual:r));

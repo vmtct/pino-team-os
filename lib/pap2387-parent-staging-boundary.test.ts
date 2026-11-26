@@ -2,26 +2,34 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {canonicalParentRoute} from "../app/bo/parents/parent-route";
-import {loadNativeParentContext} from "../app/bo/parents/parent-native-data";
-test("PAP-2387 canonical M1-B retains exact synthetic and legacy real navigation hints",()=>{
- assert.equal(canonicalParentRoute({record:"PARENT-MOCK-001"}),"/bo/parents?record=PARENT-MOCK-001");
- assert.equal(canonicalParentRoute({record:"PARENT-MOCK-002",centerId:"01a0b29a-3acd-7a18-a0f2-cf6016548ab5"}),"/bo/parents?centerId=01a0b29a-3acd-7a18-a0f2-cf6016548ab5&record=PARENT-MOCK-002");
- for(const record of ["PARENT-MOCK-1","PARENT-MOCK-001/other","LEAD-MOCK-001","PARENT-MOCK-000000000000000000000000000000"])assert.equal(canonicalParentRoute({record}),null);
+import {loadNativeParentContext,loadNativeParentLiveGrants} from "../app/bo/parents/parent-native-data";
+import {parentCreateMayEdit} from "../app/bo/parents/parent-create-retry";
+test("PAP-2387 live canonical rejects synthetic IDs including legacy links",()=>{
+ for(const record of ["PARENT-MOCK-001","PARENT-MOCK-002","PARENT-MOCK-1","PARENT-MOCK-001/other","LEAD-MOCK-001"]){
+  assert.equal(canonicalParentRoute({record}),null);assert.equal(canonicalParentRoute({module:"parents",record},true),null);
+ }
 });
-test("PAP-2387 Staging review uses actual server actor and Center permissions, not local synthetic grants",()=>{
- const page=readFileSync("app/bo/parents/page.tsx","utf8"),entry=readFileSync("app/bo/parents/ParentStagingEntry.tsx","utf8"),native=readFileSync("app/bo/parents/ParentDirectoryDsa.tsx","utf8");
- assert.ok(page.includes('env.APP_ENV!=="staging"'));
- assert.ok(page.includes("await authorizeBoShell"));
- assert.ok(page.includes('actor.permissionKeys.includes("identity.parent_directory.view")'));
- assert.ok(entry.includes("user.email!==actorEmail"));
- assert.ok(entry.includes("center.centers.some(c=>c.id===selected)"));
- assert.ok(entry.includes("loadNativeParentContext(centerId,ctl.signal,fetch,actorId)"));
- assert.ok(entry.includes('canCreate&&grants.has("identity.parent.create")'));
- assert.ok(entry.includes('canEdit&&grants.has("identity.parent.edit")'));
- assert.ok(entry.includes('load:async()=>{throw Error("Parent M1-B has no record transport")'));
- assert.ok(entry.includes("content={<ParentDirectoryDsa/>}"));
- assert.ok(native.includes("fixture?Promise.resolve(fixtureGrants??new Set<string>())"));
- assert.ok(native.includes("centerId={fixture?PARENT_MOCK_CENTER:id}"));
+test("PAP-2387 staging mounts scoped live renderer only",()=>{
+ const entry=readFileSync("app/bo/parents/ParentStagingEntry.tsx","utf8"),native=readFileSync("app/bo/parents/ParentDirectoryDsa.tsx","utf8"),tabs=readFileSync("app/bo/components/registration/BoParentReadTabs.tsx","utf8"),create=readFileSync("app/bo/parents/ParentCreateDrawer.tsx","utf8");
+ assert.ok(entry.includes("loadNativeParentLiveGrants(scope,ctl.signal)"));assert.ok(entry.includes("<ParentLiveScope.Provider value={scope}>"));
+ assert.ok(entry.includes("content={<ParentDirectoryDsa/>}"));assert.doesNotMatch(entry,/ParentStagingFixtureProvider|ParentM1Provider|ephemeral:true/);
+ assert.ok(native.includes("return loadNativeParentDirectory(centerId,ctl.signal)"));assert.ok(native.includes("liveScope.centerId!==centerId"));
+ assert.ok(tabs.includes("new URLSearchParams({centerId:liveScope.centerId})"));
+ assert.ok(create.includes("parentCreateMayEdit(previouslyUncertain,true)"));assert.ok(create.includes("if(uncertainRef.current)return"));
+});
+test("PAP-2387 uncertainty stays locked after preflight or rejection on retry",()=>{
+ for(const prior of [false,true])for(const definite of [false,true])assert.equal(parentCreateMayEdit(prior,definite),!prior&&definite);
+});
+test("PAP-2387 intersect server and fresh scoped grants, reject changed actor or Center",async()=>{
+ const center="01a0b29a-3acd-7a18-a0f2-cf6016548ab5",other="01a0b29a-3acd-7a18-a0f2-cf6016548ab6",signal=new AbortController().signal;
+ const scope={centerId:center,actorId:"actor",canCreate:true,canEdit:false};
+ const make=(actor:string,id:string,permissions:string[]):typeof fetch=>async(input,opts)=>{assert.equal(opts?.method,"GET");const url=String(input);const data=url==="/api/bo/context"?{surface:"BO",entitled:true,userId:actor,permissionKeys:permissions}:url==="/api/bo/centers"?[{id,displayName:"Sample"}]:null;assert.ok(data);return new Response(JSON.stringify({data}));};
+ const view=["team.bo.access","identity.parent_directory.view"],both=[...view,"identity.parent.create","identity.parent.edit"];
+ assert.deepEqual([...(await loadNativeParentLiveGrants(scope,signal,make("actor",center,both)))],["identity.parent.create"]);
+ assert.deepEqual([...(await loadNativeParentLiveGrants(scope,signal,make("actor",center,view)))],[]);
+ await assert.rejects(()=>loadNativeParentLiveGrants(scope,signal,make("other",center,both)));
+ await assert.rejects(()=>loadNativeParentLiveGrants(scope,signal,make("actor",other,both)));
+ await assert.rejects(()=>loadNativeParentLiveGrants(scope,signal,make("actor",center,["team.bo.access"])));
 });
 
 test("PAP-2387 scope proof fails closed on actor mismatch, missing grants or wrong Center",async()=>{
