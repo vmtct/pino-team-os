@@ -116,6 +116,7 @@ export async function openNativeDraftSession(centerId:string,centerSource:Center
   };
   return {...binding,controller,userId:principal.userId,submitReview,diaryComposer,diaryUpload,
    workflowRead,
+   compoundPending:async (s:AbortSignal)=>{s.throwIfAborted();if(!canMedia(false))throw new CoreDraftRequestError(403);return journal.read(compoundScope)!==null;},
    workflow,
    canSubmit,
    canCompose,
