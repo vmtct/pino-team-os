@@ -1,9 +1,10 @@
 "use client";
-import { createContext, useContext, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { BoShellContext } from "@/lib/bo-shell-gate";
 import { BoRegistrationWorkspace, type BoWorkspaceSource } from "./BoRegistrationWorkspace";
-import { BoStaffsViews, type StaffsView } from "./BoStaffsViews";
+import { BoStaffsViews, parseStaffsView, staffDirectoryViewHref, type StaffsView } from "./BoStaffsViews";
 import { StaffRegistrationSection } from "../../staff/StaffRegistrationSection";
+import { staffDirectoryModule } from "../../workforce/staffs/staff-directory-model";
 import { unifiedBoWorkspaceSource } from "../../architecture/bo-unified-workspace-source";
 import { BoOperationalView } from "../../BoOperationalView";
 import dynamic from "next/dynamic";
@@ -70,12 +71,24 @@ function BoStaffsEntry({ currentUser, options }: {
   currentUser: Pick<BoShellContext, "displayName" | "email">;
   options: Record<string, string>;
 }) {
-  const [view, setView] = useState<StaffsView>("all");
+  const [view, setView] = useState<StaffsView>(() => parseStaffsView(options.view));
+  useEffect(() => {
+    const sync = () => setView(parseStaffsView(new URLSearchParams(window.location.search).get("view")));
+    window.addEventListener("popstate", sync);
+    return () => window.removeEventListener("popstate", sync);
+  }, []);
+  const selectView = (next: StaffsView) => {
+    if (next === view) return;
+    const location = window.location;
+    window.history.pushState(null, "", staffDirectoryViewHref(location.pathname, location.search, next));
+    setView(next);
+  };
   const center = useBoCenterSelection();
   const selected = center?.selected ?? "";
   const scopedOptions = useMemo(() => ({ ...options, centerId: selected }), [options, selected]);
   const source = useMemo<BoWorkspaceSource>(() => ({
     ...unifiedBoWorkspaceSource,
+    modules: { ...unifiedBoWorkspaceSource.modules, staffs: staffDirectoryModule },
     isModuleReadOnly: (key) => key === "staffs" || unifiedBoWorkspaceSource.isModuleReadOnly?.(key) === true,
     scopeLabel: (key, requestedOptions) => key === "staffs" && view === "register"
       ? "Cơ sở đã chọn" : unifiedBoWorkspaceSource.scopeLabel(key, requestedOptions),
@@ -89,11 +102,11 @@ function BoStaffsEntry({ currentUser, options }: {
       return unifiedBoWorkspaceSource.load(key, fetcher, requestedOptions);
     },
   }), [view]);
-  const registrationContent = view === "register" ? <StaffsRegistrationContent view={view} onSelect={setView} /> : undefined;
+  const registrationContent = view === "register" ? <StaffsRegistrationContent view={view} onSelect={selectView} /> : undefined;
   return <BoRegistrationWorkspace key={"staffs:" + view + ":" + selected} currentUser={currentUser}
     source={source} moduleKey="staffs" options={scopedOptions}
     content={registrationContent}
-    headerContent={<BoStaffsViews selected={view} onSelect={setView} />} />;
+    headerContent={<BoStaffsViews selected={view} onSelect={selectView} />} />;
 }
 
 function StaffsRegistrationContent({view,onSelect}: {view: StaffsView; onSelect: (view: StaffsView) => void}) {

@@ -15,6 +15,18 @@ export const STAFFS_VIEWS: readonly { key: StaffsView; label: string }[] = [
   { key: "deactivated", label: "Ngưng hoạt động" },
 ];
 
+export function parseStaffsView(value: string | undefined | null): StaffsView {
+  return STAFFS_VIEWS.find(view => view.key === value)?.key ?? "all";
+}
+
+export function staffDirectoryViewHref(pathname: string, search: string, view: StaffsView): string {
+  const query = new URLSearchParams(search);
+  query.delete("record");
+  query.delete("tab");
+  if (view === "all") query.delete("view"); else query.set("view", view);
+  return pathname + (query.size ? "?" + query.toString() : "");
+}
+
 export function staffsViewRows(rows: readonly BoRecord[], view: StaffsView): BoRecord[] {
   if (view === "register") {
     // Registration data is ONLY admissible through an explicitly Center-scoped
