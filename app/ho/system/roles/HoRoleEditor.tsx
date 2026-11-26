@@ -1,8 +1,9 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { PropertySections, TosCard, TosButton, type PropertyField } from "@pino/design-system/react";
+import { PropertySections, PropertyEditor, TosCard, TosButton, type PropertyField } from "@pino/design-system/react";
 import type { BoAccessPermission, BoAccessRoleDetail } from "@/lib/bo-access-model";
 import { boApi } from "@/lib/bo-api";
+import {PropertySections as NativePropertySections,type OverviewProperties} from "@/app/components/workspace-renderer/Properties";
 import {verifiedExistingRoleEdit} from "./role-editor-receipt";
 import {ArchiveCustomRoleAction} from "./RoleLifecycleForms";
 import {canArchiveRole,verifyArchivedRole} from "./role-lifecycle-model";
@@ -58,8 +59,10 @@ type Draft = { displayName: string; description: string; keys: string[] };
 const sorted = (keys: readonly string[]) => [...new Set(keys)].sort();
 const same = (a: readonly string[], b: readonly string[]) => JSON.stringify(sorted(a)) === JSON.stringify(sorted(b));
 
-async function loadRole(roleId: string, signal: AbortSignal): Promise<Ready> {
-  const fetcher: typeof fetch = (input,init) => fetch(input,{...init,signal});
+export type RolePresentationTransport={fetcher:typeof fetch;idempotencyKey:()=>string;synthetic?:true};
+const liveRoleTransport:RolePresentationTransport={fetcher:(input,init)=>fetch(input,init),idempotencyKey:()=>crypto.randomUUID()};
+async function loadRole(roleId: string, signal: AbortSignal, transport:RolePresentationTransport): Promise<Ready> {
+  const fetcher: typeof fetch = (input,init) => transport.fetcher(input,{...init,signal});
   const [role,permissionsResponse] = await Promise.all([
     boApi.accessRole(roleId,fetcher),
     fetcher("/api/bo/access/permissions",{method:"GET",cache:"no-store",credentials:"same-origin",redirect:"error"}),
@@ -80,8 +83,8 @@ function fromRole(role:BoAccessRoleDetail):Draft {
   return {displayName:role.displayName,description:role.description??"",keys:sorted(role.permissionKeys)};
 }
 /** HO-specific editing surface; TDD owns navigation, DS owns cards and property rows. */
-export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, onSaved, archiveAuthorized=false, metadataAuthorized=false, metadataFence }: {
-  roleId:string; assignmentCount:number; authorized:boolean; activeTab:string; onSaved:()=>void; archiveAuthorized?:boolean; metadataAuthorized?:boolean; metadataFence?:ReturnType<typeof createRoleMetadataFence>;
+export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, onSaved, archiveAuthorized=false, metadataAuthorized=false, metadataFence, nativeOverview, transport=liveRoleTransport }: {
+  roleId:string; assignmentCount:number; authorized:boolean; activeTab:string; onSaved:()=>void; archiveAuthorized?:boolean; metadataAuthorized?:boolean; metadataFence?:ReturnType<typeof createRoleMetadataFence>; nativeOverview?:OverviewProperties; transport?:RolePresentationTransport;
 }) {
   const [data,setData]=useState<Ready|null>(null);
   const [draft,setDraft]=useState<Draft|null>(null);
@@ -97,12 +100,16 @@ export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, o
   const lock=useRef(false);
   const [metadataPending,setMetadataPending]=useState(false);
   const [metadataBlocked,setMetadataBlocked]=useState(false);
+  const [nativeSelection,setNativeSelection]=useState<{field:"name"|"description";anchor:HTMLElement;version:string}|null>(null);
+  const [nativeLabelWidth,setNativeLabelWidth]=useState(160);
+  const [selectionTab,setSelectionTab]=useState(activeTab);
+  if(selectionTab!==activeTab){setSelectionTab(activeTab);setNativeSelection(null);}
   const latestMetadataRead=useRef<Ready|null>(null);
   const metadataClient=useRef<ReturnType<typeof createRoleMetadataClient>|null>(null);
   useEffect(()=>{
     const controller=new AbortController();
     setLoading(true);setError("");setNotice("");setData(null);setDraft(null);setMetadataBlocked(false);
-    void loadRole(roleId,controller.signal).then(value=>{
+    void loadRole(roleId,controller.signal,transport).then(value=>{
       if(controller.signal.aborted)return;
       setData(value);setDraft(fromRole(value.role));setLoading(false);
     }).catch(cause=>{
@@ -110,7 +117,7 @@ export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, o
       setError(cause instanceof Error?cause.message:"Không thể tải Role.");setLoading(false);
     });
     return ()=>controller.abort();
-  },[roleId]);
+  },[roleId,transport]);
   const original=data?.role;
   const editable=Boolean(authorized && !metadataBlocked && original?.roleType==="custom" &&
     original.status==="active" && original.roleKey!=="founder");
@@ -161,22 +168,22 @@ export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, o
       const current=original;
       const wanted={displayName:name,description:draft.description.trim()||null,
         permissionKeys:sorted(draft.keys),expectedUpdatedAt:current.updatedAt};
-      const response=await fetch("/api/ho/system/roles/"+encodeURIComponent(roleId)+"/update",{
+      const response=await transport.fetcher("/api/ho/system/roles/"+encodeURIComponent(roleId)+"/update",{
         method:"POST",credentials:"same-origin",cache:"no-store",redirect:"error",
-        headers:{"content-type":"application/json","idempotency-key":crypto.randomUUID()},
+        headers:{"content-type":"application/json","idempotency-key":transport.idempotencyKey()},
         body:JSON.stringify(wanted),
       });
       if(response.status===409)throw Error("Role đã được cập nhật bởi phiên khác. Tải lại Role trước khi tiếp tục.");
       if([401,403,404].includes(response.status))throw Error("Không đủ quyền sửa Role hoặc Role không còn khả dụng.");
       if(!response.ok)throw Error("Không lưu được Role. Vui lòng kiểm tra lại.");
       const controller=new AbortController();
-      const next=await loadRole(roleId,controller.signal);
+      const next=await loadRole(roleId,controller.signal,transport);
       if(!verifiedExistingRoleEdit(current,wanted,next.role))
         throw Error("Core đã nhận yêu cầu nhưng chưa xác nhận được dữ liệu mới. Vui lòng tải lại Role.");
       setData(next);setDraft(fromRole(next.role));setConfirming(false);
       // Refresh the canonical TDD record/directory only after authoritative Core readback.
       onSaved();
-      setNotice("Đã lưu và xác minh Role trên Core.");
+      setNotice(transport.synthetic?"Đã cập nhật dữ liệu mô phỏng.":"Đã lưu và xác minh Role trên Core.");
     }catch(cause){setError(cause instanceof Error?cause.message:"Không lưu được Role.");}
     finally{setBusy(false);lock.current=false;}
   }
@@ -190,18 +197,18 @@ export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, o
     try{
       const client=metadataClient.current??(metadataClient.current=createRoleMetadataClient({
         read:async(id,readSignal)=>{
-          const next=await loadRole(id,readSignal);
+          const next=await loadRole(id,readSignal,transport);
           latestMetadataRead.current=next;
           return next.role;
         },
-        fetcher:(input,init)=>fetch(input,init),
-        idempotencyKey:()=>crypto.randomUUID(),
+        fetcher:transport.fetcher,
+        idempotencyKey:transport.idempotencyKey,
       },metadataFence));
       const result=await client(request,signal);
       const next=latestMetadataRead.current as Ready|null;
       if(result.status==="saved"&&!signal.aborted&&next!==null&&next.role===result.receipt){
         setData(next);setDraft(fromRole(next.role));setConfirming(false);
-        setNotice("Role metadata verified on Core.");
+        setNotice(transport.synthetic?"Đã cập nhật dữ liệu mô phỏng.":"Role metadata verified on Core.");
         return {status:"saved",value:key==="name"?next.role.displayName:next.role.description};
       }
       if(result.status==="uncertain"||result.status==="saved"||result.status==="conflict"){
@@ -217,23 +224,27 @@ export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, o
       expectedUpdatedAt!==original.updatedAt||!canArchiveRole(original))throw Error("Role archive unavailable");
     lock.current=true;setBusy(true);setError("");setNotice("");
     try{
-      const response=await fetch("/api/ho/system/roles/"+encodeURIComponent(id)+"/archive",{
+      const response=await transport.fetcher("/api/ho/system/roles/"+encodeURIComponent(id)+"/archive",{
         method:"POST",credentials:"same-origin",cache:"no-store",redirect:"error",
-        headers:{"content-type":"application/json","idempotency-key":crypto.randomUUID()},
+        headers:{"content-type":"application/json","idempotency-key":transport.idempotencyKey()},
         body:JSON.stringify({expectedUpdatedAt}),
       });
       if(response.status!==200)throw Error("Role archive not verified");
       const payload:unknown=await response.json();
       if(!payload||typeof payload!=="object"||!("data" in payload)||!verifyArchivedRole(original,payload.data))
         throw Error("Role archive not verified");
-      const next=await loadRole(id,new AbortController().signal);
+      const next=await loadRole(id,new AbortController().signal,transport);
       if(!verifyArchivedRole(original,next.role))throw Error("Role archive readback mismatch");
       setData(next);setDraft(fromRole(next.role));setConfirming(false);onSaved();
       return next.role;
     }finally{lock.current=false;setBusy(false);}
   }
-  if(loading)return <p role="status">Đang tải chi tiết và danh mục quyền…</p>;
-  if(!data||!draft)return <p role="alert">{error||"Không tải được Role."}</p>;
+  const nativeRead=nativeOverview&&activeTab==="overview"?<NativePropertySections {...nativeOverview} variant="detail"/>:null;
+  if(loading)return <>{nativeRead}<p role="status">Đang tải chi tiết và danh mục quyền…</p></>;
+  if(!data||!draft)return <>{nativeRead}<p role="alert">{error||"Không tải được Role."}</p></>;
+  const nativeRecord=nativeOverview?{...nativeOverview.record,name:data.role.displayName,description:data.role.description??"",
+    roleType:data.role.roleType,status:data.role.status,roleKey:data.role.roleKey,
+    permissionCount:data.role.permissionCount,assignmentCount:data.role.assignmentCount,updatedAt:data.role.updatedAt}:undefined;
   const identityFields:PropertyField[]=[
     {key:"roleKey",label:"Role Key",type:"text",readOnly:true},
     {key:"roleId",label:"Role ID",type:"text",readOnly:true},
@@ -242,8 +253,21 @@ export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, o
     {key:"assignmentCount",label:"Số phân công",type:"number",readOnly:true},
   ];
   return <div className="ho-role-editor" data-testid="ho-role-editor" data-role-tab={activeTab}>
-    <div className="ho-role-overview" hidden={activeTab!=="overview"}>
+    <div className={nativeOverview?"ho-role-native-overview":"ho-role-overview"} hidden={activeTab!=="overview"}>
 
+    {nativeOverview&&nativeRecord?<>
+      <NativePropertySections {...nativeOverview} record={nativeRecord} variant="detail"
+        labelWidth={nativeLabelWidth} onLabelWidthChange={setNativeLabelWidth}
+        canEdit={field=>canCommitMetadata&&(field.key==="name"||field.key==="description")}
+        onEdit={(field,anchor)=>{if(canCommitMetadata&&(field.key==="name"||field.key==="description"))
+          setNativeSelection({field:field.key,anchor,version:data.role.updatedAt});}}/>
+      {nativeSelection&&activeTab==="overview"?<PropertyEditor
+        field={{key:nativeSelection.field,label:nativeOverview.fields.find(f=>f.key===nativeSelection.field)?.label??nativeSelection.field,type:nativeSelection.field==="name"?"text":"textarea",required:nativeSelection.field==="name"}}
+        value={nativeSelection.field==="name"?data.role.displayName:data.role.description??""} anchor={nativeSelection.anchor} surface="ho"
+        canEdit={()=>canCommitMetadata&&nativeSelection.version===data.role.updatedAt}
+        onCommit={(value,options)=>nativeSelection.version===data.role.updatedAt?commitMetadata(nativeSelection.field,value,options):Promise.resolve({status:"conflict" as const})}
+        onClose={()=>setNativeSelection(null)} onSaved={()=>{setNativeSelection(null);onSaved();}}/>:null}
+    </>:<>
     <TosCard className="ho-role-card">
       <section aria-label="Chỉnh sửa thông tin Role">
         {metadataAuthorized?<PropertySections recordKey={roleId}
@@ -275,6 +299,7 @@ export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, o
     }} sections={[{id:"role-identity",label:"Thông tin kỹ thuật",fields:identityFields.map(f=>f.key)}]}
       variant="detail" surface="ho" />
     </div>
+    </>}
     {archiveAuthorized&&original?<ArchiveCustomRoleAction role={original} label={original.displayName} onArchive={!dirty&&!busy&&!metadataBlocked?archiveReviewed:undefined}/>:null}
     </div>
     <div hidden={activeTab!=="permissions"}>
@@ -346,7 +371,7 @@ export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, o
       <div className="ho-role-confirm-actions"><TosButton variant="secondary" type="button" onClick={()=>setConfirming(false)}>Quay lại</TosButton>
       <TosButton variant="primary" type="button" disabled={busy} onClick={()=>void save()}>Xác nhận lưu</TosButton></div>
     </div></TosCard>:null}
-    <div className="ho-role-actions">
+    <div className="ho-role-actions" hidden={Boolean(nativeOverview)&&activeTab!=="permissions"}>
       <TosButton type="button" variant="secondary" disabled={!dirty||busy}
         onClick={()=>{setDraft(fromRole(data.role));setConfirming(false);setError("");}}>Hủy thay đổi</TosButton>
       {!confirming?<TosButton type="button" variant="primary"
