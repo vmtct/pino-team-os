@@ -5,10 +5,12 @@ import type { BoRecord } from "@/lib/bo-registration";
 import { BoApiError } from "@/lib/bo-api-error";
 import { readMissionHistory } from "@/lib/mission-history";
 import { loadMissionPathChoices, type MissionPathChoice } from "./mission-path-options";
+import { missionCategories } from "./mission-category";
 
 const read = { display: true, search: true, filter: true, sort: true, group: true, inlineEdit: false } as const;
 const permission = "catalog.learning.view";
 export const missionFields = [
+  { key: "category", label: "Category", type: "select", icon: "◉", width: 172, permission, readOnly: true as boolean, options: missionCategories, capabilities: { ...read, inlineEdit: false as boolean } },
   { key: "name", label: "Nhiệm vụ", type: "text", icon: "Aa", width: 235, permission, readOnly: true, capabilities: read },
   { key: "code", label: "Mã", type: "text", icon: "#", width: 145, permission, readOnly: true, capabilities: read },
   { key: "level", label: "Cấp độ", type: "number", icon: "#", width: 115, permission, readOnly: true, capabilities: read },
@@ -36,7 +38,7 @@ export const missionQuery: TableQuery<F> = {
 };
 export const missionDefinition = {
   version: 1, classification: "TDD_DEFAULT", surface: "HO", key: "missions", label: "Mission", group: "Learning",
-  fields: missionFields, capabilities: { read: permission, create: "learning.mission.manage", edit: "learning.mission.manage", history: "learning.mission.manage" },
+  fields: missionFields.slice(1) as unknown as F, capabilities: { read: permission, create: "learning.mission.manage", edit: "learning.mission.manage", history: "learning.mission.manage" },
   actions: [
     { id: "mission-open-create", label: "Tạo mới", slot: "table.header", variant: "primary", capability: "create", handler: "openCreate" },
     { id: "mission-open-edit", label: "Chỉnh sửa", slot: "detail.header", variant: "secondary", capability: "edit", handler: "openEdit" },
@@ -66,6 +68,34 @@ export const missionDefinition = {
   },
 } as const satisfies SurfaceDefinition<F>;
 
+// PAP-2394 — expanded native presentation. Live source stays on the
+// accepted query until the approved M2 category contract is integrated.
+export const missionCategoryColumnKeys = ["name", "code", "category", ...missionTableColumnKeys.slice(2)] as const;
+export const missionCategoryQuery: TableQuery<F> = { ...missionQuery, order: missionCategoryColumnKeys, visible: missionCategoryColumnKeys };
+export const missionInlineTableFields = ["name","code","category","level","plsValue","path"] as const;
+export const missionInlineFields = [...missionInlineTableFields,"description","guideline"] as const;
+export const missionCategoryPropertyKeys = [...missionCategoryColumnKeys.slice(0,7),"description","guideline",...missionCategoryColumnKeys.slice(7)] as const;
+const previewFieldEdits: Readonly<Partial<Record<F[number]["key"],Partial<FieldSchema>>>> = {
+ name:{required:true,validation:{minLength:1,maxLength:160}},
+ code:{required:true,validation:{minLength:2,maxLength:64}},
+ category:{required:true},
+ level:{required:true,validation:{min:1,max:5,integer:true}},
+ plsValue:{required:true,validation:{min:0,max:Number.MAX_SAFE_INTEGER,integer:true}},
+ path:{type:"select",icon:"◉",required:true,options:["Artchitect","PianoHouse","Little Piner Art","Little Piner Piano"]},
+ description:{type:"textarea",validation:{maxLength:4000}},
+ guideline:{type:"textarea",validation:{maxLength:8000}},
+};
+export const missionCategoryDefinition: SurfaceDefinition<F> = {
+  ...missionDefinition,
+  fields: missionFields.map(field=>previewFieldEdits[field.key]?{...field,...previewFieldEdits[field.key],readOnly:false,capabilities:{...read,inlineEdit:true}}:field) as unknown as F,
+  table: { ...missionDefinition.table, columns: missionCategoryColumnKeys.map(field => ({field,visible:true})),
+    filters: { ...missionDefinition.table.filters, fields: ["category", ...missionDefinition.table.filters.fields] },
+    sort: { ...missionDefinition.table.sort, fields: [...missionDefinition.table.sort.fields,"category"] },
+    group: { ...missionDefinition.table.group, fields: ["category",...missionDefinition.table.group.fields] },
+    inlineEdit: {enabled:true,fields:missionInlineTableFields} },
+  drawer: {...missionDefinition.drawer,sections:[{id:"mission-summary",label:"Nhiệm vụ",fields:missionCategoryPropertyKeys}]},
+  detail: {...missionDefinition.detail,overview:{sections:[{id:"mission-data",label:"Nhiệm vụ",fields:missionCategoryPropertyKeys}]}}
+};
 export const missionUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function assertCoreMission(value: unknown): void {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new BoApiError(502, "Mission source không hợp lệ.", null);
@@ -115,7 +145,7 @@ function project(raw: BoRecord, paths: readonly MissionPathChoice[] = []): Modul
     throw new BoApiError(502, "Mission catalog không đúng contract.", null);
   }
   return {
-    id: String(raw.id), name: String(raw.name), code: String(raw.code),
+    id: String(raw.id), category: null, name: String(raw.name), code: String(raw.code),
     level: typeof raw.level === "number" && raw.level > 0 ? raw.level : null,
     status: String(raw.status), plsValue: typeof raw.plsValue === "number" ? raw.plsValue : 0,
     paperSize: typeof raw.paperSize === "string" ? raw.paperSize : null,

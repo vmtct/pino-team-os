@@ -78,9 +78,13 @@ test("PAP-1207 S5 Path validation fails closed on stale, missing or mismatched C
 test("PAP-1207 S5 both Create/Edit acquire fresh Core Path before mutation; status cannot be changed by Edit", () => {
   const source = readFileSync("app/ho/learning/missions/HoMissionsTdd.tsx", "utf8");
   assert.match(source, /if \(mode === null\) return;/);
-  assert.match(source, /const invalid = validateMissionCreate\(draft\) \|\|\s+validateMissionSelectedPath\(draft, pathChoices\)/);
+  assert.match(source, /const invalid = validateMissionCreate\(draft,\s*boundary\.preview\) \|\|\s+validateMissionSelectedPath\(draft, pathChoices\)/);
   assert.match(source, /if \(mode === "create" \|\| mode === "edit"\)/);
-  assert.match(source, /const fresh = await loadMissionPathChoices\(\)/);
+  assert.match(source, /const fresh = await boundary\.paths\(\)/);
+  assert.match(source, /paths:signal=>loadMissionPathChoices\(fetch,signal\)/);
+  assert.match(source, /submit:command=>submitHoMission\(command\)/);
+  assert.ok(source.indexOf("const fresh = await boundary.paths()") < source.indexOf("const result = await boundary.submit(command)"), "fresh Path validation must precede dispatch");
+  assert.match(source, /const changed = validateMissionSelectedPath\(draft, fresh\);\s*if \(changed\) \{ setFormError\(changed\); return \{ state: "invalid" as const \}; \}/);
   assert.match(source, /editTarget\.status !== draft\.status/);
   assert.match(source, /kind: "update"[\s\S]*expectedVersion: editTarget!\.version/);
   assert.match(source, /result\.state === "unverified"/);
