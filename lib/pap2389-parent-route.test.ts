@@ -19,5 +19,5 @@ test("PAP-2389 direct page uses existing native Parent runtime and staging fence
   const page=readFileSync("app/bo/parents/page.tsx","utf8");
   assert.match(page,/boSkeletonEnabled\(env,host\)/);
   assert.match(page,/canonicalParentRoute\(query\)/);
-  assert.match(page,/BoRuntimeEntry moduleKey="parents"/);
+  assert.match(page,/<ParentStagingEntry actorId=\{actor.userId\}/);
 });

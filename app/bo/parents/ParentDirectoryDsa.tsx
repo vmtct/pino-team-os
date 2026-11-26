@@ -1,8 +1,8 @@
 "use client";
 import { NativeCustomAttributeValues } from "@/app/components/custom-attributes/NativeCustomAttributeValues";
 import { CustomAttributeProperties } from "@/app/components/custom-attributes/CustomAttributeProperties";
-import {useParentM1} from "./parent-m1-context";
-import {parentMockId} from "./parent-m1-fixture";
+import {useParentM1,useParentM1Grants} from "./parent-m1-context";
+import {parentMockId,PARENT_MOCK_CENTER} from "./parent-m1-fixture";
 /** PAP-1814 · Epic PAP-1384 / SCH-PARENTS-GUARDIANS.
  * Native BO DSA Parent Table → Quick Drawer → Full Detail.
  * No TDD registry/controller/surface adapter; Core owns scope and writes.
@@ -41,7 +41,7 @@ function readableError(cause:unknown) {
 }
 
 export function ParentDirectoryDsa() {
-  const center=useBoCenterSelection(), menu=useContext(BoApplicationShellContext);
+  const center=useBoCenterSelection(), menu=useContext(BoApplicationShellContext),fixture=useParentM1();
   const id=center && !center.loading && !center.error ? center.selected : "";
   useEffect(()=>{document.title="Parents & Guardians · PINO BO";},[]);
   return <section aria-label="Parents & Guardians" data-parent-native-dsa="PAP-1814">
@@ -49,13 +49,13 @@ export function ParentDirectoryDsa() {
       center.loading ? <p role="status">Đang xác thực cơ sở…</p> :
       center.error ? <p role="alert">{center.error}</p> :
       !id ? <p role="status">Chọn cơ sở được cấp quyền để xem Parent.</p> :
-      <ScopedParents key={id+":"+center.source} centerId={id}
-        centerName={center.centers.find(x=>x.id===id)?.displayName} menu={menu?.("menu-btn")}/>}
+      <ScopedParents key={id+":"+center.source} centerId={fixture?PARENT_MOCK_CENTER:id}
+        centerName={fixture?"Cần Thơ · Mẫu":center.centers.find(x=>x.id===id)?.displayName} menu={menu?.("menu-btn")}/>}
   </section>;
 }
 function ScopedParents({centerId,centerName,menu}:{centerId:string;centerName?:string;menu?:React.ReactNode}) {
   // PAP-2387 / SCH-PARENTS-GUARDIANS: reuse the BO navigation language.
-  const fixture=useParentM1();
+  const fixture=useParentM1(),fixtureGrants=useParentM1Grants();
   const language=useContext(PinoNavLocaleContext)?.language??"vi";
   const title=pinoLocalizedLabel("bo","Module Title","parents",parentNativeModule.label,language);
   const createLabel=language==="vi"?"+ Phụ huynh":"+ Parent";
@@ -85,11 +85,11 @@ function ScopedParents({centerId,centerName,menu}:{centerId:string;centerName?:s
   useEffect(()=>{
     const ctl=new AbortController();
     queueMicrotask(()=>{if(!ctl.signal.aborted){setAuthorized(false);setError("");}});
-    void (fixture?Promise.resolve(new Set(["identity.parent.create","identity.parent.edit"])):loadNativeParentContext(centerId,ctl.signal)).then(value=>{
+    void (fixture?Promise.resolve(fixtureGrants??new Set<string>()):loadNativeParentContext(centerId,ctl.signal)).then(value=>{
       if(!ctl.signal.aborted){setGrants(value);setAuthorized(true);}
     }).catch(cause=>{if(!ctl.signal.aborted){setStatus("error");setError(readableError(cause));}});
     return()=>ctl.abort();
-  },[centerId,fixture]);
+  },[centerId,fixture,fixtureGrants]);
   useEffect(()=>{
     if(!authorized)return;
     const ctl=new AbortController();
@@ -102,7 +102,7 @@ function ScopedParents({centerId,centerName,menu}:{centerId:string;centerName?:s
         const match=value.find(x=>x.id===target);
         if(match&&!selectionOpen.current){selectionOpen.current=true;setDrawer(match);}
         else if(!match)setError("Parent không tồn tại hoặc không thuộc cơ sở được cấp quyền.");
-      }
+      }else if(target&&fixture)setError("M1 chỉ hiển thị dữ liệu mẫu; bản ghi thật không được tải.");
     }).catch(cause=>{if(!ctl.signal.aborted){setRows([]);setStatus("error");setError(readableError(cause));}});
     return()=>ctl.abort();
   // A write refresh must never silently switch Center or broaden Directory scope.
