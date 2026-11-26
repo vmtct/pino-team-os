@@ -8,7 +8,7 @@ for (const path of ["Escape", "Full Detail Back", "Reload then Back"] as const) 
   test(`PAP-1184 ${path} restores Parent row focus after asynchronous Table refresh`, async ({ page }) => {
     page.on("pageerror", error => console.log("fixture page error:", error.message));
     await page.route("**/*", route => route.fulfill({ contentType: "text/html", body: `<div id="root"></div><script>${bundle}</script>` }));
-    await page.goto("https://bo.staging.pinohouse.art/bo?module=parents&pilot=tdd");
+    await page.goto("https://bo.staging.pinohouse.art/bo/parents");
     const opener = page.getByRole("row", { name: "Mở Quick View Parent fixture" });
     await opener.focus();
     await opener.press("Enter");
@@ -31,7 +31,7 @@ for (const path of ["Escape", "Full Detail Back", "Reload then Back"] as const) 
 
 test("PAP-1184 Table-only sort keeps focus on its own control", async ({ page }) => {
   await page.route("**/*", route => route.fulfill({ contentType: "text/html", body: `<div id="root"></div><script>${bundle}</script>` }));
-  await page.goto("https://bo.staging.pinohouse.art/bo?module=parents&pilot=tdd");
+  await page.goto("https://bo.staging.pinohouse.art/bo/parents");
   const opener = page.getByRole("row", { name: "Mở Quick View Parent fixture" });
   await opener.focus();
   await opener.press("Enter");

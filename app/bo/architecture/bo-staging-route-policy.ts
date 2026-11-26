@@ -4,6 +4,7 @@ import {nativePayrollModule} from "@/lib/bo-native-payroll-route";
 export const boStagingAdmittedRoutes = new Set([
   "/bo/running-classes",
   "/bo/missions",
+  "/bo/parents",
   "/bo/bills",
   "/bo/workforce-shift-plans",
   "/bo/workforce-availability",
