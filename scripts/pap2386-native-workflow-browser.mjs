@@ -63,6 +63,26 @@ try{
   (result.clipboard??=[]).push({sourceMime:mime,outputMime:copied.type,width:copied.width,height:copied.height,decodedPixelMatch:true,postWrites:0,sink:"isolated browser ClipboardItem"});
   await page.context().close();
  }
+ const thumbPage=await isolatedPage(browser,1440);diagnosticPage=thumbPage;
+ await thumbPage.goto(origin+"/bo/piner-posts?thumbPages",{waitUntil:"domcontentloaded"});
+ const diary=thumbPage.getByRole("region",{name:"Diary nguồn",exact:true});
+ await thumbPage.waitForFunction(()=>[...document.querySelectorAll('img[alt="Ảnh xem trước Diary"]')].filter(i=>i.complete&&i.naturalWidth===96).length===3);
+ assert.equal(await diary.getByRole("checkbox").count(),4);assert(await diary.getByRole("checkbox").nth(1).isDisabled());
+ await diary.getByRole("button",{name:"Xem ảnh gốc"}).first().click();
+ const source=diary.getByRole("region",{name:"Ảnh gốc Diary",exact:true});
+ await thumbPage.waitForFunction(()=>[...document.querySelectorAll('img[alt^="Ảnh nguồn "]')].filter(i=>i.complete&&i.naturalWidth===96).length===5);
+ const reads=()=>thumbPage.locator("html").getAttribute("data-qa-diary-reads").then(JSON.parse);
+ assert(!(await reads()).some(p=>p.includes("000000000008/photos")||p.endsWith("/01900000-0000-7000-8000-000000000044")));
+ await source.getByRole("button",{name:"Ảnh 1",exact:true}).click();await source.getByRole("img",{name:"Ảnh gốc Diary đã xác minh"}).waitFor();
+ await source.getByRole("navigation",{name:"Trang ảnh nguồn"}).getByRole("button",{name:"Sau"}).click();
+ await thumbPage.waitForFunction(()=>{const i=document.querySelector('img[alt="Ảnh nguồn 6"]');return i?.complete&&i.naturalWidth===96;});
+ assert.equal(await source.getByRole("img",{name:"Ảnh gốc Diary đã xác minh"}).count(),0);assert.equal(await source.getByRole("button",{name:"Ảnh 1",exact:true}).count(),0);
+ assert((await reads()).some(p=>p.endsWith("/01900000-0000-7000-8000-000000000044")));
+ await diary.getByRole("navigation",{name:"Trang Diary nguồn"}).getByRole("button",{name:"Sau"}).click();
+ await thumbPage.waitForFunction(()=>[...document.querySelectorAll('img[alt="Ảnh xem trước Diary"]')].filter(i=>i.complete&&i.naturalWidth===96).length===3);
+ assert.equal(await diary.getByRole("checkbox").count(),3);assert.equal(await source.count(),0);assert(!(await reads()).some(p=>p.includes("000000000008/photos")));
+ await thumbPage.screenshot({path:resolve(out,"diary-thumbnail-page.png"),fullPage:true});
+ await thumbPage.context().close();result.diaryThumbs={visibleDiaryPages:[4,3],photoPages:[5,1],decoded:true,usedReads:0,oldSelectionCleared:true};
  result.pass=true;
 }catch(e){result.pass=false;result.error=String(e);result.pageErrors=pageErrors;if(diagnosticPage&&!diagnosticPage.isClosed()){result.syntheticText=(await diagnosticPage.locator("body").innerText()).slice(0,2000);await diagnosticPage.screenshot({path:resolve(out,"failure.png"),fullPage:true});}process.exitCode=1;}
 finally{if(browser){await browser.close();result.browserClosed=true;}result.networkMode="offline route fulfill only";await writeFile(resolve(out,"result.json"),JSON.stringify(result,null,2));console.log(JSON.stringify(result));}
