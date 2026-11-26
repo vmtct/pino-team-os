@@ -94,3 +94,20 @@ test("PAP-2288 only Core child stale rejection projects exact no-commit proof",a
  const recovery=await handleLeadHousehold(req("POST",suffix+"/recovery",{action:"contacted",key,expectedVersion:1}),real);
  assert.deepEqual(await recovery.json(),{error:{code:"ACQUISITION_STALE_VERSION"}});
 });
+test("PAP-2288 manual BFF projects exact initial no-commit proof only",async()=>{
+ const {env}=fixture();
+ const input={centerId:id,phone:"0900032402",sourceBrand:"PINO_HOUSE",intentKind:"GENERAL_INQUIRY",childAge:null};
+ const proof={centerId:id,key,outcome:"NOT_COMMITTED"};
+ const make=(data:unknown):LeadHouseholdEnv=>({...env,PINO_BO_CORE:{async executeWithStaffPassword(request,token){
+  if(request.path==="context")return env.PINO_BO_CORE.executeWithStaffPassword!(request,token);
+  return {status:422,requestId:"qa",body:{data}};
+ }}});
+ const r=await handleLeadHousehold(req("POST","/manual-intake",input),make(proof));
+ assert.equal(r.status,422);assert.deepEqual(await r.json(),{data:proof});
+ for(const bad of [{...proof,phone:"private"},{...proof,key:"different"},{...proof,centerId:"bad"}]){
+  const r=await handleLeadHousehold(req("POST","/manual-intake",input),make(bad));
+  assert.equal(r.status,502);assert.deepEqual(await r.json(),{error:{code:"LEAD_MANUAL_INTAKE_RESPONSE_INVALID"}});
+ }
+ const recovery=await handleLeadHousehold(req("POST","/manual-intake/recovery",{centerId:id,key}),make(proof));
+ assert.equal(recovery.status,422);assert.deepEqual(await recovery.json(),{error:{code:"LEAD_REQUEST_FAILED"}});
+});

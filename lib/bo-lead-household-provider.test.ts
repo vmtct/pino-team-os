@@ -169,3 +169,15 @@ test("PAP-2288 manual visible receipt requires fresh authorized detail, missing 
  assert.equal((await f.recoverManual()).detail?.id,id);assert.equal(j.inspect().state,"empty");assert.equal(writes,1);assert.equal(lookups,4);
  j.begin(command(),key);assert.throws(()=>j.beginManual(child,key));
 });
+test("PAP-2288 definitive manual rejection releases only exact initial tuple, no resend or recovery-based clear",async()=>{
+ const {ManualIntakeDefinitiveRejection}=await import("./bo-lead-manual-intake-api");
+ const s=memoryStorage(),j=new LeadRecoveryJournal(s,id),keys=["8fbaea47-bcdc-4c50-8ca5-2b6335e4ebee","8fbaea47-bcdc-4c50-8ca5-2b6335e4ebef"];
+ let writes=0,lookups=0;
+ const raw={centerId:child,phone:"0900032402",sourceBrand:"TOPPI",intentKind:"OPEN_STUDIO",childAge:null} as const;
+ const manual={centers:async()=>[],submit:async (_input:unknown,key:string)=>{writes++;throw new ManualIntakeDefinitiveRejection(child,writes===1?key:keys[0]!,null);},recover:async()=>{lookups++;throw new ManualIntakeDefinitiveRejection(child,keys[1]!,null);}};
+ const f=new LeadCommandFence(api(),()=>keys[writes]!,j,undefined,undefined,manual);
+ await assert.rejects(f.submitManual(raw),ManualIntakeDefinitiveRejection);
+ assert.equal(f.state,"idle");assert.equal(j.inspect().state,"empty");assert.equal(writes,1);assert.equal(lookups,0);
+ await assert.rejects(f.submitManual(raw));assert.equal(f.state,"recovery_blocked");assert.equal(j.inspect().state,"manual_unknown");
+ await assert.rejects(f.recoverManual());assert.equal(j.inspect().state,"manual_unknown");assert.equal(writes,2);assert.equal(lookups,1);
+});

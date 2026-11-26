@@ -6,7 +6,7 @@ export interface LeadHouseholdEnv extends TeamAccessEnv {APP_ENV?:string;PINO_BO
 import {leadHouseholdRoute} from "./bo-lead-household-route";
 import {parseLeadRecoveryInput,parseLeadRecoveryReceipt,type LeadRecoveryInput} from "./bo-lead-recovery-api";
 import {intentRejectionProof,isIntentAction,parseIntentCommand,parseIntentRecovery,parseIntentReceipt,type IntentAction,type IntentTarget} from "./bo-lead-intent-api";
-import {parseManualIntake,parseManualIntakeRecovery,parseManualIntakeReceipt,parseManualCenters} from "./bo-lead-manual-intake-api";
+import {parseManualIntake,parseManualIntakeRecovery,parseManualIntakeReceipt,parseManualCenters,parseManualRejection} from "./bo-lead-manual-intake-api";
 const root="/api/bo/";
 const versionFields=["expectedVersion"];
 class BadInput extends Error{}
@@ -81,6 +81,12 @@ export async function handleLeadHousehold(request:Request,env:LeadHouseholdEnv):
  if(!actor||actor.userId!==expectedActor||actor.surface!=="BO"||actor.entitled!==true)return fail(403,"LEAD_ACTOR_CHANGED",context.requestId);
  const result=await callBoAccessCoreWithCredential(env.PINO_BO_CORE,core,credential);
  // Never forward upstream diagnostic message or raw user input in errors.
+ if(manual==="submit"&&result.status===422&&manualCenter&&core.idempotencyKey){
+  const raw=result.body as {data?:unknown}|null;
+  const proof=parseManualRejection(raw?.data,manualCenter,core.idempotencyKey);
+  if(!proof)return fail(502,"LEAD_MANUAL_INTAKE_RESPONSE_INVALID",result.requestId);
+  return json(422,{data:proof},result.requestId);
+ }
  if(result.status>=400){const code=(result.body as {error?:{code?:unknown}}|null)?.error?.code;if(intentInput&&!intentInput.recovery&&result.status===409&&code==="ACQUISITION_STALE_VERSION"&&core.idempotencyKey)return json(409,{error:intentRejectionProof(intentInput.target,intentInput.action,intentInput.expectedVersion,core.idempotencyKey)},result.requestId);return fail(result.status,typeof code==="string"&&/^[A-Z][A-Z0-9_]{0,100}$/.test(code)?code:"LEAD_REQUEST_FAILED",result.requestId);}
  if(manual){
  const body=result.body as {data?:unknown}|null;

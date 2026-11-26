@@ -57,6 +57,12 @@ export class LeadRecoveryJournal{
   const observed=this.inspect();
   if(observed.state!=="manual_unknown"||JSON.stringify(observed.entry)!==JSON.stringify(entry))throw new Error("LEAD_RECOVERY_WRITE_FAILED");
  }
+ rejectManualInitial(centerId:string,key:string):void{
+  const current=this.inspect();
+  if(current.state!=="manual_unknown"||current.entry.centerId!==centerId||current.entry.key!==key)throw new Error("LEAD_RECOVERY_KEY_MISMATCH");
+  this.storage.removeItem(this.slot);
+  if(this.inspect().state!=="empty")throw new Error("LEAD_RECOVERY_CLEAR_FAILED");
+ }
  completeManualReadback(entry:ManualEntry,receipt:ManualIntakeReceipt,detail:Pick<LeadDetail,"id">|null):void{
   const current=this.inspect(),valid=parseManualIntakeReceipt(receipt,entry.centerId);
   if(current.state!=="manual_unknown"||JSON.stringify(current.entry)!==JSON.stringify(entry)||!valid||(valid.leadId===null?detail!==null:detail?.id!==valid.leadId))throw new Error("LEAD_RECOVERY_READBACK_INVALID");

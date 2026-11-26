@@ -33,3 +33,16 @@ test("PAP-2288 manual intake same actor lifetime, exact paths and key-free recov
  const bad=createLeadManualIntakeApi(async()=>Response.json({data:{...receipt,centerId:c}},{status:201}));
  await assert.rejects(bad.submit(input,key));
 });
+test("PAP-2288 only exact initial manual 422 proof is definitive",async()=>{
+ const {ManualIntakeDefinitiveRejection}=await import("./bo-lead-manual-intake-api");
+ const proof={centerId:a,key,outcome:"NOT_COMMITTED"};
+ const exactApi=createLeadManualIntakeApi(async()=>Response.json({data:proof},{status:422}));
+ await assert.rejects(exactApi.submit(input,key),e=>e instanceof ManualIntakeDefinitiveRejection&&e.centerId===a&&e.key===key);
+ await assert.rejects(exactApi.recover({centerId:a,key}),e=>!(e instanceof ManualIntakeDefinitiveRejection));
+ for(const data of [{...proof,key:"other-synthetic-key"},{...proof,centerId:b},{...proof,phone:"private"},{...proof,outcome:"UNKNOWN"}]){
+  const api=createLeadManualIntakeApi(async()=>Response.json({data},{status:422}));
+  await assert.rejects(api.submit(input,key),e=>!(e instanceof ManualIntakeDefinitiveRejection));
+ }
+ const generic=createLeadManualIntakeApi(async()=>Response.json({error:{code:"INVALID"}},{status:400}));
+ await assert.rejects(generic.submit(input,key),e=>!(e instanceof ManualIntakeDefinitiveRejection));
+});

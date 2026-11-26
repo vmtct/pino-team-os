@@ -1,5 +1,5 @@
 "use client";
-import {parseManualIntake,type ManualIntakeInput,type ManualIntakeCenter,type ManualIntakeReceipt,type createLeadManualIntakeApi} from "@/lib/bo-lead-manual-intake-api";
+import {ManualIntakeDefinitiveRejection,parseManualIntake,type ManualIntakeInput,type ManualIntakeCenter,type ManualIntakeReceipt,type createLeadManualIntakeApi} from "@/lib/bo-lead-manual-intake-api";
 import type {LeadRecoveryJournal} from "./lead-recovery-journal";
 import type {createLeadIntentApi,IntentAction} from "@/lib/bo-lead-intent-api";
 import type {LeadRecoveryInput,LeadRecoveryReceipt} from "@/lib/bo-lead-recovery-api";
@@ -175,8 +175,11 @@ export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi,rec
         if(readModel.selected.id===detail.id){await readModel.select(detail.id);if(readModel.selected.phase==="ready")await readModel.openHistory();}
       }
       setCommandNotice(detail?"Đã ghi nhận lượt tiếp nhận.":"Đã ghi nhận lượt tiếp nhận. Lead không nằm trong phạm vi xem hiện tại.");
-    }catch{
-      setCommandNotice("Chưa xác định kết quả tiếp nhận. Kiểm tra kết quả trước khi gửi yêu cầu mới.");
+    }catch(error){
+      if(error instanceof ManualIntakeDefinitiveRejection&&commandFence.state==="idle"){
+        setManualOpen(false);
+        setCommandNotice("Yêu cầu chưa được ghi. Mở lại tiếp nhận thủ công để kiểm tra Center và thông tin trước khi gửi yêu cầu mới.");
+      }else setCommandNotice("Chưa xác định kết quả tiếp nhận. Kiểm tra kết quả trước khi gửi yêu cầu mới.");
     }finally{commandBusyRef.current=false;setCommandBusy(false);refreshRead();}
   }
   function submitHistoryIntent(intent:LeadIntent,action:IntentAction,reason?:string):Promise<boolean>{

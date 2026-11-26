@@ -8,6 +8,13 @@ function exact(v:Record<string,unknown>,keys:string[]){return Object.keys(v).len
 export type ManualIntakeInput={centerId:string;phone:string;sourceBrand:"PINO_HOUSE"|"TOPPI";intentKind:"OPEN_STUDIO"|"PROGRAM_INTEREST"|"GENERAL_INQUIRY";childAge:number|null};
 export type ManualIntakeRecovery={centerId:string;key:string};
 export type ManualIntakeReceipt={centerId:string;intentId:string;leadId:string|null;status:"SUBMITTED"};
+export class ManualIntakeDefinitiveRejection extends LeadApiError{
+ constructor(readonly centerId:string,readonly key:string,requestId:string|null){super(422,"LEAD_MANUAL_INTAKE_NOT_COMMITTED",requestId);}
+}
+export function parseManualRejection(v:unknown,centerId:string,key:string){
+ if(!obj(v)||!exact(v,["centerId","key","outcome"])||!canonical(centerId)||!opaque(key)||v.centerId!==centerId||v.key!==key||v.outcome!=="NOT_COMMITTED")return null;
+ return {centerId,key,outcome:"NOT_COMMITTED" as const};
+}
 export type ManualIntakeCenter={id:string;displayName:string};
 export function parseManualIntake(v:unknown):ManualIntakeInput|null{
  if(!obj(v)||!exact(v,["centerId","phone","sourceBrand","intentKind","childAge"])||!canonical(v.centerId)||typeof v.phone!=="string"||v.phone.length>40||v.sourceBrand!=="PINO_HOUSE"&&v.sourceBrand!=="TOPPI"||v.intentKind!=="OPEN_STUDIO"&&v.intentKind!=="PROGRAM_INTEREST"&&v.intentKind!=="GENERAL_INQUIRY"||v.childAge!==null&&(typeof v.childAge!=="number"||!Number.isSafeInteger(v.childAge)||v.childAge<2||v.childAge>17))return null;
@@ -36,6 +43,11 @@ export function createLeadManualIntakeApi(fetcher:typeof fetch=fetch){
  async function send(path:string,method:"GET"|"POST",expected:number,body?:ManualIntakeInput|ManualIntakeRecovery,key?:string){
   const r=await fetcher(root+path,{method,credentials:"same-origin",cache:"no-store",...(body?{headers:{"content-type":"application/json",...(key?{"idempotency-key":key}:{})},body:JSON.stringify(body)}:{})});
   const requestId=r.headers.get("x-request-id");
+  if(path==="manual-intake"&&method==="POST"&&r.status===422&&body&&key){
+   let proof:unknown;try{const raw:unknown=await r.json();proof=obj(raw)&&exact(raw,["data"])?raw.data:null;}catch{proof=null;}
+   if(parseManualRejection(proof,body.centerId,key))throw new ManualIntakeDefinitiveRejection(body.centerId,key,requestId);
+   throw new LeadApiError(502,"LEAD_MANUAL_INTAKE_RESPONSE_INVALID",requestId);
+  }
   if(!r.ok)throw new LeadApiError(r.status,"LEAD_MANUAL_INTAKE_REQUEST_FAILED",requestId);
   if(r.status!==expected)throw new LeadApiError(502,"LEAD_MANUAL_INTAKE_RESPONSE_INVALID",requestId);
   let value:unknown;try{const raw:unknown=await r.json();value=obj(raw)?raw.data:null;}catch{throw new LeadApiError(502,"LEAD_MANUAL_INTAKE_RESPONSE_INVALID",requestId);}

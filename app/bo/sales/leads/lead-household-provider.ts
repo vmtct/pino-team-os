@@ -3,7 +3,7 @@ import {createLeadHouseholdApi,LeadApiError,newLeadCommandKey,type LeadDetail,ty
 import type {LeadRecoveryJournal,IntentEntry,RejectedIntentEntry} from "./lead-recovery-journal";
 import {parseLeadRecoveryInput,parseLeadRecoveryReceipt,type LeadRecoveryInput,type LeadRecoveryReceipt} from "@/lib/bo-lead-recovery-api";
 import {IntentDefinitiveRejection,parseIntentCommand,type IntentTarget,type IntentAction,type IntentCommandInput,type createLeadIntentApi} from "@/lib/bo-lead-intent-api";
-import {parseManualIntake,parseManualIntakeReceipt,type ManualIntakeInput,type ManualIntakeReceipt,type createLeadManualIntakeApi} from "@/lib/bo-lead-manual-intake-api";
+import {ManualIntakeDefinitiveRejection,parseManualIntake,parseManualIntakeReceipt,type ManualIntakeInput,type ManualIntakeReceipt,type createLeadManualIntakeApi} from "@/lib/bo-lead-manual-intake-api";
 type ManualResult={receipt:ManualIntakeReceipt;detail:LeadDetail|null};
 export type LeadHouseholdApi=ReturnType<typeof createLeadHouseholdApi>;
 export function presentLeadRow(row:LeadRow){
@@ -132,10 +132,18 @@ export class LeadCommandFence{
   this.createResult=null;this.phase="pending";
   try{
    this.journal.beginManual(input.centerId,key);
-   await this.manualApi.submit(input,key);
-   this.phase="recovery_blocked";
-   return await this.recoverManual();
   }catch(error){this.phase="recovery_blocked";throw error;}
+  try{
+   await this.manualApi.submit(input,key);
+  }catch(error){
+   this.phase="recovery_blocked";
+   if(error instanceof ManualIntakeDefinitiveRejection&&error.centerId===input.centerId&&error.key===key){
+    this.journal.rejectManualInitial(input.centerId,key);this.phase="idle";
+   }
+   throw error;
+  }
+  this.phase="recovery_blocked";
+  return this.recoverManual();
  }
  async recoverManual():Promise<ManualResult>{
   if(!this.canRecoverManual||!this.manualApi||!this.journal)throw new LeadApiError(409,"LEAD_RECOVERY_NOT_READY",null);
