@@ -13,6 +13,12 @@ type RequestRow={id:string;centerId:string;displayLabel:string;submittedAt:strin
 type RoleOption={id:string;displayName:string};
 
 type Mode="approve"|"reject";
+export type CenterRegistrationReviewBody={expectedVersion:number;assignments?:{roleId:string;scopeType:string;scopeId:string}[];pinoriaIdentity?:{mode:string};reason?:string};
+export type CenterRegistrationService={
+  list:(centerId:string,signal:AbortSignal)=>Promise<RequestRow[]>;
+  roles:(centerId:string,signal:AbortSignal)=>Promise<RoleOption[]>;
+  review:(centerId:string,id:string,mode:Mode,body:CenterRegistrationReviewBody,key:string)=>Promise<{registrationRequestId:string;status:string}>;
+};
 const time=(s:string)=>new Date(s).toLocaleString("vi-VN",{timeZone:"Asia/Ho_Chi_Minh"});
 const route="workforce/staff-registration-requests";
 const path=(p:string,c:string)=>"/api/bo/"+p+"?"+new URLSearchParams({centerId:c}).toString();
@@ -22,6 +28,16 @@ async function get<T>(url:string,signal:AbortSignal):Promise<T>{
   if(!r.ok||payload.data===undefined)throw new BoApiError(r.status,payload.error?.message??"Không thể tải hồ sơ.",r.headers.get("x-request-id"),!!payload.error?.message);
   return payload.data;
 }
+const liveCenterRegistrationService:CenterRegistrationService={
+  list:(centerId,signal)=>get<RequestRow[]>(path(route,centerId),signal),
+  roles:(centerId,signal)=>get<RoleOption[]>(path("workforce/staff-registration-eligible-roles",centerId),signal),
+  review:async(centerId,id,mode,body,key)=>{
+    const response=await fetch(path(route+"/"+encodeURIComponent(id)+"/"+mode,centerId),{method:"POST",headers:{"content-type":"application/json","idempotency-key":key},body:JSON.stringify(body)});
+    const payload=await response.json() as {data?:{registrationRequestId:string;status:string};error?:{message?:string}};
+    if(!response.ok||!payload.data)throw Error(payload.error?.message??"Ch\u01b0a x\u00e1c nh\u1eadn \u0111\u01b0\u1ee3c k\u1ebft qu\u1ea3. Th\u1eed l\u1ea1i c\u00f9ng y\u00eau c\u1ea7u.");
+    return payload.data;
+  },
+};
 const columns:BoDataGridColumn<RequestRow>[]=[
   {key:"displayLabel",header:"Họ và tên",render:r=>r.displayLabel,minWidth:180},
   {key:"submittedAt",header:"Ngày gửi",render:r=>time(r.submittedAt),minWidth:160},
@@ -54,7 +70,7 @@ function StaffCenterRegistrationReview({embedded}:{embedded:boolean}){
   if(scope.error||!center)return <p role="alert">Chọn cơ sở được cấp quyền.</p>;
   return <CenterReview key={center.id} centerId={center.id} centerName={center.displayName} embedded={embedded}/>;
 }
-function CenterReview({centerId,centerName,embedded}:{centerId:string;centerName:string;embedded:boolean}){
+export function CenterReview({centerId,centerName,embedded,service=liveCenterRegistrationService}:{centerId:string;centerName:string;embedded:boolean;service?:CenterRegistrationService}){
   const [rows,setRows]=useState<RequestRow[]>([]);
   const [roles,setRoles]=useState<RoleOption[]>([]);
   const [loading,setLoading]=useState(true);
@@ -74,16 +90,16 @@ function CenterReview({centerId,centerName,embedded}:{centerId:string;centerName
   const inFlight=useRef(false);
   useEffect(()=>{
     const ctl=new AbortController();
-    void get<RequestRow[]>(path(route,centerId),ctl.signal).then(next=>{
+    void service.list(centerId,ctl.signal).then(next=>{
       if(ctl.signal.aborted)return;
       if(!Array.isArray(next)||next.some(r=>r.centerId!==centerId||!Number.isSafeInteger(r.version)||r.version<1))throw Error("Dữ liệu cơ sở không hợp lệ.");
       setRows(next);setLoading(false);
     }).catch((cause:unknown)=>{if(!ctl.signal.aborted){setRows([]);setError(cause instanceof Error?cause.message:"Không thể tải hồ sơ.");setLoading(false)}});
-    void get<RoleOption[]>(path("workforce/staff-registration-eligible-roles",centerId),ctl.signal).then(next=>{
+    void service.roles(centerId,ctl.signal).then(next=>{
       if(!ctl.signal.aborted){setRoles(next);setReviewReady(true);}
     }).catch((cause:unknown)=>{if(!ctl.signal.aborted){setRoles([]);setReviewError(cause instanceof Error?cause.message:"Không có quyền duyệt.")}});
     return()=>ctl.abort();
-  },[centerId,revision]);
+  },[centerId,revision,service]);
   const canClose=()=>!inFlight.current&&(!roleId&&!reason.trim()||window.confirm("Hủy thay đổi chưa lưu?"));
   const resetSelection=()=>{setSelected(null);setRoleId("");setReason("");setSurface("table");setTab("overview");};
   const close=()=>{if(!inFlight.current)resetSelection();};
@@ -97,12 +113,8 @@ function CenterReview({centerId,centerName,embedded}:{centerId:string;centerName
     inFlight.current=true;
     setBusy(true);setError("");setNotice("");
     try{
-      const response=await fetch(path(route+"/"+encodeURIComponent(selected.id)+"/"+mode,centerId),{
-        method:"POST",headers:{"content-type":"application/json","idempotency-key":key},body:JSON.stringify(body)
-      });
-      const payload=await response.json() as {data?:{registrationRequestId:string;status:string};error?:{message?:string}};
-      if(!response.ok||payload.data?.registrationRequestId!==selected.id||payload.data.status!==(mode==="approve"?"APPROVED":"REJECTED"))
-        throw Error(payload.error?.message??"Chưa xác nhận được kết quả. Thử lại cùng yêu cầu.");
+      const receipt=await service.review(centerId,selected.id,mode,body,key);
+      if(receipt.registrationRequestId!==selected.id||receipt.status!==(mode==="approve"?"APPROVED":"REJECTED"))throw Error("Ch\u01b0a x\u00e1c nh\u1eadn \u0111\u01b0\u1ee3c k\u1ebft qu\u1ea3. Th\u1eed l\u1ea1i c\u00f9ng y\u00eau c\u1ea7u.");
       setNotice(mode==="approve"?"Đã duyệt hồ sơ.":"Đã từ chối hồ sơ.");
       setRows(current=>current.filter(r=>r.id!==selected.id));
       attempts.current.delete(fingerprint);resetSelection();
