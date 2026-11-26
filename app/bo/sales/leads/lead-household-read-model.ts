@@ -14,12 +14,13 @@ function errorState(error: unknown): ReadError {
   return error instanceof LeadApiError ? {status:error.status,code:error.code} : {status:null,code:"LEAD_READ_FAILED"};
 }
 function pageError(): never { throw new LeadApiError(502,"LEAD_PAGE_INVALID",null); }
-function mergePage<T extends {id:string}>(previous:T[], page:LeadPage<T>, cursors:Set<string>): PageState<T> {
+function mergePage<T extends {id:string;version:number}>(previous:T[], page:LeadPage<T>, cursors:Set<string>): PageState<T> {
   if (page.hasMore !== Boolean(page.nextCursor) || (page.nextCursor && cursors.has(page.nextCursor))) pageError();
   const items = new Map(previous.map(item=>[item.id,item]));
   for (const item of page.items) {
-    if (!item.id) pageError();
-    items.set(item.id,item);
+    if (!item.id || !Number.isSafeInteger(item.version) || item.version<1) pageError();
+    const seen=items.get(item.id);
+    if (!seen || item.version>seen.version) items.set(item.id,item);
   }
   if (page.nextCursor) cursors.add(page.nextCursor);
   return {phase:items.size?"ready":"empty",items:[...items.values()],nextCursor:page.nextCursor,error:null};

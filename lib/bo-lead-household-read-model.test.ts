@@ -33,3 +33,19 @@ test("PAP-2288 errors do not fall back to sample data; disposal ignores late com
  await m.search({});assert.equal(m.directory.phase,"error");assert.deepEqual(m.directory.items,[]);assert.equal(m.directory.error?.status,403);
  const request=m.search({});m.dispose();pending.resolve(page([row()]));await request;assert.equal(m.directory.phase,"idle");assert.deepEqual(m.directory.items,[]);
 });
+
+test("PAP-2288 cursor overlap preserves newest Lead version and admits a newer update",async()=>{
+ let count=0;const v3={...row(),version:3,contactDisplayName:"Newest",memberCount:3};const v4={...v3,version:4,status:"ARCHIVED" as const};const m=new LeadReadModel({...base,search:async()=>++count===1?page([v3],"c1"):count===2?page([row(),row(b)],"c2"):count===3?page([v4]):page([row()])});
+ await m.search({});await m.nextDirectory();assert.deepEqual(m.directory.items,[v3,row(b)]);
+ await m.nextDirectory();assert.deepEqual(m.directory.items,[v4,row(b)]);
+ await m.search({});assert.deepEqual(m.directory.items,[row()]);
+});
+test("PAP-2288 cursor overlap cannot revert closed acquisition history",async()=>{
+ const closed={...intent,status:"CLOSED" as const,version:3};let count=0;
+ const m=new LeadReadModel({...base,history:async()=>++count===1?page([closed],"h1"):page([intent])});
+ await m.select(a);await m.openHistory();await m.nextHistory();assert.deepEqual(m.history.items,[closed]);
+});
+test("PAP-2288 malformed version on cursor page fails closed",async()=>{
+ let count=0;const m=new LeadReadModel({...base,search:async()=>++count===1?page([row()],"c1"):page([{...row(b),version:0}])});
+ await m.search({});await m.nextDirectory();assert.equal(m.directory.phase,"error");assert.equal(m.directory.error?.code,"LEAD_PAGE_INVALID");assert.deepEqual(m.directory.items,[]);
+});
