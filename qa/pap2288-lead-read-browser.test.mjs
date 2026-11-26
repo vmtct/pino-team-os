@@ -51,11 +51,21 @@ const api={
  async retireMember(id,memberId,version,key){const row=target(id,version);window.syntheticCommandCalls.push({id,memberId,version,key});const index=household.findIndex(m=>m.id===memberId);if(index<0||row.primaryContactMemberId===memberId)throw new LeadApiError(409,"CONFLICT",null);household.splice(index,1);return childReceipt(row,memberId)},
  async contact(id,version,contact,key){const call={id,version,contact,key};window.syntheticCommandCalls.push(call);const row=rows.find(r=>r.id===id);if(!row||row.version!==version)throw new LeadApiError(409,"CONFLICT",null);if(contact.contactDisplayName==="Conflict"){row.contactDisplayName="Concurrent name";row.version++;throw new LeadApiError(409,"CONFLICT",null)}if(contact.contactDisplayName==="Uncertain"&&window.syntheticCommandCalls.filter(c=>c.key===key).length===1)throw new LeadApiError(503,"UNAVAILABLE",null);Object.assign(row,contact,{version:version+1});return {leadId:id,version:row.version}}
 };
+const syntheticIntentReceipts=new Map();
+const syntheticIntentApi={
+ async transition(target,action,input,key){
+  window.syntheticCommandCalls.push({kind:"intent",target,action,input,key});
+  if(target.leadId!==a||target.intentId!==c||input.expectedVersion!==intent.version)throw new LeadApiError(409,"CONFLICT",null);
+  intent.status=({contacted:"CONTACTED","verify-contact":"CONTACT_VERIFIED",close:"CLOSED"})[action];intent.version++;
+  const receipt={...target,status:intent.status,version:intent.version};syntheticIntentReceipts.set(key,receipt);return receipt;
+ },
+ async recover(target,input){const receipt=syntheticIntentReceipts.get(input.key);if(!receipt)throw new LeadApiError(404,"NOT_FOUND",null);return {...receipt,currentStatus:intent.status,currentVersion:intent.version};}
+};
 const root=createRoot(document.querySelector("main"));
 window.syntheticMountNative=actorId=>root.render(<NativeLeadEntry actorId={actorId}/>);
 window.syntheticUnmountNative=()=>root.unmount();
 if(location.origin==="https://bo.staging.pinohouse.art"||new URLSearchParams(location.search).has("nativeEntry"))window.syntheticMountNative(a);
-else root.render(<LeadHouseholdM1Preview readApi={new URLSearchParams(location.search).has("fixture")?undefined:api} commandApi={new URLSearchParams(location.search).has("commands")?api:undefined} recoveryJournal={new URLSearchParams(location.search).has("journal")?new LeadRecoveryJournal(sessionStorage,a):undefined}/>);
+else root.render(<LeadHouseholdM1Preview readApi={new URLSearchParams(location.search).has("fixture")?undefined:api} commandApi={new URLSearchParams(location.search).has("commands")?api:undefined} recoveryJournal={new URLSearchParams(location.search).has("journal")?new LeadRecoveryJournal(sessionStorage,a):undefined} intentApi={new URLSearchParams(location.search).has("intentActions")?syntheticIntentApi:undefined}/>);
 `,resolveDir:process.cwd(),loader:"tsx"},jsx:"automatic",bundle:true,write:false,outdir:"out",loader:{".css":"empty"},define:{"process.env.NODE_ENV":'"production"'},plugins:[{name:"isolated-next-navigation",setup(p){p.onResolve({filter:/^next\/(navigation|link|image|dynamic)$/},args=>({path:args.path,namespace:"lead-test"}));p.onLoad({filter:/.*/,namespace:"lead-test"},args=>({contents:shims[args.path],loader:"jsx",resolveDir:process.cwd()}));}}]});
 const js=code.outputFiles.find(f=>f.path.endsWith(".js")).text;
 test("PAP-2288 mounted native Lead table, cursor, drawer, detail, history and failure states",async()=>{
@@ -299,5 +309,31 @@ test("PAP-2288 mounted native adapter entry binds actor, rejects unsafe origin a
   await page.goto("https://fixture.invalid/bo/sales/leads?nativeEntry=1");await page.addScriptTag({content:js});
   await page.getByRole("alert").filter({hasText:"Không thể xác minh phiên Leads"}).waitFor();
   assert.equal(await page.getByText("DỮ LIỆU MẪU",{exact:true}).count(),0);assert.equal(calls.length,before);assert.deepEqual(errors,[]);
+ }finally{await browser.close();}
+});
+test("PAP-2288 mounted F1 History actions use child CAS, close reason and unified recovery",async()=>{
+ const browser=await chromium.launch();
+ try{
+  const page=await browser.newPage();page.setDefaultTimeout(15000);
+  const errors=[];page.on("pageerror",e=>errors.push(e.message));
+  await page.route("**/*",r=>r.request().isNavigationRequest()&&new URL(r.request().url()).hostname==="fixture.invalid"?r.fulfill({contentType:"text/html",body:"<main></main>"}):r.abort());
+  await page.goto("https://fixture.invalid/bo/sales/leads?lead="+a+"&tab=history&commands=1&journal=1&intentActions=1");
+  await page.addScriptTag({content:js});
+  const contacted=page.getByRole("button",{name:"Đã liên hệ",exact:true});
+  await contacted.waitFor();await contacted.click();
+  await page.getByText("CONTACTED",{exact:false}).first().waitFor();
+  await page.getByRole("button",{name:"Xác minh Zalo",exact:true}).click();
+  await page.getByText("CONTACT_VERIFIED",{exact:false}).first().waitFor();
+  await page.getByRole("button",{name:"Đóng intent",exact:true}).click();
+  const close=page.getByRole("button",{name:"Xác nhận đóng",exact:true});
+  assert.equal(await close.isDisabled(),true);
+  await page.getByRole("textbox",{name:"Lý do đóng",exact:true}).fill("Synthetic close");
+  await close.click();
+  await page.getByText("CLOSED",{exact:false}).first().waitFor();
+  assert.equal(await page.getByRole("button",{name:"Đóng intent",exact:true}).count(),0);
+  const calls=await page.evaluate(()=>window.syntheticCommandCalls);
+  assert.deepEqual(calls.filter(c=>c.kind==="intent").map(c=>[c.target.leadId,c.target.intentId,c.action,c.input.expectedVersion,c.input.reason??null]),[[a,c,"contacted",1,null],[a,c,"verify-contact",2,null],[a,c,"close",3,"Synthetic close"]]);
+  assert.equal(await page.evaluate(()=>sessionStorage.getItem("pino.leads.pending.v1")),null);
+  assert.deepEqual(errors,[]);
  }finally{await browser.close();}
 });

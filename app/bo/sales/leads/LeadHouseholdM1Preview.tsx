@@ -1,12 +1,12 @@
 "use client";
 import type {LeadRecoveryJournal} from "./lead-recovery-journal";
-import type {createLeadIntentApi} from "@/lib/bo-lead-intent-api";
+import type {createLeadIntentApi,IntentAction} from "@/lib/bo-lead-intent-api";
 import type {LeadRecoveryInput,LeadRecoveryReceipt} from "@/lib/bo-lead-recovery-api";
 
 import { useContext, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { LeadReadModel } from "./lead-household-read-model";
 import { LeadCommandFence, memberInput, type LeadHouseholdApi, type LeadCommand } from "./lead-household-provider";
-import type { LeadDetail, LeadMemberInput, LeadInterest, LeadRelationInput } from "@/lib/bo-lead-household-client";
+import type { LeadDetail, LeadIntent, LeadMemberInput, LeadInterest, LeadRelationInput } from "@/lib/bo-lead-household-client";
 import { leadReadRow, leadReadDetail, leadAuditTime, leadInquiryLabel } from "./lead-household-read-presentation";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { TddHostMenu } from "@/app/components/workspace-adapters/SurfaceWorkspace";
@@ -148,6 +148,7 @@ export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi,rec
       const detail=await result;
       if(!detail){setCommandNotice("Không tìm thấy Lead trong phạm vi được phép xem. Kiểm tra lại thông tin trước khi gửi yêu cầu mới.");return false;}
       await Promise.all([readModel.refreshDirectory(),readModel.selected.id===detail.id?readModel.select(detail.id):Promise.resolve()]);
+      if(activeTab==="history"&&readModel.selected.id===detail.id&&readModel.selected.phase==="ready")await readModel.openHistory();
       const refreshFailed=readModel.directory.phase==="error"||(readModel.selected.id===detail.id&&readModel.selected.phase!=="ready");
       setCommandNotice(refreshFailed?"Đã xác nhận kết quả Lead; chưa tải lại được toàn bộ dữ liệu.":drawer?.mode==="create"&&commandFence.createOutcome==="reused"?"Lead đã tồn tại. Đã mở Lead hiện có; chưa thêm thành viên hoặc thay đổi thông tin.":"Đã tải lại thông tin Lead.");
       if(drawer?.mode==="create"){setDrawer(null);openFullDetail(detail.id);}
@@ -157,6 +158,13 @@ export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi,rec
       setCommandNotice(commandFence.state==="uncertain"?"Chưa xác định kết quả. Chỉ thử lại cùng yêu cầu.":commandFence.state==="conflict"?"Dữ liệu đã thay đổi. Tải lại trước khi chỉnh sửa.":commandFence.state==="reload_required"?"Đã nhận kết quả, cần tải lại Lead.":"Không thể cập nhật Lead.");
       return false;
     }finally{commandBusyRef.current=false;setCommandBusy(false);refreshRead();}
+  }
+  function submitHistoryIntent(intent:LeadIntent,action:IntentAction,reason?:string):Promise<boolean>{
+    const target=readModel?.selected.record;
+    if(!intentApi||!recoveryJournal||!commandFence||commandFence.state!=="idle"||!target||target.id!==selectedLeadId||target.status!=="ACTIVE"||readModel?.selected.phase!=="ready"||readModel.history.phase!=="ready"||activeTab!=="history")return Promise.resolve(false);
+    const current=readModel.history.items.find(item=>item.id===intent.id&&item.version===intent.version&&item.status===intent.status);
+    if(!current||current.status==="CLOSED"||action==="contacted"&&current.status!=="SUBMITTED"||action==="verify-contact"&&current.status!=="SUBMITTED"&&current.status!=="CONTACTED")return Promise.resolve(false);
+    return executeContact(()=>commandFence.submitIntent({leadId:target.id,intentId:current.id},action,{expectedVersion:current.version,...(action==="close"?{reason}: {})}));
   }
   function saveCanonicalContact(field:"name"|"phone",value:string):Promise<boolean>{
     const target=readModel?.selected.record;
@@ -420,7 +428,7 @@ export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi,rec
         { ...LEAD_DETAIL_TABS.detail, content: <LeadOverview record={selectedLead} liveContact={commandFence&&currentDetail&&currentDetail.id===selectedLead.id&&currentDetail.status==="ACTIVE"?{name:currentDetail.contactDisplayName,phone:currentDetail.phone,version:currentDetail.version,disabled:commandBusy||commandFence.state!=="idle",save:saveCanonicalContact}:undefined} onSave={(name, phone) => saveInlineContact(selectedLead.id, name, phone)} onConvert={() => openConvert(selectedLead)} onSaveInterests={kinds => saveLeadInterests(selectedLead.id, kinds)} /> },
         { ...LEAD_DETAIL_TABS.members, content: <LeadMembers record={selectedLead} live={commandFence&&currentDetail?.id===selectedLead.id&&currentDetail.status==="ACTIVE"?{detail:currentDetail,disabled:commandBusy||commandFence.state!=="idle",update:updateCanonicalMember,add:(name,role)=>submitMember(target=>({kind:"addMember",leadId:target.id,expectedVersion:target.version,member:{displayName:name,intendedRoles:[role],gender:null,birthPrecision:"UNKNOWN",birthYear:null,birthMonth:null,birthDay:null,reportedAge:null,interestKinds:[]}})),primary:memberId=>submitMember(target=>({kind:"primary",leadId:target.id,expectedVersion:target.version,memberId})),retire:memberId=>submitMember(target=>({kind:"retireMember",leadId:target.id,expectedVersion:target.version,memberId}))}:undefined} onSave={members => updateMembers(selectedLead.id, members)} onSaveInterests={(memberId, kinds) => saveMemberInterests(selectedLead.id, memberId, kinds)} /> },
         { ...LEAD_DETAIL_TABS.relationships, content: <LeadRelationships record={selectedLead} live={commandFence&&currentDetail?.id===selectedLead.id&&currentDetail.status==="ACTIVE"?{disabled:commandBusy||commandFence.state!=="idle",add:relationship=>submitMember(target=>({kind:"addRelation",leadId:target.id,expectedVersion:target.version,relationship})),update:(relationshipId,relationship)=>submitMember(target=>target.relationships.some(r=>r.id===relationshipId&&r.status==="DECLARED")?{kind:"updateRelation",leadId:target.id,expectedVersion:target.version,relationshipId,relationship}:null),confirm:relationshipId=>submitMember(target=>target.relationships.some(r=>r.id===relationshipId&&r.status==="DECLARED")?{kind:"confirmRelation",leadId:target.id,expectedVersion:target.version,relationshipId}:null),retire:relationshipId=>submitMember(target=>target.relationships.some(r=>r.id===relationshipId)?{kind:"retireRelation",leadId:target.id,expectedVersion:target.version,relationshipId}:null)}:undefined} onSave={relationships => updateRelationships(selectedLead.id, relationships)} /> },
-        { ...LEAD_DETAIL_TABS.history, content: readModel?<LeadInquiryHistory model={readModel}/>:<LeadHistory /> },
+        { ...LEAD_DETAIL_TABS.history, content: readModel?<LeadInquiryHistory model={readModel} live={intentApi&&recoveryJournal&&commandFence&&currentDetail?.id===selectedLead.id&&currentDetail.status==="ACTIVE"?{disabled:commandBusy||commandFence.state!=="idle",submit:submitHistoryIntent}:undefined}/>:<LeadHistory /> },
       ]}
     /> : null}
 
@@ -625,12 +633,22 @@ function LeadRelationships({ record, onSave,live }: { record: LeadM1Record; onSa
 function LeadReadStatus({phase,error,onRetry}:{phase:string;error?:number|null;onRetry:()=>void}) {
  return phase==="error"?<div role="alert"><p>{error===403?"Không có quyền xem Lead":error===404?"Không tìm thấy Lead":error===401?"Phiên đăng nhập không khả dụng":"Không thể tải Lead"}</p><button className="secondary-btn" onClick={onRetry}>Thử lại</button></div>:<p role="status">Đang tải…</p>;
 }
-function LeadInquiryHistory({model}:{model:LeadReadModel}) {
+type HistoryActions={disabled:boolean;submit:(intent:LeadIntent,action:IntentAction,reason?:string)=>Promise<boolean>};
+function LeadInquiryHistory({model,live}:{model:LeadReadModel;live?:HistoryActions}) {
  const history=model.history;
  return <section className={styles.detailContent}><h2>Lịch sử tiếp nhận</h2>
- {history.phase==="error"||history.phase==="loading"||history.phase==="idle"?<LeadReadStatus phase={history.phase} error={history.error?.status} onRetry={()=>void model.openHistory()}/>:history.items.length?<ul className="pds-compact-list">{history.items.map(intent=><li key={intent.id}><strong>{leadInquiryLabel(intent)}</strong><span>{intent.sourceSurface} · {intent.status} · {leadAuditTime(intent.createdAt)}</span></li>)}</ul>:<p>Chưa có lượt tiếp nhận.</p>}
+ {history.phase==="error"||history.phase==="loading"||history.phase==="idle"?<LeadReadStatus phase={history.phase} error={history.error?.status} onRetry={()=>void model.openHistory()}/>:history.items.length?<ul className="pds-compact-list">{history.items.map(intent=><li key={intent.id}><strong>{leadInquiryLabel(intent)}</strong><span>{intent.sourceSurface} · {intent.status} · {leadAuditTime(intent.createdAt)}</span>{live&&intent.status!=="CLOSED"?<LeadInquiryActions key={intent.id+":"+intent.version} intent={intent} live={live}/>:null}</li>)}</ul>:<p>Chưa có lượt tiếp nhận.</p>}
  {history.nextCursor?<button className="secondary-btn" disabled={history.phase==="loading"} onClick={()=>void model.nextHistory()}>Tải thêm</button>:null}
  </section>;
+}
+function LeadInquiryActions({intent,live}:{intent:LeadIntent;live:HistoryActions}){
+ const [reason,setReason]=useState("");
+ const [closing,setClosing]=useState(false);
+ return <div className="pds-compact-actions" role="group" aria-label={"Thao tác tiếp nhận "+intent.id}>
+ {intent.status==="SUBMITTED"?<button className="secondary-btn" type="button" disabled={live.disabled} onClick={()=>void live.submit(intent,"contacted")}>Đã liên hệ</button>:null}
+ {intent.status==="SUBMITTED"||intent.status==="CONTACTED"?<button className="secondary-btn" type="button" disabled={live.disabled} onClick={()=>void live.submit(intent,"verify-contact")}>Xác minh Zalo</button>:null}
+ {closing?<><label className="pds-compact-label">Lý do đóng<textarea className="pds-compact-field" maxLength={240} value={reason} required disabled={live.disabled} onChange={e=>setReason(e.target.value)}/></label><button className="secondary-btn" type="button" disabled={live.disabled} onClick={()=>{setClosing(false);setReason("");}}>Hủy</button><button className="primary-btn" type="button" disabled={live.disabled||!reason.trim()} onClick={()=>void live.submit(intent,"close",reason.trim())}>Xác nhận đóng</button></>:<button className="secondary-btn" type="button" disabled={live.disabled} onClick={()=>setClosing(true)}>Đóng intent</button>}
+ </div>;
 }
 function LeadHistory() {
   return <section className={styles.detailContent}>
