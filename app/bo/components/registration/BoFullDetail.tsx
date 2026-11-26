@@ -43,7 +43,7 @@ const BoStudentSpecialtyTab = lazy(async () => {
 import type { BoModule, BoRecord } from "@/lib/bo-registration";
 
 export function BoFullDetail({
-  module, moduleKey, record, onBack, onStudentRenamed, mobileMenu, enableStudentSubscriptions = false, onEnrollmentChanged, onWorkforcePlanChanged, initialTab, onTabChanged, reviewOnly = false, runningClassReview, onRunningClassSaved, runningClassLive, runningClassLiveEditable, onRunningClassLiveEdit,
+  module, moduleKey, record, onBack, onStudentRenamed, mobileMenu, enableStudentSubscriptions = false, onEnrollmentChanged, onWorkforcePlanChanged, initialTab, onTabChanged, reviewOnly = false, staffReviewOnly = false, runningClassReview, onRunningClassSaved, runningClassLive, runningClassLiveEditable, onRunningClassLiveEdit,
 }: {
   module: BoModule;
   moduleKey: string;
@@ -55,6 +55,7 @@ export function BoFullDetail({
   onEnrollmentChanged?: () => void;
   onWorkforcePlanChanged?: (open: boolean) => void;
   reviewOnly?: boolean;
+  staffReviewOnly?: boolean;
   runningClassReview?: RunningClassReview;
   runningClassLive?: RunningClassProvider;
   runningClassLiveEditable?: boolean;
@@ -120,7 +121,7 @@ export function BoFullDetail({
             : activeTab === "Lịch tuần" && moduleKey === "workforce-shift-plans"
               ? <Suspense fallback={<p role="status">Đang tải lịch tuần…</p>}><BoWorkforcePlannerTab embedded scope={{ centerId: String(record.centerId ?? ""), termWeekId: String(record.termWeekId ?? "") }} /></Suspense>
             : moduleKey === "staffs" && activeTab === "Thu nhập"
-              ? <BoStaffIncomeReadTab staffMemberId={record.id} />
+              ? <BoStaffIncomeReadTab staffMemberId={record.id} load={staffReviewOnly ? async () => [] : undefined} />
             : activeTab === "Detail" && moduleKey === "subscriptions"
               ? <BoSubscriptionInformationTab subscriptionId={record.id} studentName={record.name} />
             : activeTab === "Detail" && classRecord && runningClassReview

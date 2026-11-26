@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { boApi, BoApiError } from "@/lib/bo-api";
 import type { BoAccessSystemUser } from "@/lib/bo-access-model";
 import type {
@@ -63,7 +63,7 @@ export function StaffRegistrationReviewQueue({service=boApi}:{service?:StaffRegi
   const approveAttempt = useRef<ReviewAttempt | null>(null);
   const rejectAttempt = useRef<ReviewAttempt | null>(null);
 
-  useEffect(() => { void refresh(); }, []);
+
   useEffect(() => {
     setAssignments([blankDraft()]);
     setExistingStaffMemberId("");
@@ -91,7 +91,7 @@ export function StaffRegistrationReviewQueue({service=boApi}:{service?:StaffRegi
   const linkableStaff = useMemo(() => staffRecords.filter((staff) => staff.status === "active" && (!linkedStaffIds.has(staff.id) || existingAccess?.staffMemberId === staff.id)), [staffRecords, linkedStaffIds, existingAccess]);
   const identityReady = identityMode === "CREATE_STAFF_ONLY_PERSON" || (identityMode === "LINK_EXISTING_STUDENT" && Boolean(studentProfileId));
 
-  async function refresh() {
+  const refresh = useCallback(async () => {
     setLoading(true);
     try {
       const accessUsersRequest = service.accessUsers().catch((cause) => {
@@ -107,7 +107,8 @@ export function StaffRegistrationReviewQueue({service=boApi}:{service?:StaffRegi
       setError(cause instanceof Error ? cause.message : "Không thể tải hàng đợi đăng ký nhân sự.");
     }
     finally { setLoading(false); }
-  }
+  }, [service]);
+  useEffect(() => { void refresh(); }, [refresh]);
 
   function patchDraft(key: string, patch: Partial<Draft>) {
     setAssignments((items) => items.map((item) => item.key === key ? { ...item, ...patch } : item));

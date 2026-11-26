@@ -23,7 +23,7 @@ export function StaffRegistrationIntakeToggle({service=boApi}:{service?:StaffReg
       .then((next) => { if (current) setState(next); })
       .catch((cause) => { if (current) setError(cause instanceof Error ? cause.message : "Không thể đọc trạng thái link đăng ký."); });
     return () => { current = false; };
-  }, []);
+  }, [service]);
 
   async function toggle() {
     if (!state || busy) return;
