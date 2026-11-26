@@ -48,3 +48,19 @@ test("PAP-2288 expected actor cannot substitute identity or dispatch after conte
  }
  assert.equal(calls.length,0);
 });
+test("PAP-2288 recovery BFF validates exact read body and actor before dispatch",async()=>{
+ const input={kind:"contact",key,target:id,expectedVersion:1};
+ const {env,calls}=fixture();
+ const real:LeadHouseholdEnv={...env,PINO_BO_CORE:{async executeWithStaffPassword(request,token){
+  if(request.path==="context")return env.PINO_BO_CORE.executeWithStaffPassword!(request,token);
+  calls.push(request);return {status:200,requestId:"qa",body:{data:{leadId:id,version:2}}};
+ }}};
+ const response=await handleLeadHousehold(req("POST","/recovery",input,{"idempotency-key":""}),real);
+ assert.equal(response.status,200);assert.deepEqual(await response.json(),{data:{leadId:id,version:2}});
+ assert.deepEqual(calls,[{method:"POST",path:base+"/recovery",body:input}]);
+ for(const bad of [{...input,centerId:id},{...input,expectedVersion:0},{...input,key:"short"},{...input,target:"LEAD-MOCK-001"},{...input,kind:"unknown"}])assert.equal((await handleLeadHousehold(req("POST","/recovery",bad),real)).status,400);
+ assert.equal((await handleLeadHousehold(req("GET","/recovery"),real)).status,405);
+ assert.equal((await handleLeadHousehold(req("POST","/recovery",input,{origin:"https://other.invalid"}),real)).status,403);
+ assert.equal(calls.length,1);
+ assert.equal((await handleLeadHousehold(req("POST","/recovery",input),env)).status,502);
+});

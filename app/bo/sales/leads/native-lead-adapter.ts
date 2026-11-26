@@ -1,5 +1,6 @@
 /** PAP-2288 / PLT-LEAD — bind the server-verified BO actor to a single native adapter lifetime. */
 import {createLeadHouseholdApi,LeadApiError} from "@/lib/bo-lead-household-client";
+import {createLeadRecoveryApi} from "@/lib/bo-lead-recovery-api";
 import {leadHouseholdRoute} from "@/lib/bo-lead-household-route";
 import {LeadRecoveryJournal} from "./lead-recovery-journal";
 const origin="https://bo.staging.pinohouse.art",prefix="/api/bo/";
@@ -20,5 +21,5 @@ export function openNativeLeadAdapter(actorId:string,actualOrigin:string,storage
   signal.throwIfAborted();
   return response;
  };
- return {api:createLeadHouseholdApi(guardedFetch),journal:new LeadRecoveryJournal(storage,actorId),dispose:()=>lifetime.abort()};
+ return {api:createLeadHouseholdApi(guardedFetch),recover:createLeadRecoveryApi(guardedFetch),journal:new LeadRecoveryJournal(storage,actorId),dispose:()=>lifetime.abort()};
 }
