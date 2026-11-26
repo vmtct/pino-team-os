@@ -2,7 +2,8 @@
 import "@pino/design-system/bo-tokens.css";
 import "@pino/design-system/components.css";
 import { useEffect, useRef, useState } from "react";
-import { TosButton } from "@pino/design-system/react";
+import { BoActionButton, BoActionGroup } from "@pino/design-system/react";
+import { DrawerFrame } from "@/app/components/workspace-renderer/DrawerFrame";
 import type { TableQuery } from "@/lib/workspace-schema";
 import { createHoTddAdapter, type AuthenticatedSurfaceAdapter } from "@/lib/workspace-adapters";
 import { browserTddNavigation, type AdapterNavigation } from "@/lib/workspace-adapters/navigation";
@@ -216,6 +217,7 @@ export function HoMissionsContent({boundary=liveBoundary}:{boundary?:MissionBoun
     openCreate: { kind: "navigation", disabled: pending || uncertain || mode !== null, run: open },
     openEdit: { kind: "navigation", disabled: pending || uncertain || mode !== null, run: openEdit },
     archiveMission: { kind: "mutation", disabled: pending || uncertain || mode !== null, visible: archiveAvailable, run: () => archiveMission() },
+    ...(boundary.preview ? {archiveMission:{kind:"navigation" as const,disabled:pending || uncertain || mode !== null || archivePreview !== null,visible:archiveAvailable,run:()=>archiveMission()}} : {}),
     cancelCreate: { kind: "navigation", disabled: pending, run: close },
     saveCreate: { kind: "mutation", disabled: pending || uncertain ||
       Boolean(validateMissionCreate(draft,boundary.preview) || validateMissionSelectedPath(draft, pathChoices)), run: submit },
@@ -226,11 +228,10 @@ export function HoMissionsContent({boundary=liveBoundary}:{boundary?:MissionBoun
   };
   const content = <section data-testid="ho-missions-tdd" aria-label="Danh mục Mission toàn hệ thống">
     {boundary.preview ? <p role="status">M1 · Dữ liệu mô phỏng, không lưu vào hệ thống.</p> : null}
-    {boundary.preview && archivePreview ? <div role="alertdialog" aria-label="Xác nhận lưu trữ Mission mẫu" className="v25-form-fields edit-form">
-      <p>Lưu trữ {archivePreview.name}? Mission chuyển sang INACTIVE; không xóa dữ liệu.</p>
-      <TosButton variant="secondary" onClick={()=>setArchivePreview(null)}>Hủy</TosButton>
-      <TosButton variant="primary" onClick={()=>void archiveMission(archivePreview)}>Xác nhận lưu trữ</TosButton>
-    </div> : null}
+    {boundary.preview && archivePreview ? <DrawerFrame title="Xác nhận lưu trữ" path="Mission" onClose={()=>{if(!writing.current&&!pending)setArchivePreview(null);}} footer={<BoActionGroup>
+      <BoActionButton type="button" variant="secondary" disabled={pending} onClick={()=>setArchivePreview(null)}>Hủy</BoActionButton>
+      <BoActionButton type="button" variant="danger" disabled={pending} onClick={()=>void archiveMission(archivePreview)}>Xác nhận lưu trữ</BoActionButton>
+    </BoActionGroup>}><p>Lưu trữ {archivePreview.name}? Mission chuyển sang INACTIVE và không còn được giao mới. Assignment và Nhật Ký hiện có vẫn được giữ nguyên; không xóa dữ liệu.</p></DrawerFrame> : null}
     {confirmed ? <p role="status">{confirmed}</p> : null}
     {editLoadError ? <p role="alert">{editLoadError}</p> : null}
     {uncertain ? <p role="alert">Lệnh ghi chưa được xác minh. Không gửi lại thao tác hoặc mở form mới trước khi đối chiếu Mission trên Core.</p> : null}
