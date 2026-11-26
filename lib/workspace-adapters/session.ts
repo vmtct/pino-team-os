@@ -63,6 +63,9 @@ export function surfaceSession(surface: "BO" | "HO", origin: string | undefined,
       [...specialtyParams.keys()].every(key=>["limit","beforeVersion"].includes(key) && specialtyParams.getAll(key).length===1) &&
       (!specialtyParams.has("limit") || (/^[1-9][0-9]*$/.test(specialtyParams.get("limit")!) && Number(specialtyParams.get("limit"))<=50)) &&
       (!specialtyParams.has("beforeVersion") || (/^[1-9][0-9]*$/.test(specialtyParams.get("beforeVersion")!) && Number.isSafeInteger(Number(specialtyParams.get("beforeVersion")))));
+    // PAP-2395: exact phase1 HO Staff directory read. No create/receipt or generic HO admission.
+    const admittedHoStaffDirectory=surface==="HO"&&method==="GET"&&!url.search&&
+      /^\/api\/ho\/staff\/directory(?:\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})?$/.test(url.pathname);
     // PAP-1407 / PAP-220: Founder HO Staff link READ ONLY. Core + HO BFF reauthorize.
     const admittedHoStaffLinkRead = surface === "HO" && method === "GET" && url.search === "" &&
       /^\/api\/ho\/staff-center-links\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(url.pathname);
@@ -73,7 +76,7 @@ export function surfaceSession(surface: "BO" | "HO", origin: string | undefined,
       (!url.searchParams.has("limit") || (/^[1-9][0-9]*$/.test(url.searchParams.get("limit")!) &&
         Number(url.searchParams.get("limit")) <= 50)) &&
       (!url.searchParams.has("cursor") || /^[A-Za-z0-9_-]{20,2048}$/.test(url.searchParams.get("cursor")!));
-    if (url.origin !== base.origin || !(url.pathname.startsWith("/api/bo/") || admittedHoBills || admittedHoGlobalTerms || admittedHoPassInventory || admittedHoGlobalTermWeeksRead || admittedHoShiftTemplateRead || admittedHoDiary || admittedHoMissionDetail || admittedHoMissionPathDirectory || admittedHoMissionHistory || admittedHoStaffLinkRead || admittedHoSpecialtyList || admittedHoSpecialtyDetail || admittedHoSpecialtyOptions || admittedHoSpecialtyHistory) || url.username || url.password || url.hash ||
+    if (url.origin !== base.origin || !(url.pathname.startsWith("/api/bo/") || admittedHoBills || admittedHoGlobalTerms || admittedHoPassInventory || admittedHoGlobalTermWeeksRead || admittedHoShiftTemplateRead || admittedHoDiary || admittedHoMissionDetail || admittedHoMissionPathDirectory || admittedHoMissionHistory || admittedHoStaffDirectory || admittedHoStaffLinkRead || admittedHoSpecialtyList || admittedHoSpecialtyDetail || admittedHoSpecialtyOptions || admittedHoSpecialtyHistory) || url.username || url.password || url.hash ||
         /%2f|%5c|\.\./i.test(url.pathname) || decideHostBoundary(base.host, url.pathname, method).action !== "next" ||
         (surface === "HO" && method !== "GET" && !admittedHoGlobalTerms)) throw adapterError(404);
     const headers = new Headers(init?.headers);

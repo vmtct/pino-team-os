@@ -63,11 +63,12 @@ async function read(url: string, signal: AbortSignal, fetcher: typeof fetch): Pr
   const root: unknown = await response.json();
   return object(root).data;
 }
-export async function loadNativeParentContext(centerId: string, signal: AbortSignal, fetcher: typeof fetch = fetch): Promise<NativeParentContext> {
+export async function loadNativeParentContext(centerId: string, signal: AbortSignal, fetcher: typeof fetch = fetch, expectedActorId?:string): Promise<NativeParentContext> {
   if (!UUID.test(centerId)) fail(403);
   const raw = object(await read("/api/bo/context", signal, fetcher));
   if (raw.surface !== "BO" || raw.entitled !== true || typeof raw.userId !== "string" || !raw.userId.trim() ||
-    !Array.isArray(raw.permissionKeys) || raw.permissionKeys.some(x => typeof x !== "string")) fail(403);
+    !Array.isArray(raw.permissionKeys) || raw.permissionKeys.some(x => typeof x !== "string") ||
+    (expectedActorId !== undefined && (!expectedActorId.trim() || raw.userId !== expectedActorId))) fail(403);
   const grants = new Set(raw.permissionKeys as string[]);
   if (!grants.has("team.bo.access") || !grants.has("identity.parent_directory.view")) fail(403);
   const scopes = await loadAuthorizedDirectoryCenters(fetcher, signal);

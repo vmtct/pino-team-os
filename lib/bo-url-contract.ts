@@ -58,6 +58,7 @@ export function retiredSalaryPeriodRedirectUrl(query: Readonly<Record<string,str
   return "/bo/payroll-periods"+(params.size?"?"+params.toString():"");
 }
 export function currentBoModuleHref(key: string, admitted: Readonly<Record<string,string>>): string {
+  if (key==="parents") return "/bo/parents"; // PAP-2389: explicit staging Parent route.
   if (key==="bills") return "/bo/bills";
   if (key==="salaryPeriods") return "/bo/payroll-periods";
   if (Object.prototype.hasOwnProperty.call(admitted,key)) return admitted[key];

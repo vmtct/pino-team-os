@@ -2,6 +2,15 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { BO_STAGING_HOSTNAME, HO_STAGING_HOSTNAME, TOS_STAGING_HOSTNAME, BO_HOSTNAME, decideHostBoundary, requiresBoStaffPasswordSession, requiresTosStaffSession, RETIRED_TEAM_HOSTNAME, STAFF_REGISTRATION_HOSTNAME, TOS_HOSTNAME } from "./host-boundary";
 
+test("PAP-2389 exact Parent page is BO Staging read-only ingress",()=>{
+  for(const path of ["/bo/parents","/bo/parents/"]) {
+    for(const method of ["GET","HEAD"]) assert.equal(decideHostBoundary(BO_STAGING_HOSTNAME,path,method).action,"next");
+    for(const method of ["POST","PATCH","DELETE","PUT"]) assert.equal(decideHostBoundary(BO_STAGING_HOSTNAME,path,method).action,"not_found");
+    for(const host of [BO_HOSTNAME,HO_STAGING_HOSTNAME,TOS_STAGING_HOSTNAME]) assert.equal(decideHostBoundary(host,path,"GET").action,"not_found");
+  }
+  for(const path of ["/bo/parents/child","/bo/Parents","/bo/parents/../staff"]) assert.equal(decideHostBoundary(BO_STAGING_HOSTNAME,path,"GET").action,"not_found");
+});
+
 const roleId = "0198d050-56c1-7ac5-b9ab-b0e45d912345";
 
 test("PAP-1886 native Accounts page is BO Staging and session gated", () => {
@@ -558,4 +567,26 @@ test("PAP-2371 exact HO Learning Space ingress only",()=>{
   for(const m of ["GET","HEAD","POST","PATCH","DELETE","PUT","OPTIONS"]){assert.deepEqual(decideHostBoundary(host,root+suffix,m),{action:(methods as readonly string[]).includes(m)?"next":"not_found"});for(const other of [BO_STAGING_HOSTNAME,TOS_STAGING_HOSTNAME,BO_HOSTNAME,"ho.pinohouse.art"])assert.deepEqual(decideHostBoundary(other,root+suffix,m),{action:"not_found"});}
  }
  assert.deepEqual(decideHostBoundary(host,"/api/HO/learning-spaces","GET"),{action:"not_found"});
+});
+
+test("PAP-2358 exact HO Staging Staff create and historical receipt only",()=>{
+  for(const path of ["/api/ho/staff/create","/api/ho/staff/create/receipt"]){
+    assert.deepEqual(decideHostBoundary(HO_STAGING_HOSTNAME,path,"POST"),{action:"next"});
+    for(const method of ["GET","HEAD","PATCH","DELETE"])assert.deepEqual(decideHostBoundary(HO_STAGING_HOSTNAME,path,method),{action:"not_found"});
+    for(const host of [BO_HOSTNAME,BO_STAGING_HOSTNAME,TOS_HOSTNAME,TOS_STAGING_HOSTNAME,"ho.pinohouse.art","localhost"])
+      assert.deepEqual(decideHostBoundary(host,path,"POST"),{action:"not_found"});
+  }
+  for(const path of ["/api/ho/staff/create/other","/api/ho/staff/create/receipt/other","/api/ho/staff/CREATE","/api/ho/staff/create/"])
+    assert.deepEqual(decideHostBoundary(HO_STAGING_HOSTNAME,path,"POST"),{action:"not_found"});
+});
+
+test("PAP-2358 exact HO Staging Staff directory GET only",()=>{
+  const base="/api/ho/staff/directory",id="01900000-0000-7000-8000-000000000001";
+  for(const path of [base,base+"/"+id]){
+    assert.deepEqual(decideHostBoundary(HO_STAGING_HOSTNAME,path,"GET"),{action:"next"});
+    for(const method of ["HEAD","POST","PATCH","DELETE","PUT","OPTIONS"])assert.deepEqual(decideHostBoundary(HO_STAGING_HOSTNAME,path,method),{action:"not_found"});
+    for(const host of [BO_HOSTNAME,BO_STAGING_HOSTNAME,TOS_HOSTNAME,TOS_STAGING_HOSTNAME,"ho.pinohouse.art","localhost"])assert.deepEqual(decideHostBoundary(host,path,"GET"),{action:"not_found"});
+  }
+  for(const path of [base+"/",base+"/bad",base+"/"+id+"/extra",base+"/01900000-0000-4000-8000-000000000001","/api/ho/staff/DIRECTORY"])
+    assert.deepEqual(decideHostBoundary(HO_STAGING_HOSTNAME,path,"GET"),{action:"not_found"});
 });

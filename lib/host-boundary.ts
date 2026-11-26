@@ -33,6 +33,20 @@ export type HostBoundaryDecision =
 
 export function decideHostBoundary(host: string, pathname: string, method = "GET"): HostBoundaryDecision {
   const hostname = normalizeHostname(host);
+  // PAP-2358: exact native Staff directory ingress, HO Staging read only.
+  const staffDirectoryBase="/api/ho/staff/directory";
+  const staffDirectoryPath=pathname.toLowerCase();
+  if(staffDirectoryPath===staffDirectoryBase||staffDirectoryPath.startsWith(staffDirectoryBase+"/")){
+    const id=pathname.slice(staffDirectoryBase.length+1);
+    const exact=pathname===staffDirectoryBase||(pathname.startsWith(staffDirectoryBase+"/")&&/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(id));
+    return {action:hostname===HO_STAGING_HOSTNAME&&method==="GET"&&exact?"next":"not_found"};
+  }
+  // PAP-2358: exact Staff creation and historical receipt namespace, HO Staging POST only.
+  const staffCreateBase="/api/ho/staff/create";
+  if(pathname.toLowerCase()===staffCreateBase||pathname.toLowerCase().startsWith(staffCreateBase+"/")){
+    return {action:hostname===HO_STAGING_HOSTNAME&&method==="POST"&&
+      (pathname===staffCreateBase||pathname===staffCreateBase+"/receipt")?"next":"not_found"};
+  }
   // PAP-2180: exact Person namespace, staging HO read only.
   const personPage="/ho/system/people",personApi="/api/ho/identity/persons",personPath=pathname.toLowerCase();
   if([personPage,personApi,"/api/bo/identity/persons","/api/tos/identity/persons","/bo/system/people","/tos/system/people"].some(p=>personPath===p||personPath.startsWith(p+"/"))){
@@ -43,6 +57,8 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   if(pathname.toLowerCase()===HO_LEARNING_SPACE_API||pathname.toLowerCase().startsWith(HO_LEARNING_SPACE_API+"/"))return {action:hostname===HO_STAGING_HOSTNAME&&learningSpaceRoute(pathname,method)?"next":"not_found"};
   const workshop = workshopHostDecision(hostname, pathname, method);
   if (workshop) return {action:workshop};
+  // PAP-2389: exact native Parent page; existing BO Staging shell authorizes each request.
+  if (/^\/bo\/parents(?:\/|$)/i.test(pathname)) return { action: hostname === BO_STAGING_HOSTNAME && (pathname === "/bo/parents" || pathname === "/bo/parents/") && (method === "GET" || method === "HEAD") ? "next" : "not_found" };
   // PAP-2181: exact private native Enrollment page; no Production or cross-surface admission.
   if (pathname.toLowerCase().startsWith("/bo/enrollments")) return { action: hostname === BO_STAGING_HOSTNAME && (pathname === "/bo/enrollments" || pathname === "/bo/enrollments/") && (method === "GET" || method === "HEAD") ? "next" : "not_found" };
   const guest = guestHostDecision(hostname, pathname, method);

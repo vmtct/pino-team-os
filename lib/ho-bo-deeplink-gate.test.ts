@@ -30,7 +30,7 @@ const hoPaths=[
  "/ho/system/audit","/ho/system/tdd-reference","/ho/language-mappings",
 ];
 const boPaths=[
- "/bo/missions","/bo/bills","/bo/workforce-shift-plans","/bo/workforce-availability",
+ "/bo/missions","/bo/parents","/bo/bills","/bo/workforce-shift-plans","/bo/workforce-availability",
  "/bo/workforce-assignments","/bo/payroll-periods","/bo/payroll-daily","/bo/payroll-exceptions",
  "/bo/pinoria-avatars","/bo/afterschool-accounts","/bo/open-studio-passes","/bo/classroom-diaries",
  "/bo/piner-posts","/bo/sales/leads","/bo/guests","/bo/mytime-workshops","/bo/enrollments",
@@ -40,13 +40,13 @@ const legacy:Record<string,string>={
  students:"/bo?module=students",classes:"/bo/running-classes",subscriptions:"/bo?module=subscriptions",
  enrollments:"/bo/enrollments",visits:"/bo?module=visits",staffs:"/bo?module=staffs",
  timekeeping:"/bo?module=timekeeping",salaryPeriods:"/bo/payroll-periods",audits:"/bo?module=audits",
- parents:"/bo?module=parents",missions:"/bo?module=missions",
+ parents:"/bo/parents",missions:"/bo?module=missions",
 };
 const previews:Record<string,{path:string;expected:string;record?:string;negative:string}>={
 
  "/ho/billing/product-plans":{path:"/ho/billing/product-plans?m1Preview=1",expected:"/ho/billing/product-plans",record:"record=PRODUCT-PLAN-MOCK-001",negative:"record="+id},
  "/bo/sales/leads":{path:"/bo/sales/leads?m1Preview=1",expected:"/bo/sales/leads",record:"lead=LEAD-MOCK-001&tab=members",negative:"lead="+id},
- "/ho/staff":{path:"/ho/staff?m1Preview=1",expected:"/ho/staff",record:"record=STAFF-MOCK-001",negative:"record="+id},
+
  "/ho/system/roles":{path:"/ho/system/roles?m1Preview=1",expected:"/ho/system/roles?m1Preview=1",record:"record=ROLE-MOCK-001",negative:"record="+id},
 };
 function discoverPreviewPages(dir:string):string[]{
@@ -119,10 +119,13 @@ test("HO_BO_DEEPLINK_CONTINUITY_P0: native preview entrypoints cannot ship untes
 });
 test("HO_BO_DEEPLINK_CONTINUITY_P0: route-specific detail, tab, grid, center and recovery examples",async()=>{
  const samples:[string,string,string][]=[
+  [ho,"/ho/staff?record="+id,"/ho/staff?record="+id],
   [ho,"/ho/pinoria/worlds?record="+id+"&tab=scenes","/ho/pinoria/worlds?record="+id+"&tab=scenes"],
   [ho,"/ho/pinoria/starter-sets?record="+id+"&tab=members","/ho/pinoria/starter-sets?record="+id+"&tab=members"],
   [ho,"/ho/pinoria/wish-banners?record="+id+"&tab=items&wishSelection=pending&wishRevision=2","/ho/pinoria/wish-banners?record="+id+"&tab=items&wishSelection=pending&wishRevision=2"],
   [ho,"/ho/system/custom-attributes?sort=displayName&size=30&page=2&scope=CENTER&centerId="+center,"/ho/system/custom-attributes?sort=displayName&size=30&page=2&scope=CENTER&centerId="+center],
+  [bo,"/bo/parents?centerId="+center+"&record="+id,"/bo/parents?centerId="+center+"&record="+id],
+  [bo,"/bo?module=parents&centerId="+center+"&record="+id,"/bo/parents?centerId="+center+"&record="+id],
   [bo,"/bo/subscriptions?centerId="+center+"&record="+id+"&tab=enrollment","/bo?module=subscriptions&centerId="+center+"&record="+id+"&tab=enrollment"],
   [bo,"/bo/running-classes?centerId="+center+"&record="+id,"/bo/running-classes?centerId="+center+"&record="+id],
   [bo,"/bo/piner-posts?centerId="+center+"&record="+id+"&tab=media","/bo/piner-posts?centerId="+center+"&record="+id+"&tab=media"],
@@ -168,4 +171,15 @@ test("PAP-2225 canonical native Running Class route rejects mock and malformed a
  for(const q of ["","?record="+id,"?centerId="+center+"&record="+id])assert.equal(middleware(new NextRequest("https://"+bo+path+q,{headers})).headers.get("x-middleware-next"),"1",q);
  assert.equal(middleware(new NextRequest("https://"+bo+path+"?record="+id+"&_rsc=abc",{headers:{...headers,rsc:"1"}})).headers.get("x-middleware-next"),"1");
  checkFlow(bo,"/bo?module=classes&record="+id,path+"?record="+id);
+});
+
+test("PAP-2395 native Staff canonical link rejects mock and malformed authenticated requests before streaming",()=>{
+ const path="/ho/staff",headers={cookie:"pino_staff_password_session=fixture-only"};
+ for(const q of ["record=STAFF-MOCK-001","record="+id+"&record="+id,"m1Preview=1","m1Preview=1&record="+id,"record=","tab=overview","returnTo=//evil.example"]){
+  for(const method of ["GET","HEAD"])assert.equal(middleware(new NextRequest("https://"+ho+path+"?"+q,{headers,method})).status,404,q);
+  assert.equal(parse(ho,path+"?"+q),null,q);
+ }
+ for(const q of ["","?record="+id,"?record="+id+"&utm_source=chatgpt.com"])assert.equal(middleware(new NextRequest("https://"+ho+path+q,{headers})).headers.get("x-middleware-next"),"1",q);
+ assert.equal(middleware(new NextRequest("https://"+ho+path+"?record="+id+"&_rsc=abc",{headers:{...headers,rsc:"1"}})).headers.get("x-middleware-next"),"1");
+ checkFlow(ho,path+"?record="+id,path+"?record="+id);
 });
