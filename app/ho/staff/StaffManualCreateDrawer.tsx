@@ -9,7 +9,7 @@ import type {StaffPersonOption,createStaffPersonReader} from "./staff-person-rea
 import type { BoField, BoRecord } from "@/lib/bo-registration";
 import { emptyStaffDraft, validateStaffDraft, type ManualStaffFields, type StaffDraft, type StaffCreateCommand, type StaffCenterOption } from "./manual-create-contract";
 
-export type StaffCreateRecovery={pending:()=>boolean;restored?:()=>boolean;readback:()=>Promise<boolean>};
+export type StaffCreateRecovery={pending:()=>boolean;restored?:()=>boolean;committed?:()=>boolean;readback:()=>Promise<boolean>};
 type Props = { personReader?:ReturnType<typeof createStaffPersonReader>; recovery?:StaffCreateRecovery; allowLogin?:boolean; schema: ModuleSchema<ManualStaffFields>; context: AuthorizationContext; centers: readonly StaffCenterOption[]; onClose: () => void; onCreate: (command: StaffCreateCommand) => Promise<void> };
 const createOnly = (key: string, label: string): BoField => ({ key, label, type: "text", icon: "Aa", w: 180, readonly: true });
 export function StaffManualCreateDrawer({ schema, context, centers, onClose, onCreate, personReader, recovery, allowLogin=true }: Props) {
@@ -51,7 +51,7 @@ export function StaffManualCreateDrawer({ schema, context, centers, onClose, onC
     if (!result.ok) { setError(result.error); return; }
     lock.current = true; setBusy(true); setError("");
     try { await onCreate(result.command); clearSecrets(); onClose(); }
-    catch { clearSecrets(); const pending=recovery?.pending()??false;setUncertain(pending);setRetryAllowed(false);setError(pending?"Chưa xác định kết quả. Kiểm tra lại trước khi gửi lại cùng yêu cầu.":"Không thể tạo nhân sự. Hãy kiểm tra và thử lại."); }
+    catch { clearSecrets(); const pending=recovery?.pending()??false;setUncertain(pending);setRetryAllowed(false);setError(recovery?.committed?.()?"Đã ghi nhận tạo Staff; chưa xác minh được hồ sơ. Chỉ kiểm tra lại, không tạo lần nữa.":pending?"Chưa xác định kết quả. Kiểm tra lại trước khi gửi lại cùng yêu cầu.":"Không thể tạo nhân sự. Hãy kiểm tra và thử lại."); }
     finally { lock.current = false; setBusy(false); }
   };
   const check=async()=>{

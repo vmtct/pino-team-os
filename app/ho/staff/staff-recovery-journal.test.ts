@@ -12,7 +12,7 @@ function memory(){
  const data=new Map<string,string>();
  return {data,storage:{getItem:(key:string)=>data.get(key)??null,setItem:(key:string,value:string)=>{data.set(key,value);},removeItem:(key:string)=>{data.delete(key);}}};
 }
-const base={admission:()=>"record-only" as const,authorized:()=>true,centers:()=>[{id:id(1),label:"QA"}],makeKey:()=>"original-key"};
+const base={verify:async()=>{},admission:()=>"record-only" as const,authorized:()=>true,centers:()=>[{id:id(1),label:"QA"}],makeKey:()=>"original-key"};
 test("journal precedes request and stores no profile or credentials; reload readback only",async()=>{
  const {data,storage}=memory(),journal=createStaffRecoveryJournal(storage,id(9));
  const first=createNativeStaffCommand({...base,journal,submit:async(_c,key)=>{
@@ -59,4 +59,13 @@ test("storage corruption or write failure blocks dispatch",async()=>{
  const bad=createStaffRecoveryJournal({...storage,getItem:()=>null,setItem:()=>{throw Error("quota");}},id(9));
  const control=createNativeStaffCommand({...base,journal:bad,submit:async()=>{writes++;return receipt;}});
  await assert.rejects(control.create(cmd),/quota/);assert.equal(writes,0);
+});
+
+test("storage clear failure preserves committed proof; retry does not create again",async()=>{
+ const {storage}=memory();let fail=true,writes=0,verifies=0;
+ const journal=createStaffRecoveryJournal({...storage,removeItem:key=>{if(fail)throw Error("storage unavailable");storage.removeItem(key);}},id(9));
+ const control=createNativeStaffCommand({...base,journal,submit:async()=>{writes++;return receipt;},verify:async()=>{verifies++;}});
+ await assert.rejects(control.create(cmd),/storage unavailable/);assert(control.committed());assert(control.pending());
+ await assert.rejects(control.create(cmd),/readback only/);
+ fail=false;assert.equal(await control.readback(),true);assert.equal(writes,1);assert.equal(verifies,2);assert.equal(journal.load(),null);
 });

@@ -1,4 +1,5 @@
 // PAP-2358 · WFM-STAFF. Feature-local canonical read provider, not route-admitted.
+import type {HoManualStaffReceipt} from "@/lib/ho-manual-staff-create-receipt";
 import { BoApiError } from "@/lib/bo-api-error";
 import type {SurfaceProvider} from "@/lib/workspace-adapters/contracts";
 import type {ManualStaffFields,ManualStaffRow} from "./manual-create-contract";
@@ -37,6 +38,18 @@ async function load(fetcher:typeof fetch,url:string,signal:AbortSignal):Promise<
   const root=obj(await response.json());signal.throwIfAborted();
   if(!root||!exact(root,["data"]))invalid();
   return root.data;
+}
+/** Verify the actual persisted phase1 record, not a locally projected success. */
+export async function verifyManualStaffCommitted(receipt:HoManualStaffReceipt,fetcher:typeof fetch=fetch,signal:AbortSignal=new AbortController().signal):Promise<void>{
+  if(!canonical(receipt.staffMemberId)||!canonical(receipt.centerId)||receipt.initialStaffStatus!=="inactive"||receipt.accessState!=="NOT_PROVISIONED")invalid();
+  const detail=await load(fetcher,path+"/"+receipt.staffMemberId,signal);
+  const row=projectHoStaffRow(detail,true),raw=obj(detail);
+  if(row.id!==receipt.staffMemberId||row.status!=="Ngưng"||row.role!==null||row.loginEmail!==null||!Array.isArray(raw?.centers)||!raw.centers.some(c=>obj(c)?.id===receipt.centerId))invalid();
+  const data=await load(fetcher,path,signal);
+  if(!Array.isArray(data))invalid();
+  const seen=new Set<string>();let found=false;
+  for(const value of data){const item=projectHoStaffRow(value);if(seen.has(item.id))invalid();seen.add(item.id);if(item.id===row.id){if(item.status!==row.status||item.role!==row.role||item.name!==row.name||item.updatedAt!==row.updatedAt)invalid();found=true;}}
+  if(!found)invalid();
 }
 export const nativeManualStaffProvider:SurfaceProvider<ManualStaffFields>={
   pagination:"local-ui",

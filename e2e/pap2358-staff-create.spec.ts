@@ -13,9 +13,9 @@ const candidate={id:person,displayName:"QA Person",roles:[],avatar:{id:null,stat
 const linked={...candidate,id:id(8),displayName:"Already Staff",roles:[{kind:"STAFF",id:id(9),displayName:"Already Staff",status:"active"}]};
 const root="/api/ho/staff/create";
 type Command={name:string;phone:string;email:string;centerId:string;existingPersonId?:string};
-async function fixture(page:Page,options:{lost?:boolean;committed?:boolean}={}){
+async function fixture(page:Page,options:{lost?:boolean;committed?:boolean;missingDetailOnce?:boolean}={}){
  const writes:{key:string;body:Command}[]=[],reads:{key:string;body:unknown}[]=[],errors:string[]=[];
- let receipt:Record<string,unknown>|null=null;
+ let receipt:Record<string,unknown>|null=null;let detailReads=0;const directoryReads:string[]=[];
  page.on("pageerror",e=>errors.push(e.message));
  await page.route("**/*",async route=>{
   const req=route.request(),url=new URL(req.url()),path=url.pathname;
@@ -24,6 +24,11 @@ async function fixture(page:Page,options:{lost?:boolean;committed?:boolean}={}){
   if(req.isNavigationRequest())return route.fulfill({contentType:"text/html",body:'<!doctype html><html lang="vi" data-surface="ho" data-bo-ui-authority="v25"><head><meta name="viewport" content="width=device-width, initial-scale=1"><style>'+styles+'</style></head><body><main id="root" data-surface="ho"></main><script>'+bundle.replaceAll("</script>","<\\/script>")+'</script></body></html>'});
   if(path==="/api/ho/identity/persons"&&req.method()==="GET")return reply({items:[candidate,linked],nextAfter:null});
   if(path==="/api/ho/identity/persons/"+person&&req.method()==="GET")return reply(candidate);
+  if(req.method()==="GET"&&(path==="/api/ho/staff/directory"||path==="/api/ho/staff/directory/"+id(3))){
+   directoryReads.push(path);const row={id:id(3),displayLabel:"QA Person",status:"inactive",roleLabel:null,createdAt:"2026-11-25T00:00:00Z",updatedAt:"2026-11-25T00:00:00Z",createdByUserId:null,updatedByUserId:null};
+   if(path.endsWith(id(3))){if(options.missingDetailOnce&&++detailReads===1)return reply(null,503);return reply(receipt?{...row,mobile:"0900000000",email:"qa@example.invalid",gender:null,birthDate:null,loginEmail:null,centers:[{id:center,label:"QA Center"}]}:null);}
+   return reply(receipt?[row]:[]);
+  }
   if(path===root+"/receipt"&&req.method()==="POST"){
    reads.push({key:req.headers()["idempotency-key"]??"",body:req.postDataJSON()});
    return reply(receipt?{state:"COMMITTED",receipt}:{state:"NOT_OBSERVED"});
@@ -38,7 +43,7 @@ async function fixture(page:Page,options:{lost?:boolean;committed?:boolean}={}){
   return route.abort();
  });
  await page.goto(origin+"/ho/staff");
- return {writes,reads,errors};
+ return {writes,reads,errors,directoryReads};
 }
 const drawer=(p:Page)=>p.getByRole("dialog",{name:"Tạo nhân sự"});
 async function open(p:Page){await p.getByRole("button",{name:"Tạo nhân sự",exact:true}).click();await expect(drawer(p)).toBeVisible();}
@@ -90,4 +95,12 @@ test("PAP-2358 same-session NOT_OBSERVED permits same original request only",asy
  await expect(page.locator("#staff-create-center")).toBeDisabled();await expect(page.locator("#create-save")).toBeEnabled();
  await page.locator("#create-save").click();await expect(drawer(page)).toHaveCount(0);
  expect(f.writes).toHaveLength(2);expect(f.writes[0]).toEqual(f.writes[1]);expect(f.errors).toEqual([]);
+});
+
+test("PAP-2395 committed Create with missing Detail can only recheck, no second create",async({page})=>{
+ const f=await fixture(page,{missingDetailOnce:true});await open(page);await fill(page);await choose(page);
+ await page.locator("#create-save").click();await expect(page.getByRole("alert")).toContainText("Đã ghi nhận tạo Staff");
+ await expect(page.locator("#create-save")).toBeDisabled();await expect(page.getByRole("button",{name:"Kiểm tra kết quả"})).toBeVisible();
+ await page.getByRole("button",{name:"Kiểm tra kết quả"}).click();await expect(drawer(page)).toHaveCount(0);
+ expect(f.writes).toHaveLength(1);expect(f.reads).toEqual([]);expect(f.directoryReads).toEqual(["/api/ho/staff/directory/"+id(3),"/api/ho/staff/directory/"+id(3),"/api/ho/staff/directory"]);expect(f.errors).toEqual([]);
 });

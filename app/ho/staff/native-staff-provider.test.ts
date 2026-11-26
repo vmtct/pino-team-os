@@ -1,7 +1,7 @@
 // PAP-2358 · WFM-STAFF. No live request; strict projection regression.
 import test from "node:test";
 import assert from "node:assert/strict";
-import {nativeManualStaffProvider,projectHoStaffRow} from "./native-staff-provider";
+import {nativeManualStaffProvider,projectHoStaffRow,verifyManualStaffCommitted} from "./native-staff-provider";
 import {manualStaffQuery} from "./manual-create-contract";
 const id=(n:number)=>"01912345-6789-7abc-8def-"+String(n).padStart(12,"0");
 const base={id:id(1),displayLabel:"QA Staff",status:"active",roleLabel:null,createdAt:"2026-11-25T00:00:00Z",updatedAt:"2026-11-25T00:00:00Z",createdByUserId:id(2),updatedByUserId:null};
@@ -28,4 +28,14 @@ test("reject extras, duplicates, bad DTO and foreign scope; no fallback",async()
  await assert.rejects(nativeManualStaffProvider.list(manualStaffQuery,{surface:"HO"},async()=>Response.json({data:[base,base]}),signal));
  await assert.rejects(nativeManualStaffProvider.list(manualStaffQuery,{surface:"BO",centerId:id(3)},async()=>{throw Error("unexpected");},signal),/HO only/);
  await assert.rejects(nativeManualStaffProvider.list(manualStaffQuery,{surface:"HO"},async()=>new Response(null,{status:403}),signal));
+});
+
+test("phase1 verification requires exact inactive detail, no role/account, Center ID and list projection",async()=>{
+ const inactive={...base,status:"inactive"},record={...detail,...inactive},receipt={staffMemberId:id(1),personId:id(4),membershipId:id(5),centerId:id(3),initialStaffStatus:"inactive" as const,accessState:"NOT_PROVISIONED" as const};
+ const calls:string[]=[];
+ const read=(d:unknown,l:unknown):typeof fetch=>async(url,init)=>{calls.push(String(url));assert.equal(init?.method,"GET");assert.equal(init?.cache,"no-store");return Response.json({data:String(url).endsWith(id(1))?d:l});};
+ await verifyManualStaffCommitted(receipt,read(record,[inactive]));
+ assert.deepEqual(calls,["/api/ho/staff/directory/"+id(1),"/api/ho/staff/directory"]);
+ for(const bad of [null,{...record,id:id(9)},{...record,status:"active"},{...record,roleLabel:"Staff"},{...record,loginEmail:"qa@example.invalid"},{...record,centers:[{id:id(9),label:"QA Center"}]}])await assert.rejects(verifyManualStaffCommitted(receipt,read(bad,[inactive])));
+ for(const bad of [[],[inactive,inactive],[{...inactive,status:"active"}],[{...inactive,displayLabel:"Other"}]])await assert.rejects(verifyManualStaffCommitted(receipt,read(record,bad)));
 });
