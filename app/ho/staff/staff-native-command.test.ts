@@ -6,7 +6,7 @@ import type {StaffCreateCommand} from "./manual-create-contract";
 import {createHoStaffCreateState} from "@/lib/ho-manual-staff-create-flow";
 import {HoManualStaffCreateError} from "@/lib/ho-manual-staff-create-client";
 const command:StaffCreateCommand={name:"QA",phone:"0900000000",email:"qa@example.invalid",gender:null,birthDate:null,centerId:"center",login:null};
-const receipt={staffMemberId:"staff",personId:"person",membershipId:"member",centerId:"center",accessState:"NOT_PROVISIONED" as const};
+const receipt={staffMemberId:"staff",personId:"person",membershipId:"member",centerId:"center",initialStaffStatus:"inactive" as const,accessState:"NOT_PROVISIONED" as const};
 test("native commands default off, login is separate and only admitted center is allowed",async()=>{
  let admission:StaffCreateAdmission|undefined,authorized=true,calls=0;
  const control=createNativeStaffCommand({admission:()=>admission,authorized:()=>authorized,centers:()=>[{id:"center",label:"QA"}],makeKey:()=>"key",submit:async()=>{calls++;return receipt;}});

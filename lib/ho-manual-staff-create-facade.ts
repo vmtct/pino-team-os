@@ -25,9 +25,9 @@ const json=(body:unknown,status:number)=>Response.json(body,{status,headers:{
 }});
 const reject=(code:string,status:number)=>json({error:{code}},status);
 
-export function parseHoManualStaffCommand(value:unknown):StaffCreateCommand|null{
+export function parseHoManualStaffCommand(value:unknown):Omit<StaffCreateCommand,"login">|null{
   const b=object(value);
-  const required=["name","phone","email","gender","birthDate","centerId","login"];
+  const required=["name","phone","email","gender","birthDate","centerId"];
   if(!b||!exactKeys(b,Object.hasOwn(b,"existingPersonId")?[...required,"existingPersonId"]:required))return null;
   const existingPersonId=b.existingPersonId;
   if(Object.hasOwn(b,"existingPersonId")&&(typeof existingPersonId!=="string"||!/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(existingPersonId)))return null;
@@ -39,14 +39,8 @@ export function parseHoManualStaffCommand(value:unknown):StaffCreateCommand|null
   if(b.gender!==null&&(typeof b.gender!=="string"||!["Nam","Nữ","Khác"].includes(b.gender)))return null;
   if(b.birthDate!==null&&(typeof b.birthDate!=="string"||!/^\d{4}-\d{2}-\d{2}$/.test(b.birthDate)||
     !Number.isFinite(Date.parse(b.birthDate))||new Date(b.birthDate).toISOString().slice(0,10)!==b.birthDate))return null;
-  let login:StaffCreateCommand["login"]=null;
-  if(b.login!==null){
-    const l=object(b.login);
-    if(!l||!exactKeys(l,["email","password"])||typeof l.email!=="string"||l.email.trim().toLowerCase()!==email||
-      typeof l.password!=="string"||l.password.length<10||l.password.length>128)return null;
-    login={email,password:l.password};
-  }
-  return {name:b.name.trim(),phone:b.phone,email,gender:b.gender,birthDate:b.birthDate,centerId:b.centerId,login,...(typeof existingPersonId==="string"?{existingPersonId}:{})};
+
+  return {name:b.name.trim(),phone:b.phone,email,gender:b.gender,birthDate:b.birthDate,centerId:b.centerId,...(typeof existingPersonId==="string"?{existingPersonId}:{})};
 }
 export async function handleHoManualStaffCreate(request:Request,env:HoManualStaffCreateEnv):Promise<Response>{
   try{
@@ -71,7 +65,7 @@ export async function handleHoManualStaffCreate(request:Request,env:HoManualStaf
       const status=[400,401,403,404,409,429,503].includes(response.status)?response.status:502;
       return reject(status===409?"HO_STAFF_CREATION_CONFLICT":status===400?"PLATFORM_INVALID_INPUT":"HO_STAFF_CREATION_UNAVAILABLE",status);
     }
-    const receipt=parseHoManualStaffReceipt(response.body,command.centerId,command.login!==null);
+    const receipt=parseHoManualStaffReceipt(response.body,command.centerId);
     if(!receipt||(command.existingPersonId!==undefined&&receipt.personId!==command.existingPersonId))return reject("HO_STAFF_RECEIPT_INVALID",502);
     return json({data:receipt},201);
   }catch(error){
@@ -105,7 +99,7 @@ export async function handleHoManualStaffReceipt(request:Request,env:HoManualSta
     const root=object(response.body),data=object(root?.data);
     if(data&&exactKeys(data,["state"])&&data.state==="NOT_OBSERVED")return json({data:{state:"NOT_OBSERVED"}},200);
     if(data&&exactKeys(data,["state","receipt"])&&data.state==="COMMITTED"){
-      const receipt=parseHoManualStaffReceipt({data:data.receipt},body.centerId,object(data.receipt)?.accessState==="PROVISIONED");
+      const receipt=parseHoManualStaffReceipt({data:data.receipt},body.centerId);
       if(receipt)return json({data:{state:"COMMITTED",receipt}},200);
     }
     return reject("HO_STAFF_RECEIPT_INVALID",502);

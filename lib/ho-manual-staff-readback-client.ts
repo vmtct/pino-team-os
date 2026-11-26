@@ -4,7 +4,7 @@ import { parseHoManualStaffReceipt, type HoManualStaffReceipt } from "./ho-manua
 export type HoManualStaffReadback = {state:"NOT_OBSERVED"}|{state:"COMMITTED";receipt:HoManualStaffReceipt};
 export async function readHoManualStaffReceipt(centerId:string,key:string,withLogin:boolean,
   options:{signal?:AbortSignal;fetcher?:typeof fetch}={}):Promise<HoManualStaffReadback>{
-  if(!/^[a-zA-Z0-9:_-]{8,120}$/.test(key))throw new HoManualStaffCreateError("invalid",400);
+  if(withLogin||!/^[a-zA-Z0-9:_-]{8,120}$/.test(key))throw new HoManualStaffCreateError("invalid",400);
   let response:Response;
   try{
     response=await (options.fetcher??fetch)("/api/ho/staff/create/receipt",{

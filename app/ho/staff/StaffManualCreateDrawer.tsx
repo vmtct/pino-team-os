@@ -17,8 +17,8 @@ export function StaffManualCreateDrawer({ schema, context, centers, onClose, onC
   const [login, setLogin] = useState(false), [password, setPassword] = useState(""), [confirmation, setConfirmation] = useState("");
   const [error, setError] = useState(""), [busy, setBusy] = useState(false);
   const [selected,setSelected]=useState<StaffPersonOption|null>(null),[pickerBusy,setPickerBusy]=useState(false);
-  const [uncertain,setUncertain]=useState(()=>recovery?.restored?.()??false),[reenter,setReenter]=useState(false),[retryAllowed,setRetryAllowed]=useState(false);
-  const lockedFields=busy||(uncertain&&!reenter);
+  const [uncertain,setUncertain]=useState(()=>recovery?.restored?.()??false),[retryAllowed,setRetryAllowed]=useState(false);
+  const lockedFields=busy||uncertain;
   const lock = useRef(false);
   const change = (key: keyof StaffDraft, value: string) => { setDraft(d => ({ ...d, [key]: value })); setError(""); };
   const clearSecrets = () => { setPassword(""); setConfirmation(""); };
@@ -44,7 +44,7 @@ export function StaffManualCreateDrawer({ schema, context, centers, onClose, onC
       createFields[key] = { id: "staff-create-" + key, value: "", onChange: () => {}, required: true, control: <input className="property-control os-create-select" id={"staff-create-" + key} type="password" autoComplete="new-password" minLength={10} maxLength={128} required disabled={busy} value={value} onChange={e => { setter(e.target.value); setError(""); }} /> };
     }
   }
-  const row: BoRecord = { id: "", name: draft.name, status: "Đang làm", role: "Staff", createdAt: null, createdBy: "—", updatedAt: null, updatedBy: "—" };
+  const row: BoRecord = { id: "", name: draft.name, status: allowLogin ? "Đang làm" : "Ngưng", role: allowLogin ? "Staff" : null, createdAt: null, createdBy: "—", updatedAt: null, updatedBy: "—" };
   const submit = async () => {
     if (lock.current||pickerBusy||(login&&!allowLogin)||(uncertain&&!retryAllowed)) return;
     const result = validateStaffDraft(draft, centers, login ? { password, confirmation } : null, selected?.id);
@@ -57,13 +57,14 @@ export function StaffManualCreateDrawer({ schema, context, centers, onClose, onC
   const check=async()=>{
     if(!recovery||lock.current||!recovery.pending())return;
     lock.current=true;setBusy(true);setRetryAllowed(false);setError("");
-    try{if(await recovery.readback()){setUncertain(false);clearSecrets();onClose();}else{setRetryAllowed(true);if(recovery.restored?.())setReenter(true);setError("Chưa ghi nhận kết quả. Có thể kiểm tra lại hoặc nhập lại đúng yêu cầu gốc.");}
+    try{if(await recovery.readback()){setUncertain(false);clearSecrets();onClose();}else if(recovery.restored?.()){setRetryAllowed(false);setError("Chưa ghi nhận kết quả. Yêu cầu gốc không còn trong bộ nhớ; chỉ kiểm tra lại, không gửi yêu cầu mới.");}else{setRetryAllowed(true);setError("Chưa ghi nhận kết quả. Có thể kiểm tra lại hoặc gửi lại đúng yêu cầu gốc.");}
     }catch{setError("Chưa thể xác minh kết quả. Không tạo yêu cầu mới.");}
     finally{lock.current=false;setBusy(false);}
   };
   return <DrawerFrame path={schema.label} title="Tạo nhân sự" onClose={close} footer={<><button type="button" className="secondary-btn" disabled={busy||uncertain} onClick={close}>Hủy</button>{uncertain&&recovery?<button type="button" className="secondary-btn" disabled={busy} onClick={()=>void check()}>Kiểm tra kết quả</button>:null}<button type="button" id="create-save" className="primary-btn" disabled={busy||pickerBusy||(uncertain&&!retryAllowed)} onClick={() => void submit()}>{uncertain?"Gửi lại yêu cầu":"＋ Tạo nhân sự"}</button></>}>
     <PropertySections variant="drawer" fields={[...fields.filter(f => f.key !== "loginEmail"), ...extra]} record={row} sections={[...sections, { id: "login", label: "Tài khoản đăng nhập", fields: extra.map(f => f.key) }]} createFields={createFields} />
     {uncertain&&recovery?.restored?.()?<p role="status">Có yêu cầu tạo Staff chưa xác định từ phiên trước. Kiểm tra kết quả trước khi nhập lại.</p>:null}{personReader?<section aria-label="Liên kết Person hiện có"><StaffPersonPicker reader={personReader} selected={selected} onSelect={setSelected} disabled={lockedFields} onBusy={setPickerBusy}/></section>:null}
+    {!allowLogin && <p role="status">Tạo tài khoản đăng nhập chưa được tích hợp. Chỉ tạo hồ sơ nhân sự không hoạt động.</p>}
     {error && <p role="alert" className="edit-error">{error}</p>}
   </DrawerFrame>;
 }

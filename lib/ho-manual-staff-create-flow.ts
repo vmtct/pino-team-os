@@ -29,6 +29,7 @@ export function createHoStaffCreateFlow(state:HoStaffCreateState,options:{
 }={}){
   const submit=options.submit??createHoManualStaff, makeKey=options.makeKey??(()=>crypto.randomUUID());
   return async(command:StaffCreateCommand):Promise<HoManualStaffReceipt>=>{
+    if(command.login!==null)throw new HoManualStaffCreateError("invalid",400);
     const prior=state.pending,signature=manualStaffIntent(command);
     if(prior&&prior.phase!=="uncertain")throw new HoStaffCreatePendingError("busy");
     if(prior&&prior.intent!==signature)throw new HoStaffCreatePendingError("different-intent");
@@ -56,7 +57,7 @@ export async function reconcileHoStaffCreate(state:HoStaffCreateState,read=readH
   try{
     const result=await read(prior.centerId,prior.key,prior.withLogin);
     if(result.state==="COMMITTED"){
-      if((prior.existingPersonId!==undefined&&result.receipt.personId!==prior.existingPersonId)||result.receipt.centerId!==prior.centerId||(result.receipt.accessState==="PROVISIONED")!==prior.withLogin)
+      if((prior.existingPersonId!==undefined&&result.receipt.personId!==prior.existingPersonId)||result.receipt.centerId!==prior.centerId||prior.withLogin||result.receipt.initialStaffStatus!=="inactive"||result.receipt.accessState!=="NOT_PROVISIONED")
         throw new HoManualStaffCreateError("uncertain",502);
       state.pending=null;
     }else state.pending=prior;
