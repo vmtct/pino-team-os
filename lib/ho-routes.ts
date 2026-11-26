@@ -1,5 +1,6 @@
 import {STAFF_PHASE_ONE_ENABLED,parseStaffPhaseOneQuery} from "../app/ho/staff/staff-phase-one-route";
 import {parseLiveSpaceQuery} from "./ho-learning-space-contract";
+import {parseNativeRoleQuery} from "../app/ho/system/roles/native-role-query";
 import {parseProductPlanNavigation} from "../app/ho/billing/product-plans/product-plan-stage-admission";
 import {nativePlanUrl} from "../app/ho/billing/product-plans/product-plan-native-binding";
 import {parseMissionM1Query} from "../app/ho/learning/missions/mission-m1-query";
@@ -77,15 +78,11 @@ export function safeHoReturnTo(raw: string | null | undefined): string | null {
       const state=parseProductPlanNavigation(parsed.searchParams);
       return state?nativePlanUrl(state.record,state.tab):null;
     }
-    // PAP-2359: Role uses the explicit preview marker to distinguish review
-    // from a live-list fallback. Preserve it so the server can enforce review ACL.
-    if(parsed.pathname===HO_PAGE_PATHS.roles && parsed.searchParams.has("m1Preview")){
-      const p=parsed.searchParams;
-      const keys=[...p.keys()].filter(k=>!ignoredTrackingKeys.has(k));
-      if(keys.some(k=>!["m1Preview","record"].includes(k))||p.getAll("m1Preview").length!==1||p.get("m1Preview")!=="1"||p.getAll("record").length>1)return null;
-      const record=p.get("record");
-      if(record!==null&&!/^ROLE-MOCK-[0-9]{3,}$/.test(record))return null;
-      return parsed.pathname+"?m1Preview=1"+(record!==null?"&record="+encodeURIComponent(record):"");
+    // PAP-2373: only canonical native Role links survive session recovery.
+    if(parsed.pathname===HO_PAGE_PATHS.roles){
+      const state=parseNativeRoleQuery(parsed.searchParams);
+      if(!state)return null;
+      return parsed.pathname+(state.record?"?record="+encodeURIComponent(state.record):"");
     }
     const functionalKeys = [...parsed.searchParams.keys()].filter(key => !ignoredTrackingKeys.has(key));
     // PAP-2359: validate the existing HO Custom Attributes table's shareable URL state.
