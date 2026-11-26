@@ -1,0 +1,21 @@
+/** PAP-2387 / SCH-PARENTS-GUARDIANS — canonical local presentation only. */
+import {createRoot} from "react-dom/client";
+import {BoRegistrationWorkspace,type BoWorkspaceSource} from "@/app/bo/components/registration/BoRegistrationWorkspace";
+import {BoLocalReviewCenter} from "@/app/bo/components/registration/BoCenterSelection";
+import {unifiedBoWorkspaceSource} from "@/app/bo/architecture/bo-unified-workspace-source";
+import {ParentDirectoryDsa} from "@/app/bo/parents/ParentDirectoryDsa";
+import {ParentM1Provider} from "@/app/bo/parents/parent-m1-context";
+import {PARENT_MOCK_CENTER,PARENT_MOCK_SEED} from "@/app/bo/parents/parent-m1-fixture";
+import {parentNativeModule} from "@/app/bo/parents/parent-native-model";
+import {TddPreferencePolicy} from "@/app/components/workspace-renderer/Record";
+import "@pino/design-system/bo-tokens.css";
+import "@pino/design-system/components.css";
+import "../../public/bo-authority-source/bo-scoped.css";
+import "../../app/bo/design-system/foundation.css";
+import "../../app/components/workspace-renderer/tdd-detail-layout.css";
+import "../../app/components/workspace-renderer/tdd-table-geometry.css";
+import "../../app/components/workspace-renderer/tdd-freeze.css";
+const route="/bo/parents",q=new URLSearchParams(location.search);
+if(!["http://desktop-isrdren:8800","http://desktop-isrdren.tail3ee007.ts.net:8800"].includes(location.origin)||location.pathname!==route||self.origin!=="null"||[...q.keys()].some(k=>k!=="record")||q.getAll("record").length>1||(q.has("record")&&q.get("record")!==PARENT_MOCK_SEED))throw Error("Local sandbox only");
+const source:BoWorkspaceSource={ephemeral:true,readOnly:true,modules:{...unifiedBoWorkspaceSource.modules,parents:parentNativeModule},routeForModule:key=>key==="parents"?route:"#unavailable-local-module",scopeLabel:()=> "M1 · Dữ liệu mẫu",load:async()=>{throw Error("No live transport");}};
+createRoot(document.getElementById("root")!).render(<TddPreferencePolicy.Provider value="ephemeral"><BoLocalReviewCenter center={{id:PARENT_MOCK_CENTER,displayName:"Cần Thơ · Mẫu"}}><ParentM1Provider><BoRegistrationWorkspace source={source} moduleKey="parents" currentUser={{displayName:"M1 · Dữ liệu mẫu"}} content={<ParentDirectoryDsa/>}/></ParentM1Provider></BoLocalReviewCenter></TddPreferencePolicy.Provider>);

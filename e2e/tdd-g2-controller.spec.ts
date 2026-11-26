@@ -7,7 +7,7 @@ const opener = (page: Page, number = "01") => page.getByRole("row", { name: `Má»
 async function fixture(page: Page, surface: "BO" | "HO", scenario = "ready") {
   page.on("pageerror", error => { throw error; });
   await page.route("**/*", route => route.fulfill({ contentType: "text/html", body: `<!doctype html><html lang="vi"><body><div id="root"></div><script>${bundle}</script></body></html>` }));
-  await page.goto(surface === "BO" ? `https://bo.staging.pinohouse.art/bo?module=parents&scenario=${scenario}` : `https://ho.staging.pinohouse.art/ho/centers?scenario=${scenario}`);
+  await page.goto(surface === "BO" ? `https://bo.staging.pinohouse.art/bo/parents?scenario=${scenario}` : `https://ho.staging.pinohouse.art/ho/centers?scenario=${scenario}`);
 }
 async function open(page: Page) { await opener(page).focus(); await opener(page).press("Enter"); await expect(page.locator('[data-tdd-shell="drawer"]')).toBeVisible(); }
 async function detail(page: Page) { await open(page); await page.getByRole("button", { name: /Full Detail/ }).click(); await expect(page.getByRole("tab", { name: "Tá»•ng quan" })).toBeVisible(); }

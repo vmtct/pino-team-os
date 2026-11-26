@@ -8,7 +8,7 @@ async function fixture(page: Page, surface: "BO" | "HO") {
   const css = readFileSync("public/" + surface.toLowerCase() + "-authority-source/" + surface.toLowerCase() + "-scoped.css", "utf8");
   const host = surface === "BO" ? 'data-bo-ui-authority="v25"' : 'data-surface="ho"';
   await page.route("**/*", route => route.fulfill({ contentType: "text/html", body: '<!doctype html><html lang="vi" ' + host + '><head><style>' + css + '</style></head><body><div id="root"></div><script>' + bundle + '</script></body></html>' }));
-  await page.goto(surface === "BO" ? "https://bo.staging.pinohouse.art/bo?module=parents" : "https://ho.staging.pinohouse.art/ho/centers");
+  await page.goto(surface === "BO" ? "https://bo.staging.pinohouse.art/bo/parents" : "https://ho.staging.pinohouse.art/ho/centers");
   await expect(page.locator("tbody tr[data-open]").first()).toBeVisible();
 }
 async function queryState(page: Page) {
