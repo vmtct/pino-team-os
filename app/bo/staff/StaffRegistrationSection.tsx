@@ -2,6 +2,7 @@
 import {useEffect,useState,useRef} from "react";
 import {BoDataGrid,BoDataGridBadge,BoDrawer,type BoDataGridColumn} from "@/app/bo/components/data-grid";
 import {BoProperties} from "@/app/bo/components/BoProperties";
+import {DetailFrame} from "@/app/components/workspace-renderer/DetailFrame";
 import {useBoCenterSelection} from "@/app/bo/components/registration/BoCenterSelection";
 import {StaffRegistrationReviewQueue} from "./StaffRegistrationReviewQueue";
 import {StaffRegistrationIntakeToggle} from "./StaffRegistrationIntakeToggle";
@@ -61,6 +62,8 @@ function CenterReview({centerId,centerName,embedded}:{centerId:string;centerName
   const [reviewError,setReviewError]=useState("");
   const [reviewReady,setReviewReady]=useState(false);
   const [selected,setSelected]=useState<RequestRow|null>(null);
+  const [surface,setSurface]=useState<"table"|"drawer"|"detail">("table");
+  const [tab,setTab]=useState("overview");
   const [roleId,setRoleId]=useState("");
   const [reason,setReason]=useState("");
   const [busy,setBusy]=useState(false);
@@ -82,7 +85,7 @@ function CenterReview({centerId,centerName,embedded}:{centerId:string;centerName
     return()=>ctl.abort();
   },[centerId,revision]);
   const canClose=()=>!inFlight.current&&(!roleId&&!reason.trim()||window.confirm("Hủy thay đổi chưa lưu?"));
-  const resetSelection=()=>{setSelected(null);setRoleId("");setReason("");};
+  const resetSelection=()=>{setSelected(null);setRoleId("");setReason("");setSurface("table");setTab("overview");};
   const close=()=>{if(!inFlight.current)resetSelection();};
   const requestClose=()=>{if(canClose())close();};
   async function review(mode:Mode){
@@ -112,15 +115,19 @@ function CenterReview({centerId,centerName,embedded}:{centerId:string;centerName
     {notice?<p role="status">{notice}</p>:null}
     {reviewError?<p role="status">{reviewError}</p>:null}
     {error?<p role="alert">{error}</p>:null}
-    <BoDataGrid rows={rows.filter(r=>r.displayLabel.toLocaleLowerCase("vi-VN").includes(search.toLocaleLowerCase("vi-VN")))}
+    {surface!=="detail"&&<BoDataGrid rows={rows.filter(r=>r.displayLabel.toLocaleLowerCase("vi-VN").includes(search.toLocaleLowerCase("vi-VN")))}
       columns={columns} rowKey={r=>r.id} caption="Hồ sơ nhân sự chờ duyệt" state={loading?"loading":error&&!rows.length?"error":"ready"}
       stateMessage={error} search={search} onSearchChange={setSearch} searchPlaceholder="Tìm tên nhân viên"
-      onRowOpen={r=>{if(canClose()){setSelected(r);setRoleId("");setReason("");setError("")}}} quickViewOpener
+      onRowOpen={r=>{if(canClose()){setSelected(r);setSurface("drawer");setTab("overview");setRoleId("");setReason("");setError("")}}} quickViewOpener
       emptyTitle="Chưa có hồ sơ" emptyMessage="Không có hồ sơ chờ duyệt trong cơ sở này." resultLabel={rows.length+" hồ sơ"}
-      toolbarActions={<button type="button" onClick={()=>{if(canClose()){close();setError("");setReviewError("");setReviewReady(false);setLoading(true);refresh(v=>v+1)}}} disabled={busy}>Tải lại</button>}/>
-    {selected?<BoDrawer title={selected.displayLabel} eyebrow="Hồ sơ chờ duyệt" mode="view" busy={busy} canClose={canClose} onClose={close}
-      footer={<button className={styles.secondaryButton} type="button" disabled={busy} onClick={requestClose}>Đóng</button>}>
-      <BoProperties compact items={[{key:"center",label:"Cơ sở",value:centerName},{key:"date",label:"Ngày gửi",value:time(selected.submittedAt)}]}/>
+      toolbarActions={<button type="button" onClick={()=>{if(canClose()){close();setError("");setReviewError("");setReviewReady(false);setLoading(true);refresh(v=>v+1)}}} disabled={busy}>Tải lại</button>}/>}
+    {selected&&surface==="drawer"&&<BoDrawer title={selected.displayLabel} eyebrow="Hồ sơ chờ duyệt" mode="view" busy={busy} canClose={canClose} onClose={close}
+      footer={<button className={styles.primaryButton} type="button" disabled={busy} onClick={()=>setSurface("detail")}>Mở chi tiết</button>}>
+      <BoProperties authority items={[{key:"center",label:"Cơ sở",value:centerName},{key:"date",label:"Ngày gửi",value:time(selected.submittedAt)},{key:"status",label:"Trạng thái",value:"Chờ duyệt"}]}/>
+    </BoDrawer>}
+    {selected&&surface==="detail"&&<DetailFrame title={selected.displayLabel} subtitle="Hồ sơ chờ duyệt" tabs={[{id:"overview",label:"Tổng quan"},{id:"history",label:"Lịch sử"}]} selected={tab} onSelect={id=>{if(!busy)setTab(id)}} onBack={requestClose}>
+      {tab==="history"?<p role="status">Lịch sử chi tiết chưa có trong dữ liệu hồ sơ này.</p>:<>
+      <BoProperties authority items={[{key:"center",label:"Cơ sở",value:centerName},{key:"date",label:"Ngày gửi",value:time(selected.submittedAt)},{key:"status",label:"Trạng thái",value:"Chờ duyệt"}]}/>
       <div className={styles.registrationReviewDetail}>
       <label className={styles.field}>Vai trò Staff<select aria-label="Vai trò Staff" value={roleId} disabled={busy||!reviewReady||!!reviewError} onChange={e=>setRoleId(e.target.value)}>
         <option value="">Chọn vai trò</option>{roles.map(r=><option value={r.id} key={r.id}>{r.displayName}</option>)}
@@ -131,6 +138,7 @@ function CenterReview({centerId,centerName,embedded}:{centerId:string;centerName
       <div className={styles.registrationDecisionActions}><button type="button" className={styles.secondaryButton} disabled={busy||!reviewReady||!!reviewError||!reason.trim()} onClick={()=>void review("reject")}>Từ chối</button></div>
       </div>
       {error?<p role="alert">{error}</p>:null}{busy?<p role="status">Đang xử lý…</p>:null}
-    </BoDrawer>:null}
+      </>}
+    </DetailFrame>}
   </section>;
 }

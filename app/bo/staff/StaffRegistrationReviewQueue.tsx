@@ -44,6 +44,7 @@ export function StaffRegistrationReviewQueue() {
   const [catalog, setCatalog] = useState<Catalog>({ centers: [], paths: [], classes: [] });
   const [selectedId, setSelectedId] = useState("");
   const [surface, setSurface] = useState<"table" | "drawer" | "detail">("table");
+  const [tab, setTab] = useState("overview");
   const [loading, setLoading] = useState(true);
   const [staffRecords, setStaffRecords] = useState<BoStaffRecord[]>([]);
   const [accessUsers, setAccessUsers] = useState<BoAccessSystemUser[]>([]);
@@ -220,7 +221,7 @@ export function StaffRegistrationReviewQueue() {
     {(!selected || surface !== "detail") && <BoDataGrid rows={visibleRequests} columns={requestColumns} rowKey={row => row.id}
       caption={"H\u1ed3 s\u01a1 nh\u00e2n s\u1ef1 ch\u1edd duy\u1ec7t"} state={loading ? "loading" : error && !requests.length ? "error" : "ready"}
       stateMessage={error} search={search} onSearchChange={setSearch} searchPlaceholder={"T\u00ecm t\u00ean ho\u1eb7c email"}
-      onRowOpen={row => { setSelectedId(row.id); setApproval(null); setSurface("drawer"); }} quickViewOpener
+      onRowOpen={row => { setSelectedId(row.id); setApproval(null); setTab("overview"); setSurface("drawer"); }} quickViewOpener
       emptyTitle={"Ch\u01b0a c\u00f3 h\u1ed3 s\u01a1"} emptyMessage={"Kh\u00f4ng c\u00f3 h\u1ed3 s\u01a1 ph\u00f9 h\u1ee3p."} resultLabel={visibleRequests.length + " h\u1ed3 s\u01a1"}
       toolbarActions={<button type="button" disabled={Boolean(busy) || loading} onClick={() => { setError(""); void refresh(); }}>{"T\u1ea3i l\u1ea1i"}</button>} /> }
     {selected && surface === "drawer" && <BoDrawer title={selected.displayLabel} eyebrow={"H\u1ed3 s\u01a1 ch\u1edd duy\u1ec7t"} onClose={() => { setSurface("table"); setSelectedId(""); }}
@@ -228,9 +229,9 @@ export function StaffRegistrationReviewQueue() {
       <BoProperties authority items={requestProperties(selected)} />
     </BoDrawer>}
     {selected && surface === "detail" && <DetailFrame title={selected.displayLabel} subtitle={"H\u1ed3 s\u01a1 ch\u1edd duy\u1ec7t"}
-      tabs={[{ id: "overview", label: "T\u1ed5ng quan" }]} selected="overview"
+      tabs={[{ id: "overview", label: "T\u1ed5ng quan" }, { id: "history", label: "L\u1ecbch s\u1eed" }]} selected={tab} onSelect={id => { if (!busy) setTab(id); }}
       onBack={() => { if (!busy) { setSurface("table"); setSelectedId(""); } }}>
-      <div className={styles.registrationReviewDetail}>
+      {tab === "history" ? <p role="status">{"L\u1ecbch s\u1eed chi ti\u1ebft ch\u01b0a c\u00f3 trong d\u1eef li\u1ec7u h\u1ed3 s\u01a1 n\u00e0y."}</p> : <div className={styles.registrationReviewDetail}>
           <section className={styles.panel}>
             <BoProperties authority items={requestProperties(selected)} />
             <p className={styles.registrationPrivacyNote}>{"CCCD v\u00e0 th\u00f4ng tin ng\u00e2n h\u00e0ng ch\u1ec9 hi\u1ec3n th\u1ecb d\u1eef li\u1ec7u \u0111\u00e3 che."}</p>
@@ -287,7 +288,7 @@ export function StaffRegistrationReviewQueue() {
               <button type="button" className={styles.primaryButton} disabled={Boolean(busy) || !identityReady || !selected.documents.front || !selected.documents.back || Boolean(existingAccess?.staffMemberId) || Boolean(existingAccess && !existingStaffMemberId)} onClick={() => void approve()}>{busy === "approve" ? "Đang duyệt…" : existingAccess ? "Duyệt & liên kết" : "Duyệt & cấp quyền"}</button>
             </div>
           </section>
-      </div>
+      </div>}
     </DetailFrame>}
   </section>;
 }
