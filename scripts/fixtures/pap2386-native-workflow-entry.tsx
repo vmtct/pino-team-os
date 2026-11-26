@@ -13,7 +13,11 @@ import "../../app/bo/design-system/foundation.css";
 import "../../app/components/workspace-renderer/tdd-detail-layout.css";
 const id=(n:number)=>"01900000-0000-7000-8000-"+String(n).padStart(12,"0"),C=id(1),P=id(2),D=id(3),U=id(4),E=id(5),PERSON=id(6),PATH=id(7),USED=id(8);
 const stamp="2026-11-26T00:00:00Z",origin="https://bo.staging.pinohouse.art",base="/api/bo/learning/piner-posts/"+P,params=new URLSearchParams(location.search),mytime=params.has("mytime");
-const png="iVBORw0KGgoAAAANSUhEUgAAAGAAAABICAIAAACGBWc0AAAAhElEQVR4nO3QQQ0AIBDAsJODYjQhCwd82aPJBCydtY8ezfeDeIAAAQIEKBwgQIAAAQoHCBAgQIDCAQIECBCgcIAAAQIEKBwgQIAAAQoHCBAgQIDCAQIECBCgcIAAAQIEKBwgQIAAAQoHCBAgQIDCAQIECBCgcIAAAQIEKBwgQIAAAQp3ATD9JGiMmC98AAAAAElFTkSuQmCC",source=new Blob([Uint8Array.from(atob(png),x=>x.charCodeAt(0))],{type:"image/png"});
+const png="iVBORw0KGgoAAAANSUhEUgAAAGAAAABICAIAAACGBWc0AAAAhElEQVR4nO3QQQ0AIBDAsJODYjQhCwd82aPJBCydtY8ezfeDeIAAAQIEKBwgQIAAAQoHCBAgQIDCAQIECBCgcIAAAQIEKBwgQIAAAQoHCBAgQIDCAQIECBCgcIAAAQIEKBwgQIAAAQoHCBAgQIDCAQIECBCgcIAAAQIEKBwgQIAAAQp3ATD9JGiMmC98AAAAAElFTkSuQmCC";
+const pngBlob=new Blob([Uint8Array.from(atob(png),x=>x.charCodeAt(0))],{type:"image/png"});
+const requestedMime=new URLSearchParams(location.search).get("copyMime");
+const source=await (async()=>{if(!requestedMime||requestedMime==="image/png")return pngBlob;if(!["image/jpeg","image/webp"].includes(requestedMime))throw Error("Unknown synthetic format");const bitmap=await createImageBitmap(pngBlob);try{const canvas=new OffscreenCanvas(bitmap.width,bitmap.height),ctx=canvas.getContext("2d");if(!ctx)throw Error("No canvas");ctx.drawImage(bitmap,0,0);const blob=await canvas.convertToBlob({type:requestedMime,quality:1});if(blob.type!==requestedMime)throw Error("Encoding mismatch");return blob;}finally{bitmap.close();}})();
+const source64=btoa(String.fromCharCode(...new Uint8Array(await source.arrayBuffer())));
 let v=1,selected=false,pending=false,order:string[]|null=null,confirmCalls=0,reserveCalls=0,linkCalls=0,submitCalls=0,selectionCalls=0;
 type Asset={id:string;file:Blob;version:number;postVersion:number;state:"RESERVED"|"READY";confirmKey?:string};
 const assets:Asset[]=[],provenance:{attachmentId:string;attachmentVersion:number;diaryId:string;evidenceId:string;transform:string}[]=[];
@@ -21,6 +25,7 @@ const ready=()=>assets.filter(a=>a.state==="READY"),scope=()=>({postId:P,centerI
 const row=()=>({id:P,studentId:mytime?null:id(9),personId:PERSON,personName:"QA Synthetic Person",studentName:mytime?null:"QA Synthetic Student",centerId:C,centerName:"QA Center",caption:"Synthetic caption",programKey:mytime?"MYTIME":"AFTERSCHOOL",publisher:mytime?"MyTime by PINO":"PINO Afterschool",status:pending?"PENDING_APPROVAL":"DRAFT",version:v,mediaCount:ready().length,createdAt:stamp,updatedAt:stamp,createdBy:null,updatedBy:null});
 const item=(a:Asset)=>({id:a.id,state:a.state,mimeType:a.file.type,byteSize:a.file.size,version:a.version,postVersion:a.postVersion,expiresAt:stamp});
 const desc={id:E,diaryId:D,mimeType:source.type,byteSize:source.size,confirmedAt:stamp};
+const extraDiaries=params.has("thumbPages")?[30,31,32,33,34].map(n=>id(n)):[],extraPhotos=params.has("thumbPages")?[40,41,42,43,44].map(n=>({...desc,id:id(n)})):[],diaryReads:string[]=[];
 const fetcher:typeof fetch=async(input,init)=>{
  const url=new URL(String(input),origin),method=init?.method??"GET",path=url.pathname,h=new Headers(init?.headers);init?.signal?.throwIfAborted();
  if(url.origin!==origin)throw Error("Non-synthetic destination");
@@ -31,9 +36,8 @@ const fetcher:typeof fetch=async(input,init)=>{
  if(path===base+"/attachments"&&method==="GET")return json({postVersion:v,mediaCount:ready().length,attachments:ready().map(item)});
  if(path===base+"/workflow-state"&&method==="GET")return json({...scope(),status:row().status,diaryIds:selected?[D]:[],provenance,submittedAttachmentIds:order});
  if(path===base+"/submission-state"&&method==="GET")return json({...scope(),status:row().status,submittedAttachmentIds:order});
- if(path===base+"/diaries"&&method==="GET")return json({...scope(),diaries:[{diaryId:D,pathId:PATH,registeredAt:stamp,runningClassId:null,claimState:claim()},{diaryId:USED,pathId:PATH,registeredAt:stamp,runningClassId:null,claimState:"USED"}],nextAfter:null});
- if(path===base+"/diaries/"+D+"/photos"&&method==="GET")return json({...scope(),diaryId:D,claimState:claim(),photos:[desc]});
- if(path===base+"/diaries/"+D+"/photos/"+E&&method==="GET")return json({...desc,base64:png});
+ if(path===base+"/diaries"&&method==="GET")return json({...scope(),diaries:[{diaryId:D,pathId:PATH,registeredAt:stamp,runningClassId:null,claimState:claim()},{diaryId:USED,pathId:PATH,registeredAt:stamp,runningClassId:null,claimState:"USED"},...extraDiaries.map(diaryId=>({diaryId,pathId:PATH,registeredAt:stamp,runningClassId:null,claimState:"AVAILABLE"}))],nextAfter:null});
+ if(path.startsWith(base+"/diaries/")&&method==="GET"){diaryReads.push(path);document.documentElement.setAttribute("data-qa-diary-reads",JSON.stringify(diaryReads));for(const diaryId of [D,...extraDiaries]){const photos=diaryId===D?[desc,...extraPhotos]:[{...desc,diaryId}];if(path===base+"/diaries/"+diaryId+"/photos")return json({...scope(),diaryId,claimState:diaryId===D?claim():"AVAILABLE",photos});for(const p of photos)if(path===base+"/diaries/"+diaryId+"/photos/"+p.id)return json({...p,base64:source64});}throw Error("Unexpected or used Diary source");}
  const match=assets.find(a=>path.startsWith(base+"/attachments/"+a.id+"/"));
  if(match&&path.endsWith("/preview")&&method==="GET"&&match.state==="READY")return new Response(match.file,{headers:{"content-type":match.file.type,"content-length":String(match.file.size)}});
  if(method!=="POST"||pending)throw Error("Unexpected synthetic operation "+path);
