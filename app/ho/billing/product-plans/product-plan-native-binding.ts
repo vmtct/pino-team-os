@@ -18,16 +18,21 @@ export function nativePlanUrl(record:string|null,tab:PlanTab="overview"){
  return nativePath+(q.size?"?"+q:"");
 }
 const fields={displayName:"name",cadence:"cadence",termWeeks:"termWeeks",listPriceMinor:"price",enabled:"enabled",badge:"badge"} as const;
-export function bindPlanSchema(client:PlanClient,context:AuthorizationContext){
- const registry=new TddRegistry();
- const permitted=(incoming:AuthorizationContext)=>incoming===context&&context.surface==="HO"&&context.authorize(PLAN_READ);
- const definition:ModuleSchema<PlanFields>={...planDefinition,
+const clientCapability=Symbol("product-plan-client");
+export function createPlanContext(client:PlanClient,authorize:(key:string)=>boolean):AuthorizationContext{
+ return Object.freeze({surface:"HO" as const,authorize,[clientCapability]:client});
+}
+function scopedClient(incoming:AuthorizationContext){
+ if(incoming.surface!=="HO"||!incoming.authorize(PLAN_READ)||!(clientCapability in incoming))return null;
+ return (incoming as AuthorizationContext&{readonly [clientCapability]:PlanClient})[clientCapability];
+}
+const definition:ModuleSchema<PlanFields>={...planDefinition,
  capabilities:{read:PLAN_READ,edit:PLAN_EDIT,history:PLAN_READ},
- data:{id:"product-plans-native",list:async(_query,incoming,signal)=>{if(!permitted(incoming))throw new CatalogRequestError(403);const rows=await client.list(signal);return {rows,total:rows.length};},
- detail:async(id,incoming,signal)=>{if(!permitted(incoming))throw new CatalogRequestError(403);return client.detail(id,signal);}},
+ data:{id:"product-plans-native",list:async(_query,incoming,signal)=>{const client=scopedClient(incoming);if(!client)throw new CatalogRequestError(403);const rows=await client.list(signal);return {rows,total:rows.length};},
+ detail:async(id,incoming,signal)=>{const client=scopedClient(incoming);if(!client)throw new CatalogRequestError(403);return client.detail(id,signal);}},
  detail:{...planDefinition.detail,businessTabs:[{...planDefinition.detail.businessTabs[0],source:{adapter:"product-plan-subscriptions-native",permission:PLAN_READ}}],
  history:{kind:"provider",source:{adapter:"product-plan-history-native",permission:PLAN_READ},load:async(subject,incoming,cursor,signal)=>{
- if(!permitted(incoming)||subject.type!=="product_plan"||!isPlanId(subject.id))return {status:"denied"};
+ const client=scopedClient(incoming);if(!client||subject.type!=="product_plan"||!isPlanId(subject.id))return {status:"denied"};
  try{
  const page=await client.history(subject.id,signal,cursor);
  const events:HistoryEvent[]=page.items.map(event=>({id:event.id,at:event.at,actor:event.actor,action:event.action,outcome:"succeeded",source:"Core",subject,redacted:true,
@@ -36,5 +41,5 @@ export function bindPlanSchema(client:PlanClient,context:AuthorizationContext){
  return {status:"authorized",events,nextCursor:page.nextAfter};
  }catch(e){if(e instanceof CatalogRequestError&&(e.status===401||e.status===403))return {status:"denied"};throw e;}
  }} }};
- return {registry,schema:registry.register(definition)};
-}
+export const nativePlanRegistry=new TddRegistry();
+export const nativePlanSchema=nativePlanRegistry.register(definition);

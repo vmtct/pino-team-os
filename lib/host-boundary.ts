@@ -1,4 +1,6 @@
 import {HO_LEARNING_SPACE_API,learningSpaceRoute} from "./ho-learning-space-contract";
+import {planRequest} from "../app/ho/billing/product-plans/product-plan-http-contract";
+import {catalogPath} from "../app/ho/billing/product-plans/product-plan-native-contract";
 import {guestHostDecision} from "./bo-mytime-guest-host-contract";
 import {workshopHostDecision} from "./mytime-workshop-host-contract";
 import {postDraftHostDecision} from "./bo-post-draft-host-contract";
@@ -33,6 +35,8 @@ export type HostBoundaryDecision =
 
 export function decideHostBoundary(host: string, pathname: string, method = "GET"): HostBoundaryDecision {
   const hostname = normalizeHostname(host);
+  // PAP-2365: exact HO Product Plan API, no other host or verb.
+  if(pathname.toLowerCase()===catalogPath||pathname.toLowerCase().startsWith(catalogPath+"/"))return {action:hostname===HO_STAGING_HOSTNAME&&planRequest(pathname,method)?"next":"not_found"};
   // PAP-2358: exact native Staff directory ingress, HO Staging read only.
   const staffDirectoryBase="/api/ho/staff/directory";
   const staffDirectoryPath=pathname.toLowerCase();

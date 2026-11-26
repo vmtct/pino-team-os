@@ -10,7 +10,7 @@ import {useResource} from "@/app/components/workspace-renderer/useResource";
 import {loadHistory,type ModuleSchema,type AuthorizationContext,type MutationAdapter,type TableQuery} from "@/lib/workspace-schema";
 import {HistoryState} from "@/app/components/workspace-renderer/History";
 import {planQuery,PLAN_READ,PLAN_EDIT,type PlanFields} from "./schema";
-import {bindPlanSchema,nativePlanUrl,parseNativePlanQuery,type PlanTab,type PlanClient} from "./product-plan-native-binding";
+import {createPlanContext,nativePlanRegistry,nativePlanSchema,nativePlanUrl,parseNativePlanQuery,type PlanTab,type PlanClient} from "./product-plan-native-binding";
 import {createProductPlanClient,CatalogRequestError,isPlanId} from "./product-plan-native-contract";
 import {createPlanBrowserPort} from "./product-plan-http-contract";
 import {createCatalogJournal} from "./product-plan-pending-journal";
@@ -42,8 +42,8 @@ function ProductPlanHistory({schema,context,id}:{schema:ModuleSchema;context:Aut
 }
 export function ProductPlanNativeWorkspace({client,permissionKeys,initialRecord,initialTab="overview"}:{client:PlanClient;permissionKeys:readonly string[];initialRecord?:string;initialTab?:PlanTab}){
  const menu=useContext(TddHostMenu);
- const context=useMemo<AuthorizationContext>(()=>({surface:"HO",authorize:key=>permissionKeys.includes(key)}),[permissionKeys]);
- const {registry,schema}=useMemo(()=>bindPlanSchema(client,context),[client,context]);
+ const context=useMemo(()=>createPlanContext(client,key=>permissionKeys.includes(key)),[client,permissionKeys]);
+ const schema=nativePlanSchema;
  const [query,setQuery]=useState<TableQuery<PlanFields>>(planQuery);
  const [selected,setSelected]=useState<string|null>(initialRecord??null),[full,setFull]=useState(Boolean(initialRecord)),[tab,setTab]=useState<PlanTab>(initialTab);
  const [revision,setRevision]=useState(0),[notice,setNotice]=useState(""),[recovering,setRecovering]=useState(false);
@@ -98,14 +98,14 @@ export function ProductPlanNativeWorkspace({client,permissionKeys,initialRecord,
  const canEdit=context.authorize(PLAN_READ)&&context.authorize(PLAN_EDIT)&&!fenced&&result.status==="ready";
  const tableWrites=canEdit?{adapter,versionForRow:(id:string)=>String(rows.find(r=>r.id===id)?.version??""),onSaved}:undefined;
  const recordWrites=canEdit&&row?{adapter,version:String(row.version),onSaved,directFields}:undefined;
- const common={registry,context,schema};
+ const common={registry:nativePlanRegistry,context};
  if(!context.authorize(PLAN_READ))return <p role="alert">Không có quyền truy cập gói học.</p>;
  return <TddPreferencePolicy.Provider value="ephemeral">
  {notice||fenced?<div role="status">{notice||"Có yêu cầu lưu chưa xác minh."} {fenced?<button type="button" className="secondary-btn" disabled={recovering} onClick={()=>void recover()}>Kiểm tra lại</button>:null}</div>:null}
- {full&&row?<TddRenderer view={{kind:"detail",props:{...common,record:row,writes:recordWrites,loaders,subject:{type:"product_plan",id:row.id},historyContent:<ProductPlanHistory key={row.id+":"+String(row.version)} schema={schema as unknown as ModuleSchema} context={context} id={row.id}/>,mobileMenu:menu("detail-menu-btn"),onBack:close,activeTab:tab,onTabChange:id=>{if(id==="overview"||id==="subscriptions"||id==="history"){setTab(id);navigate(row.id,id);}}}}}/>:
- <TddRenderer view={{kind:"table",mobileMenu:menu("menu-btn"),props:{...common,query,rows,total:rows.length,status:result.status,onRetry:retry,writes:tableWrites,onQueryChange:setQuery,onOpen:r=>{setSelected(r.id);setFull(false);setRelation(null);}}}}/>}
+ {full&&row?<TddRenderer view={{kind:"detail",props:{...common,schema:nativePlanSchema,record:row,writes:recordWrites,loaders,subject:{type:"product_plan",id:row.id},historyContent:<ProductPlanHistory key={row.id+":"+String(row.version)} schema={schema as unknown as ModuleSchema} context={context} id={row.id}/>,mobileMenu:menu("detail-menu-btn"),onBack:close,activeTab:tab,onTabChange:id=>{if(id==="overview"||id==="subscriptions"||id==="history"){setTab(id);navigate(row.id,id);}}}}}/>:
+ <TddRenderer view={{kind:"table",mobileMenu:menu("menu-btn"),props:{...common,schema:nativePlanSchema,query,rows,total:rows.length,status:result.status,onRetry:retry,writes:tableWrites,onQueryChange:setQuery,onOpen:r=>{setSelected(r.id);setFull(false);setRelation(null);}}}}/>}
  {selected&&!row?<p role={detail.result.status==="error"?"alert":"status"}>{detail.result.status==="loading"?"Đang tải gói học…":"Không thể tải gói học."} <button type="button" className="secondary-btn" onClick={detail.retry}>Thử lại</button> <button type="button" className="secondary-btn" onClick={close}>Đóng</button></p>:null}
- {row&&!full?<TddRenderer view={{kind:"drawer",props:{...common,record:row,writes:recordWrites,onClose:close,onDetail:()=>{navigate(row.id);setTab("overview");setFull(true);}}}}/>:null}
+ {row&&!full?<TddRenderer view={{kind:"drawer",props:{...common,schema:nativePlanSchema,record:row,writes:recordWrites,onClose:close,onDetail:()=>{navigate(row.id);setTab("overview");setFull(true);}}}}/>:null}
  </TddPreferencePolicy.Provider>;
 }
 export function ProductPlanNativeEntry({actorId,permissionKeys,initialRecord,initialTab}:{actorId:string;permissionKeys:readonly string[];initialRecord?:string;initialTab?:PlanTab}){
