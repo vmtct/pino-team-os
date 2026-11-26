@@ -616,6 +616,9 @@
         "app/ho/learning/missions/read-edit.ts",
         "app/ho/learning/missions/MissionCreateFields.tsx",
         "app/ho/learning/missions/mission-path-options.ts",
+        "app/ho/learning/missions/mission-category.ts",
+        "app/ho/learning/missions/mission-m1-boundary.ts",
+        "app/ho/learning/missions/mission-m1-query.ts",
         "lib/mission-history.ts",
         "lib/bo-registration.ts"
       ],
@@ -634,9 +637,15 @@
         "lib/pap1207-ho-mission-create-ui.test.ts",
         "lib/pap1207-ho-mission-s2-path-selector.test.ts",
         "lib/pap1207-ho-mission-edit.test.ts",
-        "lib/pap1188-mission-history.test.ts"
+        "lib/pap1188-mission-history.test.ts",
+        "lib/pap1207-ho-mission-s5-parity.test.ts",
+        "lib/pap2394-mission-category.test.ts"
       ],
       "externalReferences": [
+        {
+          "file": "lib/m1-preview/admission.server.ts",
+          "owner": "PAP-2342"
+        },
         {
           "file": "app/ho/HoWorkspace.tsx",
           "owner": "PAP-1606"
