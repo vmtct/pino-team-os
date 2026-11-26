@@ -48,6 +48,19 @@ try{
    assert.equal(errors.length,0,errors.join(";"));assert.equal(network.filter(x=>!x.startsWith("GET ")).length,0);
    await page.screenshot({path:resolve(out,width+"-detail.png"),fullPage:true});
    result.checks.push({width,lostCreateRecovery:lost,receipt,blockedNetwork:network});
+   const reader=await ctx.newPage();reader.on("pageerror",e=>errors.push(e.message));
+   try{
+    await reader.goto(origin+"/bo/running-classes?reader=1",{waitUntil:"domcontentloaded"});
+    await reader.locator("[data-record]").first().waitFor({timeout:20000});
+    assert.equal(await reader.locator("#add-record").count(),0);
+    await reader.locator("[data-record]").first().click();await reader.locator("#full-detail").click();
+    await reader.getByText("QA read-only class",{exact:true}).first().waitFor();
+    assert.equal(await reader.locator("#rc-operationalName,#rc-status").count(),0);
+    assert.equal(await reader.getByRole("button",{name:"Kiểm tra lại thao tác"}).count(),0);
+    assert.equal(errors.length,0,errors.join(";"));assert.equal(network.filter(x=>!x.startsWith("GET ")).length,0);
+    await reader.screenshot({path:resolve(out,width+"-reader.png"),fullPage:true});
+    result.checks.push({width,reader:true,createHidden:true,inlineHidden:true});
+   }finally{await reader.close();}
   }catch(e){if(page&&!page.isClosed()){result.diagnostic=(await page.locator("body").innerText()).slice(0,2000);await page.screenshot({path:resolve(out,width+"-failure.png"),fullPage:true});}throw e;}
   finally{await ctx.close();}
  }

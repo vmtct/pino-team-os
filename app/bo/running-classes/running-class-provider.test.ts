@@ -8,12 +8,12 @@ const command:ClassCreate={centerId:center,pathProgramId:id(2),learningSpaceId:i
 const row={...command,id:id(4),version:1};
 const bootstrap=(rows:unknown[])=>({centers:[{id:center,status:"ACTIVE",displayName:"Center",timeZone:"Asia/Ho_Chi_Minh"}],paths:[{id:id(2),displayName:"Piano",status:"ACTIVE"}],learningSpaces:[{id:id(3),centerId:center,displayName:"Room",status:"ACTIVE"}],runningClasses:rows});
 const response=(data:unknown,status=200)=>Response.json({data},{status});
-async function setup(){
+async function setup(readOnly=false,expectedActorId=id(8)){
  const map=new Map<string,string>(),calls:{url:string;init?:RequestInit}[]=[],replies:(Response|Promise<Response>)[]=[];
  let selected=center,actor=id(8),allowed=true;
  const storage={getItem:(k:string)=>map.get(k)??null,setItem:(k:string,v:string)=>{map.set(k,v);},removeItem:(k:string)=>{map.delete(k);}};
  const fetcher=(async(input:RequestInfo|URL,init?:RequestInit)=>{calls.push({url:String(input),init});const r=replies.shift();if(!r)throw Error("unexpected fetch");return r;}) as typeof fetch;
- const provider=await openRunningClassProvider({centerId:center,context:async()=>({userId:actor,surface:"BO",entitled:true,permissionKeys:allowed?["delivery.schedule.manage"]:[]}),selectedCenter:()=>selected,fetcher,storage,newKey:()=>"original-key"});
+ const provider=await openRunningClassProvider({centerId:center,expectedActorId,context:async()=>({userId:actor,surface:"BO",entitled:true,permissionKeys:allowed?[readOnly?"membership.subscription.view":"delivery.schedule.manage"]:[]}),selectedCenter:()=>selected,fetcher,storage,newKey:()=>"original-key"});
  return {provider,calls,replies,map,changeCenter:()=>{selected=other;},changeActor:()=>{actor=id(7);},revoke:()=>{allowed=false;}};
 }
 test("strict scoped bootstrap handles empty data and rejects duplicate, foreign or malformed rows",()=>{
@@ -65,3 +65,11 @@ test("unknown create and immutable edit fields fail before write",async()=>{
  await assert.rejects(m.provider.edit({id:row.id,expectedVersion:1,changes:{centerId:other} as never}),/edit fields/);
  assert.equal(m.calls.length,2);
 });
+
+test("existing read-only actor sees strict scoped rows and cannot send or recover mutations",async()=>{
+ const m=await setup(true);m.replies.push(response(bootstrap([row])));assert.equal((await m.provider.load()).length,1);assert.equal(m.provider.writable,false);assert.equal(m.provider.find(row.id)?.version,1);
+ await assert.rejects(m.provider.create(command),/read-only/);await assert.rejects(m.provider.edit({id:row.id,expectedVersion:1,changes:{status:"ACTIVE"}}),/read-only/);await assert.rejects(m.provider.retry(),/read-only/);
+ assert.equal(m.calls.length,1);assert.equal(m.map.size,0);assert.equal(m.provider.state().pending,false);assert.equal(m.provider.state().loaded,true);
+ m.revoke();await assert.rejects(m.provider.load(),/scope denied/);assert.equal(m.provider.state().loaded,false);
+});
+test("server-bound expected actor rejects a different scoped principal before data transport",async()=>{await assert.rejects(setup(false,id(7)),/actor changed/);});

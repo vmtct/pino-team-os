@@ -14,14 +14,15 @@ import "../../app/components/workspace-renderer/tdd-detail-layout.css";
 const id=(n:number)=>"01900000-0000-7000-8000-"+String(n).padStart(12,"0");
 const C=id(1),P=id(2),S=id(3),U=id(4),R=id(5);
 const options={centerId:C},user={displayName:"QA Synthetic"};
-const lost=new URLSearchParams(location.search).has("lost");
-let row:ClassRecord|undefined,createCalls=0,editCalls=0,firstKey="",firstBody="";
+const params=new URLSearchParams(location.search),lost=params.has("lost"),reader=params.has("reader");
+let row:ClassRecord|undefined=reader?{id:R,centerId:C,pathProgramId:P,learningSpaceId:S,operationalName:"QA read-only class",weekdayIso:1,windowStartsLocal:"18:00",windowEndsLocal:"19:30",deliveryTopology:"FIXED_COHORT",optimalConcurrentCapacity:8,hardConcurrentCapacity:null,defaultParticipationMinutes:null,status:"INACTIVE",version:1}:undefined,createCalls=0,editCalls=0,firstKey="",firstBody="";
 const receipt=()=>{const e=document.querySelector("#synthetic-receipt");if(e)e.textContent=JSON.stringify({createCalls,editCalls,version:row?.version??0,name:row?.operationalName??"",status:row?.status??"",id:row?.id??null});};
 const json=(data:unknown,status=200)=>Response.json({data},{status});
 const fetcher:typeof fetch=async(input,init)=>{
  const url=new URL(String(input),location.origin),method=init?.method??"GET";
  if(url.origin!==location.origin||url.searchParams.size!==1||url.searchParams.get("centerId")!==C)throw Error("Unexpected synthetic scope.");
  if(method==="GET"&&url.pathname==="/api/bo/delivery/bootstrap-state")return json({centers:[{id:C,status:"ACTIVE",displayName:"QA Center",timeZone:"Asia/Ho_Chi_Minh"}],paths:[{id:P,status:"ACTIVE",displayName:"Piano"}],learningSpaces:[{id:S,centerId:C,status:"ACTIVE",displayName:"QA Room"}],runningClasses:row?[row]:[]});
+ if(reader)throw Error("Reader attempted a write.");
  const h=new Headers(init?.headers);if(h.get("x-pino-expected-principal")!==U)throw Error("Actor mismatch.");
  const body=String(init?.body);
  if(method==="POST"&&url.pathname==="/api/bo/delivery/running-classes/create-inactive"){
@@ -44,7 +45,7 @@ function Fixture(){
  const [session,setSession]=useState<{provider:RunningClassProvider;source:BoWorkspaceSource}|null>(null),[error,setError]=useState("");
  useEffect(()=>{
   let active=true,own:RunningClassProvider|undefined;
-  void openRunningClassProvider({centerId:C,context:async()=>({userId:U,surface:"BO",entitled:true,permissionKeys:["delivery.schedule.manage"]}),selectedCenter:()=>active?C:"",fetcher,storage:sessionStorage}).then(provider=>{
+  void openRunningClassProvider({centerId:C,context:async()=>({userId:U,surface:"BO",entitled:true,permissionKeys:[reader?"membership.subscription.view":"delivery.schedule.manage"]}),selectedCenter:()=>active?C:"",fetcher,storage:sessionStorage}).then(provider=>{
    own=provider;if(!active){provider.dispose();return;}
    setSession({provider,source:{modules:{...school.modules,classes:classTableModule(school.modules.classes)},runningClassLive:provider,scopeLabel:()=>"",routeForModule:k=>k==="classes"?"/bo/running-classes":"/bo?module="+k,load:async(k,_f,o)=>{if(k!=="classes"||o.centerId!==C)throw Error("Scope mismatch");return provider.load();}}});
   }).catch(e=>{if(active)setError(String(e));});

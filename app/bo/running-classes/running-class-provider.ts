@@ -48,15 +48,17 @@ export function parseRunningClassBootstrap(value:unknown,centerId:string){
  const catalog:ClassCatalog={centers,paths,spaces};
  return {catalog,records,timeZone:centers[0].timeZone};
 }
-export async function openRunningClassProvider(options:{centerId:string;context:()=>Promise<Scope>;selectedCenter:()=>string;fetcher:typeof fetch;storage:StoragePort;newKey?:()=>string}){
+export async function openRunningClassProvider(options:{centerId:string;expectedActorId?:string;context:()=>Promise<Scope>;selectedCenter:()=>string;fetcher:typeof fetch;storage:StoragePort;newKey?:()=>string}){
  const centerId=id(options.centerId);
  const initial=await options.context();
  const actorId=id(initial.userId);
+ if(options.expectedActorId!==undefined&&id(options.expectedActorId)!==actorId)fail("Running Class actor changed.");
+ const writable=initial.permissionKeys?.includes("delivery.schedule.manage")===true;
  let disposed=false;
  const verify=async()=>{
   if(disposed||options.selectedCenter()!==centerId)fail("Running Class scope changed.");
   const current=await options.context();
-  if(disposed||options.selectedCenter()!==centerId||current.userId!==actorId||current.surface!=="BO"||current.entitled!==true||!current.permissionKeys?.includes("delivery.schedule.manage"))fail("Running Class scope denied.");
+  if(disposed||options.selectedCenter()!==centerId||current.userId!==actorId||current.surface!=="BO"||current.entitled!==true||(writable?!current.permissionKeys?.includes("delivery.schedule.manage"):!current.permissionKeys?.includes("membership.subscription.view")))fail("Running Class scope denied.");
  };
  await verify();
  const guardedFetch=(async(input:RequestInfo|URL,init?:RequestInit)=>{await verify();const headers=new Headers(init?.headers);if(init?.method==="POST"||init?.method==="PATCH")headers.set("x-pino-expected-principal",actorId);const response=await options.fetcher(input,{...init,headers});await verify();return response;}) as typeof fetch;
@@ -64,7 +66,8 @@ export async function openRunningClassProvider(options:{centerId:string;context:
  const recovery=createRunningClassRecovery({centerId,scope,storage:options.storage,verify,client:createRunningClassCommandClient(centerId,guardedFetch),newKey:options.newKey});
  let state:ReturnType<typeof parseRunningClassBootstrap>|undefined,busy=false;
  const current=()=>{if(disposed||!state||options.selectedCenter()!==centerId)return fail("Reload Running Class data.");return state;};
- const run=async<T>(fn:()=>Promise<T>):Promise<T>=>{
+ const run=async<T>(fn:()=>Promise<T>,write=false):Promise<T>=>{
+  if(write&&!writable)return fail("Running Class is read-only.");
   if(busy||disposed)return fail("Running Class provider busy.");
   busy=true;try{await verify();return await fn();}catch(e){state=undefined;throw e;}finally{busy=false;}
  };
@@ -81,8 +84,9 @@ export async function openRunningClassProvider(options:{centerId:string;context:
   return projectClassRow(confirmed,s.catalog);
  }
  return {
+  writable,
   load:()=>run(load),
-  state:()=>{const r=recovery.state();return {...r,busy:busy||r.busy,loaded:!!state&&!disposed&&options.selectedCenter()===centerId};},
+  state:()=>{const r=writable?recovery.state():{busy:false,pending:false,recovery:"NONE" as const};return {...r,busy:busy||r.busy,loaded:!!state&&!disposed&&options.selectedCenter()===centerId};},
   catalog:()=>structuredClone(current().catalog),
   centerToday:()=>new Intl.DateTimeFormat("sv-SE",{timeZone:current().timeZone}).format(new Date()),
   list:()=>current().records.map(r=>projectClassRow(r,current().catalog)),
@@ -93,7 +97,7 @@ export async function openRunningClassProvider(options:{centerId:string;context:
    const s=current(),validated=validateClassDraft(command,s.catalog);
    if(!validated.ok||command.centerId!==centerId||command.status!=="INACTIVE")return fail("Invalid Running Class create.");
    return accept(await recovery.create(validated.value));
-  });},
+  },true);},
   edit:(input:ClassEditCommand)=>{const command={...input,changes:{...input.changes}};return run(async()=>{
    const s=current(),original=s.records.find(r=>r.id===command.id);
    if(!original||original.version!==command.expectedVersion)return fail("Stale Running Class edit.");
@@ -102,8 +106,8 @@ export async function openRunningClassProvider(options:{centerId:string;context:
    if(!candidate.ok)return fail(candidate.message);
    if(Object.keys(command.changes).some(k=>!Object.hasOwn(candidate.command.changes,k)))return fail("Invalid Running Class edit fields.");
    return accept(await recovery.edit(original,candidate.command));
-  });},
-  retry:()=>run(async()=>{if(!state)await load();return accept(await recovery.retry());}),
+  },true);},
+  retry:()=>run(async()=>{if(!state)await load();return accept(await recovery.retry());},true),
   dispose:()=>{disposed=true;state=undefined;recovery.dispose();}
  };
 }

@@ -11,14 +11,14 @@ import {classTableModule} from "./running-class-presentation";
 import {openRunningClassProvider,type RunningClassProvider} from "./running-class-provider";
 import {RC_REVIEW_PATH} from "./running-class-review-query";
 
-export function RunningClassNativeEntry(){
+export function RunningClassNativeEntry({expectedActorId}:{expectedActorId:string}){
  const user=useBoStagingUser(),center=useBoCenterSelection(),selected=center?.selected??"";
  if(!user||!center||center.error)return <RecordState status="denied"/>;
  if(center.loading)return <RecordState status="loading"/>;
  if(!selected||!center.centers.some(c=>c.id===selected))return <RecordState status="denied"/>;
- return <ScopedNative key={selected} centerId={selected} user={user}/>;
+ return <ScopedNative key={selected+":"+expectedActorId} centerId={selected} expectedActorId={expectedActorId} user={user}/>;
 }
-function ScopedNative({centerId,user}:{centerId:string;user:{displayName:string|null}}){
+function ScopedNative({centerId,expectedActorId,user}:{centerId:string;expectedActorId:string;user:{displayName:string|null}}){
  const options=useMemo(()=>({centerId}),[centerId]);
  const [session,setSession]=useState<{provider:RunningClassProvider;source:BoWorkspaceSource}|null>(null);
  const [error,setError]=useState(false);
@@ -30,10 +30,10 @@ function ScopedNative({centerId,user}:{centerId:string;user:{displayName:string|
    const result=await fetcher("/api/bo/context?centerId="+encodeURIComponent(centerId),{method:"GET"});
    if(!result.ok)throw Error("Không thể xác nhận quyền Running Class.");
    const body=await result.json() as {data?:BoContext};
-   if(!body.data)throw Error("Không có quyền Running Class.");
+   if(!body.data||body.data.userId!==expectedActorId)throw Error("Không có quyền Running Class hoặc phiên đã thay đổi.");
    return body.data;
   };
-  void Promise.resolve().then(()=>openRunningClassProvider({centerId,context,selectedCenter:()=>abort.signal.aborted?"":centerId,fetcher,storage:window.sessionStorage})).then(provider=>{
+  void Promise.resolve().then(()=>openRunningClassProvider({centerId,expectedActorId,context,selectedCenter:()=>abort.signal.aborted?"":centerId,fetcher,storage:window.sessionStorage})).then(provider=>{
    opened=provider;
    if(abort.signal.aborted){provider.dispose();return;}
    const source:BoWorkspaceSource={modules:{...school.modules,classes:classTableModule(school.modules.classes)},runningClassLive:provider,
@@ -44,7 +44,7 @@ function ScopedNative({centerId,user}:{centerId:string;user:{displayName:string|
    setSession({provider,source});
   }).catch(()=>{if(!abort.signal.aborted)setError(true);});
   return()=>{abort.abort();opened?.dispose();};
- },[centerId]);
+ },[centerId,expectedActorId]);
  if(error)return <RecordState status="denied"/>;
  if(!session)return <RecordState status="loading"/>;
  return <BoRegistrationWorkspace source={session.source} moduleKey="classes" options={options} currentUser={user}/>;
