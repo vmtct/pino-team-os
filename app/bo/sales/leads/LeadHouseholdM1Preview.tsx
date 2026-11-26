@@ -1,5 +1,6 @@
 "use client";
 import type {LeadRecoveryJournal} from "./lead-recovery-journal";
+import type {createLeadIntentApi} from "@/lib/bo-lead-intent-api";
 import type {LeadRecoveryInput,LeadRecoveryReceipt} from "@/lib/bo-lead-recovery-api";
 
 import { useContext, useEffect, useMemo, useReducer, useRef, useState } from "react";
@@ -89,7 +90,7 @@ function PropertySection<T extends Record<string, unknown>>({
   </section>;
 }
 
-export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi,recoveryJournal,recoverApi}: {localReview?: boolean; readApi?: Pick<LeadHouseholdApi,"search"|"detail"|"history">;commandApi?:LeadHouseholdApi;recoveryJournal?:LeadRecoveryJournal;recoverApi?:(input:LeadRecoveryInput)=>Promise<LeadRecoveryReceipt>} = {}) {
+export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi,recoveryJournal,recoverApi,intentApi}: {localReview?: boolean; readApi?: Pick<LeadHouseholdApi,"search"|"detail"|"history">;commandApi?:LeadHouseholdApi;recoveryJournal?:LeadRecoveryJournal;recoverApi?:(input:LeadRecoveryInput)=>Promise<LeadRecoveryReceipt>;intentApi?:ReturnType<typeof createLeadIntentApi>} = {}) {
   const menu = useContext(TddHostMenu);
   const router = useRouter();
   const pathname = usePathname();
@@ -97,7 +98,7 @@ export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi,rec
   const [fixtureRecords, setRecords] = useState<LeadM1Record[]>([LEAD_M1_FIXTURE]);
   const [,refreshRead] = useReducer((v:number)=>v+1,0);
   const readModel = useMemo(()=>readApi?new LeadReadModel(readApi,refreshRead):null,[readApi]);
-  const commandFence=useMemo(()=>commandApi&&commandApi===readApi&&!localReview?new LeadCommandFence(commandApi,undefined,recoveryJournal,recoverApi):null,[commandApi,readApi,localReview,recoveryJournal,recoverApi]);
+  const commandFence=useMemo(()=>commandApi&&commandApi===readApi&&!localReview?new LeadCommandFence(commandApi,undefined,recoveryJournal,recoverApi,intentApi):null,[commandApi,readApi,localReview,recoveryJournal,recoverApi,intentApi]);
   const [commandNotice,setCommandNotice]=useState("");
   const commandBusyRef=useRef(false);
   const [commandBusy,setCommandBusy]=useState(false);

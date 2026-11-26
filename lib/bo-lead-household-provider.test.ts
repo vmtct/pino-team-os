@@ -110,3 +110,24 @@ test("PAP-2288 create after reload uses server committed proof, not original pho
  const f=new LeadCommandFence(api({create:()=>{throw Error("unexpected write");}}),undefined,j,async input=>{assert.deepEqual(input,{kind:"create",key,target:null,expectedVersion:null});return {leadId:id,version:1,created:false};});
  assert.equal((await f.recoverCommitted()).id,id);assert.equal(f.createOutcome,"reused");assert.equal(j.inspect().state,"empty");
 });
+test("PAP-2288 child and household share the same journal, recovery never resends close reason",async()=>{
+ const s=memoryStorage(),key="8fbaea47-bcdc-4c50-8ca5-2b6335e4ebee",j=new LeadRecoveryJournal(s,id);
+ const target={leadId:id,intentId:child};let writes=0,lookups=0;
+ const intentApi={transition:async()=>{writes++;throw new TypeError("lost ACK");},recover:async()=>{lookups++;return {...target,status:"CLOSED" as const,version:2,currentStatus:"CLOSED" as const,currentVersion:2};}};
+ const f=new LeadCommandFence(api(),()=>key,j,undefined,intentApi);
+ await assert.rejects(f.submitIntent(target,"close",{expectedVersion:1,reason:"Private close reason"}));
+ assert.equal(j.inspect().state,"intent_unknown");assert.ok(!s.getItem()?.includes("Private close reason"));
+ await assert.rejects(f.submit(command()));assert.throws(()=>j.begin(command(),key));
+ const reloaded=new LeadCommandFence(api(),()=>key,new LeadRecoveryJournal(s,id),undefined,intentApi);
+ assert.equal(reloaded.canRecover,true);await assert.rejects(reloaded.submit(command()));await reloaded.recoverCommitted();
+ assert.equal(j.inspect().state,"empty");assert.equal(reloaded.state,"idle");assert.equal(writes,1);assert.equal(lookups,1);
+});
+test("PAP-2288 child committed receipt and readback required; missing stays locked",async()=>{
+ const s=memoryStorage(),key="8fbaea47-bcdc-4c50-8ca5-2b6335e4ebee",j=new LeadRecoveryJournal(s,id),target={leadId:id,intentId:child};
+ let writes=0,lookups=0;
+ const intentApi={transition:async()=>{writes++;return {...target,status:"CONTACTED" as const,version:2};},recover:async()=>{lookups++;if(lookups===1)throw new LeadApiError(404,"LEAD_INTENT_REQUEST_FAILED",null);return {...target,status:"CONTACTED" as const,version:2,currentStatus:"CONTACT_VERIFIED" as const,currentVersion:3};}};
+ const f=new LeadCommandFence(api(),()=>key,j,undefined,intentApi);
+ await assert.rejects(f.submitIntent(target,"contacted",{expectedVersion:1}));assert.equal(j.inspect().state,"intent_unknown");
+ await f.recoverCommitted();assert.equal(writes,1);assert.equal(lookups,2);assert.equal(j.inspect().state,"empty");
+ j.begin(command(),key);assert.throws(()=>j.beginIntent(target,"contacted",1,key));
+});
