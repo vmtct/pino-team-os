@@ -8,7 +8,7 @@ import { createRegistration, readAssets } from "./m1-preview-provenance.mjs";
 const revision="a".repeat(40);
 const spec=()=>({jiraTask:"PAP-2345",epicCode:"PLT-M1-DELIVERY",surface:"ho",sourceRevision:revision,
   reviewUrl:"http://desktop-isrdren:8800/ho/staff",fixtureId:"STAFF-MOCK-001",
-  sourceFiles:{route:"app/ho/staff/page.tsx",renderer:"app/ho/staff/StaffManualPreview.tsx",schema:"app/ho/staff/schema.ts",fixture:"app/ho/staff/manual-create-preview.ts"}});
+  sourceFiles:{route:"app/ho/staff/page.tsx",renderer:"app/ho/staff/StaffManualWorkspace.tsx",schema:"app/ho/staff/schema.ts",fixture:"app/ho/staff/manual-create-preview.ts"}});
 const readSource=path=>Buffer.from(path);
 const assets=()=>[{path:"index.html",bytes:Buffer.from("test-only")},{path:"assets/app.js",bytes:Buffer.from("test-only javascript")}];
 
