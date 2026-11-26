@@ -17,7 +17,7 @@ export function nativePlanUrl(record:string|null,tab:PlanTab="overview"){
  const q=new URLSearchParams();if(record)q.set("record",record);if(tab!=="overview")q.set("tab",tab);
  return nativePath+(q.size?"?"+q:"");
 }
-const fields={displayName:"name",cadence:"cadence",termWeeks:"termWeeks",listPriceMinor:"price",enabled:"enabled",badge:"badge",version:"version"} as const;
+const fields={displayName:"name",cadence:"cadence",termWeeks:"termWeeks",listPriceMinor:"price",enabled:"enabled",badge:"badge"} as const;
 export function bindPlanSchema(client:PlanClient,context:AuthorizationContext){
  const registry=new TddRegistry();
  const permitted=(incoming:AuthorizationContext)=>incoming===context&&context.surface==="HO"&&context.authorize(PLAN_READ);
@@ -31,7 +31,7 @@ export function bindPlanSchema(client:PlanClient,context:AuthorizationContext){
  try{
  const page=await client.history(subject.id,signal,cursor);
  const events:HistoryEvent[]=page.items.map(event=>({id:event.id,at:event.at,actor:event.actor,action:event.action,outcome:"succeeded",source:"Core",subject,redacted:true,
- changes:Object.entries(fields).flatMap(([wire,field])=>{const before=event.previous?.[wire]??null,after=event.next?.[wire]??null;
+ changes:Object.entries(fields).flatMap(([wire,field])=>{if(!event.previous||!event.next||!Object.hasOwn(event.previous,wire)||!Object.hasOwn(event.next,wire))return [];const before=event.previous[wire],after=event.next[wire];
  return before===after?[]:[{field,before,after}];})}));
  return {status:"authorized",events,nextCursor:page.nextAfter};
  }catch(e){if(e instanceof CatalogRequestError&&(e.status===401||e.status===403))return {status:"denied"};throw e;}
