@@ -120,15 +120,22 @@ export async function handleBoOperationalReadRequest(
 
     const readBody = readQueryBody(path, url);
     const readResource = readQueryResource(path, url);
-    // PAP-1536 / PAP-220: Core currently ignores resource.centerId for this
-    // broad Staff directory route. Until PAP-1537's canonical membership
-    // reader authorizes AND filters Center, never expose global rows under
-    // an apparently Center-scoped request (including unknown Center IDs).
-    if (path === "workforce/staff-records" && readResource?.centerId) {
-      return json({ error: { code: "STAFF_CENTER_DIRECTORY_NOT_READY", message: "Center Staff directory is not available yet" } }, 503);
-    }
+    // PAP-1536: the exact Center query is forwarded to the mounted Core
+    // membership reader. Release only after its exact serving contract is verified.
     const corePath = readCorePath(path, url);
     const result = await callBoAccessCoreWithCredential(env.PINO_BO_CORE, { method: "GET", path: corePath, ...(readResource ? { resource: readResource } : {}), ...(readBody ? { body: readBody } : {}) }, credential);
+    if (path === "workforce/staff-records" && readResource?.centerId && result.status === 200) {
+      // Never expose unexpected private fields or an invalid projection.
+      const rows = (result.body as { data?: unknown } | null)?.data;
+      const fields = ["department", "displayLabel", "id", "roleLabel", "status"];
+      if (!Array.isArray(rows) || !rows.every(row => row && typeof row === "object" &&
+        Object.keys(row).sort().join(",") === fields.join(",") && typeof row.id === "string" && S3_UUID.test(row.id) &&
+        typeof row.displayLabel === "string" && (row.status === "active" || row.status === "inactive") &&
+        (row.department === null || typeof row.department === "string") && (row.roleLabel === null || typeof row.roleLabel === "string"))) {
+        return json({ error: { code: "PLATFORM_INTERNAL_ERROR", message: "Unverified Staff directory response" } }, 502);
+      }
+      return json({ data: rows }, 200, { "x-request-id": result.requestId });
+    }
     return json(url.hostname === HO_STAGING_HOSTNAME && path === "access/audit" && result.status === 200 ? projectHoAuditResponse(result.body) : result.body, result.status, { "x-request-id": result.requestId });
   } catch (error) {
     if (error instanceof BoShellGateError) return json({ error: { code: "HO_ACCESS_DENIED", message: error.message } }, error.status);
@@ -457,11 +464,9 @@ export function readQueryResource(path: string, url: URL): BoAccessRequest["reso
        !S3_UUID.test(centers[0]!)) throw new RangeError("Selected Subscription Center required");
     return {centerId:centers[0]!};
   }
-  // PAP-1536 / Epic PAP-220: validate an optional Center before
-  // fail-closed 503 in the caller above. Core still uses a global reader
-  // that ignores Center and has no canonical Staff membership filter.
-  // Do not forward Center-scoped reads until Core securely implements it.
-  // Legacy no-Center read remains unchanged; never infer a GLOBAL grant.
+  // PAP-1536 / Epic PAP-220: forward exactly one canonical Center to
+  // Core authorization and membership filtering. Legacy no-Center read
+  // remains unchanged; never infer a GLOBAL grant.
   if (path === "workforce/staff-records") {
     const keys = [...url.searchParams.keys()];
     if (!keys.length) return undefined;
