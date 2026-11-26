@@ -1,6 +1,4 @@
-// PAP-1536 / Epic PAP-220 — fail-closed until PAP-1537 Core
-// Staff↔Center membership and exact scoped reader are available.
-// Never present global Staff rows as Center-scoped records.
+// PAP-1536 / Epic PAP-220 — exact Core Center scope and narrow projection.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { handleBoOperationalReadRequest, type BoReadEnv } from "./bo-read-handler";
@@ -16,22 +14,32 @@ const makeRequest = (query: string, auth = true) => new Request(
 );
 const env = (binding: BoAccessCoreBinding): BoReadEnv => ({ PINO_BO_CORE: binding });
 
-test("PAP-1536 returns 503 before Core for valid-format Center, including unknown Center", async () => {
+test("PAP-1536 forwards one explicit Center and preserves Core denial without fallback", async () => {
   const forwarded: BoAccessRequest[] = [];
+  const row = {id:"01912345-6789-7abc-8def-0123456789ac", displayLabel:"Synthetic Staff", status:"inactive", department:null, roleLabel:null};
   const binding: BoAccessCoreBinding = {
     async executeWithStaffPassword(request) {
       forwarded.push(request);
-      // Intentionally represents dangerous pre-PAP-1537 global Core success.
-      return { status: 200, body: { data: [{ id: "GLOBAL_STAFF_ROW" }] }, requestId: "unsafe-core" };
+      return request.resource?.centerId === center
+        ? {status:200,body:{data:[row]},requestId:"scoped"}
+        : {status:403,body:{error:{code:"ACCESS_PERMISSION_DENIED"}},requestId:"denied"};
     },
   };
-  for (const id of [center, phantom]) {
-    const response = await handleBoOperationalReadRequest(makeRequest("?centerId=" + id), env(binding), path);
-    assert.equal(response.status, 503);
-    assert.equal((await response.json()).error.code, "STAFF_CENTER_DIRECTORY_NOT_READY");
-    assert.equal(response.headers.get("x-request-id"), null);
+  const response = await handleBoOperationalReadRequest(makeRequest("?centerId="+center),env(binding),path);
+  assert.equal(response.status,200); assert.deepEqual(await response.json(),{data:[row]});
+  assert.equal(response.headers.get("x-request-id"),"scoped");
+  const denied = await handleBoOperationalReadRequest(makeRequest("?centerId="+phantom),env(binding),path);
+  assert.equal(denied.status,403); assert.equal((await denied.json()).error.code,"ACCESS_PERMISSION_DENIED");
+  assert.deepEqual(forwarded,[{method:"GET",path,resource:{centerId:center}},{method:"GET",path,resource:{centerId:phantom}}]);
+});
+
+test("PAP-1536 rejects unexpected scoped projections without leaking fields", async () => {
+  const valid = {id:"01912345-6789-7abc-8def-0123456789ac",displayLabel:"Synthetic",status:"active",department:null,roleLabel:null};
+  for (const row of [{id:"GLOBAL_STAFF_ROW"},{...valid,email:"private@example.invalid"},{...valid,status:"unknown"}]) {
+    const binding: BoAccessCoreBinding = {async executeWithStaffPassword(){return {status:200,body:{data:[row]},requestId:"invalid"};}};
+    const response=await handleBoOperationalReadRequest(makeRequest("?centerId="+center),env(binding),path);
+    assert.equal(response.status,502);assert.equal((await response.json()).error.code,"PLATFORM_INTERNAL_ERROR");
   }
-  assert.deepEqual(forwarded, [], "No Core global read is permitted with a Center claim");
 });
 
 test("PAP-1536 preserves legacy no-Center request shape and Core 403", async () => {
