@@ -1,3 +1,4 @@
+import {STAFF_PHASE_ONE_ENABLED,parseStaffPhaseOneQuery} from "../app/ho/staff/staff-phase-one-route";
 import {parseLiveSpaceQuery} from "./ho-learning-space-contract";
 import {parseNativeRoleQuery} from "../app/ho/system/roles/native-role-query";
 import {readWishDetailRoute,wishDetailUrl} from "./pls-wish-detail-route";
@@ -51,13 +52,12 @@ export function safeHoReturnTo(raw: string | null | undefined): string | null {
     if (parsed.origin !== "https://ho.staging.pinohouse.art" || !approved.has(parsed.pathname) || parsed.hash) return null;
     // PAP-1645 / PAP-1491: strip harmless campaign metadata before validating
     // returnTo, without allowing arbitrary query keys or an off-host target.
-    // PAP-2353: normalize the retired Staff M1 review marker, never grant admission here.
-    if (parsed.pathname === HO_PAGE_PATHS.staffs && parsed.searchParams.has("m1Preview")) {
-      const markers = parsed.searchParams.getAll("m1Preview");
-      const records = parsed.searchParams.getAll("record");
-      if (markers.length !== 1 || markers[0] !== "1" || records.length > 1 || (records.length === 1 && !/^STAFF-MOCK-[0-9]{3,}$/.test(records[0]!))) return null;
-      parsed.searchParams.delete("m1Preview");
+    // PAP-2395: canonical native Staff continuation, independently authorized by the page.
+    if(STAFF_PHASE_ONE_ENABLED&&parsed.pathname===HO_PAGE_PATHS.staffs){
+      const state=parseStaffPhaseOneQuery(parsed.searchParams);
+      return state?parsed.pathname+(state.record?"?record="+encodeURIComponent(state.record):""):null;
     }
+
     // PAP-2371: canonical real record state, independently authorized by the page.
     if(parsed.pathname===HO_PAGE_PATHS.learningSpaces){
       const state=parseLiveSpaceQuery(parsed.searchParams);
