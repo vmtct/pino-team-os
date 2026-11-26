@@ -139,7 +139,6 @@
         "app/ho/staff/schema.ts",
         "app/ho/staff/staff-rate-provider.ts",
         "app/ho/staff/StaffManualCreateDrawer.tsx",
-        "app/ho/staff/StaffManualPreview.tsx",
         "app/ho/staff/StaffManualWorkspace.tsx",
         "app/ho/staff/manual-create-contract.ts",
         "app/ho/staff/manual-create-preview.ts",
