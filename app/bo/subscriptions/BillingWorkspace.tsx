@@ -5,6 +5,7 @@ import { boApi, BoApiError } from "@/lib/bo-api";
 import type { BoBillSummary, BoLearnerLifecycle, BoPathProgram, BoPaymentMethod, BoPaymentTransactionKind, BoProductPlan, BoRunningClass, BoSaleResult } from "@/lib/bo-model";
 import { suggestedContractSunday, amountFromPercent, percentFromAmount, quoteAfterDiscounts, type DiscountInputMode } from "@/lib/bo-subscription-create-ux";
 import {validateRegistrationDates,existingRegistrationPlacements} from "@/lib/bo-subscription-finalization";
+import {productPlanLookupLabel} from "@/lib/bo-product-plan-lookup";
 import styles from "./bo-subscriptions.module.css";
 
 export type BillingReplayAttempt = { key: string; idempotencyKey: string; action: (key: string) => Promise<unknown>; success: string };
@@ -18,8 +19,6 @@ type Props = {
   setReplayState: React.Dispatch<React.SetStateAction<BillingReplayState>>;
   createOnly?: boolean;
 };
-const TERMS = [12, 24, 48] as const;
-const CADENCES = [1, 2, 3, 4, 5, 6] as const;
 
 export function authoritativePlacementCenterId(placements: string[], eligibleClasses: BoRunningClass[]) {
   if (!placements.length) throw new Error("Chưa có Running Class để xác định Center.");
@@ -337,23 +336,6 @@ export function BillingWorkspace({ lifecycle, paths, classes, onChanged, replayS
     }, `Đã hoàn tất placement ${selectedPlan.cadence}/${selectedPlan.cadence} cho Subscription hiện hữu.`);
   }
 
-  async function configure(plan: BoProductPlan) {
-    if (busy) return;
-    const raw = window.prompt("Giá niêm yết VND", String(plan.listPriceMinor));
-    if (raw === null) return;
-    const badgeRaw = window.prompt("Badge: ENTRY / HERO / STANDARD", plan.badge)?.trim().toUpperCase();
-    if (badgeRaw !== "ENTRY" && badgeRaw !== "HERO" && badgeRaw !== "STANDARD") { setError("Badge không hợp lệ."); return; }
-    const enabled = window.confirm("OK = đang bán; Cancel = tạm ẩn plan.");
-    setBusy(`plan:${plan.id}`); setError(null);
-    try {
-      await boApi.updateBillingProductPlan(plan.id, { listPriceMinor: money(raw), enabled, badge: badgeRaw, expectedVersion: plan.version });
-      await loadPlans(); setNotice("Đã cập nhật Product Plan config.");
-    } catch (value) {
-      await loadPlans().catch(() => undefined);
-      setError(message(value));
-    } finally { setBusy(null); }
-  }
-
   async function transact(billId: string, kind: BoPaymentTransactionKind) {
     const raw = window.prompt(kind === "PAYMENT" ? "Số tiền thu (VND)" : "Số tiền hoàn (VND)");
     if (!raw) return;
@@ -371,21 +353,12 @@ export function BillingWorkspace({ lifecycle, paths, classes, onChanged, replayS
     {error ? <div className={styles.error}>{error}{pending ? <><br/><button type="button" onClick={() => void execute(pending)}>Retry exact command</button></> : null}</div> : null}
 
     {!createOnly ? <section className={styles.createCard}>
-      <div className={styles.sectionHead}><div><span>Commercial config</span><h3>Product Plans · 6 × 3</h3></div><small>Cadence/term immutable · price/badge/availability configurable</small></div>
-      <div className={styles.planMatrix}>
-        <div className={styles.planCorner}>buổi/tuần</div>
-        {TERMS.map((term) => <strong key={term}>{term} tuần</strong>)}
-        {CADENCES.flatMap((cadence) => [
-          <strong key={`c-${cadence}`}>{cadence}</strong>,
-          ...TERMS.map((term) => {
-            const plan = plans.find((item) => item.cadence === cadence && item.termWeeks === term);
-            return <button key={`${cadence}-${term}`} type="button" disabled={!plan || Boolean(busy || pending)}
-              className={plan?.badge === "HERO" ? styles.planHero : plan?.badge === "ENTRY" ? styles.planEntry : styles.planCell}
-              onClick={() => plan && void configure(plan)}>
-              {plan ? <><b>{formatVnd(plan.listPriceMinor)}</b><small>{plan.purchasedUnits} buổi · {plan.badge}{plan.enabled ? "" : " · OFF"}</small></> : "—"}
-            </button>;
-          }),
-        ])}
+      <div className={styles.sectionHead}><div><span>Danh mục</span><h3>Gói học</h3></div><small>Chỉ xem · cập nhật tại Head Office</small></div>
+      <div className={styles.billGrid}>
+        {plans.map(plan => <article key={plan.id} className={styles.billCard}>
+          <strong>{productPlanLookupLabel(plan, plans)}</strong>
+          <small>{plan.purchasedUnits} buổi · {plan.badge} · {plan.enabled ? "Đang bán" : "Ngừng bán"}</small>
+        </article>)}
       </div>
     </section> : null}
 
@@ -401,7 +374,7 @@ export function BillingWorkspace({ lifecycle, paths, classes, onChanged, replayS
       <div className={styles.sectionHead}><div><span>New registration</span><h3>Tạo Subscription + Running Class placement</h3></div><small>Cadence từ Product Plan · chỉ complete sau bulk placement</small></div>
       <div className={createOnly ? styles.createFormGrid : styles.formGrid}>
         <label>Product Plan<select className={createOnly ? "edit-input" : undefined} required disabled={Boolean(busy || pending || commercialLocked)} value={planId} onChange={(event) => setPlanId(event.target.value)}>
-          <option value="">Chọn plan</option>{sellablePlans.map((plan) => <option key={plan.id} value={plan.id}>{plan.cadence}×/tuần · {plan.termWeeks} tuần · {formatVnd(plan.listPriceMinor)} {plan.badge === "HERO" ? "· HERO" : plan.badge === "ENTRY" ? "· ENTRY" : ""}</option>)}
+          <option value="">Chọn plan</option>{sellablePlans.map((plan) => <option key={plan.id} value={plan.id}>{productPlanLookupLabel(plan, sellablePlans)} {plan.badge === "HERO" ? "· HERO" : plan.badge === "ENTRY" ? "· ENTRY" : ""}</option>)}
         </select></label>
         <label>Path<select className={createOnly ? "edit-input" : undefined} required disabled={Boolean(busy || pending || commercialLocked)} value={pathId} onChange={(event) => setPathId(event.target.value)}>
           <option value="">Chọn Path</option>{sellablePaths.map((path) => <option key={path.id} value={path.id}>{path.displayName}</option>)}
