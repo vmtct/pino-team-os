@@ -5,17 +5,18 @@ export type LeadM1IntentStatus = "SUBMITTED" | "CONTACTED" | "CONTACT_VERIFIED" 
 
 export type LeadM1Member = {
   id: string; name: string; age: number | null; gender: "Nữ" | "Nam" | "Khác" | "—";
-  roles: LeadM1Role[]; primaryContact: boolean;
+  roles: LeadM1Role[]; primaryContact: boolean; interestKinds?: LeadM1IntentKind[];
 };
-export type LeadM1Relationship = { id: string; fromMemberId: string; toMemberId: string; label: string; status: "DECLARED" };
+export type LeadM1Relationship = { id: string; fromMemberId: string; toMemberId: string; label: string; status: "DECLARED" | "CONFIRMED" };
 export type LeadM1Intent = {
   id: string; kind: LeadM1IntentKind; source: "PINO Afterschool" | "MyTime by PINO" | "Open Studio" | "Nhập thủ công";
   memberIds: string[]; status: LeadM1IntentStatus; createdAt: null;
 };
 export type LeadM1Record = {
-  id: string; fixture: true; contactName: string; phone: string; lifecycle: LeadM1Lifecycle;
+  id: string; fixture: boolean; contactName: string; phone: string; lifecycle: LeadM1Lifecycle;
+  memberCount?: number; intentCount?: number; interestKinds?: LeadM1IntentKind[];
   members: LeadM1Member[]; relationships: LeadM1Relationship[]; intents: LeadM1Intent[];
-  createdAt: null; createdBy: null; updatedAt: null; updatedBy: null;
+  createdAt: string | null; createdBy: string | null; updatedAt: string | null; updatedBy: string | null;
 };
 export type LeadM1AuditColumn = {
   key: "createdAt" | "createdBy" | "updatedAt" | "updatedBy";
