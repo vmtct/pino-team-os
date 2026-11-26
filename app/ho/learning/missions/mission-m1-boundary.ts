@@ -8,7 +8,7 @@ import type { MissionBoundary } from "./HoMissionsTdd";
 import type { MissionInput } from "./command";
 import { emptyMission, validateMissionCreate } from "./MissionCreateFields";
 import { isMissionCategory } from "./mission-category";
-import { missionCategoryDefinition, missionCategoryQuery, type missionFields } from "./schema";
+import { missionCategoryDefinition, missionCategoryQuery, missionInlineFields, type missionFields } from "./schema";
 import { validateMissionSelectedPath, type MissionPathChoice } from "./mission-path-options";
 type F = typeof missionFields;
 type Draft = MissionInput & {readonly category: NonNullable<MissionInput["category"]>};
@@ -53,9 +53,35 @@ export function createMissionM1Boundary(initialRecord?:string):MissionBoundary{
     const current=records.find(r=>r.id===id);
     if(!current||current.draft.status!=="ACTIVE")return {status:"denied"};
     if(String(current.version)!==version)return {status:"conflict"};
-    const p=patch as unknown as {category?:unknown};
-    if(Object.keys(p).length!==1||!isMissionCategory(p.category))return {status:"invalid",fields:["category"]};
-    const next={...current,version:current.version+1,draft:{...current.draft,category:p.category}};
+    const entries=Object.entries(patch);
+    if(entries.length!==1)return {status:"invalid",fields:[]};
+    const [key,value]=entries[0]!;
+    if(!missionInlineFields.some(k=>k===key))return {status:"invalid",fields:[]};
+    const invalid=()=>({status:"invalid" as const,fields:[key] as (typeof missionInlineFields)[number][]});
+    let draft:Draft=current.draft;
+    switch(key){
+     case "name":case "code":
+      if(typeof value!=="string")return invalid();
+      draft={...draft,[key]:key==="code"?value.trim().toUpperCase():value.trim()};break;
+     case "category":
+      if(!isMissionCategory(value))return invalid();
+      draft={...draft,category:value};break;
+     case "level":case "plsValue":
+      if(typeof value!=="number"||!Number.isSafeInteger(value))return invalid();
+      draft={...draft,[key]:value};break;
+     case "path":{
+      const choice=paths.find(p=>p.label===value);
+      if(!choice)return invalid();
+      draft={...draft,pathProgramId:choice.id,pathKeySnapshot:choice.code};break;
+     }
+     case "description":case "guideline":
+      if(value!==null&&typeof value!=="string")return invalid();
+      draft={...draft,[key]:value||null};break;
+     default:return invalid();
+    }
+    if(validateMissionCreate(draft,true)||validateMissionSelectedPath(draft,paths))return invalid();
+    if(records.some(r=>r.id!==id&&r.draft.code===draft.code))return {status:"conflict"};
+    const next={...current,version:current.version+1,draft};
     replace(next);return {status:"saved",row:project(next),version:String(next.version)};
    }},
    views:async()=>({unavailable:[]}),subject:id=>({type:"learning_mission",id}),history:async()=>({status:"unavailable",reason:"M1 · Chưa kết nối lịch sử thật."}),dispose:()=>{},

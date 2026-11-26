@@ -2,13 +2,15 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {missionCategories,isMissionCategory} from "../app/ho/learning/missions/mission-category";
 import {createMissionM1Boundary,MISSION_M1_ID} from "../app/ho/learning/missions/mission-m1-boundary";
-import {missionCategoryColumnKeys,missionTableColumnKeys,missionCategoryDefinition} from "../app/ho/learning/missions/schema";
+import {missionCategoryColumnKeys,missionTableColumnKeys,missionCategoryDefinition,missionInlineFields,missionInlineTableFields,missionCategoryPropertyKeys} from "../app/ho/learning/missions/schema";
 import {emptyMission,validateMissionCreate} from "../app/ho/learning/missions/MissionCreateFields";
 test("PAP-2394 exact category and unchanged PLS/Path/audit fields",()=>{
  assert.deepEqual(missionCategories,["Staff Training","PINO Afterschool","MyTime"]);
  assert.equal(isMissionCategory("Other"),false);
  assert.deepEqual(missionCategoryColumnKeys.filter(k=>k!=="category"),missionTableColumnKeys);
- assert.deepEqual(missionCategoryDefinition.table.inlineEdit.fields,["category"]);
+ assert.deepEqual(missionCategoryDefinition.table.inlineEdit.fields,missionInlineTableFields);
+ assert.deepEqual(missionCategoryDefinition.fields.filter(f=>f.capabilities.inlineEdit).map(f=>f.key).sort(),[...missionInlineFields].sort());
+ assert.ok(missionCategoryPropertyKeys.includes("description")&&missionCategoryPropertyKeys.includes("guideline"));
  assert.equal(validateMissionCreate(emptyMission,true),"Vui lòng chọn Category.");
 });
 test("PAP-2394 isolated Mission category edit preserves Staff PLS and denies stale/other patches",async()=>{
@@ -18,7 +20,8 @@ test("PAP-2394 isolated Mission category edit preserves Staff PLS and denies sta
  assert.equal(old?.row.category,"Staff Training");assert.equal(old?.row.plsValue,30);
  const update=(patch:unknown,version:string,context=adapter.context)=>adapter.mutation!.update(MISSION_M1_ID,patch as never,version,context,signal);
  assert.equal((await update({category:"Other"},"1")).status,"invalid");
- assert.equal((await update({plsValue:999},"1")).status,"invalid");
+ assert.equal((await update({plsValue:-1},"1")).status,"invalid");
+ assert.equal((await update({status:"INACTIVE"},"1")).status,"invalid");
  assert.equal((await update({category:"MyTime"},"0")).status,"conflict");
  assert.equal((await update({category:"MyTime"},"1",{surface:"HO",authorize:()=>true})).status,"denied");
  assert.equal((await update({category:"MyTime"},"1")).status,"saved");
@@ -42,4 +45,22 @@ test("PAP-2394 new/edit/archived preview record uses exact category and PLS",asy
  const edited=await boundary.submit({kind:"update",id:read.id,expectedVersion:read.version,data:{...read.data,category:"PINO Afterschool"},idempotencyKey:"mock-edit"});
  assert.equal(edited.state,"verified");
  assert.throws(()=>createMissionM1Boundary("real-id"));
+});
+
+test("PAP-2394 all eight inline fields validate and read back; protected fields stay immutable",async()=>{
+ const b=createMissionM1Boundary(),signal=new AbortController().signal,{adapter}=await b.open(signal);
+ const update=(patch:unknown,version:string)=>adapter.mutation!.update(MISSION_M1_ID,patch as never,version,adapter.context,signal);
+ for(const patch of [{name:" "},{code:"!"},{level:6},{level:1.5},{plsValue:1.1},{path:"unknown"},{description:"x".repeat(4001)},{guideline:"x".repeat(8001)},{createdAt:"fake"},{paperSize:"A4"},{name:"a",code:"AB"}])assert.equal((await update(patch,"1")).status,"invalid");
+ let version="1";
+ for(const [key,value] of Object.entries({name:"Mission revised",code:"mock-revised",category:"MyTime",level:5,plsValue:45,path:"PianoHouse",description:"Mô tả mới",guideline:"Hướng dẫn mới"})){
+  const r=await update({[key]:value},version);
+  assert.equal(r.status,"saved",key);if(r.status!=="saved")throw Error(key);
+  version=r.version;assert.equal(r.row[key as keyof typeof r.row],key==="code"?"MOCK-REVISED":value);
+ }
+ const read=await b.load(MISSION_M1_ID);assert.equal(read.state,"ready");if(read.state!=="ready")throw Error("read");
+ assert.equal(read.data.pathKeySnapshot,"pianohouse");assert.equal(read.data.pathProgramId,(await b.paths()).find(p=>p.code==="pianohouse")?.id);
+ assert.equal((await adapter.detail(MISSION_M1_ID,signal))?.row.createdAt,"—");
+ assert.equal((await update({name:"stale"},"1")).status,"conflict");
+ assert.equal((await b.submit({kind:"archive",id:read.id,expectedVersion:read.version,data:read.data,idempotencyKey:"archive-mock"})).state,"verified");
+ assert.equal((await update({name:"archived"},String(read.version+1))).status,"denied");
 });
