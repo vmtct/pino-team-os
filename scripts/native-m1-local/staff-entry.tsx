@@ -3,7 +3,8 @@ import {createRoot} from "react-dom/client";
 import {BoRegistrationWorkspace,type BoWorkspaceSource} from "@/app/bo/components/registration/BoRegistrationWorkspace";
 import {StaffManualWorkspace} from "@/app/ho/staff/StaffManualWorkspace";
 import {manualStaffDefinition,manualStaffQuery,type ManualStaffFields} from "@/app/ho/staff/manual-create-contract";
-import {newStaffPreview,readStaffPreview,createStaffPreviewRecord,staffPreviewCenter,projectStaffPreviewRow} from "@/app/ho/staff/manual-create-preview";
+import {readStaffPreview,staffPreviewCenter,projectStaffPreviewRow} from "@/app/ho/staff/manual-create-preview";
+import {newActivationPreview,activateFixture,createInactiveFixture,fixtureSubject} from "@/app/ho/staff/staff-activation-preview";
 import {TddRegistry,validateQuery,type AuthorizationContext,type ModuleSchema} from "@/lib/workspace-schema";
 import type {AuthenticatedSurfaceAdapter} from "@/lib/workspace-adapters/contracts";
 import type {AdapterNavigation,AdapterLocation} from "@/lib/workspace-adapters/navigation";
@@ -16,10 +17,14 @@ import "../../app/components/workspace-renderer/tdd-detail-layout.css";
 import "../../app/components/workspace-renderer/tdd-table-geometry.css";
 import "../../app/components/workspace-renderer/tdd-freeze.css";
 
-const route="/ho/staff", origin="http://192.168.1.6:8800", event="pino:m1:staff:local";
-if(location.origin!==origin||location.pathname!==route||new URLSearchParams(location.search).get("m1Preview")!=="1"||self.origin!=="null")throw Error("Local sandbox only");
+const route="/ho/staff", event="pino:m1:staff:local";
+const origin=location.origin.toLowerCase();
+const params=new URLSearchParams(location.search);
+if(!["http://desktop-isrdren:8800","http://192.168.1.6:8800"].includes(origin)||location.pathname!==route||self.origin!=="null"||
+  [...params.keys()].some(k=>k!=="record")||params.getAll("record").length>1||
+  (params.has("record")&&params.get("record")!=="STAFF-MOCK-001"))throw Error("Local sandbox only");
 const principal="synthetic-presentation-only";
-let state=newStaffPreview(principal);
+let state=newActivationPreview(principal);
 // This value is a display filter for synthetic rows only. No authenticated session or
 // transport is created and the value cannot leave this sandbox or grant live access.
 const context:AuthorizationContext=Object.freeze({surface:"HO",authorize:(permission:string)=>permission===manualStaffDefinition.capabilities.read});
@@ -44,5 +49,5 @@ const navigation:AdapterNavigation<ManualStaffFields>={
  capture(id){recordId=id;focus=document.activeElement instanceof HTMLElement?document.activeElement:null;const table=document.getElementById("table-scroll");scroll={x:window.scrollX,y:window.scrollY,left:table?.scrollLeft??0,top:table?.scrollTop??0};},
  restore(){requestAnimationFrame(()=>{window.scrollTo(scroll.x,scroll.y);const table=document.getElementById("table-scroll");if(table){table.scrollLeft=scroll.left;table.scrollTop=scroll.top;}const el=focus?.isConnected?focus:[...document.querySelectorAll<HTMLElement>("button[data-open]")].find(n=>n.dataset.open===recordId);el?.focus({preventScroll:true});});}
 };
-const source:BoWorkspaceSource={surface:"ho",readOnly:true,ephemeral:true,modules:hoModules,routeForModule:key=>key==="staffs"?route+"?m1Preview=1":"#unavailable-local-module",scopeLabel:()=>"",load:async()=>{throw Error("No live transport");}};
-createRoot(document.getElementById("root")!).render(<BoRegistrationWorkspace source={source} moduleKey="staffs" currentUser={{displayName:"M1 · Dữ liệu mẫu"}} content={<TddPreferencePolicy.Provider value="ephemeral"><StaffManualWorkspace adapter={adapter} navigation={navigation} centers={[staffPreviewCenter]} onCreate={async command=>{state=createStaffPreviewRecord(state,command);}}/></TddPreferencePolicy.Provider>}/>);
+const source:BoWorkspaceSource={surface:"ho",readOnly:true,ephemeral:true,modules:hoModules,routeForModule:key=>key==="staffs"?route:"#unavailable-local-module",scopeLabel:()=>"",load:async()=>{throw Error("No live transport");}};
+createRoot(document.getElementById("root")!).render(<BoRegistrationWorkspace source={source} moduleKey="staffs" currentUser={{displayName:"M1 · Dữ liệu mẫu"}} content={<TddPreferencePolicy.Provider value="ephemeral"><StaffManualWorkspace adapter={adapter} navigation={navigation} centers={[staffPreviewCenter]} allowLogin={false} onCreate={async command=>{state=createInactiveFixture(state,command);}} activation={{subject:id=>fixtureSubject(state,id),activate:async request=>{const next=activateFixture(state,request);state=next.state;return next.result;}}}/></TddPreferencePolicy.Provider>}/>);
