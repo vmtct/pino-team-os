@@ -11,13 +11,14 @@ import { staffRateProvider } from "./staff-rate-provider";
 import { StaffPasswordReset } from "./StaffPasswordReset";
 import { StaffRoleAccess } from "./StaffRoleAccess";
 import { StaffNativeWorkspace } from "./StaffNativeWorkspace";
+import type {StaffCreateAdmission} from "./staff-native-command";
 import { staffDefinition, staffFields, staffProvider, staffQuery } from "./schema";
 
 type F = typeof staffFields;
 type Ready = { adapter: AuthenticatedSurfaceAdapter<F>; navigation: AdapterNavigation<F> };
 /** Existing HO host + TDD controller: Salary owns data and permission-bound provider only. */
-export function StaffTdd({nativePrincipalId}:{nativePrincipalId?:string}={}) {
-  return nativePrincipalId ? <StaffNativeWorkspace key={nativePrincipalId} principalId={nativePrincipalId}/> : <LegacyStaffTdd/>;
+export function StaffTdd({nativePrincipalId,createAdmission}:{nativePrincipalId?:string;createAdmission?:StaffCreateAdmission}={}) {
+  return nativePrincipalId ? <StaffNativeWorkspace key={nativePrincipalId} principalId={nativePrincipalId} createAdmission={createAdmission}/> : <LegacyStaffTdd/>;
 }
 function LegacyStaffTdd() {
   const [ready, setReady] = useState<Ready | null>(null);

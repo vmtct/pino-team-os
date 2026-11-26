@@ -120,6 +120,7 @@ test("HO_BO_DEEPLINK_CONTINUITY_P0: native preview entrypoints cannot ship untes
 });
 test("HO_BO_DEEPLINK_CONTINUITY_P0: route-specific detail, tab, grid, center and recovery examples",async()=>{
  const samples:[string,string,string][]=[
+  [ho,"/ho/staff?record="+id,"/ho/staff?record="+id],
   [ho,"/ho/pinoria/worlds?record="+id+"&tab=scenes","/ho/pinoria/worlds?record="+id+"&tab=scenes"],
   [ho,"/ho/pinoria/starter-sets?record="+id+"&tab=members","/ho/pinoria/starter-sets?record="+id+"&tab=members"],
   [ho,"/ho/pinoria/wish-banners?record="+id+"&tab=items&wishSelection=pending&wishRevision=2","/ho/pinoria/wish-banners?record="+id+"&tab=items&wishSelection=pending&wishRevision=2"],

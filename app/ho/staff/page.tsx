@@ -1,18 +1,26 @@
 import { StaffTdd } from "./StaffTdd";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { headers } from "next/headers";
-import { forbidden } from "next/navigation";
+import { forbidden,notFound } from "next/navigation";
 import { authorizeHoShell, type HoEnv } from "@/lib/ho-auth";
 import { normalizeHostname } from "@/lib/host-boundary";
 import { decideM1Preview } from "@/lib/m1-preview/admission.server";
+import {staffPhaseOneRoute} from "./staff-phase-one-route";
 export const dynamic = "force-dynamic";
 // PAP-2353 · HO Manual Staff Creation: canonical staging M1 review; remove at M4.
 const STAFF_M1_REVIEW_ENABLED = true;
-export default async function HoStaffPage({ searchParams }: { searchParams: Promise<{ m1Preview?: string | string[]; record?: string | string[] }> }) {
+export default async function HoStaffPage({ searchParams }: { searchParams: Promise<Record<string,string|string[]|undefined>> }) {
   const query = await searchParams;
   const incoming = new Headers(await headers());
   const { env } = await getCloudflareContext({ async: true }) as unknown as { env: HoEnv };
   const staging = env.APP_ENV === "staging" && normalizeHostname(incoming.get("host") || "") === "ho.staging.pinohouse.art";
+  const phaseOne=staffPhaseOneRoute(env.APP_ENV,normalizeHostname(incoming.get("host")||""),query);
+  if(phaseOne==="invalid")notFound();
+  if(phaseOne==="native"){
+    const actor=await authorizeHoShell(incoming,env);
+    if(!actor.entitled||!actor.userId||!actor.permissionKeys.includes("team.bo.access"))forbidden();
+    return <StaffTdd nativePrincipalId={actor.userId} createAdmission="record-only"/>;
+  }
   if (query.m1Preview !== undefined && query.m1Preview !== "1") forbidden();
   if (!staging || !STAFF_M1_REVIEW_ENABLED) {
     if (query.m1Preview !== undefined) forbidden();
