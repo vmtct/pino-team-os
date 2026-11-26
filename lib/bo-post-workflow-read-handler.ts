@@ -2,6 +2,7 @@
 import {callBoAccessCoreWithCredential} from "./bo-core";
 import {teamCredential,TeamAuthError} from "./team-auth";
 import type {BoPostDraftEnv} from "./bo-post-draft-handler";
+import {verifyPostActor} from "./bo-post-actor-continuity";
 import {BO_STAGING_HOSTNAME} from "./host-boundary";
 const uuid="[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
 const id=new RegExp("^"+uuid+"$"),route=new RegExp("^learning/piner-posts/"+uuid+"/(submission-state|workflow-state|diaries(?:/"+uuid+"/photos(?:/"+uuid+")?)?)$");
@@ -22,6 +23,8 @@ export async function handleBoPostWorkflowRead(request:Request,env:BoPostDraftEn
   const query=new URLSearchParams({centerId});
   if(after!==null)query.set("after",after);
   if(limit!==null)query.set("limit",limit);
+  const admission=await verifyPostActor(request,env.PINO_BO_CORE,credential,centerId,operation==="submission-state"?"piner.post.submit":"piner.post.diary.compose");
+  if(admission!==200)return fail(admission,admission===400?"PLATFORM_INVALID_INPUT":"ACCESS_PERMISSION_DENIED");
   const result=await callBoAccessCoreWithCredential(env.PINO_BO_CORE,{method:"GET",path:path+"?"+query.toString(),resource:{centerId}},credential);
   return json(result.body,result.status,result.requestId);
  }catch(e){if(e instanceof TeamAuthError)return fail(e.status,"IDENTITY_AUTHENTICATION_FAILED");return fail(500,"PLATFORM_INTERNAL_ERROR");}

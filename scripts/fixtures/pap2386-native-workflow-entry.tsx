@@ -26,7 +26,7 @@ const fetcher:typeof fetch=async(input,init)=>{
  if(url.origin!==origin)throw Error("Non-synthetic destination");
  if(path==="/api/bo/context")return json({surface:"BO",entitled:true,userId:U,permissionKeys:["team.bo.access","piner.post.view","piner.post.create","piner.post.edit","piner.post.submit","piner.post.diary.compose"]});
  if(path==="/api/bo/centers")return json([{id:C}]);
- if(url.searchParams.get("centerId")!==C)throw Error("Scope mismatch");
+ if(url.searchParams.get("centerId")!==C||h.get("x-pino-expected-actor")!==U)throw Error("Scope or actor mismatch");
  if(path===base&&method==="GET")return json(row());
  if(path===base+"/attachments"&&method==="GET")return json({postVersion:v,mediaCount:ready().length,attachments:ready().map(item)});
  if(path===base+"/workflow-state"&&method==="GET")return json({...scope(),status:row().status,diaryIds:selected?[D]:[],provenance,submittedAttachmentIds:order});

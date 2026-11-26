@@ -1042,6 +1042,8 @@
         "app/bo/piner-posts/draft-retry-journal.ts",
         "app/bo/piner-posts/native-draft-binding.ts",
         "app/bo/piner-posts/native-draft-session.ts",
+        "app/bo/piner-posts/native-post-query.ts",
+        "app/bo/piner-posts/native-post-navigation.ts",
         "app/bo/piner-posts/post-preview-navigation.ts",
         "app/bo/piner-posts/post-preview-query.ts",
         "app/bo/piner-posts/post-preview-session.ts",
@@ -1096,7 +1098,9 @@
         "lib/bo-post-workflow-coordinator.test.ts",
         "lib/bo-post-workflow-handler.test.ts",
         "lib/bo-post-workflow-read-client.test.ts",
-        "lib/bo-post-workflow-read-handler.test.ts"
+        "lib/bo-post-workflow-read-handler.test.ts",
+        "lib/bo-post-native-navigation.test.ts",
+        "lib/bo-post-actor-continuity.test.ts"
       ],
       "externalReferences": [
         {"file":"app/bo/content/posts/BoPostSubmitShell.tsx","owner":"PAP-2337"},
