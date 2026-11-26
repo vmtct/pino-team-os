@@ -43,7 +43,8 @@ export async function openNativeDraftSession(centerId:string,centerSource:Center
     if(media&&[...url.searchParams.keys()].some(k=>k!=="centerId"))throw new CoreDraftRequestError(403);
     const permission=submit?"piner.post.submit":composeWrite||composeRead?"piner.post.diary.compose":media?(method==="GET"?"piner.post.view":"piner.post.edit"):people?"piner.post.create":postRoute?(method==="POST"?"piner.post.create":method==="PATCH"?"piner.post.edit":"piner.post.view"):url.pathname==="/api/bo/learners"||method==="POST"?"piner.post.create":method==="PATCH"?"piner.post.edit":"piner.post.view";
     if(!current()||!actor.authorize("piner.post.view")||!session.context.authorize(permission))throw new CoreDraftRequestError(403);
-    const result=await session.transport(input,init);
+    const headers=new Headers(init?.headers);if(postRoute)headers.set("x-pino-expected-actor",principal.userId);
+    const result=await session.transport(input,{...init,headers});
     if(result.ok){await session.refresh(requestSignal);if(!current()||!actor.authorize("piner.post.view")||!session.context.authorize(permission))throw new CoreDraftRequestError(403);}
     return result;
    }catch(e){
