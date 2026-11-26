@@ -43,6 +43,7 @@ const legacy:Record<string,string>={
  parents:"/bo/parents",missions:"/bo?module=missions",
 };
 const previews:Record<string,{path:string;expected:string;record?:string;negative:string}>={
+ "/ho/learning/missions":{path:"/ho/learning/missions",expected:"/ho/learning/missions",record:"record=MISSION-MOCK-001",negative:"record="+id},
 
  "/ho/billing/product-plans":{path:"/ho/billing/product-plans?m1Preview=1",expected:"/ho/billing/product-plans",record:"record=PRODUCT-PLAN-MOCK-001",negative:"record="+id},
  "/bo/sales/leads":{path:"/bo/sales/leads?m1Preview=1",expected:"/bo/sales/leads",record:"lead=LEAD-MOCK-001&tab=members",negative:"lead="+id},
@@ -182,4 +183,15 @@ test("PAP-2395 native Staff canonical link rejects mock and malformed authentica
  for(const q of ["","?record="+id,"?record="+id+"&utm_source=chatgpt.com"])assert.equal(middleware(new NextRequest("https://"+ho+path+q,{headers})).headers.get("x-middleware-next"),"1",q);
  assert.equal(middleware(new NextRequest("https://"+ho+path+"?record="+id+"&_rsc=abc",{headers:{...headers,rsc:"1"}})).headers.get("x-middleware-next"),"1");
  checkFlow(ho,path+"?record="+id,path+"?record="+id);
+});
+
+test("PAP-2394: canonical Mission M1-B admits only its seed before streaming and preserves login",()=>{
+ const path="/ho/learning/missions",headers={cookie:"pino_staff_password_session=fixture-only"};
+ for(const q of ["record="+id,"record=MISSION-MOCK-002","record=","record=MISSION-MOCK-001&record=MISSION-MOCK-001","m1Preview=1","tab=history","next=/bo"]){
+  assert.equal(parse(ho,path+"?"+q),null,q);
+  for(const method of ["GET","HEAD"])assert.equal(middleware(new NextRequest("https://"+ho+path+"?"+q,{headers,method})).status,404,q);
+ }
+ for(const q of ["","?record=MISSION-MOCK-001","?utm_source=chatgpt.com&record=MISSION-MOCK-001"])assert.equal(middleware(new NextRequest("https://"+ho+path+q,{headers})).headers.get("x-middleware-next"),"1",q);
+ assert.equal(middleware(new NextRequest("https://"+ho+path+"?record=MISSION-MOCK-001&_rsc=abc",{headers:{...headers,rsc:"1"}})).headers.get("x-middleware-next"),"1");
+ assert.equal(parse(bo,path),null);
 });

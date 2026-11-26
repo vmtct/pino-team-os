@@ -2,12 +2,17 @@
 import "@pino/design-system/bo-tokens.css";
 import "@pino/design-system/components.css";
 import { useEffect, useRef, useState } from "react";
+import { BoActionButton, BoActionGroup } from "@pino/design-system/react";
+import { DrawerFrame } from "@/app/components/workspace-renderer/DrawerFrame";
+import type { TableQuery } from "@/lib/workspace-schema";
 import { createHoTddAdapter, type AuthenticatedSurfaceAdapter } from "@/lib/workspace-adapters";
 import { browserTddNavigation, type AdapterNavigation } from "@/lib/workspace-adapters/navigation";
 import { TddRegistry, type TddActionBindings } from "@/lib/workspace-schema";
 import { SurfaceWorkspace } from "@/app/components/workspace-adapters/SurfaceWorkspace";
 import { TddRenderer } from "@/app/components/workspace-renderer/Renderer";
 import { HoWorkspace } from "@/app/ho/HoWorkspace";
+import { TddPreferencePolicy } from "@/app/components/workspace-renderer/Record";
+import { createMissionM1Boundary } from "./mission-m1-boundary";
 import { missionDefinition, missionFields, missionProvider, missionQuery } from "./schema";
 import { submitHoMission, type MissionInput } from "./command";
 import { loadMissionForEdit } from "./read-edit";
@@ -17,11 +22,30 @@ import { loadMissionPathChoices, validateMissionSelectedPath, type MissionPathCh
 type F = typeof missionFields;
 type Ready = { adapter: AuthenticatedSurfaceAdapter<F>; navigation: AdapterNavigation<F> };
 type EditTarget = { id: string; version: number; status: MissionInput["status"] };
+export type MissionBoundary = {
+  readonly preview: boolean;
+  readonly query: TableQuery<F>;
+  readonly open: (signal: AbortSignal) => Promise<Ready>;
+  readonly load: (id:string)=>ReturnType<typeof loadMissionForEdit>;
+  readonly paths: (signal?: AbortSignal) => Promise<readonly MissionPathChoice[]>;
+  readonly submit: (command: Parameters<typeof submitHoMission>[0]) => ReturnType<typeof submitHoMission>;
+  readonly key: (prefix:string)=>string;
+};
+const liveBoundary: MissionBoundary = {
+  preview:false,query:missionQuery,
+  async open(signal) {
+    const adapter = await createHoTddAdapter({ registry: new TddRegistry(), definition: missionDefinition, provider: missionProvider },signal);
+    try { return {adapter,navigation:browserTddNavigation("HO","missions",missionQuery)}; }
+    catch (error) { adapter.dispose(); throw error; }
+  },
+  load:id=>loadMissionForEdit(id), paths:signal=>loadMissionPathChoices(fetch,signal),
+  submit:command=>submitHoMission(command), key:prefix=>prefix+crypto.randomUUID(),
+};
 type PathState =
   | { state: "idle" | "loading" | "error"; message?: string }
   | { state: "ready"; choices: readonly MissionPathChoice[] };
 /** PAP-1207: Create/Edit/Archive use canonical TDD Action Host; no local mutation buttons. */
-export function HoMissionsTdd() {
+export function HoMissionsContent({boundary=liveBoundary}:{boundary?:MissionBoundary} = {}) {
   const [ready, setReady] = useState<Ready | null>(null);
   const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
@@ -35,20 +59,21 @@ export function HoMissionsTdd() {
   const [editLoadError, setEditLoadError] = useState("");
   const [confirmed, setConfirmed] = useState("");
   const [archiveAvailable, setArchiveAvailable] = useState(false);
+  const [archivePreview, setArchivePreview] = useState<{id:string;version:number;name:string}|null>(null);
   const idempotency = useRef<string | null>(null);
   const writing = useRef(false);
   useEffect(() => {
     const controller = new AbortController();
     let bound: AuthenticatedSurfaceAdapter<F> | null = null;
-    void createHoTddAdapter({ registry: new TddRegistry(), definition: missionDefinition, provider: missionProvider }, controller.signal)
-      .then(adapter => {
-        bound = adapter;
-        if (controller.signal.aborted) { adapter.dispose(); return; }
-        setReady({ adapter, navigation: browserTddNavigation("HO", "missions", missionQuery) });
+    void boundary.open(controller.signal)
+      .then(result => {
+        bound = result.adapter;
+        if (controller.signal.aborted) { bound.dispose(); return; }
+        setReady(result);
       })
       .catch(() => { if (!controller.signal.aborted) setError("Không thể xác thực quyền xem Mission trên HO."); });
     return () => { controller.abort(); bound?.dispose(); };
-  }, [retry]);
+  }, [retry,boundary]);
   useEffect(() => {
     if (!ready) return;
     let active = true;
@@ -59,7 +84,7 @@ export function HoMissionsTdd() {
       setArchiveAvailable(false);
       if (selected.kind !== "detail" || !selected.recordId ||
           !ready.adapter.context.authorize("learning.mission.manage")) return;
-      void loadMissionForEdit(selected.recordId).then(result => {
+      void boundary.load(selected.recordId).then(result => {
         if (!active || current !== sequence || ready.navigation.read().recordId !== selected.recordId) return;
         setArchiveAvailable(result.state === "ready" && result.data.status === "ACTIVE");
       }).catch(() => {
@@ -69,18 +94,17 @@ export function HoMissionsTdd() {
     const unsubscribe = ready.navigation.subscribe(refreshArchiveEligibility);
     refreshArchiveEligibility();
     return () => { active = false; sequence += 1; unsubscribe(); };
-  }, [ready]);
+  }, [ready,boundary]);
   // PAP-1207 / MISSION S5: source-owned Core Path lookup for Create and Edit drawers.
   // Aborted requests never populate a closed/stale form.
   useEffect(() => {
     if (mode === null) return;
     const controller = new AbortController();
-    setPathState({ state: "loading" });
-    void loadMissionPathChoices(fetch, controller.signal)
+    void boundary.paths(controller.signal)
       .then(choices => { if (!controller.signal.aborted) setPathState({ state: "ready", choices }); })
       .catch(() => { if (!controller.signal.aborted) setPathState({ state: "error", message: "Không tải được bốn Path canonical từ Core. Đóng và mở lại form." }); });
     return () => controller.abort();
-  }, [mode]);
+  }, [mode,boundary]);
   const pathChoices = pathState.state === "ready" ? pathState.choices : [];
   const close = () => {
     if (writing.current || pending) return;
@@ -88,8 +112,8 @@ export function HoMissionsTdd() {
   };
   const open = () => {
     if (writing.current || pending || uncertain) return;
-    idempotency.current = "mission-create-" + crypto.randomUUID();
-    setDraft(emptyMission); setEditTarget(null); setPathState({ state: "idle" });
+    idempotency.current = boundary.key("mission-create-");
+    setDraft(emptyMission); setEditTarget(null); setPathState({ state: "loading" });
     setFormError(""); setEditLoadError(""); setConfirmed(""); setMode("create");
   };
   const openEdit = async () => {
@@ -99,42 +123,49 @@ export function HoMissionsTdd() {
     if (selected.kind !== "detail" || !selected.recordId) return;
     setPending(true); setEditLoadError("");
     try {
-      const result = await loadMissionForEdit(selected.recordId);
+      const result = await boundary.load(selected.recordId);
       if (result.state !== "ready") { setEditLoadError(result.message); return; }
       if (ready.navigation.read().recordId !== result.id) return; // stale selected row
       setEditTarget({ id: result.id, version: result.version, status: result.data.status });
-      setDraft(result.data); idempotency.current = "mission-edit-" + crypto.randomUUID();
+      setDraft(result.data); setPathState({ state: "loading" }); idempotency.current = boundary.key("mission-edit-");
       setFormError(""); setConfirmed(""); setMode("edit");
     } finally { setPending(false); }
   };
-  const archiveMission = async () => {
+  const archiveMission = async (confirmedPreview?: {id:string;version:number}) => {
     if (writing.current || pending || uncertain || !ready || mode) return;
     if (!ready.adapter.context.authorize("learning.mission.manage")) return;
     const selected = ready.navigation.read();
     if (selected.kind !== "detail" || !selected.recordId) return;
     setPending(true); setEditLoadError("");
     try {
-      const loaded = await loadMissionForEdit(selected.recordId);
+      const loaded = await boundary.load(selected.recordId);
       if (loaded.state !== "ready") { setEditLoadError(loaded.message); return; }
       if (ready.navigation.read().recordId !== loaded.id) return;
       if (loaded.data.status !== "ACTIVE") {
         setEditLoadError("Mission đã ở trạng thái INACTIVE; không cần lưu trữ lại.");
         return;
       }
-      const accepted = typeof window !== "undefined" && window.confirm(
+      if (boundary.preview && !confirmedPreview) {
+        setArchivePreview({id:loaded.id,version:loaded.version,name:loaded.data.name}); return;
+      }
+      if (boundary.preview && (confirmedPreview?.id !== loaded.id || confirmedPreview.version !== loaded.version)) {
+        setArchivePreview(null); setEditLoadError("Mission mẫu đã thay đổi. Mở lại xác nhận."); return;
+      }
+      setArchivePreview(null);
+      const accepted = boundary.preview || (typeof window !== "undefined" && window.confirm(
         "Lưu trữ Mission " + loaded.data.code + " — " + loaded.data.name +
         "? Mission sẽ chuyển sang INACTIVE và không còn được giao mới. Assignment và Nhật Ký hiện có vẫn được giữ nguyên; thao tác này không xóa dữ liệu.",
-      );
+      ));
       if (!accepted || ready.navigation.read().recordId !== loaded.id || writing.current || uncertain) return;
       writing.current = true;
-      idempotency.current = "mission-archive-" + crypto.randomUUID();
-      const result = await submitHoMission({
+      idempotency.current = boundary.key("mission-archive-");
+      const result = await boundary.submit({
         kind: "archive", id: loaded.id, expectedVersion: loaded.version,
         data: loaded.data, idempotencyKey: idempotency.current,
       });
       if (result.state === "verified") {
-        ready.navigation.change({ kind: "table", tab: "overview", query: missionQuery });
-        setConfirmed("Đã xác minh lưu trữ Mission " + result.record.code + " trên Core (INACTIVE).");
+        ready.navigation.change({ kind: "table", tab: "overview", query: boundary.query });
+        setConfirmed(boundary.preview ? "M1 · Đã lưu trữ Mission mẫu." : "Đã xác minh lưu trữ Mission " + result.record.code + " trên Core (INACTIVE).");
         setReady(null); setRetry(n => n + 1);
       } else {
         setEditLoadError(result.message);
@@ -146,7 +177,7 @@ export function HoMissionsTdd() {
   };
   const submit = async () => {
     if (!mode) return { state: "invalid" as const };
-    const invalid = validateMissionCreate(draft) ||
+    const invalid = validateMissionCreate(draft,boundary.preview) ||
       validateMissionSelectedPath(draft, pathChoices);
     if (invalid) { setFormError(invalid); return { state: "invalid" as const }; }
     if (mode === "edit" && (!editTarget || editTarget.status !== draft.status)) {
@@ -161,7 +192,7 @@ export function HoMissionsTdd() {
         // Re-read the authorized Core canon immediately before any Create/Edit write.
         // An inactive/renamed/replaced Path never proceeds to POST.
         try {
-          const fresh = await loadMissionPathChoices();
+          const fresh = await boundary.paths();
           const changed = validateMissionSelectedPath(draft, fresh);
           if (changed) { setFormError(changed); return { state: "invalid" as const }; }
         } catch {
@@ -173,9 +204,9 @@ export function HoMissionsTdd() {
         ? { kind: "create" as const, data: draft, idempotencyKey: idempotency.current }
         : { kind: "update" as const, id: editTarget!.id, expectedVersion: editTarget!.version,
             data: draft, idempotencyKey: idempotency.current };
-      const result = await submitHoMission(command);
+      const result = await boundary.submit(command);
       if (result.state === "verified") {
-        setConfirmed("Đã xác minh Mission " + result.record.code + " trên Core.");
+        setConfirmed(boundary.preview ? "M1 · Đã cập nhật Mission mẫu." : "Đã xác minh Mission " + result.record.code + " trên Core.");
         setMode(null); setEditTarget(null); setReady(null); setRetry(n => n + 1);
       } else {
         setFormError(result.message);
@@ -187,34 +218,48 @@ export function HoMissionsTdd() {
   const actions: TddActionBindings = {
     openCreate: { kind: "navigation", disabled: pending || uncertain || mode !== null, run: open },
     openEdit: { kind: "navigation", disabled: pending || uncertain || mode !== null, run: openEdit },
-    archiveMission: { kind: "mutation", disabled: pending || uncertain || mode !== null, visible: archiveAvailable, run: archiveMission },
+    archiveMission: { kind: "mutation", disabled: pending || uncertain || mode !== null, visible: archiveAvailable, run: () => archiveMission() },
+    ...(boundary.preview ? {archiveMission:{kind:"navigation" as const,disabled:pending || uncertain || mode !== null || archivePreview !== null,visible:archiveAvailable,run:()=>archiveMission()}} : {}),
     cancelCreate: { kind: "navigation", disabled: pending, run: close },
     saveCreate: { kind: "mutation", disabled: pending || uncertain ||
-      Boolean(validateMissionCreate(draft) || validateMissionSelectedPath(draft, pathChoices)), run: submit },
+      Boolean(validateMissionCreate(draft,boundary.preview) || validateMissionSelectedPath(draft, pathChoices)), run: submit },
     cancelEdit: { kind: "navigation", disabled: pending, run: close },
     saveEdit: { kind: "mutation", disabled: pending || uncertain ||
-      Boolean(validateMissionCreate(draft) || validateMissionSelectedPath(draft, pathChoices)) ||
+      Boolean(validateMissionCreate(draft,boundary.preview) || validateMissionSelectedPath(draft, pathChoices)) ||
       !editTarget || editTarget.status !== draft.status, run: submit },
   };
   const content = <section data-testid="ho-missions-tdd" aria-label="Danh mục Mission toàn hệ thống">
+    {boundary.preview ? <p role="status">M1 · Dữ liệu mô phỏng, không lưu vào hệ thống.</p> : null}
+    {boundary.preview && archivePreview ? <DrawerFrame title="Xác nhận lưu trữ" path="Mission" onClose={()=>{if(!writing.current&&!pending)setArchivePreview(null);}} footer={<BoActionGroup>
+      <BoActionButton type="button" variant="secondary" disabled={pending} onClick={()=>setArchivePreview(null)}>Hủy</BoActionButton>
+      <BoActionButton type="button" variant="danger" disabled={pending} onClick={()=>void archiveMission(archivePreview)}>Xác nhận lưu trữ</BoActionButton>
+    </BoActionGroup>}><p>Lưu trữ {archivePreview.name}? Mission chuyển sang INACTIVE và không còn được giao mới. Assignment và Nhật Ký hiện có vẫn được giữ nguyên; không xóa dữ liệu.</p></DrawerFrame> : null}
     {confirmed ? <p role="status">{confirmed}</p> : null}
     {editLoadError ? <p role="alert">{editLoadError}</p> : null}
     {uncertain ? <p role="alert">Lệnh ghi chưa được xác minh. Không gửi lại thao tác hoặc mở form mới trước khi đối chiếu Mission trên Core.</p> : null}
     {error ? <p role="alert">{error} <button type="button" onClick={() => { setReady(null); setError(""); setRetry(n => n + 1); }}>Thử lại</button></p> :
       ready ? <>
-        <SurfaceWorkspace adapter={ready.adapter} navigation={ready.navigation} initialQuery={missionQuery} actionBindings={actions} />
+        <SurfaceWorkspace adapter={ready.adapter} navigation={ready.navigation} initialQuery={boundary.query} actionBindings={actions} />
         {mode ? <TddRenderer view={{ kind: "form", props: {
           registry: ready.adapter.registry, schema: ready.adapter.schema, context: ready.adapter.context,
           mode, ...(mode === "edit" ? { recordId: editTarget?.id } : {}),
           title: mode === "create" ? "Tạo Mission" : "Sửa Mission", onClose: close, actionBindings: actions,
           content: <>
             <MissionCreateFields value={draft} setValue={setDraft} disabled={pending || uncertain}
-               editing={mode === "edit"} pathChoices={pathChoices}
+               editing={mode === "edit"} pathChoices={pathChoices} requireCategory={boundary.preview}
                pathState={pathState.state} pathError={pathState.state === "error" ? pathState.message : ""} />
             {formError ? <p role="alert">{formError}</p> : null}
           </>,
         } }} /> : null}
       </> : <p role="status">Đang xác thực HO và tải Mission từ Core…</p>}
   </section>;
-  return <HoWorkspace module="missions" content={content} />;
+  return content;
+}
+export function HoMissionsTdd() {
+  return <HoWorkspace module="missions" content={<HoMissionsContent/>} />;
+}
+/** PAP-2394: server-admitted Staging shell; same renderer as approved local M1-A. */
+export function HoMissionsTddPreview({scopeKey,permissionKeys,initialRecord}:{scopeKey:string;permissionKeys:readonly string[];initialRecord?:string}) {
+ const [boundary]=useState(()=>createMissionM1Boundary(initialRecord,{userId:scopeKey,permissionKeys}));
+ return <HoWorkspace module="missions" content={<TddPreferencePolicy.Provider value="ephemeral"><HoMissionsContent boundary={boundary}/></TddPreferencePolicy.Provider>}/>;
 }
