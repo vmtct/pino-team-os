@@ -1,10 +1,1 @@
 .root { display:block; max-width:1700px; }
-.tableCover { display:block; width:44px; height:32px; object-fit:cover; border-radius:4px; }
-.fields :global(.property-row) { grid-template-columns:130px minmax(0,1fr); align-items:center; min-height:38px; gap:12px; padding:4px 0; }
-.fields :global(.property-row[data-tdd-field="caption"]), .fields :global(.property-row[data-tdd-field="returnReason"]) { align-items:start; }
-.fields :global(.property-row[data-tdd-field="caption"] .property-label), .fields :global(.property-row[data-tdd-field="returnReason"] .property-label) { padding-top:9px; }
-.fields :global([data-tdd-custom-create-control]) { padding:0; min-height:0; min-width:0; width:100%; border:0; background:none; }
-.editorInput { box-sizing:border-box; display:block; width:100%; min-width:0; max-width:100%; min-height:34px; padding:7px 9px; border:1px solid var(--bo-color-border-strong,#dddbe5); border-radius:6px; background:var(--bo-color-surface,#fff); color:inherit; font:inherit; }
-.fields textarea.editorInput { resize:vertical; }
-.fields :global(.property-row[data-tdd-field="status"] .property-control) { padding:7px 9px; }
-@media(max-width:600px){ .fields :global(.property-row) { grid-template-columns:98px minmax(0,1fr); gap:8px; } }

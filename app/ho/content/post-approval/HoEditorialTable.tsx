@@ -4,7 +4,6 @@ import {useState} from "react";
 import {TddRenderer} from "@/app/components/workspace-renderer/Renderer";
 import type {PostPreview} from "@/app/bo/content/posts/post-preview-contract";
 import {baseQuery,registry,schema,context,projectEditorialRow} from "./editorial-table-model";
-import styles from "./post-approval.module.css";
 
 export function HoEditorialTable({posts,onOpen}:{posts:readonly PostPreview[];onOpen:(post:PostPreview)=>void}){
  const [query,setQuery]=useState(baseQuery);
@@ -15,6 +14,6 @@ export function HoEditorialTable({posts,onOpen}:{posts:readonly PostPreview[];on
  renderReadOnlyCell:(record,field)=>{
  if(field.key!=="cover"||typeof record.cover!=="number"||record.cover<1)return undefined;
  const src=posts.find(p=>p.id===record.id&&p.fixture===true)?.media[0]?.src;
- return src&&/^data:image\/(?:jpeg|png|webp);base64,/.test(src)?<img className={styles.tableCover} src={src} alt="Ảnh bìa" width={44} height={32}/>:undefined;
+ return src&&/^data:image\/(?:jpeg|png|webp);base64,/.test(src)?<img className={"pap2337-ho-table-cover"} src={src} alt="Ảnh bìa" width={44} height={32}/>:undefined;
  }}}}/>;
 }

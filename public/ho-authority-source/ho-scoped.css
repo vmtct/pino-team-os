@@ -1062,6 +1062,17 @@
 :where(html[data-surface="ho"]) .pap2337-ho-returnReason { display:grid; gap:6px; margin:12px 0; }
 @media(max-width:600px){:where(html[data-surface="ho"]) .pap2337-ho-heading h1{font-size:22px}:where(html[data-surface="ho"]) .pap2337-ho-toolbar{padding:10px}:where(html[data-surface="ho"]) .pap2337-ho-toolbar label{flex:1 1 auto}:where(html[data-surface="ho"]) .pap2337-ho-diaryGrid{grid-template-columns:repeat(auto-fit,minmax(105px,1fr))}}
 
+/* PAP-2337 — HO Editorial compact native table and aligned property controls. */
+:where(html[data-surface="ho"]) .pap2337-ho-table-cover { display:block; width:44px; height:32px; object-fit:cover; border-radius:4px; }
+:where(html[data-surface="ho"]) .pap2337-ho-editor-fields .property-row { grid-template-columns:130px minmax(0,1fr); align-items:center; min-height:38px; gap:12px; padding:4px 0; }
+:where(html[data-surface="ho"]) .pap2337-ho-editor-fields .property-row[data-tdd-field="caption"], :where(html[data-surface="ho"]) .pap2337-ho-editor-fields .property-row[data-tdd-field="returnReason"] { align-items:start; }
+:where(html[data-surface="ho"]) .pap2337-ho-editor-fields .property-row[data-tdd-field="caption"] .property-label, :where(html[data-surface="ho"]) .pap2337-ho-editor-fields .property-row[data-tdd-field="returnReason"] .property-label { padding-top:9px; }
+:where(html[data-surface="ho"]) .pap2337-ho-editor-fields [data-tdd-custom-create-control] { padding:0; min-height:0; min-width:0; width:100%; border:0; background:none; }
+:where(html[data-surface="ho"]) .pap2337-ho-editor-input { box-sizing:border-box; display:block; width:100%; min-width:0; max-width:100%; min-height:34px; padding:7px 9px; border:1px solid var(--bo-color-border-strong,#dddbe5); border-radius:6px; background:var(--bo-color-surface,#fff); color:inherit; font:inherit; }
+:where(html[data-surface="ho"]) .pap2337-ho-editor-fields textarea.pap2337-ho-editor-input { resize:vertical; }
+:where(html[data-surface="ho"]) .pap2337-ho-editor-fields .property-row[data-tdd-field="status"] .property-control { padding:7px 9px; }
+@media(max-width:600px){ :where(html[data-surface="ho"]) .pap2337-ho-editor-fields .property-row { grid-template-columns:98px minmax(0,1fr); gap:8px; } }
+
 
 /* Shared TDD opt-in Freeze Column; single HO host-scope output */
 /* PAP-1105: shared opt-in TDD Table Freeze primitive; BO/HO host authority untouched. */
