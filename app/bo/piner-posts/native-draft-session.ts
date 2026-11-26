@@ -4,11 +4,12 @@
 import {surfaceSession,type CenterSource} from "@/lib/workspace-adapters/session";
 import {BoApiError} from "@/lib/bo-api-error";
 import {createDraftController,type DraftActorScope} from "./draft-controller";
-import {createSessionDraftJournal,type DraftRetryJournal} from "./draft-retry-journal";
+import {draftDigest,createSessionDraftJournal,type DraftRetryJournal} from "./draft-retry-journal";
 import {bindNativeDraft} from "./native-draft-binding";
 import {createPrivateMediaController} from "./private-media-controller";
 import {privatePostMediaClient} from "./private-media-client";
 import {postWorkflowReadClient} from "./workflow-read-client";
+import {createDiaryUploadRecovery} from "./diary-upload-recovery";
 import {createNativeDiaryComposer} from "./native-diary-composer";
 import {createNativeSubmitReview} from "./native-submit-review";
 import {createWorkflowCoordinator} from "./workflow-coordinator";
@@ -69,16 +70,19 @@ export async function openNativeDraftSession(centerId:string,centerSource:Center
    if(c.kind==="diary-selection")return JSON.stringify([...state.diaryIds].sort())===JSON.stringify(c.diaryIds);
    return state.provenance.some(p=>p.attachmentId===c.attachmentId&&p.diaryId===c.diaryId&&p.evidenceId===c.evidenceId&&p.transform===c.transform&&p.attachmentVersion===c.expectedAttachmentVersion);
   },journal);
-  const mediaControllers=new Map<string,ReturnType<typeof createPrivateMediaController>>();
+  const mediaControllers=new Map<string,ReturnType<typeof createPrivateMediaController>>(),rawMedia=new Map<string,ReturnType<typeof createPrivateMediaController>>();
+  const compoundScope=await draftDigest(["pino-diary-upload-v1",principal.userId,centerId]);
+  signal.throwIfAborted();
   let active=false;
-  async function fenced<T>(kind:"draft"|"workflow"|"media",postId:string|null,requestSignal:AbortSignal,operation:()=>Promise<T>):Promise<T>{
+  async function fenced<T>(kind:"draft"|"workflow"|"media"|"compound-start"|"compound-retry",postId:string|null,requestSignal:AbortSignal,operation:()=>Promise<T>):Promise<T>{
    requestSignal.throwIfAborted();
    if(active)throw Error("Yêu cầu trước chưa hoàn tất.");
    active=true;
    try{
+    if(kind!=="compound-retry"&&journal.read(compoundScope))throw Error("Cần xác minh ảnh Diary trước.");
     if(kind!=="draft"&&await draft.hasRetainedCommand(requestSignal))throw Error("Cần xác minh thay đổi Post trước.");
-    if(kind!=="workflow"&&await workflowCoordinator.hasPending(requestSignal))throw Error("Cần xác minh yêu cầu Post trước.");
-    if([...mediaControllers.entries()].some(([id,media])=>media.hasPending()&&(kind!=="media"||id!==postId)))throw Error("Cần xác minh ảnh trước.");
+    if(kind!=="workflow"&&kind!=="compound-retry"&&await workflowCoordinator.hasPending(requestSignal))throw Error("Cần xác minh yêu cầu Post trước.");
+    if([...rawMedia.entries()].some(([id,media])=>media.hasPending()&&((kind!=="media"&&kind!=="compound-retry")||id!==postId)))throw Error("Cần xác minh ảnh trước.");
     requestSignal.throwIfAborted();
     return await operation();
    }finally{active=false;}
@@ -97,7 +101,20 @@ export async function openNativeDraftSession(centerId:string,centerSource:Center
   const submitReview=createNativeSubmitReview({centerId,canSubmit,detail:controller.detail,list:(postId,requestSignal)=>privatePostMediaClient(centerId,postId,guardedFetch).list(requestSignal),workflow});
   const canCompose=()=>Boolean(current()&&session.context.authorize("piner.post.view")&&session.context.authorize("piner.post.diary.compose"));
   const diaryComposer=createNativeDiaryComposer({centerId,canCompose,detail:controller.detail,read:workflowRead,list:(postId,requestSignal)=>privatePostMediaClient(centerId,postId,guardedFetch).list(requestSignal),workflow});
-  return {...binding,controller,userId:principal.userId,submitReview,diaryComposer,
+  function rawMediaController(postId:string){
+   if(!canMedia(false))throw new CoreDraftRequestError(403);
+   let local=rawMedia.get(postId);
+   if(!local){local=createPrivateMediaController(privatePostMediaClient(centerId,postId,guardedFetch),canMedia);rawMedia.set(postId,local);}
+   return local;
+  }
+  const compoundDiary=createNativeDiaryComposer({centerId,canCompose,detail:controller.detail,read:workflowRead,list:(postId,requestSignal)=>privatePostMediaClient(centerId,postId,guardedFetch).list(requestSignal),workflow:workflowCoordinator});
+  const recovery=createDiaryUploadRecovery({actorId:principal.userId,centerId,authorize:()=>canCompose()&&canMedia(true),journal,media:rawMediaController,diary:compoundDiary});
+  const diaryUpload={
+   start:(...args:Parameters<typeof recovery.start>)=>fenced("compound-start",args[0].postId,args[1],()=>recovery.start(...args)),
+   retry:(...args:Parameters<typeof recovery.retry>)=>fenced("compound-retry",args[0],args[1],()=>recovery.retry(...args)),
+   pending:recovery.pending
+  };
+  return {...binding,controller,userId:principal.userId,submitReview,diaryComposer,diaryUpload,
    workflowRead,
    workflow,
    canSubmit,
@@ -108,7 +125,7 @@ export async function openNativeDraftSession(centerId:string,centerSource:Center
     if(!canMedia(false))throw new CoreDraftRequestError(403);
     let media=mediaControllers.get(postId);
     if(!media){
-     const local=createPrivateMediaController(privatePostMediaClient(centerId,postId,guardedFetch),canMedia);
+     const local=rawMediaController(postId);
      media={...local,
       upload:(file,requestSignal)=>fenced("media",postId,requestSignal,()=>local.upload(file,requestSignal)),
       remove:(id,requestSignal)=>fenced("media",postId,requestSignal,()=>local.remove(id,requestSignal)),
@@ -124,7 +141,7 @@ export async function openNativeDraftSession(centerId:string,centerSource:Center
     requestSignal.throwIfAborted();
     return choices;
    },
-   dispose(){workflow.dispose();for(const media of mediaControllers.values())media.dispose();mediaControllers.clear();binding.unbind();controller.dispose();session.dispose();}
+   dispose(){recovery.dispose();workflow.dispose();for(const media of rawMedia.values())media.dispose();rawMedia.clear();mediaControllers.clear();binding.unbind();controller.dispose();session.dispose();}
   };
  }catch(e){session.dispose();throw e;}
 }

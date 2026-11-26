@@ -1,7 +1,7 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
 import {openNativeDraftSession} from "../app/bo/piner-posts/native-draft-session";
-import {createSessionDraftJournal} from "../app/bo/piner-posts/draft-retry-journal";
+import {draftDigest,createSessionDraftJournal} from "../app/bo/piner-posts/draft-retry-journal";
 const A="01900000-0000-7000-8000-000000000001",B="01900000-0000-7000-8000-000000000002",U="01900000-0000-7000-8000-000000000003";
 const origin="https://bo.staging.pinohouse.art",signal=new AbortController().signal;
 function setup(grants:string[],center=A){
@@ -96,3 +96,24 @@ test("PAP-2386 native coordinator retains uncertain ordered submission until exa
  assert.equal(await s.workflow.hasPending(signal),false);
  assert.equal(calls.length,4);s.dispose();
 });
+
+ test("PAP-2386 opaque compound marker blocks all ordinary session writes even without compose grant",async()=>{
+ const x=setup(["piner.post.view","piner.post.edit","piner.post.submit","piner.post.create"]),P="01900000-0000-7000-8000-000000000004",I="01900000-0000-7000-8000-000000000005";
+ const scope=await draftDigest(["pino-diary-upload-v1",U,A]);
+ x.options.journal.reserve(scope,{key:"compound-test-marker-001",fingerprint:"a".repeat(64)});
+ const s=await openNativeDraftSession(A,"centers",signal,x.options);
+ await assert.rejects(s.controller.editCaption(P,1,"Changed",signal));
+ await assert.rejects(s.controller.createDraft(I,"MYTIME","New",signal));
+ await assert.rejects(s.mediaController(P).upload(new Blob(["x"],{type:"image/png"}),signal));
+ await assert.rejects(s.workflow.run({kind:"submit",postId:P,attachmentIds:[I],expectedVersion:1,idempotencyKey:"workflow-test-0001"},signal));
+ await assert.rejects(s.diaryUpload.retry(P,signal));
+ assert(!x.calls.some(p=>p.includes("/piner-posts")));
+ s.dispose();assert(x.options.journal.read(scope));
+ });
+ test("PAP-2386 compose/edit session reload sees unknown compound intent but cannot guess retry",async()=>{
+ const x=setup(["piner.post.view","piner.post.edit","piner.post.diary.compose"]),P="01900000-0000-7000-8000-000000000004";
+ const scope=await draftDigest(["pino-diary-upload-v1",U,A]);x.options.journal.reserve(scope,{key:"compound-test-marker-002",fingerprint:"b".repeat(64)});
+ const s=await openNativeDraftSession(A,"centers",signal,x.options);
+ assert.deepEqual(await s.diaryUpload.pending(signal),{pending:true,retryPostId:null});
+ await assert.rejects(s.diaryUpload.retry(P,signal));assert(!x.calls.some(p=>p.includes("/piner-posts")));s.dispose();
+ });
