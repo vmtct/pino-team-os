@@ -66,6 +66,8 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   if (workshop) return {action:workshop};
   // PAP-2389: exact native Parent page; existing BO Staging shell authorizes each request.
   if (/^\/bo\/parents(?:\/|$)/i.test(pathname)) return { action: hostname === BO_STAGING_HOSTNAME && (pathname === "/bo/parents" || pathname === "/bo/parents/") && (method === "GET" || method === "HEAD") ? "next" : "not_found" };
+  // PAP-2411: exact Staff Directory page, existing BO Staging auth, no wildcard or extra methods.
+  if (/^\/bo\/workforce\/staffs(?:\/|$)/i.test(pathname)) return {action:hostname===BO_STAGING_HOSTNAME && (pathname==="/bo/workforce/staffs" || pathname==="/bo/workforce/staffs/") && (method==="GET"||method==="HEAD")?"next":"not_found"};
   // PAP-2181: exact private native Enrollment page; no Production or cross-surface admission.
   if (pathname.toLowerCase().startsWith("/bo/enrollments")) return { action: hostname === BO_STAGING_HOSTNAME && (pathname === "/bo/enrollments" || pathname === "/bo/enrollments/") && (method === "GET" || method === "HEAD") ? "next" : "not_found" };
   const guest = guestHostDecision(hostname, pathname, method);
