@@ -1154,7 +1154,6 @@
         "lib/bo-post-actor-continuity.test.ts"
       ],
       "externalReferences": [
-        {"file":"app/bo/content/posts/BoPostSubmitShell.tsx","owner":"PAP-2337"},
           {
             "file": "lib/ho-routes.ts",
             "owner": "PAP-1221"
