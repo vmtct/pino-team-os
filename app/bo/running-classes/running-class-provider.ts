@@ -25,13 +25,21 @@ function list<T extends {id:string}>(v:unknown,parse:(r:Record<string,unknown>)=
 function choice<T extends string>(v:unknown,values:readonly T[]):T{
  if(typeof v!=="string"||!values.some(x=>x===v))return fail("Invalid Running Class choice.");return v as T;
 }
+function auditTime(value:unknown):string|null{
+ if(typeof value!=="string"||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value))return null;
+ const ms=Date.parse(value);return Number.isFinite(ms)&&new Date(ms).toISOString()===value?value:null;
+}
+function auditName(value:unknown):string|null{
+ if(typeof value!=="string"||!value.trim()||value.trim().length>160||/[\u0000-\u001f\u007f]/.test(value)||uuid.test(value.trim()))return null;
+ return value.trim();
+}
 function record(r:Record<string,unknown>,centerId:string):ClassRecord{
  const center=id(r.centerId);if(center!==centerId)return fail("Foreign Running Class Center.");
  const weekday=positive(r.weekdayIso),start=text(r.windowStartsLocal),end=text(r.windowEndsLocal);
  const time=/^(?:[01][0-9]|2[0-3]):[0-5][0-9]$/;
  if(weekday>7||!time.test(start)||!time.test(end)||end<=start)return fail("Invalid Running Class schedule.");
  return {id:id(r.id),centerId:center,pathProgramId:id(r.pathProgramId),learningSpaceId:id(r.learningSpaceId),operationalName:text(r.operationalName),weekdayIso:weekday,windowStartsLocal:start,windowEndsLocal:end,
- deliveryTopology:choice(r.deliveryTopology,CLASS_TOPOLOGIES),optimalConcurrentCapacity:positive(r.optimalConcurrentCapacity),hardConcurrentCapacity:nullable(r.hardConcurrentCapacity),defaultParticipationMinutes:nullable(r.defaultParticipationMinutes),status:choice(r.status,CLASS_STATUSES),version:positive(r.version)};
+ deliveryTopology:choice(r.deliveryTopology,CLASS_TOPOLOGIES),optimalConcurrentCapacity:positive(r.optimalConcurrentCapacity),hardConcurrentCapacity:nullable(r.hardConcurrentCapacity),defaultParticipationMinutes:nullable(r.defaultParticipationMinutes),status:choice(r.status,CLASS_STATUSES),version:positive(r.version),createdAt:auditTime(r.createdAt),updatedAt:auditTime(r.updatedAt),createdByName:auditName(r.createdByName),updatedByName:auditName(r.updatedByName)};
 }
 type Scope=Pick<BoContext,"userId"|"surface"|"entitled"|"permissionKeys">;
 type StoragePort=Pick<Storage,"getItem"|"setItem"|"removeItem">;
