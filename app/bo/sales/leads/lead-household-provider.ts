@@ -1,6 +1,7 @@
 /** PAP-2288 PLT-LEAD — canonical presentation and single-command lifecycle. */
 import {createLeadHouseholdApi,LeadApiError,newLeadCommandKey,type LeadDetail,type LeadRow,type LeadMember,type LeadMemberInput,type LeadReceipt,type LeadInterest,type LeadCreate,type LeadContactInput,type LeadRelationInput} from "@/lib/bo-lead-household-client";
 import type {LeadRecoveryJournal} from "./lead-recovery-journal";
+import {parseLeadRecoveryInput,parseLeadRecoveryReceipt,type LeadRecoveryInput,type LeadRecoveryReceipt} from "@/lib/bo-lead-recovery-api";
 export type LeadHouseholdApi=ReturnType<typeof createLeadHouseholdApi>;
 export function presentLeadRow(row:LeadRow){
  return {id:row.id,contactName:row.contactDisplayName,phone:row.phone,lifecycle:row.status,version:row.version,memberCount:row.memberCount,intentCount:row.intentCount,createdAt:row.createdAt,createdBy:row.createdBy,updatedAt:row.updatedAt,updatedBy:row.updatedBy};
@@ -51,10 +52,30 @@ export class LeadCommandFence{
  private createPhone:string|null=null;
  private createResult:"created"|"reused"|null=null;
  get createOutcome(){return this.createResult;}
- constructor(private readonly api:LeadHouseholdApi,private readonly makeKey=newLeadCommandKey,private readonly journal?:LeadRecoveryJournal){
+ constructor(private readonly api:LeadHouseholdApi,private readonly makeKey=newLeadCommandKey,private readonly journal?:LeadRecoveryJournal,private readonly recover?:(input:LeadRecoveryInput)=>Promise<LeadRecoveryReceipt>){
   const recovered=journal?.inspect();
   if(recovered?.state==="readback"&&recovered.entry.kind!=="create"){this.receipt=recovered.receipt;this.receiptKey=recovered.entry.key;this.phase="reload_required";}
   else if(recovered&&recovered.state!=="empty")this.phase="recovery_blocked";
+ }
+ /** Explicit server-proven recovery after reload; absence never clears an unknown journal. */
+ get canRecover(){return this.phase==="recovery_blocked"&&Boolean(this.recover)&&this.journal?.inspect().state==="unknown";}
+ async recoverCommitted():Promise<LeadDetail>{
+  if(!this.canRecover||!this.recover||!this.journal)throw new LeadApiError(409,"LEAD_RECOVERY_NOT_READY",null);
+  const current=this.journal.inspect();
+  if(current.state!=="unknown")throw new LeadApiError(409,"LEAD_RECOVERY_NOT_READY",null);
+  const {kind,key,target,expectedVersion}=current.entry;
+  const input=parseLeadRecoveryInput({kind,key,target,expectedVersion});
+  if(!input)throw new LeadApiError(409,"LEAD_RECOVERY_BLOCKED",null);
+  this.phase="pending";
+  try{
+   const receipt=parseLeadRecoveryReceipt(await this.recover(input),input);
+   if(!receipt)throw new LeadApiError(502,"LEAD_RECOVERY_RESPONSE_INVALID",null);
+   const detail=await this.api.detail(receipt.leadId);
+   this.journal.completeRecoveredReadback(input,receipt,detail);
+   this.createResult=input.kind==="create"?(receipt.created?"created":"reused"):null;
+   this.pending=null;this.receipt=null;this.receiptKey=null;this.conflict=null;this.createPhone=null;this.phase="idle";
+   return detail;
+  }catch(error){this.phase="recovery_blocked";throw error;}
  }
  get state(){return this.phase;}
  get reloadTarget(){return this.receipt?.leadId??(this.conflict&&this.conflict.kind!=="create"?this.conflict.leadId:null);}

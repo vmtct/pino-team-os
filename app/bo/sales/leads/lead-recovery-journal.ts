@@ -1,6 +1,7 @@
 /** PAP-2288 / PLT-LEAD: opaque per-tab recovery metadata, never a command payload or authority. */
 import type {LeadCommand} from "./lead-household-provider";
 import type {LeadReceipt,LeadDetail} from "@/lib/bo-lead-household-client";
+import {parseLeadRecoveryInput,parseLeadRecoveryReceipt,type LeadRecoveryInput,type LeadRecoveryReceipt} from "@/lib/bo-lead-recovery-api";
 type StoragePort=Pick<Storage,"getItem"|"setItem"|"removeItem">;
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const kinds=new Set<string>(["create","contact","addMember","updateMember","retireMember","primary","addRelation","updateRelation","confirmRelation","retireRelation","archive"]);
@@ -57,6 +58,16 @@ export class LeadRecoveryJournal{
  completeReadback(key:string,detail:Pick<LeadDetail,"id"|"version">):void{
   const current=this.inspect();
   if(current.state!=="readback"||current.entry.kind==="create"||current.entry.key!==key||detail.id!==current.receipt.leadId||!version(detail.version)||detail.version<current.receipt.version)throw new Error("LEAD_RECOVERY_READBACK_INVALID");
+  this.storage.removeItem(this.slot);
+  if(this.inspect().state!=="empty")throw new Error("LEAD_RECOVERY_CLEAR_FAILED");
+ }
+ /** Only a committed lookup on the original opaque tuple plus authorized readback can clear unknown. */
+ completeRecoveredReadback(input:LeadRecoveryInput,receipt:LeadRecoveryReceipt,detail:Pick<LeadDetail,"id"|"version">):void{
+  const current=this.inspect();
+  const validInput=parseLeadRecoveryInput(input);
+  if(!validInput||current.state!=="unknown"||current.entry.key!==validInput.key||current.entry.kind!==validInput.kind||current.entry.target!==validInput.target||current.entry.expectedVersion!==validInput.expectedVersion)throw new Error("LEAD_RECOVERY_KEY_MISMATCH");
+  const committed=parseLeadRecoveryReceipt(receipt,validInput);
+  if(!committed||detail.id!==committed.leadId||!version(detail.version)||detail.version<committed.version)throw new Error("LEAD_RECOVERY_READBACK_INVALID");
   this.storage.removeItem(this.slot);
   if(this.inspect().state!=="empty")throw new Error("LEAD_RECOVERY_CLEAR_FAILED");
  }

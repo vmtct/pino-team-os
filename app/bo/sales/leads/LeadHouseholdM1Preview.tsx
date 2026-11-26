@@ -1,5 +1,6 @@
 "use client";
 import type {LeadRecoveryJournal} from "./lead-recovery-journal";
+import type {LeadRecoveryInput,LeadRecoveryReceipt} from "@/lib/bo-lead-recovery-api";
 
 import { useContext, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { LeadReadModel } from "./lead-household-read-model";
@@ -88,7 +89,7 @@ function PropertySection<T extends Record<string, unknown>>({
   </section>;
 }
 
-export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi,recoveryJournal}: {localReview?: boolean; readApi?: Pick<LeadHouseholdApi,"search"|"detail"|"history">;commandApi?:LeadHouseholdApi;recoveryJournal?:LeadRecoveryJournal} = {}) {
+export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi,recoveryJournal,recoverApi}: {localReview?: boolean; readApi?: Pick<LeadHouseholdApi,"search"|"detail"|"history">;commandApi?:LeadHouseholdApi;recoveryJournal?:LeadRecoveryJournal;recoverApi?:(input:LeadRecoveryInput)=>Promise<LeadRecoveryReceipt>} = {}) {
   const menu = useContext(TddHostMenu);
   const router = useRouter();
   const pathname = usePathname();
@@ -96,7 +97,7 @@ export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi,rec
   const [fixtureRecords, setRecords] = useState<LeadM1Record[]>([LEAD_M1_FIXTURE]);
   const [,refreshRead] = useReducer((v:number)=>v+1,0);
   const readModel = useMemo(()=>readApi?new LeadReadModel(readApi,refreshRead):null,[readApi]);
-  const commandFence=useMemo(()=>commandApi&&commandApi===readApi&&!localReview?new LeadCommandFence(commandApi,undefined,recoveryJournal):null,[commandApi,readApi,localReview,recoveryJournal]);
+  const commandFence=useMemo(()=>commandApi&&commandApi===readApi&&!localReview?new LeadCommandFence(commandApi,undefined,recoveryJournal,recoverApi):null,[commandApi,readApi,localReview,recoveryJournal,recoverApi]);
   const [commandNotice,setCommandNotice]=useState("");
   const commandBusyRef=useRef(false);
   const [commandBusy,setCommandBusy]=useState(false);
@@ -358,6 +359,7 @@ export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi,rec
 
   return <main className={styles.page}>
     {commandFence?.state==="recovery_blocked"?<p role="alert" className={styles.previewNotice}>Chưa xác định kết quả yêu cầu trước hoặc không đọc được nhật ký khôi phục. Không thể chỉnh sửa Lead cho đến khi có xác nhận kết quả từ hệ thống.</p>:null}
+    {commandFence?.canRecover&&!drawer&&!archiveTarget?<button type="button" className="secondary-btn" disabled={commandBusy} onClick={()=>void executeContact(async()=>{const detail=await commandFence.recoverCommitted();openFullDetail(detail.id);return detail;})}>Kiểm tra kết quả yêu cầu trước</button>:null}
     {commandFence&&commandNotice&&!drawer&&!archiveTarget?<p role="status" className={styles.previewNotice}>{commandNotice}</p>:null}
     {!drawer&&!archiveTarget&&commandFence?.state==="uncertain"?<button type="button" className="secondary-btn" disabled={commandBusy} onClick={()=>void executeContact(()=>commandFence.retry())}>Thử lại cùng yêu cầu</button>:null}
     {!drawer&&!archiveTarget&&commandFence&&(commandFence.state==="reload_required"||commandFence.state==="conflict")&&commandFence.reloadTarget?<button type="button" className="secondary-btn" disabled={commandBusy} onClick={()=>{const id=commandFence.reloadTarget;if(id)void executeContact(()=>commandFence.reload(id));}}>Tải lại Lead</button>:null}

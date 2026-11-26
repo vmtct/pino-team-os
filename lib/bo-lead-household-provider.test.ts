@@ -82,3 +82,31 @@ test("PAP-2288 Create wrong-phone receipt cannot become valid after reload",asyn
  const restored=new LeadCommandFence(a,()=>key,new LeadRecoveryJournal(s,id));assert.equal(restored.state,"recovery_blocked");await assert.rejects(restored.reload(id));await assert.rejects(restored.retry());assert.equal(writes,1);assert.equal(reads,1);
  await f.reload(id);assert.equal(journal.inspect().state,"empty");assert.equal(writes,1);
 });
+test("PAP-2288 explicit committed recovery verifies opaque tuple and readback without command resend",async()=>{
+ const s=memoryStorage(),key="8fbaea47-bcdc-4c50-8ca5-2b6335e4ebee",j=new LeadRecoveryJournal(s,id);
+ j.begin(command(),key);
+ let writes=0,reads=0,lookups=0;
+ const a=api({contact:()=>{writes++;return Promise.resolve({leadId:id,version:2});},detail:()=>Promise.resolve(detail(++reads===1?1:3))});
+ const f=new LeadCommandFence(a,undefined,j,async input=>{lookups++;assert.deepEqual(input,{kind:"contact",key,target:id,expectedVersion:1});return {leadId:id,version:2};});
+ assert.equal(f.canRecover,true);
+ await assert.rejects(f.recoverCommitted());assert.equal(f.state,"recovery_blocked");assert.equal(j.inspect().state,"unknown");
+ assert.equal((await f.recoverCommitted()).version,3);assert.equal(j.inspect().state,"empty");assert.equal(f.state,"idle");assert.equal(writes,0);assert.equal(lookups,2);
+});
+test("PAP-2288 recovery absence, wrong receipt and replaced journal remain blocked",async()=>{
+ const key="8fbaea47-bcdc-4c50-8ca5-2b6335e4ebee";
+ for(const mode of ["missing","wrong","changed"]){
+  const s=memoryStorage(),j=new LeadRecoveryJournal(s,id);j.begin(command(),key);
+  const f=new LeadCommandFence(api(),undefined,j,async()=>{
+   if(mode==="missing")throw new LeadApiError(404,"LEAD_RECOVERY_UNAVAILABLE",null);
+   if(mode==="wrong")return {leadId:child,version:2};
+   j.rejectInitial(key);j.begin({...command(),expectedVersion:2},key);return {leadId:id,version:2};
+  });
+  await assert.rejects(f.recoverCommitted());assert.equal(f.state,"recovery_blocked");assert.equal(j.inspect().state,"unknown");
+ }
+});
+test("PAP-2288 create after reload uses server committed proof, not original phone or a new write",async()=>{
+ const key="8fbaea47-bcdc-4c50-8ca5-2b6335e4ebee",s=memoryStorage(),j=new LeadRecoveryJournal(s,id);
+ j.begin({kind:"create",input:{contact:{phone:"0900000001",contactDisplayName:"Private"}}},key);
+ const f=new LeadCommandFence(api({create:()=>{throw Error("unexpected write");}}),undefined,j,async input=>{assert.deepEqual(input,{kind:"create",key,target:null,expectedVersion:null});return {leadId:id,version:1,created:false};});
+ assert.equal((await f.recoverCommitted()).id,id);assert.equal(f.createOutcome,"reused");assert.equal(j.inspect().state,"empty");
+});
