@@ -45,7 +45,6 @@ const legacy:Record<string,string>={
 const previews:Record<string,{path:string;expected:string;record?:string;negative:string}>={
 
  "/ho/billing/product-plans":{path:"/ho/billing/product-plans?m1Preview=1",expected:"/ho/billing/product-plans",record:"record=PRODUCT-PLAN-MOCK-001",negative:"record="+id},
- "/bo/piner-posts":{path:"/bo/piner-posts?m1Preview=1",expected:"/bo/piner-posts",record:"record=POST-MOCK-001&tab=media",negative:"record="+id},
  "/bo/sales/leads":{path:"/bo/sales/leads?m1Preview=1",expected:"/bo/sales/leads",record:"lead=LEAD-MOCK-001&tab=members",negative:"lead="+id},
  "/ho/staff":{path:"/ho/staff?m1Preview=1",expected:"/ho/staff",record:"record=STAFF-MOCK-001",negative:"record="+id},
  "/ho/system/roles":{path:"/ho/system/roles?m1Preview=1",expected:"/ho/system/roles?m1Preview=1",record:"record=ROLE-MOCK-001",negative:"record="+id},
@@ -128,7 +127,7 @@ test("HO_BO_DEEPLINK_CONTINUITY_P0: route-specific detail, tab, grid, center and
   [bo,"/bo?module=parents&centerId="+center+"&record="+id,"/bo/parents?centerId="+center+"&record="+id],
   [bo,"/bo/subscriptions?centerId="+center+"&record="+id+"&tab=enrollment","/bo?module=subscriptions&centerId="+center+"&record="+id+"&tab=enrollment"],
   [bo,"/bo/running-classes?centerId="+center+"&record=RUNNING-CLASS-MOCK-001","/bo/running-classes?centerId="+center+"&record=RUNNING-CLASS-MOCK-001"],
-  [bo,"/bo/piner-posts?centerId="+center+"&record=POST-MOCK-001&tab=media","/bo/piner-posts?centerId="+center+"&record=POST-MOCK-001&tab=media"],
+  [bo,"/bo/piner-posts?centerId="+center+"&record="+id+"&tab=media","/bo/piner-posts?centerId="+center+"&record="+id+"&tab=media"],
   [bo,"/bo/sales/leads?centerId="+center+"&leadIntent="+id+"&q=music&dir=desc&size=50&f_status=SUBMITTED","/bo/sales/leads?centerId="+center+"&leadIntent="+id+"&q=music&dir=desc&size=50&f_status=SUBMITTED"],
  ];
  for(const [host,path,expected] of samples){
@@ -144,13 +143,13 @@ test("HO_BO_DEEPLINK_CONTINUITY_P0: route-specific detail, tab, grid, center and
  }
 });
 
-test("PAP-2337: malformed authenticated Post preview requests fail before streaming",()=>{
+test("PAP-2386: canonical native Post admission rejects fixture and malformed links before streaming",()=>{
  const path="/bo/piner-posts",headers={cookie:"pino_staff_password_session=fixture-only"};
- for(const q of ["record="+id,"record=POST-MOCK-001&record=POST-MOCK-002","m1Preview=0","tab=media","returnTo=//evil.example"]){
+ for(const q of ["record=POST-MOCK-001","record="+id+"&record="+id,"m1Preview=0","m1Preview=1","m1Preview=1&record="+id,"tab=media","returnTo=//evil.example"]){
   for(const method of ["GET","HEAD"])assert.equal(middleware(new NextRequest("https://"+bo+path+"?"+q,{headers,method})).status,404,q);
  }
- for(const q of ["","?record=POST-MOCK-001&tab=media","?m1Preview=1&record=POST-MOCK-001&tab=media","?centerId="+center])assert.equal(middleware(new NextRequest("https://"+bo+path+q,{headers})).headers.get("x-middleware-next"),"1",q);
- assert.equal(middleware(new NextRequest("https://"+bo+path+"?record=POST-MOCK-001&_rsc=abc",{headers:{...headers,rsc:"1"}})).headers.get("x-middleware-next"),"1");
+ for(const q of ["","?record="+id+"&tab=media","?record="+id,"?centerId="+center])assert.equal(middleware(new NextRequest("https://"+bo+path+q,{headers})).headers.get("x-middleware-next"),"1",q);
+ assert.equal(middleware(new NextRequest("https://"+bo+path+"?record="+id+"&_rsc=abc",{headers:{...headers,rsc:"1"}})).headers.get("x-middleware-next"),"1");
 });
 
 test("PAP-2369: malformed authenticated Learning Space links fail before streaming",()=>{
