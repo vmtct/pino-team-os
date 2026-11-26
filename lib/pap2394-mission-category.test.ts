@@ -64,3 +64,17 @@ test("PAP-2394 all eight inline fields validate and read back; protected fields 
  assert.equal((await b.submit({kind:"archive",id:read.id,expectedVersion:read.version,data:read.data,idempotencyKey:"archive-mock"})).state,"verified");
  assert.equal((await update({name:"archived"},String(read.version+1))).status,"denied");
 });
+
+test("PAP-2394 M1-B canonical query and actual admitted actor boundary",async()=>{
+ const {parseMissionM1Query,hasMissionM1Permissions,MISSION_M1_READ,MISSION_M1_EDIT}=await import("../app/ho/learning/missions/mission-m1-query");
+ assert.deepEqual(parseMissionM1Query(new URLSearchParams()),{});
+ assert.deepEqual(parseMissionM1Query(new URLSearchParams("record=MISSION-MOCK-001")),{record:MISSION_M1_ID});
+ for(const query of ["m1Preview=1","record=real-id","record=","record=MISSION-MOCK-001&record=MISSION-MOCK-001","tab=history"])assert.equal(parseMissionM1Query(new URLSearchParams(query)),null);
+ assert.equal(hasMissionM1Permissions([MISSION_M1_READ]),false);
+ assert.throws(()=>createMissionM1Boundary(undefined,{userId:"actor",permissionKeys:[MISSION_M1_READ]}));
+ assert.throws(()=>createMissionM1Boundary(undefined,{userId:"",permissionKeys:[MISSION_M1_READ,MISSION_M1_EDIT]}));
+ const b=createMissionM1Boundary(MISSION_M1_ID,{userId:"test-actor",permissionKeys:[MISSION_M1_READ,MISSION_M1_EDIT,"foreign.permission"]});
+ const {adapter,navigation}=await b.open(new AbortController().signal);
+ assert.equal(adapter.userId,"test-actor");assert.equal(adapter.context.authorize("foreign.permission"),false);
+ assert.equal(navigation.read().recordId,MISSION_M1_ID);
+});

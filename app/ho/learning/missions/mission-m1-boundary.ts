@@ -13,9 +13,9 @@ import { validateMissionSelectedPath, type MissionPathChoice } from "./mission-p
 type F = typeof missionFields;
 type Draft = MissionInput & {readonly category: NonNullable<MissionInput["category"]>};
 type Record = {readonly id:string; readonly version:number; readonly draft:Draft};
-export const MISSION_M1_ROUTE = "/ho/learning/missions";
-export const MISSION_M1_ID = "MISSION-MOCK-001";
-const READ="catalog.learning.view", EDIT="learning.mission.manage";
+import {MISSION_M1_ID,MISSION_M1_READ as READ,MISSION_M1_EDIT as EDIT,hasMissionM1Permissions} from "./mission-m1-query";
+export {MISSION_M1_ROUTE,MISSION_M1_ID} from "./mission-m1-query";
+type Admission = Readonly<{userId:string;permissionKeys:readonly string[]}>;
 const paths: readonly MissionPathChoice[]=[
  {id:"01900000-0000-7000-8000-000000000011",code:"artchitect",label:"Artchitect"},
  {id:"01900000-0000-7000-8000-000000000012",code:"pianohouse",label:"PianoHouse"},
@@ -29,8 +29,10 @@ function project(r:Record):ModuleRow<F>{
   paperSize:d.paperSize,path:paths.find(p=>p.id===d.pathProgramId)?.label??"—",prerequisite:d.prerequisiteCodeSnapshot,
   description:d.description,guideline:d.guideline,createdAt:"—",createdBy:"—",updatedAt:"—",updatedBy:"—"};
 }
-export function createMissionM1Boundary(initialRecord?:string):MissionBoundary{
+export function createMissionM1Boundary(initialRecord?:string,admission?:Admission):MissionBoundary{
  if(initialRecord!==undefined&&initialRecord!==MISSION_M1_ID)throw Error("Unknown Mission M1 fixture");
+ if(admission&&(!admission.userId.trim()||!hasMissionM1Permissions(admission.permissionKeys)))throw Error("Mission M1 admission denied");
+ const permissions=new Set(admission?.permissionKeys??[READ,EDIT]);
  let records:Record[]=[seed()], serial=1, keySerial=0;
  let loc:AdapterLocation<F>={kind:initialRecord?"detail":"table",...(initialRecord?{recordId:initialRecord}:{}),tab:"overview",query:missionCategoryQuery};
  const listeners=new Set<()=>void>();
@@ -38,14 +40,14 @@ export function createMissionM1Boundary(initialRecord?:string):MissionBoundary{
  const navigation:AdapterNavigation<F>={read:()=>loc,change:next=>{loc=next;listeners.forEach(fn=>fn());},subscribe:fn=>{listeners.add(fn);return()=>{listeners.delete(fn);};},
   capture:()=>{focus=typeof document!=="undefined"&&document.activeElement instanceof HTMLElement?document.activeElement:null;},
   restore:()=>{if(focus?.isConnected)focus.focus({preventScroll:true});}};
- const context:AuthorizationContext=Object.freeze({surface:"HO",authorize:(key:string)=>key===READ||key===EDIT});
+ const context:AuthorizationContext=Object.freeze({surface:"HO",authorize:(key:string)=>(key===READ||key===EDIT)&&permissions.has(key)});
  const registry=new TddRegistry();
  const list=async (_query:typeof missionCategoryQuery,signal:AbortSignal)=>{signal.throwIfAborted();return {rows:records.map(project),total:records.length,versions:Object.fromEntries(records.map(r=>[r.id,String(r.version)]))};};
  const detail=async (id:string,signal:AbortSignal)=>{signal.throwIfAborted();const r=records.find(v=>v.id===id);return r?{row:project(r),version:String(r.version)}:null;};
  const schema=registry.register<F>({...missionCategoryDefinition,data:{id:"pap2394-m1-synthetic-only",list:async (q,c,s)=>{if(c!==context)throw Error("Preview context mismatch");return list(q,s);},detail:async(id,c,s)=>{if(c!==context)throw Error("Preview context mismatch");return (await detail(id,s))?.row??null;}}});
  const replace=(next:Record)=>{records=records.map(r=>r.id===next.id?next:r);};
  const adapter:AuthenticatedSurfaceAdapter<F>={
-   registry,schema,scope:{surface:"HO"},userId:"PAP2394_SYNTHETIC_ONLY",context,
+   registry,schema,scope:{surface:"HO"},userId:admission?.userId??"PAP2394_SYNTHETIC_ONLY",context,
    capabilities:{read:true,edit:true,create:false,delete:false,reveal:false,audit:false},list,detail,
    mutation:{update:async(id,patch,version,authorization,signal)=>{
     signal.throwIfAborted();
