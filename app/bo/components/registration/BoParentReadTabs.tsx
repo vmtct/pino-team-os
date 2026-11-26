@@ -1,5 +1,7 @@
 "use client";
 import { lazy, Suspense, useEffect, useState, type KeyboardEvent } from "react";
+import {useParentM1} from "@/app/bo/parents/parent-m1-context";
+import {PARENT_MOCK_CENTER} from "@/app/bo/parents/parent-m1-fixture";
 import { PropertySections } from "@/app/components/workspace-renderer/Properties";
 import { ParentCenterMultiSelect } from "@/app/bo/parents/ParentCenterMultiSelect";
 import { BoTypedEditor } from "./BoTypedEditor";
@@ -46,6 +48,7 @@ export function BoParentReadTabs({ module, record, fullDetail = false, canEditNa
   canEditName?: boolean; onSaveName?: (value: string) => Promise<void>;
   centerNames?: readonly string[];
 }) {
+  const fixture=useParentM1();
   const [tab,setTab]=useState<ParentTab>("overview");
   // PAP-1814: native BO DSA name-only popover. Drawer remains read-only.
   const [edit,setEdit]=useState<{anchor: HTMLElement} | null>(null);
@@ -66,6 +69,7 @@ export function BoParentReadTabs({ module, record, fullDetail = false, canEditNa
     const controller=new AbortController();
     queueMicrotask(()=>{if(!controller.signal.aborted){setStatus("loading");setDetail(null);}});
     (async()=>{
+      if(fixture){const value=fixture.detail(PARENT_MOCK_CENTER,record.id);if(!controller.signal.aborted){setDetail(value);setStatus("ready");}return;}
       const r=await fetch("/api/bo/identity/parents/"+encodeURIComponent(record.id)+"/detail",{
         method:"GET",credentials:"same-origin",cache:"no-store",redirect:"error",signal:controller.signal
       });
@@ -76,7 +80,7 @@ export function BoParentReadTabs({ module, record, fullDetail = false, canEditNa
       setDetail(envelope.data);setStatus("ready");
     })().catch(()=>{if(!controller.signal.aborted)setStatus("error")});
     return ()=>controller.abort();
-  },[record.id,retry]);
+  },[record.id,retry,fixture]);
   function keydown(event:KeyboardEvent<HTMLButtonElement>,index:number){
     if(!["ArrowLeft","ArrowRight","Home","End"].includes(event.key))return;
     event.preventDefault();

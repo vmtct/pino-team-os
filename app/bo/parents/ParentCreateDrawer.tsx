@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import {useParentM1} from "./parent-m1-context";
 import { BoActionButton } from "@pino/design-system/react";
 import { DrawerFrame } from "@/app/components/workspace-renderer/DrawerFrame";
 import { PropertySections } from "@/app/components/workspace-renderer/Properties";
@@ -21,6 +22,7 @@ function failureMessage(error: unknown) {
 export function ParentCreateDrawer({
   centerId, centerName, onClose, onCreated,
 }: { centerId: string; centerName?: string; onClose: () => void; onCreated: (result: BoParentStandaloneCreateResult) => void }) {
+  const fixture=useParentM1();
   const inFlight = useRef(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const attemptRef = useRef<Attempt | null>(null);
@@ -66,14 +68,14 @@ export function ParentCreateDrawer({
       return;
     }
     const attempt = attemptRef.current ?? {
-      centerId, key: crypto.randomUUID(),
+      centerId, key: fixture?Array.from(crypto.getRandomValues(new Uint32Array(4))).join("-"):crypto.randomUUID(),
       body: { displayName: name.trim(), contacts: [{ identifierType: inferredType!, value: contactValue.trim(), isPrimary: true }] },
     };
     attemptRef.current = attempt;
     setLocked(true); setCanEdit(false); setError("");
     inFlight.current = true; setBusy(true);
     try {
-      const result = await createStandaloneParent(attempt.centerId, attempt.body, attempt.key);
+      const result = fixture?fixture.create(attempt.centerId,attempt.body,attempt.key):await createStandaloneParent(attempt.centerId, attempt.body, attempt.key);
       onCreated(result);
     } catch (cause) {
       setError(failureMessage(cause));
