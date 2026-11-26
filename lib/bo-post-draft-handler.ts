@@ -1,6 +1,7 @@
 /** PAP-2228 / PNR-APP-HUB candidate private Post BFF; staging-only and Core-authorized. */
 import {callBoAccessCoreWithCredential,type BoAccessCoreBinding,type BoAccessRequest} from "./bo-core";
 import {teamCredential,TeamAuthError,type TeamAccessEnv} from "./team-auth";
+import {verifyPostActor} from "./bo-post-actor-continuity";
 import {BO_STAGING_HOSTNAME} from "./host-boundary";
 export interface BoPostDraftEnv extends TeamAccessEnv{PINO_BO_CORE:BoAccessCoreBinding;APP_ENV?:string;}
 const base="learning/piner-posts",peoplePath=base+"/people",uuid="[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}",id=new RegExp("^"+uuid+"$"),detail=new RegExp("^"+base+"/"+uuid+"$");
@@ -53,6 +54,8 @@ export async function handleBoPostDraftRequest(request:Request,env:BoPostDraftEn
    }
    core.idempotencyKey=key;
   }
+  const admission=await verifyPostActor(request,env.PINO_BO_CORE,credential,centerId,isPeople||method==="POST"?"piner.post.create":method==="PATCH"?"piner.post.edit":"piner.post.view");
+  if(admission!==200)return failure(admission,admission===400?"PLATFORM_INVALID_INPUT":"ACCESS_PERMISSION_DENIED");
   const result=await callBoAccessCoreWithCredential(env.PINO_BO_CORE,core,credential);
   return json(result.body,result.status,result.requestId);
  }catch(e){if(e instanceof TeamAuthError)return failure(e.status,"IDENTITY_AUTHENTICATION_FAILED");if(e instanceof BadInput)return failure(400,"PLATFORM_INVALID_INPUT");return failure(500,"PLATFORM_INTERNAL_ERROR");}

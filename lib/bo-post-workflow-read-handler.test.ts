@@ -6,8 +6,8 @@ import type {BoAccessRequest} from "./bo-core";
 import type {BoPostDraftEnv} from "./bo-post-draft-handler";
 const uid=(n:number)=>"01900000-0000-7000-8000-"+String(n).padStart(12,"0");
 const center=uid(1),root="learning/piner-posts/"+uid(2),diary=uid(3),evidence=uid(4),host="https://bo.staging.pinohouse.art";
-const setup=()=>{const calls:BoAccessRequest[]=[];const env:BoPostDraftEnv={APP_ENV:"staging",PINO_BO_CORE:{async executeWithStaffPassword(r,t){assert.equal(t,"synthetic-session");calls.push(r);return {status:200,body:{data:{version:7}},requestId:"qa"};}}};return {calls,env};};
-const req=(path:string,opts:{host?:string;query?:string;method?:string;headers?:Record<string,string>}={})=>new Request((opts.host??host)+"/api/bo/"+path+(opts.query??"?centerId="+center),{method:opts.method??"GET",headers:{cookie:"pino_staff_password_session=synthetic-session",...opts.headers}});
+const setup=()=>{const calls:BoAccessRequest[]=[];const env:BoPostDraftEnv={APP_ENV:"staging",PINO_BO_CORE:{async executeWithStaffPassword(r,t){assert.equal(t,"synthetic-session");if(r.path==="context")return {status:200,body:{data:{userId:center,surface:"BO",entitled:true,permissionKeys:["piner.post.view","piner.post.submit","piner.post.diary.compose"]}},requestId:"qa"};calls.push(r);return {status:200,body:{data:{version:7}},requestId:"qa"};}}};return {calls,env};};
+const req=(path:string,opts:{host?:string;query?:string;method?:string;headers?:Record<string,string>}={})=>new Request((opts.host??host)+"/api/bo/"+path+(opts.query??"?centerId="+center),{method:opts.method??"GET",headers:{cookie:"pino_staff_password_session=synthetic-session","x-pino-expected-actor":center,...opts.headers}});
 test("PAP-2386 exact read BFF passes four paths and same BO credential",async()=>{
  const {calls,env}=setup();
  for(const path of [root+"/submission-state",root+"/workflow-state",root+"/diaries",root+"/diaries/"+diary+"/photos",root+"/diaries/"+diary+"/photos/"+evidence]){
