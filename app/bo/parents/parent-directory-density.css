@@ -5,3 +5,6 @@
   min-width: var(--bo-column-width);
   max-width: var(--bo-column-width);
 }
+
+/* PAP-2387: native tab styling, separate business preset group. */
+[data-parent-native-dsa] .quick-views { display:flex; align-items:stretch; flex:0 0 auto; gap:0; }

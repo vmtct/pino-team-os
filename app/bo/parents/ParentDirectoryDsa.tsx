@@ -149,7 +149,7 @@ function ScopedParents({centerId,centerName,menu}:{centerId:string;centerName?:s
     rows.filter(r=>preset==="linked" ? Number(r.studentCount)>0 : r.studentCount===0);
   const builtInViews=<div className="quick-views" role="group" aria-label="Lọc Parents">
     {viewLabels.map(v=><button key={v.id} type="button" aria-pressed={preset===v.id}
-      className={preset===v.id?"selected":""} onClick={()=>changePreset(v.id)}>{v.title}</button>)}
+      className={"view-tab "+(preset===v.id?"active":"")} onClick={()=>changePreset(v.id)}>{v.title}</button>)}
   </div>;
   return <>
     {detail ? <DetailFrame title={detail.name} subtitle={detail.id} onBack={close}

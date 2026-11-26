@@ -55,8 +55,8 @@ export function ParentCreateDrawer({
     attemptRef.current = null;
     setLocked(false); setCanEdit(false); setError("");
   }
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function submit(event?: FormEvent<HTMLFormElement>) {
+    event?.preventDefault();
     if (inFlight.current) return;
     if (attemptRef.current && attemptRef.current.centerId !== centerId) {
       setError("Cơ sở đã thay đổi. Hủy và bắt đầu yêu cầu mới.");
@@ -89,9 +89,9 @@ export function ParentCreateDrawer({
     footer={<>
       {locked && error && canEdit ? <BoActionButton variant="secondary" type="button" disabled={busy} onClick={clearAttempt}>Sửa dữ liệu</BoActionButton> : null}
       <BoActionButton variant="secondary" type="button" disabled={busy || uncertain} onClick={closeIfSafe}>Hủy</BoActionButton>
-      <BoActionButton variant="primary" type="submit" form="parent-create-form" disabled={busy}>{busy ? "Đang tạo…" : locked ? "Thử lại cùng yêu cầu" : "Tạo Parent"}</BoActionButton>
+      <BoActionButton variant="primary" type={fixture?"button":"submit"} form="parent-create-form" onClick={fixture?()=>void submit():undefined} disabled={busy}>{busy ? "Đang tạo…" : locked ? "Thử lại cùng yêu cầu" : "Tạo Parent"}</BoActionButton>
     </>}>
-    <form id="parent-create-form" onSubmit={event => void submit(event)}>
+    <form id="parent-create-form" onSubmit={event => void submit(event)} onKeyDown={event=>{if(fixture&&event.key==="Enter"&&event.target instanceof HTMLInputElement){event.preventDefault();void submit();}}}>
       <PropertySections variant="drawer" fields={drawerFields} sections={parentNativeCreateSections}
         record={draft} createFields={{
           name: { id: "parent-create-name", label: "Họ và tên *", value: name, required: true,
