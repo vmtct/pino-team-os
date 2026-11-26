@@ -5,6 +5,7 @@ import {BO_STAGING_HOSTNAME,normalizeHostname} from "./host-boundary";
 export interface LeadHouseholdEnv extends TeamAccessEnv {APP_ENV?:string;PINO_BO_CORE:BoAccessCoreBinding}
 import {leadHouseholdRoute} from "./bo-lead-household-route";
 import {parseLeadRecoveryInput,parseLeadRecoveryReceipt,type LeadRecoveryInput} from "./bo-lead-recovery-api";
+import {isIntentAction,parseIntentCommand,parseIntentRecovery,parseIntentReceipt,type IntentAction,type IntentTarget} from "./bo-lead-intent-api";
 const root="/api/bo/";
 const versionFields=["expectedVersion"];
 class BadInput extends Error{}
@@ -26,11 +27,12 @@ export async function handleLeadHousehold(request:Request,env:LeadHouseholdEnv):
  const route=leadHouseholdRoute(path);
  if(!route)return fail(404,"PLATFORM_NOT_FOUND");
  if(method!==route.method)return fail(405,"PLATFORM_METHOD_NOT_ALLOWED");
- const {search,recovery,create,hist,a,c}=route;
+ const {search,recovery,create,hist,a,c,i}=route;
  for(const k of url.searchParams.keys())if(!hist||!["limit","cursor"].includes(k)||url.searchParams.getAll(k).length!==1)throw new BadInput();
  if(request.headers.get("cookie")?.split(";").some(v=>v.trim().startsWith("pino_support_session=")))return fail(403,"ACCESS_PERMISSION_DENIED");
  const core:BoAccessRequest={method,path};
  let recoveryInput:LeadRecoveryInput|null=null;
+ let intentInput:{target:IntentTarget;action:IntentAction;expectedVersion:number;recovery:boolean}|null=null;
  if(hist){
  const limit=url.searchParams.get("limit"),cursor=url.searchParams.get("cursor");
  if(limit!==null&&(!/^[1-9][0-9]{0,2}$/.test(limit)||Number(limit)>100)||cursor!==null&&(!cursor||cursor.length>4096))throw new BadInput();
@@ -40,10 +42,21 @@ export async function handleLeadHousehold(request:Request,env:LeadHouseholdEnv):
  if(request.headers.get("origin")!==url.origin||(request.headers.has("sec-fetch-site")&&request.headers.get("sec-fetch-site")!=="same-origin"))return fail(403,"ACCESS_PERMISSION_DENIED");
  const input=await readJson(request);
  const field=a?.[1],childKind=c?.[1],childAction=c?.[2];
- const allowed=recovery?["kind","key","target","expectedVersion"]:search?["q","status","program","path","sort","limit","cursor"]:create?["contact","members","primaryMemberIndex"]:field==="contact"?[...versionFields,"contact"]:field==="members"?[...versionFields,"member"]:field==="primary"?[...versionFields,"memberId"]:field==="relationships"?[...versionFields,"relationship"]:field==="archive"?[...versionFields,"reason"]:childAction==="update"?[...versionFields,childKind==="members"?"member":"relationship"]:versionFields;
+ const allowed=i?(i[3]==="recovery"?["action","key","expectedVersion"]:i[3]==="close"?["expectedVersion","reason"]:versionFields):recovery?["kind","key","target","expectedVersion"]:search?["q","status","program","path","sort","limit","cursor"]:create?["contact","members","primaryMemberIndex"]:field==="contact"?[...versionFields,"contact"]:field==="members"?[...versionFields,"member"]:field==="primary"?[...versionFields,"memberId"]:field==="relationships"?[...versionFields,"relationship"]:field==="archive"?[...versionFields,"reason"]:childAction==="update"?[...versionFields,childKind==="members"?"member":"relationship"]:versionFields;
  if(Object.keys(input).some(k=>!allowed.includes(k)))throw new BadInput();
  if(recovery){recoveryInput=parseLeadRecoveryInput(input);if(!recoveryInput)throw new BadInput();}
- if(!search&&!recovery){
+ if(i){
+ const target={leadId:i[1]!,intentId:i[2]!},operation=i[3];
+ if(operation==="recovery"){
+  const parsed=parseIntentRecovery(input);if(!parsed)throw new BadInput();
+  intentInput={target,action:parsed.action,expectedVersion:parsed.expectedVersion,recovery:true};
+ }else{
+  if(!isIntentAction(operation))throw new BadInput();
+  const parsed=parseIntentCommand(input,operation);if(!parsed)throw new BadInput();
+  intentInput={target,action:operation,expectedVersion:parsed.expectedVersion,recovery:false};
+ }
+ }
+ if(!search&&!recovery&&i?.[3]!=="recovery"){
  const key=request.headers.get("idempotency-key");if(!key||!/^[A-Za-z0-9_-]{16,128}$/.test(key))throw new BadInput();
  core.idempotencyKey=key;
  if(!create&&(typeof input.expectedVersion!=="number"||!Number.isSafeInteger(input.expectedVersion)||input.expectedVersion<1))throw new BadInput();
@@ -62,6 +75,13 @@ export async function handleLeadHousehold(request:Request,env:LeadHouseholdEnv):
  const result=await callBoAccessCoreWithCredential(env.PINO_BO_CORE,core,credential);
  // Never forward upstream diagnostic message or raw user input in errors.
  if(result.status>=400){const code=(result.body as {error?:{code?:unknown}}|null)?.error?.code;return fail(result.status,typeof code==="string"&&/^[A-Z][A-Z0-9_]{0,100}$/.test(code)?code:"LEAD_REQUEST_FAILED",result.requestId);}
+ if(intentInput){
+ const body=result.body as {data?:unknown}|null;
+ const {target,action,expectedVersion,recovery}=intentInput;
+ const receipt=recovery?parseIntentReceipt(body?.data,target,action,expectedVersion,true):parseIntentReceipt(body?.data,target,action,expectedVersion,false);
+ if(result.status!==200||!receipt)return fail(502,"LEAD_INTENT_RESPONSE_INVALID",result.requestId);
+ return json(200,{data:receipt},result.requestId);
+ }
  if(recoveryInput){
   const body=result.body as {data?:unknown}|null;
   const receipt=parseLeadRecoveryReceipt(body?.data,recoveryInput);

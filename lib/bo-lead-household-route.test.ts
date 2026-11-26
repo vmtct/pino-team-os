@@ -4,7 +4,7 @@ import {readFileSync} from "node:fs";
 import {decideHostBoundary} from "./host-boundary";
 const base="/api/bo/acquisition/households",id="01a03c6e-cc58-7d81-ac8e-123456789abc",host="bo.staging.pinohouse.art";
 test("PAP-2288 exact BO Staging Lead household ingress through actual host fence",()=>{
- const allowed=[["","POST"],["/search","POST"],["/recovery","POST"],["/"+id,"GET"],["/"+id+"/history","GET"],...["contact","members","primary","relationships","archive"].map(a=>["/"+id+"/"+a,"POST"]),...["update","retire"].map(a=>["/"+id+"/members/"+id+"/"+a,"POST"]),...["update","retire","confirm"].map(a=>["/"+id+"/relationships/"+id+"/"+a,"POST"])];
+ const allowed=[["","POST"],["/search","POST"],["/recovery","POST"],...["contacted","verify-contact","close","recovery"].map(a=>["/"+id+"/intents/"+id+"/"+a,"POST"]),["/"+id,"GET"],["/"+id+"/history","GET"],...["contact","members","primary","relationships","archive"].map(a=>["/"+id+"/"+a,"POST"]),...["update","retire"].map(a=>["/"+id+"/members/"+id+"/"+a,"POST"]),...["update","retire","confirm"].map(a=>["/"+id+"/relationships/"+id+"/"+a,"POST"])];
  for(const [suffix,method] of allowed){
   assert.deepEqual(decideHostBoundary(host,base+suffix,method),{action:"next"});
   for(const wrongHost of ["bo.pinohouse.art","ho.staging.pinohouse.art","tos.staging.pinohouse.art","localhost","unknown.workers.dev"])assert.deepEqual(decideHostBoundary(wrongHost,base+suffix,method),{action:"not_found"});

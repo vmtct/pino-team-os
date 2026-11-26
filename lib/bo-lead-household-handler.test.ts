@@ -64,3 +64,21 @@ test("PAP-2288 recovery BFF validates exact read body and actor before dispatch"
  assert.equal(calls.length,1);
  assert.equal((await handleLeadHousehold(req("POST","/recovery",input),env)).status,502);
 });
+test("PAP-2288 F1 child BFF exact write and recovery under actor fence",async()=>{
+ const child="01a03c6e-cc58-7d81-ac8e-123456789abd",suffix="/"+id+"/intents/"+child;
+ const receipt={leadId:id,intentId:child,status:"CONTACTED",version:2};
+ const recovery={action:"contacted",key,expectedVersion:1};
+ const {env,calls}=fixture();
+ const real:LeadHouseholdEnv={...env,PINO_BO_CORE:{async executeWithStaffPassword(request,token){
+  if(request.path==="context")return env.PINO_BO_CORE.executeWithStaffPassword!(request,token);
+  calls.push(request);return {status:200,requestId:"qa",body:{data:request.path.endsWith("/recovery")?{...receipt,currentVersion:2,currentStatus:"CONTACTED"}:receipt}};
+ }}};
+ assert.equal((await handleLeadHousehold(req("POST",suffix+"/contacted",{expectedVersion:1}),real)).status,200);
+ assert.equal((await handleLeadHousehold(req("POST",suffix+"/recovery",recovery,{"idempotency-key":""}),real)).status,200);
+ assert.deepEqual(calls,[{method:"POST",path:base+suffix+"/contacted",body:{expectedVersion:1},idempotencyKey:key},{method:"POST",path:base+suffix+"/recovery",body:recovery}]);
+ for(const body of [{...recovery,reason:"private"},{...recovery,expectedVersion:0},{...recovery,key:"short"}])assert.equal((await handleLeadHousehold(req("POST",suffix+"/recovery",body),real)).status,400);
+ assert.equal((await handleLeadHousehold(req("POST",suffix+"/close",{expectedVersion:1}),real)).status,400);
+ assert.equal((await handleLeadHousehold(req("POST",suffix+"/contacted",{expectedVersion:1},{ "x-pino-expected-actor":child}),real)).status,403);
+ assert.equal(calls.length,2);
+ assert.equal((await handleLeadHousehold(req("POST",suffix+"/contacted",{expectedVersion:1}),env)).status,502);
+});
