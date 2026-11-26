@@ -7,9 +7,9 @@ const action=new RegExp("^"+base+"/"+uuid+"/(contact|members|primary|relationshi
 const child=new RegExp("^"+base+"/"+uuid+"/(members|relationships)/"+uuid+"/(update|retire|confirm)$");
 const intent=new RegExp("^"+base+"/("+uuid+")/intents/("+uuid+")/(contacted|verify-contact|close|recovery)$");
 export function leadHouseholdRoute(path:string){
- const search=path===base+"/search",recovery=path===base+"/recovery",create=path===base,detail=record.test(path),hist=history.test(path),a=action.exec(path),c=child.exec(path),i=intent.exec(path);
- if((!search&&!recovery&&!create&&!detail&&!hist&&!a&&!c&&!i)||(c?.[1]==="members"&&c[2]==="confirm"))return null;
- return {search,recovery,create,detail,hist,a,c,i,method:detail||hist?"GET":"POST"};
+ const manual=path===base+"/manual-centers"?"centers":path===base+"/manual-intake"?"submit":path===base+"/manual-intake/recovery"?"recover":null,search=path===base+"/search",recovery=path===base+"/recovery",create=path===base,detail=record.test(path),hist=history.test(path),a=action.exec(path),c=child.exec(path),i=intent.exec(path);
+ if((!search&&!recovery&&!create&&!detail&&!hist&&!a&&!c&&!i&&!manual)||(c?.[1]==="members"&&c[2]==="confirm"))return null;
+ return {search,recovery,create,detail,hist,a,c,i,manual,method:detail||hist||manual==="centers"?"GET":"POST"};
 }
 export function leadHouseholdHostDecision(host:string,pathname:string,method:string):"next"|"not_found"|null{
  const lower=pathname.toLowerCase();
