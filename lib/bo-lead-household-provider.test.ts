@@ -144,3 +144,28 @@ test("PAP-2288 definitive child rejection survives reload and clears only after 
  await assert.rejects(r.recoverCommitted());assert.equal(j.inspect().state,"intent_rejected");
  await r.recoverCommitted();assert.equal(j.inspect().state,"empty");assert.equal(r.state,"idle");assert.equal(writes,1);
 });
+test("PAP-2288 manual unknown shares same slot, actor/Center/key recovery and masked result",async()=>{
+ const s=memoryStorage(),key="8fbaea47-bcdc-4c50-8ca5-2b6335e4ebee",j=new LeadRecoveryJournal(s,id);
+ const raw={centerId:child,phone:"0900032402",sourceBrand:"PINO_HOUSE",intentKind:"GENERAL_INQUIRY",childAge:7} as const;
+ let writes=0,reads=0,lookups=0;
+ const a=api({detail:()=>{reads++;return Promise.resolve(detail());}});
+ const manual={centers:async()=>[],submit:async()=>{writes++;throw new TypeError("lost ACK");},recover:async (input:{centerId:string;key:string})=>{lookups++;assert.deepEqual(input,{centerId:child,key});return {centerId:child,intentId:id,leadId:null,status:"SUBMITTED" as const};}};
+ const f=new LeadCommandFence(a,()=>key,j,undefined,undefined,manual);
+ await assert.rejects(f.submitManual(raw));assert.equal(j.inspect().state,"manual_unknown");assert.ok(!s.getItem()?.includes(raw.phone));assert.ok(!s.getItem()?.includes("childAge"));
+ await assert.rejects(f.submit(command()));assert.throws(()=>j.beginIntent({leadId:id,intentId:child},"contacted",1,key));
+ const reloaded=new LeadCommandFence(a,()=>key,new LeadRecoveryJournal(s,id),undefined,undefined,manual);
+ assert.equal(reloaded.canRecoverManual,true);assert.equal(reloaded.canRecover,false);
+ const result=await reloaded.recoverManual();assert.equal(result.detail,null);assert.equal(result.receipt.leadId,null);
+ assert.equal(j.inspect().state,"empty");assert.equal(writes,1);assert.equal(reads,0);assert.equal(lookups,1);
+});
+test("PAP-2288 manual visible receipt requires fresh authorized detail, missing or mismatch remains locked",async()=>{
+ const s=memoryStorage(),key="8fbaea47-bcdc-4c50-8ca5-2b6335e4ebee",j=new LeadRecoveryJournal(s,id);
+ let lookups=0,reads=0,writes=0;
+ const receipt={centerId:child,intentId:child,leadId:id,status:"SUBMITTED" as const};
+ const manual={centers:async()=>[],submit:async()=>{writes++;return receipt;},recover:async()=>{lookups++;if(lookups===1)throw new LeadApiError(404,"UNAVAILABLE",null);return lookups===2?{...receipt,centerId:id}:receipt;}};
+ const f=new LeadCommandFence(api({detail:()=>{reads++;return Promise.resolve(reads===1?{...detail(),id:child}:detail());}}),()=>key,j,undefined,undefined,manual);
+ await assert.rejects(f.submitManual({centerId:child,phone:"0900032402",sourceBrand:"TOPPI",intentKind:"OPEN_STUDIO",childAge:null}));
+ await assert.rejects(f.recoverManual());await assert.rejects(f.recoverManual());assert.equal(j.inspect().state,"manual_unknown");
+ assert.equal((await f.recoverManual()).detail?.id,id);assert.equal(j.inspect().state,"empty");assert.equal(writes,1);assert.equal(lookups,4);
+ j.begin(command(),key);assert.throws(()=>j.beginManual(child,key));
+});

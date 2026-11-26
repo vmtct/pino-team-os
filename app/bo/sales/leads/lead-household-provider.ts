@@ -3,6 +3,8 @@ import {createLeadHouseholdApi,LeadApiError,newLeadCommandKey,type LeadDetail,ty
 import type {LeadRecoveryJournal,IntentEntry,RejectedIntentEntry} from "./lead-recovery-journal";
 import {parseLeadRecoveryInput,parseLeadRecoveryReceipt,type LeadRecoveryInput,type LeadRecoveryReceipt} from "@/lib/bo-lead-recovery-api";
 import {IntentDefinitiveRejection,parseIntentCommand,type IntentTarget,type IntentAction,type IntentCommandInput,type createLeadIntentApi} from "@/lib/bo-lead-intent-api";
+import {parseManualIntake,parseManualIntakeReceipt,type ManualIntakeInput,type ManualIntakeReceipt,type createLeadManualIntakeApi} from "@/lib/bo-lead-manual-intake-api";
+type ManualResult={receipt:ManualIntakeReceipt;detail:LeadDetail|null};
 export type LeadHouseholdApi=ReturnType<typeof createLeadHouseholdApi>;
 export function presentLeadRow(row:LeadRow){
  return {id:row.id,contactName:row.contactDisplayName,phone:row.phone,lifecycle:row.status,version:row.version,memberCount:row.memberCount,intentCount:row.intentCount,createdAt:row.createdAt,createdBy:row.createdBy,updatedAt:row.updatedAt,updatedBy:row.updatedBy};
@@ -53,7 +55,7 @@ export class LeadCommandFence{
  private createPhone:string|null=null;
  private createResult:"created"|"reused"|null=null;
  get createOutcome(){return this.createResult;}
- constructor(private readonly api:LeadHouseholdApi,private readonly makeKey=newLeadCommandKey,private readonly journal?:LeadRecoveryJournal,private readonly recover?:(input:LeadRecoveryInput)=>Promise<LeadRecoveryReceipt>,private readonly intentApi?:ReturnType<typeof createLeadIntentApi>){
+ constructor(private readonly api:LeadHouseholdApi,private readonly makeKey=newLeadCommandKey,private readonly journal?:LeadRecoveryJournal,private readonly recover?:(input:LeadRecoveryInput)=>Promise<LeadRecoveryReceipt>,private readonly intentApi?:ReturnType<typeof createLeadIntentApi>,private readonly manualApi?:ReturnType<typeof createLeadManualIntakeApi>){
   const recovered=journal?.inspect();
   if(recovered?.state==="readback"&&recovered.entry.kind!=="create"){this.receipt=recovered.receipt;this.receiptKey=recovered.entry.key;this.phase="reload_required";}
   else if(recovered&&recovered.state!=="empty")this.phase="recovery_blocked";
@@ -118,6 +120,35 @@ export class LeadCommandFence{
    this.journal.completeIntentReadback(entry,result,detail);
    this.phase="idle";this.createResult=null;
    return detail;
+  }catch(error){this.phase="recovery_blocked";throw error;}
+ }
+ get canRecoverManual(){return this.phase==="recovery_blocked"&&!!this.manualApi&&this.journal?.inspect().state==="manual_unknown";}
+ get rejectedIntent(){return this.journal?.inspect().state==="intent_rejected";}
+ async submitManual(raw:ManualIntakeInput):Promise<ManualResult>{
+  if(this.phase!=="idle"||!this.journal||!this.manualApi)throw new LeadApiError(409,"LEAD_COMMAND_NOT_READY",null);
+  const input=parseManualIntake(raw);
+  if(!input)throw new LeadApiError(400,"LEAD_MANUAL_INTAKE_INPUT_INVALID",null);
+  const key=this.makeKey();
+  this.createResult=null;this.phase="pending";
+  try{
+   this.journal.beginManual(input.centerId,key);
+   await this.manualApi.submit(input,key);
+   this.phase="recovery_blocked";
+   return await this.recoverManual();
+  }catch(error){this.phase="recovery_blocked";throw error;}
+ }
+ async recoverManual():Promise<ManualResult>{
+  if(!this.canRecoverManual||!this.manualApi||!this.journal)throw new LeadApiError(409,"LEAD_RECOVERY_NOT_READY",null);
+  const current=this.journal.inspect();
+  if(current.state!=="manual_unknown")throw new LeadApiError(409,"LEAD_RECOVERY_NOT_READY",null);
+  const entry=current.entry;
+  this.phase="pending";
+  try{
+   const receipt=parseManualIntakeReceipt(await this.manualApi.recover({centerId:entry.centerId,key:entry.key}),entry.centerId);
+   if(!receipt)throw new LeadApiError(502,"LEAD_MANUAL_INTAKE_RESPONSE_INVALID",null);
+   const detail=receipt.leadId===null?null:await this.api.detail(receipt.leadId);
+   this.journal.completeManualReadback(entry,receipt,detail);
+   this.phase="idle";return {receipt,detail};
   }catch(error){this.phase="recovery_blocked";throw error;}
  }
  get state(){return this.phase;}
