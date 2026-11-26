@@ -5,7 +5,8 @@ import {TddRenderer} from "@/app/components/workspace-renderer/Renderer";
 import {TddDetail,RecordState} from "@/app/components/workspace-renderer/Record";
 import {BoQuickView} from "@/app/bo/components/registration/BoQuickView";
 import {TddHostMenu} from "@/app/components/workspace-adapters/SurfaceWorkspace";
-import {browserTddNavigation,type AdapterNavigation} from "@/lib/workspace-adapters/navigation";
+import type {AdapterNavigation} from "@/lib/workspace-adapters/navigation";
+import {postNativeNavigation} from "./native-post-navigation";
 import type {TableQuery,ModuleRow} from "@/lib/workspace-schema";
 import {norm,type BoRecord,type BoValue} from "@/lib/bo-registration";
 import {postModule} from "./schema";
@@ -25,7 +26,7 @@ export function BoPostsDraftRuntime({session,centerLabel,previewNavigation}:{ses
 }
 function ScopedDraft({session,centerLabel,previewNavigation}:{session:DraftRuntimeSession;centerLabel:string;previewNavigation?:AdapterNavigation<DraftFields>}){
  const {registry,context,controller,mutation}=session,menu=useContext(TddHostMenu);
- const navigation=useMemo(()=>previewNavigation??browserTddNavigation("BO","piner-posts",draftQuery),[previewNavigation]);
+ const navigation=useMemo(()=>previewNavigation??postNativeNavigation(),[previewNavigation]);
  const [position,setPosition]=useState(()=>navigation.read());
  const [reload,setReload]=useState(0);
  const [listResult,setListResult]=useState<{generation:number;rows:readonly Row[];status:State}|null>(null);
