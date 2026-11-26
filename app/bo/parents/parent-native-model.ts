@@ -4,10 +4,10 @@
 import type { BoField, BoModule } from "@/lib/bo-registration";
 
 export const parentNativeFields: BoField[] = [
-  { key: "name", label: "Phụ huynh", icon: "Aa", type: "text", w: 235, readonly: false },
-  { key: "maskedContact", label: "Liên hệ (đã che)", icon: "Aa", type: "text", w: 180, readonly: true },
-  { key: "studentCount", label: "Số học viên", icon: "#", type: "number", w: 120, readonly: true },
-  { key: "centers", label: "Cơ sở", icon: "Aa", type: "text", w: 190, readonly: true },
+  { key: "name", label: "Phụ huynh", icon: "Aa", type: "text", w: 205, readonly: false },
+  { key: "maskedContact", label: "Liên hệ (đã che)", icon: "Aa", type: "text", w: 160, readonly: true },
+  { key: "studentCount", label: "Số học viên", icon: "#", type: "number", w: 110, readonly: true },
+  { key: "centers", label: "Cơ sở", icon: "Aa", type: "text", w: 140, readonly: true },
   { key: "createdAt", label: "Created Time", icon: "▦", type: "text", w: 170, readonly: true },
   { key: "createdBy", label: "Created By", icon: "Aa", type: "text", w: 190, readonly: true },
   { key: "updatedAt", label: "Last Modified Time", icon: "▦", type: "text", w: 170, readonly: true },

@@ -30,7 +30,7 @@ const hoPaths=[
  "/ho/system/audit","/ho/system/tdd-reference","/ho/language-mappings",
 ];
 const boPaths=[
- "/bo/missions","/bo/bills","/bo/workforce-shift-plans","/bo/workforce-availability",
+ "/bo/missions","/bo/parents","/bo/bills","/bo/workforce-shift-plans","/bo/workforce-availability",
  "/bo/workforce-assignments","/bo/payroll-periods","/bo/payroll-daily","/bo/payroll-exceptions",
  "/bo/pinoria-avatars","/bo/afterschool-accounts","/bo/open-studio-passes","/bo/classroom-diaries",
  "/bo/piner-posts","/bo/sales/leads","/bo/guests","/bo/mytime-workshops","/bo/enrollments",
@@ -40,7 +40,7 @@ const legacy:Record<string,string>={
  students:"/bo?module=students",classes:"/bo/running-classes",subscriptions:"/bo?module=subscriptions",
  enrollments:"/bo/enrollments",visits:"/bo?module=visits",staffs:"/bo?module=staffs",
  timekeeping:"/bo?module=timekeeping",salaryPeriods:"/bo/payroll-periods",audits:"/bo?module=audits",
- parents:"/bo?module=parents",missions:"/bo?module=missions",
+ parents:"/bo/parents",missions:"/bo?module=missions",
 };
 const previews:Record<string,{path:string;expected:string;record?:string;negative:string}>={
  "/ho/learning/missions":{path:"/ho/learning/missions",expected:"/ho/learning/missions",record:"record=MISSION-MOCK-001",negative:"record="+id},
@@ -124,6 +124,8 @@ test("HO_BO_DEEPLINK_CONTINUITY_P0: route-specific detail, tab, grid, center and
   [ho,"/ho/pinoria/starter-sets?record="+id+"&tab=members","/ho/pinoria/starter-sets?record="+id+"&tab=members"],
   [ho,"/ho/pinoria/wish-banners?record="+id+"&tab=items&wishSelection=pending&wishRevision=2","/ho/pinoria/wish-banners?record="+id+"&tab=items&wishSelection=pending&wishRevision=2"],
   [ho,"/ho/system/custom-attributes?sort=displayName&size=30&page=2&scope=CENTER&centerId="+center,"/ho/system/custom-attributes?sort=displayName&size=30&page=2&scope=CENTER&centerId="+center],
+  [bo,"/bo/parents?centerId="+center+"&record="+id,"/bo/parents?centerId="+center+"&record="+id],
+  [bo,"/bo?module=parents&centerId="+center+"&record="+id,"/bo/parents?centerId="+center+"&record="+id],
   [bo,"/bo/subscriptions?centerId="+center+"&record="+id+"&tab=enrollment","/bo?module=subscriptions&centerId="+center+"&record="+id+"&tab=enrollment"],
   [bo,"/bo/running-classes?centerId="+center+"&record="+id,"/bo/running-classes?centerId="+center+"&record="+id],
   [bo,"/bo/piner-posts?centerId="+center+"&record="+id+"&tab=media","/bo/piner-posts?centerId="+center+"&record="+id+"&tab=media"],
