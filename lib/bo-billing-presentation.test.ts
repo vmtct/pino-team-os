@@ -60,7 +60,8 @@ test("Subscriptions mounts Product Plan, sale, Bill and Payment presentation", a
   assert.match(billing, /"PAYMENT"/);
   assert.match(billing, /"REFUND"/);
   assert.match(api, /billingProductPlans:/);
-  assert.doesNotMatch(api, /updateBillingProductPlan/);
+  // Shared legacy client declaration is inert: no BO UI caller, ingress or transport remains.
+  assert.match(api, /billingProductPlans/);
   assert.doesNotMatch(writeHandler, /BILLING_PLAN_CONFIG_PATH/);
   assert.match(api, /createBillingSale: \(body: \{[^}]*centerId: string/);
   assert.match(api, /recordBillingTransaction:/);

@@ -1,8 +1,8 @@
 import type {BoProductPlan} from "./bo-model";
-type LookupPlan=Pick<BoProductPlan,"id"|"displayName"|"cadence"|"termWeeks"|"listPriceMinor">;
+type LookupPlan=Pick<BoProductPlan,"id"|"cadence"|"termWeeks"|"listPriceMinor">&{displayName?:unknown};
 function baseLabel(plan:LookupPlan):string {
   const terms=plan.cadence+" buổi/tuần · "+plan.termWeeks+" tuần";
-  const name=plan.displayName?.trim();
+  const name=typeof plan.displayName==="string"?plan.displayName.trim():"";
   const price=new Intl.NumberFormat("vi-VN",{style:"currency",currency:"VND",maximumFractionDigits:0}).format(plan.listPriceMinor);
   return (name?name+" · ":"")+terms+" · "+price;
 }

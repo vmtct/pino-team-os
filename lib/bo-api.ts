@@ -25,6 +25,7 @@ import type {
   BoPaymentTransaction,
   BoPaymentTransactionKind,
   BoProductPlan,
+  BoProductPlanBadge,
   BoSaleResult,
   BoSpecialtyCatalog,
   BoSpecialtyFamily,
@@ -422,6 +423,7 @@ export const boApi = {
 
   feedLearnerCompanion: (studentId: string, companionId: string, idempotencyKey: string) => write<{ feedEventId: string; ledgerId: string; companionId: string; fruitBalanceAfter: number; materializationLevel: number; stageFeedCount: number; state: "GROWING" | "READY_FOR_RITUAL"; readinessRuleKey: "FEED_2" | "FEED_5_AND_WATER_SIGIL" | null }>(`students/${encodeURIComponent(studentId)}/pinoria/companions/${encodeURIComponent(companionId)}/feed`, {}, idempotencyKey),
   billingProductPlans: () => read<BoProductPlan>("billing/product-plans"),
+  updateBillingProductPlan: (productPlanId: string, body: { listPriceMinor: number; enabled: boolean; badge: BoProductPlanBadge; expectedVersion: number }) => write<BoProductPlan>(`billing/product-plans/${encodeURIComponent(productPlanId)}/configure`, body, crypto.randomUUID()),
   activateSubscription: (subscriptionId:string, body:{serviceStartsOn:string;expectedVersion:number}, key:string) => write<unknown>("subscriptions/"+encodeURIComponent(subscriptionId)+"/activate",body,key),
   createBillingSale: (body: { payerParentUserId: string; studentProfileId: string; pathProgramId: string; centerId: string; productPlanId: string; contractualStartsOn: string; contractualEndsOn?:string|null; deferActivation?:boolean; itemDiscountMinor?: number; billDiscountMinor?: number; dueOn?: string; campaignReference?: string }, idempotencyKey: string) => write<BoSaleResult>("billing/sales", body, idempotencyKey),
   billingBill: (billId: string) => readOne<BoBillSummary>(`billing/bills/${encodeURIComponent(billId)}`),
