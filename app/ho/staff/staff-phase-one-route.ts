@@ -18,3 +18,10 @@ export function staffPhaseOneRoute(environment:string|undefined,hostname:string,
  if(!enabled||environment!=="staging"||hostname!=="ho.staging.pinohouse.art")return "disabled";
  return parseStaffPhaseOneQuery(query)?"native":"invalid";
 }
+/** Pre-stream request validation only; never proves authentication or admission. */
+export function invalidStaffPhaseOneRequest(host:string,path:string,method:string,query:URLSearchParams,rsc:string|null,enabled=STAFF_PHASE_ONE_ENABLED):boolean{
+ if(!enabled||host!=="ho.staging.pinohouse.art"||path!=="/ho/staff"||!["GET","HEAD"].includes(method))return false;
+ const params=new URLSearchParams(query);
+ if(rsc==="1")params.delete("_rsc");
+ return parseStaffPhaseOneQuery(params)===null;
+}
