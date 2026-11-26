@@ -6,12 +6,18 @@ import {getCloudflareContext} from "@opennextjs/cloudflare";
 import {boSkeletonEnabled} from "@/lib/bo-skeleton";
 import {parseRunningClassReviewQuery,runningClassSearchParams} from "./running-classes/running-class-review-query";
 import { BoRuntimeEntry } from "./components/registration/BoRuntimeBoundary";
+import { canonicalParentRoute } from "./parents/parent-route";
 
 export default async function BoPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const query = await searchParams;
   if(query.module==="classes"){
     const incoming=await headers();const {env}=await getCloudflareContext({async:true}) as unknown as {env:{APP_ENV?:string;BO_UI_ONLY?:string}};
     if(boSkeletonEnabled(env,incoming.get("host")??"")){const target=parseRunningClassReviewQuery(runningClassSearchParams(query),true);if(!target)notFound();redirect(target);}
+  }
+  // PAP-2389: exact legacy Parent route, staging only, preserve canonical IDs.
+  if(query.module==="parents"){
+    const incoming=await headers();const {env}=await getCloudflareContext({async:true}) as unknown as {env:{APP_ENV?:string;BO_UI_ONLY?:string}};
+    if(boSkeletonEnabled(env,incoming.get("host")??"")){const target=canonicalParentRoute(query,true);if(!target)notFound();redirect(target);}
   }
   const options = Object.fromEntries(["centerId", "from", "to"].flatMap(key => typeof query[key] === "string" ? [[key, query[key]]] : []));
   if (query.module === "salaryPeriods") redirect(retiredSalaryPeriodRedirectUrl(query));
