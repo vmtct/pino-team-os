@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { BoDataTable } from "../../bo/components/registration/BoDataTable";
 import { BoTableSettings, type BoSavedView } from "../../bo/components/registration/BoTableSettings";
 import type { BoField, BoRecord, BoTableState } from "@/lib/bo-registration";
@@ -58,6 +58,8 @@ export type TddTableProps<F extends readonly FieldSchema[]> = {
   readonly registry: TddRegistry; readonly schema: ModuleSchema<F>; readonly context: AuthorizationContext;
   readonly rows: readonly ModuleRow<F>[]; readonly query: TableQuery<F>; readonly onQueryChange: (query: TableQuery<F>) => void;
   readonly onOpen: (record: BoRecord) => void; readonly status: "ready" | "loading" | "error" | "denied";
+  /** Presentation only; receives the authorized record projection and a visible read-only field. */
+  readonly renderReadOnlyCell?: (record: BoRecord, field: BoField) => ReactNode | undefined;
   readonly onRetry?: () => void; readonly total?: number; readonly viewTransport?: ViewTransport<F>;
   readonly writes?: TableWrites<F>; readonly actionBindings?: TddActionBindings; readonly roleMetadata?: RoleMetadataPresentation; readonly roleVersionForRow?: (id:string)=>string|undefined; readonly onRoleSaved?:()=>void;
 };
@@ -67,7 +69,7 @@ export function TddTable<F extends readonly FieldSchema[]>(props: TddTableProps<
   // Erasure is limited to the existing scalar Table bridge; all transitions revalidate.
   return <TableContents key={renderScope(schema, props.context, "table")} {...props as unknown as TddTableProps<readonly FieldSchema[]>} schema={schema} />;
 }
-function TableContents({ schema, context, rows, query, onQueryChange, onOpen, status, onRetry, total, viewTransport, writes, roleMetadata, roleVersionForRow, onRoleSaved }: TddTableProps<readonly FieldSchema[]>) {
+function TableContents({ schema, context, rows, query, onQueryChange, onOpen, status, onRetry, total, viewTransport, writes, roleMetadata, roleVersionForRow, onRoleSaved, renderReadOnlyCell }: TddTableProps<readonly FieldSchema[]>) {
   const [settings, setSettings] = useState<string | null>(null), [filterOpen, setFilterOpen] = useState(false);
   const [draft, setDraft] = useState<{ source: typeof query; state: BoTableState } | null>(null), [message, setMessage] = useState("");
   const [localViews, setLocalViews] = useState<BoSavedView[]>([]), [active, setActive] = useState<string | null>(null);
@@ -173,7 +175,7 @@ function TableContents({ schema, context, rows, query, onQueryChange, onOpen, st
         if (!field || !version.trim()) { setMessage("Tải lại phiên bản bản ghi trước khi chỉnh sửa."); return; }
         setEdit({ record, field, anchor, version });
       }); } : roleMetadata?(record,key,anchor)=>{const selection=roleSelection(record.id,key);if(selection)setRoleEdit({id:selection.id,field:selection.field,version:selection.expectedVersion,anchor});}:undefined} policy={renderedPolicy} serverTotal={schema.table.pagination.mode === "server" ? total : undefined}
-      onSettings={setSettings} filterOpen={filterOpen} setFilterOpen={setFilterOpen} minimal freezeEnabled
+      renderReadOnlyCell={renderReadOnlyCell} onSettings={setSettings} filterOpen={filterOpen} setFilterOpen={setFilterOpen} minimal freezeEnabled
       views={views} changeViews={changeViews} activeView={active} applyView={view => { if (view && !schema.table.views.actions.includes("apply")) return; update({}, view?.state ?? initial); setActive(view?.id ?? null); }}
       reset={() => update(initial)} undo={() => restore(false)} canUndo={undo.length > 0}
       builtInViews={schema.table.views.builtIn.map(view => <button type="button" role="tab" aria-selected={active === view.id} aria-controls="table-scroll" tabIndex={active === view.id ? 0 : -1} className={"view-tab " + (active === view.id ? "active" : "")} key={view.id} onClick={() => { try { toLegacyTableState(schema, view.state, context); onQueryChange(view.state); setActive(view.id); } catch { setMessage("Không có quyền áp dụng Quick View."); } }}>{view.label}</button>)} />
