@@ -9,7 +9,13 @@ export function parseNativeLeadQuery(input:Query):NativeLeadQuery|null{
  const p=new URLSearchParams();
  if(input instanceof URLSearchParams){for(const [k,v] of input)p.append(k,v);}
  else{for(const [k,v] of Object.entries(input)){if(Array.isArray(v))for(const value of v)p.append(k,value);else if(v!==undefined)p.append(k,v);}}
- for(const [k,v] of p){if(!["centerId","lead","quickView","tab","leadIntent"].includes(k)||p.getAll(k).length!==1||!v||v.length>64)return null;}
+ const legacy=p.has("leadIntent");
+ const legacyGrid=["q","sort","dir","size","f_status"];
+ for(const [k,v] of p){
+  if(p.getAll(k).length!==1||!v||v.length>256||/[\x00-\x1f\x7f\\]/.test(v))return null;
+  if(!["centerId","lead","quickView","tab","leadIntent"].includes(k)&&!(legacy&&legacyGrid.includes(k)))return null;
+  if(k==="dir"&&!["asc","desc"].includes(v)||k==="size"&&(!/^[1-9]\d{0,2}$/.test(v)||Number(v)>100)||k==="f_status"&&!["SUBMITTED","CONTACTED","CONTACT_VERIFIED","CLOSED"].includes(v)||k==="sort"&&!/^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(v))return null;
+ }
  const centerId=p.get("centerId"),lead=p.get("lead"),quickView=p.get("quickView"),tab=p.get("tab"),leadIntent=p.get("leadIntent");
  if(centerId!==null&&!uuid.test(centerId))return null;
  const out=new URLSearchParams();
@@ -17,6 +23,7 @@ export function parseNativeLeadQuery(input:Query):NativeLeadQuery|null{
  if(leadIntent!==null){
   if(!uuid.test(leadIntent)||lead!==null||quickView!==null||tab!==null)return null;
   out.set("leadIntent",leadIntent);
+  for(const k of legacyGrid)if(p.has(k))out.set(k,p.get(k)!);
   return {kind:"legacy-intent",centerId,leadIntent,canonical:out.toString()};
  }
  if(lead!==null&&!leadId.test(lead)||quickView!==null&&!leadId.test(quickView)||lead!==null&&quickView!==null)return null;

@@ -24,3 +24,9 @@ test("PAP-2288 server object and URLSearchParams agree for supported and denied 
   assert.deepEqual(parseNativeLeadQuery(q),parseNativeLeadQuery(p));
  }
 });
+test("PAP-2288 legacy grid hints are bounded migration input only",()=>{
+ const q=parseNativeLeadQuery({leadIntent:center,centerId:center,q:"music",sort:"createdAt",dir:"desc",size:"50",f_status:"SUBMITTED"});
+ assert.equal(q?.kind,"legacy-intent");
+ assert.equal(q?.canonical,"centerId="+center+"&leadIntent="+center+"&q=music&sort=createdAt&dir=desc&size=50&f_status=SUBMITTED");
+ for(const invalid of [{leadIntent:center,size:"101"},{leadIntent:center,dir:"wrong"},{leadIntent:center,f_status:"ACTIVE"},{leadIntent:center,q:["a","b"]},{leadIntent:center,returnTo:"//evil.example"},{lead,q:"music"}])assert.equal(parseNativeLeadQuery(invalid),null);
+});
