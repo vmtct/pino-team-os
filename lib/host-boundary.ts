@@ -463,6 +463,10 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
       return hostname === BO_STAGING_HOSTNAME && (method === "GET" || method === "POST")
         ? { action: "next" } : { action: "not_found" };
     }
+    // PAP-1043 / PAP-2225: exact Staging Running Class commands; BFF/Core still authorize.
+    const rcCreate=pathname==="/api/bo/delivery/running-classes/create-inactive";
+    const rcInline=/^\/api\/bo\/delivery\/running-classes\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/inline$/.test(pathname);
+    if(rcCreate||rcInline)return hostname===BO_STAGING_HOSTNAME && method===(rcCreate?"POST":"PATCH")?{action:"next"}:{action:"not_found"};
     // PAP-1035: Worker-first admission must match the already-authenticated
     // BO read facade. This is a staging-only GET/HEAD fence, never a write bypass.
     if (hostname === BO_STAGING_HOSTNAME && (method === "GET" || method === "HEAD") && (isBoStagingS3ReadPath(pathname) || isBoStagingRunningClassEnrollmentReadPath(pathname))) return { action: "next" };

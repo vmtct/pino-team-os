@@ -1,6 +1,7 @@
 import { callBoAccessCoreWithCredential, type BoAccessCoreBinding, type BoAccessRequest } from "./bo-core";
 import { teamCredential, TeamAuthError, type TeamAccessEnv } from "./team-auth";
 import { BO_STAGING_HOSTNAME, normalizeHostname } from "./host-boundary";
+import {handleRunningClassCommand,runningClassCommandMethod} from "./running-class-command-handler";
 
 export interface BoWriteEnv extends TeamAccessEnv {
   PINO_BO_CORE: BoAccessCoreBinding;
@@ -147,6 +148,8 @@ export async function handleBoWriteRequest(
   _legacyKeyResolver?: unknown,
 ): Promise<Response> {
   try {
+    // PAP-1043 / PAP-2225: exact scoped Staging commands, never generic legacy writes.
+    if(runningClassCommandMethod(path))return handleRunningClassCommand(request,env,path);
     // PAP-2097 / PNR-WORLD: definition writes belong to HO. Reject before body, auth or RPC.
     if (/^pinoria\/worlds(?:\/|$)/.test(path) && !isAllowedPinoriaWorldMethod(request.method, path)) {
       return json({ error: { code: "ACCESS_PERMISSION_DENIED", message: "World definition writes are restricted to Head Office" } }, 403);
