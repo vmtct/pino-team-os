@@ -1,5 +1,5 @@
 // PAP-2373 / PLT-ACCESS: pure M4 route contract; not an authorization decision.
-// This candidate remains unmounted until the authenticated acceptance gate.
+// Used by the native page and return-to validation; server authorization remains independent.
 const tracking = new Set(["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content"]);
 const readRoleId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

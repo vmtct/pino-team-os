@@ -204,7 +204,8 @@
         "app/ho/system/roles/role-lifecycle-model.ts",
         "app/ho/system/roles/useRoleCreateFlow.ts",
         "app/ho/system/roles/RoleM1Preview.tsx",
-        "app/ho/system/roles/role-m1-preview.ts"
+        "app/ho/system/roles/role-m1-preview.ts",
+        "app/ho/system/roles/native-role-query.ts"
       ],
       "externalReferences": [
         {
@@ -247,6 +248,7 @@
         "lib/pap1247-ho-inline-command-contract.test.ts",
         "lib/pap2192-role-lifecycle-model.test.ts",
         "lib/pap2192-role-m1.test.ts",
+        "lib/pap2373-native-role-query.test.ts",
         "lib/host-boundary.test.ts"
       ]
     },
