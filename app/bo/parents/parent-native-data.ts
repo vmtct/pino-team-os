@@ -14,6 +14,15 @@ export const nativeParentUuid = (value: string) => UUID.test(value);
 
 export type NativeParentRow = BoRecord & { version: number | null; centerNames: string[] };
 export type NativeParentContext = ReadonlySet<string>;
+export type NativeParentLiveScope = Readonly<{actorId:string;centerId:string;canCreate:boolean;canEdit:boolean}>;
+/** PAP-2387 / PAP-2389: intersect server capability with fresh scoped Core context. */
+export async function loadNativeParentLiveGrants(scope:NativeParentLiveScope,signal:AbortSignal,fetcher:typeof fetch=fetch):Promise<NativeParentContext>{
+  const grants=await loadNativeParentContext(scope.centerId,signal,fetcher,scope.actorId);
+  const effective=new Set<string>();
+  if(scope.canCreate&&grants.has("identity.parent.create"))effective.add("identity.parent.create");
+  if(scope.canEdit&&grants.has("identity.parent.edit"))effective.add("identity.parent.edit");
+  return effective;
+}
 function object(raw: unknown): Record<string, unknown> {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) fail();
   return raw as Record<string, unknown>;
