@@ -9,9 +9,9 @@ export async function clipboardPng(blob:Blob):Promise<Blob>{
  const image=await createImageBitmap(blob);
  try{
   if(image.width<1||image.height<1||image.width*image.height>16000000)throw Error("Ảnh quá lớn.");
-  const canvas=document.createElement("canvas");canvas.width=image.width;canvas.height=image.height;
+  const canvas=new OffscreenCanvas(image.width,image.height);
   const ctx=canvas.getContext("2d");if(!ctx)throw Error("Không thể sao chép ảnh.");
   ctx.drawImage(image,0,0);
-  return await new Promise<Blob>((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(Error("Không thể sao chép ảnh.")),"image/png"));
+  return await canvas.convertToBlob({type:"image/png"});
  }finally{image.close();}
 }
