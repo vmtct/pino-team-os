@@ -4,7 +4,7 @@ import {BoShellGateError} from "./bo-shell-gate";
 import {teamCredential,TeamAuthError} from "./team-auth";
 import {callBoAccessCoreWithStaffPassword} from "./bo-core";
 import {planRequest,parseCatalogBody,planHost,planActorHeader} from "../app/ho/billing/product-plans/product-plan-http-contract";
-import {isPlanId} from "../app/ho/billing/product-plans/product-plan-native-contract";
+import {isPlanId,decodePlan,decodePage,decodeSubscription,decodeHistory} from "../app/ho/billing/product-plans/product-plan-native-contract";
 const object=(x:unknown):x is Record<string,unknown>=>!!x&&typeof x==="object"&&!Array.isArray(x);
 const json=(body:unknown,status:number)=>Response.json(body,{status,headers:{"cache-control":"no-store","x-content-type-options":"nosniff","referrer-policy":"no-referrer"}});
 const fail=(status:number)=>json({error:{code:"HO_PRODUCT_PLAN_UNAVAILABLE"}},status);
@@ -29,14 +29,18 @@ function project(value:unknown,route:NonNullable<ReturnType<typeof planRequest>>
    }
    return row;
   });
-  return {items,nextAfter:value.nextAfter};
+  const page={items,nextAfter:value.nextAfter};
+  const q=new URLSearchParams(route.corePath.split("?")[1]);const limit=Number(q.get("limit")??25),after=q.get("after");
+  if(route.relation==="history")decodePage(page,decodeHistory,limit,after,true);else decodePage(page,decodeSubscription,limit,after);
+  return page;
  }
- const one=(x:unknown)=>{const row=pick(x,planKeys);if(!isPlanId(row.id)||(route.id!==null&&row.id!==route.id))throw Error("Invalid catalog identity");return row;};
+ const one=(x:unknown)=>{const row=pick(x,planKeys);if(!isPlanId(row.id)||(route.id!==null&&row.id!==route.id))throw Error("Invalid catalog identity");decodePlan(row);return row;};
  if(route.id!==null)return one(value);
  if(!Array.isArray(value)||value.length>100)throw Error("Invalid catalog list");
  const rows=value.map(one);if(new Set(rows.map(r=>r.id)).size!==rows.length)throw Error("Duplicate catalog ID");return rows;
 }
 export async function handleHoProductPlans(request:Request,env:HoEnv):Promise<Response>{
+ let dispatched=false;
  try{
   const url=new URL(request.url);
   const route=planRequest(url.pathname+url.search,request.method);
@@ -48,7 +52,7 @@ export async function handleHoProductPlans(request:Request,env:HoEnv):Promise<Re
   if(write){
    const length=request.headers.get("content-length");if(length&&(!/^\d+$/.test(length)||Number(length)>4096))return fail(413);
    const raw=await request.text();if(raw.length>4096)return fail(413);
-   body=parseCatalogBody(JSON.parse(raw));if(!body)return fail(400);
+   try{body=parseCatalogBody(JSON.parse(raw));}catch{return fail(400);}if(!body)return fail(400);
   }
   const shell=await authorizeHoShell(request.headers,env);
   const grants=["team.bo.access","billing.view",...(write?["billing.manage"]:[])];
@@ -60,11 +64,14 @@ export async function handleHoProductPlans(request:Request,env:HoEnv):Promise<Re
   const context=await core("GET","context"),data=object(context.body)?context.body.data:null;
   if(context.status!==200)return fail(context.status===401?401:context.status===403?403:503);
   if(!object(data)||data.userId!==expected||data.surface!=="BO"||data.entitled!==true||!Array.isArray(data.permissionKeys)||!grants.every(k=>Array.isArray(data.permissionKeys)&&data.permissionKeys.includes(k)))return fail(403);
+  dispatched=true;
   const result=await core(request.method,route.corePath,body??undefined);
   if(result.status!==200)return fail(result.status>=400&&result.status<=599?result.status:502);
   try{
    const data=object(result.body)?result.body.data:undefined;
-   return json({data:project(data,route)},200);
+   const projected=project(data,route);
+   if(write&&(!object(projected)||!("updatedByUserId" in projected)||projected.updatedByUserId!==expected))return fail(502);
+   return json({data:projected},200);
   }catch{return fail(502);}
- }catch(e){if(e instanceof BoShellGateError||e instanceof TeamAuthError)return fail(e.status);if(e instanceof SyntaxError)return fail(400);return fail(503);}
+ }catch(e){if(!dispatched&&(e instanceof BoShellGateError||e instanceof TeamAuthError))return fail(e.status);return fail(503);}
 }

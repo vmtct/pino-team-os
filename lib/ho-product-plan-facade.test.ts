@@ -8,13 +8,13 @@ const actor="01900000-0000-7000-8000-000000000001",id="01900000-0000-7000-8000-0
 const at="2026-11-26T00:00:00.000Z",origin="https://"+planHost;
 const dto={id,displayName:"Gói học",createdByUserId:null,updatedByUserId:actor,cadence:1,termWeeks:12,purchasedUnits:12,listPriceMinor:100,currency:"VND",enabled:true,badge:"STANDARD",createdAt:at,updatedAt:at,version:2,private:"never"};
 const grants=["team.bo.access","billing.view","billing.manage"];
-function setup(options:{admitted?:boolean;secondActor?:string;permissionKeys?:string[]}={}){
+function setup(options:{admitted?:boolean;secondActor?:string;permissionKeys?:string[];domain?:()=>unknown}={}){
  let contexts=0;const calls:{method:string;path:string;body?:unknown}[]=[];
  const env:HoEnv={APP_ENV:"staging",HO_PILOT_FOUNDER_USER_IDS:actor,PINO_BO_CORE:{async executeWithStaffPassword(req,token){
   if(token!=="synthetic")return {status:401,body:{},requestId:"test"};
   if(req.path==="context")return {status:200,body:{data:{userId:++contexts>1?options.secondActor??actor:actor,email:"fixture@example.invalid",surface:"BO",entitled:true,permissionKeys:options.permissionKeys??grants}},requestId:"test"};
   if(req.path==="ho/admission")return {status:options.admitted===false?403:200,body:{data:{admitted:options.admitted!==false}},requestId:"test"};
-  calls.push(req);return {status:200,body:{data:req.path==="ho/billing/product-plans"?[dto]:dto},requestId:"test"};
+  calls.push(req);return {status:200,body:{data:options.domain?options.domain():req.path==="ho/billing/product-plans"?[dto]:dto},requestId:"test"};
  }}};
  return {env,calls};
 }
@@ -55,4 +55,21 @@ test("browser port sends only same-origin exact method and actor fence, no crede
  assert.equal((await port(catalogPath+"/"+id,{method:"PATCH",body:{expectedVersion:1,listPriceMinor:100},signal})).status,200);
  await assert.rejects(port("https://evil.invalid"+catalogPath,{method:"GET",signal}));assert.equal(calls,1);
  assert.throws(()=>createPlanBrowserPort(actor,"https://evil.invalid"));
+});
+
+test("postdispatch thrown syntax or wrong receipt actor is uncertain, never definite 400",async()=>{
+ for(const [domain,status] of [[()=>{throw new SyntaxError("lost");},503],[()=>({...dto,updatedByUserId:other}),502],[()=>({...dto,purchasedUnits:999}),502]] as const){
+  const {env,calls}=setup({domain});assert.equal((await handleHoProductPlans(req("/"+id,"PATCH"),env)).status,status);assert.equal(calls.length,1);
+ }
+});
+test("server validates relation DTOs and cursor ordering before projection escapes",async()=>{
+ const sub={id:other,studentProfileId:id,studentDisplayName:"QA",centerId:null,centerDisplayName:null,lifecycle:"ACTIVE",contractualStartsOn:null,contractualEndsOn:null,createdAt:at,updatedAt:at,createdByUserId:null,updatedByUserId:null};
+ for(const [domain,status] of [[()=>({items:[sub],nextAfter:null}),200],[()=>({items:[{...sub,studentDisplayName:{private:"bad"}}],nextAfter:null}),502],[()=>({items:[sub,sub],nextAfter:null}),502]] as const){
+  const {env}=setup({domain});assert.equal((await handleHoProductPlans(req("/"+id+"/subscriptions?limit=2"),env)).status,status);
+ }
+});
+test("browser rejects intermediary error envelope; accepts explicit BFF rejection",async()=>{
+ const signal=new AbortController().signal;
+ const run=(body:unknown)=>createPlanBrowserPort(actor,origin,async()=>Response.json(body,{status:409}))(catalogPath+"/"+id,{method:"PATCH",body:{expectedVersion:1,listPriceMinor:100},signal});
+ await assert.rejects(run({error:{code:"proxy_error"}}));assert.equal((await run({error:{code:"HO_PRODUCT_PLAN_UNAVAILABLE"}})).status,409);
 });

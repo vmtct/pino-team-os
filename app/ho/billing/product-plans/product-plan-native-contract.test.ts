@@ -69,3 +69,12 @@ test("definitive rejection clears fence; invalid storage prevents dispatch",asyn
  await assert.rejects(client.update(id,{price:5},"1",signal),CatalogRequestError);assert.equal(raw,null);
  raw="corrupt";await assert.rejects(client.update(id,{price:7},"1",signal));assert.equal(writes,1);
 });
+
+test("attribution mismatch cannot confirm receipt even if all visible fields agree",async()=>{
+ const next={...dto,version:2,listPriceMinor:200};
+ for(const mode of ["receipt","readback"]){
+  let writes=0;
+  const client=createProductPlanClient(async(_path,init)=>{if(init.method==="PATCH"){writes++;return {status:200,data:{...next,updatedByUserId:mode==="receipt"?id:other}};}return {status:200,data:{...next,createdByUserId:id}};},undefined,other);
+  await assert.rejects(client.update(id,{price:200},"1",signal),CatalogOutcomeUnknown);assert.equal(writes,1);assert.ok(client.pending());
+ }
+});

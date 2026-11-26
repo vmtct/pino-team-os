@@ -40,6 +40,9 @@ export function createPlanBrowserPort(actor:string,origin:string,fetcher:typeof 
     headers:{[planActorHeader]:actor,...(init.method==="PATCH"?{"content-type":"application/json"}:{})},
     ...(init.body?{body:JSON.stringify(init.body)}:{})});
   const payload:unknown=await response.json().catch(()=>null);
-  return {status:response.status,data:record(payload)?payload.data:undefined};
+  if(!record(payload))throw Error("Unverified Product Plan response");
+  if(response.status===200){if(!Object.hasOwn(payload,"data"))throw Error("Missing Product Plan response data");return {status:200,data:payload.data};}
+  if(!record(payload.error)||payload.error.code!=="HO_PRODUCT_PLAN_UNAVAILABLE"||Object.hasOwn(payload,"data"))throw Error("Unverified Product Plan rejection");
+  return {status:response.status,data:null};
  };
 }

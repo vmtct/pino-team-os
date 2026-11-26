@@ -55,14 +55,14 @@ function pagePath(id:string,relation:"subscriptions"|"history",after:string|null
  const q=new URLSearchParams({limit:String(limit)});if(after)q.set("after",after);
  return catalogPath+"/"+id+"/"+relation+"?"+q;
 }
-function decodePage<T>(x:unknown,decode:(v:unknown)=>T&{id:string},limit:number,after:string|null,descending=false){
+export function decodePage<T>(x:unknown,decode:(v:unknown)=>T&{id:string},limit:number,after:string|null,descending=false){
  if(!obj(x)||!Array.isArray(x.items)||x.items.length>limit||!(x.nextAfter===null||isPlanId(x.nextAfter)))return fail();
  const items=x.items.map(decode);const ids=items.map(r=>r.id);
  if(new Set(ids).size!==ids.length||ids.some((id,i)=>{const prior=i?ids[i-1]:after;return prior!==null&&(descending?id>=prior:id<=prior);})||
  (x.nextAfter!==null&&(items.length!==limit||x.nextAfter!==ids.at(-1))))return fail();
  return {items,nextAfter:x.nextAfter};
 }
-function decodeSubscription(x:unknown){
+export function decodeSubscription(x:unknown){
  if(!obj(x)||!isPlanId(x.id)||!isPlanId(x.studentProfileId)||!nullableText(x.studentDisplayName)||!nullableId(x.centerId)||!nullableText(x.centerDisplayName)||
  typeof x.lifecycle!=="string"||!["DRAFT","ACTIVE","CANCELLED","SUPERSEDED","COMPLETED"].includes(x.lifecycle)||
  !(x.contractualStartsOn===null||date(x.contractualStartsOn))||!(x.contractualEndsOn===null||date(x.contractualEndsOn))||
@@ -88,20 +88,22 @@ function historyValues(x:unknown){
  }
  return result;
 }
-function decodeHistory(x:unknown){
+export function decodeHistory(x:unknown){
  if(!obj(x)||!isPlanId(x.id)||!instant(x.occurredAt)||!nullableId(x.actorId)||x.action!=="billing.product_plan_updated")return fail();
  return {id:x.id,at:x.occurredAt,actor:"—",action:x.action,previous:historyValues(x.previous),next:historyValues(x.next)};
 }
-export function createProductPlanClient(port:CatalogPort,journal:CatalogJournal=memoryCatalogJournal()){
+export function createProductPlanClient(port:CatalogPort,journal:CatalogJournal=memoryCatalogJournal(),expectedActor?:string){
+ if(expectedActor!==undefined&&!isPlanId(expectedActor))throw Error("Invalid expected actor");
  let busy=false;
  async function read(path:string,signal:AbortSignal){
   signal.throwIfAborted();const r=await port(path,{method:"GET",signal});signal.throwIfAborted();
   if(r.status!==200)throw new CatalogRequestError(r.status);return r.data;
  }
- async function detail(id:string,signal:AbortSignal){
+ async function detailReceipt(id:string,signal:AbortSignal){
   if(!isPlanId(id))throw new CatalogRequestError(400);
-  const row=decodePlan(await read(catalogPath+"/"+id,signal));if(row.id!==id)return fail();return row;
+  const raw=await read(catalogPath+"/"+id,signal),row=decodePlan(raw);if(row.id!==id||!obj(raw))return fail();return {row,createdBy:raw.createdByUserId,updatedBy:raw.updatedByUserId};
  }
+ async function detail(id:string,signal:AbortSignal){return (await detailReceipt(id,signal)).row;}
  return {
   async list(signal:AbortSignal){const x=await read(catalogPath,signal);if(!Array.isArray(x))return fail();const rows=x.map(decodePlan);if(new Set(rows.map(r=>r.id)).size!==rows.length)return fail();return rows;},
   detail,
@@ -130,9 +132,10 @@ export function createProductPlanClient(port:CatalogPort,journal:CatalogJournal=
      const receipt=decodePlan(r.data);
      const matches=(row:ModuleRow<PlanFields>)=>row.id===id&&row.version===Number(version)+1&&Object.entries(command.expected).every(([k,v])=>field(k)&&row[k]===v);
      if(!matches(receipt))return fail();
-     const actual=await detail(id,signal);
-     if(!matches(actual)||JSON.stringify(actual)!==JSON.stringify(receipt))return fail();
-     journal.clear(marker);return actual;
+     if(!obj(r.data)||(expectedActor!==undefined&&r.data.updatedByUserId!==expectedActor))return fail();
+     const actual=await detailReceipt(id,signal);
+     if(!matches(actual.row)||JSON.stringify(actual.row)!==JSON.stringify(receipt)||actual.createdBy!==r.data.createdByUserId||actual.updatedBy!==r.data.updatedByUserId)return fail();
+     journal.clear(marker);return actual.row;
     }catch{throw new CatalogOutcomeUnknown(id,version);}
    }finally{busy=false;}
   },

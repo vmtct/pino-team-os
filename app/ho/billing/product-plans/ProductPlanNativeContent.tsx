@@ -109,7 +109,7 @@ export function ProductPlanNativeWorkspace({client,permissionKeys,initialRecord,
  </TddPreferencePolicy.Provider>;
 }
 export function ProductPlanNativeEntry({actorId,permissionKeys,initialRecord,initialTab}:{actorId:string;permissionKeys:readonly string[];initialRecord?:string;initialTab?:PlanTab}){
- const load=useCallback(async(signal:AbortSignal)=>{signal.throwIfAborted();const client=createProductPlanClient(createPlanBrowserPort(actorId,location.origin),createCatalogJournal(sessionStorage,"pino:ho:product-plans:"+actorId));return client;},[actorId]);
+ const load=useCallback(async(signal:AbortSignal)=>{signal.throwIfAborted();const client=createProductPlanClient(createPlanBrowserPort(actorId,location.origin),createCatalogJournal(sessionStorage,"pino:ho:product-plans:"+actorId),actorId);return client;},[actorId]);
  const {result,retry}=useResource(load);
  if(result.status==="loading")return <p role="status">Đang tải gói học…</p>;
  if(result.status==="error")return <p role="alert">Không thể mở gói học. <button type="button" className="secondary-btn" onClick={retry}>Thử lại</button></p>;
