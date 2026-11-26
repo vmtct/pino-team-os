@@ -117,6 +117,12 @@ export function middleware(request: NextRequest) {
       if(request.headers.get("rsc")==="1")params.delete("_rsc");
       if(!safeHoReturnTo(request.nextUrl.pathname+(params.size?"?"+params.toString():"")))return new NextResponse("Not Found",{status:404,headers:{"cache-control":"no-store"}});
     }
+    // PAP-2373: reject retired Role fixtures and malformed native links before streaming.
+    if(normalizeHostname(host)===HO_STAGING_HOSTNAME && request.nextUrl.pathname==="/ho/system/roles" && ["GET","HEAD"].includes(request.method)){
+      const params=new URLSearchParams(request.nextUrl.searchParams);
+      if(request.headers.get("rsc")==="1")params.delete("_rsc");
+      if(!safeHoReturnTo(request.nextUrl.pathname+(params.size?"?"+params.toString():"")))return new NextResponse("Not Found",{status:404,headers:{"cache-control":"no-store"}});
+    }
     // PAP-2394: exact canonical Mission M1-B query validation before streaming.
     if(normalizeHostname(host)===HO_STAGING_HOSTNAME && request.nextUrl.pathname==="/ho/learning/missions" && ["GET","HEAD"].includes(request.method)){
       const params=new URLSearchParams(request.nextUrl.searchParams);

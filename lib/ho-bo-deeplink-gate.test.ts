@@ -13,7 +13,7 @@ import {BO_LEGACY_QUERY_MODULES} from "./bo-url-contract";
 import {boStagingAdmittedRoutes} from "../app/bo/architecture/bo-staging-route-policy";
 import {safeBoStagingReturnTo,boStagingAuthContinuation,boStagingReturnFromSearch,BO_RETURN_HEADER} from "./bo-staging-return-to";
 import {recoverInvalidStaffPasswordSession} from "./staff-session-recovery";
-import {roleReviewRoute} from "../app/ho/system/roles/role-m1-preview";
+import {parseNativeRoleQuery} from "../app/ho/system/roles/native-role-query";
 const ho="ho.staging.pinohouse.art",bo="bo.staging.pinohouse.art";
 const id="01a1ef9f-d253-7e6b-ba2d-200887c4486f";
 const center="01a0b29a-3acd-7a18-a0f2-cf6016548ab5";
@@ -46,8 +46,6 @@ const previews:Record<string,{path:string;expected:string;record?:string;negativ
  "/ho/learning/missions":{path:"/ho/learning/missions",expected:"/ho/learning/missions",record:"record=MISSION-MOCK-001",negative:"record="+id},
 
  "/bo/sales/leads":{path:"/bo/sales/leads?m1Preview=1",expected:"/bo/sales/leads",record:"lead=LEAD-MOCK-001&tab=members",negative:"lead="+id},
-
- "/ho/system/roles":{path:"/ho/system/roles?m1Preview=1",expected:"/ho/system/roles?m1Preview=1",record:"record=ROLE-MOCK-001",negative:"record="+id},
 };
 function discoverPreviewPages(dir:string):string[]{
  return readdirSync(dir,{withFileTypes:true}).flatMap(entry=>{
@@ -113,8 +111,13 @@ test("HO_BO_DEEPLINK_CONTINUITY_P0: native preview entrypoints cannot ship untes
  for(const query of ["record=LEARNING-SPACE-MOCK-001","record=LEARNING-SPACE-MOCK-002","record=","record="+id+"&record="+id,"m1Preview=1","tab=unknown","next=/bo"])
    assert.equal(parse(ho,spaces+"?"+query),null,spaces+"?"+query);
  assert.equal(parse(bo,spaces),null);
- assert.equal(roleReviewRoute({m1Preview:"1"}),"preview");
- assert.equal(roleReviewRoute({record:id,m1Preview:"1"}),"invalid");
+ const roles="/ho/system/roles";
+ checkFlow(ho,roles+"?record="+id,roles+"?record="+id);
+ for(const query of ["record=ROLE-MOCK-001","record=","record="+id+"&record="+id,"m1Preview=1","m1Preview=1&record="+id,"tab=unknown","next=/bo"]){
+   assert.equal(parseNativeRoleQuery(new URLSearchParams(query)),null,query);
+   assert.equal(parse(ho,roles+"?"+query),null,query);
+ }
+ assert.equal(parse(bo,roles),null);
 });
 test("HO_BO_DEEPLINK_CONTINUITY_P0: route-specific detail, tab, grid, center and recovery examples",async()=>{
  const samples:[string,string,string][]=[
@@ -156,6 +159,15 @@ test("PAP-2386: canonical native Post admission rejects fixture and malformed li
 test("PAP-2369: malformed authenticated Learning Space links fail before streaming",()=>{
  const path="/ho/learning-spaces",headers={cookie:"pino_staff_password_session=fixture-only"};
  for(const q of ["record=LEARNING-SPACE-MOCK-001","record="+id+"&record="+id,"m1Preview=1","tab=unknown","next=/bo"]){
+  for(const method of ["GET","HEAD"])assert.equal(middleware(new NextRequest("https://"+ho+path+"?"+q,{headers,method})).status,404,q);
+ }
+ for(const q of ["","?record="+id,"?utm_source=chatgpt.com&record="+id])assert.equal(middleware(new NextRequest("https://"+ho+path+q,{headers})).headers.get("x-middleware-next"),"1",q);
+ assert.equal(middleware(new NextRequest("https://"+ho+path+"?record="+id+"&_rsc=abc",{headers:{...headers,rsc:"1"}})).headers.get("x-middleware-next"),"1");
+});
+
+test("PAP-2373: canonical native Role admission rejects fixture and malformed links before streaming",()=>{
+ const path="/ho/system/roles",headers={cookie:"pino_staff_password_session=fixture-only"};
+ for(const q of ["record=ROLE-MOCK-001","record="+id+"&record="+id,"m1Preview=1","m1Preview=1&record="+id,"tab=unknown","returnTo=//evil.example"]){
   for(const method of ["GET","HEAD"])assert.equal(middleware(new NextRequest("https://"+ho+path+"?"+q,{headers,method})).status,404,q);
  }
  for(const q of ["","?record="+id,"?utm_source=chatgpt.com&record="+id])assert.equal(middleware(new NextRequest("https://"+ho+path+q,{headers})).headers.get("x-middleware-next"),"1",q);
