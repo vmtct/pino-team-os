@@ -1,4 +1,5 @@
 import {parseLiveSpaceQuery} from "./ho-learning-space-contract";
+import {parseMissionM1Query} from "../app/ho/learning/missions/mission-m1-query";
 import {readWishDetailRoute,wishDetailUrl} from "./pls-wish-detail-route";
 import {validateAttributeDirectoryParams} from "./pap1841-attribute-directory-query";
 import {attributeModule} from "./ho-attribute-model";
@@ -60,6 +61,12 @@ export function safeHoReturnTo(raw: string | null | undefined): string | null {
     // PAP-2371: canonical real record state, independently authorized by the page.
     if(parsed.pathname===HO_PAGE_PATHS.learningSpaces){
       const state=parseLiveSpaceQuery(parsed.searchParams);
+      if(!state)return null;
+      return parsed.pathname+(state.record?"?record="+encodeURIComponent(state.record):"");
+    }
+    // PAP-2394: Mission M1-B uses only the canonical synthetic seed.
+    if(parsed.pathname===HO_PAGE_PATHS.missions){
+      const state=parseMissionM1Query(parsed.searchParams);
       if(!state)return null;
       return parsed.pathname+(state.record?"?record="+encodeURIComponent(state.record):"");
     }
