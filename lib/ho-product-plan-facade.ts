@@ -1,5 +1,6 @@
 // PAP-2365 / PLT-PRODUCT-PLAN: feature-owned authenticated HO facade, not generic mutation.
-import {authorizeHoShell,type HoEnv} from "./ho-auth";
+import {authorizeHoShell} from "./ho-auth";
+import type {HoWorldEnv} from "./ho-world-handler";
 import {BoShellGateError} from "./bo-shell-gate";
 import {teamCredential,TeamAuthError} from "./team-auth";
 import {callBoAccessCoreWithStaffPassword} from "./bo-core";
@@ -39,7 +40,7 @@ function project(value:unknown,route:NonNullable<ReturnType<typeof planRequest>>
  if(!Array.isArray(value)||value.length>100)throw Error("Invalid catalog list");
  const rows=value.map(one);if(new Set(rows.map(r=>r.id)).size!==rows.length)throw Error("Duplicate catalog ID");return rows;
 }
-export async function handleHoProductPlans(request:Request,env:HoEnv):Promise<Response>{
+export async function handleHoProductPlans(request:Request,env:HoWorldEnv):Promise<Response>{
  let dispatched=false;
  try{
   const url=new URL(request.url);
@@ -59,13 +60,15 @@ export async function handleHoProductPlans(request:Request,env:HoEnv):Promise<Re
   if(shell.userId!==expected||!grants.every(k=>shell.permissionKeys.includes(k)))return fail(403);
   const credential=await teamCredential(request,env,"BO");
   if(credential.kind!=="password")return fail(401);
-  const core=(method:string,path:string,input?:unknown)=>callBoAccessCoreWithStaffPassword(env.PINO_BO_CORE,{method,path,...(input===undefined?{}:{body:input})},credential.token);
-  // Header only fences the actor; current credential and Core still supply all authority.
-  const context=await core("GET","context"),data=object(context.body)?context.body.data:null;
+  // BO control plane supplies only current context. Catalog commands belong to the dedicated HO control plane.
+  // Header only fences the actor; the same current credential and Core still supply all authority.
+  const context=await callBoAccessCoreWithStaffPassword(env.PINO_BO_CORE,{method:"GET",path:"context"},credential.token),data=object(context.body)?context.body.data:null;
   if(context.status!==200)return fail(context.status===401?401:context.status===403?403:503);
   if(!object(data)||data.userId!==expected||data.surface!=="BO"||data.entitled!==true||!Array.isArray(data.permissionKeys)||!grants.every(k=>Array.isArray(data.permissionKeys)&&data.permissionKeys.includes(k)))return fail(403);
+  const ho=env.PINO_HO_WORLD_CORE;
+  if(!ho||typeof ho.executeWithStaffPassword!=="function")return fail(503);
   dispatched=true;
-  const result=await core(request.method,route.corePath,body??undefined);
+  const result=await ho.executeWithStaffPassword({method:request.method,path:route.corePath,...(body===null?{}:{body})},credential.token);
   if(result.status!==200)return fail(result.status>=400&&result.status<=599?result.status:502);
   try{
    const data=object(result.body)?result.body.data:undefined;
