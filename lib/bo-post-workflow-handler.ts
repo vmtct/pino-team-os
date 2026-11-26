@@ -2,6 +2,7 @@
 import {callBoAccessCoreWithCredential} from "./bo-core";
 import {teamCredential,TeamAuthError} from "./team-auth";
 import type {BoPostDraftEnv} from "./bo-post-draft-handler";
+import {verifyPostActor} from "./bo-post-actor-continuity";
 import {BO_STAGING_HOSTNAME} from "./host-boundary";
 const uuid="[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
 const id=new RegExp("^"+uuid+"$"),route=new RegExp("^learning/piner-posts/"+uuid+"/(?:(submit|diary-selection)|attachments/"+uuid+"/(diary-provenance))$");
@@ -36,6 +37,8 @@ export async function handleBoPostWorkflowRequest(request:Request,env:BoPostDraf
   if(operation==="submit")body={expectedVersion,attachmentIds:list(input.attachmentIds,5,1)};
   else if(operation==="diary-selection")body={expectedVersion,diaryIds:list(input.diaryIds,20)};
   else{if(input.transform!=="RAW"&&input.transform!=="RETOUCHED")throw new Invalid();body={expectedVersion,expectedAttachmentVersion:version(input.expectedAttachmentVersion),diaryId:canonical(input.diaryId),evidenceId:canonical(input.evidenceId),transform:input.transform};}
+  const admission=await verifyPostActor(request,env.PINO_BO_CORE,credential,centerId,operation==="submit"?"piner.post.submit":"piner.post.diary.compose");
+  if(admission!==200)return fail(admission,admission===400?"PLATFORM_INVALID_INPUT":"ACCESS_PERMISSION_DENIED");
   const result=await callBoAccessCoreWithCredential(env.PINO_BO_CORE,{method:"POST",path:path+"?centerId="+centerId,resource:{centerId},body,idempotencyKey:key},credential);
   return json(result.body,result.status,result.requestId);
  }catch(e){if(e instanceof TeamAuthError)return fail(e.status,"IDENTITY_AUTHENTICATION_FAILED");if(e instanceof Invalid)return fail(400,"PLATFORM_INVALID_INPUT");return fail(500,"PLATFORM_INTERNAL_ERROR");}
