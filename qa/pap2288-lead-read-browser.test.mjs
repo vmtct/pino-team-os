@@ -19,6 +19,7 @@ const shims={"next/navigation":navigation,"next/link":`import {useRouter} from "
 const code=await build({stdin:{contents:`
 import {createRoot} from "react-dom/client";
 import {LeadHouseholdM1Preview} from "./app/bo/sales/leads/LeadHouseholdM1Preview";
+import {NativeLeadEntry} from "./app/bo/sales/leads/NativeLeadEntry";
 import {LeadApiError} from "./lib/bo-lead-household-client";
 import {LeadRecoveryJournal} from "./app/bo/sales/leads/lead-recovery-journal";
 const a="${a}",b="${b}",c="${c}";
@@ -50,7 +51,11 @@ const api={
  async retireMember(id,memberId,version,key){const row=target(id,version);window.syntheticCommandCalls.push({id,memberId,version,key});const index=household.findIndex(m=>m.id===memberId);if(index<0||row.primaryContactMemberId===memberId)throw new LeadApiError(409,"CONFLICT",null);household.splice(index,1);return childReceipt(row,memberId)},
  async contact(id,version,contact,key){const call={id,version,contact,key};window.syntheticCommandCalls.push(call);const row=rows.find(r=>r.id===id);if(!row||row.version!==version)throw new LeadApiError(409,"CONFLICT",null);if(contact.contactDisplayName==="Conflict"){row.contactDisplayName="Concurrent name";row.version++;throw new LeadApiError(409,"CONFLICT",null)}if(contact.contactDisplayName==="Uncertain"&&window.syntheticCommandCalls.filter(c=>c.key===key).length===1)throw new LeadApiError(503,"UNAVAILABLE",null);Object.assign(row,contact,{version:version+1});return {leadId:id,version:row.version}}
 };
-createRoot(document.querySelector("main")).render(<LeadHouseholdM1Preview readApi={new URLSearchParams(location.search).has("fixture")?undefined:api} commandApi={new URLSearchParams(location.search).has("commands")?api:undefined} recoveryJournal={new URLSearchParams(location.search).has("journal")?new LeadRecoveryJournal(sessionStorage,a):undefined}/>);
+const root=createRoot(document.querySelector("main"));
+window.syntheticMountNative=actorId=>root.render(<NativeLeadEntry actorId={actorId}/>);
+window.syntheticUnmountNative=()=>root.unmount();
+if(location.origin==="https://bo.staging.pinohouse.art"||new URLSearchParams(location.search).has("nativeEntry"))window.syntheticMountNative(a);
+else root.render(<LeadHouseholdM1Preview readApi={new URLSearchParams(location.search).has("fixture")?undefined:api} commandApi={new URLSearchParams(location.search).has("commands")?api:undefined} recoveryJournal={new URLSearchParams(location.search).has("journal")?new LeadRecoveryJournal(sessionStorage,a):undefined}/>);
 `,resolveDir:process.cwd(),loader:"tsx"},jsx:"automatic",bundle:true,write:false,outdir:"out",loader:{".css":"empty"},define:{"process.env.NODE_ENV":'"production"'},plugins:[{name:"isolated-next-navigation",setup(p){p.onResolve({filter:/^next\/(navigation|link|image|dynamic)$/},args=>({path:args.path,namespace:"lead-test"}));p.onLoad({filter:/.*/,namespace:"lead-test"},args=>({contents:shims[args.path],loader:"jsx",resolveDir:process.cwd()}));}}]});
 const js=code.outputFiles.find(f=>f.path.endsWith(".js")).text;
 test("PAP-2288 mounted native Lead table, cursor, drawer, detail, history and failure states",async()=>{
@@ -258,5 +263,41 @@ test("PAP-2288 mounted contact-only duplicate opens existing Lead without mutati
   const name=page.getByRole("textbox",{name:"Người liên hệ",exact:true});await name.waitFor();assert.equal(await name.inputValue(),"Synthetic Lead 1");
   const calls=await page.evaluate(()=>window.syntheticCommandCalls);assert.equal(calls.length,1);assert.equal(calls[0].input.contact.contactDisplayName,null);assert.deepEqual(calls[0].input.members,[]);
   await page.getByText("Thành viên",{exact:true}).first().click();try{await page.waitForURL(u=>u.searchParams.get("tab")==="members");const memberName=page.getByRole("textbox",{name:"Họ tên "+c,exact:true});await memberName.waitFor();assert.equal(await memberName.inputValue(),"Synthetic Student");assert.equal(await page.getByRole("checkbox",{name:"MyTime · Piano",exact:true}).isChecked(),true);assert.equal((await page.evaluate(()=>window.syntheticCommandCalls)).length,1);}catch(e){console.error("Duplicate member readback diagnostic",page.url(),await page.locator("body").innerText());throw e;}assert.deepEqual(errors,[]);
+ }finally{await browser.close();}
+});
+test("PAP-2288 mounted native adapter entry binds actor, rejects unsafe origin and preserves unknown journal",async()=>{
+ const browser=await chromium.launch();
+ try{
+  const page=await browser.newPage({serviceWorkers:"block"});page.setDefaultTimeout(12000);
+  const calls=[],errors=[];page.on("pageerror",e=>errors.push(e.message));
+  const origin="https://bo.staging.pinohouse.art",base="/api/bo/acquisition/households";
+  const row={id:a,phone:"0900000000",contactDisplayName:"Synthetic native boundary",status:"ACTIVE",primaryContactMemberId:null,version:1,createdAt:"2026-11-25T00:00:00Z",updatedAt:"2026-11-25T00:01:00Z",createdBy:null,updatedBy:null,centerId:null,memberCount:0,intentCount:0};
+  // Every request is intercepted. No live browser session, authentication or network request is used.
+  await page.route("**/*",async r=>{
+   const req=r.request(),u=new URL(req.url());
+   if(req.isNavigationRequest()&&[origin,"https://fixture.invalid"].includes(u.origin)&&u.pathname==="/bo/sales/leads")return r.fulfill({contentType:"text/html",body:"<main></main>"});
+   if(u.origin!==origin)return r.abort();
+   if(u.pathname===base+"/search"&&req.method()==="POST"){calls.push({actor:req.headers()["x-pino-expected-actor"],body:req.postDataJSON()});return r.fulfill({json:{data:{items:[row],hasMore:false,nextCursor:null}}});}
+   if(u.pathname===base+"/"+a&&req.method()==="GET"){calls.push({actor:req.headers()["x-pino-expected-actor"]});return r.fulfill({json:{data:{...row,members:[],relationships:[],intents:[],intentHistoryHasMore:false}}});}
+   return r.abort();
+  });
+  await page.goto(origin+"/bo/sales/leads");await page.addScriptTag({content:js});
+  await page.getByText("Synthetic native boundary",{exact:true}).waitFor();
+  assert.equal(calls[0].actor,a);assert.equal(calls[0].body.limit,50);
+  assert.equal(await page.getByText("DỮ LIỆU MẪU",{exact:true}).count(),0);
+  await page.evaluate(id=>window.syntheticMountNative(id),b);
+  await page.waitForFunction(()=>document.body.innerText.includes("Synthetic native boundary"));
+  await page.waitForTimeout(300);assert.ok(calls.some(call=>call.actor===b));
+  await page.evaluate(()=>window.syntheticUnmountNative());assert.equal(await page.getByText("Synthetic native boundary",{exact:true}).count(),0);
+  await page.goto(origin+"/bo/sales/leads?lead="+a);
+  await page.evaluate(({id,key})=>sessionStorage.setItem("pino.leads.pending.v1",JSON.stringify({schema:1,scope:id,key,kind:"contact",target:id,expectedVersion:1,receipt:null})),{id:a,key:b});
+  await page.addScriptTag({content:js});
+  await page.getByRole("alert").filter({hasText:"Chưa xác định kết quả yêu cầu trước"}).waitFor();
+  const name=page.getByRole("textbox",{name:"Người liên hệ",exact:true});await name.waitFor();assert.equal(await name.isDisabled(),true);
+  assert.equal(await page.getByRole("button",{name:"Thử lại cùng yêu cầu",exact:true}).count(),0);
+  const before=calls.length;
+  await page.goto("https://fixture.invalid/bo/sales/leads?nativeEntry=1");await page.addScriptTag({content:js});
+  await page.getByRole("alert").filter({hasText:"Không thể xác minh phiên Leads"}).waitFor();
+  assert.equal(await page.getByText("DỮ LIỆU MẪU",{exact:true}).count(),0);assert.equal(calls.length,before);assert.deepEqual(errors,[]);
  }finally{await browser.close();}
 });
