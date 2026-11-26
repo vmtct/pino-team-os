@@ -318,17 +318,20 @@ test("PAP-2032 native Wish Events requires exact authorized runtime and Center/a
  fs.unlinkSync(path.join(root,files[8]));assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/Wish Events: missing native scoped route contract/);
 }));
 
-test("PAP-2225 native Running Classes requires exact authorized live and retained M1 workspace",()=>fixture(({root,read,write})=>{
- const files=["app/bo/running-classes/page.tsx","app/bo/running-classes/RunningClassStagingEntry.tsx","app/bo/running-classes/running-class-review-access.ts","app/bo/running-classes/running-class-review.ts","app/bo/running-classes/running-class-review-query.ts","app/bo/running-classes/running-class-review-access.test.ts","app/bo/running-classes/running-class-review-query.test.ts","lib/pap2225-running-class-m1.test.ts"];
- files.push("app/bo/running-classes/RunningClassNativeEntry.tsx","app/bo/running-classes/running-class-stage-admission.ts","app/bo/running-classes/running-class-provider.ts","app/bo/running-classes/running-class-stage-admission.test.ts");
+test("PAP-1044 native Running Classes requires exact authorized live workspace without staging fixture fallback",()=>fixture(({root,read,write})=>{
+ const base="app/bo/running-classes/";
+ const files=[base+"page.tsx",base+"RunningClassNativeEntry.tsx",base+"running-class-stage-admission.ts",base+"running-class-provider.ts",base+"running-class-stage-admission.test.ts"];
  for(const file of files)write(file,fs.readFileSync(path.join(repo,file),"utf8"));
  write(policy,read(policy).replace('  "/bo/payroll-periods",','  "/bo/payroll-periods",\n  "/bo/running-classes",'));
  assert.deepEqual(verifyBoStagingRoutePolicy(root).issues,[]);
- for(const [index,from,to] of [[0,'./RunningClassStagingEntry','./OtherEntry'],[0,'!boSkeletonEnabled(env,host)','false'],[1,'!center.centers.some(c=>c.id===selected)','false'],[1,'if(state!=="ready")','if(false)'],[1,'const options=useMemo(()=>({centerId}),[centerId]);','const options={centerId};'],[1,'options={options}','options={{centerId}}'],[1,'../components/registration/BoRegistrationWorkspace','../OtherWorkspace'],[2,'!ctx.permissionKeys?.includes("delivery.schedule.manage")','false'],[2,'method:"GET"','method:"POST"'],[3,'new Map<string,ClassRecord>','new FakeStore'],[0,'./RunningClassNativeEntry','./OtherEntry'],[9,'RUNNING_CLASS_LIVE_ADMISSION=true','RUNNING_CLASS_LIVE_ADMISSION=false'],[8,'runningClassLive:provider','runningClassLive:undefined'],[8,'!center.centers.some(c=>c.id===selected)','false'],[10,'current.userId!==actorId','false']]){
+ for(const [index,from,to] of [[0,'./RunningClassNativeEntry','./OtherEntry'],[0,'!boSkeletonEnabled(env,host)','false'],[0,'await authorizeBoShell(new Headers(incoming),env).catch(()=>forbidden())','{userId:"mock"}'],[0,'return <RunningClassNativeEntry expectedActorId={actor.userId}/>;','return <RunningClassStagingEntry/>;'],[1,'runningClassLive:provider','runningClassLive:undefined'],[1,'!center.centers.some(c=>c.id===selected)','false'],[1,'body.data.userId!==expectedActorId','false'],[2,'return parseRunningClassLiveQuery(input,legacy);','return parseRunningClassReviewQuery(input,legacy);'],[3,'current.userId!==actorId','false'],[3,'current.permissionKeys?.includes("delivery.schedule.manage")','true'],[3,'current.permissionKeys?.includes("membership.subscription.view")','true'],[3,'if(write&&!writable)','if(false)']]){
   const file=files[index],original=read(file);assert.ok(original.includes(from),from);write(file,original.replace(from,to));
-  assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/running-classes.*invalid native scoped fixture contract/);write(file,original);
+  assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/running-classes.*invalid native scoped live contract/);write(file,original);
  }
- fs.unlinkSync(path.join(root,files[5]));assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/running-classes.*missing exact native fixture contract/);
+ write(base+"RunningClassStagingEntry.tsx","export function RunningClassStagingEntry(){}");
+ assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/running-classes.*invalid native scoped live contract/);
+ fs.unlinkSync(path.join(root,base+"RunningClassStagingEntry.tsx"));
+ fs.unlinkSync(path.join(root,files[4]));assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/running-classes.*missing exact native live contract/);
 }));
 
 test("PAP-2387/PAP-2389 exact native Parent live admission requires actor and Center binding",()=>fixture(({root,read,write})=>{

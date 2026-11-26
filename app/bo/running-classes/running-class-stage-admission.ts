@@ -1,6 +1,6 @@
-/** PAP-2225 — one server-owned phase, no browser/query opt-in. */
-import {RC_REVIEW_PATH,parseRunningClassReviewQuery} from "./running-class-review-query";
-export const RUNNING_CLASS_LIVE_ADMISSION=true;
+/** PAP-2225 — live-only admission, no browser/query opt-in. */
+import {RC_REVIEW_PATH} from "./running-class-review-query";
+
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const tracking=["utm_source","utm_medium","utm_campaign","utm_term","utm_content"];
 export function parseRunningClassLiveQuery(input:URLSearchParams,legacy=false):string|null{
@@ -13,5 +13,5 @@ export function parseRunningClassLiveQuery(input:URLSearchParams,legacy=false):s
  return RC_REVIEW_PATH+(out.size?"?"+out.toString():"");
 }
 export function parseRunningClassStageQuery(input:URLSearchParams,legacy=false):string|null{
- return RUNNING_CLASS_LIVE_ADMISSION?parseRunningClassLiveQuery(input,legacy):parseRunningClassReviewQuery(input,legacy);
+ return parseRunningClassLiveQuery(input,legacy);
 }
