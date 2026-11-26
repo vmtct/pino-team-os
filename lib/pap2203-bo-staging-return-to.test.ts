@@ -13,7 +13,7 @@ test("PAP-2203: all admitted BO routes and typed detail survive cold login and f
  const routes=["/bo",...BO_LEGACY_QUERY_MODULES.map(module=>"/bo?module="+module),...boStagingAdmittedRoutes,
  "/bo/payroll-daily/"+record+"/2026-11-19","/bo/payroll-exceptions/"+record,"/bo/opening-evidence/class/"+record,
  sub,enrollment,sub.replace("tab=enrollment","tab=specialty")+"&specialtyRecord="+record,
- "/bo/piner-posts?centerId="+center+"&record=POST-MOCK-001&tab=media",
+ "/bo/piner-posts?centerId="+center+"&record="+record+"&tab=media",
  "/bo/payroll-periods?centerId="+center+"&record="+record+"&incomeStaff="+record+"&incomeDay=2026-11-19&fromSettlement=1",
  "/bo/payroll-periods?centerId="+center+"&record="+record+"&tab=settlements&incomeDrawer="+record,
  "/bo/pinoria-wish-events?centerId="+center+"&record="+record+"&tab=items&wishCenter="+center+"&rewardOrdinal=1&rewardItem="+record+"&rewardRevision=1"];
@@ -65,9 +65,9 @@ test("PAP-2202: canonical and legacy Guest login continuation preserve exact sel
   const login=new URL(response.headers.get("location")!);assert.equal(login.pathname,"/staff-login");assert.equal(boStagingReturnFromSearch(login.search),canonical);
  }
 });
-test("PAP-2337: a real Post ID cannot enter the isolated staging shell after login",()=>{
+test("PAP-2386: native Post deep link admitted and fixture selectors denied",()=>{
  const path="/bo/piner-posts?centerId="+center+"&record="+record+"&tab=media";
- const response=middleware(new NextRequest(origin+path,{headers:{cookie:"pino_staff_password_session=fixture-only"}}));
- assert.equal(response.status,404);
- assert.equal(response.headers.get("x-middleware-next"),null);
+ const headers={cookie:"pino_staff_password_session=fixture-only"};
+ assert.equal(middleware(new NextRequest(origin+path,{headers})).headers.get("x-middleware-next"),"1");
+ for(const q of ["record=POST-MOCK-001","m1Preview=1","m1Preview=1&record="+record]){const p="/bo/piner-posts?"+q;assert.equal(safeBoStagingReturnTo(p),null);assert.equal(middleware(new NextRequest(origin+p,{headers})).status,404);}
 });

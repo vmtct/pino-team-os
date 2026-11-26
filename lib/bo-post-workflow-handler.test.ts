@@ -5,9 +5,9 @@ import type {BoAccessRequest} from "./bo-core";
 import type {BoPostDraftEnv} from "./bo-post-draft-handler";
 const uid=(n:number)=>"01900000-0000-7000-8000-"+String(n).padStart(12,"0");
 const center=uid(1),root="learning/piner-posts/"+uid(2),host="https://bo.staging.pinohouse.art",key="workflow-handler-0001";
-const setup=()=>{const calls:BoAccessRequest[]=[];const env:BoPostDraftEnv={APP_ENV:"staging",PINO_BO_CORE:{async executeWithStaffPassword(r,t){assert.equal(t,"synthetic-session");calls.push(r);return {status:200,body:{data:{committedVersion:5,replayed:false}},requestId:"qa"};}}};return {calls,env};};
+const setup=()=>{const calls:BoAccessRequest[]=[];const env:BoPostDraftEnv={APP_ENV:"staging",PINO_BO_CORE:{async executeWithStaffPassword(r,t){assert.equal(t,"synthetic-session");if(r.path==="context")return {status:200,body:{data:{userId:center,surface:"BO",entitled:true,permissionKeys:["piner.post.view","piner.post.submit","piner.post.diary.compose"]}},requestId:"qa"};calls.push(r);return {status:200,body:{data:{committedVersion:5,replayed:false}},requestId:"qa"};}}};return {calls,env};};
 function req(path:string,body:object,opts:{host?:string;origin?:string;cookie?:string;query?:string;method?:string;key?:string}={}){
- const method=opts.method??"POST";return new Request((opts.host??host)+"/api/bo/"+path+(opts.query??"?centerId="+center),{method,headers:{origin:opts.origin??host,cookie:opts.cookie??"pino_staff_password_session=synthetic-session","content-type":"application/json","idempotency-key":opts.key??key},...(method==="GET"?{}:{body:JSON.stringify(body)})});
+ const method=opts.method??"POST";return new Request((opts.host??host)+"/api/bo/"+path+(opts.query??"?centerId="+center),{method,headers:{origin:opts.origin??host,cookie:opts.cookie??"pino_staff_password_session=synthetic-session","content-type":"application/json","idempotency-key":opts.key??key,"x-pino-expected-actor":center},...(method==="GET"?{}:{body:JSON.stringify(body)})});
 }
 test("PAP-2386 exact three workflow routes forward same session, scoped target and ordered payload",async()=>{
  const {calls,env}=setup(),cases=[
