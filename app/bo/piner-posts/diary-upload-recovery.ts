@@ -1,19 +1,33 @@
 /** PAP-2386 / PNR-APP-HUB. Compound upload then exact Diary link, no automatic retry. */
 import {draftDigest,type DraftRetryJournal,type DraftRetryReceipt} from "./draft-retry-journal";
-import type {createPrivateMediaController} from "./private-media-controller";
+import {DefinitiveMediaUploadRejection,type createPrivateMediaController} from "./private-media-controller";
 import type {createNativeDiaryComposer} from "./native-diary-composer";
 type Media=Pick<ReturnType<typeof createPrivateMediaController>,"list"|"upload"|"retry"|"hasPending"|"lastUploadReceipt">;
 type Diary=Pick<ReturnType<typeof createNativeDiaryComposer>,"load"|"photos"|"photo"|"link"|"pending"|"retry">;
 type Snapshot=Awaited<ReturnType<Diary["load"]>>;
 type Input={postId:string;diaryId:string;evidenceId:string;version:number;transform:"RAW"|"RETOUCHED";file?:Blob};
-type Intent={input:Omit<Input,"file">;marker:DraftRetryReceipt;file:Blob;media:Media;phase:"upload"|"link";receipt?:NonNullable<ReturnType<Media["lastUploadReceipt"]>>};
+type Listing=Awaited<ReturnType<Media["list"]>>;
+const mediaPreimage=(l:Listing)=>JSON.stringify([l.postVersion,l.mediaCount,l.attachments.map(a=>[a.id,a.version,a.postVersion,a.state,a.mimeType,a.byteSize,a.expiresAt]).sort((a,b)=>String(a[0]).localeCompare(String(b[0])))]);
+type Intent={input:Omit<Input,"file">;marker:DraftRetryReceipt;before:string;media:Media;phase:"upload"|"link"|"rejected";receipt?:NonNullable<ReturnType<Media["lastUploadReceipt"]>>};
 export function createDiaryUploadRecovery(deps:{actorId:string;centerId:string;authorize:()=>boolean;journal:DraftRetryJournal;media:(postId:string)=>Media;diary:Diary;newKey?:()=>string}){
  let intent:Intent|null=null,active=false,closed=false;
  const guard=(s:AbortSignal)=>{s.throwIfAborted();if(closed||!deps.authorize())throw Error("Không có quyền thêm ảnh Diary.");};
  const scope=()=>draftDigest(["pino-diary-upload-v1",deps.actorId,deps.centerId]);
  const exact=(a:DraftRetryReceipt|null,b:DraftRetryReceipt)=>a?.key===b.key&&a.fingerprint===b.fingerprint;
+ function clearExact(i:Intent,key:string){
+  if(!exact(deps.journal.read(key),i.marker))throw Error("Không xác minh được yêu cầu gốc.");
+  deps.journal.clear(key,i.marker);if(deps.journal.read(key)!==null)throw Error("Không thể kết thúc yêu cầu.");
+  intent=null;
+ }
  async function complete(i:Intent,key:string,s:AbortSignal):Promise<Snapshot>{
   guard(s);if(!exact(deps.journal.read(key),i.marker))throw Error("Không xác minh được yêu cầu gốc.");
+  if(i.phase==="rejected"){
+   // A definitive first-reserve rejection is not a receipt. Verify the unchanged
+   // authoritative preimage and exact marker, or keep the fence. Retry is read-only.
+   const list=await i.media.list(s),value=await deps.diary.load(i.input.postId,s),pending=await deps.diary.pending(s);guard(s);
+   if(i.media.hasPending()||i.media.lastUploadReceipt()||pending.pending||mediaPreimage(list)!==i.before||value.state.postId!==i.input.postId||value.state.centerId!==deps.centerId||value.state.status!=="DRAFT"||value.state.version!==i.input.version||!value.state.diaryIds.includes(i.input.diaryId))throw Error("Không xác minh được ảnh chưa tải. Không tải lại.");
+   clearExact(i,key);return value;
+  }
   if(i.phase==="upload"){
    if(i.media.hasPending())await i.media.retry(s);
    guard(s);
@@ -34,9 +48,7 @@ export function createDiaryUploadRecovery(deps:{actorId:string;centerId:string;a
   }
   guard(s);
   if(!matches(value)||value.state.version!==r.postVersion+1)throw Error("Không xác minh được nguồn ảnh.");
-  if(!exact(deps.journal.read(key),i.marker))throw Error("Không xác minh được yêu cầu gốc.");
-  deps.journal.clear(key,i.marker);if(deps.journal.read(key)!==null)throw Error("Không thể kết thúc yêu cầu.");
-  intent=null;return value;
+  clearExact(i,key);return value;
  }
  return {
   async pending(s:AbortSignal){guard(s);const key=await scope();guard(s);const marker=deps.journal.read(key);return {pending:marker!==null,retryPostId:marker&&intent&&exact(marker,intent.marker)?intent.input.postId:null};},
@@ -53,8 +65,11 @@ export function createDiaryUploadRecovery(deps:{actorId:string;centerId:string;a
     const hash=Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",await file.arrayBuffer())),b=>b.toString(16).padStart(2,"0")).join("");
     const marker={key:(deps.newKey??(()=>crypto.randomUUID()))(),fingerprint:await draftDigest(["pino-diary-upload-command-v1",postId,diaryId,evidenceId,version,transform,hash])};guard(s);
     if(!exact(deps.journal.reserve(key,marker),marker))throw Error("Cần xác minh yêu cầu trước.");
-    intent={input:{postId,diaryId,evidenceId,version,transform},marker,file,media,phase:"upload"};
-    await media.upload(file,s);
+    intent={input:{postId,diaryId,evidenceId,version,transform},marker,before:mediaPreimage(list),media,phase:"upload"};
+    try{await media.upload(file,s);}catch(e){
+     if(e instanceof DefinitiveMediaUploadRejection){intent.phase="rejected";await complete(intent,key,s);}
+     throw e;
+    }
     return await complete(intent,key,s);
    }finally{active=false;}
   },
