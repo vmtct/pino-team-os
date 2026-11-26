@@ -1087,7 +1087,16 @@
         "app/bo/piner-posts/private-media-client.ts",
         "app/bo/piner-posts/private-media-controller.ts",
         "app/bo/piner-posts/private-media-shell.module.css",
-        "app/bo/piner-posts/private-media-shell.tsx"
+        "app/bo/piner-posts/private-media-shell.tsx",
+        "app/bo/piner-posts/NativeDiarySources.tsx",
+        "app/bo/piner-posts/NativeReviewFilmstrip.tsx",
+        "app/bo/piner-posts/diary-upload-recovery.ts",
+        "app/bo/piner-posts/native-diary-composer.ts",
+        "app/bo/piner-posts/native-review-order.ts",
+        "app/bo/piner-posts/native-submit-review.ts",
+        "app/bo/piner-posts/workflow-client.ts",
+        "app/bo/piner-posts/workflow-coordinator.ts",
+        "app/bo/piner-posts/workflow-read-client.ts"
       ],
       "businessStyles": [
         {
@@ -1113,7 +1122,16 @@
         "lib/pap2172-private-media-shell.test.ts",
         "lib/pap2173-private-media-controller.test.ts",
         "lib/pap2173-private-media-client.test.ts",
-        "lib/pap2173-private-media-handler.test.ts"
+        "lib/pap2173-private-media-handler.test.ts",
+        "lib/bo-post-diary-upload-recovery.test.ts",
+        "lib/bo-post-native-diary-composer.test.ts",
+        "lib/bo-post-native-review-order.test.ts",
+        "lib/bo-post-native-submit-review.test.ts",
+        "lib/bo-post-workflow-client.test.ts",
+        "lib/bo-post-workflow-coordinator.test.ts",
+        "lib/bo-post-workflow-handler.test.ts",
+        "lib/bo-post-workflow-read-client.test.ts",
+        "lib/bo-post-workflow-read-handler.test.ts"
       ],
       "externalReferences": [
         {"file":"app/bo/content/posts/BoPostSubmitShell.tsx","owner":"PAP-2337"},
