@@ -46,7 +46,7 @@ const previews:Record<string,{path:string;expected:string;record?:string;negativ
 
  "/ho/billing/product-plans":{path:"/ho/billing/product-plans?m1Preview=1",expected:"/ho/billing/product-plans",record:"record=PRODUCT-PLAN-MOCK-001",negative:"record="+id},
  "/bo/sales/leads":{path:"/bo/sales/leads?m1Preview=1",expected:"/bo/sales/leads",record:"lead=LEAD-MOCK-001&tab=members",negative:"lead="+id},
- "/ho/staff":{path:"/ho/staff?m1Preview=1",expected:"/ho/staff",record:"record=STAFF-MOCK-001",negative:"record="+id},
+
  "/ho/system/roles":{path:"/ho/system/roles?m1Preview=1",expected:"/ho/system/roles?m1Preview=1",record:"record=ROLE-MOCK-001",negative:"record="+id},
 };
 function discoverPreviewPages(dir:string):string[]{
@@ -119,6 +119,7 @@ test("HO_BO_DEEPLINK_CONTINUITY_P0: native preview entrypoints cannot ship untes
 });
 test("HO_BO_DEEPLINK_CONTINUITY_P0: route-specific detail, tab, grid, center and recovery examples",async()=>{
  const samples:[string,string,string][]=[
+  [ho,"/ho/staff?record="+id,"/ho/staff?record="+id],
   [ho,"/ho/pinoria/worlds?record="+id+"&tab=scenes","/ho/pinoria/worlds?record="+id+"&tab=scenes"],
   [ho,"/ho/pinoria/starter-sets?record="+id+"&tab=members","/ho/pinoria/starter-sets?record="+id+"&tab=members"],
   [ho,"/ho/pinoria/wish-banners?record="+id+"&tab=items&wishSelection=pending&wishRevision=2","/ho/pinoria/wish-banners?record="+id+"&tab=items&wishSelection=pending&wishRevision=2"],
@@ -170,4 +171,15 @@ test("PAP-2225 canonical native Running Class route rejects mock and malformed a
  for(const q of ["","?record="+id,"?centerId="+center+"&record="+id])assert.equal(middleware(new NextRequest("https://"+bo+path+q,{headers})).headers.get("x-middleware-next"),"1",q);
  assert.equal(middleware(new NextRequest("https://"+bo+path+"?record="+id+"&_rsc=abc",{headers:{...headers,rsc:"1"}})).headers.get("x-middleware-next"),"1");
  checkFlow(bo,"/bo?module=classes&record="+id,path+"?record="+id);
+});
+
+test("PAP-2395 native Staff canonical link rejects mock and malformed authenticated requests before streaming",()=>{
+ const path="/ho/staff",headers={cookie:"pino_staff_password_session=fixture-only"};
+ for(const q of ["record=STAFF-MOCK-001","record="+id+"&record="+id,"m1Preview=1","m1Preview=1&record="+id,"record=","tab=overview","returnTo=//evil.example"]){
+  for(const method of ["GET","HEAD"])assert.equal(middleware(new NextRequest("https://"+ho+path+"?"+q,{headers,method})).status,404,q);
+  assert.equal(parse(ho,path+"?"+q),null,q);
+ }
+ for(const q of ["","?record="+id,"?record="+id+"&utm_source=chatgpt.com"])assert.equal(middleware(new NextRequest("https://"+ho+path+q,{headers})).headers.get("x-middleware-next"),"1",q);
+ assert.equal(middleware(new NextRequest("https://"+ho+path+"?record="+id+"&_rsc=abc",{headers:{...headers,rsc:"1"}})).headers.get("x-middleware-next"),"1");
+ checkFlow(ho,path+"?record="+id,path+"?record="+id);
 });

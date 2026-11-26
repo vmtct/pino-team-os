@@ -18,7 +18,7 @@ const cases=[
  [boHost,lead+"?centerId="+center+"&leadIntent="+id+"&q=music&sort=createdAt&dir=desc&size=50&f_status=SUBMITTED",lead+"?centerId="+center+"&leadIntent="+id+"&q=music&sort=createdAt&dir=desc&size=50&f_status=SUBMITTED"],
  [boHost,"/bo/piner-posts","/bo/piner-posts"],
  [boHost,"/bo/piner-posts?centerId="+center+"&record="+id+"&tab=media","/bo/piner-posts?centerId="+center+"&record="+id+"&tab=media"],
- [hoHost,HO_PAGE_PATHS.staffs+"?m1Preview=1&record=STAFF-MOCK-001",HO_PAGE_PATHS.staffs+"?record=STAFF-MOCK-001"],
+ [hoHost,HO_PAGE_PATHS.staffs+"?record="+id,HO_PAGE_PATHS.staffs+"?record="+id],
  [hoHost,HO_PAGE_PATHS.worlds+"?record="+id+"&tab=scenes",HO_PAGE_PATHS.worlds+"?record="+id+"&tab=scenes"],
  [hoHost,HO_PAGE_PATHS.customAttributes+"?sort=displayName&order=asc&size=30&page=2&entityType=Student&scope=CENTER&centerId="+center,HO_PAGE_PATHS.customAttributes+"?sort=displayName&order=asc&size=30&page=2&entityType=Student&scope=CENTER&centerId="+center],
 ];
