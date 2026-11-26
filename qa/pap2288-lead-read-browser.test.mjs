@@ -23,6 +23,7 @@ import {LeadApiError} from "./lib/bo-lead-household-client";
 import {LeadRecoveryJournal} from "./app/bo/sales/leads/lead-recovery-journal";
 const a="${a}",b="${b}",c="${c}";
 const rows=[a,b].map((id,i)=>({id,phone:"090000000"+i,contactDisplayName:"Synthetic Lead "+(i+1),status:"ACTIVE",primaryContactMemberId:null,version:1,createdAt:"2026-11-25T00:00:00Z",updatedAt:"2026-11-25T00:01:00Z",createdBy:null,updatedBy:null,centerId:null,memberCount:i+1,intentCount:1}));
+if(new URLSearchParams(location.search).has("committedContact"))rows[0].version=2;
 const member={id:c,status:"ACTIVE",version:1,displayName:"Synthetic Student",intendedRoles:["STUDENT"],gender:null,birthPrecision:"YEAR",birthYear:2018,birthMonth:null,birthDay:null,reportedAge:null,ageObservedAt:null,interestKinds:["MYTIME_PIANO"]};
 const intent={id:c,kind:"GENERAL_INQUIRY",sourceBrand:"PINO_HOUSE",sourceSurface:"STAFF",status:"SUBMITTED",createdAt:"2026-11-25T00:00:00Z",version:1};
 window.syntheticCommandCalls=[];
@@ -229,9 +230,13 @@ test("PAP-2288 mounted reload known receipt readback and unknown outcome lock",a
   await name.fill("Uncertain");await name.press("Enter");await page.getByRole("button",{name:"Thử lại cùng yêu cầu",exact:true}).waitFor();
   const raw=await page.evaluate(()=>sessionStorage.getItem("pino.leads.pending.v1"));assert.ok(raw);assert.ok(!raw.includes("Uncertain"));assert.ok(!raw.includes("0900000000"));
   await page.reload();await page.addScriptTag({content:js});await page.getByRole("alert").filter({hasText:"Chưa xác định kết quả yêu cầu trước"}).waitFor();await name.waitFor();assert.equal(await name.isDisabled(),true);assert.equal(await page.getByRole("button",{name:"Thử lại cùng yêu cầu",exact:true}).count(),0);assert.equal(await page.getByRole("button",{name:"Lưu trữ Lead",exact:true}).isDisabled(),true);assert.deepEqual(await page.evaluate(()=>window.syntheticCommandCalls),[]);
-  // Isolated synthetic setup of a known committed receipt, never a runtime unlock of unknown state.
-  await page.evaluate(({id,key})=>sessionStorage.setItem("pino.leads.pending.v1",JSON.stringify({schema:1,scope:id,key,kind:"create",target:null,expectedVersion:null,receipt:{leadId:id,version:1}})),{id:a,key:"8fbaea47-bcdc-4c50-8ca5-2b6335e4ebee"});
-  await page.reload();await page.addScriptTag({content:js});await page.getByRole("button",{name:"Tải lại Lead",exact:true}).waitFor();await name.waitFor();assert.equal(await name.isDisabled(),true);
+  // Independent synthetic page with a legacy Create receipt cannot unlock by id/version alone.
+  const legacy=await browser.newPage();await legacy.route("**/*",r=>r.request().isNavigationRequest()&&new URL(r.request().url()).hostname==="fixture.invalid"?r.fulfill({contentType:"text/html",body:"<main></main>"}):r.abort());
+  await legacy.goto("https://fixture.invalid/bo/sales/leads?lead="+a+"&commands=1&journal=1");await legacy.evaluate(({id,key})=>sessionStorage.setItem("pino.leads.pending.v1",JSON.stringify({schema:1,scope:id,key,kind:"create",target:null,expectedVersion:null,receipt:{leadId:id,version:1}})),{id:a,key:"8fbaea47-bcdc-4c50-8ca5-2b6335e4ebee"});await legacy.addScriptTag({content:js});await legacy.getByRole("alert").filter({hasText:"Chưa xác định kết quả yêu cầu trước"}).waitFor();assert.equal(await legacy.getByRole("button",{name:"Tải lại Lead",exact:true}).count(),0);assert.deepEqual(await legacy.evaluate(()=>window.syntheticCommandCalls),[]);await legacy.close();
+  // Isolated fixture of known committed contact receipt; no runtime unlock of unknown operation.
+  await page.goto("https://fixture.invalid/bo/sales/leads?lead="+a+"&commands=1&journal=1&committedContact=1");
+  await page.evaluate(({id,key})=>sessionStorage.setItem("pino.leads.pending.v1",JSON.stringify({schema:1,scope:id,key,kind:"contact",target:id,expectedVersion:1,receipt:{leadId:id,version:2}})),{id:a,key:"8fbaea47-bcdc-4c50-8ca5-2b6335e4ebee"});
+  await page.addScriptTag({content:js});await page.getByRole("button",{name:"Tải lại Lead",exact:true}).waitFor();await name.waitFor();assert.equal(await name.isDisabled(),true);
   await page.getByRole("button",{name:"Tải lại Lead",exact:true}).click();await page.getByText("Đã tải lại thông tin Lead.",{exact:true}).waitFor();await name.waitFor();assert.equal(await name.isDisabled(),false);assert.equal(await page.evaluate(()=>sessionStorage.getItem("pino.leads.pending.v1")),null);assert.deepEqual(await page.evaluate(()=>window.syntheticCommandCalls),[]);
   assert.deepEqual(errors,[]);
  }finally{await browser.close();}

@@ -53,7 +53,7 @@ export class LeadCommandFence{
  get createOutcome(){return this.createResult;}
  constructor(private readonly api:LeadHouseholdApi,private readonly makeKey=newLeadCommandKey,private readonly journal?:LeadRecoveryJournal){
   const recovered=journal?.inspect();
-  if(recovered?.state==="readback"){this.receipt=recovered.receipt;this.receiptKey=recovered.entry.key;this.phase="reload_required";}
+  if(recovered?.state==="readback"&&recovered.entry.kind!=="create"){this.receipt=recovered.receipt;this.receiptKey=recovered.entry.key;this.phase="reload_required";}
   else if(recovered&&recovered.state!=="empty")this.phase="recovery_blocked";
  }
  get state(){return this.phase;}
@@ -95,7 +95,7 @@ export class LeadCommandFence{
    if(typeof created!=="boolean"||(!created&&(p.command.input.members?.length??0)>0)){this.phase="uncertain";throw new LeadApiError(502,"LEAD_RECEIPT_MISMATCH",null);}
    this.createResult=created?"created":"reused";
   }
-  try{this.journal?.acceptReceipt(p.key,receipt);}catch{this.phase="recovery_blocked";this.pending=null;throw new LeadApiError(409,"LEAD_RECOVERY_BLOCKED",null);}
+  try{if(p.command.kind!=="create")this.journal?.acceptReceipt(p.key,receipt);}catch{this.phase="recovery_blocked";this.pending=null;throw new LeadApiError(409,"LEAD_RECOVERY_BLOCKED",null);}
   this.receipt=receipt;this.receiptKey=p.key;this.pending=null;this.phase="reload_required";
   return this.reload(receipt.leadId);
  }
@@ -107,7 +107,7 @@ export class LeadCommandFence{
   try{
    const detail=await this.api.detail(leadId);
    if(detail.id!==leadId||receipt&&detail.version<receipt.version||receipt&&this.createPhone!==null&&detail.phone!==this.createPhone)throw new LeadApiError(502,"LEAD_READBACK_MISMATCH",null);
-   if(receipt&&this.journal){if(!this.receiptKey)throw new LeadApiError(409,"LEAD_RECOVERY_BLOCKED",null);this.journal.completeReadback(this.receiptKey,detail);}
+   if(receipt&&this.journal){if(!this.receiptKey)throw new LeadApiError(409,"LEAD_RECOVERY_BLOCKED",null);if(this.createPhone!==null)this.journal.completeCreateReadback(this.receiptKey,receipt,detail,this.createPhone);else this.journal.completeReadback(this.receiptKey,detail);}
    this.receipt=null;this.receiptKey=null;this.conflict=null;this.createPhone=null;this.phase="idle";return detail;
   }catch(error){this.phase=before;throw error;}
  }

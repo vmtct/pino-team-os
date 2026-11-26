@@ -24,7 +24,7 @@ test("PAP-2288 create uncertain has no target or personal data, receipt is expli
  const s=store(),j=new LeadRecoveryJournal(s,scope);
  j.begin({kind:"create",input:{contact:{phone:"0901234567",contactDisplayName:"Private Example"}}},key);
  assert.ok(!s.getItem()?.includes("Private Example"));assert.equal(j.inspect().state,"unknown");
- j.acceptReceipt(key,{leadId:target,version:1});j.completeReadback(key,{id:target,version:1});assert.equal(j.inspect().state,"empty");
+ assert.throws(()=>j.acceptReceipt(key,{leadId:target,version:1}));assert.throws(()=>j.completeCreateReadback(key,{leadId:target,version:1},{id:target,version:1,phone:"0901234568"},"0901234567"));assert.equal(j.inspect().state,"unknown");j.completeCreateReadback(key,{leadId:target,version:1},{id:target,version:1,phone:"0901234567"},"0901234567");assert.equal(j.inspect().state,"empty");
 });
 test("PAP-2288 corrupt scope or storage errors fail closed",()=>{
  const s=store(),j=new LeadRecoveryJournal(s,scope);

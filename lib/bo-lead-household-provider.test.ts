@@ -73,3 +73,12 @@ test("PAP-2288 duplicate receipt cannot imply member creation",async()=>{
  const f=new LeadCommandFence(api({create:()=>Promise.resolve({leadId:id,version:2,created:false})}),()=>"key");
  await assert.rejects(f.submit({kind:"create",input:{contact:{phone:"0900000000",contactDisplayName:null},members:[memberInput(member)]}}));assert.equal(f.state,"uncertain");assert.equal(f.createOutcome,null);
 });
+
+test("PAP-2288 Create wrong-phone receipt cannot become valid after reload",async()=>{
+ const s=memoryStorage(),key="8fbaea47-bcdc-4c50-8ca5-2b6335e4ebee";let writes=0,reads=0;
+ const a=api({create:()=>{writes++;return Promise.resolve({leadId:id,version:2,created:false});},detail:()=>Promise.resolve({...detail(),phone:++reads===1?"0900000001":"0900000000"})});
+ const journal=new LeadRecoveryJournal(s,id),f=new LeadCommandFence(a,()=>key,journal);
+ await assert.rejects(f.submit({kind:"create",input:{contact:{phone:"0900000000",contactDisplayName:null}}}));assert.equal(f.state,"reload_required");assert.equal(journal.inspect().state,"unknown");assert.ok(!s.getItem()?.includes("0900000000"));
+ const restored=new LeadCommandFence(a,()=>key,new LeadRecoveryJournal(s,id));assert.equal(restored.state,"recovery_blocked");await assert.rejects(restored.reload(id));await assert.rejects(restored.retry());assert.equal(writes,1);assert.equal(reads,1);
+ await f.reload(id);assert.equal(journal.inspect().state,"empty");assert.equal(writes,1);
+});

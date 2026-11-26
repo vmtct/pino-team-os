@@ -42,14 +42,21 @@ export class LeadRecoveryJournal{
  }
  acceptReceipt(key:string,receipt:LeadReceipt):void{
   const current=this.inspect();
-  if(current.state!=="unknown"||current.entry.key!==key)throw new Error("LEAD_RECOVERY_KEY_MISMATCH");
+  if(current.state!=="unknown"||current.entry.key!==key||current.entry.kind==="create")throw new Error("LEAD_RECOVERY_KEY_MISMATCH");
   const sanitized={leadId:receipt.leadId,version:receipt.version};
   if(!receiptValid(sanitized,current.entry))throw new Error("LEAD_RECOVERY_RECEIPT_INVALID");
   this.persist({...current.entry,receipt:sanitized});
  }
+ /** Create has no durable target before receipt. Verify original phone in memory before clearing; never store it. */
+ completeCreateReadback(key:string,receipt:LeadReceipt,detail:Pick<LeadDetail,"id"|"version"|"phone">,expectedPhone:string):void{
+  const current=this.inspect();
+  if(current.state!=="unknown"||current.entry.key!==key||current.entry.kind!=="create"||!receiptValid({leadId:receipt.leadId,version:receipt.version},current.entry)||detail.id!==receipt.leadId||!version(detail.version)||detail.version<receipt.version||!/^0\d{9}$/.test(expectedPhone)||detail.phone!==expectedPhone)throw new Error("LEAD_RECOVERY_READBACK_INVALID");
+  this.storage.removeItem(this.slot);
+  if(this.inspect().state!=="empty")throw new Error("LEAD_RECOVERY_CLEAR_FAILED");
+ }
  completeReadback(key:string,detail:Pick<LeadDetail,"id"|"version">):void{
   const current=this.inspect();
-  if(current.state!=="readback"||current.entry.key!==key||detail.id!==current.receipt.leadId||!version(detail.version)||detail.version<current.receipt.version)throw new Error("LEAD_RECOVERY_READBACK_INVALID");
+  if(current.state!=="readback"||current.entry.kind==="create"||current.entry.key!==key||detail.id!==current.receipt.leadId||!version(detail.version)||detail.version<current.receipt.version)throw new Error("LEAD_RECOVERY_READBACK_INVALID");
   this.storage.removeItem(this.slot);
   if(this.inspect().state!=="empty")throw new Error("LEAD_RECOVERY_CLEAR_FAILED");
  }
