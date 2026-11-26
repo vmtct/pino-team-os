@@ -368,7 +368,7 @@ export type BoSubscriptionProjectedCompletion =
 export type BoProductPlanBadge = "ENTRY" | "HERO" | "STANDARD";
 export type BoPaymentTransactionKind = "PAYMENT" | "REFUND";
 export type BoPaymentMethod = "CASH" | "BANK_TRANSFER" | "CARD" | "OTHER";
-export interface BoProductPlan { id: string; cadence: number; termWeeks: 12 | 24 | 48; purchasedUnits: number; listPriceMinor: number; currency: string; enabled: boolean; badge: BoProductPlanBadge; createdAt: string; updatedAt: string; version: number }
+export interface BoProductPlan { id: string; displayName?: string; cadence: number; termWeeks: 12 | 24 | 48; purchasedUnits: number; listPriceMinor: number; currency: string; enabled: boolean; badge: BoProductPlanBadge; createdAt: string; updatedAt: string; version: number }
 export interface BoBill { id: string; payerParentUserId: string; currency: string; billDiscountMinor: number; dueOn: string | null; campaignReference: string | null; voidedAt: string | null; createdAt: string; updatedAt: string; version: number }
 export interface BoBillItem { id: string; billId: string; productPlanId: string; studentProfileId: string; subscriptionId: string; quantity: number; unitPriceMinor: number; discountAmountMinor: number; descriptionSnapshot: string; createdAt: string }
 export interface BoSpecialtyBillItem { id: string; billId: string; specialtyPurchaseId: string; specialtyOfferId: string; studentProfileId: string; quantity: number; unitPriceMinor: number; discountAmountMinor: number; descriptionSnapshot: string; createdAt: string }
