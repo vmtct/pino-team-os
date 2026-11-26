@@ -624,6 +624,7 @@
         "app/ho/learning/missions/MissionCreateFields.tsx",
         "app/ho/learning/missions/mission-path-options.ts",
         "app/ho/learning/missions/mission-category.ts",
+        "app/ho/learning/missions/mission-supplemental-url.ts",
         "app/ho/learning/missions/mission-m1-boundary.ts",
         "app/ho/learning/missions/mission-m1-query.ts",
         "lib/mission-history.ts",
