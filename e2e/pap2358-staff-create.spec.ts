@@ -30,10 +30,12 @@ async function fixture(page:Page,options:{lost?:boolean;committed?:boolean;missi
    return reply(receipt?[row]:[]);
   }
   if(path===root+"/receipt"&&req.method()==="POST"){
+   expect(req.headers()["x-pino-expected-staff-principal"]).toBe("qa-principal");
    reads.push({key:req.headers()["idempotency-key"]??"",body:req.postDataJSON()});
    return reply(receipt?{state:"COMMITTED",receipt}:{state:"NOT_OBSERVED"});
   }
   if(path===root&&req.method()==="POST"){
+   expect(req.headers()["x-pino-expected-staff-principal"]).toBe("qa-principal");
    const body=req.postDataJSON() as Command,key=req.headers()["idempotency-key"]??"";
    writes.push({key,body});
    if(!options.lost||options.committed||writes.length>1)receipt={staffMemberId:id(3),personId:body.existingPersonId??id(4),membershipId:id(5),centerId:center,initialStaffStatus:"inactive",accessState:"NOT_PROVISIONED"};

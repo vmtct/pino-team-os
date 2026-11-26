@@ -25,7 +25,7 @@ export function StaffNativeWorkspace({principalId,createAdmission}:{principalId:
   const [operationState]=useState(createNativeStaffOperationState);
   const [journal,setJournal]=useState<StaffRecoveryJournal|null>(null),[journalError,setJournalError]=useState(false);
   const command=useMemo(()=>createNativeStaffCommand({
-    state:operationState,...(journal?{journal}:{}),
+    principalId,state:operationState,...(journal?{journal}:{}),
     admission:()=>createAdmission,
     authorized:()=>ready?.adapter.userId===principalId&&ready.adapter.context.authorize("team.bo.access")===true,
     centers:()=>centers,

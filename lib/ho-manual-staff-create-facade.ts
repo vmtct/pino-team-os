@@ -6,6 +6,7 @@ import { HO_STAGING_HOSTNAME, normalizeHostname } from "./host-boundary";
 import { callBoAccessCoreWithStaffPassword, type BoAccessCoreBinding } from "./bo-core";
 import { teamCredential, TeamAuthError } from "./team-auth";
 import { projectHoStaffRow } from "../app/ho/staff/native-staff-provider";
+import {staffExpectedPrincipalHeader,validExpectedStaffPrincipal} from "./ho-manual-staff-create-client";
 import { parseHoManualStaffReceipt } from "./ho-manual-staff-create-receipt";
 export { parseHoManualStaffReceipt } from "./ho-manual-staff-create-receipt";
 import type { StaffCreateCommand } from "../app/ho/staff/manual-create-contract";
@@ -54,6 +55,8 @@ export async function handleHoManualStaffCreate(request:Request,env:HoManualStaf
     if(!idempotencyKey||!keyPattern.test(idempotencyKey))return reject("PLATFORM_INVALID_INPUT",400);
     const actor=await authorizeHoShell(request.headers,env);
     if(!actor.userId)return reject("HO_ACCESS_DENIED",403);
+    const expected=request.headers.get(staffExpectedPrincipalHeader);
+    if(!validExpectedStaffPrincipal(expected)||expected!==actor.userId)return reject("HO_STAFF_PRINCIPAL_CHANGED",403);
     const credential=await teamCredential(request,env,"BO");
     if(credential.kind!=="password")return reject("IDENTITY_UNAUTHORIZED",401);
     const command=parseHoManualStaffCommand(await request.json().catch(()=>null));
@@ -88,6 +91,8 @@ export async function handleHoManualStaffReceipt(request:Request,env:HoManualSta
     if(!idempotencyKey||!keyPattern.test(idempotencyKey))return reject("PLATFORM_INVALID_INPUT",400);
     const actor=await authorizeHoShell(request.headers,env);
     if(!actor.userId)return reject("HO_ACCESS_DENIED",403);
+    const expected=request.headers.get(staffExpectedPrincipalHeader);
+    if(!validExpectedStaffPrincipal(expected)||expected!==actor.userId)return reject("HO_STAFF_PRINCIPAL_CHANGED",403);
     const credential=await teamCredential(request,env,"BO");
     if(credential.kind!=="password")return reject("IDENTITY_UNAUTHORIZED",401);
     const body=object(await request.json().catch(()=>null));
@@ -121,6 +126,8 @@ export async function handleHoManualStaffDirectory(request:Request,env:HoManualS
     if(request.body!==null||request.headers.has("idempotency-key"))return reject("PLATFORM_INVALID_INPUT",400);
     const actor=await authorizeHoShell(request.headers,env);
     if(!actor.userId)return reject("HO_ACCESS_DENIED",403);
+    const expected=request.headers.get(staffExpectedPrincipalHeader);
+    if(expected!==null&&(!validExpectedStaffPrincipal(expected)||expected!==actor.userId))return reject("HO_STAFF_PRINCIPAL_CHANGED",403);
     const credential=await teamCredential(request,env,"BO");
     if(credential.kind!=="password")return reject("IDENTITY_UNAUTHORIZED",401);
     const response=await callBoAccessCoreWithStaffPassword(env.PINO_BO_CORE,{

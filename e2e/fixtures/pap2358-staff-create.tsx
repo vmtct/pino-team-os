@@ -14,7 +14,7 @@ const journal=createStaffRecoveryJournal(sessionStorage,"qa-principal");
 const state=createNativeStaffOperationState();
 restoreNativeStaffOperation(state,journal);
 const admission="record-only" as const;
-const command=createNativeStaffCommand({admission:()=>admission,authorized:()=>true,centers:()=>centers,state,journal});
+const command=createNativeStaffCommand({principalId:"qa-principal",admission:()=>admission,authorized:()=>true,centers:()=>centers,state,journal});
 const reader=createStaffPersonReader();
 function Fixture(){
  const [open,setOpen]=useState(false),[closed,setClosed]=useState(0);

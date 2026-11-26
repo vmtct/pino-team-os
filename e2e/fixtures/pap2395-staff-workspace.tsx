@@ -19,7 +19,7 @@ async function mount(){
  const centers=await readManualStaffCenters(fetch,signal);
  const journal=createStaffRecoveryJournal(sessionStorage,adapter.userId),state=createNativeStaffOperationState();
  restoreNativeStaffOperation(state,journal);
- const command=createNativeStaffCommand({admission:()=>"record-only",authorized:()=>adapter.context.authorize("team.bo.access"),centers:()=>centers,state,journal});
+ const command=createNativeStaffCommand({principalId:adapter.userId,admission:()=>"record-only",authorized:()=>adapter.context.authorize("team.bo.access"),centers:()=>centers,state,journal});
  root.render(<StaffManualWorkspace adapter={adapter} navigation={browserTddNavigation("HO","staffs",manualStaffQuery)} centers={centers} onCreate={command.create} recovery={command} allowLogin={false} personReader={createStaffPersonReader()}/>);
 }
 void mount().catch(error=>root.render(<p role="alert">{String(error)}</p>));

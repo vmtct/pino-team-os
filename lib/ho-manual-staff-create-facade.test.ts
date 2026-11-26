@@ -47,11 +47,11 @@ function bindingFixture(options:{founder?:boolean;admitted?:boolean;status?:numb
  }};
  return {env,calls};
 }
-function bffRequest(overrides:{method?:string;host?:string;origin?:string;cookie?:string;key?:string;path?:string;body?:unknown}={}){
+function bffRequest(overrides:{method?:string;host?:string;origin?:string;cookie?:string;key?:string;path?:string;body?:unknown;principal?:string}={}){
  const host=overrides.host??HO_STAGING_HOSTNAME,method=overrides.method??"POST";
  return new Request("https://"+host+(overrides.path??"/api/ho/staff/create"),{
   method,headers:{host,origin:overrides.origin??"https://"+HO_STAGING_HOSTNAME,
-   "content-type":"application/json","idempotency-key":overrides.key??"qa-create-123",cookie:overrides.cookie??"pino_staff_password_session=synthetic-session"},
+   "x-pino-expected-staff-principal":overrides.principal??"qa-founder","content-type":"application/json","idempotency-key":overrides.key??"qa-create-123",cookie:overrides.cookie??"pino_staff_password_session=synthetic-session"},
   ...(method==="POST"?{body:JSON.stringify(overrides.body??command)}:{}),
  });
 }
@@ -135,4 +135,13 @@ test("explicit canonical Person is forwarded and receipt must match selected ide
  assert.deepEqual(f.calls[2]?.body,{...selected,name:"Synthetic Staff",email:"staff@example.invalid"});
  const mismatch=bindingFixture({response:{data:{...receipt,personId:id(8)}}});
  assert.equal((await handleHoManualStaffCreate(bffRequest({body:selected}),mismatch.env)).status,502);
+});
+
+test("PAP-2395 stale or missing expected principal never dispatches a command or receipt",async()=>{
+ for(const principal of ["","qa-stale","qa-founder,qa-stale"]){
+  const f=bindingFixture();assert.equal((await handleHoManualStaffCreate(bffRequest({principal}),f.env)).status,403);assert.ok(f.calls.every(r=>r.method==="GET"));
+  const g=bindingFixture();assert.equal((await handleHoManualStaffReceipt(receiptRequest({principal}),g.env)).status,403);assert.ok(g.calls.every(r=>r.method==="GET"));
+ }
+ const h=bindingFixture();const req=new Request("https://"+HO_STAGING_HOSTNAME+"/api/ho/staff/directory/"+id(2),{headers:{host:HO_STAGING_HOSTNAME,cookie:"pino_staff_password_session=synthetic-session","x-pino-expected-staff-principal":"qa-stale"}});
+ assert.equal((await handleHoManualStaffDirectory(req,h.env)).status,403);assert.ok(h.calls.every(r=>r.path==="context"||r.path==="ho/admission"));
 });

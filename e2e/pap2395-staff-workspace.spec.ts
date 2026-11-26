@@ -24,7 +24,7 @@ async function fixture(page:Page,denied=false){
   if(p==="/api/bo/centers"&&m==="GET")return reply([{id:center,displayName:"QA Center",status:"active"}]);
   if(p===directory&&m==="GET")return reply(created?[row]:[]);
   if(p===directory+"/"+staff&&m==="GET")return reply(created?detail:null);
-  if(p===root&&m==="POST"){writes.push(r.postDataJSON());created=true;return reply({staffMemberId:staff,personId:person,membershipId:id(5),centerId:center,initialStaffStatus:"inactive",accessState:"NOT_PROVISIONED"},201);}
+  if(p===root&&m==="POST"){expect(r.headers()["x-pino-expected-staff-principal"]).toBe("synthetic-founder");writes.push(r.postDataJSON());created=true;return reply({staffMemberId:staff,personId:person,membershipId:id(5),centerId:center,initialStaffStatus:"inactive",accessState:"NOT_PROVISIONED"},201);}
   unexpected.push(m+" "+p);return route.abort();
  });
  await page.goto(origin+"/ho/staff");

@@ -1,15 +1,15 @@
 // PAP-2358 · WFM-STAFF. Unmounted historical operation readback.
-import { HoManualStaffCreateError } from "./ho-manual-staff-create-client";
+import { HoManualStaffCreateError,staffExpectedPrincipalHeader,validExpectedStaffPrincipal } from "./ho-manual-staff-create-client";
 import { parseHoManualStaffReceipt, type HoManualStaffReceipt } from "./ho-manual-staff-create-receipt";
 export type HoManualStaffReadback = {state:"NOT_OBSERVED"}|{state:"COMMITTED";receipt:HoManualStaffReceipt};
 export async function readHoManualStaffReceipt(centerId:string,key:string,withLogin:boolean,
-  options:{signal?:AbortSignal;fetcher?:typeof fetch}={}):Promise<HoManualStaffReadback>{
-  if(withLogin||!/^[a-zA-Z0-9:_-]{8,120}$/.test(key))throw new HoManualStaffCreateError("invalid",400);
+  options:{signal?:AbortSignal;fetcher?:typeof fetch;principalId?:string}={}):Promise<HoManualStaffReadback>{
+  if(!validExpectedStaffPrincipal(options.principalId)||withLogin||!/^[a-zA-Z0-9:_-]{8,120}$/.test(key))throw new HoManualStaffCreateError("invalid",400);
   let response:Response;
   try{
     response=await (options.fetcher??fetch)("/api/ho/staff/create/receipt",{
       method:"POST",credentials:"same-origin",cache:"no-store",redirect:"error",
-      headers:{"content-type":"application/json","idempotency-key":key},
+      headers:{"content-type":"application/json","idempotency-key":key,[staffExpectedPrincipalHeader]:options.principalId},
       body:JSON.stringify({centerId}),...(options.signal?{signal:options.signal}:{}),
     });
   }catch{throw new HoManualStaffCreateError("uncertain",null);}
