@@ -7,7 +7,7 @@ export const CLASS_STATUSES = ["ACTIVE","INACTIVE","ARCHIVED"] as const;
 export const CLASS_EDIT_KEYS = ["status","pathProgramId","learningSpaceId","operationalName","weekdayIso","windowStartsLocal","windowEndsLocal","optimalConcurrentCapacity","hardConcurrentCapacity","defaultParticipationMinutes"] as const;
 export type ClassEditKey = typeof CLASS_EDIT_KEYS[number];
 export type ClassEdit = Pick<ClassRecord, ClassEditKey>;
-export type ClassRecord = ClassDraft & { id: string; status: string; version: number };
+export type ClassRecord = ClassDraft & { id: string; status: string; version: number; createdAt?:string|null; updatedAt?:string|null; createdByName?:string|null; updatedByName?:string|null };
 export type ClassEditCommand = { id: string; expectedVersion: number; changes: Partial<ClassEdit> };
 
 function field(key:string,label:string,type:BoField["type"]="text", defaultVisible = true): BoField {
@@ -35,7 +35,7 @@ const label = (rows: readonly {id:string;displayName:string}[],id:string) => row
 export function projectClassRow(record:ClassRecord,catalog:ClassCatalog):BoRecord {
   return {...record,name:record.operationalName,path:label(catalog.paths,record.pathProgramId),center:label(catalog.centers,record.centerId),
     weekday:record.weekdayIso,window:record.windowStartsLocal+" – "+record.windowEndsLocal,capacity:record.optimalConcurrentCapacity,topology:record.deliveryTopology,
-    createdAt:null,createdBy:"—",updatedAt:null,updatedBy:"—"};
+    createdAt:record.createdAt??null,createdBy:record.createdByName??"—",updatedAt:record.updatedAt??null,updatedBy:record.updatedByName??"—"};
 }
 export function projectClassProperties(record:ClassRecord,catalog:ClassCatalog):BoRecord {
   return {...projectClassRow(record,catalog),centerId:label(catalog.centers,record.centerId),

@@ -73,3 +73,22 @@ test("existing read-only actor sees strict scoped rows and cannot send or recove
  m.revoke();await assert.rejects(m.provider.load(),/scope denied/);assert.equal(m.provider.state().loaded,false);
 });
 test("server-bound expected actor rejects a different scoped principal before data transport",async()=>{await assert.rejects(setup(false,id(7)),/actor changed/);});
+
+
+test("PAP-2397 maps canonical scoped audit metadata on load and command readback without sending audit fields",async()=>{
+ const m=await setup(),createdAt="2026-11-26T01:02:03.456Z",updatedAt="2026-11-26T02:03:04.567Z";
+ const first={...row,createdAt,updatedAt:createdAt,createdByName:"Synthetic Creator",updatedByName:"Synthetic Creator"};
+ m.replies.push(response(bootstrap([first])));
+ const initial=await m.provider.load();assert.equal(initial[0]?.createdAt,createdAt);assert.equal(initial[0]?.createdBy,"Synthetic Creator");
+ assert.equal(m.provider.properties(row.id)?.updatedBy,"Synthetic Creator");
+ const next={...row,operationalName:"Art",version:2};
+ m.replies.push(response(next),response(bootstrap([{...next,createdAt,updatedAt,createdByName:"Synthetic Creator",updatedByName:"Synthetic Modifier"}])));
+ const edited=await m.provider.edit({id:row.id,expectedVersion:1,changes:{operationalName:"Art"}});
+ assert.equal(edited.updatedAt,updatedAt);assert.equal(edited.updatedBy,"Synthetic Modifier");assert.equal(m.provider.find(row.id)?.createdByName,"Synthetic Creator");
+ const request=m.calls.find(c=>c.init?.method==="PATCH");assert.deepEqual(JSON.parse(String(request?.init?.body)),{expectedVersion:1,operationalName:"Art"});
+});
+test("PAP-2397 malformed or missing metadata stays unknown; never fabricate actor or time",()=>{
+ const bad=parseRunningClassBootstrap(bootstrap([{...row,createdAt:"2026-02-31T01:00:00.000Z",updatedAt:"bad",createdByName:id(8),updatedByName:123}]),center).records[0];
+ assert.equal(bad?.createdAt,null);assert.equal(bad?.updatedAt,null);assert.equal(bad?.createdByName,null);assert.equal(bad?.updatedByName,null);
+ const old=parseRunningClassBootstrap(bootstrap([row]),center).records[0];assert.equal(old?.createdAt,null);assert.equal(old?.createdByName,null);
+});
