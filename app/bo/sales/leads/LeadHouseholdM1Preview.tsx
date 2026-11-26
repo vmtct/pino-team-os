@@ -1,4 +1,5 @@
 "use client";
+import {parseManualIntake,type ManualIntakeInput,type ManualIntakeCenter,type ManualIntakeReceipt,type createLeadManualIntakeApi} from "@/lib/bo-lead-manual-intake-api";
 import type {LeadRecoveryJournal} from "./lead-recovery-journal";
 import type {createLeadIntentApi,IntentAction} from "@/lib/bo-lead-intent-api";
 import type {LeadRecoveryInput,LeadRecoveryReceipt} from "@/lib/bo-lead-recovery-api";
@@ -90,7 +91,7 @@ function PropertySection<T extends Record<string, unknown>>({
   </section>;
 }
 
-export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi,recoveryJournal,recoverApi,intentApi}: {localReview?: boolean; readApi?: Pick<LeadHouseholdApi,"search"|"detail"|"history">;commandApi?:LeadHouseholdApi;recoveryJournal?:LeadRecoveryJournal;recoverApi?:(input:LeadRecoveryInput)=>Promise<LeadRecoveryReceipt>;intentApi?:ReturnType<typeof createLeadIntentApi>} = {}) {
+export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi,recoveryJournal,recoverApi,intentApi,manualApi}: {localReview?: boolean; readApi?: Pick<LeadHouseholdApi,"search"|"detail"|"history">;commandApi?:LeadHouseholdApi;recoveryJournal?:LeadRecoveryJournal;recoverApi?:(input:LeadRecoveryInput)=>Promise<LeadRecoveryReceipt>;intentApi?:ReturnType<typeof createLeadIntentApi>;manualApi?:ReturnType<typeof createLeadManualIntakeApi>} = {}) {
   const menu = useContext(TddHostMenu);
   const router = useRouter();
   const pathname = usePathname();
@@ -98,7 +99,8 @@ export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi,rec
   const [fixtureRecords, setRecords] = useState<LeadM1Record[]>([LEAD_M1_FIXTURE]);
   const [,refreshRead] = useReducer((v:number)=>v+1,0);
   const readModel = useMemo(()=>readApi?new LeadReadModel(readApi,refreshRead):null,[readApi]);
-  const commandFence=useMemo(()=>commandApi&&commandApi===readApi&&!localReview?new LeadCommandFence(commandApi,undefined,recoveryJournal,recoverApi,intentApi):null,[commandApi,readApi,localReview,recoveryJournal,recoverApi,intentApi]);
+  const commandFence=useMemo(()=>commandApi&&commandApi===readApi&&!localReview?new LeadCommandFence(commandApi,undefined,recoveryJournal,recoverApi,intentApi,manualApi):null,[commandApi,readApi,localReview,recoveryJournal,recoverApi,intentApi,manualApi]);
+  const [manualOpen,setManualOpen]=useState(false);
   const [commandNotice,setCommandNotice]=useState("");
   const commandBusyRef=useRef(false);
   const [commandBusy,setCommandBusy]=useState(false);
@@ -157,6 +159,24 @@ export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi,rec
     }catch{
       setCommandNotice(commandFence.state==="uncertain"?"Chưa xác định kết quả. Chỉ thử lại cùng yêu cầu.":commandFence.state==="conflict"?"Dữ liệu đã thay đổi. Tải lại trước khi chỉnh sửa.":commandFence.state==="reload_required"?"Đã nhận kết quả, cần tải lại Lead.":"Không thể cập nhật Lead.");
       return false;
+    }finally{commandBusyRef.current=false;setCommandBusy(false);refreshRead();}
+  }
+  async function executeManual(operation:()=>Promise<{receipt:ManualIntakeReceipt;detail:LeadDetail|null}>){
+    if(!commandFence||!readModel||commandBusyRef.current)return;
+    commandBusyRef.current=true;setCommandBusy(true);setCommandNotice("");
+    try{
+      const pending=operation();refreshRead();
+      const {detail}=await pending;
+      setManualOpen(false);
+      await readModel.refreshDirectory();
+      if(detail){
+        const params=new URLSearchParams(searchParams.toString());params.delete("quickView");params.delete("leadIntent");params.set("lead",detail.id);params.set("tab","history");
+        router.push(pathname+"?"+params.toString(),{scroll:false});
+        if(readModel.selected.id===detail.id){await readModel.select(detail.id);if(readModel.selected.phase==="ready")await readModel.openHistory();}
+      }
+      setCommandNotice(detail?"Đã ghi nhận lượt tiếp nhận.":"Đã ghi nhận lượt tiếp nhận. Lead không nằm trong phạm vi xem hiện tại.");
+    }catch{
+      setCommandNotice("Chưa xác định kết quả tiếp nhận. Kiểm tra kết quả trước khi gửi yêu cầu mới.");
     }finally{commandBusyRef.current=false;setCommandBusy(false);refreshRead();}
   }
   function submitHistoryIntent(intent:LeadIntent,action:IntentAction,reason?:string):Promise<boolean>{
@@ -367,9 +387,9 @@ export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi,rec
   const currentUrl = pathname + (searchParams.size ? "?" + searchParams.toString() : "");
 
   return <main className={styles.page}>
-    {commandFence?.state==="recovery_blocked"?<p role="alert" className={styles.previewNotice}>Chưa xác định kết quả yêu cầu trước hoặc không đọc được nhật ký khôi phục. Không thể chỉnh sửa Lead cho đến khi có xác nhận kết quả từ hệ thống.</p>:null}
-    {commandFence?.canRecover&&!drawer&&!archiveTarget?<button type="button" className="secondary-btn" disabled={commandBusy} onClick={()=>void executeContact(async()=>{const detail=await commandFence.recoverCommitted();openFullDetail(detail.id);return detail;})}>Kiểm tra kết quả yêu cầu trước</button>:null}
-    {commandFence&&commandNotice&&!drawer&&!archiveTarget?<p role="status" className={styles.previewNotice}>{commandNotice}</p>:null}
+    {commandFence?.state==="recovery_blocked"?<p role="alert" className={styles.previewNotice}>{commandFence.rejectedIntent?"Dữ liệu tiếp nhận đã thay đổi; yêu cầu chưa được ghi. Tải lại Lead trước khi chỉnh sửa.":"Chưa xác định kết quả yêu cầu trước hoặc không đọc được nhật ký khôi phục. Không thể chỉnh sửa Lead cho đến khi có xác nhận kết quả từ hệ thống."}</p>:null}
+    {commandFence?.canRecover&&!drawer&&!archiveTarget?<button type="button" className="secondary-btn" disabled={commandBusy} onClick={()=>void executeContact(async()=>{const detail=await commandFence.recoverCommitted();openFullDetail(detail.id);return detail;})}>{commandFence.rejectedIntent?"Tải lại Lead":"Kiểm tra kết quả yêu cầu trước"}</button>:null}
+    {commandFence?.canRecoverManual&&!manualOpen?<button type="button" className="secondary-btn" disabled={commandBusy} onClick={()=>void executeManual(()=>commandFence.recoverManual())}>Kiểm tra kết quả tiếp nhận</button>:null}{commandFence&&commandNotice&&!drawer&&!archiveTarget&&!manualOpen?<p role="status" className={styles.previewNotice}>{commandNotice}</p>:null}
     {!drawer&&!archiveTarget&&commandFence?.state==="uncertain"?<button type="button" className="secondary-btn" disabled={commandBusy} onClick={()=>void executeContact(()=>commandFence.retry())}>Thử lại cùng yêu cầu</button>:null}
     {!drawer&&!archiveTarget&&commandFence&&(commandFence.state==="reload_required"||commandFence.state==="conflict")&&commandFence.reloadTarget?<button type="button" className="secondary-btn" disabled={commandBusy} onClick={()=>{const id=commandFence.reloadTarget;if(id)void executeContact(()=>commandFence.reload(id));}}>Tải lại Lead</button>:null}
     {readModel&&selectedLeadId&&!selectedLead?<div role="status"><button className="secondary-btn" onClick={()=>setPreviewParam("lead",null)}>← Danh bạ Leads</button><LeadReadStatus phase={readModel.selected.phase} error={readModel.selected.error?.status} onRetry={()=>void readModel.select(selectedLeadId)} /></div>:null}
@@ -380,7 +400,7 @@ export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi,rec
       </div>
       <div className={styles.headingActions + " pds-compact-actions"}>
         {!readModel?<BoDataGridBadge>DỮ LIỆU MẪU</BoDataGridBadge>:null}
-        <button className="primary-btn" type="button" disabled={Boolean(readModel)&&(!commandFence||commandBusy||commandFence.state!=="idle")} onClick={openCreate}>{readModel?"＋ Tạo Lead":"＋ Tạo Lead mẫu"}</button>
+        {manualApi&&recoveryJournal&&commandFence?<button className="secondary-btn" type="button" disabled={commandBusy||commandFence.state!=="idle"||Boolean(drawer)||manualOpen||Boolean(quickViewId)} onClick={()=>{setCommandNotice("");setManualOpen(true);}}>＋ Tiếp nhận thủ công</button>:null}<button className="primary-btn" type="button" disabled={manualOpen||Boolean(readModel)&&(!commandFence||commandBusy||commandFence.state!=="idle")} onClick={openCreate}>{readModel?"＋ Tạo Lead":"＋ Tạo Lead mẫu"}</button>
       </div>
     </header>
 
@@ -489,6 +509,7 @@ export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi,rec
     {archiveTarget&&commandFence?<BoDrawer title="Lưu trữ Lead" eyebrow="Lead" mode="edit" size="lg" onClose={()=>{if(!commandBusyRef.current&&commandFence.state==="idle"){setArchiveTarget(null);setArchiveReason("");}}} footer={<div className={styles.drawerFooter+" pds-compact-actions"}><button className="secondary-btn" type="button" disabled={commandBusy||commandFence.state!=="idle"} onClick={()=>{setArchiveTarget(null);setArchiveReason("");}}>Hủy</button><button className="primary-btn" type="button" disabled={commandBusy||commandFence.state!=="idle"||currentDetail?.id!==archiveTarget||currentDetail.status!=="ACTIVE"||!archiveReason.trim()||archiveReason.trim().length>240} onClick={submitArchive}>Xác nhận lưu trữ</button></div>}>
       <div className={styles.drawerContent}><p>Lead được lưu trữ, không bị xóa. Tất cả lượt tiếp nhận phải đã đóng trước khi lưu trữ.</p><label className="pds-compact-label">Lý do lưu trữ<textarea className="pds-compact-field" maxLength={240} required disabled={commandBusy||commandFence.state!=="idle"} value={archiveReason} onChange={event=>setArchiveReason(event.target.value)}/></label>{commandNotice?<p role="status">{commandNotice}</p>:null}{commandFence.state==="uncertain"?<button type="button" className="secondary-btn" disabled={commandBusy} onClick={()=>void executeContact(()=>commandFence.retry())}>Thử lại cùng yêu cầu</button>:null}{(commandFence.state==="conflict"||commandFence.state==="reload_required")&&commandFence.reloadTarget?<button type="button" className="secondary-btn" disabled={commandBusy} onClick={()=>{const id=commandFence.reloadTarget;if(id)void executeContact(()=>commandFence.reload(id));}}>Tải lại Lead</button>:null}</div>
     </BoDrawer>:null}
+    {manualOpen&&manualApi&&commandFence?<ManualIntakeDrawer api={manualApi} locked={commandFence.state!=="idle"} busy={commandBusy} canRecover={commandFence.canRecoverManual} notice={commandNotice} onClose={()=>setManualOpen(false)} onSubmit={input=>void executeManual(()=>commandFence.submitManual(input))} onRecover={()=>void executeManual(()=>commandFence.recoverManual())}/>:null}
     {drawer ? <LeadCreateEditDrawer
       mode={drawer.mode}
       draft={draft}
@@ -505,6 +526,31 @@ export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi,rec
   </main>;
 }
 
+type ManualApi=ReturnType<typeof createLeadManualIntakeApi>;
+function ManualIntakeDrawer({api,locked,busy,canRecover,notice,onClose,onSubmit,onRecover}:{api:ManualApi;locked:boolean;busy:boolean;canRecover:boolean;notice:string;onClose:()=>void;onSubmit:(input:ManualIntakeInput)=>void;onRecover:()=>void}){
+ const [centers,setCenters]=useState<ManualIntakeCenter[]|null>(null);
+ const [failed,setFailed]=useState(false);
+ const [attempt,setAttempt]=useState(0);
+ const [draft,setDraft]=useState({centerId:"",phone:"",sourceBrand:"PINO_HOUSE",intentKind:"GENERAL_INQUIRY",age:""});
+ useEffect(()=>{
+  let active=true;
+  void api.centers().then(rows=>{if(active){setCenters(rows);setFailed(false);}}).catch(()=>{if(active){setCenters(null);setFailed(true);}});
+  return ()=>{active=false;};
+ },[api,attempt]);
+ const input=parseManualIntake({centerId:draft.centerId,phone:draft.phone,sourceBrand:draft.sourceBrand,intentKind:draft.intentKind,childAge:draft.age.trim()===""?null:Number(draft.age)});
+ const valid=input&&centers?.some(c=>c.id===input.centerId);
+ const disabled=locked||busy||!centers;
+ return <BoDrawer title="Tiếp nhận thủ công" eyebrow="Lead" mode="create" size="lg" onClose={()=>{if(!locked&&!busy)onClose();}} footer={<div className={styles.drawerFooter+" pds-compact-actions"}><button className="secondary-btn" type="button" disabled={locked||busy} onClick={onClose}>Hủy</button>{canRecover?<button type="button" className="primary-btn" disabled={busy} onClick={onRecover}>Kiểm tra kết quả tiếp nhận</button>:<button type="button" className="primary-btn" disabled={disabled||!valid} onClick={()=>{if(input&&valid)onSubmit(input);}}>Xác nhận tiếp nhận</button>}</div>}>
+ <div className={styles.drawerContent}><p>Ghi nhận một lượt tiếp nhận vào danh bạ Lead theo số điện thoại. Không tự tạo hồ sơ thành viên.</p>
+ {failed?<div role="alert"><p>Không thể tải Center được cấp quyền.</p><button type="button" className="secondary-btn" disabled={locked||busy} onClick={()=>{setFailed(false);setAttempt(v=>v+1);}}>Thử lại</button></div>:centers===null?<p role="status">Đang tải Center…</p>:centers.length===0?<p role="alert">Không có Center đang hoạt động được cấp quyền.</p>:null}
+ <label className="pds-compact-label">Center<select aria-label="Center" className="pds-compact-field" required disabled={disabled} value={draft.centerId} onChange={e=>setDraft(v=>({...v,centerId:e.target.value}))}><option value="">Chọn Center</option>{centers?.map(c=><option key={c.id} value={c.id}>{c.displayName}</option>)}</select></label>
+ <label className="pds-compact-label">Số điện thoại<input aria-label="Số điện thoại" className="pds-compact-field" type="tel" maxLength={40} required disabled={disabled} value={draft.phone} onChange={e=>setDraft(v=>({...v,phone:e.target.value}))}/></label>
+ <label className="pds-compact-label">Nguồn tiếp nhận<select aria-label="Nguồn tiếp nhận" className="pds-compact-field" disabled={disabled} value={draft.sourceBrand} onChange={e=>setDraft(v=>({...v,sourceBrand:e.target.value}))}><option value="PINO_HOUSE">PINO House</option><option value="TOPPI">Toppi</option></select></label>
+ <label className="pds-compact-label">Nhu cầu<select aria-label="Nhu cầu" className="pds-compact-field" disabled={disabled} value={draft.intentKind} onChange={e=>setDraft(v=>({...v,intentKind:e.target.value}))}><option value="GENERAL_INQUIRY">Tư vấn chung</option><option value="PROGRAM_INTEREST">Quan tâm chương trình</option><option value="OPEN_STUDIO">Open Studio</option></select></label>
+ <label className="pds-compact-label">Tuổi bé (không bắt buộc)<input aria-label="Tuổi bé (không bắt buộc)" className="pds-compact-field" type="number" min={2} max={17} step={1} disabled={disabled} value={draft.age} onChange={e=>setDraft(v=>({...v,age:e.target.value}))}/></label>
+ {notice?<p role="status">{notice}</p>:null}
+ </div></BoDrawer>;
+}
 function LeadQuickView({ record }: { record: LeadM1Record }) {
   return <div className={styles.quickView}>
     {record.fixture?<div className="pds-compact-muted">DỮ LIỆU MẪU</div>:null}

@@ -61,11 +61,17 @@ const syntheticIntentApi={
  },
  async recover(target,input){const receipt=syntheticIntentReceipts.get(input.key);if(!receipt)throw new LeadApiError(404,"NOT_FOUND",null);return {...receipt,currentStatus:intent.status,currentVersion:intent.version};}
 };
+let manualReceipt=null;
+const syntheticManualApi={
+ async centers(){return [{id:b,displayName:"Synthetic Center"}];},
+ async submit(input,key){window.syntheticCommandCalls.push({kind:"manual",input,key});manualReceipt={centerId:b,intentId:c,leadId:null,status:"SUBMITTED"};throw new LeadApiError(503,"LOST_ACK",null);},
+ async recover(input){window.syntheticCommandCalls.push({kind:"manualRecovery",input});if(!manualReceipt)throw new LeadApiError(404,"NOT_FOUND",null);return manualReceipt;}
+};
 const root=createRoot(document.querySelector("main"));
 window.syntheticMountNative=actorId=>root.render(<NativeLeadEntry actorId={actorId}/>);
 window.syntheticUnmountNative=()=>root.unmount();
 if(location.origin==="https://bo.staging.pinohouse.art"||new URLSearchParams(location.search).has("nativeEntry"))window.syntheticMountNative(a);
-else root.render(<LeadHouseholdM1Preview readApi={new URLSearchParams(location.search).has("fixture")?undefined:api} commandApi={new URLSearchParams(location.search).has("commands")?api:undefined} recoveryJournal={new URLSearchParams(location.search).has("journal")?new LeadRecoveryJournal(sessionStorage,a):undefined} intentApi={new URLSearchParams(location.search).has("intentActions")?syntheticIntentApi:undefined}/>);
+else root.render(<LeadHouseholdM1Preview readApi={new URLSearchParams(location.search).has("fixture")?undefined:api} commandApi={new URLSearchParams(location.search).has("commands")?api:undefined} recoveryJournal={new URLSearchParams(location.search).has("journal")?new LeadRecoveryJournal(sessionStorage,a):undefined} intentApi={new URLSearchParams(location.search).has("intentActions")?syntheticIntentApi:undefined} manualApi={new URLSearchParams(location.search).has("manualActions")?syntheticManualApi:undefined}/>);
 `,resolveDir:process.cwd(),loader:"tsx"},jsx:"automatic",bundle:true,write:false,outdir:"out",loader:{".css":"empty"},define:{"process.env.NODE_ENV":'"production"'},plugins:[{name:"isolated-next-navigation",setup(p){p.onResolve({filter:/^next\/(navigation|link|image|dynamic)$/},args=>({path:args.path,namespace:"lead-test"}));p.onLoad({filter:/.*/,namespace:"lead-test"},args=>({contents:shims[args.path],loader:"jsx",resolveDir:process.cwd()}));}}]});
 const js=code.outputFiles.find(f=>f.path.endsWith(".js")).text;
 test("PAP-2288 mounted native Lead table, cursor, drawer, detail, history and failure states",async()=>{
@@ -333,6 +339,36 @@ test("PAP-2288 mounted F1 History actions use child CAS, close reason and unifie
   assert.equal(await page.getByRole("button",{name:"Đóng intent",exact:true}).count(),0);
   const calls=await page.evaluate(()=>window.syntheticCommandCalls);
   assert.deepEqual(calls.filter(c=>c.kind==="intent").map(c=>[c.target.leadId,c.target.intentId,c.action,c.input.expectedVersion,c.input.reason??null]),[[a,c,"contacted",1,null],[a,c,"verify-contact",2,null],[a,c,"close",3,"Synthetic close"]]);
+  assert.equal(await page.evaluate(()=>sessionStorage.getItem("pino.leads.pending.v1")),null);
+  assert.deepEqual(errors,[]);
+ }finally{await browser.close();}
+});
+test("PAP-2288 manual intake Drawer selects authorized Center, preserves masked receipt and same-key recovery",async()=>{
+ const browser=await chromium.launch();
+ try{
+  const page=await browser.newPage();page.setDefaultTimeout(20000);
+  const errors=[];page.on("pageerror",e=>errors.push(e.message));
+  await page.route("**/*",r=>r.request().isNavigationRequest()&&new URL(r.request().url()).hostname==="fixture.invalid"?r.fulfill({contentType:"text/html",body:"<main></main>"}):r.abort());
+  await page.goto("https://fixture.invalid/bo/sales/leads?commands=1&journal=1&manualActions=1");await page.addScriptTag({content:js});
+  await page.getByRole("button",{name:"＋ Tiếp nhận thủ công",exact:true}).click();
+  const submit=page.getByRole("button",{name:"Xác nhận tiếp nhận",exact:true});
+  assert.equal(await submit.isDisabled(),true);
+  await page.getByLabel("Center",{exact:true}).selectOption(b);
+  await page.getByLabel("Số điện thoại",{exact:true}).fill("0900032402");
+  await page.getByLabel("Nguồn tiếp nhận",{exact:true}).selectOption("TOPPI");
+  await page.getByLabel("Nhu cầu",{exact:true}).selectOption("OPEN_STUDIO");
+  await page.getByLabel("Tuổi bé (không bắt buộc)",{exact:true}).fill("7");
+  await submit.click();
+  const recover=page.getByRole("button",{name:"Kiểm tra kết quả tiếp nhận",exact:true});
+  await recover.waitFor();
+  assert.equal(await page.getByLabel("Số điện thoại",{exact:true}).isDisabled(),true);
+  assert.ok(!(await page.evaluate(()=>sessionStorage.getItem("pino.leads.pending.v1"))).includes("0900032402"));
+  await recover.click();
+  await page.getByText("Đã ghi nhận lượt tiếp nhận. Lead không nằm trong phạm vi xem hiện tại.",{exact:true}).waitFor();
+  assert.equal(new URL(page.url()).searchParams.has("lead"),false);
+  const calls=await page.evaluate(()=>window.syntheticCommandCalls);
+  assert.equal(calls.filter(c=>c.kind==="manual").length,1);
+  assert.deepEqual(calls.find(c=>c.kind==="manual").input,{centerId:b,phone:"0900032402",sourceBrand:"TOPPI",intentKind:"OPEN_STUDIO",childAge:7});
   assert.equal(await page.evaluate(()=>sessionStorage.getItem("pino.leads.pending.v1")),null);
   assert.deepEqual(errors,[]);
  }finally{await browser.close();}

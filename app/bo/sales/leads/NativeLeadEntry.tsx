@@ -26,7 +26,7 @@ function ActorLeadEntry({actorId}:{actorId:string}){
  },[actorId]);
  if(state.phase==="loading")return <main className={styles.page}><p role="status">Đang tải danh bạ Leads…</p></main>;
  if(state.phase==="unavailable")return <main className={styles.page}><p role="alert">Không thể xác minh phiên Leads. Vui lòng tải lại trang.</p></main>;
- return <LeadHouseholdM1Preview readApi={state.adapter.api} commandApi={state.adapter.api} recoveryJournal={state.adapter.journal} recoverApi={state.adapter.recover} intentApi={state.adapter.intent}/>;
+ return <LeadHouseholdM1Preview readApi={state.adapter.api} commandApi={state.adapter.api} recoveryJournal={state.adapter.journal} recoverApi={state.adapter.recover} intentApi={state.adapter.intent} manualApi={state.adapter.manual}/>;
 }
 export function NativeLeadEntry({actorId}:{actorId:string}){
  return <ActorLeadEntry key={actorId} actorId={actorId}/>;
