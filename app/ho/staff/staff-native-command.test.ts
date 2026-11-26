@@ -50,3 +50,11 @@ test("scope loss during verification preserves committed fence",async()=>{
  await assert.rejects(control.create(command),/scope changed/);assert(control.committed());assert(control.pending());
  await assert.rejects(control.readback(),/not admitted/);
 });
+
+test("PAP-2395 disposed caller cannot dispatch or report NOT_OBSERVED after authority lifetime ends",async()=>{
+ const controller=new AbortController();let calls=0;
+ const control=createNativeStaffCommand({admission:()=>"record-only",authorized:()=>!controller.signal.aborted,centers:()=>[{id:"center",label:"QA"}],makeKey:()=>"stable-key",submit:async()=>{calls++;throw new HoManualStaffCreateError("uncertain",null);},read:async()=>{controller.abort();return {state:"NOT_OBSERVED"};},verify:async()=>{throw Error("unexpected verify");}});
+ await assert.rejects(control.create(command));assert(control.pending());
+ await assert.rejects(control.readback(),/scope changed/);assert(control.pending());
+ await assert.rejects(control.create(command),/not admitted/);assert.equal(calls,1);
+});

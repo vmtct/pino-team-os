@@ -75,6 +75,7 @@ export function createNativeStaffCommand(options:{principalId?:string;admission:
     if(!key||journal&&(!record||record.key!==key||record.centerId!==centerId))throw Error("Staff recovery journal mismatch");
     const result=await reconcileHoStaffCreate(state,read);
     if(result.state==="COMMITTED"){state.committed={key,receipt:result.receipt};await confirm();return true;}
+    if(!admitted(centerId))throw Error("Staff scope changed during readback");
     return false;
    }finally{state.busy=false;}
   },

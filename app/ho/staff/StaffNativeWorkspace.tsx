@@ -17,7 +17,7 @@ import {staffNativeOverviewProperties} from "./staff-native-overview";
 import {createStaffPersonReader} from "./staff-person-reader";
 import {createNativeStaffCommand,createNativeStaffOperationState,restoreNativeStaffOperation,type StaffCreateAdmission} from "./staff-native-command";
 import {createStaffRecoveryJournal,type StaffRecoveryJournal} from "./staff-recovery-journal";
-type Ready={adapter:AuthenticatedSurfaceAdapter<ManualStaffFields>;navigation:AdapterNavigation<ManualStaffFields>};
+type Ready={adapter:AuthenticatedSurfaceAdapter<ManualStaffFields>;navigation:AdapterNavigation<ManualStaffFields>;signal:AbortSignal};
 export function StaffNativeWorkspace({principalId,createAdmission}:{principalId:string;createAdmission?:StaffCreateAdmission}){
   const [ready,setReady]=useState<Ready|null>(null);
   const [centers,setCenters]=useState<readonly StaffCenterOption[]>([]);
@@ -27,7 +27,7 @@ export function StaffNativeWorkspace({principalId,createAdmission}:{principalId:
   const command=useMemo(()=>createNativeStaffCommand({
     principalId,state:operationState,...(journal?{journal}:{}),
     admission:()=>createAdmission,
-    authorized:()=>ready?.adapter.userId===principalId&&ready.adapter.context.authorize("team.bo.access")===true,
+    authorized:()=>!!ready&&!ready.signal.aborted&&ready.adapter.userId===principalId&&ready.adapter.context.authorize("team.bo.access")===true,
     centers:()=>centers,
   }),[operationState,createAdmission,ready,centers,principalId,journal]);
   const personReader=useMemo(()=>createStaffPersonReader(),[]);
@@ -46,7 +46,7 @@ export function StaffNativeWorkspace({principalId,createAdmission}:{principalId:
           setJournal(next);setJournalError(false);
         }catch{setJournal(null);setJournalError(true);}
       }else{setJournal(null);setJournalError(false);}
-      setReady({adapter:result,navigation:browserTddNavigation("HO","staffs",manualStaffQuery)});
+      setReady({adapter:result,navigation:browserTddNavigation("HO","staffs",manualStaffQuery),signal:controller.signal});
       void readManualStaffCenters(fetch,controller.signal).then(options=>{if(!controller.signal.aborted)setCenters(options);}).catch(()=>{if(!controller.signal.aborted)setCenterError(true);});
     }).catch(()=>{if(!controller.signal.aborted)setError(true);});
     return ()=>{controller.abort();adapter?.dispose();};
