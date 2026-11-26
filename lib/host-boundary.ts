@@ -2,6 +2,7 @@ import {HO_LEARNING_SPACE_API,learningSpaceRoute} from "./ho-learning-space-cont
 import {planRequest} from "../app/ho/billing/product-plans/product-plan-http-contract";
 import {catalogPath} from "../app/ho/billing/product-plans/product-plan-native-contract";
 import {guestHostDecision} from "./bo-mytime-guest-host-contract";
+import {leadHouseholdHostDecision} from "./bo-lead-household-route";
 import {workshopHostDecision} from "./mytime-workshop-host-contract";
 import {postDraftHostDecision} from "./bo-post-draft-host-contract";
 import {boPlsWishHostDecision} from "./bo-pls-wish-host-contract";
@@ -59,6 +60,8 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   }
   // PAP-2371: exact private HO Learning Space methods only.
   if(pathname.toLowerCase()===HO_LEARNING_SPACE_API||pathname.toLowerCase().startsWith(HO_LEARNING_SPACE_API+"/"))return {action:hostname===HO_STAGING_HOSTNAME&&learningSpaceRoute(pathname,method)?"next":"not_found"};
+  const leadHousehold = leadHouseholdHostDecision(hostname, pathname, method);
+  if (leadHousehold) return {action:leadHousehold};
   const workshop = workshopHostDecision(hostname, pathname, method);
   if (workshop) return {action:workshop};
   // PAP-2389: exact native Parent page; existing BO Staging shell authorizes each request.
