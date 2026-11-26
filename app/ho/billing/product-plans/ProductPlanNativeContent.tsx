@@ -7,7 +7,8 @@ import {BusinessDataGrid,type SlotLoaders} from "@/app/components/workspace-rend
 import {TddHostMenu} from "@/app/components/workspace-adapters/SurfaceWorkspace";
 import {TddPreferencePolicy} from "@/app/components/workspace-renderer/Record";
 import {useResource} from "@/app/components/workspace-renderer/useResource";
-import type {AuthorizationContext,MutationAdapter,TableQuery} from "@/lib/workspace-schema";
+import {loadHistory,type ModuleSchema,type AuthorizationContext,type MutationAdapter,type TableQuery} from "@/lib/workspace-schema";
+import {HistoryState} from "@/app/components/workspace-renderer/History";
 import {planQuery,PLAN_READ,PLAN_EDIT,type PlanFields} from "./schema";
 import {bindPlanSchema,nativePlanUrl,parseNativePlanQuery,type PlanTab,type PlanClient} from "./product-plan-native-binding";
 import {createProductPlanClient,CatalogRequestError,isPlanId} from "./product-plan-native-contract";
@@ -28,6 +29,17 @@ const columns=[
  {key:"updatedAt",header:"Last Modified Time",render:(r:Subscription)=>r.updatedAt,minWidth:145},
  {key:"updatedBy",header:"Last Modified By",render:(r:Subscription)=>r.updatedBy,minWidth:145},
 ];
+function ProductPlanHistory({schema,context,id}:{schema:ModuleSchema;context:AuthorizationContext;id:string}){
+ const [cursor,setCursor]=useState<string|null>(null);
+ const load=useCallback((signal:AbortSignal)=>loadHistory(schema,{type:"product_plan",id},context,signal,cursor),[schema,context,id,cursor]);
+ const {result,retry}=useResource(load);
+ if(result.status==="loading")return <p role="status">Đang tải lịch sử…</p>;
+ if(result.status==="error")return <p role="alert">Không thể tải lịch sử. <button type="button" className="secondary-btn" onClick={retry}>Thử lại</button></p>;
+ const value=result.value;
+ return <><HistoryState value={value} fields={schema.fields}/>
+ {value.status==="authorized"&&cursor?<button type="button" className="secondary-btn" onClick={()=>setCursor(null)}>Trang lịch sử đầu</button>:null}
+ {value.status==="authorized"&&value.nextCursor?<button type="button" className="secondary-btn" onClick={()=>setCursor(value.nextCursor)}>Trang lịch sử tiếp</button>:null}</>;
+}
 export function ProductPlanNativeWorkspace({client,permissionKeys,initialRecord,initialTab="overview"}:{client:PlanClient;permissionKeys:readonly string[];initialRecord?:string;initialTab?:PlanTab}){
  const menu=useContext(TddHostMenu);
  const context=useMemo<AuthorizationContext>(()=>({surface:"HO",authorize:key=>permissionKeys.includes(key)}),[permissionKeys]);
@@ -77,8 +89,8 @@ export function ProductPlanNativeWorkspace({client,permissionKeys,initialRecord,
  const after=relation?.id===record.id?relation.after:null;
  const page=await client.subscriptions(record.id,signal,after);
  return <><BusinessDataGrid caption="Subscription" rows={page.items} columns={columns} rowKey={r=>r.id} showToolbar={false} emptyTitle="Chưa có Subscription" emptyMessage="Chưa có Subscription sử dụng gói học này." />
- {after?<button type="button" className="toolbar-button" onClick={()=>setRelation({id:record.id,after:null})}>Trang đầu</button>:null}
- {page.nextAfter?<button type="button" className="toolbar-button" onClick={()=>setRelation({id:record.id,after:page.nextAfter})}>Trang tiếp</button>:null}</>;
+ {after?<button type="button" className="secondary-btn" onClick={()=>setRelation({id:record.id,after:null})}>Trang đầu</button>:null}
+ {page.nextAfter?<button type="button" className="secondary-btn" onClick={()=>setRelation({id:record.id,after:page.nextAfter})}>Trang tiếp</button>:null}</>;
  }}),[client,context,relation]);
  const navigate=(id:string|null,next:PlanTab="overview")=>{const target=nativePlanUrl(id,next);if(location.pathname+location.search!==target)history.pushState(null,"",target);};
  useEffect(()=>{const restore=()=>{const state=parseNativePlanQuery(new URLSearchParams(location.search));setSelected(state?.record??null);setFull(Boolean(state?.record));setTab(state?.tab??"overview");setRelation(null);};addEventListener("popstate",restore);return()=>removeEventListener("popstate",restore);},[]);
@@ -89,10 +101,10 @@ export function ProductPlanNativeWorkspace({client,permissionKeys,initialRecord,
  const common={registry,context,schema};
  if(!context.authorize(PLAN_READ))return <p role="alert">Không có quyền truy cập gói học.</p>;
  return <TddPreferencePolicy.Provider value="ephemeral">
- {notice||fenced?<div role="status">{notice||"Có yêu cầu lưu chưa xác minh."} {fenced?<button type="button" className="toolbar-button" disabled={recovering} onClick={()=>void recover()}>Kiểm tra lại</button>:null}</div>:null}
- {full&&row?<TddRenderer view={{kind:"detail",props:{...common,record:row,writes:recordWrites,loaders,subject:{type:"product_plan",id:row.id},mobileMenu:menu("detail-menu-btn"),onBack:close,activeTab:tab,onTabChange:id=>{if(id==="overview"||id==="subscriptions"||id==="history"){setTab(id);navigate(row.id,id);}}}}}/>:
+ {notice||fenced?<div role="status">{notice||"Có yêu cầu lưu chưa xác minh."} {fenced?<button type="button" className="secondary-btn" disabled={recovering} onClick={()=>void recover()}>Kiểm tra lại</button>:null}</div>:null}
+ {full&&row?<TddRenderer view={{kind:"detail",props:{...common,record:row,writes:recordWrites,loaders,subject:{type:"product_plan",id:row.id},historyContent:<ProductPlanHistory key={row.id+":"+String(row.version)} schema={schema as unknown as ModuleSchema} context={context} id={row.id}/>,mobileMenu:menu("detail-menu-btn"),onBack:close,activeTab:tab,onTabChange:id=>{if(id==="overview"||id==="subscriptions"||id==="history"){setTab(id);navigate(row.id,id);}}}}}/>:
  <TddRenderer view={{kind:"table",mobileMenu:menu("menu-btn"),props:{...common,query,rows,total:rows.length,status:result.status,onRetry:retry,writes:tableWrites,onQueryChange:setQuery,onOpen:r=>{setSelected(r.id);setFull(false);setRelation(null);}}}}/>}
- {selected&&!row?<p role={detail.result.status==="error"?"alert":"status"}>{detail.result.status==="loading"?"Đang tải gói học…":"Không thể tải gói học."} <button type="button" className="toolbar-button" onClick={detail.retry}>Thử lại</button> <button type="button" className="toolbar-button" onClick={close}>Đóng</button></p>:null}
+ {selected&&!row?<p role={detail.result.status==="error"?"alert":"status"}>{detail.result.status==="loading"?"Đang tải gói học…":"Không thể tải gói học."} <button type="button" className="secondary-btn" onClick={detail.retry}>Thử lại</button> <button type="button" className="secondary-btn" onClick={close}>Đóng</button></p>:null}
  {row&&!full?<TddRenderer view={{kind:"drawer",props:{...common,record:row,writes:recordWrites,onClose:close,onDetail:()=>{navigate(row.id);setTab("overview");setFull(true);}}}}/>:null}
  </TddPreferencePolicy.Provider>;
 }
@@ -100,6 +112,6 @@ export function ProductPlanNativeEntry({actorId,permissionKeys,initialRecord,ini
  const load=useCallback(async(signal:AbortSignal)=>{signal.throwIfAborted();const client=createProductPlanClient(createPlanBrowserPort(actorId,location.origin),createCatalogJournal(sessionStorage,"pino:ho:product-plans:"+actorId));return client;},[actorId]);
  const {result,retry}=useResource(load);
  if(result.status==="loading")return <p role="status">Đang tải gói học…</p>;
- if(result.status==="error")return <p role="alert">Không thể mở gói học. <button type="button" className="toolbar-button" onClick={retry}>Thử lại</button></p>;
+ if(result.status==="error")return <p role="alert">Không thể mở gói học. <button type="button" className="secondary-btn" onClick={retry}>Thử lại</button></p>;
  return <ProductPlanNativeWorkspace key={actorId} client={result.value} permissionKeys={permissionKeys} initialRecord={initialRecord} initialTab={initialTab}/>;
 }
