@@ -50,7 +50,7 @@ test("PAP-1089 denies malformed URLs, duplicate query, unknown tab and PII param
 test("PAP-1089 current nav URLs remain identical until explicit route admission",()=>{
   const admitted={"workforce-shift-plans":"/bo/workforce-shift-plans","payroll-periods":"/bo/payroll-periods"};
   assert.equal(currentBoModuleHref("students",admitted),"/bo");
-  assert.equal(currentBoModuleHref("parents",admitted),"/bo?module=parents");
+  assert.equal(currentBoModuleHref("parents",admitted),"/bo/parents");
   assert.equal(currentBoModuleHref("subscriptions",admitted),"/bo?module=subscriptions");
   assert.equal(currentBoModuleHref("classes",admitted),"/bo?module=classes");
   assert.equal(currentBoModuleHref("salaryPeriods",admitted),"/bo/payroll-periods");

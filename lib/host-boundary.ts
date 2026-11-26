@@ -57,6 +57,8 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   if(pathname.toLowerCase()===HO_LEARNING_SPACE_API||pathname.toLowerCase().startsWith(HO_LEARNING_SPACE_API+"/"))return {action:hostname===HO_STAGING_HOSTNAME&&learningSpaceRoute(pathname,method)?"next":"not_found"};
   const workshop = workshopHostDecision(hostname, pathname, method);
   if (workshop) return {action:workshop};
+  // PAP-2389: exact native Parent page; existing BO Staging shell authorizes each request.
+  if (/^\/bo\/parents(?:\/|$)/i.test(pathname)) return { action: hostname === BO_STAGING_HOSTNAME && (pathname === "/bo/parents" || pathname === "/bo/parents/") && (method === "GET" || method === "HEAD") ? "next" : "not_found" };
   // PAP-2181: exact private native Enrollment page; no Production or cross-surface admission.
   if (pathname.toLowerCase().startsWith("/bo/enrollments")) return { action: hostname === BO_STAGING_HOSTNAME && (pathname === "/bo/enrollments" || pathname === "/bo/enrollments/") && (method === "GET" || method === "HEAD") ? "next" : "not_found" };
   const guest = guestHostDecision(hostname, pathname, method);

@@ -2,6 +2,15 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { BO_STAGING_HOSTNAME, HO_STAGING_HOSTNAME, TOS_STAGING_HOSTNAME, BO_HOSTNAME, decideHostBoundary, requiresBoStaffPasswordSession, requiresTosStaffSession, RETIRED_TEAM_HOSTNAME, STAFF_REGISTRATION_HOSTNAME, TOS_HOSTNAME } from "./host-boundary";
 
+test("PAP-2389 exact Parent page is BO Staging read-only ingress",()=>{
+  for(const path of ["/bo/parents","/bo/parents/"]) {
+    for(const method of ["GET","HEAD"]) assert.equal(decideHostBoundary(BO_STAGING_HOSTNAME,path,method).action,"next");
+    for(const method of ["POST","PATCH","DELETE","PUT"]) assert.equal(decideHostBoundary(BO_STAGING_HOSTNAME,path,method).action,"not_found");
+    for(const host of [BO_HOSTNAME,HO_STAGING_HOSTNAME,TOS_STAGING_HOSTNAME]) assert.equal(decideHostBoundary(host,path,"GET").action,"not_found");
+  }
+  for(const path of ["/bo/parents/child","/bo/Parents","/bo/parents/../staff"]) assert.equal(decideHostBoundary(BO_STAGING_HOSTNAME,path,"GET").action,"not_found");
+});
+
 const roleId = "0198d050-56c1-7ac5-b9ab-b0e45d912345";
 
 test("PAP-1886 native Accounts page is BO Staging and session gated", () => {
