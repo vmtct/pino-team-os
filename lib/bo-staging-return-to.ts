@@ -3,6 +3,7 @@ import {BO_LEGACY_QUERY_MODULES,BO_TARGET_ROUTES} from "./bo-url-contract";
 import {isBoStagingRouteAdmitted} from "../app/bo/architecture/bo-staging-route-policy";
 import {readLinkedSpecialtyRoute} from "./bo-subscription-detail-url";
 import {readWishDetailRoute} from "./pls-wish-detail-route";
+import {canonicalLeadStageQuery} from "../app/bo/sales/leads/native-lead-query";
 import {parseNativePostQuery} from "../app/bo/piner-posts/native-post-query";
 import {RC_REVIEW_PATH} from "../app/bo/running-classes/running-class-review-query";
 import {parseRunningClassStageQuery} from "../app/bo/running-classes/running-class-stage-admission";
@@ -42,20 +43,8 @@ export function safeBoStagingReturnTo(raw:string|null|undefined):string|null{
  if(path!=="/bo"&&!isBoStagingRouteAdmitted(path))return null;
  // PAP-2286: canonical Lead fixture continuation; old preview links normalize. Navigation only, not authorization.
  if(path==="/bo/piner-posts"){const q=parseNativePostQuery(p);return q?path+(q.canonical?"?"+q.canonical:""):null;}
- const leads=path==="/bo/sales/leads";
- if(p.has("m1Preview")||(leads&&(p.has("lead")||p.has("quickView")))){
-  if(p.has("m1Preview")&&(p.get("m1Preview")!=="1"||!leads))return null;
-  for(const k of p.keys()){
-   if(k==="m1Preview")continue;
-   if(k==="centerId"){if(!uuid.test(p.get(k)!))return null;continue;}
-   if(!leads||!["lead","quickView","tab"].includes(k))return null;
-   if(k!=="tab"&&!/^LEAD-MOCK-[0-9]{3,}$/.test(p.get(k)!))return null;
-  }
-  if(p.has("lead")&&p.has("quickView"))return null;
-  if(p.has("tab")&&(!p.has("lead")||!["detail","members","relationships","history"].includes(p.get("tab")!)))return null;
-  if(leads)p.delete("m1Preview");
-  return path+(p.size?"?"+p.toString():"");
- }
+ if(path==="/bo/sales/leads"){const q=canonicalLeadStageQuery(p);return q===null?null:path+(q?"?"+q:"");}
+ if(p.has("m1Preview"))return null;
  const key=path==="/bo"?moduleKey??"students":path.split("/")[2]!;
  const sub=key==="subscriptions",period=key==="payroll-periods",event=key==="pinoria-wish-events";
  for(const k of p.keys()){
