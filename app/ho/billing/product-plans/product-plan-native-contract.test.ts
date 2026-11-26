@@ -44,3 +44,28 @@ test("bounded related pages, null audit attribution and redacted history",async(
  await assert.rejects(client.subscriptions(id,signal,null,101));
  await assert.rejects(client.subscriptions(id,signal,other));
 });
+
+import {createCatalogJournal} from "./product-plan-pending-journal";
+test("unknown response remains fenced across client remount, recovery is read-only",async()=>{
+ let raw:string|null=null,writes=0,version=1;
+ const journal=()=>createCatalogJournal({getItem:()=>raw,setItem:(_key,v)=>{raw=v;},removeItem:()=>{raw=null;}},"scope");
+ const port:CatalogPort=async(_path,init)=>{if(init.method==="PATCH"){writes++;throw Error("lost");}return {status:200,data:{...dto,version}};};
+ const first=createProductPlanClient(port,journal());
+ await assert.rejects(first.update(id,{price:500},"1",signal),CatalogOutcomeUnknown);
+ assert.deepEqual(JSON.parse(raw!),{planId:id,expectedVersion:"1"});
+ const next=createProductPlanClient(port,journal());
+ await assert.rejects(next.update(id,{price:100},"1",signal),CatalogOutcomeUnknown);
+ assert.equal((await next.recover(signal)).status,"pending");
+ assert.equal(writes,1);
+ version=2;
+ const result=await next.recover(signal);
+ assert.equal(result.status,"version-advanced");
+ assert.equal(raw,null);assert.equal(writes,1);
+});
+test("definitive rejection clears fence; invalid storage prevents dispatch",async()=>{
+ let raw:string|null=null,writes=0;
+ const j=createCatalogJournal({getItem:()=>raw,setItem:(_k,v)=>{raw=v;},removeItem:()=>{raw=null;}},"scope");
+ const client=createProductPlanClient(async()=>{writes++;return {status:409,data:null};},j);
+ await assert.rejects(client.update(id,{price:5},"1",signal),CatalogRequestError);assert.equal(raw,null);
+ raw="corrupt";await assert.rejects(client.update(id,{price:7},"1",signal));assert.equal(writes,1);
+});

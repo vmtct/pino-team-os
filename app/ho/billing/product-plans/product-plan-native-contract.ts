@@ -1,6 +1,7 @@
 // PAP-2365 / PLT-PRODUCT-PLAN: exact deployed Core catalog contract, feature-local injected port.
 import type {ModuleRow} from "@/lib/workspace-schema";
 import type {PlanFields} from "./schema";
+import {memoryCatalogJournal,type CatalogJournal} from "./product-plan-pending-journal";
 export const catalogPath="/api/ho/billing/product-plans";
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 export const isPlanId=(x:unknown):x is string=>typeof x==="string"&&uuid.test(x);
@@ -63,7 +64,7 @@ function decodePage<T>(x:unknown,decode:(v:unknown)=>T&{id:string},limit:number,
 }
 function decodeSubscription(x:unknown){
  if(!obj(x)||!isPlanId(x.id)||!isPlanId(x.studentProfileId)||!nullableText(x.studentDisplayName)||!nullableId(x.centerId)||!nullableText(x.centerDisplayName)||
- typeof x.lifecycle!=="string"||!["DRAFT","ACTIVE","CANCELLED","SUPERSEDED","COMPLETED","PAUSED"].includes(x.lifecycle)||
+ typeof x.lifecycle!=="string"||!["DRAFT","ACTIVE","CANCELLED","SUPERSEDED","COMPLETED"].includes(x.lifecycle)||
  !(x.contractualStartsOn===null||date(x.contractualStartsOn))||!(x.contractualEndsOn===null||date(x.contractualEndsOn))||
  !instant(x.createdAt)||!instant(x.updatedAt)||!nullableId(x.createdByUserId)||x.updatedByUserId!==null)return fail();
  return {id:x.id,student:typeof x.studentDisplayName==="string"?x.studentDisplayName:"—",center:typeof x.centerDisplayName==="string"?x.centerDisplayName:"—",
@@ -91,7 +92,7 @@ function decodeHistory(x:unknown){
  if(!obj(x)||!isPlanId(x.id)||!instant(x.occurredAt)||!nullableId(x.actorId)||x.action!=="billing.product_plan_updated")return fail();
  return {id:x.id,at:x.occurredAt,actor:"—",action:x.action,previous:historyValues(x.previous),next:historyValues(x.next)};
 }
-export function createProductPlanClient(port:CatalogPort){
+export function createProductPlanClient(port:CatalogPort,journal:CatalogJournal=memoryCatalogJournal()){
  let busy=false;
  async function read(path:string,signal:AbortSignal){
   signal.throwIfAborted();const r=await port(path,{method:"GET",signal});signal.throwIfAborted();
@@ -104,16 +105,26 @@ export function createProductPlanClient(port:CatalogPort){
  return {
   async list(signal:AbortSignal){const x=await read(catalogPath,signal);if(!Array.isArray(x))return fail();const rows=x.map(decodePlan);if(new Set(rows.map(r=>r.id)).size!==rows.length)return fail();return rows;},
   detail,
+  pending:()=>journal.read(),
+  async recover(signal:AbortSignal){
+   const pending=journal.read();if(!pending)return {status:"none" as const};
+   if(busy)return {status:"pending" as const};
+   const row=await detail(pending.planId,signal);
+   if(typeof row.version!=="number"||row.version<=Number(pending.expectedVersion))return {status:"pending" as const,row};
+   journal.clear(pending);return {status:"version-advanced" as const,row};
+  },
   async update(id:string,patch:unknown,version:string,signal:AbortSignal){
    if(!isPlanId(id))throw new CatalogRequestError(400);
    const command=encodePlanPatch(patch,version);if(!command)throw new CatalogRequestError(400);
-   if(busy)throw new CatalogRequestError(409);signal.throwIfAborted();busy=true;
+   if(busy)throw new CatalogRequestError(409);signal.throwIfAborted();
+   const pending=journal.read();if(pending)throw new CatalogOutcomeUnknown(pending.planId,pending.expectedVersion);
+   const marker={planId:id,expectedVersion:version};journal.begin(marker);busy=true;
    try{
     // Never retry a dispatched PATCH. An uncertain receipt is not success or a conflict.
     let r:{status:number;data:unknown};
     try{r=await port(catalogPath+"/"+id,{method:"PATCH",body:command.body,signal});signal.throwIfAborted();}
     catch{throw new CatalogOutcomeUnknown(id,version);}
-    if([400,401,403,404,409,422].includes(r.status))throw new CatalogRequestError(r.status);
+    if([400,401,403,404,409,422].includes(r.status)){journal.clear(marker);throw new CatalogRequestError(r.status);}
     try{
      if(r.status!==200)return fail();
      const receipt=decodePlan(r.data);
@@ -121,7 +132,7 @@ export function createProductPlanClient(port:CatalogPort){
      if(!matches(receipt))return fail();
      const actual=await detail(id,signal);
      if(!matches(actual)||JSON.stringify(actual)!==JSON.stringify(receipt))return fail();
-     return actual;
+     journal.clear(marker);return actual;
     }catch{throw new CatalogOutcomeUnknown(id,version);}
    }finally{busy=false;}
   },
