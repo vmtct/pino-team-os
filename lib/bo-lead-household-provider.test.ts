@@ -131,3 +131,16 @@ test("PAP-2288 child committed receipt and readback required; missing stays lock
  await f.recoverCommitted();assert.equal(writes,1);assert.equal(lookups,2);assert.equal(j.inspect().state,"empty");
  j.begin(command(),key);assert.throws(()=>j.beginIntent(target,"contacted",1,key));
 });
+test("PAP-2288 definitive child rejection survives reload and clears only after authorized readback",async()=>{
+ const {IntentDefinitiveRejection}=await import("./bo-lead-intent-api");
+ const s=memoryStorage(),key="8fbaea47-bcdc-4c50-8ca5-2b6335e4ebee",j=new LeadRecoveryJournal(s,id),target={leadId:id,intentId:child};
+ let writes=0,reads=0;
+ const intentApi={transition:async()=>{writes++;throw new IntentDefinitiveRejection(null);},recover:async()=>{throw Error("unexpected lookup");}};
+ const a=api({detail:()=>{reads++;return reads===1?Promise.reject(new LeadApiError(403,"DENIED",null)):Promise.resolve(detail());}});
+ const f=new LeadCommandFence(a,()=>key,j,undefined,intentApi);
+ await assert.rejects(f.submitIntent(target,"contacted",{expectedVersion:1}),IntentDefinitiveRejection);
+ assert.equal(j.inspect().state,"intent_rejected");
+ const r=new LeadCommandFence(a,()=>key,new LeadRecoveryJournal(s,id),undefined,intentApi);
+ await assert.rejects(r.recoverCommitted());assert.equal(j.inspect().state,"intent_rejected");
+ await r.recoverCommitted();assert.equal(j.inspect().state,"empty");assert.equal(r.state,"idle");assert.equal(writes,1);
+});

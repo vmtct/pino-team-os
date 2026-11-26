@@ -1,8 +1,8 @@
 /** PAP-2288 PLT-LEAD — canonical presentation and single-command lifecycle. */
 import {createLeadHouseholdApi,LeadApiError,newLeadCommandKey,type LeadDetail,type LeadRow,type LeadMember,type LeadMemberInput,type LeadReceipt,type LeadInterest,type LeadCreate,type LeadContactInput,type LeadRelationInput} from "@/lib/bo-lead-household-client";
-import type {LeadRecoveryJournal,IntentEntry} from "./lead-recovery-journal";
+import type {LeadRecoveryJournal,IntentEntry,RejectedIntentEntry} from "./lead-recovery-journal";
 import {parseLeadRecoveryInput,parseLeadRecoveryReceipt,type LeadRecoveryInput,type LeadRecoveryReceipt} from "@/lib/bo-lead-recovery-api";
-import {parseIntentCommand,type IntentTarget,type IntentAction,type IntentCommandInput,type createLeadIntentApi} from "@/lib/bo-lead-intent-api";
+import {IntentDefinitiveRejection,parseIntentCommand,type IntentTarget,type IntentAction,type IntentCommandInput,type createLeadIntentApi} from "@/lib/bo-lead-intent-api";
 export type LeadHouseholdApi=ReturnType<typeof createLeadHouseholdApi>;
 export function presentLeadRow(row:LeadRow){
  return {id:row.id,contactName:row.contactDisplayName,phone:row.phone,lifecycle:row.status,version:row.version,memberCount:row.memberCount,intentCount:row.intentCount,createdAt:row.createdAt,createdBy:row.createdBy,updatedAt:row.updatedAt,updatedBy:row.updatedBy};
@@ -59,11 +59,11 @@ export class LeadCommandFence{
   else if(recovered&&recovered.state!=="empty")this.phase="recovery_blocked";
  }
  /** Explicit server-proven recovery after reload; absence never clears an unknown journal. */
- get canRecover(){const state=this.journal?.inspect().state;return this.phase==="recovery_blocked"&&(state==="unknown"&&Boolean(this.recover)||state==="intent_unknown"&&Boolean(this.intentApi));}
+ get canRecover(){const state=this.journal?.inspect().state;return this.phase==="recovery_blocked"&&(state==="unknown"&&Boolean(this.recover)||state==="intent_unknown"&&Boolean(this.intentApi)||state==="intent_rejected");}
  async recoverCommitted():Promise<LeadDetail>{
   if(!this.canRecover||!this.journal)throw new LeadApiError(409,"LEAD_RECOVERY_NOT_READY",null);
   const current=this.journal.inspect();
-  if(current.state==="intent_unknown")return this.recoverIntent(current.entry);
+  if(current.state==="intent_unknown")return this.recoverIntent(current.entry);if(current.state==="intent_rejected")return this.readRejectedIntent(current.entry);
   if(current.state!=="unknown"||!this.recover)throw new LeadApiError(409,"LEAD_RECOVERY_NOT_READY",null);
   const {kind,key,target,expectedVersion}=current.entry;
   const input=parseLeadRecoveryInput({kind,key,target,expectedVersion});
@@ -87,11 +87,25 @@ export class LeadCommandFence{
   const key=this.makeKey();
   this.createResult=null;
   this.phase="pending";
-  try{
-   this.journal.beginIntent(target,action,input.expectedVersion,key);
-   await this.intentApi.transition(target,action,input,key);
+  try{this.journal.beginIntent(target,action,input.expectedVersion,key);}
+  catch(error){this.phase="recovery_blocked";throw error;}
+  try{await this.intentApi.transition(target,action,input,key);}
+  catch(error){
    this.phase="recovery_blocked";
-   return await this.recoverCommitted();
+   if(error instanceof IntentDefinitiveRejection)this.journal.markIntentRejected(target,action,input.expectedVersion,key);
+   throw error;
+  }
+  this.phase="recovery_blocked";
+  return this.recoverCommitted();
+ }
+ private async readRejectedIntent(entry:RejectedIntentEntry):Promise<LeadDetail>{
+  if(!this.journal)throw new LeadApiError(409,"LEAD_RECOVERY_NOT_READY",null);
+  this.phase="pending";
+  try{
+   const detail=await this.api.detail(entry.target);
+   this.journal.completeRejectedIntentReadback(entry,detail);
+   this.phase="idle";this.createResult=null;
+   return detail;
   }catch(error){this.phase="recovery_blocked";throw error;}
  }
  private async recoverIntent(entry:IntentEntry):Promise<LeadDetail>{

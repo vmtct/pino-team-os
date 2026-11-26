@@ -35,12 +35,29 @@ export function parseIntentReceipt(v:unknown,t:IntentTarget,action:IntentAction,
  if(!positive(v.currentVersion)||v.currentVersion<receipt.version||!allowed.includes(v.currentStatus as IntentStatus)||allowed.indexOf(v.currentStatus as IntentStatus)<allowed.indexOf(receipt.status)||(v.currentVersion===receipt.version&&v.currentStatus!==receipt.status))return null;
  return {...receipt,currentVersion:v.currentVersion,currentStatus:v.currentStatus as IntentStatus};
 }
+export class IntentDefinitiveRejection extends LeadApiError{
+ constructor(requestId:string|null){super(409,"ACQUISITION_STALE_VERSION",requestId);}
+}
+export function intentRejectionProof(t:IntentTarget,action:IntentAction,expectedVersion:number,key:string){
+ return {code:"ACQUISITION_STALE_VERSION",commandOutcome:"NOT_COMMITTED",...t,action,expectedVersion,key} as const;
+}
+function exactRejection(v:unknown,t:IntentTarget,action:IntentAction,expectedVersion:number,key:string){
+ if(!object(v)||!exact(v,["error"])||!object(v.error))return false;
+ const proof=intentRejectionProof(t,action,expectedVersion,key),error=v.error;
+ return exact(error,Object.keys(proof))&&Object.entries(proof).every(([k,value])=>error[k]===value);
+}
 export function createLeadIntentApi(fetcher:typeof fetch=fetch){
  async function send(t:IntentTarget,action:IntentAction|"recovery",body:IntentCommandInput|IntentRecoveryInput,key?:string){
   if(!targetValid(t))throw new LeadApiError(400,"LEAD_INTENT_INPUT_INVALID",null);
   const r=await fetcher("/api/bo/acquisition/households/"+t.leadId+"/intents/"+t.intentId+"/"+action,{method:"POST",credentials:"same-origin",cache:"no-store",headers:{"content-type":"application/json",...(key?{"idempotency-key":key}:{})},body:JSON.stringify(body)});
   const requestId=r.headers.get("x-request-id");
-  if(!r.ok)throw new LeadApiError(r.status,"LEAD_INTENT_REQUEST_FAILED",requestId);
+  if(!r.ok){
+   if(r.status===409&&action!=="recovery"&&key){
+    let error:unknown;try{error=await r.json();}catch{error=null;}
+    if(exactRejection(error,t,action,body.expectedVersion,key))throw new IntentDefinitiveRejection(requestId);
+   }
+   throw new LeadApiError(r.status,"LEAD_INTENT_REQUEST_FAILED",requestId);
+  }
   if(r.status!==200)throw new LeadApiError(502,"LEAD_INTENT_RESPONSE_INVALID",requestId);
   let data:unknown;try{const raw:unknown=await r.json();data=object(raw)?raw.data:null;}catch{throw new LeadApiError(502,"LEAD_INTENT_RESPONSE_INVALID",requestId);}
   return {data,requestId};

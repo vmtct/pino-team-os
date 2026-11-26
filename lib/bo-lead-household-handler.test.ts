@@ -82,3 +82,15 @@ test("PAP-2288 F1 child BFF exact write and recovery under actor fence",async()=
  assert.equal(calls.length,2);
  assert.equal((await handleLeadHousehold(req("POST",suffix+"/contacted",{expectedVersion:1}),env)).status,502);
 });
+test("PAP-2288 only Core child stale rejection projects exact no-commit proof",async()=>{
+ const {env}=fixture();
+ const child="01a03c6e-cc58-7d81-ac8e-123456789abd",suffix="/"+id+"/intents/"+child;
+ const real:LeadHouseholdEnv={...env,PINO_BO_CORE:{async executeWithStaffPassword(request,token){
+  if(request.path==="context")return env.PINO_BO_CORE.executeWithStaffPassword!(request,token);
+  return {status:409,requestId:"qa",body:{error:{code:"ACQUISITION_STALE_VERSION",message:"private"}}};
+ }}};
+ const r=await handleLeadHousehold(req("POST",suffix+"/contacted",{expectedVersion:1}),real);
+ assert.equal(r.status,409);assert.deepEqual(await r.json(),{error:{code:"ACQUISITION_STALE_VERSION",commandOutcome:"NOT_COMMITTED",leadId:id,intentId:child,action:"contacted",expectedVersion:1,key}});
+ const recovery=await handleLeadHousehold(req("POST",suffix+"/recovery",{action:"contacted",key,expectedVersion:1}),real);
+ assert.deepEqual(await recovery.json(),{error:{code:"ACQUISITION_STALE_VERSION"}});
+});

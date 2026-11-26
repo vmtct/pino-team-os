@@ -31,3 +31,14 @@ test("PAP-2288 child recovery absence and malformed receipt fail closed",async()
  const wrong=createLeadIntentApi(async()=>Response.json({data:{...receipt,intentId:leadId}}));
  await assert.rejects(wrong.transition(target,"contacted",{expectedVersion:1},key),LeadApiError);
 });
+test("PAP-2288 only exact child initial rejection proof is typed",async()=>{
+ const {IntentDefinitiveRejection,intentRejectionProof}=await import("./bo-lead-intent-api");
+ const proof=intentRejectionProof(target,"contacted",1,key);
+ const api=createLeadIntentApi(async()=>Response.json({error:proof},{status:409}));
+ await assert.rejects(api.transition(target,"contacted",{expectedVersion:1},key),IntentDefinitiveRejection);
+ for(const body of [{error:{code:proof.code}},{error:{...proof,key:"different"}},{error:{...proof,phone:"private"}},{error:proof,extra:true}]){
+  const bad=createLeadIntentApi(async()=>Response.json(body,{status:409}));
+  await assert.rejects(bad.transition(target,"contacted",{expectedVersion:1},key),(e:unknown)=>e instanceof LeadApiError&&!(e instanceof IntentDefinitiveRejection));
+ }
+ await assert.rejects(api.recover(target,{action:"contacted",key,expectedVersion:1}),(e:unknown)=>e instanceof LeadApiError&&!(e instanceof IntentDefinitiveRejection));
+});

@@ -8,7 +8,8 @@ const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const kinds=new Set<string>(["create","contact","addMember","updateMember","retireMember","primary","addRelation","updateRelation","confirmRelation","retireRelation","archive"]);
 type Entry={schema:1;scope:string;key:string;kind:LeadCommand["kind"];target:string|null;expectedVersion:number|null;receipt:LeadReceipt|null};
 export type IntentEntry={schema:1;scope:string;kind:"intent";target:string;intentId:string;action:IntentAction;key:string;expectedVersion:number};
-type View={state:"intent_unknown";entry:IntentEntry}|{state:"empty"}|{state:"unknown";entry:Entry}|{state:"readback";entry:Entry;receipt:LeadReceipt}|{state:"blocked"};
+export type RejectedIntentEntry=Omit<IntentEntry,"kind">&{kind:"intent-rejected"};
+type View={state:"intent_rejected";entry:RejectedIntentEntry}|{state:"intent_unknown";entry:IntentEntry}|{state:"empty"}|{state:"unknown";entry:Entry}|{state:"readback";entry:Entry;receipt:LeadReceipt}|{state:"blocked"};
 function object(v:unknown):v is Record<string,unknown>{return !!v&&typeof v==="object"&&!Array.isArray(v);}
 function exact(v:Record<string,unknown>,keys:string[]){return Object.keys(v).length===keys.length&&keys.every(k=>Object.hasOwn(v,k));}
 function id(v:unknown):v is string{return typeof v==="string"&&uuid.test(v);}
@@ -21,8 +22,8 @@ function valid(v:unknown,scope:string):v is Entry{
  if(v.kind==="create"?v.target!==null||v.expectedVersion!==null:!id(v.target)||!version(v.expectedVersion))return false;
  return v.receipt===null||receiptValid(v.receipt,{target:v.target as string|null,expectedVersion:v.expectedVersion as number|null});
 }
-function validIntent(v:unknown,scope:string):v is IntentEntry{
- return object(v)&&exact(v,["schema","scope","kind","target","intentId","action","key","expectedVersion"])&&v.schema===1&&v.scope===scope&&v.kind==="intent"&&id(v.target)&&id(v.intentId)&&id(v.key)&&!!parseIntentRecovery({action:v.action,key:v.key,expectedVersion:v.expectedVersion});
+function validIntent(v:unknown,scope:string):v is IntentEntry|RejectedIntentEntry{
+ return object(v)&&exact(v,["schema","scope","kind","target","intentId","action","key","expectedVersion"])&&v.schema===1&&v.scope===scope&&(v.kind==="intent"||v.kind==="intent-rejected")&&id(v.target)&&id(v.intentId)&&id(v.key)&&!!parseIntentRecovery({action:v.action,key:v.key,expectedVersion:v.expectedVersion});
 }
 /** Scope is supplied by an admitted principal/Center adapter; journal itself confers no permission. */
 export class LeadRecoveryJournal{
@@ -36,7 +37,7 @@ export class LeadRecoveryJournal{
    const raw=this.storage.getItem(this.slot);
    if(raw===null)return {state:"empty"};
    const value:unknown=JSON.parse(raw);
-   if(validIntent(value,this.scope))return {state:"intent_unknown",entry:value};
+   if(validIntent(value,this.scope))return value.kind==="intent"?{state:"intent_unknown",entry:value}:{state:"intent_rejected",entry:value};
    if(!valid(value,this.scope))return {state:"blocked"};
    return value.receipt?{state:"readback",entry:value,receipt:value.receipt}:{state:"unknown",entry:value};
   }catch{return {state:"blocked"};}
@@ -49,6 +50,20 @@ export class LeadRecoveryJournal{
   this.storage.setItem(this.slot,JSON.stringify(entry));
   const observed=this.inspect();
   if(observed.state!=="intent_unknown"||JSON.stringify(observed.entry)!==JSON.stringify(entry))throw new Error("LEAD_RECOVERY_WRITE_FAILED");
+ }
+ markIntentRejected(target:IntentTarget,action:IntentAction,expectedVersion:number,key:string):void{
+  const current=this.inspect();
+  if(current.state!=="intent_unknown"||current.entry.key!==key||current.entry.target!==target.leadId||current.entry.intentId!==target.intentId||current.entry.action!==action||current.entry.expectedVersion!==expectedVersion)throw new Error("LEAD_RECOVERY_KEY_MISMATCH");
+  const entry:RejectedIntentEntry={...current.entry,kind:"intent-rejected"};
+  this.storage.setItem(this.slot,JSON.stringify(entry));
+  const observed=this.inspect();
+  if(observed.state!=="intent_rejected"||JSON.stringify(observed.entry)!==JSON.stringify(entry))throw new Error("LEAD_RECOVERY_WRITE_FAILED");
+ }
+ completeRejectedIntentReadback(entry:RejectedIntentEntry,detail:Pick<LeadDetail,"id">):void{
+  const current=this.inspect();
+  if(current.state!=="intent_rejected"||JSON.stringify(current.entry)!==JSON.stringify(entry)||detail.id!==entry.target)throw new Error("LEAD_RECOVERY_READBACK_INVALID");
+  this.storage.removeItem(this.slot);
+  if(this.inspect().state!=="empty")throw new Error("LEAD_RECOVERY_CLEAR_FAILED");
  }
  completeIntentReadback(entry:IntentEntry,receipt:IntentRecovered,detail:Pick<LeadDetail,"id">):void{
   const current=this.inspect();
