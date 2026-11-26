@@ -16,17 +16,17 @@ export function ParentStagingEntry({actorEmail,actorId,canCreate,canEdit}:{actor
  if(!user||user.email!==actorEmail||!center||center.error)return <RecordState status="denied"/>;
  if(center.loading)return <RecordState status="loading"/>;
  if(!selected||!center.centers.some(c=>c.id===selected))return <RecordState status="denied"/>;
- return <ScopedReview key={actorId+":"+selected+":"+canCreate+":"+canEdit} centerId={selected} user={user} canCreate={canCreate} canEdit={canEdit}/>;
+ return <ScopedReview key={actorId+":"+selected+":"+canCreate+":"+canEdit} centerId={selected} actorId={actorId} user={user} canCreate={canCreate} canEdit={canEdit}/>;
 }
-function ScopedReview({centerId,user,canCreate,canEdit}:{centerId:string;user:{displayName:string|null};canCreate:boolean;canEdit:boolean}){
+function ScopedReview({centerId,actorId,user,canCreate,canEdit}:{centerId:string;actorId:string;user:{displayName:string|null};canCreate:boolean;canEdit:boolean}){
  const [state,setState]=useState<{status:"loading"|"denied"}|{status:"ready";grants:ReadonlySet<string>}>({status:"loading"});
- useEffect(()=>{const ctl=new AbortController();void loadNativeParentContext(centerId,ctl.signal).then(grants=>{
+ useEffect(()=>{const ctl=new AbortController();void loadNativeParentContext(centerId,ctl.signal,fetch,actorId).then(grants=>{
    if(ctl.signal.aborted)return;
    const effective=new Set<string>();
    if(canCreate&&grants.has("identity.parent.create"))effective.add("identity.parent.create");
    if(canEdit&&grants.has("identity.parent.edit"))effective.add("identity.parent.edit");
    setState({status:"ready",grants:effective});
- }).catch(()=>{if(!ctl.signal.aborted)setState({status:"denied"});});return()=>ctl.abort();},[centerId,canCreate,canEdit]);
+ }).catch(()=>{if(!ctl.signal.aborted)setState({status:"denied"});});return()=>ctl.abort();},[centerId,actorId,canCreate,canEdit]);
  if(state.status!=="ready")return <RecordState status={state.status}/>;
  return <TddPreferencePolicy.Provider value="ephemeral"><ParentStagingFixtureProvider grants={state.grants}><BoRegistrationWorkspace source={source} moduleKey="parents" currentUser={user} content={<ParentDirectoryDsa/>}/></ParentStagingFixtureProvider></TddPreferencePolicy.Provider>;
 }
