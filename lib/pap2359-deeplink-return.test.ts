@@ -11,10 +11,12 @@ const boHost="bo.staging.pinohouse.art",hoHost="ho.staging.pinohouse.art";
 const lead="/bo/sales/leads";
 const cases=[
  [boHost,lead+"?m1Preview=1",lead],
- [boHost,lead+"?m1Preview=1&quickView=LEAD-MOCK-001",lead+"?quickView=LEAD-MOCK-001"],
- [boHost,lead+"?quickView=LEAD-MOCK-001",lead+"?quickView=LEAD-MOCK-001"],
- [boHost,lead+"?m1Preview=1&lead=LEAD-MOCK-001&tab=members",lead+"?lead=LEAD-MOCK-001&tab=members"],
- [boHost,lead+"?lead=LEAD-MOCK-001&tab=members",lead+"?lead=LEAD-MOCK-001&tab=members"],
+ [boHost,lead+"?m1Preview=1&quickView=LEAD-MOCK-001",lead],
+ [boHost,lead+"?quickView=LEAD-MOCK-001",lead],
+ [boHost,lead+"?m1Preview=1&lead=LEAD-MOCK-001&tab=members",lead],
+ [boHost,lead+"?lead=LEAD-MOCK-001&tab=members",lead],
+ [boHost,lead+"?lead="+id+"&tab=history",lead+"?lead="+id+"&tab=history"],
+ [boHost,lead+"?quickView="+id,lead+"?quickView="+id],
  [boHost,lead+"?centerId="+center+"&leadIntent="+id+"&q=music&sort=createdAt&dir=desc&size=50&f_status=SUBMITTED",lead+"?centerId="+center+"&leadIntent="+id+"&q=music&sort=createdAt&dir=desc&size=50&f_status=SUBMITTED"],
  [boHost,"/bo/piner-posts","/bo/piner-posts"],
  [boHost,"/bo/piner-posts?centerId="+center+"&record="+id+"&tab=media","/bo/piner-posts?centerId="+center+"&record="+id+"&tab=media"],
@@ -41,7 +43,7 @@ test("PAP-2359: all HO manifest paths survive campaign metadata",()=>{
  }
 });
 test("PAP-2359: preview, detail and filters remain route-bound and fail closed",()=>{
- for(const p of [lead+"?m1Preview=0",lead+"?m1Preview=1&m1Preview=1",lead+"?m1Preview=1&lead="+id,lead+"?lead="+id,lead+"?tab=members",lead+"?m1Preview=1&tab=members",lead+"?m1Preview=1&lead=LEAD-MOCK-001&quickView=LEAD-MOCK-001",lead+"?m1Preview=1&leadIntent="+id,lead+"?leadIntent=bad",lead+"?m1Preview=1&returnTo=//evil.example","/bo/enrollments?m1Preview=1","/bo/piner-posts?m1Preview=1&record="+id,lead+"?q=%00",lead+"?dir=wrong",lead+"?f___proto__=yes"]) assert.equal(safeBoStagingReturnTo(p),null,p);
+ for(const p of [lead+"?m1Preview=0",lead+"?m1Preview=1&m1Preview=1",lead+"?m1Preview=1&lead="+id,lead+"?lead="+id+"&tab=invalid",lead+"?tab=members",lead+"?m1Preview=1&tab=members",lead+"?m1Preview=1&lead=LEAD-MOCK-001&quickView=LEAD-MOCK-001",lead+"?m1Preview=1&leadIntent="+id,lead+"?leadIntent=bad",lead+"?m1Preview=1&returnTo=//evil.example","/bo/enrollments?m1Preview=1","/bo/piner-posts?m1Preview=1&record="+id,lead+"?q=%00",lead+"?dir=wrong",lead+"?f___proto__=yes"]) assert.equal(safeBoStagingReturnTo(p),null,p);
  for(const p of [HO_PAGE_PATHS.worlds+"?tab=scenes",HO_PAGE_PATHS.worlds+"?record="+id+"&tab=unknown",HO_PAGE_PATHS.worlds+"?record="+id+"&tab=scenes&tab=history",HO_PAGE_PATHS.centers+"?tab=scenes",HO_PAGE_PATHS.customAttributes+"?size=999",HO_PAGE_PATHS.customAttributes+"?centerId=bad",HO_PAGE_PATHS.customAttributes+"?redirect=//evil.example"])assert.equal(safeHoReturnTo(p),null,p);
 });
 test("PAP-2359: expired client session returns to same HO/BO page, never production or other host",async()=>{

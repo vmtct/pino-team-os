@@ -1,6 +1,6 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
-import {parseNativeLeadQuery} from "../app/bo/sales/leads/native-lead-query";
+import {parseNativeLeadQuery,canonicalLeadStageQuery} from "../app/bo/sales/leads/native-lead-query";
 const lead="01a03c6e-cc58-7d81-ac8e-123456789abc",center="11111111-2222-4333-8444-555555555555";
 test("PAP-2288 native list and UUIDv7 detail/drawer preserve exact navigation",()=>{
  assert.deepEqual(parseNativeLeadQuery({}),{kind:"household",centerId:null,lead:null,quickView:null,tab:null,canonical:""});
@@ -29,4 +29,12 @@ test("PAP-2288 legacy grid hints are bounded migration input only",()=>{
  assert.equal(q?.kind,"legacy-intent");
  assert.equal(q?.canonical,"centerId="+center+"&leadIntent="+center+"&q=music&sort=createdAt&dir=desc&size=50&f_status=SUBMITTED");
  for(const invalid of [{leadIntent:center,size:"101"},{leadIntent:center,dir:"wrong"},{leadIntent:center,f_status:"ACTIVE"},{leadIntent:center,q:["a","b"]},{leadIntent:center,returnTo:"//evil.example"},{lead,q:"music"}])assert.equal(parseNativeLeadQuery(invalid),null);
+});
+test("PAP-2288 retired fixture links normalize only to table; real links and legacy intent remain distinct",()=>{
+ const path=canonicalLeadStageQuery;
+ assert.equal(path({m1Preview:"1",lead:"LEAD-MOCK-001",tab:"history"}),"");
+ assert.equal(path({quickView:"LEAD-MOCK-001",centerId:center}),"centerId="+center);
+ assert.equal(path({lead,tab:"history",utm_source:"synthetic"}),"lead="+lead+"&tab=history");
+ assert.equal(path({leadIntent:center}),"leadIntent="+center);
+ for(const q of [{m1Preview:"1",lead},{lead:"LEAD-MOCK-001",quickView:"LEAD-MOCK-001"},{m1Preview:"0"},{m1Preview:["1","1"]},{m1Preview:"1",leadIntent:center},{lead:"LEAD-MOCK-001",q:"private"},{lead,tab:"bad"}])assert.equal(path(q),null,JSON.stringify(q));
 });

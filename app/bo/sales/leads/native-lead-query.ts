@@ -33,3 +33,23 @@ export function parseNativeLeadQuery(input:Query):NativeLeadQuery|null{
  if(tab)out.set("tab",tab);
  return {kind:"household",centerId,lead,quickView,tab:tab as Tab|null,canonical:out.toString()};
 }
+/** Staging-only compatibility: historical synthetic selectors are retired, never mapped to real records. */
+export function canonicalLeadStageQuery(input:Query):string|null{
+ const p=new URLSearchParams();
+ if(input instanceof URLSearchParams){for(const [k,v] of input)p.append(k,v);}
+ else{for(const [k,v] of Object.entries(input)){if(Array.isArray(v))for(const value of v)p.append(k,value);else if(v!==undefined)p.append(k,v);}}
+ for(const k of ["utm_source","utm_medium","utm_campaign","utm_term","utm_content"])p.delete(k);
+ const native=parseNativeLeadQuery(p);
+ if(native)return native.canonical;
+ for(const [k,v] of p){
+  if(p.getAll(k).length!==1||!v||v.length>256||/[\x00-\x1f\x7f\\]/.test(v)||!["m1Preview","centerId","lead","quickView","tab"].includes(k))return null;
+ }
+ if(p.has("m1Preview")&&p.get("m1Preview")!=="1")return null;
+ if(p.has("centerId")&&!uuid.test(p.get("centerId")!))return null;
+ const lead=p.get("lead"),quick=p.get("quickView"),tab=p.get("tab");
+ if(lead&&quick||lead&&!/^LEAD-MOCK-[0-9]{3,}$/.test(lead)||quick&&!/^LEAD-MOCK-[0-9]{3,}$/.test(quick)||tab&&(!lead||!tabs.some(t=>t===tab)))return null;
+ if(!p.has("m1Preview")&&!lead&&!quick)return null;
+ const out=new URLSearchParams();
+ if(p.has("centerId"))out.set("centerId",p.get("centerId")!);
+ return out.toString();
+}

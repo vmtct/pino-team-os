@@ -45,7 +45,6 @@ const legacy:Record<string,string>={
 const previews:Record<string,{path:string;expected:string;record?:string;negative:string}>={
  "/ho/learning/missions":{path:"/ho/learning/missions",expected:"/ho/learning/missions",record:"record=MISSION-MOCK-001",negative:"record="+id},
 
- "/bo/sales/leads":{path:"/bo/sales/leads?m1Preview=1",expected:"/bo/sales/leads",record:"lead=LEAD-MOCK-001&tab=members",negative:"lead="+id},
 
  "/ho/system/roles":{path:"/ho/system/roles?m1Preview=1",expected:"/ho/system/roles?m1Preview=1",record:"record=ROLE-MOCK-001",negative:"record="+id},
 };
@@ -102,6 +101,11 @@ test("HO_BO_DEEPLINK_CONTINUITY_P0: native preview entrypoints cannot ship untes
    assert.equal(parse(host,path+"?"+suffix),null,path+"?"+suffix);
   }
  }
+ const leads="/bo/sales/leads";
+ checkFlow(bo,leads+"?lead="+id+"&tab=history",leads+"?lead="+id+"&tab=history");
+ checkFlow(bo,leads+"?quickView="+id,leads+"?quickView="+id);
+ checkFlow(bo,leads+"?m1Preview=1&lead=LEAD-MOCK-001&tab=members",leads);
+ for(const q of ["m1Preview=0","m1Preview=1&lead="+id,"lead="+id+"&quickView="+id,"lead="+id+"&tab=bad","lead="+id+"&q=private"])assert.equal(parse(bo,leads+"?"+q),null,q);
  // PAP-2365: canonical real Product Plan links and tabs; no preview.
  const plans="/ho/billing/product-plans";
  for(const suffix of ["?record="+id,"?record="+id+"&tab=subscriptions","?record="+id+"&tab=history"])checkFlow(ho,plans+suffix,plans+suffix);
@@ -193,4 +197,14 @@ test("PAP-2394: canonical Mission M1-B admits only its seed before streaming and
  for(const q of ["","?record=MISSION-MOCK-001","?utm_source=chatgpt.com&record=MISSION-MOCK-001"])assert.equal(middleware(new NextRequest("https://"+ho+path+q,{headers})).headers.get("x-middleware-next"),"1",q);
  assert.equal(middleware(new NextRequest("https://"+ho+path+"?record=MISSION-MOCK-001&_rsc=abc",{headers:{...headers,rsc:"1"}})).headers.get("x-middleware-next"),"1");
  assert.equal(parse(bo,path),null);
+});
+test("PAP-2288 native Lead pre-stream query guard, only canonical or retired synthetic links",()=>{
+ const path="/bo/sales/leads",headers={cookie:"pino_staff_password_session=fixture-only"};
+ for(const q of ["lead="+id+"&quickView="+id,"lead="+id+"&tab=bad","m1Preview=1&lead="+id,"lead="+id+"&q=private","lead="+id+"&lead="+id,"returnTo=//evil.example"]){
+  for(const method of ["GET","HEAD"])assert.equal(middleware(new NextRequest("https://"+bo+path+"?"+q,{headers,method})).status,404,q);
+ }
+ for(const q of ["","?lead="+id+"&tab=history","?quickView="+id,"?leadIntent="+id,"?m1Preview=1&lead=LEAD-MOCK-001"]){
+  assert.equal(middleware(new NextRequest("https://"+bo+path+q,{headers})).headers.get("x-middleware-next"),"1",q);
+ }
+ assert.equal(middleware(new NextRequest("https://"+bo+path+"?lead="+id+"&_rsc=abc",{headers:{...headers,rsc:"1"}})).headers.get("x-middleware-next"),"1");
 });
