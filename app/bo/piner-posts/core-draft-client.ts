@@ -21,10 +21,10 @@ function projection(raw:unknown,centerId:string):CoreDraftRow{
  const r=obj(raw),recordId=id(r.id),center=id(r.centerId),programKey=program(r.programKey);
  const studentId=r.studentId===null?null:id(r.studentId),personId=r.personId===null?null:id(r.personId);
  const publisher=programKey==="AFTERSCHOOL"?"PINO Afterschool":"MyTime by PINO";
- if(center!==centerId||r.status!=="DRAFT"||r.publisher!==publisher)throw Error("Post không thuộc phạm vi đã chọn.");
+ if(center!==centerId||(r.status!=="DRAFT"&&r.status!=="PENDING_APPROVAL")||r.publisher!==publisher)throw Error("Post không thuộc phạm vi đã chọn.");
  const personName=nullableText(r.personName),studentName=nullableText(r.studentName),displayName=personName??studentName??"—";
  const mediaCount=r.mediaCount===undefined?0:r.mediaCount;if(typeof mediaCount!=="number"||!Number.isSafeInteger(mediaCount)||mediaCount<0||mediaCount>5)throw Error("Invalid Post media count.");
- return {id:recordId,studentId,personId,personName,programKey,centerId:center,version:version(r.version),name:displayName,program:publisher,caption:text(r.caption),author:publisher,status:"Nháp",center:text(r.centerName),source:"Chưa có",mediaCount,commentCount:0,createdAt:instant(r.createdAt),updatedAt:instant(r.updatedAt),createdBy:label(r.createdBy),updatedBy:label(r.updatedBy)};
+ return {id:recordId,studentId,personId,personName,programKey,centerId:center,version:version(r.version),name:displayName,program:publisher,caption:text(r.caption),author:publisher,status:r.status==="DRAFT"?"Nháp":"Chờ duyệt",center:text(r.centerName),source:"Chưa có",mediaCount,commentCount:0,createdAt:instant(r.createdAt),updatedAt:instant(r.updatedAt),createdBy:label(r.createdBy),updatedBy:label(r.updatedBy)};
 }
 function personOption(raw:unknown):CorePersonOption{
  const r=obj(raw),personId=id(r.personId),displayName=nullableText(r.displayName);
