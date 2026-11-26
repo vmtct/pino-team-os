@@ -31,6 +31,7 @@ test("actual create and inline command adapter updates same canonical projected 
  await m.provider.edit({id:row.id,expectedVersion:1,changes:{operationalName:"Art"}});
  assert.equal(m.provider.find(row.id)?.version,2);assert.equal(m.provider.list().length,1);
  assert.equal(m.calls.filter(c=>c.init?.method==="POST").length,1);assert.equal(m.calls.filter(c=>c.init?.method==="PATCH").length,1);
+ for(const call of m.calls){const write=call.init?.method==="POST"||call.init?.method==="PATCH";assert.equal(new Headers(call.init?.headers).get("x-pino-expected-principal"),write?id(8):null);}
 });
 test("actor, Center and permission changes deny mutations before transport and invalidate cache",async()=>{
  for(const change of ["changeCenter","changeActor","revoke"] as const){

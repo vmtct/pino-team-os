@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {handleRunningClassCommand,runningClassCommandMethod} from "./running-class-command-handler";
+import {handleBoWriteRequest} from "./bo-write-handler";
+import {decideHostBoundary} from "./host-boundary";
 import type {BoAccessRequest,BoAccessCoreBinding} from "./bo-core";
 const id=(n:number)=>"01234567-89ab-7abc-8def-"+String(n).padStart(12,"0");
 const center=id(1),actor=id(2),classId=id(3);
@@ -51,4 +53,18 @@ test("actor change or missing effective permission prevents mutation after indep
   const m=fixture(override);assert.equal((await handleRunningClassCommand(req(create,"POST",body,{key}),m.env,create)).status,403);
   assert.deepEqual(m.calls,[{method:"GET",path:"context",resource:{centerId:center}}]);
  }
+});
+
+test("mounted write facade and host fence retain exact scoped commands only",async()=>{
+ const m=fixture();
+ for(const [path,method,form] of [[create,"POST",body],[edit,"PATCH",{expectedVersion:1,status:"ACTIVE"}]] as const){
+  const pathname="/api/bo/"+path;
+  assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art",pathname,method),{action:"next"});
+  for(const host of ["bo.pinohouse.art","ho.staging.pinohouse.art","tos.staging.pinohouse.art"])assert.deepEqual(decideHostBoundary(host,pathname,method),{action:"not_found"});
+  for(const verb of ["GET","PUT","DELETE",method==="POST"?"PATCH":"POST"])assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art",pathname,verb),{action:"not_found"});
+  assert.equal((await handleBoWriteRequest(req(path,method,form,method==="POST"?{key}:{}),m.env,path)).status,method==="POST"?201:200);
+ }
+ assert.equal(m.calls.length,4);
+ const wrong=fixture({userId:id(9)});
+ assert.equal((await handleBoWriteRequest(req(create,"POST",body,{key}),wrong.env,create)).status,403);assert.equal(wrong.calls.length,1);
 });

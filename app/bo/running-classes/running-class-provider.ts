@@ -59,7 +59,7 @@ export async function openRunningClassProvider(options:{centerId:string;context:
   if(disposed||options.selectedCenter()!==centerId||current.userId!==actorId||current.surface!=="BO"||current.entitled!==true||!current.permissionKeys?.includes("delivery.schedule.manage"))fail("Running Class scope denied.");
  };
  await verify();
- const guardedFetch=(async(input:RequestInfo|URL,init?:RequestInit)=>{await verify();const response=await options.fetcher(input,init);await verify();return response;}) as typeof fetch;
+ const guardedFetch=(async(input:RequestInfo|URL,init?:RequestInit)=>{await verify();const headers=new Headers(init?.headers);if(init?.method==="POST"||init?.method==="PATCH")headers.set("x-pino-expected-principal",actorId);const response=await options.fetcher(input,{...init,headers});await verify();return response;}) as typeof fetch;
  const scope=await runningClassJournalScope(actorId,centerId);
  const recovery=createRunningClassRecovery({centerId,scope,storage:options.storage,verify,client:createRunningClassCommandClient(centerId,guardedFetch),newKey:options.newKey});
  let state:ReturnType<typeof parseRunningClassBootstrap>|undefined,busy=false;
