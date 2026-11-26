@@ -1,6 +1,6 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
-import {createPrivateMediaController,readVerifiedMediaRecord} from "../app/bo/piner-posts/private-media-controller";
+import {createPrivateMediaController,readVerifiedMediaRecord,DefinitiveMediaUploadRejection} from "../app/bo/piner-posts/private-media-controller";
 import {privatePostMediaClient} from "../app/bo/piner-posts/private-media-client";
 const C="01900000-0000-7000-8000-000000000001",P="01900000-0000-7000-8000-000000000002",A="01900000-0000-7000-8000-000000000003",signal=new AbortController().signal;
 const file=new Blob(["abc"],{type:"image/png"}),base={id:A,mimeType:"image/png",byteSize:3,expiresAt:"2026-11-19T13:00:00Z"};
@@ -61,4 +61,17 @@ test("PAP-2386 private thumbnail verifies version and current read scope",async(
  const x=setup();await x.c.list(signal);await assert.rejects(x.c.upload(file,signal));await x.c.retry(signal);
  assert.equal(await (await x.c.readImage(A,3,signal)).text(),"abc");await assert.rejects(x.c.readImage(A,2,signal));
  await x.c.remove(A,signal);await assert.rejects(x.c.readImage(A,3,signal));x.c.dispose();await assert.rejects(x.c.readImage(A,4,signal));
+});
+
+test("PAP-2386 first definitive reserve rejection has explicit evidence; ambiguous transport retains pending",async()=>{
+ for(const definitive of [true,false]){
+  let writes=0;
+  const api=privatePostMediaClient(C,P,async(_input,init)=>{
+   if(init?.method==="POST"){writes++;if(definitive)return Response.json({error:{code:"PLATFORM_INVALID_INPUT"}},{status:400});throw Error("transport unknown");}
+   return Response.json({data:{postVersion:1,mediaCount:0,attachments:[]}});
+  });
+  const c=createPrivateMediaController(api,()=>true,()=>crypto.randomUUID());await c.list(signal);
+  await assert.rejects(c.upload(file,signal),e=>(e instanceof DefinitiveMediaUploadRejection)===definitive);
+  assert.equal(c.hasPending(),!definitive);assert.equal(c.lastUploadReceipt(),null);assert.equal(writes,1);c.dispose();
+ }
 });
