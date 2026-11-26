@@ -38,7 +38,8 @@ type ReviewAttempt = { requestId: string; fingerprint: string; key: string };
 
 const blankDraft = (): Draft => ({ key: crypto.randomUUID(), roleId: "", scopeType: "GLOBAL", scopeId: "" });
 
-export function StaffRegistrationReviewQueue() {
+export type StaffRegistrationReviewService = Pick<typeof boApi,"accessUsers"|"staffRegistrationRequests"|"accessRoles"|"scopeCatalog"|"staffRecords"|"learners"|"approveStaffRegistration"|"rejectStaffRegistration">;
+export function StaffRegistrationReviewQueue({service=boApi}:{service?:StaffRegistrationReviewService}={}) {
   const [requests, setRequests] = useState<BoStaffRegistrationRequest[]>([]);
   const [roles, setRoles] = useState<BoAccessRole[]>([]);
   const [catalog, setCatalog] = useState<Catalog>({ centers: [], paths: [], classes: [] });
@@ -93,12 +94,12 @@ export function StaffRegistrationReviewQueue() {
   async function refresh() {
     setLoading(true);
     try {
-      const accessUsersRequest = boApi.accessUsers().catch((cause) => {
+      const accessUsersRequest = service.accessUsers().catch((cause) => {
         if (cause instanceof BoApiError && (cause.status === 401 || cause.status === 403)) return [];
         throw cause;
       });
       const [nextRequests, nextRoles, nextCatalog, nextStaff, nextAccessUsers] = await Promise.all([
-        boApi.staffRegistrationRequests(), boApi.accessRoles(), boApi.scopeCatalog(), boApi.staffRecords(), accessUsersRequest,
+        service.staffRegistrationRequests(), service.accessRoles(), service.scopeCatalog(), service.staffRecords(), accessUsersRequest,
       ]);
       setRequests(nextRequests); setRoles(nextRoles); setCatalog(nextCatalog); setStaffRecords(nextStaff); setAccessUsers(nextAccessUsers);
       setSelectedId((current) => nextRequests.some((item) => item.id === current) ? current : "");
@@ -134,7 +135,7 @@ export function StaffRegistrationReviewQueue() {
     if (!learnerSearch.trim()) { setError("Nhập tên học viên cần liên kết."); return; }
     setBusy("learner-search"); setError("");
     try {
-      const result = await boApi.learners(learnerSearch.trim(), 50);
+      const result = await service.learners(learnerSearch.trim(), 50);
       setLearners(result);
       setStudentProfileId((current) => result.some((learner) => learner.id === current) ? current : "");
       if (!result.length) setError("Không tìm thấy learner phù hợp.");
@@ -170,7 +171,7 @@ export function StaffRegistrationReviewQueue() {
         ? attempt.key
         : crypto.randomUUID();
       approveAttempt.current = { requestId: selected.id, fingerprint, key: idempotencyKey };
-      const result = await boApi.approveStaffRegistration(selected.id, normalized, identity, idempotencyKey, existingStaffMemberId || undefined);
+      const result = await service.approveStaffRegistration(selected.id, normalized, identity, idempotencyKey, existingStaffMemberId || undefined);
       approveAttempt.current = null;
       setApproval(result);
       setSurface("table");
@@ -196,7 +197,7 @@ export function StaffRegistrationReviewQueue() {
         ? attempt.key
         : crypto.randomUUID();
       rejectAttempt.current = { requestId: selected.id, fingerprint: reason, key: idempotencyKey };
-      await boApi.rejectStaffRegistration(selected.id, reason, idempotencyKey);
+      await service.rejectStaffRegistration(selected.id, reason, idempotencyKey);
       setSurface("table");
       rejectAttempt.current = null;
       setRequests((items) => items.filter((item) => item.id !== selected.id));
