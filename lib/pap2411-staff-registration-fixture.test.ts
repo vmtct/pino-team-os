@@ -28,3 +28,15 @@ test("PAP-2411 reject and intake state stay within each fixture instance",async(
 test("PAP-2411 fixture review keys are independent and do not need secure context",()=>{
  const a=createStaffM1KeyFactory(),b=createStaffM1KeyFactory();assert.equal(a(),"M1-STAFF-REVIEW-1");assert.equal(a(),"M1-STAFF-REVIEW-2");assert.equal(b(),"M1-STAFF-REVIEW-1");
 });
+
+test("PAP-2411 complete synthetic registration can be reviewed; incomplete documents fail closed",async()=>{
+ const complete=createStaffRegistrationM1Service(),incomplete=createStaffRegistrationM1Service({completeDocuments:false});
+ const role=(await complete.accessRoles())[0],center=(await complete.scopeCatalog()).centers[0];
+ const assignments=[{roleId:role.id,scopeType:"CENTER" as const,scopeId:center.id}];
+ assert.deepEqual((await complete.staffRegistrationRequests())[0].documents,{front:true,back:true});
+ assert.deepEqual((await incomplete.staffRegistrationRequests())[0].documents,{front:false,back:false});
+ await assert.rejects(incomplete.approveStaffRegistration(STAFF_DIRECTORY_MOCK_ID,assignments,identity,"missing-docs"));
+ assert.equal((await incomplete.staffRegistrationRequests()).length,1);
+ await assert.rejects(complete.approveStaffRegistration(STAFF_DIRECTORY_MOCK_ID,[{...assignments[0],scopeId:"foreign"}],identity,"foreign"));
+ assert.equal((await complete.approveStaffRegistration(STAFF_DIRECTORY_MOCK_ID,assignments,identity,"valid")).status,"APPROVED");
+});
