@@ -16,6 +16,7 @@ function MediaShell({state,actions}:{state:PrivateMediaShellState;actions:Privat
 export function NativePrivateMediaPanel({session,postId,onVerified,readOnly=false,review,afterschool=false}:{session:MediaPanelSession;postId:string;onVerified:(row:CoreDraftRow)=>void;readOnly?:boolean;review?:PostReviewPresentation;afterschool?:boolean}){
  const [listing,setListing]=useState<Listing|null>(null),[status,setStatus]=useState<"loading"|"ready"|"denied"|"error">("loading"),[busy,setBusy]=useState(false),[pending,setPending]=useState(false),[error,setError]=useState(""),[preview,setPreview]=useState<{id:string;url:string}|undefined>();
  const [authoredOrder,setAuthoredOrder]=useState<{signature:string;ids:string[]}|null>(null),[workflowPending,setWorkflowPending]=useState<{pending:boolean;retryPostId:string|null}|null>(null);
+ const [reviewController,setReviewController]=useState<Controller|null>(null);
  const [reviewImage,setReviewImage]=useState<string|undefined>();
  const [compoundPending,setCompoundPending]=useState(false);
  const [submittedOrder,setSubmittedOrder]=useState<{version:number;ids:string[]}|null>(null);
@@ -45,7 +46,7 @@ export function NativePrivateMediaPanel({session,postId,onVerified,readOnly=fals
    const data=await controller.list(ctl.signal);
    const row=await readVerifiedMediaRecord(data,postId,session.controller.detail,ctl.signal);
    const recovery=session.submitReview&&session.canSubmit?.()?await session.submitReview.pending(ctl.signal):null;
-   const compound=await session.compoundPending?.(ctl.signal)??false;ctl.signal.throwIfAborted();setCompoundPending(compound);
+   const compound=await session.compoundPending?.(ctl.signal)??false;ctl.signal.throwIfAborted();setCompoundPending(compound);setReviewController(controller);
    const immutable=await pendingOrder(data,row,ctl.signal);ctl.signal.throwIfAborted();setSubmittedOrder(immutable);setListing(data);setStatus("ready");setPending(controller.hasPending());setWorkflowPending(recovery);callback.current(row);
   }).catch(()=>{if(!ctl.signal.aborted){setPending(controller?.hasPending()??false);setStatus(session.context.authorize("piner.post.view")?"error":"denied");}}).finally(()=>{if(active.current===ctl)active.current=null;});
   return()=>{active.current?.abort();active.current=null;controller?.closePreview();controllerRef.current=null;};
@@ -76,7 +77,7 @@ export function NativePrivateMediaPanel({session,postId,onVerified,readOnly=fals
  }}/>{nativeReview&&status==="ready"&&listing&&review?<section className="v24-prop-section" aria-label="Xem trước bài đăng">
  <div className="v24-section-heading"><h4>Xem trước &amp; gửi duyệt</h4></div>
  <div className="pap2337-bo-reviewHeading"><span className="pap2337-bo-draftLabel">{readOnly?"Chờ duyệt":"Nháp"}</span><small>{order.length}/5 ảnh</small></div>
- {order.length&&controllerRef.current?<NativeReviewFilmstrip controller={controllerRef.current} version={listing.postVersion} ids={order} selected={reviewImage} onSelect={setReviewImage} busy={busy}/>:<p>{readOnly?"Chưa xác minh được thứ tự ảnh đã gửi.":"Chưa có ảnh."}</p>}
+ {order.length&&reviewController?<NativeReviewFilmstrip controller={reviewController} version={listing.postVersion} ids={order} selected={reviewImage} onSelect={setReviewImage} busy={busy}/>:<p>{readOnly?"Chưa xác minh được thứ tự ảnh đã gửi.":"Chưa có ảnh."}</p>}
  <div className="pap2337-bo-captionPreview"><strong>Caption</strong><p>{review.caption.trim()||"Chưa có caption."}</p></div>
  {readOnly?<p role="status">Bài đăng đang chờ HO duyệt.</p>:<><ol aria-label="Thứ tự ảnh gửi duyệt">{order.map((id,index)=><li key={id}><span>Ảnh {listing.attachments.findIndex(a=>a.id===id)+1}{index===0?" · Ảnh bìa":""}</span>{" "}<button className="secondary-btn" type="button" disabled={busy||compoundPending||Boolean(workflowPending?.pending)||index===0} aria-label={"Chuyển ảnh "+(index+1)+" lên"} onClick={()=>moveImage(id,-1)}>↑</button>{" "}<button className="secondary-btn" type="button" disabled={busy||compoundPending||Boolean(workflowPending?.pending)||index===order.length-1} aria-label={"Chuyển ảnh "+(index+1)+" xuống"} onClick={()=>moveImage(id,1)}>↓</button></li>)}</ol>
  <button className="primary-btn" type="button" disabled={busy||pending||compoundPending||workflowPending===null||workflowPending.pending||!order.length||!review.caption.trim()} onClick={()=>submitNative(false)}>Gửi duyệt</button></>}
