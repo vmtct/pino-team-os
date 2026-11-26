@@ -63,6 +63,7 @@ export function createPrivateMediaController(api:Api,authorize:(write:boolean)=>
   retry(signal:AbortSignal){return execute(signal,true);},
   hasPending(){return pending!==null;},
   lastUploadReceipt(){return !closed&&!pending&&!busy&&authorize(false)&&lastUpload?{...lastUpload}:null;},
+  async readImage(id:string,version:number,signal:AbortSignal){guard(false,signal);const item=listing?.attachments.find(a=>a.id===id);if(busy||!item||listing?.postVersion!==version)throw Error("Image unavailable.");const blob=await api.preview(item,signal);guard(false,signal);if(busy||listing?.postVersion!==version||!listing.attachments.some(a=>a.id===id&&a.version===item.version))throw Error("Image superseded.");return blob;},
   async openPreview(id:string,signal:AbortSignal){guard(false,signal);const item=listing?.attachments.find(a=>a.id===id);if(busy||!item)throw Error("Image unavailable.");closePreview();const generation=previewGeneration,blob=await api.preview(item,signal);guard(false,signal);if(generation!==previewGeneration||!listing?.attachments.some(a=>a.id===id))throw Error("Preview superseded.");const url=urls.createObjectURL(blob);preview={id,url};return preview;},
   closePreview,
   dispose(){closed=true;pending=null;listing=null;lastUpload=null;closePreview();}

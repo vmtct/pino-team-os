@@ -56,3 +56,9 @@ test("preview closed while response in-flight never creates a blob URL",async()=
  const c=createPrivateMediaController(api,()=>true,undefined,{createObjectURL:()=>{created++;return "blob:qa";},revokeObjectURL:()=>{}});
  await c.list(signal);const preview=c.openPreview(A,signal);c.closePreview();release();await assert.rejects(preview);assert.equal(created,0);c.dispose();
 });
+
+test("PAP-2386 private thumbnail verifies version and current read scope",async()=>{
+ const x=setup();await x.c.list(signal);await assert.rejects(x.c.upload(file,signal));await x.c.retry(signal);
+ assert.equal(await (await x.c.readImage(A,3,signal)).text(),"abc");await assert.rejects(x.c.readImage(A,2,signal));
+ await x.c.remove(A,signal);await assert.rejects(x.c.readImage(A,3,signal));x.c.dispose();await assert.rejects(x.c.readImage(A,4,signal));
+});
