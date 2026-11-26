@@ -1,8 +1,8 @@
 // PAP-2183 / PAP-2182 · PLT-PRODUCT-PLAN. Synthetic-only M1 state.
 import type { PreviewFeature, PreviewRecord } from "@/lib/m1-preview/contract";
 
-export const productPlanBadges = ["ENTRY", "HERO", "STANDARD"] as const;
-export type ProductPlanBadge = typeof productPlanBadges[number];
+import {productPlanBadges,type ProductPlanBadge} from "./schema";
+export {productPlanBadges,type ProductPlanBadge} from "./schema";
 export type ProductPlanPreview = PreviewRecord & {
   name: string; cadence: number; termWeeks: number; price: number; currency: "VND";
   badge: ProductPlanBadge; enabled: boolean; version: number;
