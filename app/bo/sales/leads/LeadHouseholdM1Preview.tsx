@@ -13,7 +13,6 @@ import { BoFullDetail } from "@/app/bo/components/BoFullDetail";
 import { BoProperties } from "@/app/bo/components/BoProperties";
 import { BoDataGrid, BoDataGridBadge, BoDataGridStatus, BoDrawer, type BoDataGridColumn } from "@/app/bo/components/data-grid";
 import {
-  LEAD_M1_AUDIT_COLUMNS,
   LEAD_M1_FIXTURE,
   LEAD_M1_INTEREST_LABELS,
   leadM1MemberSummary,
@@ -27,6 +26,7 @@ import {
   type LeadM1Role,
 } from "./lead-household-m1-fixtures";
 import styles from "./lead-household-m1.module.css";
+import {CONTACT_FIELD_SCHEMA,LEAD_TABLE_COLUMNS,LEAD_AUDIT_TABLE_COLUMNS,LEAD_DETAIL_TABS,leadFixtureFilterable} from "./lead-presentation-schema";
 
 type DrawerState = { mode: "create" } | { mode: "edit"; leadId: string };
 type LeadDraft = {
@@ -45,10 +45,6 @@ const PROGRAM_OPTIONS: Array<{ kind: LeadM1IntentKind; program: "AFTERSCHOOL" | 
   { kind: "MYTIME_PIANO", program: "MYTIME", label: "Piano" },
 ];
 const ROLE_OPTIONS: LeadM1Role[] = ["PARENT", "STUDENT", "GUEST"];
-const CONTACT_FIELD_SCHEMA = [
-  { key: "contactName", label: "Người liên hệ" },
-  { key: "phone", label: "Số điện thoại", required: true },
-] as const;
 
 function makeDraft(lead?: LeadM1Record): LeadDraft {
   return { contactName: lead?.contactName ?? "", phone: lead?.phone ?? "", members: lead ? lead.members.map(member => ({ ...member, roles: [...member.roles] })) : [], relationships: lead ? lead.relationships.map(item => ({ ...item })) : [], interests: lead ? lead.intents.map(intent => intent.kind) : [] };
@@ -232,16 +228,16 @@ export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi,rec
   }, [lifecycle, query, records, readModel]);
 
   const columns = useMemo<BoDataGridColumn<LeadM1Record>[]>(() => [
-    { key: "contact", header: "Người liên hệ", minWidth: 210, sticky: true, sortable: !readModel, render: record => <div className={styles.identityCell}><strong>{record.contactName}</strong><small>{record.id}</small>{record.fixture?<BoDataGridBadge>DỮ LIỆU MẪU</BoDataGridBadge>:null}</div> },
-    { key: "phone", header: "Số điện thoại", minWidth: 140, render: record => <span className={styles.mono}>{record.phone}</span> },
-    { key: "household", header: "Thành viên", minWidth: 170, render: record => <div className={styles.stackCell}><strong>{record.memberCount??record.members.length} thành viên</strong><small>{record.fixture?leadM1MemberSummary(record):"—"}</small></div> },
-    { key: "interest", header: "Chương trình quan tâm", minWidth: 230, render: record => <div className={styles.badgeWrap + " pds-choice-group"}>{record.fixture?record.intents.map(intent => <BoDataGridBadge key={intent.id}>{LEAD_M1_INTEREST_LABELS[intent.kind]}</BoDataGridBadge>):"—"}</div> },
-    { key: "source", header: "Nguồn", minWidth: 150, render: record => <div className={styles.stackCell}>{record.fixture?Array.from(new Set(record.intents.map(intent => intent.source))).map(source => <small key={source}>{source}</small>):"—"}</div> },
-    { key: "lifecycle", header: "Trạng thái", minWidth: 120, render: record => <BoDataGridStatus value={record.lifecycle === "ACTIVE" ? "Đang hoạt động" : "Đã lưu trữ"} tone={record.lifecycle === "ACTIVE" ? "success" : "neutral"} /> },
-    ...LEAD_M1_AUDIT_COLUMNS.map(field => ({ key: field.key, header: field.label, minWidth: field.type === "datetime" ? 150 : 130, render: (record: LeadM1Record) => field.type==="datetime"?leadAuditTime(record[field.key]):record[field.key]??field.fallback })),
+    { ...LEAD_TABLE_COLUMNS.contact, sortable: !readModel, render: record => <div className={styles.identityCell}><strong>{record.contactName}</strong><small>{record.id}</small>{record.fixture?<BoDataGridBadge>DỮ LIỆU MẪU</BoDataGridBadge>:null}</div> },
+    { ...LEAD_TABLE_COLUMNS.phone, render: record => <span className={styles.mono}>{record.phone}</span> },
+    { ...LEAD_TABLE_COLUMNS.household, render: record => <div className={styles.stackCell}><strong>{record.memberCount??record.members.length} thành viên</strong><small>{record.fixture?leadM1MemberSummary(record):"—"}</small></div> },
+    { ...LEAD_TABLE_COLUMNS.interest, render: record => <div className={styles.badgeWrap + " pds-choice-group"}>{record.fixture?record.intents.map(intent => <BoDataGridBadge key={intent.id}>{LEAD_M1_INTEREST_LABELS[intent.kind]}</BoDataGridBadge>):"—"}</div> },
+    { ...LEAD_TABLE_COLUMNS.source, render: record => <div className={styles.stackCell}>{record.fixture?Array.from(new Set(record.intents.map(intent => intent.source))).map(source => <small key={source}>{source}</small>):"—"}</div> },
+    { ...LEAD_TABLE_COLUMNS.lifecycle, render: record => <BoDataGridStatus value={record.lifecycle === "ACTIVE" ? "Đang hoạt động" : "Đã lưu trữ"} tone={record.lifecycle === "ACTIVE" ? "success" : "neutral"} /> },
+    ...LEAD_AUDIT_TABLE_COLUMNS.map(field => ({ key: field.key, header: field.header, minWidth: field.minWidth, render: (record: LeadM1Record) => field.type==="datetime"?leadAuditTime(record[field.key]):record[field.key]??field.fallback })),
   ], [readModel]);
 
-  const filterFields = useMemo<BoFilterField[]>(() => columns.map(column => ({key:column.key, type:"text", filterable:!readModel&&["phone","lifecycle"].includes(column.key)})), [columns,readModel]);
+  const filterFields = useMemo<BoFilterField[]>(() => columns.map(column => ({key:column.key, type:"text", filterable:leadFixtureFilterable(column.key,!!readModel)})), [columns,readModel]);
   const [tableSettings,setTableSettings] = useState<BoFilterSettings>(() => ({group:{combinator:"and",filters:[]},visibleKeys:columns.map(column=>column.key)}));
   const [sortDirection,setSortDirection] = useState<"asc"|"desc">("asc");
   const tableRows = useMemo(() => readModel?filteredRecords:[...applyBoFilterSettings(filteredRecords,tableSettings,filterFields)].sort((a,b) => a.contactName.localeCompare(b.contactName,"vi")*(sortDirection==="asc"?1:-1)),[filteredRecords,tableSettings,filterFields,sortDirection,readModel]);
@@ -418,10 +414,10 @@ export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi,rec
       designVariant="business-v25"
       actions={<div className={styles.detailActions}>{menu("lead-detail-menu-btn")}{commandFence&&currentDetail?.id===selectedLead.id&&currentDetail.status==="ACTIVE"?<button type="button" className="secondary-btn" disabled={commandBusy||commandFence.state!=="idle"} onClick={()=>{setArchiveReason("");setCommandNotice("");setArchiveTarget(selectedLead.id);}}>Lưu trữ Lead</button>:null}{selectedLead.fixture?<BoDataGridBadge>DỮ LIỆU MẪU</BoDataGridBadge>:null}</div>}
       tabs={[
-        { id: "detail", label: "Tổng quan", content: <LeadOverview record={selectedLead} liveContact={commandFence&&currentDetail&&currentDetail.id===selectedLead.id&&currentDetail.status==="ACTIVE"?{name:currentDetail.contactDisplayName,phone:currentDetail.phone,version:currentDetail.version,disabled:commandBusy||commandFence.state!=="idle",save:saveCanonicalContact}:undefined} onSave={(name, phone) => saveInlineContact(selectedLead.id, name, phone)} onConvert={() => openConvert(selectedLead)} onSaveInterests={kinds => saveLeadInterests(selectedLead.id, kinds)} /> },
-        { id: "members", label: "Thành viên", content: <LeadMembers record={selectedLead} live={commandFence&&currentDetail?.id===selectedLead.id&&currentDetail.status==="ACTIVE"?{detail:currentDetail,disabled:commandBusy||commandFence.state!=="idle",update:updateCanonicalMember,add:(name,role)=>submitMember(target=>({kind:"addMember",leadId:target.id,expectedVersion:target.version,member:{displayName:name,intendedRoles:[role],gender:null,birthPrecision:"UNKNOWN",birthYear:null,birthMonth:null,birthDay:null,reportedAge:null,interestKinds:[]}})),primary:memberId=>submitMember(target=>({kind:"primary",leadId:target.id,expectedVersion:target.version,memberId})),retire:memberId=>submitMember(target=>({kind:"retireMember",leadId:target.id,expectedVersion:target.version,memberId}))}:undefined} onSave={members => updateMembers(selectedLead.id, members)} onSaveInterests={(memberId, kinds) => saveMemberInterests(selectedLead.id, memberId, kinds)} /> },
-        { id: "relationships", label: "Quan hệ", content: <LeadRelationships record={selectedLead} live={commandFence&&currentDetail?.id===selectedLead.id&&currentDetail.status==="ACTIVE"?{disabled:commandBusy||commandFence.state!=="idle",add:relationship=>submitMember(target=>({kind:"addRelation",leadId:target.id,expectedVersion:target.version,relationship})),update:(relationshipId,relationship)=>submitMember(target=>target.relationships.some(r=>r.id===relationshipId&&r.status==="DECLARED")?{kind:"updateRelation",leadId:target.id,expectedVersion:target.version,relationshipId,relationship}:null),confirm:relationshipId=>submitMember(target=>target.relationships.some(r=>r.id===relationshipId&&r.status==="DECLARED")?{kind:"confirmRelation",leadId:target.id,expectedVersion:target.version,relationshipId}:null),retire:relationshipId=>submitMember(target=>target.relationships.some(r=>r.id===relationshipId)?{kind:"retireRelation",leadId:target.id,expectedVersion:target.version,relationshipId}:null)}:undefined} onSave={relationships => updateRelationships(selectedLead.id, relationships)} /> },
-        { id: "history", label: "Lịch sử", content: readModel?<LeadInquiryHistory model={readModel}/>:<LeadHistory /> },
+        { ...LEAD_DETAIL_TABS.detail, content: <LeadOverview record={selectedLead} liveContact={commandFence&&currentDetail&&currentDetail.id===selectedLead.id&&currentDetail.status==="ACTIVE"?{name:currentDetail.contactDisplayName,phone:currentDetail.phone,version:currentDetail.version,disabled:commandBusy||commandFence.state!=="idle",save:saveCanonicalContact}:undefined} onSave={(name, phone) => saveInlineContact(selectedLead.id, name, phone)} onConvert={() => openConvert(selectedLead)} onSaveInterests={kinds => saveLeadInterests(selectedLead.id, kinds)} /> },
+        { ...LEAD_DETAIL_TABS.members, content: <LeadMembers record={selectedLead} live={commandFence&&currentDetail?.id===selectedLead.id&&currentDetail.status==="ACTIVE"?{detail:currentDetail,disabled:commandBusy||commandFence.state!=="idle",update:updateCanonicalMember,add:(name,role)=>submitMember(target=>({kind:"addMember",leadId:target.id,expectedVersion:target.version,member:{displayName:name,intendedRoles:[role],gender:null,birthPrecision:"UNKNOWN",birthYear:null,birthMonth:null,birthDay:null,reportedAge:null,interestKinds:[]}})),primary:memberId=>submitMember(target=>({kind:"primary",leadId:target.id,expectedVersion:target.version,memberId})),retire:memberId=>submitMember(target=>({kind:"retireMember",leadId:target.id,expectedVersion:target.version,memberId}))}:undefined} onSave={members => updateMembers(selectedLead.id, members)} onSaveInterests={(memberId, kinds) => saveMemberInterests(selectedLead.id, memberId, kinds)} /> },
+        { ...LEAD_DETAIL_TABS.relationships, content: <LeadRelationships record={selectedLead} live={commandFence&&currentDetail?.id===selectedLead.id&&currentDetail.status==="ACTIVE"?{disabled:commandBusy||commandFence.state!=="idle",add:relationship=>submitMember(target=>({kind:"addRelation",leadId:target.id,expectedVersion:target.version,relationship})),update:(relationshipId,relationship)=>submitMember(target=>target.relationships.some(r=>r.id===relationshipId&&r.status==="DECLARED")?{kind:"updateRelation",leadId:target.id,expectedVersion:target.version,relationshipId,relationship}:null),confirm:relationshipId=>submitMember(target=>target.relationships.some(r=>r.id===relationshipId&&r.status==="DECLARED")?{kind:"confirmRelation",leadId:target.id,expectedVersion:target.version,relationshipId}:null),retire:relationshipId=>submitMember(target=>target.relationships.some(r=>r.id===relationshipId)?{kind:"retireRelation",leadId:target.id,expectedVersion:target.version,relationshipId}:null)}:undefined} onSave={relationships => updateRelationships(selectedLead.id, relationships)} /> },
+        { ...LEAD_DETAIL_TABS.history, content: readModel?<LeadInquiryHistory model={readModel}/>:<LeadHistory /> },
       ]}
     /> : null}
 
