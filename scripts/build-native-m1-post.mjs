@@ -14,7 +14,7 @@ const logoPath=process.env.PINO_M1_LOGO_PATH;
 if(!logoPath)throw Error("Canonical logo path required");
 const logo=readFileSync(logoPath);
 if(createHash("sha256").update(logo).digest("hex")!=="76da9a2d6beae0d75134979ac0b622d4ab798c28d9d727c3c165819aacd59a4d")throw Error("Canonical logo digest mismatch");
-for(const surface of ["bo","ho"]){
+for(const surface of process.env.PINO_M1_POST_HO_ONLY==="1"?["ho"]:["bo","ho"]){
  const route=surface==="bo"?"/bo/piner-posts":"/ho/content/post-approval",assets=route+"/__m1_assets/",output=resolve(outputRoot,revision,surface);
  if(existsSync(output))throw Error("Preserve previous artifact evidence");
  mkdirSync(output,{recursive:true});writeFileSync(join(output,"pino-logo.png"),logo);
@@ -34,6 +34,6 @@ for(const surface of ["bo","ho"]){
  console.log(JSON.stringify({surface,reactInputs}));
  if(!existsSync(join(output,"app.css")))throw Error("Native CSS missing");
  writeFileSync(join(output,"index.html"),'<!doctype html><html lang="vi" '+(surface==="bo"?'data-bo-ui-authority="v25"':'data-surface="ho"')+'><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Post · M1</title><link rel="stylesheet" href="'+assets+'app.css"></head><body><div id="root"></div><script src="'+assets+'app.js"></script></body></html>');
- const spec={jiraTask:"PAP-2337",epicCode:"PNR-APP-HUB",surface,reviewUrl:"http://192.168.1.6:8800"+route+"?m1Preview=1",sourceRevision:revision,fixtureId:"POST-MOCK-001",sourceFiles:{route:surface==="bo"?"app/bo/piner-posts/page.tsx":"app/ho/content/post-approval/page.tsx",renderer:surface==="bo"?"app/bo/piner-posts/BoPostsDraftRuntime.tsx":"app/bo/content/posts/PostPreviewShell.tsx",schema:surface==="bo"?"app/bo/piner-posts/native-draft-binding.ts":"app/bo/content/posts/post-preview-contract.ts",fixture:surface==="bo"?"app/bo/piner-posts/post-preview-session.ts":"app/bo/content/posts/post-preview-fixture.ts"}};
+ const spec={jiraTask:"PAP-2337",epicCode:"PNR-APP-HUB",surface,reviewUrl:surface==="ho"?"http://desktop-isrdren:8800"+route:"http://192.168.1.6:8800"+route+"?m1Preview=1",sourceRevision:revision,fixtureId:"POST-MOCK-001",sourceFiles:{route:surface==="bo"?"app/bo/piner-posts/page.tsx":"app/ho/content/post-approval/page.tsx",renderer:surface==="bo"?"app/bo/piner-posts/BoPostsDraftRuntime.tsx":"app/bo/content/posts/PostPreviewShell.tsx",schema:surface==="bo"?"app/bo/piner-posts/native-draft-binding.ts":"app/bo/content/posts/post-preview-contract.ts",fixture:surface==="bo"?"app/bo/piner-posts/post-preview-session.ts":"app/bo/content/posts/post-preview-fixture.ts"}};
  const registration=createRegistration(spec,revision,path=>git("show",revision+":"+path),readAssets(output)),receipt=output+"-registration.json";writeFileSync(receipt,JSON.stringify(registration,null,2));console.log(JSON.stringify({surface,output,receipt,revision,artifact:registration.artifact.sha256,servingVerified:false}));
 }
