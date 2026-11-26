@@ -13,7 +13,7 @@ import { TddRenderer } from "@/app/components/workspace-renderer/Renderer";
 import { HoWorkspace } from "@/app/ho/HoWorkspace";
 import { TddPreferencePolicy } from "@/app/components/workspace-renderer/Record";
 import { createMissionM1Boundary } from "./mission-m1-boundary";
-import { missionDefinition, missionFields, missionProvider, missionQuery } from "./schema";
+import { missionDefinition, missionFields, missionProvider, missionQuery, missionIntegratedDefinition, missionIntegratedProvider, missionCategoryQuery } from "./schema";
 import { submitHoMission, type MissionInput } from "./command";
 import { loadMissionForEdit } from "./read-edit";
 import { emptyMission, MissionCreateFields, validateMissionCreate } from "./MissionCreateFields";
@@ -21,9 +21,10 @@ import { loadMissionPathChoices, validateMissionSelectedPath, type MissionPathCh
 
 type F = typeof missionFields;
 type Ready = { adapter: AuthenticatedSurfaceAdapter<F>; navigation: AdapterNavigation<F> };
-type EditTarget = { id: string; version: number; status: MissionInput["status"] };
+type EditTarget = { id: string; version: number; status: MissionInput["status"]; originalCategory: MissionInput["category"] };
 export type MissionBoundary = {
   readonly preview: boolean;
+  readonly integratedMetadata?: true;
   readonly query: TableQuery<F>;
   readonly open: (signal: AbortSignal) => Promise<Ready>;
   readonly load: (id:string)=>ReturnType<typeof loadMissionForEdit>;
@@ -40,6 +41,15 @@ const liveBoundary: MissionBoundary = {
   },
   load:id=>loadMissionForEdit(id), paths:signal=>loadMissionPathChoices(fetch,signal),
   submit:command=>submitHoMission(command), key:prefix=>prefix+crypto.randomUUID(),
+};
+/** PAP-2394: unmounted integrated boundary; server route stays M1 until Core serving and M3 admission. */
+export const integratedMissionBoundary: MissionBoundary = {
+  ...liveBoundary, integratedMetadata:true,query:missionCategoryQuery,
+  async open(signal) {
+    const adapter=await createHoTddAdapter({registry:new TddRegistry(),definition:missionIntegratedDefinition,provider:missionIntegratedProvider},signal);
+    try { return {adapter,navigation:browserTddNavigation("HO","missions",missionCategoryQuery)}; }
+    catch(error){adapter.dispose();throw error;}
+  },
 };
 type PathState =
   | { state: "idle" | "loading" | "error"; message?: string }
@@ -106,6 +116,8 @@ export function HoMissionsContent({boundary=liveBoundary}:{boundary?:MissionBoun
     return () => controller.abort();
   }, [mode,boundary]);
   const pathChoices = pathState.state === "ready" ? pathState.choices : [];
+  const metadataEnabled=boundary.preview||boundary.integratedMetadata===true;
+  const allowUnclassified=boundary.integratedMetadata===true && mode==="edit" && editTarget?.originalCategory===null;
   const close = () => {
     if (writing.current || pending) return;
     setMode(null); setEditTarget(null); setFormError(""); setPathState({ state: "idle" });
@@ -126,7 +138,7 @@ export function HoMissionsContent({boundary=liveBoundary}:{boundary?:MissionBoun
       const result = await boundary.load(selected.recordId);
       if (result.state !== "ready") { setEditLoadError(result.message); return; }
       if (ready.navigation.read().recordId !== result.id) return; // stale selected row
-      setEditTarget({ id: result.id, version: result.version, status: result.data.status });
+      setEditTarget({ id: result.id, version: result.version, status: result.data.status, originalCategory:result.data.category });
       setDraft(result.data); setPathState({ state: "loading" }); idempotency.current = boundary.key("mission-edit-");
       setFormError(""); setConfirmed(""); setMode("edit");
     } finally { setPending(false); }
@@ -177,7 +189,7 @@ export function HoMissionsContent({boundary=liveBoundary}:{boundary?:MissionBoun
   };
   const submit = async () => {
     if (!mode) return { state: "invalid" as const };
-    const invalid = validateMissionCreate(draft,boundary.preview) ||
+    const invalid = validateMissionCreate(draft,metadataEnabled,allowUnclassified) ||
       validateMissionSelectedPath(draft, pathChoices);
     if (invalid) { setFormError(invalid); return { state: "invalid" as const }; }
     if (mode === "edit" && (!editTarget || editTarget.status !== draft.status)) {
@@ -222,10 +234,10 @@ export function HoMissionsContent({boundary=liveBoundary}:{boundary?:MissionBoun
     ...(boundary.preview ? {archiveMission:{kind:"navigation" as const,disabled:pending || uncertain || mode !== null || archivePreview !== null,visible:archiveAvailable,run:()=>archiveMission()}} : {}),
     cancelCreate: { kind: "navigation", disabled: pending, run: close },
     saveCreate: { kind: "mutation", disabled: pending || uncertain ||
-      Boolean(validateMissionCreate(draft,boundary.preview) || validateMissionSelectedPath(draft, pathChoices)), run: submit },
+      Boolean(validateMissionCreate(draft,metadataEnabled,false) || validateMissionSelectedPath(draft, pathChoices)), run: submit },
     cancelEdit: { kind: "navigation", disabled: pending, run: close },
     saveEdit: { kind: "mutation", disabled: pending || uncertain ||
-      Boolean(validateMissionCreate(draft,boundary.preview) || validateMissionSelectedPath(draft, pathChoices)) ||
+      Boolean(validateMissionCreate(draft,metadataEnabled,allowUnclassified) || validateMissionSelectedPath(draft, pathChoices)) ||
       !editTarget || editTarget.status !== draft.status, run: submit },
   };
   const content = <section data-testid="ho-missions-tdd" aria-label="Danh mục Mission toàn hệ thống">
@@ -246,7 +258,7 @@ export function HoMissionsContent({boundary=liveBoundary}:{boundary?:MissionBoun
           title: mode === "create" ? "Tạo Mission" : "Sửa Mission", onClose: close, actionBindings: actions,
           content: <>
             <MissionCreateFields value={draft} setValue={setDraft} disabled={pending || uncertain}
-               editing={mode === "edit"} pathChoices={pathChoices} requireCategory={boundary.preview}
+               editing={mode === "edit"} pathChoices={pathChoices} requireCategory={metadataEnabled} allowUnclassified={allowUnclassified}
                pathState={pathState.state} pathError={pathState.state === "error" ? pathState.message : ""} />
             {formError ? <p role="alert">{formError}</p> : null}
           </>,

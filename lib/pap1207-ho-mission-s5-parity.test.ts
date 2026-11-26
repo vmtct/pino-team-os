@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { Children, isValidElement, type ReactNode, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { MissionCreateFields, emptyMission } from "../app/ho/learning/missions/MissionCreateFields";
+import { MissionCreateFields, emptyMission, validateMissionCreate } from "../app/ho/learning/missions/MissionCreateFields";
 import { validateMissionSelectedPath, type MissionPathChoice } from "../app/ho/learning/missions/mission-path-options";
 import type { MissionInput } from "../app/ho/learning/missions/command";
 
@@ -78,7 +78,7 @@ test("PAP-1207 S5 Path validation fails closed on stale, missing or mismatched C
 test("PAP-1207 S5 both Create/Edit acquire fresh Core Path before mutation; status cannot be changed by Edit", () => {
   const source = readFileSync("app/ho/learning/missions/HoMissionsTdd.tsx", "utf8");
   assert.match(source, /if \(mode === null\) return;/);
-  assert.match(source, /const invalid = validateMissionCreate\(draft,\s*boundary\.preview\) \|\|\s+validateMissionSelectedPath\(draft, pathChoices\)/);
+  assert.match(source, /const invalid = validateMissionCreate\(draft,\s*metadataEnabled,\s*allowUnclassified\) \|\|\s+validateMissionSelectedPath\(draft, pathChoices\)/);
   assert.match(source, /if \(mode === "create" \|\| mode === "edit"\)/);
   assert.match(source, /const fresh = await boundary\.paths\(\)/);
   assert.match(source, /paths:signal=>loadMissionPathChoices\(fetch,signal\)/);
@@ -88,4 +88,20 @@ test("PAP-1207 S5 both Create/Edit acquire fresh Core Path before mutation; stat
   assert.match(source, /editTarget\.status !== draft\.status/);
   assert.match(source, /kind: "update"[\s\S]*expectedVersion: editTarget!\.version/);
   assert.match(source, /result\.state === "unverified"/);
+});
+
+test("PAP-2394 integrated form permits only historical unclassified edit and validates URL independently",()=>{
+ const draft={...sourceDraft,category:null,supplementalUrl:"https://example.test/guide"};
+ assert.equal(validateMissionCreate(draft,true),"Vui lòng chọn Category.");
+ assert.equal(validateMissionCreate(draft,true,true),null);
+ assert.match(validateMissionCreate({...draft,supplementalUrl:"ftp://example.test"},true,true)??"",/HTTP/);
+ assert.equal(validateMissionCreate({...draft,category:"Staff Training"},true),null);
+ assert.equal(validateMissionCreate({...draft,category:undefined},true,true),"Vui lòng chọn Category.");
+ const html=renderToStaticMarkup(MissionCreateFields({value:draft,setValue:()=>undefined,disabled:false,editing:true,pathChoices:paths,pathState:"ready",requireCategory:true,allowUnclassified:true}));
+ assert.match(html,/<span>Category<\/span>/);
+ assert.match(html,/<option value="" selected="">Chưa phân loại<\/option>/);
+ assert.ok(html.indexOf("<span>Hướng dẫn</span>")<html.indexOf("<span>URL bổ sung</span>"));
+ const create=renderToStaticMarkup(MissionCreateFields({value:draft,setValue:()=>undefined,disabled:false,pathChoices:paths,pathState:"ready",requireCategory:true}));
+ assert.match(create,/<span>Category \*<\/span>/);
+ assert.match(create,/<select required="" aria-label="Category"/);
 });
