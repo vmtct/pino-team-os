@@ -5,11 +5,11 @@ import type {BoAccessRequest} from "./bo-core";
 const host="bo.staging.pinohouse.art",base="acquisition/households",id="01a03c6e-cc58-7d81-ac8e-123456789abc",key="synthetic-lead-request-123";
 function fixture(status=200){
  const calls:BoAccessRequest[]=[];
- const env:LeadHouseholdEnv={APP_ENV:"staging",PINO_BO_CORE:{executeWithStaffPassword(request,token){assert.equal(token,"synthetic");calls.push(request);return Promise.resolve({status,requestId:"qa",body:status>=400?{error:{code:"ACQUISITION_INVALID_INPUT",message:"private diagnostic"}}:{data:{}}});}}};
+ const env:LeadHouseholdEnv={APP_ENV:"staging",PINO_BO_CORE:{executeWithStaffPassword(request,token){assert.equal(token,"synthetic");if(request.path==="context")return Promise.resolve({status:200,requestId:"context",body:{data:{userId:id,surface:"BO",entitled:true}}});calls.push(request);return Promise.resolve({status,requestId:"qa",body:status>=400?{error:{code:"ACQUISITION_INVALID_INPUT",message:"private diagnostic"}}:{data:{}}});}}};
  return {env,calls};
 }
 function req(method:string,suffix:string,body?:unknown,extra:Record<string,string>={},hostname=host){
- return new Request("https://"+hostname+"/api/bo/"+base+suffix,{method,headers:{host:hostname,cookie:"pino_staff_password_session=synthetic",origin:"https://"+hostname,"sec-fetch-site":"same-origin","content-type":"application/json","idempotency-key":key,...extra},...(body===undefined?{}:{body:JSON.stringify(body)})});
+ return new Request("https://"+hostname+"/api/bo/"+base+suffix,{method,headers:{host:hostname,cookie:"pino_staff_password_session=synthetic",origin:"https://"+hostname,"sec-fetch-site":"same-origin","content-type":"application/json","idempotency-key":key,"x-pino-expected-actor":id,...extra},...(body===undefined?{}:{body:JSON.stringify(body)})});
 }
 test("PAP-2288 exact search body and history scope, no resource or key on read",async()=>{
  const {env,calls}=fixture();
@@ -35,4 +35,16 @@ test("PAP-2288 propagates canonical Core status without leaking diagnostic text"
  const {env,calls}=fixture(409);
  const r=await handleLeadHousehold(req("POST","/"+id+"/contact",{expectedVersion:1,contact:{phone:"0900000000"}}),env);
  assert.equal(r.status,409);assert.deepEqual(await r.json(),{error:{code:"ACQUISITION_INVALID_INPUT"}});assert.equal(calls.length,1);
+});
+test("PAP-2288 expected actor cannot substitute identity or dispatch after context denial",async()=>{
+ const {env,calls}=fixture();
+ for(const [actor,status] of [["",400],["GLOBAL",400],["01a03c6e-cc58-7d81-ac8e-123456789abd",403]] as const){
+  const r=await handleLeadHousehold(req("POST","",{contact:{phone:"0900000000"}},{"x-pino-expected-actor":actor}),env);
+  assert.equal(r.status,status);
+ }
+ for(const status of [401,403,500]){
+  const denied:LeadHouseholdEnv={...env,PINO_BO_CORE:{executeWithStaffPassword(request){assert.equal(request.path,"context");return Promise.resolve({status,requestId:"denied",body:{}});}}};
+  assert.equal((await handleLeadHousehold(req("POST","",{contact:{phone:"0900000000"}}),denied)).status,status===500?503:status);
+ }
+ assert.equal(calls.length,0);
 });

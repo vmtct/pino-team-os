@@ -49,6 +49,13 @@ export async function handleLeadHousehold(request:Request,env:LeadHouseholdEnv):
  }
  const credential=await teamCredential(request,env,"BO");
  if(credential.kind!=="password")return fail(403,"ACCESS_PERMISSION_DENIED");
+ const expectedActor=request.headers.get("x-pino-expected-actor");
+ if(!expectedActor||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(expectedActor))return fail(400,"LEAD_ACTOR_REQUIRED");
+ const context=await callBoAccessCoreWithCredential(env.PINO_BO_CORE,{method:"GET",path:"context"},credential);
+ if(context.status===401||context.status===403)return fail(context.status,"ACCESS_PERMISSION_DENIED",context.requestId);
+ if(context.status!==200)return fail(503,"PLATFORM_UNAVAILABLE",context.requestId);
+ const actor=(context.body as {data?:{userId?:unknown;surface?:unknown;entitled?:unknown}}|null)?.data;
+ if(!actor||actor.userId!==expectedActor||actor.surface!=="BO"||actor.entitled!==true)return fail(403,"LEAD_ACTOR_CHANGED",context.requestId);
  const result=await callBoAccessCoreWithCredential(env.PINO_BO_CORE,core,credential);
  // Never forward upstream diagnostic message or raw user input in errors.
  if(result.status>=400){const code=(result.body as {error?:{code?:unknown}}|null)?.error?.code;return fail(result.status,typeof code==="string"&&/^[A-Z][A-Z0-9_]{0,100}$/.test(code)?code:"LEAD_REQUEST_FAILED",result.requestId);}
