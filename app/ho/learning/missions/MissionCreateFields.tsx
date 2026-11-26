@@ -2,10 +2,11 @@
 import type { MissionInput } from "./command";
 import type { MissionPathChoice } from "./mission-path-options";
 import { isMissionCategory, missionCategories } from "./mission-category";
+import { missionSupplementalUrlMaxLength, normalizeMissionSupplementalUrl } from "./mission-supplemental-url";
 
 export const emptyMission: MissionInput = {
   code: "", name: "", level: 1, status: "ACTIVE", plsValue: 0, paperSize: null,
-  description: null, guideline: null, pathProgramId: null, pathKeySnapshot: null,
+  description: null, guideline: null, supplementalUrl: null, pathProgramId: null, pathKeySnapshot: null,
   prerequisiteMissionId: null, prerequisiteCodeSnapshot: null,
 };
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -20,6 +21,7 @@ export function validateMissionCreate(value: MissionInput, requireCategory = fal
   }
   if (value.description && value.description.length > 4000) return "Mô tả quá dài.";
   if (value.guideline && value.guideline.length > 8000) return "Hướng dẫn quá dài.";
+  if (requireCategory && !normalizeMissionSupplementalUrl(value.supplementalUrl).ok) return "URL bổ sung phải là URL HTTP/HTTPS hợp lệ (tối đa 2048 ký tự).";
   return null;
 }
 
@@ -80,6 +82,8 @@ export function MissionCreateFields({ value, setValue, disabled, editing = false
       value={value.description ?? ""} onChange={e => set("description", e.target.value || null)} /></label>
     <label className="v25-form-field form-row"><span>Hướng dẫn</span><textarea rows={4} maxLength={8000} disabled={disabled}
       value={value.guideline ?? ""} onChange={e => set("guideline", e.target.value || null)} /></label>
+    {requireCategory ? <label className="v25-form-field form-row"><span>URL bổ sung</span><input type="url" inputMode="url" maxLength={missionSupplementalUrlMaxLength} disabled={disabled}
+      placeholder="https://..." value={value.supplementalUrl ?? ""} onChange={e => set("supplementalUrl", e.target.value || null)} /></label> : null}
     {!editing ? <div className="v25-form-metadata edit-form" aria-label="Thông tin hệ thống" data-mission-create-audit>
       {(["Created Time", "Created by (User)", "Last Modified Time", "Last Modified By (User)"] as const)
         .map(label => <label key={label} className="v25-form-field form-row"><span>{label}</span>

@@ -47,12 +47,12 @@ test("PAP-2394 new/edit/archived preview record uses exact category and PLS",asy
  assert.throws(()=>createMissionM1Boundary("real-id"));
 });
 
-test("PAP-2394 all eight inline fields validate and read back; protected fields stay immutable",async()=>{
+test("PAP-2394 all nine inline fields validate and read back; protected fields stay immutable",async()=>{
  const b=createMissionM1Boundary(),signal=new AbortController().signal,{adapter}=await b.open(signal);
  const update=(patch:unknown,version:string)=>adapter.mutation!.update(MISSION_M1_ID,patch as never,version,adapter.context,signal);
  for(const patch of [{name:" "},{code:"!"},{level:6},{level:1.5},{plsValue:1.1},{path:"unknown"},{description:"x".repeat(4001)},{guideline:"x".repeat(8001)},{createdAt:"fake"},{paperSize:"A4"},{name:"a",code:"AB"}])assert.equal((await update(patch,"1")).status,"invalid");
  let version="1";
- for(const [key,value] of Object.entries({name:"Mission revised",code:"mock-revised",category:"MyTime",level:5,plsValue:45,path:"PianoHouse",description:"Mô tả mới",guideline:"Hướng dẫn mới"})){
+ for(const [key,value] of Object.entries({name:"Mission revised",code:"mock-revised",category:"MyTime",level:5,plsValue:45,path:"PianoHouse",description:"Mô tả mới",guideline:"Hướng dẫn mới",supplementalUrl:"https://example.test/guide-v2"})){
   const r=await update({[key]:value},version);
   assert.equal(r.status,"saved",key);if(r.status!=="saved")throw Error(key);
   version=r.version;assert.equal(r.row[key as keyof typeof r.row],key==="code"?"MOCK-REVISED":value);
@@ -77,4 +77,27 @@ test("PAP-2394 M1-B canonical query and actual admitted actor boundary",async()=
  const {adapter,navigation}=await b.open(new AbortController().signal);
  assert.equal(adapter.userId,"test-actor");assert.equal(adapter.context.authorize("foreign.permission"),false);
  assert.equal(navigation.read().recordId,MISSION_M1_ID);
+});
+
+test("PAP-2394 supplemental URL is optional metadata directly after guideline; no live/default Table activation",async()=>{
+ const {normalizeMissionSupplementalUrl}=await import("../app/ho/learning/missions/mission-supplemental-url");
+ const {missionDefinition}=await import("../app/ho/learning/missions/schema");
+ const keys=[...missionCategoryPropertyKeys];assert.equal(keys[keys.indexOf("guideline")+1],"supplementalUrl");
+ assert.equal(missionCategoryDefinition.fields.find(f=>f.key==="supplementalUrl")?.type,"url");
+ assert.ok(!missionCategoryColumnKeys.some(k=>String(k)==="supplementalUrl"));
+ assert.ok(!missionDefinition.fields.some(f=>f.key==="supplementalUrl"));
+ for(const value of [null,undefined,"","  "])assert.deepEqual(normalizeMissionSupplementalUrl(value),{ok:true,value:null});
+ for(const value of ["javascript:alert(1)","ftp://example.test","//example.test","https://user:pass@example.test","https://example.test/a b","https://","https://example.test/"+"x".repeat(2048),42])assert.deepEqual(normalizeMissionSupplementalUrl(value),{ok:false});
+ const b=createMissionM1Boundary(),signal=new AbortController().signal,{adapter}=await b.open(signal);
+ const patch=(value:unknown,version:string)=>adapter.mutation!.update(MISSION_M1_ID,{supplementalUrl:value} as never,version,adapter.context,signal);
+ assert.equal((await patch("javascript:alert(1)","1")).status,"invalid");
+ assert.equal((await patch(" https://example.test/updated ","1")).status,"saved");
+ assert.equal((await adapter.detail(MISSION_M1_ID,signal))?.row.supplementalUrl,"https://example.test/updated");
+ assert.equal((await patch(null,"2")).status,"saved");
+ assert.equal((await adapter.detail(MISSION_M1_ID,signal))?.row.supplementalUrl,null);
+ const paths=await b.paths(),data={...emptyMission,name:"URL sample",code:"URL-MOCK",category:"Staff Training" as const,pathProgramId:paths[0].id,pathKeySnapshot:paths[0].code,supplementalUrl:"https://example.test/create"};
+ const created=await b.submit({kind:"create",data,idempotencyKey:"url-create"});
+ assert.equal(created.state,"verified");if(created.state!=="verified")throw Error("create");
+ assert.equal((await adapter.detail(created.record.id,signal))?.row.supplementalUrl,data.supplementalUrl);
+ assert.equal((await b.submit({kind:"create",data:{...data,code:"URL-BAD",supplementalUrl:"file:///x"},idempotencyKey:"url-bad"})).state,"invalid");
 });

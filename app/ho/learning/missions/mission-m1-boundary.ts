@@ -8,6 +8,7 @@ import type { MissionBoundary } from "./HoMissionsTdd";
 import type { MissionInput } from "./command";
 import { emptyMission, validateMissionCreate } from "./MissionCreateFields";
 import { isMissionCategory } from "./mission-category";
+import { normalizeMissionSupplementalUrl } from "./mission-supplemental-url";
 import { missionCategoryDefinition, missionCategoryQuery, missionInlineFields, type missionFields } from "./schema";
 import { validateMissionSelectedPath, type MissionPathChoice } from "./mission-path-options";
 type F = typeof missionFields;
@@ -22,12 +23,12 @@ const paths: readonly MissionPathChoice[]=[
  {id:"01900000-0000-7000-8000-000000000013",code:"little-piner-art",label:"Little Piner Art"},
  {id:"01900000-0000-7000-8000-000000000014",code:"little-piner-piano",label:"Little Piner Piano"},
 ];
-const seed=():Record=>({id:MISSION_M1_ID,version:1,draft:{...emptyMission,code:"MISSION-MOCK-001",name:"Hướng dẫn phối màu · mẫu",category:"Staff Training",level:2,plsValue:30,pathProgramId:paths[0].id,pathKeySnapshot:paths[0].code,description:"Thực hành hướng dẫn phối màu cơ bản.",guideline:"Hướng dẫn từng bước, có minh họa."}});
+const seed=():Record=>({id:MISSION_M1_ID,version:1,draft:{...emptyMission,code:"MISSION-MOCK-001",name:"Hướng dẫn phối màu · mẫu",category:"Staff Training",level:2,plsValue:30,pathProgramId:paths[0].id,pathKeySnapshot:paths[0].code,description:"Thực hành hướng dẫn phối màu cơ bản.",guideline:"Hướng dẫn từng bước, có minh họa.",supplementalUrl:"https://example.test/mission-guide"}});
 function project(r:Record):ModuleRow<F>{
  const d=r.draft;
  return {id:r.id,name:d.name,code:d.code,category:d.category,level:d.level,status:d.status,plsValue:d.plsValue,
   paperSize:d.paperSize,path:paths.find(p=>p.id===d.pathProgramId)?.label??"—",prerequisite:d.prerequisiteCodeSnapshot,
-  description:d.description,guideline:d.guideline,createdAt:"—",createdBy:"—",updatedAt:"—",updatedBy:"—"};
+  description:d.description,guideline:d.guideline,supplementalUrl:d.supplementalUrl??null,createdAt:"—",createdBy:"—",updatedAt:"—",updatedBy:"—"};
 }
 export function createMissionM1Boundary(initialRecord?:string,admission?:Admission):MissionBoundary{
  if(initialRecord!==undefined&&initialRecord!==MISSION_M1_ID)throw Error("Unknown Mission M1 fixture");
@@ -79,6 +80,11 @@ export function createMissionM1Boundary(initialRecord?:string,admission?:Admissi
      case "description":case "guideline":
       if(value!==null&&typeof value!=="string")return invalid();
       draft={...draft,[key]:value||null};break;
+     case "supplementalUrl":{
+      const url=normalizeMissionSupplementalUrl(value);
+      if(!url.ok)return invalid();
+      draft={...draft,supplementalUrl:url.value};break;
+     }
      default:return invalid();
     }
     if(validateMissionCreate(draft,true)||validateMissionSelectedPath(draft,paths))return invalid();
@@ -100,9 +106,11 @@ export function createMissionM1Boundary(initialRecord?:string,admission?:Admissi
    }
    const d=command.data;
    if(validateMissionCreate(d,true)||validateMissionSelectedPath(d,paths)||!isMissionCategory(d.category))return {state:"invalid",message:"Thông tin Mission mẫu chưa hợp lệ."};
+   const url=normalizeMissionSupplementalUrl(d.supplementalUrl);
+   if(!url.ok)return {state:"invalid",message:"URL bổ sung chưa hợp lệ."};
    const code=d.code.trim().toUpperCase();
    if(records.some(r=>r.id!==old?.id&&r.draft.code===code))return {state:"conflict",message:"Mã Mission mẫu đã tồn tại."};
-   const next:Record={id:old?.id??("MISSION-MOCK-"+String(++serial).padStart(3,"0")),version:(old?.version??0)+1,draft:{...d,code,name:d.name.trim(),category:d.category}};
+   const next:Record={id:old?.id??("MISSION-MOCK-"+String(++serial).padStart(3,"0")),version:(old?.version??0)+1,draft:{...d,code,name:d.name.trim(),category:d.category,supplementalUrl:url.value}};
    if(old)replace(next);else records=[...records,next];
    return {state:"verified",record:{id:next.id,code:next.draft.code,version:next.version,status:next.draft.status}};
   }
