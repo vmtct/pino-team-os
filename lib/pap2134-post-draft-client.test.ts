@@ -34,3 +34,12 @@ test("foreign Center, invalid program, denied and aborted requests fail closed",
  await assert.rejects(api.detail(P,signal),e=>e instanceof CoreDraftRequestError&&e.status===409&&!e.message.includes("secret"));
  const ctl=new AbortController();ctl.abort();await assert.rejects(api.list(ctl.signal));assert.equal(calls,1);
 });
+
+test("PAP-2386 pending approval is a scoped read-only status projection, not publication",async()=>{
+ const pending=raw({status:"PENDING_APPROVAL",version:2,mediaCount:1});
+ const api=coreDraftClient(A,async input=>res(String(input).includes("limit=")?{posts:[pending],nextBeforeId:null}:pending));
+ const page=await api.list(signal);assert.equal(page.rows[0]?.status,"Chờ duyệt");assert.equal(page.rows[0]?.version,2);
+ const detail=await api.detail(P,signal);assert.equal(detail.status,"Chờ duyệt");assert.equal(detail.mediaCount,1);
+ for(const status of ["PUBLISHED","HIDDEN","UNKNOWN"])await assert.rejects(coreDraftClient(A,async()=>res(raw({status}))).detail(P,signal));
+ await assert.rejects(coreDraftClient(A,async()=>res({...pending,centerId:"01900000-0000-7000-8000-000000000002"})).detail(P,signal));
+});
