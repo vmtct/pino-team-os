@@ -157,10 +157,28 @@ function nativeRunningClassesRoute(root,issues){
  const files=[base+"page.tsx",base+"RunningClassStagingEntry.tsx",base+"running-class-review-access.ts",base+"running-class-review.ts",base+"running-class-review-query.ts",base+"running-class-review-access.test.ts",base+"running-class-review-query.test.ts","lib/pap2225-running-class-m1.test.ts"];
  if(files.some(f=>!fs.existsSync(path.join(root,f)))){issues.push(route+": missing exact native fixture contract");return false;}
  const [page,view,access,fixture,query]=files.map(f=>read(root,f));
+ const liveFiles=[base+"RunningClassNativeEntry.tsx",base+"running-class-stage-admission.ts",base+"running-class-provider.ts",base+"running-class-stage-admission.test.ts"];
+ if(liveFiles.some(f=>!fs.existsSync(path.join(root,f)))){issues.push(route+": missing exact native live contract");return false;}
+ const [live,phase,provider]=liveFiles.map(f=>read(root,f));
  const required=[
  [page,'if(env.APP_ENV==="staging"||isBoStagingHost(host)){if(host!=="bo.staging.pinohouse.art"||!boSkeletonEnabled(env,host))notFound();}'],
  [page,'else return <BoOperationalView view="running-classes"/>;'],
- [page,'if(parseRunningClassReviewQuery(runningClassSearchParams(await searchParams))===null)notFound();'],
+ [page,'if(parseRunningClassStageQuery(runningClassSearchParams(await searchParams))===null)notFound();'],
+ [page,'const actor=await authorizeBoShell(new Headers(incoming),env).catch(()=>forbidden());'],
+ [page,'return <RunningClassNativeEntry expectedActorId={actor.userId}/>;'],
+ [phase,'export const RUNNING_CLASS_LIVE_ADMISSION=true;'],
+ [phase,'return RUNNING_CLASS_LIVE_ADMISSION?parseRunningClassLiveQuery(input,legacy):parseRunningClassReviewQuery(input,legacy);'],
+ [live,'if(!selected||!center.centers.some(c=>c.id===selected))return <RecordState status="denied"/>;'],
+ [live,'fetcher("/api/bo/context?centerId="+encodeURIComponent(centerId),{method:"GET"})'],
+ [live,'if(!body.data||body.data.userId!==expectedActorId)'],
+ [live,'openRunningClassProvider({centerId,expectedActorId,context,selectedCenter:()=>abort.signal.aborted?"":centerId,fetcher,storage:window.sessionStorage})'],
+ [live,'runningClassLive:provider'],
+ [live,'return()=>{abort.abort();opened?.dispose();};'],
+ [live,'<BoRegistrationWorkspace source={session.source} moduleKey="classes" options={options} currentUser={user}/>'],
+ [provider,'current.userId!==actorId'],
+ [provider,'current.permissionKeys?.includes("delivery.schedule.manage")'],
+ [provider,'current.permissionKeys?.includes("membership.subscription.view")'],
+ [provider,'if(write&&!writable)return fail("Running Class is read-only.");'],
  [view,'const user=useBoStagingUser(),center=useBoCenterSelection();'],
  [view,'if(!user||!center||center.error)return <RecordState status="denied"/>;'],
  [view,'if(!selected||!center.centers.some(c=>c.id===selected))return <RecordState status="denied"/>;'],
@@ -177,7 +195,9 @@ function nativeRunningClassesRoute(root,issues){
  [fixture,'const records=new Map<string,ClassRecord>([[seed.id,seed]]);'],
  [query,'RUNNING-CLASS-MOCK-001']
  ];
- const valid=mountsExactNamedComponent(files[0],page,"./RunningClassStagingEntry","RunningClassStagingEntry")&&
+ const valid=mountsExactNamedComponent(files[0],page,"./RunningClassNativeEntry","RunningClassNativeEntry")&&
+ mountsExactNamedComponent(liveFiles[0],live,"../components/registration/BoRegistrationWorkspace","BoRegistrationWorkspace")&&
+ mountsExactNamedComponent(files[0],page,"./RunningClassStagingEntry","RunningClassStagingEntry")&&
  mountsExactNamedComponent(files[1],view,"../components/registration/BoRegistrationWorkspace","BoRegistrationWorkspace")&&
  required.every(([source,needle])=>source.includes(needle))&&
  ![view,access,fixture].some(s=>/method:\s*["'](?:POST|PATCH|PUT|DELETE)["']|BoLocalReviewCenter|localStorage\.|sessionStorage\./.test(s));

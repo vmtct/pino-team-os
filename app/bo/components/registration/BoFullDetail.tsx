@@ -6,6 +6,8 @@ import { BoValue } from "./BoValue";
 import { BoRegistrationHistory } from "./BoRegistrationHistory";
 import { BoRunningClassEnrollment } from "./BoRunningClassEnrollment";
 import { RunningClassDetailProperties } from "../../running-classes/RunningClassDraftControls";
+import type { RunningClassProvider } from "../../running-classes/running-class-provider";
+import type { ClassEditCommand } from "../../running-classes/running-class-presentation";
 import type { RunningClassReview } from "../../running-classes/running-class-review";
 import { BoStudentSubscriptionRelation } from "./BoStudentSubscriptionRelation";
 import {subscriptionDetailUrl} from "@/lib/bo-subscription-detail-url";
@@ -41,7 +43,7 @@ const BoStudentSpecialtyTab = lazy(async () => {
 import type { BoModule, BoRecord } from "@/lib/bo-registration";
 
 export function BoFullDetail({
-  module, moduleKey, record, onBack, onStudentRenamed, mobileMenu, enableStudentSubscriptions = false, onEnrollmentChanged, onWorkforcePlanChanged, initialTab, onTabChanged, reviewOnly = false, runningClassReview, onRunningClassSaved,
+  module, moduleKey, record, onBack, onStudentRenamed, mobileMenu, enableStudentSubscriptions = false, onEnrollmentChanged, onWorkforcePlanChanged, initialTab, onTabChanged, reviewOnly = false, runningClassReview, onRunningClassSaved, runningClassLive, runningClassLiveEditable, onRunningClassLiveEdit,
 }: {
   module: BoModule;
   moduleKey: string;
@@ -54,6 +56,9 @@ export function BoFullDetail({
   onWorkforcePlanChanged?: (open: boolean) => void;
   reviewOnly?: boolean;
   runningClassReview?: RunningClassReview;
+  runningClassLive?: RunningClassProvider;
+  runningClassLiveEditable?: boolean;
+  onRunningClassLiveEdit?: (command:ClassEditCommand)=>Promise<void>;
   onRunningClassSaved?: (record:BoRecord)=>void;
   initialTab?: string;
   onTabChanged?: (tab: string) => void;
@@ -80,7 +85,7 @@ export function BoFullDetail({
     : moduleKey === "students"
     ? ["Detail", "Diary", "Lịch Sử"]
     : ["Detail", "Lịch Sử"];
-  const classRecord = moduleKey === "classes" ? runningClassReview?.find(record.id) : undefined;
+  const classRecord = moduleKey === "classes" ? (runningClassReview?.find(record.id) ?? runningClassLive?.find(record.id)) : undefined;
   const selectedTabIndex = tabs.indexOf(tab);
   const activeTab = selectedTabIndex >= 0 ? tab : "Detail";
 
@@ -120,6 +125,8 @@ export function BoFullDetail({
               ? <BoSubscriptionInformationTab subscriptionId={record.id} studentName={record.name} />
             : activeTab === "Detail" && classRecord && runningClassReview
               ? <RunningClassDetailProperties record={classRecord} catalog={runningClassReview.catalog} centerToday={runningClassReview.centerToday} editable={Boolean(onRunningClassSaved)} onSave={command=>onRunningClassSaved?.(runningClassReview.edit(command))}/>
+            : activeTab === "Detail" && classRecord && runningClassLive
+              ? <RunningClassDetailProperties record={classRecord} catalog={runningClassLive.catalog()} centerToday={runningClassLive.centerToday()} editable={Boolean(runningClassLiveEditable&&onRunningClassLiveEdit)} onSave={command=>onRunningClassLiveEdit?.(command)}/>
             : activeTab === "Detail"
             ? <section className="v24-prop-section">
                 <div className="v24-section-heading">

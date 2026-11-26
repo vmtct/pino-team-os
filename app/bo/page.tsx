@@ -4,7 +4,8 @@ import { retiredSalaryPeriodRedirectUrl } from "@/lib/bo-url-contract";
 import {headers} from "next/headers";
 import {getCloudflareContext} from "@opennextjs/cloudflare";
 import {boSkeletonEnabled} from "@/lib/bo-skeleton";
-import {parseRunningClassReviewQuery,runningClassSearchParams} from "./running-classes/running-class-review-query";
+import {runningClassSearchParams} from "./running-classes/running-class-review-query";
+import {parseRunningClassStageQuery} from "./running-classes/running-class-stage-admission";
 import { BoRuntimeEntry } from "./components/registration/BoRuntimeBoundary";
 import { canonicalParentRoute } from "./parents/parent-route";
 
@@ -12,7 +13,7 @@ export default async function BoPage({ searchParams }: { searchParams: Promise<R
   const query = await searchParams;
   if(query.module==="classes"){
     const incoming=await headers();const {env}=await getCloudflareContext({async:true}) as unknown as {env:{APP_ENV?:string;BO_UI_ONLY?:string}};
-    if(boSkeletonEnabled(env,incoming.get("host")??"")){const target=parseRunningClassReviewQuery(runningClassSearchParams(query),true);if(!target)notFound();redirect(target);}
+    if(boSkeletonEnabled(env,incoming.get("host")??"")){const target=parseRunningClassStageQuery(runningClassSearchParams(query),true);if(!target)notFound();redirect(target);}
   }
   // PAP-2389: exact legacy Parent route, staging only, preserve canonical IDs.
   if(query.module==="parents"){
