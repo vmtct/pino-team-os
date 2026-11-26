@@ -7,6 +7,7 @@ import { BO_RETURN_HEADER, BO_STAGING_RETURN_HOST, safeBoStagingReturnTo } from 
 import {RC_REVIEW_PATH} from "@/app/bo/running-classes/running-class-review-query";
 import {parseRunningClassStageQuery} from "@/app/bo/running-classes/running-class-stage-admission";
 import { parseNativePostQuery } from "@/app/bo/piner-posts/native-post-query";
+import {invalidStaffPhaseOneRequest} from "@/app/ho/staff/staff-phase-one-route";
 
 export function middleware(request: NextRequest) {
   // Source assets are served only through the authenticated staging controller.
@@ -107,8 +108,17 @@ export function middleware(request: NextRequest) {
       if(request.headers.get("rsc")==="1")params.delete("_rsc");
       if(!parseNativePostQuery(params))return new NextResponse("Not Found",{status:404,headers:{"cache-control":"no-store"}});
     }
+    // PAP-2395: once native Staff is admitted, reject malformed links before streaming.
+    if(invalidStaffPhaseOneRequest(normalizeHostname(host),request.nextUrl.pathname,request.method,request.nextUrl.searchParams,request.headers.get("rsc")))
+      return new NextResponse("Not Found",{status:404,headers:{"cache-control":"no-store"}});
     // PAP-2369: exact canonical synthetic-only HO preview, reject invalid links before streaming.
     if(normalizeHostname(host)===HO_STAGING_HOSTNAME && request.nextUrl.pathname==="/ho/learning-spaces" && ["GET","HEAD"].includes(request.method)){
+      const params=new URLSearchParams(request.nextUrl.searchParams);
+      if(request.headers.get("rsc")==="1")params.delete("_rsc");
+      if(!safeHoReturnTo(request.nextUrl.pathname+(params.size?"?"+params.toString():"")))return new NextResponse("Not Found",{status:404,headers:{"cache-control":"no-store"}});
+    }
+    // PAP-2394: exact canonical Mission M1-B query validation before streaming.
+    if(normalizeHostname(host)===HO_STAGING_HOSTNAME && request.nextUrl.pathname==="/ho/learning/missions" && ["GET","HEAD"].includes(request.method)){
       const params=new URLSearchParams(request.nextUrl.searchParams);
       if(request.headers.get("rsc")==="1")params.delete("_rsc");
       if(!safeHoReturnTo(request.nextUrl.pathname+(params.size?"?"+params.toString():"")))return new NextResponse("Not Found",{status:404,headers:{"cache-control":"no-store"}});

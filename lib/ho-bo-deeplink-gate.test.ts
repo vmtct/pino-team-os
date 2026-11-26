@@ -30,7 +30,7 @@ const hoPaths=[
  "/ho/system/audit","/ho/system/tdd-reference","/ho/language-mappings",
 ];
 const boPaths=[
- "/bo/missions","/bo/bills","/bo/workforce-shift-plans","/bo/workforce-availability",
+ "/bo/missions","/bo/parents","/bo/bills","/bo/workforce-shift-plans","/bo/workforce-availability",
  "/bo/workforce-assignments","/bo/payroll-periods","/bo/payroll-daily","/bo/payroll-exceptions",
  "/bo/pinoria-avatars","/bo/afterschool-accounts","/bo/open-studio-passes","/bo/classroom-diaries",
  "/bo/piner-posts","/bo/sales/leads","/bo/guests","/bo/mytime-workshops","/bo/enrollments",
@@ -40,13 +40,13 @@ const legacy:Record<string,string>={
  students:"/bo?module=students",classes:"/bo/running-classes",subscriptions:"/bo?module=subscriptions",
  enrollments:"/bo/enrollments",visits:"/bo?module=visits",staffs:"/bo?module=staffs",
  timekeeping:"/bo?module=timekeeping",salaryPeriods:"/bo/payroll-periods",audits:"/bo?module=audits",
- parents:"/bo?module=parents",missions:"/bo?module=missions",
+ parents:"/bo/parents",missions:"/bo?module=missions",
 };
 const previews:Record<string,{path:string;expected:string;record?:string;negative:string}>={
+ "/ho/learning/missions":{path:"/ho/learning/missions",expected:"/ho/learning/missions",record:"record=MISSION-MOCK-001",negative:"record="+id},
 
- "/ho/billing/product-plans":{path:"/ho/billing/product-plans?m1Preview=1",expected:"/ho/billing/product-plans",record:"record=PRODUCT-PLAN-MOCK-001",negative:"record="+id},
  "/bo/sales/leads":{path:"/bo/sales/leads?m1Preview=1",expected:"/bo/sales/leads",record:"lead=LEAD-MOCK-001&tab=members",negative:"lead="+id},
- "/ho/staff":{path:"/ho/staff?m1Preview=1",expected:"/ho/staff",record:"record=STAFF-MOCK-001",negative:"record="+id},
+
  "/ho/system/roles":{path:"/ho/system/roles?m1Preview=1",expected:"/ho/system/roles?m1Preview=1",record:"record=ROLE-MOCK-001",negative:"record="+id},
 };
 function discoverPreviewPages(dir:string):string[]{
@@ -102,11 +102,10 @@ test("HO_BO_DEEPLINK_CONTINUITY_P0: native preview entrypoints cannot ship untes
    assert.equal(parse(host,path+"?"+suffix),null,path+"?"+suffix);
   }
  }
- // PAP-2183: canonical path, exact mock ID, legacy normalization and no real ID.
+ // PAP-2365: canonical real Product Plan links and tabs; no preview.
  const plans="/ho/billing/product-plans";
- checkFlow(ho,plans+"?record=PRODUCT-PLAN-MOCK-001",plans+"?record=PRODUCT-PLAN-MOCK-001");
- for(const query of ["record="+id,"record=PRODUCT-PLAN-MOCK-002","record=","record=PRODUCT-PLAN-MOCK-001&record=PRODUCT-PLAN-MOCK-001","tab=unknown","next=/bo"])
-   assert.equal(parse(ho,plans+"?"+query),null,plans+"?"+query);
+ for(const suffix of ["?record="+id,"?record="+id+"&tab=subscriptions","?record="+id+"&tab=history"])checkFlow(ho,plans+suffix,plans+suffix);
+ for(const query of ["m1Preview=1","record=PRODUCT-PLAN-MOCK-001","record=","record="+id+"&record="+id,"tab=unknown","tab=history","next=/bo"])assert.equal(parse(ho,plans+"?"+query),null,plans+"?"+query);
  assert.equal(parse(bo,plans),null);
  // PAP-2371: canonical real route; synthetic fixture and selector rejected.
  const spaces="/ho/learning-spaces";
@@ -119,10 +118,14 @@ test("HO_BO_DEEPLINK_CONTINUITY_P0: native preview entrypoints cannot ship untes
 });
 test("HO_BO_DEEPLINK_CONTINUITY_P0: route-specific detail, tab, grid, center and recovery examples",async()=>{
  const samples:[string,string,string][]=[
+  [ho,"/ho/staff?record="+id,"/ho/staff?record="+id],
+  [ho,"/ho/billing/product-plans?record="+id+"&tab=subscriptions","/ho/billing/product-plans?record="+id+"&tab=subscriptions"],
   [ho,"/ho/pinoria/worlds?record="+id+"&tab=scenes","/ho/pinoria/worlds?record="+id+"&tab=scenes"],
   [ho,"/ho/pinoria/starter-sets?record="+id+"&tab=members","/ho/pinoria/starter-sets?record="+id+"&tab=members"],
   [ho,"/ho/pinoria/wish-banners?record="+id+"&tab=items&wishSelection=pending&wishRevision=2","/ho/pinoria/wish-banners?record="+id+"&tab=items&wishSelection=pending&wishRevision=2"],
   [ho,"/ho/system/custom-attributes?sort=displayName&size=30&page=2&scope=CENTER&centerId="+center,"/ho/system/custom-attributes?sort=displayName&size=30&page=2&scope=CENTER&centerId="+center],
+  [bo,"/bo/parents?centerId="+center+"&record="+id,"/bo/parents?centerId="+center+"&record="+id],
+  [bo,"/bo?module=parents&centerId="+center+"&record="+id,"/bo/parents?centerId="+center+"&record="+id],
   [bo,"/bo/subscriptions?centerId="+center+"&record="+id+"&tab=enrollment","/bo?module=subscriptions&centerId="+center+"&record="+id+"&tab=enrollment"],
   [bo,"/bo/running-classes?centerId="+center+"&record="+id,"/bo/running-classes?centerId="+center+"&record="+id],
   [bo,"/bo/piner-posts?centerId="+center+"&record="+id+"&tab=media","/bo/piner-posts?centerId="+center+"&record="+id+"&tab=media"],
@@ -168,4 +171,26 @@ test("PAP-2225 canonical native Running Class route rejects mock and malformed a
  for(const q of ["","?record="+id,"?centerId="+center+"&record="+id])assert.equal(middleware(new NextRequest("https://"+bo+path+q,{headers})).headers.get("x-middleware-next"),"1",q);
  assert.equal(middleware(new NextRequest("https://"+bo+path+"?record="+id+"&_rsc=abc",{headers:{...headers,rsc:"1"}})).headers.get("x-middleware-next"),"1");
  checkFlow(bo,"/bo?module=classes&record="+id,path+"?record="+id);
+});
+
+test("PAP-2395 native Staff canonical link rejects mock and malformed authenticated requests before streaming",()=>{
+ const path="/ho/staff",headers={cookie:"pino_staff_password_session=fixture-only"};
+ for(const q of ["record=STAFF-MOCK-001","record="+id+"&record="+id,"m1Preview=1","m1Preview=1&record="+id,"record=","tab=overview","returnTo=//evil.example"]){
+  for(const method of ["GET","HEAD"])assert.equal(middleware(new NextRequest("https://"+ho+path+"?"+q,{headers,method})).status,404,q);
+  assert.equal(parse(ho,path+"?"+q),null,q);
+ }
+ for(const q of ["","?record="+id,"?record="+id+"&utm_source=chatgpt.com"])assert.equal(middleware(new NextRequest("https://"+ho+path+q,{headers})).headers.get("x-middleware-next"),"1",q);
+ assert.equal(middleware(new NextRequest("https://"+ho+path+"?record="+id+"&_rsc=abc",{headers:{...headers,rsc:"1"}})).headers.get("x-middleware-next"),"1");
+ checkFlow(ho,path+"?record="+id,path+"?record="+id);
+});
+
+test("PAP-2394: canonical Mission M1-B admits only its seed before streaming and preserves login",()=>{
+ const path="/ho/learning/missions",headers={cookie:"pino_staff_password_session=fixture-only"};
+ for(const q of ["record="+id,"record=MISSION-MOCK-002","record=","record=MISSION-MOCK-001&record=MISSION-MOCK-001","m1Preview=1","tab=history","next=/bo"]){
+  assert.equal(parse(ho,path+"?"+q),null,q);
+  for(const method of ["GET","HEAD"])assert.equal(middleware(new NextRequest("https://"+ho+path+"?"+q,{headers,method})).status,404,q);
+ }
+ for(const q of ["","?record=MISSION-MOCK-001","?utm_source=chatgpt.com&record=MISSION-MOCK-001"])assert.equal(middleware(new NextRequest("https://"+ho+path+q,{headers})).headers.get("x-middleware-next"),"1",q);
+ assert.equal(middleware(new NextRequest("https://"+ho+path+"?record=MISSION-MOCK-001&_rsc=abc",{headers:{...headers,rsc:"1"}})).headers.get("x-middleware-next"),"1");
+ assert.equal(parse(bo,path),null);
 });

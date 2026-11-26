@@ -3,7 +3,10 @@
  * PAP-1247 declarative TDD Action Host will own buttons/form placement and invocation.
  * The frontend never grants permissions: Core/HO gateway reauthorizes every command.
  */
+import type { MissionCategory } from "./mission-category";
 export type MissionInput = Readonly<{
+  /** Preview-only until M2 category transport admission. */
+  category?: MissionCategory | null;
   code: string;
   name: string;
   level: number;
@@ -37,7 +40,9 @@ function dataOf(value: unknown): Record<string, unknown> | null {
   return envelope ? object(envelope.data) : null;
 }
 function normalized(data: MissionInput, archive: boolean): MissionInput {
-  return { ...data, code: data.code.trim().toUpperCase(), name: data.name.trim(),
+  const { category: _previewOnly, ...live } = data;
+  void _previewOnly;
+  return { ...live, code: data.code.trim().toUpperCase(), name: data.name.trim(),
     status: archive ? "INACTIVE" : data.status };
 }
 function identity(row: Record<string, unknown> | null, data: MissionInput,

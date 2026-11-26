@@ -42,10 +42,12 @@ export type StaffCenterOption = { id: string; label: string };
 export type StaffCreateCommand = {
   name: string; phone: string; email: string; gender: string | null; birthDate: string | null; centerId: string;
   login: { email: string; password: string } | null;
+  existingPersonId?: string;
 };
 export const emptyStaffDraft = (): StaffDraft => ({ name: "", phone: "", email: "", gender: "", birthDate: "", centerId: "" });
 const validEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-export function validateStaffDraft(draft: StaffDraft, centers: readonly StaffCenterOption[], login: StaffLoginDraft | null): { ok: true; command: StaffCreateCommand } | { ok: false; error: string } {
+export function validateStaffDraft(draft: StaffDraft, centers: readonly StaffCenterOption[], login: StaffLoginDraft | null, existingPersonId?: string): { ok: true; command: StaffCreateCommand } | { ok: false; error: string } {
+  if (existingPersonId !== undefined && !/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(existingPersonId)) return { ok: false, error: "Person không hợp lệ." };
   const name = draft.name.trim(), phone = draft.phone.replace(/[\s().-]/g, "").replace(/^\+84/, "0");
   const email = draft.email.trim().toLowerCase();
   if (!name || !/^0\d{9}$/.test(phone) || !centers.some(center => center.id === draft.centerId)) return { ok: false, error: "Nhập tên, số điện thoại hợp lệ và chọn cơ sở." };
@@ -54,5 +56,5 @@ export function validateStaffDraft(draft: StaffDraft, centers: readonly StaffCen
   if (draft.birthDate && (!/^\d{4}-\d{2}-\d{2}$/.test(draft.birthDate) || !Number.isFinite(Date.parse(draft.birthDate)) || new Date(draft.birthDate).toISOString().slice(0, 10) !== draft.birthDate)) return { ok: false, error: "Sinh Nhật không hợp lệ." };
   if (login && (login.password.length < 10 || login.password.length > 128 || login.password !== login.confirmation)) return { ok: false, error: "Nhập mật khẩu 10–128 ký tự khớp nhau." };
   return { ok: true, command: { name, phone, email, gender: draft.gender || null, birthDate: draft.birthDate || null, centerId: draft.centerId,
-    login: login ? { email, password: login.password } : null } };
+    login: login ? { email, password: login.password } : null, ...(existingPersonId ? { existingPersonId } : {}) } };
 }

@@ -16,6 +16,7 @@ export const readStaffPreview = (state: PreviewState<StaffPreviewRecord>, id: st
 export const projectStaffPreviewRow = (row: StaffPreviewRecord): ManualStaffRow => ({ ...row, createdBy: "—", updatedBy: "—" });
 // Strict projection: credentials never enter the shared state, storage, URL or history.
 export function createStaffPreviewRecord(state: PreviewState<StaffPreviewRecord>, command: StaffCreateCommand): PreviewState<StaffPreviewRecord> {
+  if (command.existingPersonId !== undefined) throw Error("M1 does not link Person");
   if (state.records.some(row => row.phone === command.phone || (command.login && row.loginEmail === command.login.email))) throw Error("Duplicate M1 record");
   if (command.centerId !== staffPreviewCenter.id) throw Error("Invalid M1 center");
   return reducePreview(state, { type: "create", record: {

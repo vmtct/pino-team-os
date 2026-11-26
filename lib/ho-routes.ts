@@ -1,4 +1,8 @@
+import {STAFF_PHASE_ONE_ENABLED,parseStaffPhaseOneQuery} from "../app/ho/staff/staff-phase-one-route";
 import {parseLiveSpaceQuery} from "./ho-learning-space-contract";
+import {parseProductPlanNavigation} from "../app/ho/billing/product-plans/product-plan-stage-admission";
+import {nativePlanUrl} from "../app/ho/billing/product-plans/product-plan-native-binding";
+import {parseMissionM1Query} from "../app/ho/learning/missions/mission-m1-query";
 import {readWishDetailRoute,wishDetailUrl} from "./pls-wish-detail-route";
 import {validateAttributeDirectoryParams} from "./pap1841-attribute-directory-query";
 import {attributeModule} from "./ho-attribute-model";
@@ -50,30 +54,28 @@ export function safeHoReturnTo(raw: string | null | undefined): string | null {
     if (parsed.origin !== "https://ho.staging.pinohouse.art" || !approved.has(parsed.pathname) || parsed.hash) return null;
     // PAP-1645 / PAP-1491: strip harmless campaign metadata before validating
     // returnTo, without allowing arbitrary query keys or an off-host target.
-    // PAP-2353: normalize the retired Staff M1 review marker, never grant admission here.
-    if (parsed.pathname === HO_PAGE_PATHS.staffs && parsed.searchParams.has("m1Preview")) {
-      const markers = parsed.searchParams.getAll("m1Preview");
-      const records = parsed.searchParams.getAll("record");
-      if (markers.length !== 1 || markers[0] !== "1" || records.length > 1 || (records.length === 1 && !/^STAFF-MOCK-[0-9]{3,}$/.test(records[0]!))) return null;
-      parsed.searchParams.delete("m1Preview");
+    // PAP-2395: canonical native Staff continuation, independently authorized by the page.
+    if(STAFF_PHASE_ONE_ENABLED&&parsed.pathname===HO_PAGE_PATHS.staffs){
+      const state=parseStaffPhaseOneQuery(parsed.searchParams);
+      return state?parsed.pathname+(state.record?"?record="+encodeURIComponent(state.record):""):null;
     }
+
     // PAP-2371: canonical real record state, independently authorized by the page.
     if(parsed.pathname===HO_PAGE_PATHS.learningSpaces){
       const state=parseLiveSpaceQuery(parsed.searchParams);
       if(!state)return null;
       return parsed.pathname+(state.record?"?record="+encodeURIComponent(state.record):"");
     }
-    // PAP-2183: Product Plan preview return path is synthetic-only until M4.
+    // PAP-2394: Mission M1-B uses only the canonical synthetic seed.
+    if(parsed.pathname===HO_PAGE_PATHS.missions){
+      const state=parseMissionM1Query(parsed.searchParams);
+      if(!state)return null;
+      return parsed.pathname+(state.record?"?record="+encodeURIComponent(state.record):"");
+    }
+    // PAP-2365: real Product Plan record/tab; no preview selector.
     if(parsed.pathname===HO_PAGE_PATHS.productPlans){
-      const p=parsed.searchParams;
-      const keys=[...p.keys()].filter(k=>!ignoredTrackingKeys.has(k));
-      if(keys.some(k=>!["m1Preview","record"].includes(k))||p.getAll("m1Preview").length>1||(p.has("m1Preview")&&p.get("m1Preview")!=="1")||p.getAll("record").length>1)return null;
-      const record=p.get("record");
-      if(record!==null&&record!=="PRODUCT-PLAN-MOCK-001")return null;
-      const q=new URLSearchParams();
-      // Valid legacy selector normalizes to the canonical route.
-      if(record)q.set("record",record);
-      return parsed.pathname+(q.size?"?"+q.toString():"");
+      const state=parseProductPlanNavigation(parsed.searchParams);
+      return state?nativePlanUrl(state.record,state.tab):null;
     }
     // PAP-2359: Role uses the explicit preview marker to distinguish review
     // from a live-list fallback. Preserve it so the server can enforce review ACL.

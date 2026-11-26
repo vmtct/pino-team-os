@@ -37,7 +37,8 @@
         {"file":"lib/host-boundary.ts","owner":"PAP-1169"},
         {"file":"app/ho/HoWorkspace.tsx","owner":"PAP-990"},
         {"file":"lib/ho-routes.ts","owner":"PAP-990"},
-        {"file":"lib/ho-system.ts","owner":"PAP-1153"}
+        {"file":"lib/ho-system.ts","owner":"PAP-1153"},
+        {"file":"lib/workspace-adapters/session.ts","owner":"PAP-2395"}
       ]
     },
     {
@@ -48,21 +49,28 @@
       "file": "app/ho/billing/product-plans/page.tsx",
       "files": [
         "app/ho/billing/product-plans/page.tsx",
-        "app/ho/billing/product-plans/ProductPlanM1Content.tsx",
+        "app/ho/billing/product-plans/ProductPlanNativeContent.tsx",
         "app/ho/billing/product-plans/schema.ts",
-        "app/ho/billing/product-plans/product-plan-m1-preview.ts"
+        "app/ho/billing/product-plans/product-plan-native-binding.ts",
+        "app/ho/billing/product-plans/product-plan-native-contract.ts",
+        "app/ho/billing/product-plans/product-plan-stage-admission.ts",
+        "app/ho/billing/product-plans/product-plan-http-contract.ts",
+        "app/ho/billing/product-plans/product-plan-pending-journal.ts"
       ],
       "schema": {
-        "file": "app/ho/billing/product-plans/schema.ts",
-        "export": "planSchema"
+        "file": "app/ho/billing/product-plans/product-plan-native-binding.ts",
+        "export": "nativePlanSchema"
       },
       "binding": {
-        "file": "app/ho/billing/product-plans/ProductPlanM1Content.tsx"
+        "file": "app/ho/billing/product-plans/ProductPlanNativeContent.tsx"
       },
       "tests": [
         "lib/pap2183-product-plan-native.test.ts",
         "app/ho/billing/product-plans/product-plan-m1-preview.test.ts",
-        "lib/ho-routes.test.ts"
+        "lib/ho-routes.test.ts",
+        "app/ho/billing/product-plans/product-plan-stage-admission.test.ts",
+        "app/ho/billing/product-plans/product-plan-native-binding.test.ts",
+        "app/ho/billing/product-plans/product-plan-native-contract.test.ts"
       ],
       "externalReferences": [
         {
@@ -71,7 +79,8 @@
         },
         {"file":"app/ho/HoWorkspace.tsx","owner":"PAP-990"},
         {"file":"lib/ho-routes.ts","owner":"PAP-990"},
-        {"file":"lib/ho-system.ts","owner":"PAP-1153"}
+        {"file":"lib/ho-system.ts","owner":"PAP-1153"},
+        {"file":"lib/workspace-adapters/session.ts","owner":"PAP-2395"}
       ]
     },
     {
@@ -140,7 +149,16 @@
         "app/ho/staff/StaffManualPreview.tsx",
         "app/ho/staff/StaffManualWorkspace.tsx",
         "app/ho/staff/manual-create-contract.ts",
-        "app/ho/staff/manual-create-preview.ts"
+        "app/ho/staff/manual-create-preview.ts",
+        "app/ho/staff/StaffNativeWorkspace.tsx",
+        "app/ho/staff/StaffPersonPicker.tsx",
+        "app/ho/staff/manual-staff-centers.ts",
+        "app/ho/staff/native-staff-provider.ts",
+        "app/ho/staff/staff-native-command.ts",
+        "app/ho/staff/staff-native-overview.ts",
+        "app/ho/staff/staff-person-reader.ts",
+        "app/ho/staff/staff-recovery-journal.ts",
+        "app/ho/staff/staff-phase-one-route.ts"
       ],
       "externalReferences": [
         {
@@ -164,6 +182,22 @@
           "owner": "PAP-1117"
         },
         {
+          "file": "lib/ho-manual-staff-create-receipt.ts",
+          "owner": "PAP-2358"
+        },
+        {
+          "file": "lib/ho-manual-staff-create-client.ts",
+          "owner": "PAP-2358"
+        },
+        {
+          "file": "lib/ho-manual-staff-create-flow.ts",
+          "owner": "PAP-2358"
+        },
+        {
+          "file": "lib/ho-manual-staff-readback-client.ts",
+          "owner": "PAP-2358"
+        },
+        {
           "file": "lib/workspace-adapters/session.ts",
           "owner": "PAP-1166"
         }
@@ -182,7 +216,15 @@
         "lib/pap1144-ho-staff-password-reset.test.ts",
         "lib/pap1147-ho-staff-role.test.ts",
         "lib/pap1117-ho-staff-properties.test.ts",
-        "lib/pap2353-staff-manual-create.test.ts"
+        "lib/pap2353-staff-manual-create.test.ts",
+        "app/ho/staff/manual-staff-centers.test.ts",
+        "app/ho/staff/native-staff-provider.test.ts",
+        "app/ho/staff/staff-native-command.test.ts",
+        "app/ho/staff/staff-native-overview.test.ts",
+        "app/ho/staff/staff-person-reader.test.ts",
+        "app/ho/staff/staff-recovery-journal.test.ts",
+        "lib/pap2395-staff-phase-one-route.test.ts",
+        "lib/pap2395-ho-staff-directory-session.test.ts"
       ]
     },
     {
@@ -581,6 +623,9 @@
         "app/ho/learning/missions/read-edit.ts",
         "app/ho/learning/missions/MissionCreateFields.tsx",
         "app/ho/learning/missions/mission-path-options.ts",
+        "app/ho/learning/missions/mission-category.ts",
+        "app/ho/learning/missions/mission-m1-boundary.ts",
+        "app/ho/learning/missions/mission-m1-query.ts",
         "lib/mission-history.ts",
         "lib/bo-registration.ts"
       ],
@@ -599,9 +644,15 @@
         "lib/pap1207-ho-mission-create-ui.test.ts",
         "lib/pap1207-ho-mission-s2-path-selector.test.ts",
         "lib/pap1207-ho-mission-edit.test.ts",
-        "lib/pap1188-mission-history.test.ts"
+        "lib/pap1188-mission-history.test.ts",
+        "lib/pap1207-ho-mission-s5-parity.test.ts",
+        "lib/pap2394-mission-category.test.ts"
       ],
       "externalReferences": [
+        {
+          "file": "lib/m1-preview/admission.server.ts",
+          "owner": "PAP-2342"
+        },
         {
           "file": "app/ho/HoWorkspace.tsx",
           "owner": "PAP-1606"
@@ -1249,7 +1300,7 @@
       "schema":{"file":"app/ho/system/people/schema.ts","export":"personSchema"},
       "binding":{"file":"app/ho/system/people/HoPersonDirectory.tsx"},
       "tests":["app/ho/system/people/schema.test.ts","app/ho/system/people/person-read-client.test.ts","app/ho/system/people/person-directory-loader.test.ts","lib/ho-person-host-contract.test.ts","lib/ho-person-handler.test.ts"],
-      "externalReferences":[{"file":"lib/ho-routes.ts","owner":"PAP-2180"},{"file":"lib/ho-system.ts","owner":"PAP-2180"},{"file":"app/ho/HoWorkspace.tsx","owner":"PAP-2180"},{"file":"lib/host-boundary.ts","owner":"PAP-2180"}]
+      "externalReferences":[{"file":"lib/ho-routes.ts","owner":"PAP-2180"},{"file":"lib/ho-system.ts","owner":"PAP-2180"},{"file":"app/ho/HoWorkspace.tsx","owner":"PAP-2180"},{"file":"lib/host-boundary.ts","owner":"PAP-2180"},{"file":"lib/workspace-adapters/session.ts","owner":"PAP-2395"}]
     }
   ],
   "approvals": []
