@@ -1,4 +1,4 @@
-// PAP-2183 / PLT-PRODUCT-PLAN. Native typed HO schema; no real transport in M1.
+// PAP-2183 / PLT-PRODUCT-PLAN. Native typed HO schema; real provider bound separately.
 import {TddRegistry,type FieldSchema,type ModuleSchema,type ModuleRow,type TableQuery} from "@/lib/workspace-schema";
 export const productPlanBadges = ["ENTRY","HERO","STANDARD"] as const;
 export type ProductPlanBadge=typeof productPlanBadges[number];
@@ -41,7 +41,7 @@ export const planDefinition={
  sort:{fields:["name","cadence","termWeeks","price","badge","enabled"],mode:"single",nulls:"last",tieBreak:"record-id"},group:{fields:["cadence","termWeeks","badge","enabled"],mode:"single"},
  views:{builtIn:[],saved:{kind:"local-ui"},actions:["add","apply","rename","delete","reorder"]},pagination:{sizes:[8,15,30],defaultSize:15,mode:"local-ui"},
  inlineEdit:{fields:["name","cadence","termWeeks","price","badge","enabled"],enabled:true},interaction:{settings:["properties","grouping","filters","quick-views"],quickView:"separate-opener",keyboard:"canonical",undo:"local-ui-only"}},
- drawer:{density:"one-column",sections,actions:[]},detail:{overview:{sections},businessTabs:[{id:"subscriptions",label:"Subscription",kind:"relation-grid",relatedModule:"subscriptions",source:{adapter:"product-plan-subscriptions-preview",permission:PLAN_READ}}],history:{kind:"unavailable",reason:"Chưa có lịch sử thay đổi khả dụng."}},
+ drawer:{density:"one-column",sections,actions:[]},detail:{overview:{sections},businessTabs:[{id:"subscriptions",label:"Subscription",kind:"relation-grid",relatedModule:"subscriptions",source:{adapter:"product-plan-subscriptions-native",permission:PLAN_READ}}],history:{kind:"unavailable",reason:"Chưa có lịch sử thay đổi khả dụng."}},
 } as const satisfies ModuleSchema<PlanFields>;
 export const planRegistry=new TddRegistry();
 export const planSchema=planRegistry.register(planDefinition);
