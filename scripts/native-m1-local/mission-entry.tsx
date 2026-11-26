@@ -1,0 +1,20 @@
+/** PAP-2394 / HO-MISSION-CRUD — canonical local synthetic admission only. */
+import {createRoot} from "react-dom/client";
+import {BoRegistrationWorkspace,type BoWorkspaceSource} from "@/app/bo/components/registration/BoRegistrationWorkspace";
+import {HoMissionsContent} from "@/app/ho/learning/missions/HoMissionsTdd";
+import {createMissionM1Boundary,MISSION_M1_ID,MISSION_M1_ROUTE} from "@/app/ho/learning/missions/mission-m1-boundary";
+import {TddPreferencePolicy} from "@/app/components/workspace-renderer/Record";
+import {hoModules} from "@/lib/ho-system";
+import "@pino/design-system/bo-tokens.css";
+import "@pino/design-system/components.css";
+import "../../public/ho-authority-source/ho-scoped.css";
+import "../../app/ho/ho-theme.css";
+import "../../app/components/workspace-renderer/tdd-detail-layout.css";
+import "../../app/components/workspace-renderer/tdd-table-geometry.css";
+import "../../app/components/workspace-renderer/tdd-freeze.css";
+const route=MISSION_M1_ROUTE, query=new URLSearchParams(location.search);
+const record=query.get("record");
+if(location.origin!=="http://desktop-isrdren:8800"||location.pathname!==route||self.origin!=="null"||[...query.keys()].some(k=>k!=="record")||query.getAll("record").length>1||(record!==null&&record!==MISSION_M1_ID))throw Error("Local sandbox only");
+const source:BoWorkspaceSource={surface:"ho",readOnly:true,ephemeral:true,modules:hoModules,routeForModule:key=>key==="missions"?route:"#unavailable-local-module",scopeLabel:()=>"",load:async()=>{throw Error("No live transport");}};
+const boundary=createMissionM1Boundary(record??undefined);
+createRoot(document.getElementById("root")!).render(<BoRegistrationWorkspace source={source} moduleKey="missions" currentUser={{displayName:"M1 · Dữ liệu mẫu"}} content={<TddPreferencePolicy.Provider value="ephemeral"><HoMissionsContent boundary={boundary}/></TddPreferencePolicy.Provider>}/>);
