@@ -6,6 +6,7 @@ import { BoApiError } from "@/lib/bo-api-error";
 import { readMissionHistory } from "@/lib/mission-history";
 import { loadMissionPathChoices, type MissionPathChoice } from "./mission-path-options";
 import { missionCategories } from "./mission-category";
+import { missionSupplementalUrlMaxLength } from "./mission-supplemental-url";
 
 const read = { display: true, search: true, filter: true, sort: true, group: true, inlineEdit: false } as const;
 const permission = "catalog.learning.view";
@@ -21,6 +22,7 @@ export const missionFields = [
   { key: "prerequisite", label: "Điều kiện trước", type: "text", icon: "Aa", width: 220, permission, readOnly: true, capabilities: read },
   { key: "description", label: "Mô tả", type: "text", icon: "Aa", width: 290, permission, readOnly: true, capabilities: read },
   { key: "guideline", label: "Hướng dẫn", type: "text", icon: "Aa", width: 290, permission, readOnly: true, capabilities: read },
+  { key: "supplementalUrl", label: "URL bổ sung", type: "url", icon: "↗", width: 290, permission, readOnly: true, capabilities: read },
   { key: "id", label: "Mission ID", type: "id", icon: "#", width: 285, permission, readOnly: true, capabilities: read },
   { key: "createdAt", label: "Created Time", type: "text", icon: "◷", width: 210, permission, readOnly: true, capabilities: read },
   { key: "createdBy", label: "Created by (User)", type: "text", icon: "Aa", width: 225, permission, readOnly: true, capabilities: read },
@@ -38,7 +40,7 @@ export const missionQuery: TableQuery<F> = {
 };
 export const missionDefinition = {
   version: 1, classification: "TDD_DEFAULT", surface: "HO", key: "missions", label: "Mission", group: "Learning",
-  fields: missionFields.slice(1) as unknown as F, capabilities: { read: permission, create: "learning.mission.manage", edit: "learning.mission.manage", history: "learning.mission.manage" },
+  fields: missionFields.filter(field=>field.key!=="category"&&field.key!=="supplementalUrl") as unknown as F, capabilities: { read: permission, create: "learning.mission.manage", edit: "learning.mission.manage", history: "learning.mission.manage" },
   actions: [
     { id: "mission-open-create", label: "Tạo mới", slot: "table.header", variant: "primary", capability: "create", handler: "openCreate" },
     { id: "mission-open-edit", label: "Chỉnh sửa", slot: "detail.header", variant: "secondary", capability: "edit", handler: "openEdit" },
@@ -73,8 +75,8 @@ export const missionDefinition = {
 export const missionCategoryColumnKeys = ["name", "code", "category", ...missionTableColumnKeys.slice(2)] as const;
 export const missionCategoryQuery: TableQuery<F> = { ...missionQuery, order: missionCategoryColumnKeys, visible: missionCategoryColumnKeys };
 export const missionInlineTableFields = ["name","code","category","level","plsValue","path"] as const;
-export const missionInlineFields = [...missionInlineTableFields,"description","guideline"] as const;
-export const missionCategoryPropertyKeys = [...missionCategoryColumnKeys.slice(0,7),"description","guideline",...missionCategoryColumnKeys.slice(7)] as const;
+export const missionInlineFields = [...missionInlineTableFields,"description","guideline","supplementalUrl"] as const;
+export const missionCategoryPropertyKeys = [...missionCategoryColumnKeys.slice(0,7),"description","guideline","supplementalUrl",...missionCategoryColumnKeys.slice(7)] as const;
 const previewFieldEdits: Readonly<Partial<Record<F[number]["key"],Partial<FieldSchema>>>> = {
  name:{required:true,validation:{minLength:1,maxLength:160}},
  code:{required:true,validation:{minLength:2,maxLength:64}},
@@ -84,6 +86,7 @@ const previewFieldEdits: Readonly<Partial<Record<F[number]["key"],Partial<FieldS
  path:{type:"select",icon:"◉",required:true,options:["Artchitect","PianoHouse","Little Piner Art","Little Piner Piano"]},
  description:{type:"textarea",validation:{maxLength:4000}},
  guideline:{type:"textarea",validation:{maxLength:8000}},
+ supplementalUrl:{type:"url",validation:{maxLength:missionSupplementalUrlMaxLength}},
 };
 export const missionCategoryDefinition: SurfaceDefinition<F> = {
   ...missionDefinition,
@@ -157,6 +160,7 @@ function project(raw: BoRecord, paths: readonly MissionPathChoice[] = []): Modul
     prerequisite: typeof raw.prerequisite === "string" ? raw.prerequisite : null,
     description: typeof raw.description === "string" ? raw.description : null,
     guideline: typeof raw.guideline === "string" ? raw.guideline : null,
+    supplementalUrl: null,
   };
 }
 export function projectMission(raw: BoRecord, paths: readonly MissionPathChoice[] = []): ModuleRow<F> { return project(raw, paths); }

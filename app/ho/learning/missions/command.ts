@@ -7,6 +7,8 @@ import type { MissionCategory } from "./mission-category";
 export type MissionInput = Readonly<{
   /** Preview-only until M2 category transport admission. */
   category?: MissionCategory | null;
+  /** Preview-only until approved Core metadata integration. */
+  supplementalUrl?: string | null;
   code: string;
   name: string;
   level: number;
@@ -40,8 +42,9 @@ function dataOf(value: unknown): Record<string, unknown> | null {
   return envelope ? object(envelope.data) : null;
 }
 function normalized(data: MissionInput, archive: boolean): MissionInput {
-  const { category: _previewOnly, ...live } = data;
+  const { category: _previewOnly, supplementalUrl: _previewUrl, ...live } = data;
   void _previewOnly;
+  void _previewUrl;
   return { ...live, code: data.code.trim().toUpperCase(), name: data.name.trim(),
     status: archive ? "INACTIVE" : data.status };
 }
