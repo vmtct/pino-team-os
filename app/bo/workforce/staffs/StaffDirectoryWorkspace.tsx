@@ -4,6 +4,7 @@ import {BoRegistrationWorkspace,type BoWorkspaceSource} from "../../components/r
 import {BoStaffsViews,parseStaffsView,staffDirectoryViewHref,staffsViewRows,type StaffsView} from "../../components/registration/BoStaffsViews";
 import {TddHostMenu} from "@/app/components/workspace-adapters/SurfaceWorkspace";
 import {staffDirectoryModule,staffDirectoryPresentationRow} from "./staff-directory-model";
+import styles from "./staff-registration-layout.module.css";
 /** PAP-2411: identical native presentation for authorized live data and isolated review data. */
 export function StaffDirectoryWorkspace({currentUser,options,centerId,source,registration}:{
   currentUser:{displayName:string|null};options:Record<string,string>;centerId:string;
@@ -35,5 +36,5 @@ export function StaffDirectoryWorkspace({currentUser,options,centerId,source,reg
 }
 function RegistrationContent({tabs,children}:{tabs:ReactNode;children:ReactNode}){
   const menu=useContext(TddHostMenu);
-  return <><div className="page-heading"><div className="page-heading-left">{menu("staff-register-menu-btn")}<h1>{"Nh\u00e2n s\u1ef1"}</h1></div></div>{tabs}{children}</>;
+  return <div className={styles.workspace}><div data-staff-registration-list-chrome><div className="page-heading"><div className="page-heading-left">{menu("staff-register-menu-btn")}<h1>{"Nh\u00e2n s\u1ef1"}</h1></div></div>{tabs}</div>{children}</div>;
 }

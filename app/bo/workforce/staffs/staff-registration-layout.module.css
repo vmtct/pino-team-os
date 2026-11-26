@@ -1,0 +1,5 @@
+/* PAP-2411: embedded BO registration uses the existing native TDD shell. */
+.workspace { display:grid; gap:12px; min-width:0; width:100%; }
+.workspace :global(#staff-registration-review) { width:100%; max-width:none; min-width:0; }
+.workspace [data-staff-registration-legacy-heading] { display:none; }
+.workspace:has([data-staff-registration-surface="detail"]) [data-staff-registration-list-chrome] { display:none; }

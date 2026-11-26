@@ -207,8 +207,8 @@ export function StaffRegistrationReviewQueue({service=boApi,newKey=liveReviewKey
     } catch (cause) { setError(formatError(cause, "Không thể từ chối hồ sơ.")); }
     finally { setBusy(""); }
   }
-  return <section id="staff-registration-review" className={styles.page}>
-    <header className={styles.heading}>
+  return <section id="staff-registration-review" className={styles.page} data-staff-registration-surface={selected?surface:"table"}>
+    <header className={styles.heading} data-staff-registration-legacy-heading>
       <span>WFM · ONBOARDING</span>
       <h1>Yêu cầu đăng ký nhân sự</h1>
       <p>Kiểm tra hồ sơ đã gửi, sau đó gán role/scope trước khi Core tạo Staff và Access.</p>
@@ -226,7 +226,7 @@ export function StaffRegistrationReviewQueue({service=boApi,newKey=liveReviewKey
       stateMessage={error} search={search} onSearchChange={setSearch} searchPlaceholder={"T\u00ecm t\u00ean ho\u1eb7c email"}
       onRowOpen={row => { setSelectedId(row.id); setApproval(null); setTab("overview"); setSurface("drawer"); }} quickViewOpener
       emptyTitle={"Ch\u01b0a c\u00f3 h\u1ed3 s\u01a1"} emptyMessage={"Kh\u00f4ng c\u00f3 h\u1ed3 s\u01a1 ph\u00f9 h\u1ee3p."} resultLabel={visibleRequests.length + " h\u1ed3 s\u01a1"}
-      toolbarActions={<button type="button" disabled={Boolean(busy) || loading} onClick={() => { setError(""); void refresh(); }}>{"T\u1ea3i l\u1ea1i"}</button>} /> }
+      toolbarActions={<button type="button" className={styles.secondaryButton} disabled={Boolean(busy) || loading} onClick={() => { setError(""); void refresh(); }}>{"T\u1ea3i l\u1ea1i"}</button>} /> }
     {selected && surface === "drawer" && <BoDrawer title={selected.displayLabel} eyebrow={"H\u1ed3 s\u01a1 ch\u1edd duy\u1ec7t"} onClose={() => { setSurface("table"); setSelectedId(""); }}
       footer={<button type="button" className={styles.primaryButton} onClick={() => setSurface("detail")}>{"M\u1edf chi ti\u1ebft"}</button>}>
       <BoProperties authority items={requestProperties(selected)} />

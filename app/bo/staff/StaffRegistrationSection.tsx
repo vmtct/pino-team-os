@@ -122,8 +122,8 @@ export function CenterReview({centerId,centerName,embedded,service=liveCenterReg
     }catch(cause){setError(cause instanceof Error?cause.message:"Chưa xác nhận được kết quả.");}
     finally{inFlight.current=false;setBusy(false)}
   }
-  return <section id="staff-registration-review" aria-label="Hồ sơ nhân sự chờ duyệt">
-    {embedded?<p className="settings-hint">{centerName} · Hồ sơ chờ duyệt</p>:<div className="page-heading"><div className="page-heading-left"><h1>Hồ sơ chờ duyệt</h1><p>{centerName}</p></div></div>}
+  return <section id="staff-registration-review" data-staff-registration-surface={selected?surface:"table"} aria-label="Hồ sơ nhân sự chờ duyệt">
+    {surface==="detail"?null:embedded?<p className="settings-hint">{centerName} · Hồ sơ chờ duyệt</p>:<div className="page-heading"><div className="page-heading-left"><h1>Hồ sơ chờ duyệt</h1><p>{centerName}</p></div></div>}
     {notice?<p role="status">{notice}</p>:null}
     {reviewError?<p role="status">{reviewError}</p>:null}
     {error?<p role="alert">{error}</p>:null}
@@ -132,7 +132,7 @@ export function CenterReview({centerId,centerName,embedded,service=liveCenterReg
       stateMessage={error} search={search} onSearchChange={setSearch} searchPlaceholder="Tìm tên nhân viên"
       onRowOpen={r=>{if(canClose()){setSelected(r);setSurface("drawer");setTab("overview");setRoleId("");setReason("");setError("")}}} quickViewOpener
       emptyTitle="Chưa có hồ sơ" emptyMessage="Không có hồ sơ chờ duyệt trong cơ sở này." resultLabel={rows.length+" hồ sơ"}
-      toolbarActions={<button type="button" onClick={()=>{if(canClose()){close();setError("");setReviewError("");setReviewReady(false);setLoading(true);refresh(v=>v+1)}}} disabled={busy}>Tải lại</button>}/>}
+      toolbarActions={<button type="button" className={styles.secondaryButton} onClick={()=>{if(canClose()){close();setError("");setReviewError("");setReviewReady(false);setLoading(true);refresh(v=>v+1)}}} disabled={busy}>Tải lại</button>}/>}
     {selected&&surface==="drawer"&&<BoDrawer title={selected.displayLabel} eyebrow="Hồ sơ chờ duyệt" mode="view" busy={busy} canClose={canClose} onClose={close}
       footer={<button className={styles.primaryButton} type="button" disabled={busy} onClick={()=>setSurface("detail")}>Mở chi tiết</button>}>
       <BoProperties authority items={[{key:"center",label:"Cơ sở",value:centerName},{key:"date",label:"Ngày gửi",value:time(selected.submittedAt)},{key:"status",label:"Trạng thái",value:"Chờ duyệt"}]}/>

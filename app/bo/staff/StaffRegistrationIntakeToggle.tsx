@@ -42,7 +42,7 @@ export function StaffRegistrationIntakeToggle({service=boApi}:{service?:StaffReg
 
   const enabled = state?.enabled === true;
   return (
-    <section className={styles.intakePanel} aria-labelledby="staff-registration-intake-title">
+    <section className={styles.intakePanel} data-staff-registration-list-chrome aria-labelledby="staff-registration-intake-title">
       <div className={styles.intakeCopy}>
         <div className={styles.intakeTitleRow}>
           <h2 id="staff-registration-intake-title">Self-registration link</h2>
