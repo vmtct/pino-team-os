@@ -38,7 +38,15 @@ test("PAP-1301/PAP-1327: one global BO shell switcher retains canonical Center-s
   assert.match(native, /useBoCenterSelection\(\)/);
   assert.match(native, /useContext\(BoApplicationShellContext\)/);
   assert.match(native, /menu\?\.\("menu-btn"\)/);
-  assert.match(native, /loadNativeParentContext\(centerId,ctl.signal\)/);
+  // PAP-2387: the canonical live branch reattests the same authorized Center and server actor.
+  assert.match(native, /liveScope.centerId!==centerId/);
+  assert.match(native, /return loadNativeParentLiveGrants\(liveScope,signal\)/);
+  assert.match(native, /return loadNativeParentContext\(centerId,signal\)/);
+  assert.match(native, /reattest\(ctl.signal\).then\(value=>\{ctl.signal.throwIfAborted\(\);setGrants\(value\);return loadNativeParentDirectory\(centerId,ctl.signal\)/);
+  const access = read("app/bo/parents/parent-native-data.ts");
+  assert.match(access, /loadNativeParentContext\(scope.centerId,signal,fetcher,scope.actorId\)/);
+  assert.match(access, /raw.userId !== expectedActorId/);
+  assert.match(access, /scopes.centers.some\(c => c.id === centerId\)/);
   assert.match(native, /return\(\)=>ctl.abort\(\)/);
 });
 

@@ -186,47 +186,24 @@ function nativeRunningClassesRoute(root,issues){
  return valid;
 }
 
-/** PAP-2387/PAP-2389: exact authenticated native Parent M1-B route. */
+/** PAP-2387/PAP-2389: exact authenticated native Parent live route. */
 function nativeParentRoute(root,issues){
- const route="/bo/parents",base="app/bo/parents/";
+ const route="/bo/parents";
  if(!read(root,POLICY).includes('"'+route+'"'))return false;
- const files=[base+"page.tsx",base+"ParentStagingEntry.tsx",base+"ParentDirectoryDsa.tsx",base+"parent-m1-context.tsx",base+"parent-m1-fixture.ts",base+"parent-native-data.ts",base+"parent-route.ts","lib/pap2387-parent-staging-boundary.test.ts","lib/pap2389-parent-route.test.ts"];
- if(files.some(f=>!fs.existsSync(path.join(root,f)))){issues.push(route+": missing exact native Parent fixture contract");return false;}
- const [page,view,native,provider,fixture,access,query]=files.map(f=>read(root,f));
- const required=[
- [page,'host!=="bo.staging.pinohouse.art"||env.APP_ENV!=="staging"||!boSkeletonEnabled(env,host)'],
- [page,'if(!canonicalParentRoute(query))notFound()'],
- [page,'await authorizeBoShell(new Headers(incoming),env)'],
- [page,'if(!actor.permissionKeys.includes("identity.parent_directory.view"))forbidden()'],
- [page,'actorId={actor.userId} actorEmail={actor.email}'],
- [view,'user.email!==actorEmail'],
- [view,'!center.centers.some(c=>c.id===selected)'],
- [view,'loadNativeParentContext(centerId,ctl.signal,fetch,actorId)'],
- [view,'canCreate&&grants.has("identity.parent.create")'],
- [view,'canEdit&&grants.has("identity.parent.edit")'],
- [view,'if(state.status!=="ready")return <RecordState status={state.status}/>'],
- [view,'ephemeral:true,readOnly:true'],
- [view,'load:async()=>{throw Error("Parent M1-B has no record transport")'],
- [view,'content={<ParentDirectoryDsa/>}'],
- [native,'fixture?PARENT_MOCK_CENTER:id'],
- [native,'fixture?Promise.resolve().then(()=>fixture.list(centerId)):loadNativeParentDirectory'],
- [provider,'location.origin!=="https://bo.staging.pinohouse.art"||location.pathname!=="/bo/parents"'],
- [provider,'const [fixture]=useState(createParentFixture)'],
- [fixture,'if(centerId!==PARENT_MOCK_CENTER)throw Error("Synthetic Center required")'],
- [access,'raw.userId !== expectedActorId'],
- [access,'grants.has("identity.parent_directory.view")'],
- [access,'scopes.centers.some(c => c.id === centerId)'],
- [query,'export const PARENT_ROUTE = "/bo/parents"']
- ];
+ const files=["app/bo/parents/page.tsx","app/bo/parents/ParentStagingEntry.tsx","app/bo/parents/ParentDirectoryDsa.tsx","app/bo/parents/parent-live-context.tsx","app/bo/parents/parent-m1-context.tsx","app/bo/parents/parent-native-data.ts","app/bo/parents/parent-route.ts","app/bo/parents/ParentCreateDrawer.tsx","app/bo/components/registration/BoParentReadTabs.tsx","lib/pap2387-parent-staging-boundary.test.ts","lib/pap2389-parent-route.test.ts","app/bo/parents/parent-create-retry.ts"];
+ if(files.some(f=>!fs.existsSync(path.join(root,f)))){issues.push(route+": missing exact native Parent live contract");return false;}
+ const source=files.map(f=>read(root,f));
+ const [page,view,native,scope,local,access,query]=source;
+ const required=[[0,"host!==\"bo.staging.pinohouse.art\"||env.APP_ENV!==\"staging\"||!boSkeletonEnabled(env,host)"],[0,"if(!canonicalParentRoute(query))notFound()"],[0,"await authorizeBoShell(new Headers(incoming),env)"],[0,"if(!actor.permissionKeys.includes(\"identity.parent_directory.view\"))forbidden()"],[0,"actorId={actor.userId} actorEmail={actor.email}"],[1,"user.email!==actorEmail"],[1,"!center.centers.some(c=>c.id===selected)"],[1,"loadNativeParentLiveGrants(scope,ctl.signal)"],[1,"if(state!==\"ready\")return <RecordState status={state}/>"],[1,"<ParentLiveScope.Provider value={scope}>"],[1,"load:async()=>{throw Error(\"Parent owns scoped native record transport\")"],[1,"content={<ParentDirectoryDsa/>}"],[3,"createContext<NativeParentLiveScope|null>(null)"],[4,"self.origin!==\"null\""],[5,"loadNativeParentContext(scope.centerId,signal,fetcher,scope.actorId)"],[5,"scope.canCreate&&grants.has(\"identity.parent.create\")"],[5,"scope.canEdit&&grants.has(\"identity.parent.edit\")"],[5,"raw.userId !== expectedActorId"],[5,"grants.has(\"identity.parent_directory.view\")"],[5,"scopes.centers.some(c => c.id === centerId)"],[2,"liveScope.centerId!==centerId"],[2,"return loadNativeParentLiveGrants(liveScope,signal)"],[2,"return loadNativeParentDirectory(centerId,ctl.signal)"],[2,"const current=fixture?grants:await reattest(ctl.signal)"],[7,"liveScope.centerId!==attempt.centerId"],[7,"await loadNativeParentLiveGrants(liveScope,ctl.signal)"],[7,"parentCreateMayEdit(previouslyUncertain,true)"],[8,"await loadNativeParentLiveGrants(liveScope,controller.signal)"],[8,"new URLSearchParams({centerId:liveScope.centerId})"],[6,"export const PARENT_ROUTE = \"/bo/parents\""],[6,"!uuid.test(value)"],[11,"return !previouslyUncertain&&definiteRejection"]];
  const valid=mountsExactNamedComponent(files[0],page,"./ParentStagingEntry","ParentStagingEntry")&&
  mountsExactNamedComponent(files[1],view,"../components/registration/BoRegistrationWorkspace","BoRegistrationWorkspace")&&
  mountsExactNamedComponent(files[1],view,"./ParentDirectoryDsa","ParentDirectoryDsa")&&
- mountsExactNamedComponent(files[1],view,"./parent-m1-context","ParentStagingFixtureProvider")&&
  mountsExactNamedComponent(files[2],native,"@/app/bo/components/registration/BoDataTable","BoDataTable")&&
  mountsExactNamedComponent(files[2],native,"@/app/bo/components/registration/BoQuickView","BoQuickView")&&
- required.every(([source,needle])=>source.includes(needle))&&
- ![page,view].some(s=>/BoModuleFactory|BoWorkforceRoute|BoLocalReviewCenter|localStorage\.|sessionStorage\.|method:\s*["'](?:POST|PATCH|PUT|DELETE)["']/.test(s));
- if(!valid)issues.push(route+": invalid exact native Parent fixture contract");
+ required.every(([index,needle])=>source[index].includes(needle))&&
+ ![page,view].some(s=>/ParentStagingFixtureProvider|ParentM1Provider|createParentFixture|ephemeral\s*:\s*true|BoModuleFactory|BoWorkforceRoute|BoLocalReviewCenter|localStorage\.|sessionStorage\.|method:\s*["'](?:POST|PATCH|PUT|DELETE)["']/.test(s))&&
+ !local.includes("ParentStagingFixtureProvider")&&!query.includes("PARENT-MOCK");
+ if(!valid)issues.push(route+": invalid exact native Parent live contract");
  return valid;
 }
 

@@ -9,7 +9,7 @@ export function canonicalParentRoute(query: Query, legacy = false): string | nul
   for (const [key, value] of Object.entries(query)) {
     if (value === undefined || key === "module" && legacy || tracking.has(key)) continue;
     if (legacy && key === "pilot" && value === "tdd") continue;
-    if (!["record","centerId"].includes(key) || typeof value !== "string" || !(uuid.test(value)||key==="record"&&/^PARENT-MOCK-[0-9]{3,6}$/.test(value))) return null;
+    if (!["record","centerId"].includes(key) || typeof value !== "string" || !uuid.test(value)) return null;
     out.set(key,value);
   }
   const ordered = new URLSearchParams();
