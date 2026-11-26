@@ -35,3 +35,15 @@ test("PAP-2395 pre-stream policy is exact host/path/verb and only strips interna
  assert(!check("m1Preview=1",null,true,host,"/ho/staff","POST"));
  assert(check("m1Preview=1",null,true,host,"/ho/staff","HEAD"));
 });
+
+test("PAP-2401 Staff runtime has no dormant Staging preview wrapper",async()=>{
+ const {readFileSync,existsSync}=await import("node:fs");
+ const read=(path:string)=>readFileSync(path,"utf8");
+ assert.equal(existsSync("app/ho/staff/StaffManualPreview.tsx"),false);
+ const route=read("app/ho/staff/page.tsx");
+ assert.match(route,/createAdmission="record-only"/);
+ assert.doesNotMatch(route,/StaffManualPreview|manual-create-preview|m1Preview/);
+ assert.doesNotMatch(read("app/ho/staff/StaffTdd.tsx"),/StaffManualPreview|manual-create-preview/);
+ assert.doesNotMatch(read("app/ho/staff/StaffNativeWorkspace.tsx"),/StaffManualPreview|manual-create-preview/);
+ assert.ok(existsSync("app/ho/staff/manual-create-preview.ts"));
+});
