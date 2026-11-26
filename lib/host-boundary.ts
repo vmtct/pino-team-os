@@ -1,3 +1,4 @@
+import {HO_LEARNING_SPACE_API,learningSpaceRoute} from "./ho-learning-space-contract";
 import {guestHostDecision} from "./bo-mytime-guest-host-contract";
 import {leadHouseholdHostDecision} from "./bo-lead-household-route";
 import {workshopHostDecision} from "./mytime-workshop-host-contract";
@@ -39,6 +40,8 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
     const read=pathname===personApi||pathname===personApi+"/unlinked-counts"||/^\/api\/ho\/identity\/persons\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(pathname);
     return {action:hostname===HO_STAGING_HOSTNAME&&(pathname===personPage&&(method==="GET"||method==="HEAD")||read&&method==="GET")?"next":"not_found"};
   }
+  // PAP-2371: exact private HO Learning Space methods only.
+  if(pathname.toLowerCase()===HO_LEARNING_SPACE_API||pathname.toLowerCase().startsWith(HO_LEARNING_SPACE_API+"/"))return {action:hostname===HO_STAGING_HOSTNAME&&learningSpaceRoute(pathname,method)?"next":"not_found"};
   const leadHousehold = leadHouseholdHostDecision(hostname, pathname, method);
   if (leadHousehold) return {action:leadHousehold};
   const workshop = workshopHostDecision(hostname, pathname, method);

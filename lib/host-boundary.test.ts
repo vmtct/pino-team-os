@@ -552,3 +552,10 @@ test("PAP-2030 exact historical Wish Item record is HO staging GET only",()=>{
  for(const host of ["bo.staging.pinohouse.art","tos.staging.pinohouse.art",BO_HOSTNAME])assert.deepEqual(decideHostBoundary(host,p,"GET"),{action:"not_found"});
  for(const suffix of ["/x","/0","/3/extra"])assert.deepEqual(decideHostBoundary("ho.staging.pinohouse.art","/api/ho/pinoria/pls-wish/config/item-record/"+roleId+suffix,"GET"),{action:"not_found"});
 });
+test("PAP-2371 exact HO Learning Space ingress only",()=>{
+ const root="/api/ho/learning-spaces",host=HO_STAGING_HOSTNAME,id=roleId;
+ for(const [suffix,methods] of [["",["GET","POST"]],["/"+id,["GET","PATCH","DELETE"]],["/"+id+"/classes",["GET"]],["/"+id+"/history",["GET"]],["/",[]],["/bad",[]],["/"+id+"/extra",[]]] as const){
+  for(const m of ["GET","HEAD","POST","PATCH","DELETE","PUT","OPTIONS"]){assert.deepEqual(decideHostBoundary(host,root+suffix,m),{action:(methods as readonly string[]).includes(m)?"next":"not_found"});for(const other of [BO_STAGING_HOSTNAME,TOS_STAGING_HOSTNAME,BO_HOSTNAME,"ho.pinohouse.art"])assert.deepEqual(decideHostBoundary(other,root+suffix,m),{action:"not_found"});}
+ }
+ assert.deepEqual(decideHostBoundary(host,"/api/HO/learning-spaces","GET"),{action:"not_found"});
+});

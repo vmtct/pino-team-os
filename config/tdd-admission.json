@@ -11,18 +11,26 @@
         "app/ho/learning-spaces/page.tsx",
         "app/ho/learning-spaces/LearningSpaceM1Content.tsx",
         "app/ho/learning-spaces/schema.ts",
-        "app/ho/learning-spaces/learning-space-m1-preview.ts"
+
+        "app/ho/learning-spaces/learning-space-client.ts",
+        "app/ho/learning-spaces/learning-space-live-schema.ts",
+        "app/ho/learning-spaces/learning-space-provider.ts",
+        "lib/ho-learning-space-contract.ts"
       ],
       "schema": {
-        "file": "app/ho/learning-spaces/schema.ts",
-        "export": "spaceSchema"
+        "file": "app/ho/learning-spaces/learning-space-live-schema.ts",
+        "export": "liveSpaceSchema"
       },
       "binding": {
         "file": "app/ho/learning-spaces/LearningSpaceM1Content.tsx"
       },
       "tests": [
         "lib/pap2369-learning-space-native.test.ts",
-        "app/ho/learning-spaces/learning-space-m1-preview.test.ts",
+
+        "app/ho/learning-spaces/learning-space-client.test.ts",
+        "app/ho/learning-spaces/learning-space-live-schema.test.ts",
+        "app/ho/learning-spaces/learning-space-provider.test.ts",
+        "lib/ho-learning-space-handler.test.ts",
         "lib/ho-routes.test.ts"
       ],
       "externalReferences": [
@@ -187,7 +195,10 @@
         "app/ho/system/roles/page.tsx",
         "app/ho/system/roles/HoRolesTdd.tsx",
         "app/ho/system/roles/HoRoleEditor.tsx",
+        "app/ho/system/roles/RoleMetadataPropertyHost.tsx",
         "app/ho/system/roles/role-editor-receipt.ts",
+        "app/ho/system/roles/role-metadata-edit.ts",
+        "app/ho/system/roles/role-metadata-flow.ts",
         "app/ho/system/roles/schema.ts",
         "app/ho/system/roles/RoleLifecycleForms.tsx",
         "app/ho/system/roles/role-lifecycle-model.ts",
@@ -215,6 +226,10 @@
         {
           "file": "lib/workspace-adapters/session.ts",
           "owner": "PAP-1166"
+        },
+        {
+          "file": "lib/workspace-adapters/ho-inline-command-contract.ts",
+          "owner": "PAP-1247"
         }
       ],
       "schema": {
@@ -229,6 +244,7 @@
         "lib/pap1169-ho-role-edit.test.ts",
         "lib/pap2373-role-editor-receipt.test.ts",
         "lib/pap2373-role-metadata-flow.test.ts",
+        "lib/pap1247-ho-inline-command-contract.test.ts",
         "lib/pap2192-role-lifecycle-model.test.ts",
         "lib/pap2192-role-m1.test.ts",
         "lib/host-boundary.test.ts"
