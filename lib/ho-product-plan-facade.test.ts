@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {handleHoProductPlans} from "./ho-product-plan-facade";
-import type {HoEnv} from "./ho-auth";
+import type {HoWorldEnv} from "./ho-world-handler";
 import {planHost,planActorHeader,planRequest,parseCatalogBody,createPlanBrowserPort} from "../app/ho/billing/product-plans/product-plan-http-contract";
 import {catalogPath} from "../app/ho/billing/product-plans/product-plan-native-contract";
 const actor="01900000-0000-7000-8000-000000000001",id="01900000-0000-7000-8000-000000000002",other="01900000-0000-7000-8000-000000000003";
@@ -9,14 +9,20 @@ const at="2026-11-26T00:00:00.000Z",origin="https://"+planHost;
 const dto={id,displayName:"Gói học",createdByUserId:null,updatedByUserId:actor,cadence:1,termWeeks:12,purchasedUnits:12,listPriceMinor:100,currency:"VND",enabled:true,badge:"STANDARD",createdAt:at,updatedAt:at,version:2,private:"never"};
 const grants=["team.bo.access","billing.view","billing.manage"];
 function setup(options:{admitted?:boolean;secondActor?:string;permissionKeys?:string[];domain?:()=>unknown}={}){
- let contexts=0;const calls:{method:string;path:string;body?:unknown}[]=[];
- const env:HoEnv={APP_ENV:"staging",HO_PILOT_FOUNDER_USER_IDS:actor,PINO_BO_CORE:{async executeWithStaffPassword(req,token){
+ let contexts=0;const calls:{method:string;path:string;body?:unknown}[]=[],boCalls:string[]=[];
+ const env:HoWorldEnv={APP_ENV:"staging",HO_PILOT_FOUNDER_USER_IDS:actor,PINO_BO_CORE:{async executeWithStaffPassword(req,token){
+  boCalls.push(req.path);
   if(token!=="synthetic")return {status:401,body:{},requestId:"test"};
   if(req.path==="context")return {status:200,body:{data:{userId:++contexts>1?options.secondActor??actor:actor,email:"fixture@example.invalid",surface:"BO",entitled:true,permissionKeys:options.permissionKeys??grants}},requestId:"test"};
   if(req.path==="ho/admission")return {status:options.admitted===false?403:200,body:{data:{admitted:options.admitted!==false}},requestId:"test"};
-  calls.push(req);return {status:200,body:{data:options.domain?options.domain():req.path==="ho/billing/product-plans"?[dto]:dto},requestId:"test"};
+  return {status:404,body:{},requestId:"test"};
+ }},PINO_HO_WORLD_CORE:{async executeWithStaffPassword(req,token){
+  if(token!=="synthetic")return {status:401,body:{},requestId:"test"};
+  calls.push(req);
+  if(!req.path.startsWith("ho/billing/product-plans"))return {status:404,body:{},requestId:"test"};
+  return {status:200,body:{data:options.domain?options.domain():req.path==="ho/billing/product-plans"?[dto]:dto},requestId:"test"};
  }}};
- return {env,calls};
+ return {env,calls,boCalls};
 }
 function req(suffix="",method="GET",body:unknown={expectedVersion:1,listPriceMinor:100},headers:Record<string,string>={}){
  return new Request(origin+catalogPath+suffix,{method,headers:{host:planHost,cookie:"pino_staff_password_session=synthetic",[planActorHeader]:actor,origin,"content-type":"application/json",...headers},...(method==="PATCH"?{body:JSON.stringify(body)}:{})});
@@ -28,12 +34,18 @@ test("exact path and query grammar, only six patch fields",()=>{
  assert.equal(parseCatalogBody({expectedVersion:1,actorId:actor}),null);
 });
 test("authenticated exact Core read and PATCH; no raw extra payload",async()=>{
- const {env,calls}=setup();
+ const {env,calls,boCalls}=setup();
  for(const [suffix,method] of [["","GET"],["/"+id,"GET"],["/"+id,"PATCH"]]){
   const response=await handleHoProductPlans(req(suffix,method),env);assert.equal(response.status,200);assert.doesNotMatch(await response.text(),/private|never/);
  }
  assert.deepEqual(calls.map(r=>[r.method,r.path]),[["GET","ho/billing/product-plans"],["GET","ho/billing/product-plans/"+id],["PATCH","ho/billing/product-plans/"+id]]);
  assert.deepEqual(calls.at(-1)?.body,{expectedVersion:1,listPriceMinor:100});
+ assert.deepEqual(boCalls,["context","ho/admission","context","context","ho/admission","context","context","ho/admission","context"]);
+});
+test("missing HO control plane fails closed without BO catalog fallback",async()=>{
+ const {env,calls,boCalls}=setup();delete env.PINO_HO_WORLD_CORE;
+ assert.equal((await handleHoProductPlans(req(),env)).status,503);
+ assert.equal(calls.length,0);assert.ok(boCalls.every(p=>p==="context"||p==="ho/admission"));
 });
 test("denies principal mismatch, missing session, grants, non-Founder and wrong ingress before dispatch",async()=>{
  for(const options of [{admitted:false},{secondActor:other},{permissionKeys:["team.bo.access","billing.view"]}]){
