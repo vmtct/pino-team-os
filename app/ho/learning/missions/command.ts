@@ -3,11 +3,12 @@
  * PAP-1247 declarative TDD Action Host will own buttons/form placement and invocation.
  * The frontend never grants permissions: Core/HO gateway reauthorizes every command.
  */
-import type { MissionCategory } from "./mission-category";
+import { isMissionCategory, type MissionCategory } from "./mission-category";
+import { normalizeMissionSupplementalUrl } from "./mission-supplemental-url";
 export type MissionInput = Readonly<{
-  /** Preview-only until M2 category transport admission. */
+  /** Legacy unclassified reads use null; updates omit null to preserve classification. */
   category?: MissionCategory | null;
-  /** Preview-only until approved Core metadata integration. */
+  /** Omission preserves existing URL on update; explicit null clears. */
   supplementalUrl?: string | null;
   code: string;
   name: string;
@@ -41,17 +42,27 @@ function dataOf(value: unknown): Record<string, unknown> | null {
   const envelope = object(value);
   return envelope ? object(envelope.data) : null;
 }
-function normalized(data: MissionInput, archive: boolean): MissionInput {
-  const { category: _previewOnly, supplementalUrl: _previewUrl, ...live } = data;
-  void _previewOnly;
-  void _previewUrl;
-  return { ...live, code: data.code.trim().toUpperCase(), name: data.name.trim(),
-    status: archive ? "INACTIVE" : data.status };
+function normalized(data: MissionInput, kind: MissionWrite["kind"]): MissionInput | null {
+  const {category,supplementalUrl,...rest}=data;
+  if(kind==="create"&&!isMissionCategory(category))return null;
+  if(category!=null&&!isMissionCategory(category))return null;
+  const url=normalizeMissionSupplementalUrl(supplementalUrl);
+  if(!url.ok)return null;
+  return {...rest,code:data.code.trim().toUpperCase(),name:data.name.trim(),status:kind==="archive"?"INACTIVE":data.status,
+    ...(isMissionCategory(category)?{category}:{}),...(supplementalUrl!==undefined||kind==="create"?{supplementalUrl:url.value}:{})};
+}
+function validReadUrl(value:unknown):boolean {
+  const normalized=normalizeMissionSupplementalUrl(value);
+  return normalized.ok&&normalized.value===value;
 }
 function identity(row: Record<string, unknown> | null, data: MissionInput,
   id?: string): row is Record<string, unknown> & MissionRow {
   return Boolean(row && typeof row.id === "string" && uuidV7.test(row.id) &&
     (!id || row.id === id) && Number.isSafeInteger(row.version) && Number(row.version) >= 1 &&
+    (row.category===null||isMissionCategory(row.category)) &&
+    Object.hasOwn(row,"supplementalUrl") && validReadUrl(row.supplementalUrl) &&
+    (data.category===undefined||data.category===row.category) &&
+    (data.supplementalUrl===undefined||data.supplementalUrl===row.supplementalUrl) &&
     fields.every(key => {
       const wanted = data[key];
       const actual = row[key];
@@ -74,7 +85,8 @@ export async function submitHoMission(
       (command.kind !== "create" && (!uuidV7.test(command.id) ||
         !Number.isSafeInteger(command.expectedVersion) || command.expectedVersion < 1)))
     return fail("invalid", "Mission ID, version hoặc idempotency không hợp lệ.");
-  const wanted = normalized(command.data, command.kind === "archive");
+  const wanted = normalized(command.data, command.kind);
+  if(!wanted)return fail("invalid","Category hoặc URL bổ sung không hợp lệ.");
   const method = command.kind === "create" ? "POST" : "PUT";
   const route = "/api/ho/learning/missions" + (command.kind === "create" ? "" : "/" + command.id);
   const payload = { ...wanted,
@@ -119,7 +131,7 @@ export async function submitHoMission(
   let record: Record<string, unknown> | null;
   try { record = dataOf(await read.json()); }
   catch { record = null; }
-  if (!identity(record, wanted, id) || record!.version !== receipt!.version)
+  if (!identity(record, wanted, id) || record!.version !== receipt!.version || record!.category !== receipt!.category || record!.supplementalUrl !== receipt!.supplementalUrl)
     return fail("unverified", "Readback Core chưa khớp Mission; không gửi lại.", read.status, id);
   return { state: "verified", record: { id, code: String(record!.code),
     status: String(record!.status), version: Number(record!.version) } };
