@@ -16,6 +16,19 @@ import type {
   BoStaffRecord,
 } from "@/lib/bo-model";
 import styles from "../bo.module.css";
+import { BoDataGrid, BoDataGridBadge, BoDrawer, type BoDataGridColumn } from "@/app/bo/components/data-grid";
+import { BoProperties } from "@/app/bo/components/BoProperties";
+import { DetailFrame } from "@/app/components/workspace-renderer/DetailFrame";
+
+const requestColumns: BoDataGridColumn<BoStaffRegistrationRequest>[] = [
+  { key: "displayLabel", header: "H\u1ecd v\u00e0 t\u00ean", render: row => row.displayLabel, minWidth: 180 },
+  { key: "submittedAt", header: "Ng\u00e0y g\u1eedi", render: row => formatSubmittedAt(row.submittedAt), minWidth: 160 },
+  { key: "status", header: "Tr\u1ea1ng th\u00e1i", render: () => <BoDataGridBadge>{"Ch\u1edd duy\u1ec7t"}</BoDataGridBadge>, minWidth: 120 },
+  ...["Created Time", "Created By", "Last Modified Time", "Last Modified By"].map((header, index) => ({ key: "audit-" + index, header, render: () => "\u2014", minWidth: 145 })),
+];
+function formatSubmittedAt(value: string) {
+  return new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", dateStyle: "short", timeStyle: "short" }).format(new Date(value));
+}
 
 type ScopeType = BoStaffAccessAssignmentInput["scopeType"];
 type IdentityMode = "" | BoStaffRegistrationPinoriaIdentity["mode"];
@@ -30,6 +43,8 @@ export function StaffRegistrationReviewQueue() {
   const [roles, setRoles] = useState<BoAccessRole[]>([]);
   const [catalog, setCatalog] = useState<Catalog>({ centers: [], paths: [], classes: [] });
   const [selectedId, setSelectedId] = useState("");
+  const [surface, setSurface] = useState<"table" | "drawer" | "detail">("table");
+  const [loading, setLoading] = useState(true);
   const [staffRecords, setStaffRecords] = useState<BoStaffRecord[]>([]);
   const [accessUsers, setAccessUsers] = useState<BoAccessSystemUser[]>([]);
   const [search, setSearch] = useState("");
@@ -59,7 +74,7 @@ export function StaffRegistrationReviewQueue() {
     rejectAttempt.current = null;
   }, [selectedId]);
 
-  const selected = requests.find((item) => item.id === selectedId) ?? requests[0] ?? null;
+  const selected = requests.find((item) => item.id === selectedId) ?? null;
   const activeRoles = useMemo(() => roles.filter((role) => role.status === "active" && role.roleKey !== "founder"), [roles]);
   const visibleRequests = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -75,6 +90,7 @@ export function StaffRegistrationReviewQueue() {
   const identityReady = identityMode === "CREATE_STAFF_ONLY_PERSON" || (identityMode === "LINK_EXISTING_STUDENT" && Boolean(studentProfileId));
 
   async function refresh() {
+    setLoading(true);
     try {
       const accessUsersRequest = boApi.accessUsers().catch((cause) => {
         if (cause instanceof BoApiError && (cause.status === 401 || cause.status === 403)) return [];
@@ -84,10 +100,11 @@ export function StaffRegistrationReviewQueue() {
         boApi.staffRegistrationRequests(), boApi.accessRoles(), boApi.scopeCatalog(), boApi.staffRecords(), accessUsersRequest,
       ]);
       setRequests(nextRequests); setRoles(nextRoles); setCatalog(nextCatalog); setStaffRecords(nextStaff); setAccessUsers(nextAccessUsers);
-      setSelectedId((current) => nextRequests.some((item) => item.id === current) ? current : nextRequests[0]?.id ?? "");
+      setSelectedId((current) => nextRequests.some((item) => item.id === current) ? current : "");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Không thể tải hàng đợi đăng ký nhân sự.");
     }
+    finally { setLoading(false); }
   }
 
   function patchDraft(key: string, patch: Partial<Draft>) {
@@ -155,6 +172,7 @@ export function StaffRegistrationReviewQueue() {
       const result = await boApi.approveStaffRegistration(selected.id, normalized, identity, idempotencyKey, existingStaffMemberId || undefined);
       approveAttempt.current = null;
       setApproval(result);
+      setSurface("table");
       setRequests((items) => items.filter((item) => item.id !== selected.id));
       setSelectedId("");
       window.dispatchEvent(new Event("bo:staff-updated"));
@@ -178,6 +196,7 @@ export function StaffRegistrationReviewQueue() {
         : crypto.randomUUID();
       rejectAttempt.current = { requestId: selected.id, fingerprint: reason, key: idempotencyKey };
       await boApi.rejectStaffRegistration(selected.id, reason, idempotencyKey);
+      setSurface("table");
       rejectAttempt.current = null;
       setRequests((items) => items.filter((item) => item.id !== selected.id));
       setSelectedId("");
@@ -198,32 +217,23 @@ export function StaffRegistrationReviewQueue() {
       <div><button type="button" className={styles.secondaryButton} onClick={() => setApproval(null)}>Đã hiểu</button></div>
     </section> : null}
 
-    <div className={styles.registrationReviewGrid}>
-      <aside className={styles.registrationQueue}>
-        <div className={styles.panelHeading}><div><h2>{requests.length} hồ sơ chờ duyệt</h2><p>Mới nhất trước.</p></div></div>
-        <label className={styles.field}>Tìm hồ sơ<input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tên hoặc email" /></label>
-        {!visibleRequests.length ? <div className={styles.empty}>{requests.length ? "Không tìm thấy hồ sơ phù hợp." : "Không có hồ sơ đang chờ duyệt."}</div> : visibleRequests.map((request) => <button
-          type="button" key={request.id}
-          className={`${styles.registrationQueueItem} ${selected?.id === request.id ? styles.registrationQueueItemActive : ""}`}
-          onClick={() => { setSelectedId(request.id); setApproval(null); }}
-        >
-          <strong>{request.displayLabel}</strong>
-          <span>{request.email}</span>
-          <small>{new Date(request.submittedAt).toLocaleString("vi-VN")}</small>
-        </button>)}
-      </aside>
+    {(!selected || surface !== "detail") && <BoDataGrid rows={visibleRequests} columns={requestColumns} rowKey={row => row.id}
+      caption={"H\u1ed3 s\u01a1 nh\u00e2n s\u1ef1 ch\u1edd duy\u1ec7t"} state={loading ? "loading" : error && !requests.length ? "error" : "ready"}
+      stateMessage={error} search={search} onSearchChange={setSearch} searchPlaceholder={"T\u00ecm t\u00ean ho\u1eb7c email"}
+      onRowOpen={row => { setSelectedId(row.id); setApproval(null); setSurface("drawer"); }} quickViewOpener
+      emptyTitle={"Ch\u01b0a c\u00f3 h\u1ed3 s\u01a1"} emptyMessage={"Kh\u00f4ng c\u00f3 h\u1ed3 s\u01a1 ph\u00f9 h\u1ee3p."} resultLabel={visibleRequests.length + " h\u1ed3 s\u01a1"}
+      toolbarActions={<button type="button" disabled={Boolean(busy) || loading} onClick={() => { setError(""); void refresh(); }}>{"T\u1ea3i l\u1ea1i"}</button>} /> }
+    {selected && surface === "drawer" && <BoDrawer title={selected.displayLabel} eyebrow={"H\u1ed3 s\u01a1 ch\u1edd duy\u1ec7t"} onClose={() => { setSurface("table"); setSelectedId(""); }}
+      footer={<button type="button" className={styles.primaryButton} onClick={() => setSurface("detail")}>{"M\u1edf chi ti\u1ebft"}</button>}>
+      <BoProperties authority items={requestProperties(selected)} />
+    </BoDrawer>}
+    {selected && surface === "detail" && <DetailFrame title={selected.displayLabel} subtitle={"H\u1ed3 s\u01a1 ch\u1edd duy\u1ec7t"}
+      tabs={[{ id: "overview", label: "T\u1ed5ng quan" }]} selected="overview"
+      onBack={() => { if (!busy) { setSurface("table"); setSelectedId(""); } }}>
       <div className={styles.registrationReviewDetail}>
-        {!selected ? <section className={styles.panel}><p>Chọn một hồ sơ để review.</p></section> : <>
           <section className={styles.panel}>
-            <div className={styles.panelHeading}><div><h2>{selected.displayLabel}</h2><p>Submitted {new Date(selected.submittedAt).toLocaleString("vi-VN")}</p></div><span className={styles.writePill}>PENDING</span></div>
-            <dl className={styles.registrationFacts}>
-              <div><dt>Email</dt><dd>{selected.email}</dd></div>
-              <div><dt>Điện thoại</dt><dd>{selected.mobile ?? "—"}</dd></div>
-              <div><dt>CCCD</dt><dd>•••• •••• {selected.governmentIdLast4}</dd></div>
-              <div><dt>Ảnh CCCD</dt><dd>{selected.documents.front ? "Mặt trước ✓" : "Mặt trước thiếu"} · {selected.documents.back ? "Mặt sau ✓" : "Mặt sau thiếu"}</dd></div>
-              <div><dt>Tài khoản nhận lương</dt><dd>•••• •••• {selected.bankAccountLast4}</dd></div>
-            </dl>
-            <p className={styles.registrationPrivacyNote}>CCCD và thông tin ngân hàng đầy đủ được mã hoá tại Core; queue mặc định chỉ surface dữ liệu đã mask.</p>
+            <BoProperties authority items={requestProperties(selected)} />
+            <p className={styles.registrationPrivacyNote}>{"CCCD v\u00e0 th\u00f4ng tin ng\u00e2n h\u00e0ng ch\u1ec9 hi\u1ec3n th\u1ecb d\u1eef li\u1ec7u \u0111\u00e3 che."}</p>
           </section>
 
           {existingAccess ? <section className={styles.panel}>
@@ -277,10 +287,20 @@ export function StaffRegistrationReviewQueue() {
               <button type="button" className={styles.primaryButton} disabled={Boolean(busy) || !identityReady || !selected.documents.front || !selected.documents.back || Boolean(existingAccess?.staffMemberId) || Boolean(existingAccess && !existingStaffMemberId)} onClick={() => void approve()}>{busy === "approve" ? "Đang duyệt…" : existingAccess ? "Duyệt & liên kết" : "Duyệt & cấp quyền"}</button>
             </div>
           </section>
-        </>}
       </div>
-    </div>
+    </DetailFrame>}
   </section>;
+}
+
+function requestProperties(row: BoStaffRegistrationRequest) {
+  return [
+    { key: "submittedAt", label: "Ng\u00e0y g\u1eedi", value: formatSubmittedAt(row.submittedAt) },
+    { key: "email", label: "Email", value: row.email },
+    { key: "mobile", label: "\u0110i\u1ec7n tho\u1ea1i", value: row.mobile ?? "\u2014" },
+    { key: "governmentId", label: "CCCD", value: "\u2022\u2022\u2022\u2022 " + row.governmentIdLast4 },
+    { key: "documents", label: "\u1ea2nh CCCD", value: (row.documents.front ? "M\u1eb7t tr\u01b0\u1edbc \u2713" : "M\u1eb7t tr\u01b0\u1edbc thi\u1ebfu") + " \u00b7 " + (row.documents.back ? "M\u1eb7t sau \u2713" : "M\u1eb7t sau thi\u1ebfu") },
+    { key: "bank", label: "T\u00e0i kho\u1ea3n nh\u1eadn l\u01b0\u01a1ng", value: "\u2022\u2022\u2022\u2022 " + row.bankAccountLast4 },
+  ];
 }
 
 function TargetSelect({ draft, catalog, onChange }: { draft: Draft; catalog: Catalog; onChange: (value: string) => void }) {
