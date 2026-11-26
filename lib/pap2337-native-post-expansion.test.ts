@@ -17,3 +17,19 @@ test("preview rejects invalid program/person and real IDs; dispose revokes local
 
 import {parsePostReviewQuery} from "../app/bo/piner-posts/post-preview-navigation";
 test("canonical Post fixture query and legacy normalization",()=>{for(const [q,canonical] of [["",""],["m1Preview=1",""],["m1Preview=1&record=POST-MOCK-001&tab=media","record=POST-MOCK-001&tab=media"],["record=POST-MOCK-001&tab=history","record=POST-MOCK-001&tab=history"]] as const)assert.deepEqual(parsePostReviewQuery(new URLSearchParams(q)),{legacy:q.includes("m1Preview"),canonical});for(const q of ["m1Preview=0","m1Preview=1&m1Preview=1","record=01a1ef9f-d253-7e6b-ba2d-200887c4486f","record=POST-MOCK-001&record=POST-MOCK-002","record=","tab=media","record=POST-MOCK-001&tab=unknown","centerId=bad","returnTo=//evil.example"])assert.equal(parsePostReviewQuery(new URLSearchParams(q)),null,q);});
+
+import {readFileSync} from "node:fs";
+test("PAP-2405 canonical BO Post runtime uses only real session; local M1 artifact remains isolated",()=>{
+ const read=(path:string)=>readFileSync(new URL(path,import.meta.url),"utf8");
+ const entry=read("../app/bo/piner-posts/BoPostsDraftEntry.tsx");
+ const page=read("../app/bo/piner-posts/page.tsx");
+ const local=read("../scripts/native-m1-local/post-entry.tsx");
+ assert.doesNotMatch(entry,/previewMode|BoPostSubmitShell|createPostPreviewSession|post-preview-fixture/);
+ assert.match(entry,/openNativeDraftSession\(centerId,source,abort\.signal\)/);
+ assert.match(entry,/if\(session\)\{[\s\S]*?<BoPostsDraftRuntime session=\{session\}/);
+ assert.match(entry,/RecordState status=\{state\}/);
+ assert.match(page,/<BoPostsTdd\/>/);
+ assert.doesNotMatch(page,/BoPostSubmitShell|createPostPreviewSession|previewMode/);
+ assert.match(local,/import \{BoPostSubmitShell\}/);
+ assert.match(local,/<BoPostSubmitShell\/>/);
+});
