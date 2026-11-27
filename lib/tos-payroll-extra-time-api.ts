@@ -16,9 +16,10 @@ export interface OwnShift {
 export interface AttendanceEvidence {
   id:string;centerId:string;assignmentId:string|null;workDate:string;
   status:"OPEN"|"CLOSED";checkInAt:string;checkOutAt:string|null;
+  effective?:{checkInAt:string;checkOutAt:string|null;durationSeconds:number|null};
 }
 export interface EligibleTimeWindow {
-  key:string;assignmentId:string;workDate:string;label:string;
+  key:string;centerId:string;assignmentId:string;workDate:string;label:string;
   checkInAt:string;checkOutAt:string;
 }
 export class ExtraTimeApiError extends Error{
@@ -60,13 +61,18 @@ export function availableExtraTimeWindows(
        !session.assignmentId||!session.checkOutAt)continue;
     const assignment=assignmentMap.get(session.assignmentId);
     if(!assignment||assignment.workDate!==session.workDate)continue;
+    const checkInAt=session.effective?session.effective.checkInAt:session.checkInAt;
+    const checkOutAt=session.effective?session.effective.checkOutAt:session.checkOutAt;
+    if(!checkOutAt||!Number.isFinite(Date.parse(checkInAt))||!Number.isFinite(Date.parse(checkOutAt))||
+      Date.parse(checkOutAt)<=Date.parse(checkInAt)||
+      (session.effective&&!(typeof session.effective.durationSeconds==="number"&&session.effective.durationSeconds>0)))continue;
     const key=session.id;
     if(seen.has(key))continue;
     seen.add(key);
     choices.push({
-      key,assignmentId:assignment.id,workDate:assignment.workDate,
+      key,centerId,assignmentId:assignment.id,workDate:assignment.workDate,
       label:assignment.workDate+" · "+(assignment.shift?.displayLabel??"Ca làm") ,
-      checkInAt:session.checkInAt,checkOutAt:session.checkOutAt,
+      checkInAt,checkOutAt,
     });
   }
   return choices.sort((a,b)=>b.workDate.localeCompare(a.workDate)||a.key.localeCompare(b.key));
@@ -80,7 +86,7 @@ export function formatVietnamTime(value:string):string{
 export function createExtraTimePayload(
   selected:EligibleTimeWindow|undefined,centerId:string,from:string,to:string,reason:string,
 ):{centerId:string;assignmentId:string;workDate:string;startAt:string;endAt:string;reason:string}{
-  if(!selected||!centerId||!isClock(from)||!isClock(to)||to<=from)
+  if(!selected||!centerId||selected.centerId!==centerId||!isClock(from)||!isClock(to)||to<=from)
     throw new Error("Vui lòng chọn ca và khoảng giờ hợp lệ.");
   const trimmed=reason.trim();
   if(trimmed.length<10||trimmed.length>1000)
@@ -97,3 +103,22 @@ export function createExtraTimePayload(
     startAt,endAt,reason:trimmed};
 }
 function isClock(value:string){return /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value);}
+
+/** PAP-2429: fixed existing paths, never a caller-provided redirect. */
+export function caLamExtraTimeHref(centerId:string){
+ return "/earnings/extra-time?"+new URLSearchParams({from:"ca-lam",centerId});
+}
+export function caLamIncomeHref(centerId:string){
+ return "/tos-v4?"+new URLSearchParams({from:"extra-time",centerId});
+}
+/** null = ordinary entry; empty string = invalid scoped entry (never fall back). */
+export function scopedExtraTimeCenter(search:string,origin:"ca-lam"|"extra-time",context:{
+ staffMemberId?:string|null;founderMode?:boolean;centers:readonly {id:string}[];
+}):string|null{
+ const query=new URLSearchParams(search);
+ if(!query.getAll("from").includes(origin))return null;
+ const ids=query.getAll("centerId");
+ if(query.getAll("from").length!==1||ids.length!==1||!context.staffMemberId||context.founderMode||
+   !context.centers.some(c=>c.id===ids[0]))return "";
+ return ids[0]!;
+}
