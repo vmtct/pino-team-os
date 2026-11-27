@@ -4,7 +4,8 @@ export type Dossier=Readonly<{id:string;version:number;name:string;email:string;
 export type RoleOption=Readonly<{id:string;label:string;active:boolean;scopes:readonly ("CENTER"|"GLOBAL")[]}>;
 export type FinalizeRequest=Readonly<{receipt:ReviewedDossierReceipt;roleId:string;scopeType:"CENTER"|"GLOBAL";scopeId:string|null;key:string}>;
 type Completed=Readonly<{registrationRequestId:string;status:"APPROVED";reviewedVersion:number;personId:string;staffId:string;userId:string;roleId:string;scopeType:"CENTER"|"GLOBAL";scopeId:string|null;employmentStatus:"inactive";operationalReadiness:"unverified";fixture:true}>;
-type Result={kind:"approved";receipt:Completed}|{kind:"rejected"|"stale"|"denied"|"conflict"|"invalid"};
+export type FinalizationResult={kind:"approved";receipt:Completed}|{kind:"rejected";registrationRequestId:string;reviewedVersion:number;reason:string}|{kind:"stale"|"denied"|"conflict"|"invalid"};
+type Result=FinalizationResult;
 export function validReviewedDossier(d:Dossier):boolean{const r=d.receipt;return !!r&&r.status==="REVIEWED_FOR_HO"&&r.registrationRequestId===d.id&&r.centerId===d.centerId&&!!d.centerId&&r.reviewedVersion===d.version&&Number.isSafeInteger(d.version)&&d.version>0&&!!r.reviewedBy.trim()&&!!d.name.trim()&&!!d.email.trim()&&d.documents.front&&d.documents.back;}
 const receiptKey=(r:ReviewedDossierReceipt)=>JSON.stringify([r.registrationRequestId,r.centerId,r.status,r.reviewedVersion,r.reviewedBy]);
 export function createFinalizationFixture(d:Dossier,roles:readonly RoleOption[],options:{identityConflict?:boolean}={}){
@@ -24,7 +25,7 @@ export function createFinalizationFixture(d:Dossier,roles:readonly RoleOption[],
  reject(receipt:ReviewedDossierReceipt,reason:string,key:string):Result{
  const fingerprint=JSON.stringify(["reject",receiptKey(receipt),reason.trim()]),cached=prior(key,fingerprint);if(cached)return cached;
  if(!key.trim()||!reason.trim()||reason.trim().length>500)return {kind:"invalid"};if(decision||!validReviewedDossier(dossier)||!dossier.receipt||receiptKey(receipt)!==receiptKey(dossier.receipt))return {kind:"stale"};
- return finish(key,fingerprint,{kind:"rejected"});
+ return finish(key,fingerprint,{kind:"rejected",registrationRequestId:dossier.id,reviewedVersion:dossier.version,reason:reason.trim()});
  }};
 }
 export const reviewedDossierSeed:Dossier={id:"STAFF-DIRECTORY-MOCK-001",version:1,name:"Nhân sự mẫu PINO",email:"staff@example.invalid",mobile:null,centerId:"STAFF-MOCK-CENTER",documents:{front:true,back:true},receipt:{registrationRequestId:"STAFF-DIRECTORY-MOCK-001",centerId:"STAFF-MOCK-CENTER",status:"REVIEWED_FOR_HO",reviewedVersion:1,reviewedBy:"M1 BO Reviewer"}};
