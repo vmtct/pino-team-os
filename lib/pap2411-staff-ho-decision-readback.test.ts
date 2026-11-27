@@ -28,3 +28,28 @@ test("PAP-2411 HO rejection readback retains BO review and separate HO rejection
  assert.throws(()=>projectStaffHoDecision(row,bo,{...decision,reason:" "}));
  assert.throws(()=>projectStaffHoDecision(row,bo,{...decision,reviewedVersion:2}));
 });
+
+test("PAP-2411 fixture list consumes HO readback only after exact BO review",async()=>{
+ let decision:StaffHoDecisionReadback|null=null,calls=0;
+ const f=createStaffDossierM1Fixture({readHoDecision:async()=>{calls++;return decision;}});
+ assert.equal((await f.dossierReview.list!())[0].reviewStage,undefined);assert.equal(calls,0);
+ const bo=await f.dossierReview.submit!(id,1,f.dossierReview.centerId,"BO-review");
+ assert.equal((await f.dossierReview.list!())[0].reviewStage,"REVIEWED_FOR_HO");
+ const {approval}=await setup();
+ decision={...approval,receipt:{...approval.receipt,reviewedVersion:2}};
+ await assert.rejects(f.dossierReview.list!());
+ decision=approval;
+ const [final]=await f.dossierReview.list!();assert.equal(final.reviewStage,"HO_APPROVED");assert.equal(final.finalizedStaffId,approval.receipt.staffId);assert.equal(final.reviewedBy,bo.reviewedBy);
+ assert.deepEqual(await f.dossierReview.list!(),[final]);
+ decision={kind:"rejected",registrationRequestId:id,reviewedVersion:1,reason:"Conflicting"};
+ assert.deepEqual(await f.dossierReview.list!(),[final]);
+});
+test("PAP-2411 fixture list retains HO rejection and never reads HO for BO rejected dossier",async()=>{
+ let calls=0;
+ const rejected=createStaffDossierM1Fixture({readHoDecision:async()=>{calls++;return {kind:"rejected",registrationRequestId:id,reviewedVersion:1,reason:"HO reason"};}});
+ await rejected.service.rejectStaffRegistration(id,"BO reason","reject");
+ assert.equal((await rejected.dossierReview.list!())[0].reviewStage,"REJECTED");assert.equal(calls,0);
+ const reviewed=createStaffDossierM1Fixture({readHoDecision:async()=>({kind:"rejected",registrationRequestId:id,reviewedVersion:1,reason:"HO reason"})});
+ await reviewed.dossierReview.submit!(id,1,reviewed.dossierReview.centerId,"review");
+ const [row]=await reviewed.dossierReview.list!();assert.equal(row.reviewStage,"HO_REJECTED");assert.equal(row.hoRejectReason,"HO reason");assert.equal(row.finalizedStaffId,undefined);
+});

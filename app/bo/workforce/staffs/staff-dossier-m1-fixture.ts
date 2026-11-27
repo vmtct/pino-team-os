@@ -1,13 +1,14 @@
 import {createStaffRegistrationM1Service} from "./staff-registration-m1-service";
+import {projectStaffHoDecision,type StaffHoDecisionReadback} from "./staff-ho-decision-readback";
 import {STAFF_DIRECTORY_MOCK_ID} from "./staff-directory-m1-fixture";
 import type {StaffDossierReviewPort,StaffDossierReviewReceipt,StaffDossierReviewRow} from "./staff-dossier-review";
 /** PAP-2411: BO reviews documents only; HO finalization is not emulated as an Access grant. */
-export function createStaffDossierM1Fixture({completeDocuments=true}:{completeDocuments?:boolean}={}){
+export function createStaffDossierM1Fixture({completeDocuments=true,readHoDecision}:{completeDocuments?:boolean;readHoDecision?:(receipt:StaffDossierReviewReceipt)=>Promise<StaffHoDecisionReadback|null>}={}){
  const base=createStaffRegistrationM1Service({completeDocuments});
  const centerId="STAFF-MOCK-CENTER";
  let reviewed:StaffDossierReviewReceipt|null=null,terminalRow:StaffDossierReviewRow|null=null,busy=false;
  const receipts=new Map<string,{fingerprint:string;receipt:StaffDossierReviewReceipt}>();
- const dossierReview:StaffDossierReviewPort={centerId,centerName:"C\u1ea7n Th\u01a1 (M1)",list:async()=>terminalRow?[structuredClone(terminalRow)]:base.staffRegistrationRequests(),submit:async(id,version,center,key)=>{
+ const dossierReview:StaffDossierReviewPort={centerId,centerName:"C\u1ea7n Th\u01a1 (M1)",list:async()=>{if(terminalRow?.reviewStage==="REVIEWED_FOR_HO"&&reviewed&&readHoDecision){const expected=terminalRow,receipt=structuredClone(reviewed),decision=await readHoDecision(receipt);if(terminalRow===expected&&decision)terminalRow=projectStaffHoDecision(expected,receipt,decision);}return terminalRow?[structuredClone(terminalRow)]:base.staffRegistrationRequests();},submit:async(id,version,center,key)=>{
   const fingerprint=JSON.stringify([id,version,center]);
   const prior=receipts.get(key);
   if(prior){if(prior.fingerprint!==fingerprint)throw Error("Conflicting fixture receipt");return structuredClone(prior.receipt);}
