@@ -7,7 +7,7 @@ import { assignmentCategoryOptions, assignmentPresentationScope, type Assignment
 const read = { display: true, search: true, filter: true, sort: true, group: true, inlineEdit: false } as const;
 const permission = assignmentDefinition.capabilities.read;
 export const expandedAssignmentFields = [
-  ...assignmentFields.map(field => field.key === "student" ? { ...field, label: "Đối tượng" } : field),
+  ...assignmentFields.map(field => field.key === "student" ? { ...field, label: "Đối tượng" } : field.key === "context" ? {...field,readOnly:false as const,capabilities:{...field.capabilities,inlineEdit:true as const}} : field),
   {key:"category",label:"Category",type:"select",icon:"◉",width:172,permission,readOnly:true,options:assignmentCategoryOptions,capabilities:read},
   {key:"subjectKind",label:"Loại đối tượng",type:"select",icon:"◉",width:150,permission,readOnly:true,options:["Student","Staff","MyTime participant"],capabilities:read},
 ] as const satisfies readonly FieldSchema[];
@@ -33,7 +33,7 @@ export function expandedAssignmentDefinitionFor(subject: AssignmentPresentation)
       ...(scope.staffTraining?[{id:"assignment-open-complete",label:"Xác nhận hoàn tất",slot:"detail.header",variant:"primary",capability:"edit",handler:"openComplete"}] as const:[]),
     ],
     table:{
-      ...assignmentDefinition.table,
+      ...assignmentDefinition.table,inlineEdit:{enabled:true,fields:["context"]},
       columns:expandedAssignmentFields.filter(f=>f.capabilities.display).map(f=>({field:f.key,visible:expandedAssignmentQuery.visible.includes(f.key)})),
       filters:{...assignmentDefinition.table.filters,fields:["category","subjectKind",...assignmentDefinition.table.filters.fields]},
       search:{...assignmentDefinition.table.search,fields:["category","subjectKind",...assignmentDefinition.table.search.fields]},
@@ -46,11 +46,11 @@ export function expandedAssignmentDefinitionFor(subject: AssignmentPresentation)
       businessTabs:assignmentDefinition.detail.businessTabs.filter(tab=>tab.id==="diary"?scope.showDiary:scope.showResults)},
   };
 }
-export function registerExpandedAssignment(registry:TddRegistry, subject:AssignmentPresentation, row:ModuleRow<F>) {
-  const definition=expandedAssignmentDefinitionFor(subject);
+export function registerExpandedAssignment(registry:TddRegistry, subject:AssignmentPresentation, row:ModuleRow<F> | (()=>ModuleRow<F>)) {
+  const definition=expandedAssignmentDefinitionFor(subject);const readRow=typeof row==="function"?row:()=>row;
   return registry.register<F>({...definition,data:{
     id:"pap2425-local-review-only",
-    list:async(_query,_context,signal)=>{signal.throwIfAborted();return {rows:[row],total:1};},
-    detail:async(id,_context,signal)=>{signal.throwIfAborted();return id===row.id?row:null;},
+    list:async(_query,_context,signal)=>{signal.throwIfAborted();return {rows:[readRow()],total:1};},
+    detail:async(id,_context,signal)=>{signal.throwIfAborted();const current=readRow();return id===current.id?current:null;},
   }});
 }
