@@ -22,7 +22,7 @@ import { DetailFrame } from "@/app/components/workspace-renderer/DetailFrame";
 import {useStaffRegistrationConfirmation} from "./StaffRegistrationConfirmation";
 import type {StaffDossierReviewPort,StaffDossierReviewRow} from "../workforce/staffs/staff-dossier-review";
 
-function dossierStatus(row:StaffDossierReviewRow){return row.reviewStage==="REVIEWED_FOR_HO"?"Ch\u1edd HO ph\u00ea duy\u1ec7t":row.reviewStage==="REJECTED"?"T\u1eeb ch\u1ed1i":"Ch\u1edd duy\u1ec7t";}
+function dossierStatus(row:StaffDossierReviewRow){return row.reviewStage==="HO_APPROVED"?"HO \u0111\u00e3 ph\u00ea duy\u1ec7t":row.reviewStage==="HO_REJECTED"?"HO t\u1eeb ch\u1ed1i":row.reviewStage==="REVIEWED_FOR_HO"?"Ch\u1edd HO ph\u00ea duy\u1ec7t":row.reviewStage==="REJECTED"?"T\u1eeb ch\u1ed1i":"Ch\u1edd duy\u1ec7t";}
 const requestColumns: BoDataGridColumn<StaffDossierReviewRow>[] = [
   { key: "displayLabel", header: "H\u1ecd v\u00e0 t\u00ean", render: row => row.displayLabel, minWidth: 180 },
   { key: "submittedAt", header: "Ng\u00e0y g\u1eedi", render: row => formatSubmittedAt(row.submittedAt), minWidth: 160 },
@@ -307,7 +307,7 @@ export function StaffRegistrationReviewQueue({service=boApi,newKey=liveReviewKey
             <button type="button" className={styles.secondaryButton} onClick={() => setAssignments((items) => [...items, blankDraft()])}>+ Thêm role assignment</button>
           </section>
           </>}
-          {selected.reviewStage?<section className={styles.panel}><BoProperties authority items={[{key:"stage",label:"Tr\u1ea1ng th\u00e1i",value:dossierStatus(selected)},{key:"reviewer",label:"Ng\u01b0\u1eddi duy\u1ec7t",value:selected.reviewedBy??"\u2014"},{key:"version",label:"Phi\u00ean b\u1ea3n h\u1ed3 s\u01a1",value:String(selected.reviewedVersion??selected.version)},...(selected.rejectReason?[{key:"reason",label:"L\u00fd do t\u1eeb ch\u1ed1i",value:selected.rejectReason}]:[])]}/></section>:<section className={styles.registrationDecisionBar}>
+          {selected.reviewStage?<section className={styles.panel}><BoProperties authority items={[{key:"stage",label:"Tr\u1ea1ng th\u00e1i",value:dossierStatus(selected)},{key:"reviewer",label:"Ng\u01b0\u1eddi duy\u1ec7t",value:selected.reviewedBy??"\u2014"},{key:"version",label:"Phi\u00ean b\u1ea3n h\u1ed3 s\u01a1",value:String(selected.reviewedVersion??selected.version)},...(selected.rejectReason?[{key:"reason",label:"L\u00fd do t\u1eeb ch\u1ed1i",value:selected.rejectReason}]:[]),...(selected.finalizedStaffId?[{key:"staffId",label:"Staff ID",value:selected.finalizedStaffId}]:[]),...(selected.hoRejectReason?[{key:"hoReason",label:"L\u00fd do HO t\u1eeb ch\u1ed1i",value:selected.hoRejectReason}]:[])]}/></section>:<section className={styles.registrationDecisionBar}>
             <label className={styles.field}>Lý do từ chối<input value={rejectReason} onChange={(event) => setRejectReason(event.target.value)} placeholder="Chỉ cần khi từ chối" /></label>
             <div className={styles.registrationDecisionActions}>
               <button type="button" className={styles.secondaryButton} disabled={Boolean(busy) || !rejectReason.trim()} onClick={() => void reject()}>{busy === "reject" ? "Đang từ chối…" : "Từ chối"}</button>
