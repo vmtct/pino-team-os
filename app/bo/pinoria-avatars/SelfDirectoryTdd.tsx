@@ -13,6 +13,8 @@ import { TddRegistry } from "@/lib/workspace-schema";
 import { selfDefinition, selfFields, selfQuery, selfProvider, verifySelfWardrobeApproval } from "./schema";
 import { SelfWardrobeDetail } from "./SelfWardrobeDetail";
 import { SelfLoadoutDetail } from "./SelfLoadoutDetail";
+import { SelfWorldNative, worldScope, WORLD_PERMISSIONS } from "./SelfWorldNative";
+import type { WorldOperationJournal } from "./avatar-world-journal";
 import { useBoCenterSelection } from "../components/registration/BoCenterSelection";
 import type { DirectoryCenterSource } from "./centers";
 
@@ -31,14 +33,14 @@ const selfDirectoryNavSource = {
 };
 export function SelfDirectoryTdd(){
   // PAP-1458 / Epic PAP-1316: only the BO shell owns authorized Active Center.
-  const center=useBoCenterSelection();
+  const center=useBoCenterSelection(); const [worldJournals]=useState(()=>new Map<string,WorldOperationJournal>());
   const selected=(!center || center.loading || center.error) ? "" : center.selected;
   const source=center?.source ?? "centers";
   const content=<section aria-label="Danh bạ Pinoria Self">
     {!center ? <p role="alert">Không tìm thấy Center context của BO.</p> :
       center.loading ? <p role="status">Đang xác thực cơ sở được cấp quyền…</p> :
       center.error ? <p role="alert">{center.error}</p> :
-      selected ? <ScopedSelfDirectory key={selected + ":" + source} selected={selected} centerSource={source}/> :
+      selected ? <ScopedSelfDirectory key={selected + ":" + source} selected={selected} centerSource={source} worldJournals={worldJournals}/> :
       <p role="status">Chọn trung tâm tại góc trên trái để xem Pinoria Self.</p>}
   </section>;
   return <BoRegistrationWorkspace source={selfDirectoryNavSource} moduleKey="pinoria-avatars" currentUser={{displayName:null}} content={content}/>;
@@ -46,7 +48,7 @@ export function SelfDirectoryTdd(){
 
 /** Center-isolated component: A→B→A mounts a fresh adapter even if B never finished.
  * Unmount aborts pending Core reads and disposes the old scoped TDD controller. */
-function ScopedSelfDirectory({selected,centerSource}: {selected: string; centerSource: DirectoryCenterSource}){
+function ScopedSelfDirectory({selected,centerSource,worldJournals}: {selected: string; centerSource: DirectoryCenterSource; worldJournals:Map<string,WorldOperationJournal>}){
   const [ready,setReady]=useState<Bound|null>(null);
   const [failure,setFailure]=useState<Failure|null>(null);
   const [retry,setRetry]=useState(0);
@@ -79,14 +81,19 @@ function ScopedSelfDirectory({selected,centerSource}: {selected: string; centerS
       ? <BoActionButton type="button" variant="primary" onClick={()=>{setCreatedNotice("");setCreating(true)}}>＋ Tạo Avatar</BoActionButton>
       : null}
     detailProperties={properties => <SelfDirectoryProperties fields={properties.fields} record={properties.record} sections={properties.sections}/>}
-    detailApprovedExtension={(row,context,activeTab,_principalId,onSaved) =>
-      activeTab === "loadout"
+    detailApprovedExtension={(row,context,activeTab,principalId,onSaved) => {
+      if(activeTab==="world"){
+        const scope=worldScope(row,selected);
+        return scope ? <SelfWorldNative scope={scope} principalId={principalId} grants={WORLD_PERMISSIONS.filter(p=>context.authorize(p))} journals={worldJournals}/>
+          : <p role="status">World chỉ khả dụng cho Avatar học viên đủ điều kiện.</p>;
+      }
+      return activeTab === "loadout"
         ? <SelfLoadoutDetail key={selected + ":" + row.id} row={row} centerId={selected} activeTab={activeTab}
             canView={context.authorize("pinoria.self.loadout.view")} canManage={context.authorize("pinoria.self.loadout.manage")}
             canViewItems={context.authorize("pinoria.self.item.view")} onSaved={onSaved}/>
         : <SelfWardrobeDetail key={selected + ":" + row.id} row={row} centerId={selected} activeTab={activeTab}
             canView={context.authorize("pinoria.self.item.view")} canManage={context.authorize("pinoria.self.item.manage")}
-            onSaved={onSaved} />}/>
+            onSaved={onSaved} />;}}/>
     {creating && canCreate ? <CreateSelfDrawer centerId={selected} canUseStarter={current.adapter.context.authorize("pinoria.self.loadout.manage")} onClose={()=>setCreating(false)}
       onCreated={()=>{setCreating(false);setCreatedNotice("Đã tạo Avatar.");setReady(null);setRetry(n=>n+1)}}/> : null}
   </>;
