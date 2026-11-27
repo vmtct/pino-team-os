@@ -58,7 +58,7 @@ test("PAP-1169 roles use a registered canonical TDD + Shared DS (no new shell)",
  assert.match(ui,/nativeOverview=\{nativeLifecycle\?nativeRoleOverview\(/);
  assert.match(ui,/recordProjection\(schema,context,row\)/);
  assert.match(edit,/import \{PropertySections as NativePropertySections,type OverviewProperties\} from "@\/app\/components\/workspace-renderer\/Properties"/);
- assert.match(edit,/<NativePropertySections \{\.\.\.nativeOverview\} record=\{nativeRecord\} variant="detail"/);
+ assert.match(edit,/<NativePropertySections fields=\{nativeOverview.fields\} sections=\{nativeOverview.sections\} record=\{nativeRecord\} variant="detail"/);
  assert.doesNotMatch(ui,/<(?:DetailFrame|DrawerFrame|BoDataTable)\b/);
  assert.equal(roleDefinition.detail.businessTabs.length,1);
  assert.deepEqual(roleDefinition.detail.businessTabs.map(tab=>[tab.id,tab.label,tab.kind]),[["permissions","Quyền","approved-extension"]]);

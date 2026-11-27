@@ -22,7 +22,7 @@ test("PAP-1215: HO Roles DS styling is scoped to its TDD business editor", () =>
   assert.doesNotMatch(styles, /(^|\n)\s*\[data-surface=["']bo["']\]/);
 });
 test("PAP-1215: Overview and permissions are visually styled without new navigation/ACL", () => {
-  assert.match(source, /className=\{nativeOverview\?"ho-role-native-overview":"ho-role-overview"\} hidden=\{activeTab!=="overview"\}/);
+  assert.match(source, /className="ho-role-native-overview" hidden=\{activeTab!=="overview"\}/); assert.match(source, /className="ho-role-overview" hidden=\{activeTab!=="overview"\}/);
   assert.match(source, /<NativePropertySections/);
   assert.match(source, /className="ho-role-technical"/);
   assert.match(source, /className="ho-role-permission-header"/);

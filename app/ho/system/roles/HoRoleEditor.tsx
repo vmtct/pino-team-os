@@ -239,7 +239,7 @@ export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, o
       return next.role;
     }finally{lock.current=false;setBusy(false);}
   }
-  const nativeRead=nativeOverview&&activeTab==="overview"?<NativePropertySections {...nativeOverview} variant="detail"/>:null;
+  const nativeRead=nativeOverview&&activeTab==="overview"?<NativePropertySections fields={nativeOverview.fields} record={nativeOverview.record} sections={nativeOverview.sections} variant="detail"/>:null;
   if(loading)return <>{nativeRead}<p role="status">Đang tải chi tiết và danh mục quyền…</p></>;
   if(!data||!draft)return <>{nativeRead}<p role="alert">{error||"Không tải được Role."}</p></>;
   const nativeRecord=nativeOverview?{...nativeOverview.record,name:data.role.displayName,description:data.role.description??"",
@@ -252,11 +252,10 @@ export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, o
     {key:"status",label:"Trạng thái",type:"text",readOnly:true},
     {key:"assignmentCount",label:"Số phân công",type:"number",readOnly:true},
   ];
-  return <div className="ho-role-editor" data-testid="ho-role-editor" data-role-tab={activeTab}>
-    <div className={nativeOverview?"ho-role-native-overview":"ho-role-overview"} hidden={activeTab!=="overview"}>
+  const overviewContent=<>
 
     {nativeOverview&&nativeRecord?<>
-      <NativePropertySections {...nativeOverview} record={nativeRecord} variant="detail"
+      <NativePropertySections fields={nativeOverview.fields} sections={nativeOverview.sections} record={nativeRecord} variant="detail"
         labelWidth={nativeLabelWidth} onLabelWidthChange={setNativeLabelWidth}
         canEdit={field=>canCommitMetadata&&(field.key==="name"||field.key==="description")}
         onEdit={(field,anchor)=>{if(canCommitMetadata&&(field.key==="name"||field.key==="description"))
@@ -301,7 +300,11 @@ export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, o
     </div>
     </>}
     {archiveAuthorized&&original?<ArchiveCustomRoleAction role={original} label={original.displayName} onArchive={!dirty&&!busy&&!metadataBlocked?archiveReviewed:undefined}/>:null}
-    </div>
+    </>;
+  return <div className="ho-role-editor" data-testid="ho-role-editor" data-role-tab={activeTab}>
+    {nativeOverview
+      ? <div className="ho-role-native-overview" hidden={activeTab!=="overview"}>{overviewContent}</div>
+      : <div className="ho-role-overview" hidden={activeTab!=="overview"}>{overviewContent}</div>}
     <div hidden={activeTab!=="permissions"}>
     <TosCard className="ho-role-card ho-role-permission-card">
       <section aria-label="Danh sách quyền của Role">
