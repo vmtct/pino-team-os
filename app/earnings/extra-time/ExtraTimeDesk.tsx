@@ -7,7 +7,7 @@ import {TOS_SHIFT_FOOTER} from "@/app/components/tos-shell/navigation";
 import {workforceApi,type WorkforceContext} from "@/lib/workforce-api";
 import {
   availableExtraTimeWindows,createExtraTimePayload,extraTimeApi,
-  ExtraTimeApiError,formatVietnamTime,type EligibleTimeWindow,type OwnExtraTimeRequest,
+  ExtraTimeApiError,formatVietnamTime,scopedExtraTimeCenter,caLamIncomeHref,type EligibleTimeWindow,type OwnExtraTimeRequest,
 } from "@/lib/tos-payroll-extra-time-api";
 import styles from "./extra-time.module.css";
 
@@ -60,6 +60,8 @@ function statusName(status:OwnExtraTimeRequest["status"]){
 export default function ExtraTimeDesk(){
   const [centers,setCenters]=useState<Center[]>([]);
   const [centerId,setCenterId]=useState("");
+  const [fromCaLam,setFromCaLam]=useState(false);
+  const backHref=fromCaLam?(centerId?caLamIncomeHref(centerId):"/tos-v4"):"/earnings";
   const [windows,setWindows]=useState<EligibleTimeWindow[]>([]);
   const [selectedKey,setSelectedKey]=useState("");
   const [requests,setRequests]=useState<OwnExtraTimeRequest[]>([]);
@@ -77,8 +79,11 @@ export default function ExtraTimeDesk(){
     let live=true;
     void workforceApi.context().then(({data})=>{
       if(!live)return;
-      setCenters(data.centers);setCenterId(data.centers[0]?.id??"");
-      if(!data.centers.length)setError("Chưa có Center được phân quyền trong tài khoản.");
+      const requested=scopedExtraTimeCenter(window.location.search,"ca-lam",data);
+      setFromCaLam(requested!==null);
+      if(requested===""){setError("Cơ sở yêu cầu chưa được cấp quyền.");setLoading(false);return;}
+      setCenters(data.centers);setCenterId(requested??data.centers[0]?.id??"");
+      if(!data.centers.length){setError("Chưa có Center được phân quyền trong tài khoản.");setLoading(false);}
     }).catch((failure:unknown)=>{if(live){setError(getError(failure));setLoading(false);}});
     return()=>{live=false;};
   },[]);
@@ -138,7 +143,7 @@ export default function ExtraTimeDesk(){
     finally{setSaving(false);}
   }
   return <TosShell title="Ca làm" theme="shift" footerItems={TOS_SHIFT_FOOTER}
-    activeFooterId="income" compactAppHeader backHref="/earnings"
+    activeFooterId="income" compactAppHeader backHref={backHref}
     appIconSrc="https://pub-892fa79b018d4d2f9b0808189dd2ce46.r2.dev/AppIcon/shift.png">
     <main className={styles.stack}>
       <header className={styles.intro}>
@@ -146,7 +151,7 @@ export default function ExtraTimeDesk(){
         <h2>Tính thêm giờ công</h2>
         <p>Gửi khoảng thời gian đã làm nhưng chưa được tính trong giờ công chuẩn.</p>
       </header>
-      {centers.length>1?<label className={styles.label}>Cơ sở
+      {!fromCaLam&&centers.length>1?<label className={styles.label}>Cơ sở
         <select value={centerId} onChange={e=>setCenterId(e.target.value)}>
           {centers.map(c=><option key={c.id} value={c.id}>{c.displayName}</option>)}
         </select>
@@ -214,7 +219,7 @@ export default function ExtraTimeDesk(){
             + Tạo yêu cầu mới
           </button>
         </section>}
-      <Link href="/earnings" className={styles.back}>← Trở lại Thu nhập</Link>
+      <Link href={backHref} className={styles.back}>← Trở lại Thu nhập</Link>
     </main>
   </TosShell>;
 }
