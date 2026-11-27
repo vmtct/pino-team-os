@@ -4,7 +4,7 @@ import { assignmentSubjectLabel, type AssignmentPresentation } from "./assignmen
 import type { ExpandedAssignmentFields } from "./assignment-expanded-schema";
 export const ASSIGNMENT_M1_ROUTE="/bo/missions";
 export const ASSIGNMENT_M1_ID="ASSIGNMENT-MOCK-001";
-export const ASSIGNMENT_M1_CENTER="01900000-0000-7000-8000-000000024250";
+export const ASSIGNMENT_M1_CENTER="ASSIGNMENT-MOCK-CENTER";
 export const staffAssignmentM1:AssignmentPresentation={
   category:"Staff Training",subject:{kind:"Staff",displayName:"Nhân sự mẫu"},status:"ASSIGNED",execution:"IN_PROGRESS",
 };
