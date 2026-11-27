@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { submitHoMission, type MissionInput } from "../app/ho/learning/missions/command";
 const id = "01900000-0000-7000-8000-000000000002";
 const valid: MissionInput = {
+  category: "Staff Training", supplementalUrl: null,
   code: "MORI-1", name: "Mori", level: 2, status: "ACTIVE", plsValue: 25,
   paperSize: "A4", description: null, guideline: null, pathProgramId: null,
   pathKeySnapshot: null, prerequisiteMissionId: null, prerequisiteCodeSnapshot: null,
@@ -92,4 +93,14 @@ test("PAP-1207: inconsistent receipt/identity/version do not claim success", asy
   assert.equal((await submitHoMission({ ...command, idempotencyKey: "" }, async () => {
     throw Error("SHOULD_NOT_SEND");
   })).state, "invalid");
+});
+
+test("PAP-2394 M3 metadata is sent and independently verified",async()=>{
+ const data={...valid,category:"MyTime" as const,supplementalUrl:"https://example.test/guide"};
+ let calls=0;const f:typeof fetch=async(_u,init)=>{calls++;if(init?.method==="POST")assert.deepEqual(JSON.parse(String(init.body)),data);return response({...data,id,version:1},init?.method==="POST"?201:200)};
+ assert.equal((await submitHoMission({...command,data:{...data,supplementalUrl:"  https://example.test/guide  "}},f)).state,"verified");assert.equal(calls,2);
+ assert.equal((await submitHoMission({...command,data:{...data,category:null}},f)).state,"invalid");assert.equal(calls,2);
+ for(const change of [{category:"Staff Training"},{supplementalUrl:null},{supplementalUrl:undefined}])assert.equal((await submitHoMission({...command,data},async(_u,init)=>response({...data,id,version:1,...(init?.method==="GET"?change:{})},init?.method==="POST"?201:200))).state,"unverified");
+ const legacy={...valid,category:null,supplementalUrl:null};
+ assert.equal((await submitHoMission({kind:"update",id,expectedVersion:3,data:legacy,idempotencyKey:key},async(_u,init)=>{if(init?.method==="PUT"){const sent=JSON.parse(String(init.body));assert.ok(!("category" in sent));assert.equal(sent.supplementalUrl,null);}return response({...legacy,id,version:4})})).state,"verified");
 });

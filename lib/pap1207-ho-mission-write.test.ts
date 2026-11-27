@@ -5,7 +5,7 @@ import { decideHostBoundary, HO_STAGING_HOSTNAME } from "./host-boundary";
 import { handleHoMissionWrite, handleHoMissionRead, parseHoMissionCommand, type HoMissionWriteEnv } from "./ho-mission-write-facade";
 const validId = "01900000-0000-7000-8000-000000000002";
 const path = "/api/ho/learning/missions";
-const valid = { code: "mori-1", name: "Mori", status: "ACTIVE", level: 1, plsValue: 25,
+const valid = { category: "Staff Training", supplementalUrl: null, code: "mori-1", name: "Mori", status: "ACTIVE", level: 1, plsValue: 25,
   paperSize: "A4", description: "Color", guideline: "Explore", pathProgramId: null,
   pathKeySnapshot: null, prerequisiteMissionId: null, prerequisiteCodeSnapshot: null };
 const env = { APP_ENV: "staging" } as HoMissionWriteEnv;
@@ -85,4 +85,10 @@ test("PAP-1207: HO exact GET readback is Staging-only, GLOBAL-Founder and Core g
   const source = readFileSync("app/api/ho/learning/missions/[missionId]/route.ts", "utf8");
   assert.match(source, /export async function GET/);
   assert.match(source, /handleHoMissionRead/);
+});
+test("PAP-2394 M3 facade requires create category and preserves omitted update metadata",()=>{
+ const legacy=Object.fromEntries(Object.entries(valid).filter(([k])=>k!=="category"&&k!=="supplementalUrl"));
+ assert.equal(parseHoMissionCommand(legacy,"POST"),null);const update=parseHoMissionCommand({...legacy,expectedVersion:2},"PUT");assert.ok(update);assert.ok(!("category" in update));assert.ok(!("supplementalUrl" in update));
+ assert.deepEqual(parseHoMissionCommand({...legacy,category:"MyTime",supplementalUrl:" https://example.test/guide "},"POST"),{...legacy,code:"MORI-1",category:"MyTime",supplementalUrl:"https://example.test/guide"});
+ assert.equal(parseHoMissionCommand({...legacy,category:null,expectedVersion:2},"PUT"),null);for(const supplementalUrl of ["ftp://example.test","https://user:pw@example.test",42])assert.equal(parseHoMissionCommand({...valid,supplementalUrl},"POST"),null);assert.equal(parseHoMissionCommand({...valid,expectedVersion:2,supplementalUrl:null},"PUT")?.supplementalUrl,null);
 });
