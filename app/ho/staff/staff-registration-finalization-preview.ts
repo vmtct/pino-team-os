@@ -8,7 +8,7 @@ export type FinalizationResult={kind:"approved";receipt:Completed}|{kind:"reject
 type Result=FinalizationResult;
 export function validReviewedDossier(d:Dossier):boolean{const r=d.receipt;return !!r&&r.status==="REVIEWED_FOR_HO"&&r.registrationRequestId===d.id&&r.centerId===d.centerId&&!!d.centerId&&r.reviewedVersion===d.version&&Number.isSafeInteger(d.version)&&d.version>0&&!!r.reviewedBy.trim()&&!!d.name.trim()&&!!d.email.trim()&&d.documents.front&&d.documents.back;}
 const receiptKey=(r:ReviewedDossierReceipt)=>JSON.stringify([r.registrationRequestId,r.centerId,r.status,r.reviewedVersion,r.reviewedBy]);
-export function createFinalizationFixture(d:Dossier,roles:readonly RoleOption[],options:{identityConflict?:boolean}={}){
+export function createFinalizationFixture(d:Dossier,roles:readonly RoleOption[],options:{identityConflict?:boolean|(()=>boolean);nextStaffId?:()=>string}={}){
  const dossier=structuredClone(d),catalog=structuredClone(roles);let decision:Result|null=null;
  const attempts=new Map<string,{fingerprint:string;result:Result}>();
  function finish(key:string,fingerprint:string,result:Result):Result{attempts.set(key,{fingerprint,result});if(result.kind==="approved"||result.kind==="rejected")decision=result;return structuredClone(result);}
@@ -19,8 +19,8 @@ export function createFinalizationFixture(d:Dossier,roles:readonly RoleOption[],
  if(!request.key.trim())return {kind:"invalid"};if(decision)return {kind:"stale"};if(!validReviewedDossier(dossier)||!dossier.receipt||receiptKey(request.receipt)!==receiptKey(dossier.receipt))return {kind:"stale"};
  const role=catalog.find(r=>r.id===request.roleId&&r.active);
  if(!role||!role.scopes.includes(request.scopeType)||!((request.scopeType==="CENTER"&&request.scopeId===dossier.centerId)||(request.scopeType==="GLOBAL"&&request.scopeId===null)))return {kind:"denied"};
- if(options.identityConflict)return {kind:"conflict"};
- return finish(request.key,fingerprint,{kind:"approved",receipt:{registrationRequestId:dossier.id,status:"APPROVED",reviewedVersion:dossier.version,personId:"HO-PERSON-MOCK-001",staffId:"HO-STAFF-MOCK-001",userId:"HO-USER-MOCK-001",roleId:role.id,scopeType:request.scopeType,scopeId:request.scopeId,employmentStatus:"inactive",operationalReadiness:"unverified",fixture:true}});
+ if(typeof options.identityConflict==="function"?options.identityConflict():options.identityConflict)return {kind:"conflict"};
+ return finish(request.key,fingerprint,{kind:"approved",receipt:{registrationRequestId:dossier.id,status:"APPROVED",reviewedVersion:dossier.version,personId:"HO-PERSON-MOCK-001",staffId:options.nextStaffId?.()??"HO-STAFF-MOCK-001",userId:"HO-USER-MOCK-001",roleId:role.id,scopeType:request.scopeType,scopeId:request.scopeId,employmentStatus:"inactive",operationalReadiness:"unverified",fixture:true}});
  },
  reject(receipt:ReviewedDossierReceipt,reason:string,key:string):Result{
  const fingerprint=JSON.stringify(["reject",receiptKey(receipt),reason.trim()]),cached=prior(key,fingerprint);if(cached)return cached;

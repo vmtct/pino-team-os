@@ -1,5 +1,9 @@
 /** PAP-2345 / PLT-M1-DELIVERY: local-only presentation entry, never a live session. */
 import {createRoot} from "react-dom/client";
+import {useState} from "react";
+import {StaffRegistrationQueue} from "@/app/ho/staff/StaffRegistrationQueue";
+import {connectFinalizationDirectory} from "@/app/ho/staff/staff-finalization-directory-preview";
+import {reviewedDossierSeed,finalizationRoleOptions} from "@/app/ho/staff/staff-registration-finalization-preview";
 import {BoRegistrationWorkspace,type BoWorkspaceSource} from "@/app/bo/components/registration/BoRegistrationWorkspace";
 import {StaffManualWorkspace} from "@/app/ho/staff/StaffManualWorkspace";
 import {manualStaffDefinition,manualStaffQuery,type ManualStaffFields} from "@/app/ho/staff/manual-create-contract";
@@ -43,6 +47,11 @@ const adapter:AuthenticatedSurfaceAdapter<ManualStaffFields>={
   views:async signal=>{signal.throwIfAborted();return {unavailable:[]};},
   subject:id=>({type:"staffs",id}),history:async()=>({status:"unavailable",reason:"Chưa có nhật ký hệ thống cho Staff."}),dispose:()=>{}
 };
+const registration=connectFinalizationDirectory(reviewedDossierSeed,finalizationRoleOptions,()=>state,next=>{state=next;});
+const dossierRow=()=>{const d=registration.fixture.dossier(),result=registration.fixture.readback();return {id:d.id,name:d.name,email:d.email,phone:d.mobile,center:staffPreviewCenter.label,status:result?.kind==="approved"?"Đã phê duyệt":result?.kind==="rejected"?"Từ chối":"Chờ HO phê duyệt",role:null,loginEmail:null,gender:null,birthDate:null,createdAt:null,createdBy:null,updatedAt:null,updatedBy:null};};
+const queueRegistry=new TddRegistry();
+const queueSchema:ModuleSchema<ManualStaffFields>=queueRegistry.register({...manualStaffDefinition,label:"Hồ sơ đăng ký",detail:{...manualStaffDefinition.detail,businessTabs:[]},data:{id:"local-reviewed-dossier",list:async(_q,_c,s)=>{s.throwIfAborted();return {rows:[dossierRow()],total:1};},detail:async(id,_c,s)=>{s.throwIfAborted();return id===reviewedDossierSeed.id?dossierRow():null;}}});
+const queueAdapter:AuthenticatedSurfaceAdapter<ManualStaffFields>={...adapter,registry:queueRegistry,schema:queueSchema,list:async(q,s)=>({...await queueSchema.data.list(q,context,s),versions:{}}),detail:async(id,s)=>{const row=await queueSchema.data.detail(id,context,s);return row?{row}:null;}};
 let focus:HTMLElement|null=null,recordId:string|undefined,scroll={x:0,y:0,left:0,top:0};
 const validId=(id:string|null|undefined):id is string=>typeof id==="string"&&/^STAFF-MOCK-\d{3,}$/.test(id);
 const navigation:AdapterNavigation<ManualStaffFields>={
@@ -53,4 +62,5 @@ const navigation:AdapterNavigation<ManualStaffFields>={
  restore(){requestAnimationFrame(()=>{window.scrollTo(scroll.x,scroll.y);const table=document.getElementById("table-scroll");if(table){table.scrollLeft=scroll.left;table.scrollTop=scroll.top;}const el=focus?.isConnected?focus:[...document.querySelectorAll<HTMLElement>("button[data-open]")].find(n=>n.dataset.open===recordId);el?.focus({preventScroll:true});});}
 };
 const source:BoWorkspaceSource={surface:"ho",readOnly:true,ephemeral:true,modules:hoModules,routeForModule:key=>key==="staffs"?route:"#unavailable-local-module",scopeLabel:()=>"",load:async()=>{throw Error("No live transport");}};
-createRoot(document.getElementById("root")!).render(<BoRegistrationWorkspace source={source} moduleKey="staffs" currentUser={{displayName:"M1 · Dữ liệu mẫu"}} content={<TddPreferencePolicy.Provider value="ephemeral"><StaffManualWorkspace adapter={adapter} navigation={navigation} centers={[staffPreviewCenter]} allowLogin={false} personReader={personReader} detailSlots={{businessForms:[rateProvider]}} onCreate={async command=>{state=createInactiveFixture(state,command);}} activation={{subject:id=>fixtureSubject(state,id),activate:async request=>{const next=activateFixture(state,request);state=next.state;return next.result;}}}/></TddPreferencePolicy.Provider>}/>);
+function StaffLocalContent(){const [queue,setQueue]=useState(false);return queue?<StaffRegistrationQueue adapter={queueAdapter} fixture={registration.fixture} centerLabel={staffPreviewCenter.label} onBack={()=>setQueue(false)} finalize={registration.finalize} reject={registration.fixture.reject}/>:<StaffManualWorkspace adapter={adapter} navigation={navigation} centers={[staffPreviewCenter]} allowLogin={false} personReader={personReader} detailSlots={{businessForms:[rateProvider]}} onOpenRegistrations={()=>{navigation.change({kind:"table",tab:"overview",query:manualStaffQuery},true);setQueue(true);}} onCreate={async command=>{state=createInactiveFixture(state,command);}} activation={{subject:id=>fixtureSubject(state,id),activate:async request=>{const next=activateFixture(state,request);state=next.state;return next.result;}}}/>;}
+createRoot(document.getElementById("root")!).render(<BoRegistrationWorkspace source={source} moduleKey="staffs" currentUser={{displayName:"M1 · Dữ liệu mẫu"}} content={<TddPreferencePolicy.Provider value="ephemeral"><StaffLocalContent/></TddPreferencePolicy.Provider>}/>);
