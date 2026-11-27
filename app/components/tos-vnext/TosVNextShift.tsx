@@ -5,13 +5,13 @@ import {FontAwesomeIcon} from "@fortawesome/react-fontawesome";
 import {faCalendarDays,faClock,faWallet,faCircleCheck,faLocationDot} from "@fortawesome/free-solid-svg-icons";
 import {AppBottomNav,AppCard,AppSheet,AppButton,createSlotKeys} from "../tos-ds";
 import {workforceApi,type Assignment,type TimekeepingSession} from "@/lib/workforce-api";
-import type {OwnIncomePage} from "@/lib/tos-own-income-api";
+import type {OwnIncomePage,OwnDailyIncomePage} from "@/lib/tos-own-income-api";
 import type {TosVNextShiftReadWarnings} from "./core-adapters";
-import {shiftWeek,shiftWeekOffset,activeScheduleAssignments,assignmentHours,formatIncome,incomeBreakdown,shiftRoleLabel,monthToDateHistory,effectiveHistorySeconds,formatHistoryHours} from "@/lib/tos-vnext-shift-view-model";
+import {shiftWeek,shiftWeekOffset,activeScheduleAssignments,assignmentHours,formatIncome,incomeBreakdown,shiftRoleLabel,monthToDateHistory,effectiveHistorySeconds,formatHistoryHours,dailyIncomeStatus} from "@/lib/tos-vnext-shift-view-model";
 import {TosVNextAvailability} from "./TosVNextAvailability";
 import styles from "./shift.module.css";
 const slot=createSlotKeys(styles);
-export type ShiftReadData={assignments:Assignment[];current:TimekeepingSession|null;history:TimekeepingSession[]|null;income:OwnIncomePage|null;warnings:TosVNextShiftReadWarnings};
+export type ShiftReadData={assignments:Assignment[];current:TimekeepingSession|null;history:TimekeepingSession[]|null;income:OwnIncomePage|null;dailyIncome?:OwnDailyIncomePage|null;warnings:TosVNextShiftReadWarnings};
 export function TosVNextShift({data,localDate,centerId,centerName,profileLabel}:{data:ShiftReadData;localDate:string;centerId:string;centerName:string;profileLabel:string|null}){
  const [tab,setTab]=useState("today"),[selected,setSelected]=useState(localDate),[weekAnchor,setWeekAnchor]=useState(localDate);
  const [sheet,setSheet]=useState<"camera"|"history"|"adjust"|null>(null);
@@ -99,7 +99,13 @@ export function TosVNextShift({data,localDate,centerId,centerName,profileLabel}:
     <div className={styles.intro}><span>THU NHẬP</span><h2>{latest?.name??"Thu nhập của tôi"}</h2><p>Theo dõi thu nhập và lịch sử thanh toán.</p></div>
     <section className={styles.hero}><span className={styles.pill}>{latest?.status??"Chưa có kỳ thu nhập"}</span><p>Thu nhập</p><div className={styles.money}>{formatIncome(latest?.amountMinor)}</div><small>{latest?.startDate} {latest?"–":""} {latest?.endDate}</small></section>
     {data.warnings.income&&<p role="alert">{data.warnings.income}</p>}
-    <AppCard className={styles.card}><h3>Chi tiết kỳ này</h3>{incomeBreakdown(latest).map(([label,value])=><div className={styles.moneyRow} key={label}><span>{label}</span><strong>{formatIncome(value)}</strong></div>)}<div className={styles.moneyRow}><span>Trạng thái</span><strong>{latest?.status??"—"}</strong></div>{latest?.warnings.map(w=><p key={w}>{w}</p>)}</AppCard>
+    <AppCard className={styles.card}><h3>Chi tiết kỳ này</h3>{incomeBreakdown(latest).map(([label,value])=><div className={styles.moneyRow} key={label}><span>{label}</span><strong>{formatIncome(value)}</strong></div>)}<div className={styles.moneyRow}><span>Trạng thái</span><strong>{latest?.status??"—"}</strong></div>{latest?.warnings.map(w=><p key={w}>{w}</p>)}
+     <p>Thu nhập theo ngày · Tháng {localDate.slice(0,7)}</p>
+     {data.warnings.dailyIncome&&<p role="alert">{data.warnings.dailyIncome}</p>}
+     {data.dailyIncome?.data.map(day=><div className={styles.moneyRow} key={day.workDate}><span>{day.workDate} · {dailyIncomeStatus(day)}</span><strong>{formatIncome(day.amountMinor)}</strong></div>)}
+     {data.dailyIncome?.data.length===0&&<p>Chưa có thu nhập theo ngày.</p>}
+     {data.dailyIncome==null&&!data.warnings.dailyIncome&&<p>Chưa có dữ liệu thu nhập theo ngày.</p>}
+    </AppCard>
     <AppCard className={styles.card}><h3>Kỳ lương trước</h3><button type="button" className={styles.secondary} onClick={()=>setSheet("history")}>Xem tất cả kỳ lương ›</button></AppCard>
    </>}
   </div>

@@ -18,7 +18,9 @@ function mockFetch(handlers:(url:string,init:RequestInit)=>{data?:unknown;status
  }) as typeof fetch;
  return {calls,restore:()=>{globalThis.fetch=original}};
 }
+const dailyRow={workDate:"2026-10-23",status:"DRAFT",calculationStatus:"READY",paidMinutes:180,standardMinor:75000,extraTimeMinor:0,extraTimePending:false,amountMinor:75000};
 function backend(url:string){
+ if(url.startsWith("/api/tos-learning/workforce/payroll/income/daily?"))return {data:{data:[dailyRow]}};
  if(url==="/api/workforce/context")return {data:ctx};
  if(url.startsWith("/api/workforce/schedule?"))return {data:[{id:"a1",centerId:"center-1",workDate:"2026-10-23",status:"ACTIVE",roleAssignments:[]}]};
  if(url.startsWith("/api/workforce/timekeeping/current"))return {data:session};
@@ -165,4 +167,24 @@ test("PAP-941 schedule access failure stops before auxiliary private reads",asyn
   await assert.rejects(shiftReadModel("center-1","2026-10-23","2026-10-30"));
   assert.equal(mock.calls.some(c=>c.url.includes("/timekeeping/")||c.url.includes("/payroll/")),false);
  }finally{mock.restore()}
+});
+
+test("PAP-2429 daily income requests only current center month-to-date independently of period outage",async()=>{
+ const mock=mockFetch(url=>url.includes("/income?")?{status:503,error:{message:"Period unavailable"}}:backend(url));
+ try{
+  const model=await shiftReadModel("center-1","2026-10-01","2026-11-06","2026-10-23");
+  assert.equal(model.income,null);
+  assert.deepEqual(model.dailyIncome?.data,[dailyRow]);
+  assert.ok(mock.calls.some(c=>c.url==="/api/tos-learning/workforce/payroll/income/daily?centerId=center-1&startDate=2026-10-01&endDate=2026-10-23"));
+ }finally{mock.restore()}
+});
+test("PAP-2429 daily income 403 masks daily only, 401 invalidates all shift data",async()=>{
+ for(const status of [403,401]){
+  const mock=mockFetch(url=>url.includes("/income/daily?")?{status,error:{message:"Denied"}}:backend(url));
+  try{
+   if(status===401){await assert.rejects(shiftReadModel("center-1","2026-10-01","2026-11-06","2026-10-23"));continue}
+   const model=await shiftReadModel("center-1","2026-10-01","2026-11-06","2026-10-23");
+   assert.equal(model.dailyIncome,null);assert.ok(model.warnings.dailyIncome);assert.ok(model.income);
+  }finally{mock.restore()}
+ }
 });

@@ -1,4 +1,4 @@
-import {formatPayrollVnd,type OwnIncomePeriod} from "./tos-own-income-api";
+import {formatPayrollVnd,type OwnIncomePeriod,type OwnDailyIncomeRow} from "./tos-own-income-api";
 import type {Assignment,TimekeepingSession} from "./workforce-api";
 /** PAP-2429: actual timekeeping duration, never substituted with payable payroll minutes. */
 export function effectiveHistorySeconds(row:TimekeepingSession):number|null{
@@ -44,6 +44,15 @@ export function incomeBreakdown(period:OwnIncomePeriod|undefined){
   ["Làm thêm giờ",period?.extraTimeMinor],
   ["Điều chỉnh",period?.adjustmentsMinor],
  ] as const;
+}
+/** Server daily amounts are not period settlements; period adjustments stay in period totals. */
+export function dailyIncomeStatus(day:OwnDailyIncomeRow){
+ if(day.status==="PAID")return "Đã thanh toán";
+ if(day.status==="FINALIZED")return "Đã quyết toán";
+ if(day.status==="UNAVAILABLE")return "Chưa xác định";
+ if(day.extraTimePending)return "Chờ duyệt làm thêm";
+ const labels:Record<string,string>={READY:"Tạm tính",NO_ATTENDANCE:"Chưa chấm công",NO_ASSIGNMENT:"Chưa có ca",PENDING_CHECKOUT:"Chưa check-out",RATE_MISSING:"Chưa có rate",RECONCILIATION_REQUIRED:"Cần đối soát"};
+ return labels[day.calculationStatus]??"Chưa xác định";
 }
 export function shiftRoleLabel(row:Assignment){
  const labels={FRONT_DESK:"Tiếp tân",TEACHER:"Giáo viên",TEACHING_ASSISTANT:"Trợ giảng",SHIFT_LEADER:"Trưởng ca"} as const;

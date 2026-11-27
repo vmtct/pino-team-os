@@ -24,12 +24,12 @@ import {
  staffContext,assertOwnCenter,shiftReadModel,type TosVNextShiftReadWarnings
 } from "@/app/components/tos-vnext/core-adapters";
 import type {Assignment,TimekeepingSession} from "@/lib/workforce-api";
-import type {OwnIncomePage} from "@/lib/tos-own-income-api";
+import type {OwnIncomePage,OwnDailyIncomePage} from "@/lib/tos-own-income-api";
 
 
 
 type Section="home"|TosVNextAppId;
-type ShiftData={assignments:Assignment[];current:TimekeepingSession|null;history:TimekeepingSession[]|null;income:OwnIncomePage|null;warnings:TosVNextShiftReadWarnings};
+type ShiftData={assignments:Assignment[];current:TimekeepingSession|null;history:TimekeepingSession[]|null;income:OwnIncomePage|null;dailyIncome:OwnDailyIncomePage|null;warnings:TosVNextShiftReadWarnings};
 type FounderAssignment=Assignment&{staffMemberId:string;staffLabel:string};
 type FounderVisits={centerId:string;data:Array<{id:string;student:{id:string;displayName:string};status:"OPEN"|"CLOSED";checkedInAt:string;checkedOutAt:string|null}>;total:number;summary:{totalVisits:number;openVisits:number;closedVisits:number}};
 type ReadData={shift?:ShiftData;founder?:{centerId:string;assignments:FounderAssignment[];truncated:boolean};visits?:FounderVisits;timekeeping?:FounderCenterTimekeeping;duty?:FounderCenterDuty;training?:FounderCenterTraining;station?:FounderCenterStation;founderError?:string;visitsError?:string;timekeepingError?:string;dutyError?:string;trainingError?:string;stationError?:string};
@@ -112,8 +112,8 @@ export default function TosVNextIntegrationPreview(){
   }
   let active=true;
   setError("");setShiftLoading(true);setData({});
-  void shiftReadModel(centerId,today(zone).slice(0,8)+"01",today(zone,14)).then(v=>{
-   if(active)setData(prev=>({...prev,shift:{assignments:v.assignments,current:v.current,history:v.history,income:v.income,warnings:v.warnings}}));
+  void shiftReadModel(centerId,fromDate.slice(0,8)+"01",today(zone,14),fromDate).then(v=>{
+   if(active)setData(prev=>({...prev,shift:{assignments:v.assignments,current:v.current,history:v.history,income:v.income,dailyIncome:v.dailyIncome,warnings:v.warnings}}));
   }).catch(e=>{if(active)setError(e instanceof Error?e.message:"Không thể tải trạng thái ca.")})
    .finally(()=>{if(active)setShiftLoading(false)});
   return()=>{active=false};
