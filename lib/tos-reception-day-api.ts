@@ -32,6 +32,7 @@ export type ReceptionDayReadModel = {
   events: ReceptionDayEvent[];
   activeVisits: Record<string, ReceptionDayVisit>;
   unresolvedRegistrations: number;
+  timeZone: string;
 };
 const instant = (value: unknown) => typeof value === "string" && Number.isFinite(Date.parse(value));
 const validId = (value: unknown): value is string => typeof value === "string" && value.length > 0;
@@ -44,7 +45,8 @@ export function projectReceptionDay(snapshot: ReceptionDaySnapshot, centerId: st
     throw new Error("Reception day scope or complete visit history is unavailable.");
   }
   const start = Date.parse(snapshot.window.startsAt), end = Date.parse(snapshot.window.endsAt);
-  if (end <= start) throw new Error("Invalid Reception day window.");
+  if (end <= start || typeof snapshot.timeZone !== "string" || !snapshot.timeZone) throw new Error("Invalid Reception day window.");
+  new Intl.DateTimeFormat("en-CA",{timeZone:snapshot.timeZone}).format(start);
   const sessions = new Map<string, ReceptionDaySession>();
   for (const session of snapshot.sessions) {
     if (!validId(session.id) || sessions.has(session.id) || !Array.isArray(session.unresolvedRegistrations)) {
@@ -92,7 +94,7 @@ export function projectReceptionDay(snapshot: ReceptionDaySnapshot, centerId: st
   // A legacy current-open row that has no evidence in the requested day is not an expected arrival.
   const visible = [...guests.values()].filter(guest => attendance[guest.id] !== undefined);
   events.sort((a,b) => b.occurredAt.localeCompare(a.occurredAt) || a.id.localeCompare(b.id));
-  return {guests:visible.sort((a,b)=>a.name.localeCompare(b.name,"vi")),attendance,activeVisits,events,
+  return {guests:visible.sort((a,b)=>a.name.localeCompare(b.name,"vi")),attendance,activeVisits,events,timeZone:snapshot.timeZone,
     unresolvedRegistrations:snapshot.sessions.reduce((n,s)=>n+s.unresolvedRegistrations.length,0)};
 }
 export async function readReceptionDay(centerId: string, localDate: string, signal?: AbortSignal) {
@@ -101,4 +103,19 @@ export async function readReceptionDay(centerId: string, localDate: string, sign
   const body = await response.json() as {data?:ReceptionDaySnapshot;error?:{message?:string}};
   if (!response.ok || !body.data) throw new Error(body.error?.message || "Reception day is unavailable.");
   return projectReceptionDay(body.data,centerId,localDate);
+}
+
+/** Activity is only known for valid, actual own Front Desk shift windows. */
+export function receptionShiftActivity(day: ReceptionDayReadModel, windows: readonly {startsLocal:string;endsLocal:string}[]) {
+  const minute=(value:string)=> {
+    const match=/^(?:\d{4}-\d{2}-\d{2}T)?([01]\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?$/.exec(value);
+    return match?Number(match[1])*60+Number(match[2]):NaN;
+  };
+  const ranges=windows.map(w=>({start:minute(w.startsLocal),end:minute(w.endsLocal)}));
+  if (!ranges.length || ranges.some(w=>!Number.isFinite(w.start)||!Number.isFinite(w.end)||w.end<=w.start)) return null;
+  const fmt=new Intl.DateTimeFormat("en-GB",{timeZone:day.timeZone,hour:"2-digit",minute:"2-digit",hourCycle:"h23"});
+  return day.events.flatMap(event=>{
+    const time=fmt.format(new Date(event.occurredAt)),at=minute(time);
+    return ranges.some(w=>at>=w.start&&at<w.end)?[{id:event.id,time,text:event.displayName+(event.kind==="ARRIVAL"?" \u0111\u00e3 \u0111\u1ebfn":" \u0111\u00e3 r\u1eddi PINO")}]:[];
+  });
 }

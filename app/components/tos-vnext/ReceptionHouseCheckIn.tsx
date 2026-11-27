@@ -11,8 +11,9 @@ import styles from "./reception-house.module.css";
 type Intent = { learnerId: string; centerId: string; key: string; checkedInAt: string };
 
 /** PAP-2131: optional read-only recent learner port; Core integration is a separate gate. */
-export function ReceptionHouseCheckIn({ centerId, loadRecentLearners }: {
+export function ReceptionHouseCheckIn({ centerId, loadRecentLearners, onVisitChanged }: {
   centerId: string;
+  onVisitChanged?: () => void;
   loadRecentLearners?: (centerId: string, signal: AbortSignal) => Promise<ReceptionLearner[]>;
 }) {
   const [query, setQuery] = useState("");
@@ -100,7 +101,7 @@ export function ReceptionHouseCheckIn({ centerId, loadRecentLearners }: {
           : "Chưa xác minh được kết quả check-in. Tải lại trạng thái trước khi thử tiếp.");
       }
       setRefresh(value => value + 1);
-    } finally { setSubmitting(false); }
+    } finally { setSubmitting(false); onVisitChanged?.(); }
   }
 
   return <><TosVNextCard className={styles.panel} aria-label="Check-in học viên PINO House">

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { projectReceptionDay, readReceptionDay, type ReceptionDaySnapshot, type ReceptionDayVisit } from "./tos-reception-day-api";
+import { projectReceptionDay, readReceptionDay, receptionShiftActivity, type ReceptionDaySnapshot, type ReceptionDayVisit } from "./tos-reception-day-api";
 const date="2026-11-27", center="c1", start="2026-11-26T17:00:00.000Z", end="2026-11-27T17:00:00.000Z";
 const learner=(id:string)=>({studentProfileId:id,displayName:id,sessionIds:["s"],hasRosterConflict:false});
 const visit=(id:string,studentProfileId:string,checkedInAt:string,checkedOutAt:string|null):ReceptionDayVisit=>({id,studentProfileId,displayName:studentProfileId,checkedInAt,checkedOutAt,version:1});
@@ -41,4 +41,11 @@ test("PAP-2431 reads existing authenticated endpoint and preserves denial",async
   assert.equal(calls[0],"/api/tos-learning/arrival-desk?centerId=c1&localDate=2026-11-27");
   await assert.rejects(()=>readReceptionDay(center,date),/Denied/);
   spy.mock.restore();
+});
+test("PAP-2431 activity uses only actual Center-local shift windows",()=>{
+ const day=projectReceptionDay(snapshot(),center,date);
+ assert.equal(receptionShiftActivity(day,[]),null);
+ assert.equal(receptionShiftActivity(day,[{startsLocal:"18:00",endsLocal:"02:00"}]),null);
+ const events=receptionShiftActivity(day,[{startsLocal:"08:00",endsLocal:"10:00"}]);
+ assert.deepEqual(events?.map(e=>e.id),["a:departure","b:departure","a:arrival","b:arrival"]);
 });

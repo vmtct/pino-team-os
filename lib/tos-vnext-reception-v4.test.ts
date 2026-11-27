@@ -22,3 +22,17 @@ test("PAP-942 Wish controls stay disabled with supplied records and no store can
  const before=JSON.stringify(model),html=await renderV4("ReceptionV4Presentation",{...props,initialReadOnly:true,initialTab:"pinoria",model});assert.match(buttons(html,"Xử lý")[0],/disabled/);assert.equal(JSON.stringify(model),before);
  for(const name of ["ReceptionV4Presentation","ReceptionV4OpenShift"]){const source=readFileSync("app/components/tos-vnext/"+name+".tsx","utf8");assert.doesNotMatch(source,/useOpsDemo|useReceptionShiftDemo|ops-demo-store|localStorage|sessionStorage|fetch\(/)}
 });
+
+test("PAP-2431 mounted read model keeps Wish unknown, restores roster and retains House lookup",async()=>{
+ const model={...unavailableOpsReadModel(),loaded:true,guests:[{id:"a",name:"Synthetic Learner",initials:"S",className:"Piano",classTime:"18:00",room:"Room A",guardian:"\u2014"}],attendance:{a:"ARRIVED"},events:[{id:"a:arrival",text:"Synthetic Arrival",time:"18:00"}]};
+ const common={...props,initialReadOnly:true,model,activityLoaded:true,expectedComplete:false,wishLoaded:false,showDayList:true,visitLookup:"REAL_CORE_HOUSE_PANEL"};
+ const overview=await renderV4("ReceptionV4Presentation",{...common,initialTab:"overview"});
+ assert.match(overview,/Synthetic Arrival/);
+ assert.match(overview,/<strong>1<\/strong>/);
+ assert.match(overview,/\u2014 yêu cầu đang chờ/);
+ const arrivals=await renderV4("ReceptionV4Presentation",{...common,initialTab:"arrivals"});
+ assert.match(arrivals,/REAL_CORE_HOUSE_PANEL/);assert.match(arrivals,/Synthetic Learner/);
+ assert.match(arrivals,/Room A/);
+ const wish=await renderV4("ReceptionV4Presentation",{...common,initialTab:"pinoria"});
+ assert.doesNotMatch(wish,/<strong>0<\/strong>/);
+});
