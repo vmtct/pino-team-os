@@ -219,10 +219,10 @@ export function StaffRegistrationReviewQueue({service=boApi,newKey=liveReviewKey
         : newKey();
       rejectAttempt.current = { requestId: selected.id, fingerprint: reason, key: idempotencyKey };
       await service.rejectStaffRegistration(selected.id, reason, idempotencyKey);
+      rejectAttempt.current = null;
       setSurface("table");
-+
-+      setRequests((items) => items.filter((item) => item.id !== selected.id));
-      setRequests((items) => items.filter((item) => item.id !== selected.id));
+      if(dossierReview?.list){await refresh();}
+      else{setRequests(items=>items.filter(item=>item.id!==selected.id));}
       setSelectedId("");
     } catch (cause) { setError(formatError(cause, "Không thể từ chối hồ sơ.")); }
     finally { reviewInFlight.current=false;setBusy(""); }
