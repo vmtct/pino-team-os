@@ -12,7 +12,7 @@ import type {
   BoStaffAccessAssignmentInput,
   BoStaffRegistrationApprovalResult,
   BoStaffRegistrationPinoriaIdentity,
-  BoStaffRegistrationRequest,
+
   BoStaffRecord,
 } from "@/lib/bo-model";
 import styles from "../bo.module.css";
@@ -20,12 +20,13 @@ import { BoDataGrid, BoDataGridBadge, BoDrawer, type BoDataGridColumn } from "@/
 import { BoProperties } from "@/app/bo/components/BoProperties";
 import { DetailFrame } from "@/app/components/workspace-renderer/DetailFrame";
 import {useStaffRegistrationConfirmation} from "./StaffRegistrationConfirmation";
-import type {StaffDossierReviewPort} from "../workforce/staffs/staff-dossier-review";
+import type {StaffDossierReviewPort,StaffDossierReviewRow} from "../workforce/staffs/staff-dossier-review";
 
-const requestColumns: BoDataGridColumn<BoStaffRegistrationRequest>[] = [
+function dossierStatus(row:StaffDossierReviewRow){return row.reviewStage==="REVIEWED_FOR_HO"?"Ch\u1edd HO ph\u00ea duy\u1ec7t":row.reviewStage==="REJECTED"?"T\u1eeb ch\u1ed1i":"Ch\u1edd duy\u1ec7t";}
+const requestColumns: BoDataGridColumn<StaffDossierReviewRow>[] = [
   { key: "displayLabel", header: "H\u1ecd v\u00e0 t\u00ean", render: row => row.displayLabel, minWidth: 180 },
   { key: "submittedAt", header: "Ng\u00e0y g\u1eedi", render: row => formatSubmittedAt(row.submittedAt), minWidth: 160 },
-  { key: "status", header: "Tr\u1ea1ng th\u00e1i", render: () => <BoDataGridBadge>{"Ch\u1edd duy\u1ec7t"}</BoDataGridBadge>, minWidth: 120 },
+  { key: "status", header: "Tr\u1ea1ng th\u00e1i", render: row => <BoDataGridBadge>{dossierStatus(row)}</BoDataGridBadge>, minWidth: 120 },
   ...["Created Time", "Created By", "Last Modified Time", "Last Modified By"].map((header, index) => ({ key: "audit-" + index, header, render: () => "\u2014", minWidth: 145 })),
 ];
 function formatSubmittedAt(value: string) {
@@ -43,7 +44,7 @@ const liveReviewKey = () => crypto.randomUUID();
 export type StaffRegistrationReviewService = Pick<typeof boApi,"accessUsers"|"staffRegistrationRequests"|"accessRoles"|"scopeCatalog"|"staffRecords"|"learners"|"approveStaffRegistration"|"rejectStaffRegistration">;
 export function StaffRegistrationReviewQueue({service=boApi,newKey=liveReviewKey,dossierReview}:{service?:StaffRegistrationReviewService;newKey?:()=>string;dossierReview?:StaffDossierReviewPort}={}) {
   const blankDraft = useCallback((): Draft => ({key:newKey(),roleId:"",scopeType:"GLOBAL",scopeId:""}),[newKey]);
-  const [requests, setRequests] = useState<BoStaffRegistrationRequest[]>([]);
+  const [requests, setRequests] = useState<StaffDossierReviewRow[]>([]);
   const [roles, setRoles] = useState<BoAccessRole[]>([]);
   const [catalog, setCatalog] = useState<Catalog>({ centers: [], paths: [], classes: [] });
   const [selectedId, setSelectedId] = useState("");
@@ -102,7 +103,7 @@ export function StaffRegistrationReviewQueue({service=boApi,newKey=liveReviewKey
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      if(dossierReview){const next=await service.staffRegistrationRequests();setRequests(next);setSelectedId(current=>next.some(r=>r.id===current)?current:"");return;}
+      if(dossierReview){const next=await (dossierReview.list?.()??service.staffRegistrationRequests());setRequests(next);setSelectedId(current=>next.some(r=>r.id===current)?current:"");return;}
       const accessUsersRequest = service.accessUsers().catch((cause) => {
         if (cause instanceof BoApiError && (cause.status === 401 || cause.status === 403)) return [];
         throw cause;
@@ -155,13 +156,13 @@ export function StaffRegistrationReviewQueue({service=boApi,newKey=liveReviewKey
   }
 
   async function approve() {
-    if (!selected || reviewInFlight.current) return;
+    if (!selected || selected.reviewStage || reviewInFlight.current) return;
     if(dossierReview){
       if(!dossierReview.submit||!dossierReview.centerId||!selected.documents.front||!selected.documents.back)return;
       reviewInFlight.current=true;
       if(!await confirmation.ask("Duy\u1ec7t h\u1ed3 s\u01a1 v\u00e0 chuy\u1ec3n HO ho\u00e0n t\u1ea5t?")||reviewTarget.current!==selected.id){reviewInFlight.current=false;return;}
       setBusy("approve");setError("");
-      try{const fingerprint=JSON.stringify([selected.id,selected.version,dossierReview.centerId]);const attempt=approveAttempt.current;const key=attempt?.requestId===selected.id&&attempt.fingerprint===fingerprint?attempt.key:newKey();approveAttempt.current={requestId:selected.id,fingerprint,key};const receipt=await dossierReview.submit(selected.id,selected.version,dossierReview.centerId,key);if(receipt.registrationRequestId!==selected.id||receipt.centerId!==dossierReview.centerId||receipt.status!=="REVIEWED_FOR_HO")throw Error("Review receipt mismatch");approveAttempt.current=null;setReviewNotice("\u0110\u00e3 duy\u1ec7t h\u1ed3 s\u01a1. Ch\u1edd HO ho\u00e0n t\u1ea5t.");setRequests(items=>items.filter(r=>r.id!==selected.id));setSelectedId("");setSurface("table");}catch(cause){setError(formatError(cause,"Kh\u00f4ng th\u1ec3 duy\u1ec7t h\u1ed3 s\u01a1."));}finally{reviewInFlight.current=false;setBusy("");}return;
+      try{const fingerprint=JSON.stringify([selected.id,selected.version,dossierReview.centerId]);const attempt=approveAttempt.current;const key=attempt?.requestId===selected.id&&attempt.fingerprint===fingerprint?attempt.key:newKey();approveAttempt.current={requestId:selected.id,fingerprint,key};const receipt=await dossierReview.submit(selected.id,selected.version,dossierReview.centerId,key);if(receipt.registrationRequestId!==selected.id||receipt.centerId!==dossierReview.centerId||receipt.status!=="REVIEWED_FOR_HO")throw Error("Review receipt mismatch");approveAttempt.current=null;setReviewNotice("\u0110\u00e3 duy\u1ec7t h\u1ed3 s\u01a1. Ch\u1edd HO ho\u00e0n t\u1ea5t.");if(dossierReview.list){await refresh();}else{setRequests(items=>items.map(r=>r.id===selected.id?{...r,reviewStage:"REVIEWED_FOR_HO"}:r));}setSelectedId("");setSurface("table");}catch(cause){setError(formatError(cause,"Kh\u00f4ng th\u1ec3 duy\u1ec7t h\u1ed3 s\u01a1."));}finally{reviewInFlight.current=false;setBusy("");}return;
     }
     const normalized = normalizedAssignments();
     if (!normalized) { setError("Chọn đầy đủ role và scope trước khi duyệt."); return; }
@@ -206,7 +207,7 @@ export function StaffRegistrationReviewQueue({service=boApi,newKey=liveReviewKey
 
   async function reject() {
     if (reviewInFlight.current) return;
-    if (!selected || !rejectReason.trim()) { setError("Nh\u1eadp l\u00fd do t\u1eeb ch\u1ed1i."); return; }
+    if (!selected || selected.reviewStage || !rejectReason.trim()) { setError("Nh\u1eadp l\u00fd do t\u1eeb ch\u1ed1i."); return; }
     reviewInFlight.current=true;
     if (!await confirmation.ask(`Từ chối hồ sơ của ${selected.displayLabel}?`) || reviewTarget.current!==selected.id) {reviewInFlight.current=false;return;}
     setBusy("reject"); setError("");
@@ -219,7 +220,8 @@ export function StaffRegistrationReviewQueue({service=boApi,newKey=liveReviewKey
       rejectAttempt.current = { requestId: selected.id, fingerprint: reason, key: idempotencyKey };
       await service.rejectStaffRegistration(selected.id, reason, idempotencyKey);
       setSurface("table");
-      rejectAttempt.current = null;
++
++      setRequests((items) => items.filter((item) => item.id !== selected.id));
       setRequests((items) => items.filter((item) => item.id !== selected.id));
       setSelectedId("");
     } catch (cause) { setError(formatError(cause, "Không thể từ chối hồ sơ.")); }
@@ -241,16 +243,16 @@ export function StaffRegistrationReviewQueue({service=boApi,newKey=liveReviewKey
     </section> : null}
 
     {(!selected || surface !== "detail") && <BoDataGrid rows={visibleRequests} columns={requestColumns} rowKey={row => row.id}
-      caption={"H\u1ed3 s\u01a1 nh\u00e2n s\u1ef1 ch\u1edd duy\u1ec7t"} state={loading ? "loading" : error && !requests.length ? "error" : "ready"}
+      caption={dossierReview?"H\u1ed3 s\u01a1 \u0111\u0103ng k\u00fd nh\u00e2n s\u1ef1":"H\u1ed3 s\u01a1 nh\u00e2n s\u1ef1 ch\u1edd duy\u1ec7t"} state={loading ? "loading" : error && !requests.length ? "error" : "ready"}
       stateMessage={error} search={search} onSearchChange={setSearch} searchPlaceholder={"T\u00ecm t\u00ean ho\u1eb7c email"}
       onRowOpen={row => { setSelectedId(row.id); setApproval(null); setTab("overview"); setSurface("drawer"); }} quickViewOpener
       emptyTitle={"Ch\u01b0a c\u00f3 h\u1ed3 s\u01a1"} emptyMessage={"Kh\u00f4ng c\u00f3 h\u1ed3 s\u01a1 ph\u00f9 h\u1ee3p."} resultLabel={visibleRequests.length + " h\u1ed3 s\u01a1"}
       toolbarActions={<button type="button" className={styles.secondaryButton} disabled={Boolean(busy) || loading} onClick={() => { setError(""); void refresh(); }}>{"T\u1ea3i l\u1ea1i"}</button>} /> }
-    {selected && surface === "drawer" && <BoDrawer title={selected.displayLabel} eyebrow={"H\u1ed3 s\u01a1 ch\u1edd duy\u1ec7t"} onClose={() => { setSurface("table"); setSelectedId(""); }}
+    {selected && surface === "drawer" && <BoDrawer title={selected.displayLabel} eyebrow={dossierStatus(selected)} onClose={() => { setSurface("table"); setSelectedId(""); }}
       footer={<button type="button" className={styles.primaryButton} onClick={() => setSurface("detail")}>{"M\u1edf chi ti\u1ebft"}</button>}>
       <BoProperties authority items={requestProperties(selected)} />
     </BoDrawer>}
-    {selected && surface === "detail" && <DetailFrame title={selected.displayLabel} subtitle={"H\u1ed3 s\u01a1 ch\u1edd duy\u1ec7t"}
+    {selected && surface === "detail" && <DetailFrame title={selected.displayLabel} subtitle={dossierStatus(selected)}
       tabs={[{ id: "overview", label: "T\u1ed5ng quan" }, { id: "history", label: "L\u1ecbch s\u1eed" }]} selected={tab} onSelect={id => { if (!busy) setTab(id); }}
       onBack={() => { if (!busy) { setSurface("table"); setSelectedId(""); } }}>
       {tab === "history" ? <p role="status">{"L\u1ecbch s\u1eed chi ti\u1ebft ch\u01b0a c\u00f3 trong d\u1eef li\u1ec7u h\u1ed3 s\u01a1 n\u00e0y."}</p> : <div className={styles.registrationReviewDetail}>
@@ -305,20 +307,20 @@ export function StaffRegistrationReviewQueue({service=boApi,newKey=liveReviewKey
             <button type="button" className={styles.secondaryButton} onClick={() => setAssignments((items) => [...items, blankDraft()])}>+ Thêm role assignment</button>
           </section>
           </>}
-          <section className={styles.registrationDecisionBar}>
+          {selected.reviewStage?<section className={styles.panel}><BoProperties authority items={[{key:"stage",label:"Tr\u1ea1ng th\u00e1i",value:dossierStatus(selected)},{key:"reviewer",label:"Ng\u01b0\u1eddi duy\u1ec7t",value:selected.reviewedBy??"\u2014"},{key:"version",label:"Phi\u00ean b\u1ea3n h\u1ed3 s\u01a1",value:String(selected.reviewedVersion??selected.version)},...(selected.rejectReason?[{key:"reason",label:"L\u00fd do t\u1eeb ch\u1ed1i",value:selected.rejectReason}]:[])]}/></section>:<section className={styles.registrationDecisionBar}>
             <label className={styles.field}>Lý do từ chối<input value={rejectReason} onChange={(event) => setRejectReason(event.target.value)} placeholder="Chỉ cần khi từ chối" /></label>
             <div className={styles.registrationDecisionActions}>
               <button type="button" className={styles.secondaryButton} disabled={Boolean(busy) || !rejectReason.trim()} onClick={() => void reject()}>{busy === "reject" ? "Đang từ chối…" : "Từ chối"}</button>
               <button type="button" className={styles.primaryButton} disabled={Boolean(busy)||!selected.documents.front||!selected.documents.back||(dossierReview?!dossierReview.submit||!dossierReview.centerId:!identityReady||Boolean(existingAccess?.staffMemberId)||Boolean(existingAccess&&!existingStaffMemberId))} onClick={() => void approve()}>{busy==="approve"?"\u0110ang duy\u1ec7t...":dossierReview?"Duy\u1ec7t h\u1ed3 s\u01a1":existingAccess?"Duy\u1ec7t & li\u00ean k\u1ebft":"Duy\u1ec7t & c\u1ea5p quy\u1ec1n"}</button>
             </div>
-          </section>
+          </section>}
       </div>}
     </DetailFrame>}
     {confirmation.dialog}
   </section>;
 }
 
-function requestProperties(row: BoStaffRegistrationRequest) {
+function requestProperties(row: StaffDossierReviewRow) {
   return [
     { key: "submittedAt", label: "Ng\u00e0y g\u1eedi", value: formatSubmittedAt(row.submittedAt) },
     { key: "email", label: "Email", value: row.email },
