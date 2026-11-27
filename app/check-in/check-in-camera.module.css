@@ -1,0 +1,17 @@
+.panel { margin-top:var(--tos-space-4); border:1px solid var(--tos-color-border); background:var(--tos-color-surface); border-radius:var(--tos-radius-card); padding:var(--tos-inset-card); color:var(--tos-color-ink); }
+.heading { display:flex; justify-content:space-between; gap:var(--tos-space-3); align-items:center; flex-wrap:wrap; }
+.heading strong { font-size:var(--tos-text-label); font-weight:var(--tos-weight-strong); }
+.heading small { font-size:var(--tos-text-caption); color:var(--tos-color-muted); }
+.panel p { font-size:var(--tos-text-caption); line-height:var(--tos-text-body-line); color:var(--tos-color-muted); margin:var(--tos-space-2) 0; }
+.frame { position:relative; aspect-ratio:4/3; overflow:hidden; border-radius:var(--tos-radius-control); margin-top:var(--tos-space-3); background:var(--tos-color-info-bg); display:grid; place-items:center; }
+.video,.preview { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+.hidden { display:none; }
+.placeholder { font-size:var(--tos-text-caption); color:var(--tos-color-info-text); }
+.actions { display:flex; flex-wrap:wrap; gap:var(--tos-space-2); margin-top:var(--tos-space-3); }
+.actions button { flex:1 1 140px; min-height:var(--tos-hit-min); border:1px solid var(--tos-color-info); color:var(--tos-color-inverse); background:var(--tos-color-info); border-radius:var(--tos-radius-control); padding:var(--tos-button-padding-y) var(--tos-button-padding-x); font-size:var(--tos-text-button); font-weight:var(--tos-weight-strong); }
+.actions .minor { background:var(--tos-color-surface); color:var(--tos-color-info-text); border-color:var(--tos-color-border); }
+.actions button:disabled { opacity:.5; }
+.actions button:focus-visible { outline:var(--tos-focus-ring); outline-offset:var(--tos-focus-offset); }
+.error { padding:var(--tos-space-3); background:var(--tos-color-warning-bg); border:1px solid var(--tos-color-warning); color:var(--tos-color-warning-text); font-size:var(--tos-text-caption); border-radius:var(--tos-radius-control); margin-top:var(--tos-space-3); }
+.error p { margin:var(--tos-space-2) 0 0; color:var(--tos-color-warning-text); }
+.note { display:block; margin-top:var(--tos-space-3); font-size:var(--tos-text-caption); line-height:var(--tos-text-body-line); color:var(--tos-color-muted); }
