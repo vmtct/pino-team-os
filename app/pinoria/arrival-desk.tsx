@@ -5,6 +5,7 @@ import { TosShell } from "@/app/components/tos-shell/TosShell";
 import { TOS_PINORIA_FOOTER } from "@/app/components/tos-shell/navigation";
 import { workforceApi } from "@/lib/workforce-api";
 import type { WardSession, WardSessionCandidate, WardSessionEnvelope } from "@/lib/pinoria-ward-session";
+import {ReceptionHandoverPanel} from "@/app/components/tos-vnext/ReceptionHandoverPanel";
 import { PinoriaActivityPanel } from "./activity-panel";
 import { WardSessionChoice } from "./ward-session-choice";
 import styles from "./pinoria.module.css";
@@ -23,6 +24,7 @@ export function ArrivalDesk() {
   const [learners, setLearners] = useState<Learner[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [handover,setHandover]=useState<{centerId:string;learnerId:string;visitId:string;version:number}|null>(null);
   const [wardChoice, setWardChoice] = useState<WardChoiceState | null>(null);
   const [wardBusy, setWardBusy] = useState(false);
   const [wardError, setWardError] = useState("");
@@ -92,17 +94,15 @@ export function ArrivalDesk() {
     setBusy(learner.studentProfileId);
     setError("");
     try {
-      const checkIn = !learner.openVisit;
-      const response = await fetch(`/api/tos-learning/pinoria/house/${checkIn ? "check-in" : "check-out"}`, {
+      if(learner.openVisit){setHandover({centerId,learnerId:learner.studentProfileId,visitId:learner.openVisit.id,version:learner.openVisit.version});return;}
+      const response = await fetch("/api/tos-learning/pinoria/house/check-in", {
         method: "POST",
         headers: { "content-type": "application/json", "idempotency-key": crypto.randomUUID() },
-        body: JSON.stringify(checkIn
-          ? { studentProfileId: learner.studentProfileId, centerId, checkedInAt: new Date().toISOString() }
-          : { studentProfileId: learner.studentProfileId, centerId, expectedVisitId: learner.openVisit!.id, expectedVersion: learner.openVisit!.version, checkedOutAt: new Date().toISOString(), reason: "Rời PINO House" }),
+        body: JSON.stringify({studentProfileId:learner.studentProfileId,centerId,checkedInAt:new Date().toISOString()}),
       });
       const json = await response.json() as Envelope<unknown>;
       if (!response.ok) throw new Error(json.error?.message ?? "Thao tác thất bại");
-      if (checkIn) {
+      {
         try {
           await openWardChoice(learner, true);
         } catch (cause) {
@@ -172,6 +172,7 @@ export function ArrivalDesk() {
           <div className={styles.avatar}>{learner.displayName.charAt(0).toUpperCase()}</div>
           <div className={styles.identity}><div className={styles.nameRow}><h3>{learner.displayName}</h3><span className={learner.openVisit ? styles.inBadge : styles.waitBadge}>{learner.openVisit ? "Đang ở House" : learner.hasCharacter ? "Sẵn sàng" : "Lần đầu"}</span></div>{learner.openVisit ? <small>Đến lúc {new Date(learner.openVisit.checkedInAt).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}</small> : null}</div>
           {learner.openVisit ? <div className={styles.cardActions}><button className={styles.wardResume} disabled={busy === learner.studentProfileId} onClick={() => void resumeWard(learner)}>Ward</button><button className={styles.checkout} disabled={busy === learner.studentProfileId} onClick={() => activate(learner)}>{busy === learner.studentProfileId ? "…" : "Check-out"}</button></div> : <button className={styles.checkin} disabled={busy === learner.studentProfileId} onClick={() => activate(learner)}>{busy === learner.studentProfileId ? "…" : "Check-in"}</button>}
+          {handover?.centerId===centerId&&handover.learnerId===learner.studentProfileId&&learner.openVisit?.id===handover.visitId&&learner.openVisit.version===handover.version?<ReceptionHandoverPanel scope={{centerId,studentProfileId:learner.studentProfileId,expectedVisitId:handover.visitId,expectedVersion:handover.version}} onDone={()=>{setHandover(null);void search(query);}}/>:null}
           {learner.openVisit ? <PinoriaActivityPanel centerId={centerId} studentProfileId={learner.studentProfileId} displayName={learner.displayName} /> : null}
         </article>)}
       </section>

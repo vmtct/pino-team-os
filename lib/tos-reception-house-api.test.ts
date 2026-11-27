@@ -85,19 +85,20 @@ test("PAP-2138 recent read uses exact Center, abort and no-store; preserves auth
     assert.equal(calls.length,2);
   } finally {spy.mock.restore();}
 });
+const guardianProof={relationshipId:"0198d050-56c1-7ac5-b9ab-b0e45d912345",parentId:"0198d050-56c1-7ac5-b9ab-b0e45d912346",personId:"0198d050-56c1-7ac5-b9ab-b0e45d912347",relationshipVersion:1,personVersion:1,identityVerified:true as const};
 test("PAP-2431 checkout sends exact scope, CAS and stable replay key", async () => {
-  const input = {centerId:"center-1",studentProfileId:"student-1",expectedVisitId:"visit-1",expectedVersion:1,checkedOutAt:"2026-11-27T10:00:00Z",reason:"Authorized handover"};
+  const input = {centerId:"center-1",studentProfileId:"student-1",expectedVisitId:"visit-1",expectedVersion:1,checkedOutAt:"2026-11-27T10:00:00Z",reason:"Authorized handover",pickupProof:guardianProof};
   const calls: Array<{url:string;init:RequestInit}> = [];
   const spy = mock.method(globalThis,"fetch",async (url:string|URL|Request,init:RequestInit)=>{
     calls.push({url:String(url),init});
-    return Response.json({data:{visit:{id:"visit-1",centerId:input.centerId,studentProfileId:input.studentProfileId,checkedInAt:"2026-11-27T08:00:00Z",checkedOutAt:input.checkedOutAt,version:2},character:null}});
+    return Response.json({data:{visit:{id:"visit-1",centerId:input.centerId,studentProfileId:input.studentProfileId,checkedInAt:"2026-11-27T08:00:00Z",checkedOutAt:input.checkedOutAt,version:2},character:null,handover:{relationshipId:guardianProof.relationshipId,identityVerified:true}}});
   });
   try {
     assert.equal((await tosReceptionHouseApi.checkOut(input,"stable-key")).visit.version,2);
     await tosReceptionHouseApi.checkOut(input,"stable-key");
     assert.equal(calls.length,2);
     for(const call of calls){
-      assert.equal(call.url,"/api/tos-learning/pinoria/house/check-out");
+      assert.equal(call.url,"/api/tos-learning/pinoria/house/verified-check-out");
       assert.equal(call.init.method,"POST");
       assert.equal(new Headers(call.init.headers).get("idempotency-key"),"stable-key");
       assert.deepEqual(JSON.parse(String(call.init.body)),input);
@@ -110,19 +111,25 @@ test("PAP-2431 checkout sends exact scope, CAS and stable replay key", async () 
 });
 
 test("PAP-2431 checkout rejects denied, stale and unverified responses", async () => {
-  const input={centerId:"center-1",studentProfileId:"student-1",expectedVisitId:"visit-1",expectedVersion:1,checkedOutAt:"2026-11-27T10:00:00Z",reason:"Authorized handover"};
+  const input={centerId:"center-1",studentProfileId:"student-1",expectedVisitId:"visit-1",expectedVersion:1,checkedOutAt:"2026-11-27T10:00:00Z",reason:"Authorized handover",pickupProof:guardianProof};
   for (const status of [403,409]){
     const spy=mock.method(globalThis,"fetch",async()=>Response.json({error:{code:"REJECTED",message:"Rejected"}},{status}));
     try {await assert.rejects(tosReceptionHouseApi.checkOut(input,"stable-key"),(e:unknown)=>e instanceof ReceptionHouseError&&e.status===status);}
     finally {spy.mock.restore();}
   }
-  const spy=mock.method(globalThis,"fetch",async()=>Response.json({data:{visit:{id:"visit-1",centerId:"wrong-center",studentProfileId:input.studentProfileId,checkedOutAt:input.checkedOutAt,version:2},character:null}}));
+  const spy=mock.method(globalThis,"fetch",async()=>Response.json({data:{visit:{id:"visit-1",centerId:"wrong-center",studentProfileId:input.studentProfileId,checkedOutAt:input.checkedOutAt,version:2},character:null,handover:{relationshipId:guardianProof.relationshipId,identityVerified:true}}}));
   try {await assert.rejects(tosReceptionHouseApi.checkOut(input,"stable-key"),(e:unknown)=>e instanceof ReceptionHouseError&&e.code==="UNVERIFIED_CHECKOUT");}
   finally {spy.mock.restore();}
 });
 test("PAP-2431 rejects a receipt for a different visit even with matching student, Center and version",async()=>{
-  const input={centerId:"center-1",studentProfileId:"student-1",expectedVisitId:"old-visit",expectedVersion:1,checkedOutAt:"2026-11-27T10:00:00Z",reason:"Authorized handover"};
-  const spy=mock.method(globalThis,"fetch",async()=>Response.json({data:{visit:{id:"new-visit",centerId:input.centerId,studentProfileId:input.studentProfileId,checkedOutAt:input.checkedOutAt,version:2},character:null}}));
+  const input={centerId:"center-1",studentProfileId:"student-1",expectedVisitId:"old-visit",expectedVersion:1,checkedOutAt:"2026-11-27T10:00:00Z",reason:"Authorized handover",pickupProof:guardianProof};
+  const spy=mock.method(globalThis,"fetch",async()=>Response.json({data:{visit:{id:"new-visit",centerId:input.centerId,studentProfileId:input.studentProfileId,checkedOutAt:input.checkedOutAt,version:2},character:null,handover:{relationshipId:guardianProof.relationshipId,identityVerified:true}}}));
   try{await assert.rejects(()=>tosReceptionHouseApi.checkOut(input,"stable-key"),(e:unknown)=>e instanceof ReceptionHouseError&&e.code==="UNVERIFIED_CHECKOUT");}
   finally{spy.mock.restore();}
+});
+
+test("PAP-2431 rejects legacy checkout receipt without confirmed handover",async()=>{
+ const input={centerId:"center-1",studentProfileId:"student-1",expectedVisitId:"visit-1",expectedVersion:1,checkedOutAt:"2026-11-27T10:00:00Z",reason:"Guardian handover",pickupProof:guardianProof};
+ const spy=mock.method(globalThis,"fetch",async()=>Response.json({data:{visit:{id:"visit-1",centerId:input.centerId,studentProfileId:input.studentProfileId,checkedOutAt:input.checkedOutAt,version:2},character:null}}));
+ try{await assert.rejects(tosReceptionHouseApi.checkOut(input,"key"),(e:unknown)=>e instanceof ReceptionHouseError&&e.code==="UNVERIFIED_CHECKOUT");}finally{spy.mock.restore();}
 });

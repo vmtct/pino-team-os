@@ -9,6 +9,7 @@ import { OpenStudioReceptionPanel } from "./OpenStudioReceptionPanel";
 import { ReceptionHouseCheckIn } from "./ReceptionHouseCheckIn";
 import { tosReceptionHouseApi } from "@/lib/tos-reception-house-api";
 import {readReceptionWishCount} from "@/lib/tos-pls-wish-client";
+import {ReceptionHandoverPanel} from "./ReceptionHandoverPanel";
 import {TosWishRuntime,useTosWishEnabled} from "./TosWishRuntime";
 
 /** PAP-942 shell, PAP-1239 CP1 physical House check-in.
@@ -79,6 +80,11 @@ export function TosVNextReception({
     wishCandidates={day?Object.values(day.activeVisits).filter(v=>v.checkedOutAt===null).map(v=>({learnerId:v.studentProfileId,visitId:v.id})):[]}
     wishEnabled={wishEnabled}
     renderWish={(guest,visitId)=><TosWishRuntime key={visitId} centerId={centerId} learnerId={guest.id} legalName={guest.name} gender={null} onCommitted={refreshWish}/>}
+    renderHandover={(guest,close)=>{
+      const visit=day?.activeVisits[guest.id];
+      if(!visit||visit.checkedOutAt!==null)return <p role="status">Chưa xác minh được lượt đến hiện tại.</p>;
+      return <ReceptionHandoverPanel scope={{centerId,studentProfileId:guest.id,expectedVisitId:visit.id,expectedVersion:visit.version}} onDone={()=>{refresh();close();}}/>;
+    }}
     showDayList
     visitLookup={<>
       <ReceptionHouseCheckIn key={centerId} centerId={centerId} loadRecentLearners={tosReceptionHouseApi.recent} onVisitChanged={refresh} onWishCommitted={refreshWish} />
