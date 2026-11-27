@@ -2,6 +2,7 @@
 import {createRoot} from "react-dom/client";
 import {useEffect,useMemo,useState} from "react";
 import {BoStaffsViews,type StaffsView} from "@/app/bo/components/registration/BoStaffsViews";
+import {parseStaffLocalRoute,staffLocalRouteSearch,isStaffLocalTab,STAFF_LOCAL_RECORD} from "@/app/ho/staff/staff-local-route-state";
 import {hoStaffViewRows,parseHoStaffView} from "@/app/ho/staff/staff-navigation-view";
 import {localStaffReviewDefinition,verifyLocalStaffPreviewApproval} from "@/app/ho/staff/staff-access-admission";
 import {StaffAccessPresentation} from "@/app/ho/staff/StaffAccessPresentation";
@@ -35,8 +36,7 @@ const route="/ho/staff", event="pino:m1:staff:local";
 const origin=location.origin.toLowerCase();
 const params=new URLSearchParams(location.search);
 if(!["http://desktop-isrdren:8800","http://192.168.1.6:8800"].includes(origin)||location.pathname!==route||self.origin!=="null"||
-  [...params.keys()].some(k=>k!=="record")||params.getAll("record").length>1||
-  (params.has("record")&&params.get("record")!=="STAFF-MOCK-001"))throw Error("Local sandbox only");
+  !parseStaffLocalRoute(params))throw Error("Local sandbox only");
 const principal="synthetic-presentation-only";
 let state=newActivationPreview(principal);
 const personReader=activationPersonReader(()=>state.records.some(row=>row.existingPersonId===fixturePerson.id));
@@ -64,8 +64,8 @@ const queueAdapter:AuthenticatedSurfaceAdapter<ManualStaffFields>={...adapter,re
 let focus:HTMLElement|null=null,recordId:string|undefined,scroll={x:0,y:0,left:0,top:0};
 const validId=(id:string|null|undefined):id is string=>typeof id==="string"&&/^STAFF-MOCK-\d{3,}$/.test(id);
 const navigation:AdapterNavigation<ManualStaffFields>={
- read(){const selected=new URLSearchParams(location.search).get("record");const owned=history.state?.[event] as AdapterLocation<ManualStaffFields>|undefined;return {kind:validId(selected)?owned?.recordId===selected&&owned.kind==="detail"?"detail":"drawer":"table",...(validId(selected)?{recordId:selected}:{}),tab:owned?.recordId===selected?owned.tab:"overview",query:owned?.query??manualStaffQuery};},
- change(next,replace=false){if(next.kind!=="table"&&!validId(next.recordId))throw Error("Synthetic record required");const url=new URL(location.href);if(next.kind==="table")url.searchParams.delete("record");else url.searchParams.set("record",next.recordId!);history[replace?"replaceState":"pushState"]({...history.state,[event]:next},"",url.pathname+url.search);window.dispatchEvent(new Event(event));},
+ read(){const pinned=parseStaffLocalRoute(new URLSearchParams(location.search));if(!pinned)throw Error("Unknown Staff route state");const owned=history.state?.[event] as AdapterLocation<ManualStaffFields>|undefined;const ephemeral=pinned.kind==="table"&&owned&&owned.kind!=="table"&&validId(owned.recordId)&&owned.recordId!==STAFF_LOCAL_RECORD&&!!fixtureSubject(state,owned.recordId)&&isStaffLocalTab(owned.tab);return ephemeral?{...owned,query:owned.query??manualStaffQuery}:{...pinned,query:owned?.query??manualStaffQuery};},
+ change(next,replace=false){if(next.kind!=="table"&&(!validId(next.recordId)||!fixtureSubject(state,next.recordId)))throw Error("Synthetic record required");const search=staffLocalRouteSearch(next);history[replace?"replaceState":"pushState"]({...history.state,[event]:next},"",location.pathname+search);window.dispatchEvent(new Event(event));},
  subscribe(listener){window.addEventListener("popstate",listener);window.addEventListener(event,listener);return()=>{window.removeEventListener("popstate",listener);window.removeEventListener(event,listener);};},
  capture(id){recordId=id;focus=document.activeElement instanceof HTMLElement?document.activeElement:null;const table=document.getElementById("table-scroll");scroll={x:window.scrollX,y:window.scrollY,left:table?.scrollLeft??0,top:table?.scrollTop??0};},
  restore(){requestAnimationFrame(()=>{window.scrollTo(scroll.x,scroll.y);const table=document.getElementById("table-scroll");if(table){table.scrollLeft=scroll.left;table.scrollTop=scroll.top;}const el=focus?.isConnected?focus:[...document.querySelectorAll<HTMLElement>("button[data-open]")].find(n=>n.dataset.open===recordId);el?.focus({preventScroll:true});});}
