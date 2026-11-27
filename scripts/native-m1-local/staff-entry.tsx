@@ -3,6 +3,7 @@ import {createRoot} from "react-dom/client";
 import {useEffect,useMemo,useState} from "react";
 import {BoStaffsViews,type StaffsView} from "@/app/bo/components/registration/BoStaffsViews";
 import {hoStaffViewRows,parseHoStaffView} from "@/app/ho/staff/staff-navigation-view";
+import {localStaffReviewDefinition,verifyLocalStaffPreviewApproval} from "@/app/ho/staff/staff-access-admission";
 import {StaffAccessPresentation} from "@/app/ho/staff/StaffAccessPresentation";
 import type {Snapshot,RoleChoice} from "@/app/ho/staff/staff-access-presentation-model";
 import {StaffRegistrationQueue} from "@/app/ho/staff/StaffRegistrationQueue";
@@ -14,7 +15,9 @@ import {StaffManualWorkspace} from "@/app/ho/staff/StaffManualWorkspace";
 import {manualStaffDefinition,manualStaffQuery,type ManualStaffFields} from "@/app/ho/staff/manual-create-contract";
 import {readStaffPreview,staffPreviewCenter,projectStaffPreviewRow} from "@/app/ho/staff/manual-create-preview";
 import {newActivationPreview,activateFixture,createInactiveFixture,fixtureSubject} from "@/app/ho/staff/staff-activation-preview";
-import {activationPersonReader,activationRateProvider,fixturePerson} from "@/app/ho/staff/staff-activation-baseline-preview";
+import {StaffRateSample} from "@/app/ho/staff/StaffRateSample";
+import {createLocalStaffRateAction} from "@/app/ho/staff/staff-rate-local-action";
+import {activationPersonReader,fixturePerson} from "@/app/ho/staff/staff-activation-baseline-preview";
 import {TddRegistry,validateQuery,type AuthorizationContext,type ModuleSchema} from "@/lib/workspace-schema";
 import type {AuthenticatedSurfaceAdapter} from "@/lib/workspace-adapters/contracts";
 import type {AdapterNavigation,AdapterLocation} from "@/lib/workspace-adapters/navigation";
@@ -37,12 +40,12 @@ if(!["http://desktop-isrdren:8800","http://192.168.1.6:8800"].includes(origin)||
 const principal="synthetic-presentation-only";
 let state=newActivationPreview(principal);
 const personReader=activationPersonReader(()=>state.records.some(row=>row.existingPersonId===fixturePerson.id));
-const rateProvider=activationRateProvider(principal,id=>!!fixtureSubject(state,id));
+const rateAction=createLocalStaffRateAction(id=>!!fixtureSubject(state,id));
 // This value is a display filter for synthetic rows only. No authenticated session or
 // transport is created and the value cannot leave this sandbox or grant live access.
 const context:AuthorizationContext=Object.freeze({surface:"HO",authorize:(permission:string)=>permission===manualStaffDefinition.capabilities.read||permission==="staff.compensation.manage"});
-const registry=new TddRegistry();
-const schema:ModuleSchema<ManualStaffFields>=registry.register({...manualStaffDefinition,detail:{...manualStaffDefinition.detail,overview:{sections:manualStaffDefinition.detail.overview.sections.map(s=>s.id==="staff-info"?{...s,fields:s.fields.filter(k=>k!=="center"&&k!=="status"&&k!=="role"&&k!=="loginEmail")}:s)}},data:{id:"local-synthetic-presentation",list:async(query,_context,signal)=>{
+const registry=new TddRegistry(verifyLocalStaffPreviewApproval);
+const schema:ModuleSchema<ManualStaffFields>=registry.register({...localStaffReviewDefinition,detail:{...localStaffReviewDefinition.detail,overview:{sections:manualStaffDefinition.detail.overview.sections.map(s=>s.id==="staff-info"?{...s,fields:s.fields.filter(k=>k!=="role"&&k!=="loginEmail")}:s)}},data:{id:"local-synthetic-presentation",list:async(query,_context,signal)=>{
   signal.throwIfAborted();validateQuery(schema,query,context);return {rows:state.records.map(projectStaffPreviewRow),total:state.records.length};
 },detail:async(id,_context,signal)=>{signal.throwIfAborted();const row=readStaffPreview(state,id);return row?projectStaffPreviewRow(row):null;}}});
 const adapter:AuthenticatedSurfaceAdapter<ManualStaffFields>={
@@ -86,6 +89,6 @@ function StaffLocalContent(){
  const select=(next:StaffsView)=>{if(next===view)return;history.pushState({...history.state,staffDirectoryView:next,[event]:{kind:"table",tab:"overview",query:manualStaffQuery},[queueEvent]:{kind:"table",tab:"overview",query:registrationQueueQuery}},"",location.pathname);setView(next);};
  const tabs=<div data-ho-staff-views><BoStaffsViews selected={view} onSelect={select}/></div>;
  const directory=useMemo<AuthenticatedSurfaceAdapter<ManualStaffFields>>(()=>({...adapter,list:async(q,s)=>{const result=await adapter.list(q,s);const rows=hoStaffViewRows(result.rows,view);return {...result,rows,total:rows.length};}}),[view]);
- return view==="register"?<StaffRegistrationQueue adapter={queueAdapter} fixture={registration.fixture} centerLabel={staffPreviewCenter.label} onBack={()=>select("all")} tableHeaderActions={tabs} navigation={queueNavigation} newKey={newDecisionKey} finalize={registration.finalize} reject={registration.fixture.reject}/>:<StaffManualWorkspace key={view} adapter={directory} navigation={navigation} centers={[staffPreviewCenter]} allowLogin={false} personReader={personReader} tableHeaderActions={tabs} detailSlots={{businessForms:[rateProvider],detailOverview:row=>{const snapshot=accessSnapshot(row.id);return snapshot?<StaffAccessPresentation snapshot={snapshot} centers={accessCenters} roles={accessRoles} loginEmail={typeof row.loginEmail==="string"?row.loginEmail:null}/>:null;}}} onCreate={async command=>{state=createInactiveFixture(state,command);}} activation={{subject:id=>fixtureSubject(state,id),activate:async request=>{const next=activateFixture(state,request);state=next.state;return next.result;}}}/>;
+ return view==="register"?<StaffRegistrationQueue adapter={queueAdapter} fixture={registration.fixture} centerLabel={staffPreviewCenter.label} onBack={()=>select("all")} tableHeaderActions={tabs} navigation={queueNavigation} newKey={newDecisionKey} finalize={registration.finalize} reject={registration.fixture.reject}/>:<StaffManualWorkspace key={view} adapter={directory} navigation={navigation} centers={[staffPreviewCenter]} allowLogin={false} personReader={personReader} tableHeaderActions={tabs} detailSlots={{detailApprovedExtension:(row,context,tab)=>{if(tab==="staff-rate")return <StaffRateSample key={row.id} recordId={row.id} context={context} action={rateAction}/>;if(tab!=="access")return null;const snapshot=accessSnapshot(row.id);return snapshot?<StaffAccessPresentation key={snapshot.staffId+":"+snapshot.revision} snapshot={snapshot} centers={accessCenters} roles={accessRoles} loginEmail={typeof row.loginEmail==="string"?row.loginEmail:null}/>:null;}}} onCreate={async command=>{state=createInactiveFixture(state,command);}} activation={{subject:id=>fixtureSubject(state,id),activate:async request=>{const next=activateFixture(state,request);state=next.state;return next.result;}}}/>;
 }
 createRoot(document.getElementById("root")!).render(<BoRegistrationWorkspace source={source} moduleKey="staffs" currentUser={{displayName:"M1 · Dữ liệu mẫu"}} content={<TddPreferencePolicy.Provider value="ephemeral"><StaffLocalContent/></TddPreferencePolicy.Provider>}/>);

@@ -589,3 +589,21 @@ for (const surface of ["BO", "HO"] as const) {
   assert.equal(presentations, 1);
  });
 }
+// PAP-1247 / PAP-784: a registered extension must not swallow sibling native tabs.
+test("PAP-1247 approved extension coexists with authorized native form and denies unauthorized sibling",()=>{
+ const base=fixture("HO");
+ const registry=new TddRegistry((approval,scope)=>approval.jira==="PAP-784"&&scope.extensionId==="staff-access-test");
+ const schema=registry.register({...base.schema,detail:{...base.schema.detail,businessTabs:[
+  {id:"access",label:"Access",kind:"approved-extension",extensionId:"staff-access-test",source:{adapter:"fixture",permission:"fixture.access"},approval:{jira:"PAP-784",owner:"WFM-STAFF",designAuthority:"Founder",files:["lib/workspace-renderer.test.ts"],tests:["lib/workspace-renderer.test.ts"],reviewBy:"2026-12-01"}},
+  {id:"rate",label:"Rate",kind:"form",source:{adapter:"fixture-rate",permission:"fixture.rate"},submitPermission:"fixture.rate.write",fields:["amount"]}
+ ]}});
+ const props={...base,registry,schema,onBack:noop,subject:{type:"fixture",id:base.record.id},renderApprovedExtension:()=>h("span",{"data-staff-access-test":true},"Access sample")};
+ const allowed=html(h(TddDetail,{...props,activeTab:"rate"}));
+ assert.match(allowed,/class="v24-audit-empty"/);
+ assert.match(allowed,/<div hidden=""><span data-staff-access-test="true">/);
+ const denied=html(h(TddDetail,{...props,activeTab:"rate",context:{...base.context,authorize:p=>p!=="fixture.rate"}}));
+ assert.doesNotMatch(denied,/class="v24-audit-empty"|>Rate<\/button>/);
+ const extension=html(h(TddDetail,{...props,activeTab:"access"}));
+ assert.match(extension,/<div><span data-staff-access-test="true">/);
+ assert.doesNotMatch(extension,/class="v24-audit-empty"/);
+});
