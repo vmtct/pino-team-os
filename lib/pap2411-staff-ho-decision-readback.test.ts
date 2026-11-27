@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {createStaffDossierM1Fixture} from "../app/bo/workforce/staffs/staff-dossier-m1-fixture";
 import {projectStaffHoDecision,type StaffHoDecisionReadback} from "../app/bo/workforce/staffs/staff-ho-decision-readback";
-import {STAFF_DIRECTORY_MOCK_ID as id} from "../app/bo/workforce/staffs/staff-directory-m1-fixture";
+import {STAFF_DOSSIER_MOCK_ID as id} from "../app/bo/workforce/staffs/staff-registration-m1-service";
 const setup=async()=>{const f=createStaffDossierM1Fixture(),bo=await f.dossierReview.submit!(id,1,f.dossierReview.centerId,"BO-review");const [row]=await f.dossierReview.list!();const approval={kind:"approved",receipt:{registrationRequestId:id,status:"APPROVED",reviewedVersion:1,personId:"HO-PERSON-MOCK-001",staffId:"HO-STAFF-MOCK-001",userId:"HO-USER-MOCK-001",roleId:"STAFF-MOCK-ROLE",scopeType:"CENTER",scopeId:bo.centerId,employmentStatus:"inactive",operationalReadiness:"unverified",fixture:true}} as const;return {f,bo,row,approval};};
 test("PAP-2411 BO readback projects only the confirmed HO result and Staff link",async()=>{
  const {f,bo,row,approval}=await setup();

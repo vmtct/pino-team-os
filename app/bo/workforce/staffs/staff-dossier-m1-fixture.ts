@@ -1,10 +1,9 @@
-import {createStaffRegistrationM1Service} from "./staff-registration-m1-service";
+import {createStaffRegistrationM1Service,STAFF_DOSSIER_MOCK_ID} from "./staff-registration-m1-service";
 import {projectStaffHoDecision,type StaffHoDecisionReadback} from "./staff-ho-decision-readback";
-import {STAFF_DIRECTORY_MOCK_ID} from "./staff-directory-m1-fixture";
 import type {StaffDossierReviewPort,StaffDossierReviewReceipt,StaffDossierReviewRow} from "./staff-dossier-review";
 /** PAP-2411: BO reviews documents only; HO finalization is not emulated as an Access grant. */
 export function createStaffDossierM1Fixture({completeDocuments=true,readHoDecision}:{completeDocuments?:boolean;readHoDecision?:(receipt:StaffDossierReviewReceipt)=>Promise<StaffHoDecisionReadback|null>}={}){
- const base=createStaffRegistrationM1Service({completeDocuments});
+ const base=createStaffRegistrationM1Service({completeDocuments,dossierOnly:true});
  const centerId="STAFF-MOCK-CENTER";
  let reviewed:StaffDossierReviewReceipt|null=null,terminalRow:StaffDossierReviewRow|null=null,busy=false;
  const receipts=new Map<string,{fingerprint:string;receipt:StaffDossierReviewReceipt}>();
@@ -12,7 +11,7 @@ export function createStaffDossierM1Fixture({completeDocuments=true,readHoDecisi
   const fingerprint=JSON.stringify([id,version,center]);
   const prior=receipts.get(key);
   if(prior){if(prior.fingerprint!==fingerprint)throw Error("Conflicting fixture receipt");return structuredClone(prior.receipt);}
-  if(busy||terminalRow||id!==STAFF_DIRECTORY_MOCK_ID||center!==centerId||!key.trim())throw Error("Invalid dossier review");
+  if(busy||terminalRow||id!==STAFF_DOSSIER_MOCK_ID||center!==centerId||!key.trim())throw Error("Invalid dossier review");
   busy=true;
   try {
    const row=(await base.staffRegistrationRequests()).find(r=>r.id===id);

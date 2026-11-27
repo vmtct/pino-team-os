@@ -2,13 +2,14 @@ import type {StaffRegistrationReviewService} from "../../staff/StaffRegistration
 import type {StaffRegistrationIntakeService} from "../../staff/StaffRegistrationIntakeToggle";
 import type {BoStaffRegistrationRequest,BoStaffRegistrationApprovalResult} from "@/lib/bo-model";
 import {STAFF_DIRECTORY_MOCK_ID} from "./staff-directory-m1-fixture";
+export const STAFF_DOSSIER_MOCK_ID="STAFF-DOSSIER-MOCK-001";
 /** Local fixture keys are per-instance and never used by live commands. */
 export function createStaffM1KeyFactory(){let sequence=0;return ()=>"M1-STAFF-REVIEW-"+(++sequence);}
 /** PAP-2411 local synthetic service: no network, storage, authentication or real account provisioning. */
-export function createStaffRegistrationM1Service({completeDocuments=true,existingAccess="none"}:{completeDocuments?:boolean;existingAccess?:"none"|"unlinked"|"linked"}={}):StaffRegistrationReviewService&StaffRegistrationIntakeService {
+export function createStaffRegistrationM1Service({completeDocuments=true,existingAccess="none",dossierOnly=false}:{completeDocuments?:boolean;existingAccess?:"none"|"unlinked"|"linked";dossierOnly?:boolean}={}):StaffRegistrationReviewService&StaffRegistrationIntakeService {
   const centerId="STAFF-MOCK-CENTER",roleId="STAFF-MOCK-ROLE",learnerId="STAFF-MOCK-LEARNER",existingStaffId="STAFF-MOCK-EXISTING",existingUserId="M1-EXISTING-ACCESS";
   const submittedAt="2026-11-26T08:00:00.000Z";
-  const seed:BoStaffRegistrationRequest={id:STAFF_DIRECTORY_MOCK_ID,status:"PENDING",displayLabel:"Nh\u00e2n s\u1ef1 m\u1eabu PINO",email:"staff@example.invalid",mobile:null,governmentIdLast4:"0000",bankAccountLast4:"0000",documents:{front:completeDocuments,back:completeDocuments},submittedAt,version:1};
+  const seed:BoStaffRegistrationRequest={id:dossierOnly?STAFF_DOSSIER_MOCK_ID:STAFF_DIRECTORY_MOCK_ID,status:"PENDING",displayLabel:dossierOnly?"Ứng viên mẫu PINO":"Nh\u00e2n s\u1ef1 m\u1eabu PINO",email:dossierOnly?"applicant@example.invalid":"staff@example.invalid",mobile:null,governmentIdLast4:"0000",bankAccountLast4:"0000",documents:{front:completeDocuments,back:completeDocuments},submittedAt,version:1};
   let pending=true,enabled=true,version=1;
   const receipts=new Map<string,{fingerprint:string;receipt:BoStaffRegistrationApprovalResult|{registrationRequestId:string;status:"REJECTED"}}>();
   const state=()=>({enabled,updatedAt:submittedAt,updatedByUserId:null,version});
@@ -22,7 +23,7 @@ export function createStaffRegistrationM1Service({completeDocuments=true,existin
       const fingerprint=JSON.stringify([id,assignments,identity,existing??null]);
       const prior=receipts.get(key);
       if(prior){if(prior.fingerprint!==fingerprint||prior.receipt.status!=="APPROVED")throw Error("Fixture receipt conflict");return structuredClone(prior.receipt);}
-      if(!pending||id!==seed.id||!seed.documents.front||!seed.documents.back||(existingAccess==="linked"||(existingAccess==="unlinked"?existing!==existingStaffId:existing!==undefined))||!(identity.mode==="CREATE_STAFF_ONLY_PERSON"||(identity.mode==="LINK_EXISTING_STUDENT"&&identity.studentProfileId===learnerId))||!assignments.length||assignments.some(a=>a.roleId!==roleId||!((a.scopeType==="GLOBAL"&&a.scopeId===null)||(a.scopeType==="CENTER"&&a.scopeId===centerId))))throw Error("Invalid fixture review");
+      if(dossierOnly||!pending||id!==seed.id||!seed.documents.front||!seed.documents.back||(existingAccess==="linked"||(existingAccess==="unlinked"?existing!==existingStaffId:existing!==undefined))||!(identity.mode==="CREATE_STAFF_ONLY_PERSON"||(identity.mode==="LINK_EXISTING_STUDENT"&&identity.studentProfileId===learnerId))||!assignments.length||assignments.some(a=>a.roleId!==roleId||!((a.scopeType==="GLOBAL"&&a.scopeId===null)||(a.scopeType==="CENTER"&&a.scopeId===centerId))))throw Error("Invalid fixture review");
       const receipt:BoStaffRegistrationApprovalResult={registrationRequestId:id,status:"APPROVED",staffMemberId:existingAccess==="unlinked"?existingStaffId:STAFF_DIRECTORY_MOCK_ID,userId:existingAccess==="unlinked"?existingUserId:"M1-NOT-A-REAL-ACCOUNT",assignmentIds:[],accessState:existingAccess==="unlinked"?"LINKED_EXISTING_ACCESS":"PROVISIONED_PASSWORD_READY",authenticationMethod:existingAccess==="unlinked"?"EXISTING_ACCESS":"LOCAL_PASSWORD"};
       pending=false;receipts.set(key,{fingerprint,receipt});return structuredClone(receipt);
     },
