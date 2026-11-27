@@ -8,6 +8,17 @@ export type ReceptionLearner = {
   hasCharacter: boolean;
   openVisit: ReceptionOpenVisit | null;
 };
+export type ReceptionHouseCheckOutInput = {
+  centerId: string;
+  studentProfileId: string;
+  expectedVersion: number;
+  checkedOutAt: string;
+  reason: string;
+};
+export type ReceptionHouseCheckOut = {
+  visit: ReceptionOpenVisit & { studentProfileId: string; centerId: string; checkedOutAt: string };
+  character: { id: string } | null;
+};
 export type ReceptionHouseCheckIn = {
   visit: ReceptionOpenVisit & { studentProfileId: string; centerId: string };
   character: { id: string } | null;
@@ -51,6 +62,28 @@ export const tosReceptionHouseApi = {
       `/api/tos-learning/pinoria/learners/search?centerId=${encodeURIComponent(centerId)}&query=${encodeURIComponent(term)}`,
       { signal },
     );
+  },
+  // PAP-2431: transport only. The calling UI must first establish authorized pickup.
+  checkOut: (input: ReceptionHouseCheckOutInput, idempotencyKey: string) => {
+    if (!input.centerId || !input.studentProfileId || !idempotencyKey.trim() ||
+      !Number.isSafeInteger(input.expectedVersion) || input.expectedVersion < 1 ||
+      !input.reason.trim() || !Number.isFinite(Date.parse(input.checkedOutAt))) {
+      throw new ReceptionHouseError(400, "INVALID_INPUT", "Invalid checkout scope or evidence.");
+    }
+    return fromCore<ReceptionHouseCheckOut>("/api/tos-learning/pinoria/house/check-out", {
+      method: "POST",
+      headers: { "idempotency-key": idempotencyKey },
+      body: JSON.stringify(input),
+    }).then(result => {
+      const visit = result?.visit;
+      if (!visit || visit.studentProfileId !== input.studentProfileId ||
+          visit.centerId !== input.centerId || !visit.id ||
+          !Number.isSafeInteger(visit.version) || visit.version <= input.expectedVersion ||
+          !Number.isFinite(Date.parse(visit.checkedOutAt))) {
+        throw new ReceptionHouseError(502, "UNVERIFIED_CHECKOUT", "Checkout result could not be verified.");
+      }
+      return result;
+    });
   },
   checkIn: (input: { centerId: string; studentProfileId: string; checkedInAt: string }, idempotencyKey: string) => {
     if (!input.centerId || !input.studentProfileId || !idempotencyKey) {
