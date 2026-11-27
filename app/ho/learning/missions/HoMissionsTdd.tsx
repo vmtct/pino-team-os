@@ -45,7 +45,7 @@ const liveBoundary: MissionBoundary = {
   load:(id,signal)=>loadMissionForEdit(id,fetch,signal), paths:signal=>loadMissionPathChoices(fetch,signal),
   submit:(command,signal)=>submitHoMission(command,fetch,signal), key:prefix=>prefix+crypto.randomUUID(),
 };
-/** PAP-2394: unmounted integrated boundary; server route stays M1 until Core serving and M3 admission. */
+/** PAP-2394: integrated boundary for the canonical authenticated Staging route. */
 export const integratedMissionBoundary: MissionBoundary = {
   ...liveBoundary, integratedMetadata:true,query:missionCategoryQuery,
   async open(signal) {
@@ -304,7 +304,7 @@ export function HoMissionsContent({boundary=liveBoundary}:{boundary?:MissionBoun
   return content;
 }
 export function HoMissionsTdd() {
-  return <HoWorkspace module="missions" content={<HoMissionsContent/>} />;
+  return <HoWorkspace module="missions" content={<HoMissionsContent boundary={integratedMissionBoundary}/>} />;
 }
 /** PAP-2394: server-admitted Staging shell; same renderer as approved local M1-A. */
 export function HoMissionsTddPreview({scopeKey,permissionKeys,initialRecord}:{scopeKey:string;permissionKeys:readonly string[];initialRecord?:string}) {
