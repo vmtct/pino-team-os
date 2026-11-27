@@ -66,7 +66,7 @@ test("PAP-2394 all nine inline fields validate and read back; protected fields s
 });
 
 test("PAP-2394 M1-B canonical query and actual admitted actor boundary",async()=>{
- const {parseMissionM1Query,hasMissionM1Permissions,MISSION_M1_READ,MISSION_M1_EDIT}=await import("../app/ho/learning/missions/mission-m1-query");
+ const {parseMissionM1Query,hasMissionM1Permissions,MISSION_M1_READ,MISSION_M1_EDIT}=await import("../app/ho/learning/missions/mission-local-query");
  assert.deepEqual(parseMissionM1Query(new URLSearchParams()),{});
  assert.deepEqual(parseMissionM1Query(new URLSearchParams("record=MISSION-MOCK-001")),{record:MISSION_M1_ID});
  for(const query of ["m1Preview=1","record=real-id","record=","record=MISSION-MOCK-001&record=MISSION-MOCK-001","tab=history"])assert.equal(parseMissionM1Query(new URLSearchParams(query)),null);
@@ -116,4 +116,15 @@ test("PAP-2394 M3 accepts canonical real record links only and mounts the integr
  assert.match(page,/!actor\.entitled\|\|!hasMissionM1Permissions\(actor\.permissionKeys\)/);
  assert.doesNotMatch(page,/HoMissionsTddPreview|decideM1Preview/);
  assert.match(ui,/<HoMissionsContent boundary=\{integratedMissionBoundary\}/);
+});
+
+
+test("PAP-2394 M4 native Mission entry cannot import local seed or selector",async()=>{
+ const {build}=await import("esbuild");
+ const result=await build({entryPoints:["app/ho/learning/missions/HoMissionsTdd.tsx","app/ho/learning/missions/mission-m1-query.ts"],bundle:true,write:false,metafile:true,packages:"external",platform:"browser",loader:{".css":"empty"},outdir:"pap2394-native-graph",logLevel:"silent"});
+ const inputs=Object.keys(result.metafile?.inputs??{}).map(p=>p.replaceAll("\\","/"));
+ assert.ok(inputs.some(p=>p.endsWith("/HoMissionsTdd.tsx")));
+ assert.ok(inputs.some(p=>p.endsWith("/mission-m1-query.ts")));
+ assert.ok(!inputs.some(p=>/\/mission-(m1-boundary|local-query)\.ts$/.test(p)));
+ assert.ok(!result.outputFiles.some(file=>file.text.includes("MISSION-MOCK-001")));
 });
