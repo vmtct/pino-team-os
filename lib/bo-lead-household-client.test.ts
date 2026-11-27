@@ -52,3 +52,19 @@ test("PAP-2288 exact child receipt identity and nullable primary are enforced",a
  await assert.rejects(fixture({data:{leadId:id,version:3,relationshipId:other}}).api.confirmRelation(id,id,2,key),LeadApiError);
  assert.equal((await fixture({data:{leadId:id,version:3,relationshipId:id}}).api.retireRelation(id,id,2,key)).relationshipId,id);
 });
+
+test("PAP-2424 website metadata is typed, backward compatible and rejects malformed fields",async()=>{
+ const metadata={schemaVersion:1,contactName:"Synthetic QA",interest:{program:"MYTIME",activity:"piano",favoriteRef:"retired-catalog-entry"},consent:{version:"qa-v1",acceptedAt:"2026-11-27T06:00:00.000Z"}};
+ const page=(items:unknown[])=>({data:{items,hasMore:false,nextCursor:null}});
+ const row={id,websiteSubmittedName:"Synthetic QA",websiteProgram:"MYTIME"};
+ assert.equal((await fixture(page([row])).api.search()).items[0]?.websiteProgram,"MYTIME");
+ await assert.rejects(fixture(page([{...row,websiteProgram:"UNKNOWN"}])).api.search(),LeadApiError);
+ const detail={id,version:1,members:[],relationships:[],intents:[{id,websiteInterest:metadata}],intentHistoryHasMore:false};
+ assert.equal((await fixture({data:detail}).api.detail(id)).intents[0]?.websiteInterest?.contactName,"Synthetic QA");
+ assert.deepEqual((await fixture(page([{id,websiteInterest:null},{id}])).api.history(id)).items.map(i=>i.websiteInterest),[null,undefined]);
+ for(const bad of [{...metadata,interest:{program:"MYTIME",activity:["piano"],favoriteRef:null}},{...metadata,contactName:"界".repeat(101)},{...metadata,schemaVersion:2},{...metadata,phone:"0900000000"},{...metadata,interest:{program:"MYTIME",activity:"advice",favoriteRef:"retired"}},{...metadata,consent:{version:"qa-v1",acceptedAt:"invalid"}}]){
+   await assert.rejects(fixture(page([{id,websiteInterest:bad}])).api.history(id),LeadApiError);
+   await assert.rejects(fixture({data:{...detail,intents:[{id,websiteInterest:bad}]}}).api.detail(id),LeadApiError);
+ }
+ await assert.rejects(fixture(page([{id,websiteInterestRaw:"{}"}])).api.history(id),LeadApiError);
+});
