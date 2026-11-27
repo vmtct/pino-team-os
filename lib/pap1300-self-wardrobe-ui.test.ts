@@ -9,9 +9,9 @@ const ui = readFileSync(new URL("../app/bo/pinoria-avatars/SelfWardrobeDetail.ts
 const admission = JSON.parse(readFileSync(new URL("../config/tdd-admission.json", import.meta.url), "utf8"));
 const route = readFileSync(new URL("../app/api/bo/[...path]/route.ts", import.meta.url), "utf8");
 
-test("PAP-1300 + PAP-1356 TDD composes Tổng quan → Tủ đồ → Loadout → Lịch sử", () => {
+test("PAP-1300 + PAP-1356 TDD composes Tổng quan → Tủ đồ → Loadout → World → Lịch sử", () => {
   assert.deepEqual(composeTabs(selfSchema).map(tab => [tab.id, tab.label]), [
-    ["overview", "Tổng quan"], ["wardrobe", "Tủ đồ"], ["loadout", "Loadout"], ["history", "Lịch sử"],
+    ["overview", "Tổng quan"], ["wardrobe", "Tủ đồ"], ["loadout", "Loadout"], ["world", "World"], ["history", "Lịch sử"],
   ]);
   const approved = selfSchema.detail.businessTabs[0];
   assert.equal(approved?.kind, "approved-extension");
