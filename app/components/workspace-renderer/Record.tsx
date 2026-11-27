@@ -10,6 +10,7 @@ import { BusinessFormPanel, BusinessPanel, type BusinessFormBinding, type SlotLo
 import { recordProjection, renderScope } from "./projection";
 import { DirectPropertyEditor, PropertyEditor, type TddWrites } from "./Editor";
 import { latestRequest } from "./resource";
+import {missionPresentationSelection,type MissionMetadataPresentation} from "@/app/ho/learning/missions/mission-inline-presentation";
 import {rolePresentationSelection,type RoleMetadataPresentation} from "@/lib/workspace-adapters/ho-inline-command-contract";
 
 /** PAP-1478: default live BO/HO browser preference, opt-out for in-memory exemplars. */
@@ -30,12 +31,12 @@ export function RecordState({ status, onRetry }: { readonly status: string; read
   return status === "error" ? <div role="alert">Không thể tải chi tiết. {onRetry ? <button type="button" onClick={onRetry}>Thử lại</button> : null}</div>
     : <p role="status">{status === "loading" ? "Đang tải chi tiết…" : status === "not-found" ? "Không tìm thấy bản ghi." : "Không có quyền xem bản ghi."}</p>;
 }
-type DrawerOptions<F extends readonly FieldSchema[]> = { readonly headerActions?: ReactNode; readonly onClose: () => void; readonly onDetail: () => void; readonly writes?: TddWrites<F>; readonly roleMetadata?:RoleMetadataPresentation; readonly roleVersion?:string; readonly onRoleSaved?:()=>void; readonly actions?: Readonly<Record<string, (record: BoRecord, context: AuthorizationContext, signal: AbortSignal) => Promise<void>>> };
+type DrawerOptions<F extends readonly FieldSchema[]> = { readonly headerActions?: ReactNode; readonly onClose: () => void; readonly onDetail: () => void; readonly writes?: TddWrites<F>; readonly missionMetadata?:MissionMetadataPresentation; readonly missionVersion?:string; readonly onMissionSaved?:()=>void; readonly roleMetadata?:RoleMetadataPresentation; readonly roleVersion?:string; readonly onRoleSaved?:()=>void; readonly actions?: Readonly<Record<string, (record: BoRecord, context: AuthorizationContext, signal: AbortSignal) => Promise<void>>> };
 export function TddDrawer<F extends readonly FieldSchema[]>(props: TddRecordProps<F> & DrawerOptions<F>) {
   const schema = registeredSchema(props.registry, props.schema);
   return <DrawerRecord key={renderScope(schema, props.context, props.record.id)} {...props} />;
 }
-function DrawerRecord<F extends readonly FieldSchema[]>({ registry, schema: input, context, record, status = "ready", onRetry, onClose, onDetail, writes, actions, headerActions, roleMetadata, roleVersion, onRoleSaved }: TddRecordProps<F> & DrawerOptions<F>) {
+function DrawerRecord<F extends readonly FieldSchema[]>({ registry, schema: input, context, record, status = "ready", onRetry, onClose, onDetail, writes, actions, headerActions, roleMetadata, roleVersion, onRoleSaved, missionMetadata, missionVersion, onMissionSaved }: TddRecordProps<F> & DrawerOptions<F>) {
   const schema = registeredSchema(registry, input);
   const [edit, setEdit] = useState<{ field: BoField; anchor: HTMLElement } | null>(null);
   const [roleEdit,setRoleEdit]=useState<{field:string;version:string;anchor:HTMLElement}|null>(null);
@@ -45,36 +46,45 @@ function DrawerRecord<F extends readonly FieldSchema[]>({ registry, schema: inpu
   const projection = status === "ready" ? recordProjection(schema, context, record) : null;
   const roleSelection=(field:string)=>projection?rolePresentationSelection(schema,context,roleMetadata,"drawer",record,roleVersion,field,Boolean(writes)):null;
   const roleCurrent=roleEdit?roleSelection(roleEdit.field):null;
+  const missionSelection=(field:string)=>projection&&!roleMetadata?missionPresentationSelection(schema,context,missionMetadata,"drawer",record,missionVersion,field,Boolean(writes)):null;
+  const missionCurrent=roleEdit?missionSelection(roleEdit.field):null;
   return <><DrawerFrame path={allows(schema, context, "read") ? schema.label : ""} title={projection?.title ?? "Chi tiết"} onClose={onClose} headerActions={projection ? headerActions : null}
     footer={<><button type="button" id="full-detail" className="primary-btn" disabled={!projection} onClick={onDetail}>↗ Full Detail</button>{projection ? schema.drawer.actions.filter(a => allows(schema, context, a.capability) && actions?.[a.id]).map(action => <button type="button" className="secondary-btn" key={action.id} disabled={actionState === "pending"} onClick={() => {
       if (!allows(schema, context, action.capability)) return;
       setActionState("pending"); void request.current.run(signal => actions![action.id](projection.record, context, signal), () => setActionState(""), () => setActionState("error"));
     }}>{action.label}</button>) : null}</>}>
     {projection ? <PropertySections variant="drawer" fields={projection.fields} record={projection.record} sections={schema.drawer.sections}
-      canEdit={field => (Boolean(writes?.version.trim()) && allowsField(schema, context, field.key, "inlineEdit")) || Boolean(roleSelection(field.key))} directControl={field=>writes?.directFields?.includes(field.key)&&["text","currency","number","select","boolean"].includes(field.type)?<DirectPropertyEditor schema={input} context={context} record={record} writes={writes} field={field}/>:undefined} onEdit={writes ? (field, anchor) => setEdit({ field, anchor }) : roleMetadata?(field,anchor)=>{const selection=roleSelection(field.key);if(selection)setRoleEdit({field:selection.field,version:selection.expectedVersion,anchor});}:undefined} /> : <RecordState status={allows(schema, context, "read") ? status === "ready" ? "denied" : status : "denied"} onRetry={onRetry} />}
+      canEdit={field => (Boolean(writes?.version.trim()) && allowsField(schema, context, field.key, "inlineEdit")) || Boolean(roleSelection(field.key)||missionSelection(field.key))} directControl={field=>writes?.directFields?.includes(field.key)&&["text","currency","number","select","boolean"].includes(field.type)?<DirectPropertyEditor schema={input} context={context} record={record} writes={writes} field={field}/>:undefined} onEdit={writes ? (field, anchor) => setEdit({ field, anchor }) : (roleMetadata||missionMetadata)?(field,anchor)=>{const selection=roleSelection(field.key)||missionSelection(field.key);if(selection)setRoleEdit({field:selection.field,version:selection.expectedVersion,anchor});}:undefined} /> : <RecordState status={allows(schema, context, "read") ? status === "ready" ? "denied" : status : "denied"} onRetry={onRetry} />}
     {actionState === "error" ? <p role="alert">Không thể thực hiện thao tác. Thử lại sau.</p> : actionState === "pending" ? <p role="status">Đang thực hiện…</p> : null}
-  </DrawerFrame>{roleEdit&&roleCurrent&&roleCurrent.expectedVersion===roleEdit.version&&roleMetadata&&onRoleSaved?roleMetadata.render({host:"drawer",row:record,version:roleEdit.version,field:roleEdit.field,anchor:roleEdit.anchor,onClose:()=>setRoleEdit(null),onSaved:onRoleSaved}):null}{edit && writes && projection ? <PropertyEditor schema={input} context={context} record={record} writes={writes} selection={edit} onClose={() => setEdit(null)} /> : null}</>;
+  </DrawerFrame>{roleEdit&&roleCurrent&&roleCurrent.expectedVersion===roleEdit.version&&roleMetadata&&onRoleSaved?roleMetadata.render({host:"drawer",row:record,version:roleEdit.version,field:roleEdit.field,anchor:roleEdit.anchor,onClose:()=>setRoleEdit(null),onSaved:onRoleSaved}):null}{roleEdit&&missionCurrent&&missionCurrent.expectedVersion===roleEdit.version&&missionMetadata&&onMissionSaved?missionMetadata.render({host:"drawer",row:record,version:roleEdit.version,field:missionCurrent.field,anchor:roleEdit.anchor,onClose:()=>setRoleEdit(null),onSaved:onMissionSaved}):null}{edit && writes && projection ? <PropertyEditor schema={input} context={context} record={record} writes={writes} selection={edit} onClose={() => setEdit(null)} /> : null}</>;
 }
-export function TddDetail<F extends readonly FieldSchema[]>(props: TddRecordProps<F> & { readonly writes?: TddWrites<F>; readonly onBack: () => void; readonly subject: HistorySubject; readonly headerActions?: ReactNode; readonly renderActionSlot?: (slot: "overview.section" | "businessTab.toolbar", targetId: string) => ReactNode; readonly mobileMenu?: ReactNode; readonly loaders?: SlotLoaders; readonly businessForms?: BusinessFormBinding; readonly overviewAfter?: ReactNode; readonly historyContent?: ReactNode; readonly renderOverviewProperties?: (properties: OverviewProperties) => ReactNode; readonly renderApprovedExtension?: (record: BoRecord, context: AuthorizationContext, activeTab: string) => ReactNode; readonly activeTab?: string; readonly onTabChange?: (id: string) => void; readonly returnFocus?: () => HTMLElement | null }) {
+export function TddDetail<F extends readonly FieldSchema[]>(props: TddRecordProps<F> & { readonly missionMetadata?:MissionMetadataPresentation; readonly missionVersion?:string; readonly onMissionSaved?:()=>void; readonly writes?: TddWrites<F>; readonly onBack: () => void; readonly subject: HistorySubject; readonly headerActions?: ReactNode; readonly renderActionSlot?: (slot: "overview.section" | "businessTab.toolbar", targetId: string) => ReactNode; readonly mobileMenu?: ReactNode; readonly loaders?: SlotLoaders; readonly businessForms?: BusinessFormBinding; readonly overviewAfter?: ReactNode; readonly historyContent?: ReactNode; readonly renderOverviewProperties?: (properties: OverviewProperties) => ReactNode; readonly renderApprovedExtension?: (record: BoRecord, context: AuthorizationContext, activeTab: string) => ReactNode; readonly activeTab?: string; readonly onTabChange?: (id: string) => void; readonly returnFocus?: () => HTMLElement | null }) {
   const schema = registeredSchema(props.registry, props.schema);
   if (!allows(schema, props.context, "read")) return <RecordState status="denied" />;
   return <DetailRecord key={renderScope(schema, props.context, props.record.id)} {...props} schema={props.schema} />;
 }
-function DetailRecord<F extends readonly FieldSchema[]>({ schema, context, record, status = "ready", onRetry, onBack, subject, writes, headerActions, renderActionSlot, mobileMenu, loaders, businessForms, overviewAfter, historyContent, renderOverviewProperties, renderApprovedExtension, activeTab, onTabChange, returnFocus }: Omit<TddRecordProps<F>, "registry"> & { readonly writes?: TddWrites<F>; readonly onBack: () => void; readonly subject: HistorySubject; readonly headerActions?: ReactNode; readonly renderActionSlot?: (slot: "overview.section" | "businessTab.toolbar", targetId: string) => ReactNode; readonly mobileMenu?: ReactNode; readonly loaders?: SlotLoaders; readonly businessForms?: BusinessFormBinding; readonly overviewAfter?: ReactNode; readonly historyContent?: ReactNode; readonly renderOverviewProperties?: (properties: OverviewProperties) => ReactNode; readonly renderApprovedExtension?: (record: BoRecord, context: AuthorizationContext, activeTab: string) => ReactNode; readonly activeTab?: string; readonly onTabChange?: (id: string) => void; readonly returnFocus?: () => HTMLElement | null }) {
+function DetailRecord<F extends readonly FieldSchema[]>({ schema, context, record, status = "ready", onRetry, onBack, subject, writes, headerActions, renderActionSlot, mobileMenu, loaders, businessForms, overviewAfter, historyContent, renderOverviewProperties, renderApprovedExtension, activeTab, onTabChange, returnFocus, missionMetadata, missionVersion, onMissionSaved }: Omit<TddRecordProps<F>, "registry"> & { readonly missionMetadata?:MissionMetadataPresentation; readonly missionVersion?:string; readonly onMissionSaved?:()=>void; readonly writes?: TddWrites<F>; readonly onBack: () => void; readonly subject: HistorySubject; readonly headerActions?: ReactNode; readonly renderActionSlot?: (slot: "overview.section" | "businessTab.toolbar", targetId: string) => ReactNode; readonly mobileMenu?: ReactNode; readonly loaders?: SlotLoaders; readonly businessForms?: BusinessFormBinding; readonly overviewAfter?: ReactNode; readonly historyContent?: ReactNode; readonly renderOverviewProperties?: (properties: OverviewProperties) => ReactNode; readonly renderApprovedExtension?: (record: BoRecord, context: AuthorizationContext, activeTab: string) => ReactNode; readonly activeTab?: string; readonly onTabChange?: (id: string) => void; readonly returnFocus?: () => HTMLElement | null }) {
   const [edit, setEdit] = useState<{ field: BoField; anchor: HTMLElement } | null>(null);
+  const [missionEdit,setMissionEdit]=useState<{field:string;version:string;anchor:HTMLElement}|null>(null);
   const persistPreferences = useContext(TddPreferencePolicy) === "persistent";
   // Browser-profile preference; per surface/Center/module (no Core/ACL writes).
   const preferenceKey = "pino:tdd:label-width:v1:" + context.surface + ":" + (context.surface === "BO" ? context.centerId : "global") + ":" + schema.key;
   const [labelWidth, setLabelWidth] = useState(160);
   useEffect(() => {
-    if (!persistPreferences) {
-      setLabelWidth(160);
-      return;
-    }
-    try {
-      const stored = Number(window.localStorage.getItem(preferenceKey));
-      setLabelWidth(Number.isFinite(stored) && stored >= 90 && stored <= 240 ? stored : 160);
-    } catch { setLabelWidth(160); }
+    let cancelled = false;
+    // Hydrate the browser preference after commit; discard stale scope reads.
+    queueMicrotask(() => {
+      if (cancelled) return;
+      let width = 160;
+      if (persistPreferences) {
+        try {
+          const stored = Number(window.localStorage.getItem(preferenceKey));
+          if (Number.isFinite(stored) && stored >= 90 && stored <= 240) width = stored;
+        } catch { /* unavailable browser storage: retain the default */ }
+      }
+      setLabelWidth(width);
+    });
+    return () => { cancelled = true; };
   }, [preferenceKey, persistPreferences]);
   const changeLabelWidth = (width: number, reset = false) => {
     const next = Math.max(90, Math.min(240, Math.round(width)));
@@ -101,12 +111,14 @@ function DetailRecord<F extends readonly FieldSchema[]>({ schema, context, recor
   // Read-only legacy slot components take heterogeneous metadata; mutation remains typed to F.
   const readOnlySchema = schema as unknown as ModuleSchema;
   // Overview remains platform-owned even when a business extension is mounted.
+  const missionSelection=(field:string)=>projection&&active?.id==="overview"&&!renderOverviewProperties?missionPresentationSelection(schema,context,missionMetadata,"detail",record,missionVersion,field,Boolean(writes)):null;
+  const missionCurrent=missionEdit?missionSelection(missionEdit.field):null;
   const overview = projection && active?.id === "overview" ? <>{renderOverviewProperties ? renderOverviewProperties({ fields: projection.fields, record: projection.record, sections: schema.detail.overview.sections.map(section => ({ ...section, fields: section.fields.filter(key => projection.fields.some(field => field.key === key)) })).filter(section => section.fields.length > 0) }) : <PropertySections variant="detail" fields={projection.fields} record={projection.record} sections={schema.detail.overview.sections} sectionActions={id => renderActionSlot?.("overview.section", id)}
-    canEdit={field => Boolean(writes?.version.trim()) && allowsField(schema, context, field.key, "inlineEdit")}
-    onEdit={writes ? (field, anchor) => setEdit({ field, anchor }) : undefined}
+    canEdit={field => (Boolean(writes?.version.trim()) && allowsField(schema, context, field.key, "inlineEdit"))||Boolean(missionSelection(field.key))}
+    onEdit={writes ? (field, anchor) => setEdit({ field, anchor }) : missionMetadata?(field,anchor)=>{const selection=missionSelection(field.key);if(selection)setMissionEdit({field:selection.field,version:selection.expectedVersion,anchor});}:undefined}
     directControl={field=>writes?.directFields?.includes(field.key)&&["text","currency","number","select","boolean"].includes(field.type)?<DirectPropertyEditor schema={schema} context={context} record={record} writes={writes} field={field}/>:undefined} labelWidth={labelWidth} onLabelWidthChange={changeLabelWidth} />}{overviewAfter}</> : null;
   return <><DetailFrame title={projection?.title ?? "Chi tiết"} mobileMenu={mobileMenu} onBack={onBack} returnFocus={returnFocus} actions={projection ? headerActions : null}
-    tabs={tabs.map(t => ({ id: t.id, label: t.label }))} selected={active?.id} onSelect={id => { setSelected(id); onTabChange?.(id); }}>
+    tabs={tabs.map(t => ({ id: t.id, label: t.label }))} selected={active?.id} onSelect={id => { setMissionEdit(null);setSelected(id); onTabChange?.(id); }}>
     {projection && renderApprovedExtension && hasApprovedExtension
       ? <>
           <div hidden={active?.id !== "overview" && !approvedExtension}>
@@ -121,5 +133,5 @@ function DetailRecord<F extends readonly FieldSchema[]>({ schema, context, recor
       : active?.owner === "business" && allowsField(schema, context, schema.table.identity.field, "display") ? active.slot.kind === "form"
         ? <>{renderActionSlot?.("businessTab.toolbar", active.id)}<BusinessFormPanel key={active.id} schema={readOnlySchema} context={context} record={projection.record} slot={active.slot} binding={businessForms} /></>
         : <>{renderActionSlot?.("businessTab.toolbar", active.id)}<BusinessPanel key={active.id} schema={readOnlySchema} context={context} record={projection.record} slot={active.slot} loaders={loaders} /></> : null}
-  </DetailFrame>{edit && writes && projection ? <PropertyEditor schema={schema} context={context} record={record} writes={writes} selection={edit} onClose={() => setEdit(null)} /> : null}</>;
+  </DetailFrame>{missionEdit&&missionCurrent&&missionCurrent.expectedVersion===missionEdit.version&&missionMetadata&&onMissionSaved?missionMetadata.render({host:"detail",row:record,version:missionEdit.version,field:missionCurrent.field,anchor:missionEdit.anchor,onClose:()=>setMissionEdit(null),onSaved:onMissionSaved}):null}{edit && writes && projection ? <PropertyEditor schema={schema} context={context} record={record} writes={writes} selection={edit} onClose={() => setEdit(null)} /> : null}</>;
 }

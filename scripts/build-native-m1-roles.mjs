@@ -1,4 +1,4 @@
-/** PAP-2192 / PLT-ACCESS: derived build only, no listener or publication. */
+/** PAP-2408 / PLT-ACCESS: derived build only, no listener or publication. */
 import {build} from "esbuild";
 import {mkdirSync,writeFileSync,existsSync,readFileSync} from "node:fs";
 import {createHash} from "node:crypto";
@@ -9,7 +9,7 @@ const root=process.cwd();
 const git=(...args)=>execFileSync("git",args,{cwd:root});
 const revision=git("rev-parse","HEAD").toString().trim();
 if(git("status","--porcelain").toString().trim())throw Error("Clean committed source required");
-const output=resolve("node_modules/.cache/pap2192-native-roles/"+revision);
+const output=resolve("node_modules/.cache/pap2408-native-roles/"+revision);
 if(existsSync(output))throw Error("Build output already exists; preserve previous evidence");
 const logo=readFileSync(resolve("node_modules/.cache/pap2345-ho-logo.png"));
 const logoSha="76da9a2d6beae0d75134979ac0b622d4ab798c28d9d727c3c165819aacd59a4d";
@@ -18,7 +18,7 @@ mkdirSync(output,{recursive:true});
 writeFileSync(join(output,"pino-logo.png"),logo);
 const assets="/ho/system/roles/__m1_assets/";
 const shim={
- "next/link":`export default function Link({href,children,prefetch,...props}){return <a {...props} href={href==="/ho/system/roles?m1Preview=1"?href:"#unavailable-local-module"} onClick={event=>{props.onClick?.(event);event.preventDefault();}}>{children}</a>}`,
+ "next/link":`export default function Link({href,children,prefetch,...props}){return <a {...props} href={href==="/ho/system/roles"?href:"#unavailable-local-module"} onClick={event=>{props.onClick?.(event);event.preventDefault();}}>{children}</a>}`,
  "next/image":`export default function Image({alt,width,height,className}){return <img className={className} alt={alt} width={width} height={height} src="/ho/system/roles/__m1_assets/pino-logo.png"/>}`,
  "next/navigation":`export const usePathname=()=>location.pathname;export const useSearchParams=()=>new URLSearchParams(location.search);export const useRouter=()=>({push(){throw Error("Local-only navigation")},replace(){throw Error("Local-only navigation")},refresh(){location.reload()}});export const redirect=()=>{throw Error("Local-only navigation")};`,
  "next/dynamic":`export default function dynamic(){return function UnavailableLocalModule(){return null;}}`,
@@ -29,10 +29,10 @@ const result=await build({entryPoints:["scripts/native-m1-local/roles-entry.tsx"
  b.onResolve({filter:/^@\/app\/components\/tos-shell\/LogoutButton$/},()=>({path:"local-logout",namespace:"local-only"}));
  b.onLoad({filter:/.*/,namespace:"local-only"},args=>({contents:shim[args.path],loader:"jsx",resolveDir:root}));
 }}]});
-for(const required of ["app/ho/system/roles/RoleM1Preview.tsx","app/ho/system/roles/RoleLifecycleForms.tsx","app/ho/system/roles/schema.ts","app/ho/system/roles/role-m1-preview.ts","app/bo/components/registration/BoRegistrationWorkspace.tsx"])if(!Object.keys(result.metafile.inputs).some(p=>p.replaceAll("\\","/")===required))throw Error("Native source not bundled: "+required);
+for(const required of ["app/ho/system/roles/HoRolesTdd.tsx","app/ho/system/roles/HoRoleEditor.tsx","app/ho/system/roles/RoleLifecycleForms.tsx","app/ho/system/roles/schema.ts","app/ho/system/roles/role-native-preview-boundary.ts","app/bo/components/registration/BoRegistrationWorkspace.tsx"])if(!Object.keys(result.metafile.inputs).some(p=>p.replaceAll("\\","/")===required))throw Error("Native source not bundled: "+required);
 if(!existsSync(join(output,"app.css")))throw Error("Native CSS missing");
 writeFileSync(join(output,"index.html"),'<!doctype html><html lang="vi" data-surface="ho"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Roles · M1</title><link rel="stylesheet" href="'+assets+'app.css"></head><body><div id="root"></div><script src="'+assets+'app.js"></script></body></html>');
-const spec={jiraTask:"PAP-2192",epicCode:"PLT-ACCESS",surface:"ho",reviewUrl:"http://192.168.1.6:8800/ho/system/roles?m1Preview=1",sourceRevision:revision,fixtureId:"ROLE-MOCK-001",sourceFiles:{route:"app/ho/system/roles/page.tsx",renderer:"app/ho/system/roles/RoleM1Preview.tsx",schema:"app/ho/system/roles/schema.ts",fixture:"app/ho/system/roles/role-m1-preview.ts"}};
+const spec={jiraTask:"PAP-2408",epicCode:"PLT-ACCESS",surface:"ho",reviewUrl:"http://desktop-isrdren:8800/ho/system/roles",sourceRevision:revision,fixtureId:"ROLE-MOCK-001",sourceFiles:{route:"app/ho/system/roles/page.tsx",renderer:"app/ho/system/roles/HoRolesTdd.tsx",schema:"app/ho/system/roles/schema.ts",fixture:"app/ho/system/roles/role-native-preview-boundary.ts"}};
 const registration=createRegistration(spec,revision,path=>git("show",revision+":"+path),readAssets(output));
 const receipt=output+"-registration.json";writeFileSync(receipt,JSON.stringify(registration,null,2));
 console.log(JSON.stringify({output,receipt,revision,artifact:registration.artifact.sha256,servingVerified:false}));

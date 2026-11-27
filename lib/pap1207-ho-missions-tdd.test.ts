@@ -182,3 +182,31 @@ test("PAP-1207 / PAP-1188 MISSION S4 Quick View and Full Detail strictly match t
   );
   assert.equal(binder?.kind, "provider");
 });
+test("PAP-2394 integrated read projection preserves exact Category, URL, version and approved TDD shape",async()=>{
+ const {missionIntegratedDefinition,missionIntegratedProvider,missionCategoryQuery,missionCategoryPropertyKeys}=await import("../app/ho/learning/missions/schema");
+ assert.equal(missionIntegratedProvider.mutation,undefined);
+ assert.equal(missionIntegratedDefinition.table.inlineEdit.enabled,false);
+ assert.ok(missionIntegratedDefinition.fields.every(f=>!f.capabilities.inlineEdit));
+ assert.deepEqual(missionIntegratedDefinition.table.columns.map(c=>c.field),missionCategoryQuery.visible);
+ assert.deepEqual(missionIntegratedDefinition.drawer.sections[0]?.fields,missionCategoryPropertyKeys);
+ assert.deepEqual(missionIntegratedDefinition.detail.overview.sections[0]?.fields,missionCategoryPropertyKeys);
+ const fields={...row,category:"Staff Training",supplementalUrl:"https://example.test/guide",version:7};
+ const pathRows=[
+  {id:"01900000-0000-7000-8000-000000000011",code:"artchitect",displayName:"Artchitect",status:"ACTIVE"},
+  {id:"01900000-0000-7000-8000-000000000012",code:"pianohouse",displayName:"PianoHouse",status:"ACTIVE"},
+  {id:"01900000-0000-7000-8000-000000000013",code:"little-piner-art",displayName:"Little Piner Art",status:"ACTIVE"},
+  {id:"01900000-0000-7000-8000-000000000014",code:"little-piner-piano",displayName:"Little Piner Piano",status:"ACTIVE"}
+ ];
+ const scope={surface:"HO"} as const;
+ const f=(data:Record<string,unknown>):typeof fetch=>async(input)=>{const url=String(input);return Response.json({data:url==="/api/ho/learning/paths"?pathRows:url.endsWith("/"+id)?data:[data]});};
+ const list=await missionIntegratedProvider.list(missionCategoryQuery,scope,f(fields),signal());
+ assert.equal(list.records[0]?.version,"7");assert.equal(list.records[0]?.row.category,"Staff Training");assert.equal(list.records[0]?.row.supplementalUrl,fields.supplementalUrl);assert.equal(list.records[0]?.row.plsValue,30);
+ const detail=await missionIntegratedProvider.detail(id,scope,f(fields),signal());assert.deepEqual(detail,list.records[0]);
+ const legacy={...fields,category:null,supplementalUrl:null};
+ assert.equal((await missionIntegratedProvider.detail(id,scope,f(legacy),signal()))?.row.category,null);
+ for(const patch of [{category:undefined},{category:"Other"},{supplementalUrl:undefined},{supplementalUrl:"javascript:alert(1)"},{version:0},{version:"7"}]){
+  const bad={...fields,...patch};
+  await assert.rejects(missionIntegratedProvider.list(missionCategoryQuery,scope,f(bad),signal()),BoApiError);
+  await assert.rejects(missionIntegratedProvider.detail(id,scope,f(bad),signal()),BoApiError);
+ }
+});
