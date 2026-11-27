@@ -1,0 +1,3 @@
+/* PAP-2423: keep all four canonical views reachable in the local Staff header. */
+[data-ho-staff-views] .tabs-left { flex-wrap: wrap; }
+[data-ho-staff-views] .view-tab[data-staffs-view] { display: inline-flex; align-items: center; min-height: 32px; }

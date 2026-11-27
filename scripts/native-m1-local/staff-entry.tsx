@@ -1,10 +1,12 @@
 /** PAP-2345 / PLT-M1-DELIVERY: local-only presentation entry, never a live session. */
 import {createRoot} from "react-dom/client";
-import {useState} from "react";
+import {useEffect,useMemo,useState} from "react";
+import {BoStaffsViews,type StaffsView} from "@/app/bo/components/registration/BoStaffsViews";
+import {hoStaffViewRows,parseHoStaffView} from "@/app/ho/staff/staff-navigation-view";
 import {StaffAccessPresentation} from "@/app/ho/staff/StaffAccessPresentation";
 import type {Snapshot,RoleChoice} from "@/app/ho/staff/staff-access-presentation-model";
 import {StaffRegistrationQueue} from "@/app/ho/staff/StaffRegistrationQueue";
-import {registrationQueueDefinition} from "@/app/ho/staff/staff-registration-queue-contract";
+import {registrationQueueDefinition,registrationQueueQuery} from "@/app/ho/staff/staff-registration-queue-contract";
 import {connectFinalizationDirectory} from "@/app/ho/staff/staff-finalization-directory-preview";
 import {reviewedDossierSeed,finalizationRoleOptions} from "@/app/ho/staff/staff-registration-finalization-preview";
 import {BoRegistrationWorkspace,type BoWorkspaceSource} from "@/app/bo/components/registration/BoRegistrationWorkspace";
@@ -24,6 +26,7 @@ import "../../public/ho-authority-source/ho-scoped.css";
 import "../../app/components/workspace-renderer/tdd-detail-layout.css";
 import "../../app/components/workspace-renderer/tdd-table-geometry.css";
 import "../../app/components/workspace-renderer/tdd-freeze.css";
+import "./staff-navigation.css";
 
 const route="/ho/staff", event="pino:m1:staff:local";
 const origin=location.origin.toLowerCase();
@@ -64,9 +67,25 @@ const navigation:AdapterNavigation<ManualStaffFields>={
  capture(id){recordId=id;focus=document.activeElement instanceof HTMLElement?document.activeElement:null;const table=document.getElementById("table-scroll");scroll={x:window.scrollX,y:window.scrollY,left:table?.scrollLeft??0,top:table?.scrollTop??0};},
  restore(){requestAnimationFrame(()=>{window.scrollTo(scroll.x,scroll.y);const table=document.getElementById("table-scroll");if(table){table.scrollLeft=scroll.left;table.scrollTop=scroll.top;}const el=focus?.isConnected?focus:[...document.querySelectorAll<HTMLElement>("button[data-open]")].find(n=>n.dataset.open===recordId);el?.focus({preventScroll:true});});}
 };
+const queueEvent=event+":queue";
+const queueNavigation:AdapterNavigation<ManualStaffFields>={
+ read(){const owned=history.state?.[queueEvent] as AdapterLocation<ManualStaffFields>|undefined;return owned&&(owned.kind==="table"||owned.recordId===reviewedDossierSeed.id)?owned:{kind:"table",tab:"overview",query:registrationQueueQuery};},
+ change(next,replace=false){if(next.kind!=="table"&&next.recordId!==reviewedDossierSeed.id)throw Error("Foreign dossier");history[replace?"replaceState":"pushState"]({...history.state,[queueEvent]:next},"",location.pathname);window.dispatchEvent(new Event(queueEvent));},
+ subscribe(listener){window.addEventListener("popstate",listener);window.addEventListener(queueEvent,listener);return()=>{window.removeEventListener("popstate",listener);window.removeEventListener(queueEvent,listener);};},
+ capture:navigation.capture,restore:navigation.restore
+};
+let decisionSequence=0;
+const newDecisionKey=()=>"HO-M1-DECISION-"+String(++decisionSequence);
 const source:BoWorkspaceSource={surface:"ho",readOnly:true,ephemeral:true,modules:hoModules,routeForModule:key=>key==="staffs"?route:"#unavailable-local-module",scopeLabel:()=>"",load:async()=>{throw Error("No live transport");}};
 const accessCenters=[{...staffPreviewCenter,active:true}];
 const accessRoles:RoleChoice[]=finalizationRoleOptions.map(r=>({id:r.id,label:r.label,active:r.active,protected:false,scopes:r.scopes}));
 function accessSnapshot(id:string):Snapshot|null{const subject=fixtureSubject(state,id);if(!subject)return null;const decision=registration.fixture.readback(),receipt=decision?.kind==="approved"&&decision.receipt.staffId===id?decision.receipt:null;return {staffId:id,revision:Number(subject.revision),employment:subject.status==="Đang làm"?"active":"inactive",accountStatus:subject.accountState,accountId:receipt?.userId??null,affiliationIds:subject.affiliation?.active?[subject.affiliation.centerId]:[],assignments:receipt&&(receipt.scopeType==="GLOBAL"||receipt.scopeId===reviewedDossierSeed.centerId)?[{id:"HO-M1-RECEIPT:"+receipt.staffId,roleId:receipt.roleId,scope:receipt.scopeType==="GLOBAL"?{type:"GLOBAL",id:null}:{type:"CENTER",id:staffPreviewCenter.id},protected:false}]:[]};}
-function StaffLocalContent(){const [queue,setQueue]=useState(false);return queue?<StaffRegistrationQueue adapter={queueAdapter} fixture={registration.fixture} centerLabel={staffPreviewCenter.label} onBack={()=>setQueue(false)} finalize={registration.finalize} reject={registration.fixture.reject}/>:<StaffManualWorkspace adapter={adapter} navigation={navigation} centers={[staffPreviewCenter]} allowLogin={false} personReader={personReader} detailSlots={{businessForms:[rateProvider],detailOverview:row=>{const snapshot=accessSnapshot(row.id);return snapshot?<StaffAccessPresentation snapshot={snapshot} centers={accessCenters} roles={accessRoles} loginEmail={typeof row.loginEmail==="string"?row.loginEmail:null}/>:null;}}} onOpenRegistrations={()=>{navigation.change({kind:"table",tab:"overview",query:manualStaffQuery},true);setQueue(true);}} onCreate={async command=>{state=createInactiveFixture(state,command);}} activation={{subject:id=>fixtureSubject(state,id),activate:async request=>{const next=activateFixture(state,request);state=next.state;return next.result;}}}/>;}
+function StaffLocalContent(){
+ const [view,setView]=useState<StaffsView>(()=>parseHoStaffView(history.state?.staffDirectoryView));
+ useEffect(()=>{const sync=()=>setView(parseHoStaffView(history.state?.staffDirectoryView));window.addEventListener("popstate",sync);return()=>window.removeEventListener("popstate",sync);},[]);
+ const select=(next:StaffsView)=>{if(next===view)return;history.pushState({...history.state,staffDirectoryView:next,[event]:{kind:"table",tab:"overview",query:manualStaffQuery},[queueEvent]:{kind:"table",tab:"overview",query:registrationQueueQuery}},"",location.pathname);setView(next);};
+ const tabs=<div data-ho-staff-views><BoStaffsViews selected={view} onSelect={select}/></div>;
+ const directory=useMemo<AuthenticatedSurfaceAdapter<ManualStaffFields>>(()=>({...adapter,list:async(q,s)=>{const result=await adapter.list(q,s);const rows=hoStaffViewRows(result.rows,view);return {...result,rows,total:rows.length};}}),[view]);
+ return view==="register"?<StaffRegistrationQueue adapter={queueAdapter} fixture={registration.fixture} centerLabel={staffPreviewCenter.label} onBack={()=>select("all")} tableHeaderActions={tabs} navigation={queueNavigation} newKey={newDecisionKey} finalize={registration.finalize} reject={registration.fixture.reject}/>:<StaffManualWorkspace key={view} adapter={directory} navigation={navigation} centers={[staffPreviewCenter]} allowLogin={false} personReader={personReader} tableHeaderActions={tabs} detailSlots={{businessForms:[rateProvider],detailOverview:row=>{const snapshot=accessSnapshot(row.id);return snapshot?<StaffAccessPresentation snapshot={snapshot} centers={accessCenters} roles={accessRoles} loginEmail={typeof row.loginEmail==="string"?row.loginEmail:null}/>:null;}}} onCreate={async command=>{state=createInactiveFixture(state,command);}} activation={{subject:id=>fixtureSubject(state,id),activate:async request=>{const next=activateFixture(state,request);state=next.state;return next.result;}}}/>;
+}
 createRoot(document.getElementById("root")!).render(<BoRegistrationWorkspace source={source} moduleKey="staffs" currentUser={{displayName:"M1 · Dữ liệu mẫu"}} content={<TddPreferencePolicy.Provider value="ephemeral"><StaffLocalContent/></TddPreferencePolicy.Provider>}/>);
