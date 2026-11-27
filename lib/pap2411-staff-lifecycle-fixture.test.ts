@@ -34,3 +34,12 @@ test("PAP-2411 BO edits do not mutate identity, account, role or imply eligibili
  assert.equal(f.deactivate(id,2,true).operationalReadiness,"NOT_READY");
  assert.equal(f.snapshot().accountState,"UNKNOWN");
 });
+
+test("PAP-2411 synthetic audit metadata advances only after a successful lifecycle mutation",()=>{
+ const f=createStaffLifecycleM1Fixture(),initial=f.rows()[0];
+ assert.throws(()=>f.edit(id,9,{displayLabel:"Stale"}));assert.deepEqual(f.rows()[0],initial);
+ f.edit(id,1,{displayLabel:"M1 changed"});const edited=f.rows()[0];
+ assert.equal(edited.createdAt,initial.createdAt);assert.equal(edited.createdBy,initial.createdBy);assert.equal(edited.updatedAt,"2026-11-26T08:01:00.000Z");assert.equal(edited.updatedBy,"M1 Fixture Reviewer");
+ assert.throws(()=>f.deactivate(id,2,false));assert.deepEqual(f.rows()[0],edited);
+ f.deactivate(id,2,true);assert.equal(f.rows()[0].updatedAt,"2026-11-26T08:02:00.000Z");assert.equal(f.rows()[0].id,id);
+});

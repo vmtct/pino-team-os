@@ -11,3 +11,9 @@
 .confirmActions button { min-height:36px; border:1px solid var(--bo-v23-color-border,#dddce2); border-radius:8px; padding:8px 14px; font:inherit; background:#fff; color:inherit; cursor:pointer; }
 .confirmActions .confirmPrimary { background:#6345ad; border-color:#6345ad; color:#fff; }
 .confirmActions button:focus-visible { outline:2px solid #6345ad; outline-offset:2px; }
+
+/* Feature-local trigger uses the existing property row as its visual container. */
+.inlinePropertyValue { display:block; width:100%; min-height:28px; text-align:left; color:inherit; font:inherit; border:0; border-radius:4px; background:transparent; padding:2px 4px; cursor:pointer; overflow-wrap:anywhere; }
+.inlinePropertyValue:hover:not(:disabled) { background:var(--bo-v23-color-surface-subtle,#f4f2f8); }
+.inlinePropertyValue:focus-visible { outline:2px solid var(--bo-v23-color-accent,#6345ad); outline-offset:1px; }
+.inlinePropertyValue:disabled { cursor:default; }
