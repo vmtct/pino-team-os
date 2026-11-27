@@ -628,6 +628,11 @@
         "app/ho/learning/missions/mission-supplemental-url.ts",
         "app/ho/learning/missions/mission-m1-boundary.ts",
         "app/ho/learning/missions/mission-m1-query.ts",
+        "app/ho/learning/missions/MissionMetadataPropertyHost.tsx",
+        "app/ho/learning/missions/mission-inline-draft.ts",
+        "app/ho/learning/missions/mission-inline-flow.ts",
+        "app/ho/learning/missions/mission-inline-presentation.ts",
+        "app/ho/learning/missions/mission-metadata-binding.ts",
         "lib/mission-history.ts",
         "lib/bo-registration.ts"
       ],
@@ -648,7 +653,12 @@
         "lib/pap1207-ho-mission-edit.test.ts",
         "lib/pap1188-mission-history.test.ts",
         "lib/pap1207-ho-mission-s5-parity.test.ts",
-        "lib/pap2394-mission-category.test.ts"
+        "lib/pap2394-mission-category.test.ts",
+        "lib/pap2394-mission-inline-draft.test.ts",
+        "lib/pap2412-mission-inline-flow.test.ts",
+        "lib/pap2412-mission-inline-presentation.test.ts",
+        "lib/pap2412-mission-metadata-binding.test.ts",
+        "lib/pap2412-mission-property-host.test.ts"
       ],
       "externalReferences": [
         {

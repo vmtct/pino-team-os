@@ -82,7 +82,7 @@ test("PAP-1207 S5 both Create/Edit acquire fresh Core Path before mutation; stat
   assert.match(source, /if \(mode === "create" \|\| mode === "edit"\)/);
   assert.match(source, /const fresh = await boundary\.paths\(\)/);
   assert.match(source, /paths:signal=>loadMissionPathChoices\(fetch,signal\)/);
-  assert.match(source, /submit:command=>submitHoMission\(command\)/);
+  assert.match(source, /submit:\(command,signal\)=>submitHoMission\(command,fetch,signal\)/);
   assert.ok(source.indexOf("const fresh = await boundary.paths()") < source.indexOf("const result = await boundary.submit(command)"), "fresh Path validation must precede dispatch");
   assert.match(source, /const changed = validateMissionSelectedPath\(draft, fresh\);\s*if \(changed\) \{ setFormError\(changed\); return \{ state: "invalid" as const \}; \}/);
   assert.match(source, /editTarget\.status !== draft\.status/);

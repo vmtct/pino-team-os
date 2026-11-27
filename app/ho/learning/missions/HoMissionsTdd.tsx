@@ -102,12 +102,12 @@ export function HoMissionsContent({boundary=liveBoundary}:{boundary?:MissionBoun
       },
       onUncertain:()=>setUncertain(true),
     });
-    const presentation:MissionMetadataPresentation={command:MISSION_METADATA_COMMAND,render:input=><MissionMetadataPropertyHost {...input} schema={ready.adapter.schema}
+    const presentation:MissionMetadataPresentation={command:MISSION_METADATA_COMMAND,render:input=><MissionMetadataPropertyHost host={input.host} row={input.row} version={input.version} field={input.field} anchor={input.anchor} onClose={input.onClose} onSaved={input.onSaved} schema={ready.adapter.schema}
       context={ready.adapter.context} binding={binding} hasGenericWrites={false}/>};
     queueMicrotask(()=>{if(active)setInlineScope({ready,boundary,presentation});});
     return ()=>{active=false;};
   },[ready,boundary]);
-  const missionMetadata=inlineScope?.ready===ready&&inlineScope.boundary===boundary?inlineScope.presentation:undefined;
+  const missionMetadata=!uncertain&&inlineScope?.ready===ready&&inlineScope.boundary===boundary?inlineScope.presentation:undefined;
   useEffect(() => {
     const controller = new AbortController();
     let bound: AuthenticatedSurfaceAdapter<F> | null = null;
