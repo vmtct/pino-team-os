@@ -1,11 +1,10 @@
 "use client";
-/** PAP-1523: synthetic launcher only; no live session, request, redirect, storage or credential. */
+/** PAP-1523: synthetic support tab; no session, request, redirect, storage or credential. */
 import {useEffect,useId,useState} from "react";
-import {TosButton,TosCard} from "@pino/design-system/react";
+import {BoActionButton,BoActionGroup} from "@pino/design-system/react";
 import {previewRemainingSeconds,startSupportPreview,SUPPORT_FIXTURE_ID,supportPreviewTargets,type PreviewSession} from "./person-support-preview";
 
 export function HoPersonSupportPreview({personId,personName}:{personId:string;personName:string}){
-  const [open,setOpen]=useState(false);
   const [target,setTarget]=useState("");
   const [reason,setReason]=useState("");
   const [session,setSession]=useState<PreviewSession|null>(null);
@@ -22,36 +21,45 @@ export function HoPersonSupportPreview({personId,personName}:{personId:string;pe
   },[session]);
   if(personId!==SUPPORT_FIXTURE_ID)return null;
   const selected=supportPreviewTargets.find(x=>x.id===target&&x.eligible);
-  const reset=()=>{setSession(null);setOpen(false);setTarget("");setReason("");};
+  const reset=()=>{setSession(null);setTarget("");setReason("");};
   const start=()=>{
     const next=startSupportPreview(personId,target,reason,Date.now());
     if(!next)return;
     setSeconds(previewRemainingSeconds(next,Date.now()));
     setSession(next);
-    setOpen(false);
   };
-  return <TosCard><section aria-labelledby={heading} data-testid="pap1523-view-launcher">
-    <h3 id={heading}>Hỗ trợ · View as</h3>
-    <p>Chỉ xem theo quyền của Person. Không thay đổi dữ liệu.</p>
-    <p role="status">M1 · Mô phỏng giao diện, không mở ứng dụng hoặc phiên đăng nhập thật.</p>
-    {session?<div role="region" aria-label="Phiên hỗ trợ mô phỏng">
-      <strong>VIEW AS · {personName}</strong>
-      <p>{session.target.surface} · {session.target.actor} · {session.target.scope}</p>
-      <p>Chỉ xem · {Math.floor(seconds/60)}:{String(seconds%60).padStart(2,"0")} còn lại</p>
-      <TosButton variant="secondary" onClick={reset}>Kết thúc phiên hỗ trợ</TosButton>
-    </div>:open?<form onSubmit={event=>{event.preventDefault();start();}}>
-      <p><label htmlFor={targetLabel}>Ứng dụng và vai trò</label></p>
-      <select id={targetLabel} value={target} onChange={event=>setTarget(event.target.value)} required>
-        <option value="">Chọn trải nghiệm</option>
-        {supportPreviewTargets.map(item=><option key={item.id} value={item.id} disabled={!item.eligible}>
-          {item.surface} · {item.actor} · {item.scope}{item.unavailableReason?" — "+item.unavailableReason:""}
-        </option>)}
-      </select>
-      {selected&&<p>{selected.scope} · Chỉ xem</p>}
-      <p><label htmlFor={reasonLabel}>Lý do hỗ trợ</label></p>
-      <textarea id={reasonLabel} required maxLength={500} value={reason} onChange={event=>setReason(event.target.value)} rows={3}/>
-      <p><TosButton variant="secondary" onClick={reset}>Hủy</TosButton>{" "}
-      <TosButton variant="primary" disabled={!selected||!reason.trim()} onClick={start}>Mở phiên xem</TosButton></p>
-    </form>:<TosButton variant="secondary" onClick={()=>setOpen(true)}>View as</TosButton>}
-  </section></TosCard>;
+  return <section className="pds-property-section" aria-labelledby={heading} data-testid="pap1523-view-launcher">
+    <div className="pds-compact-card">
+      <div className="pds-compact-heading"><h3 id={heading}>Phiên hỗ trợ</h3><span className="datatag blue">VIEW ONLY</span></div>
+      <p className="pds-compact-muted">Chỉ xem theo quyền của Person. Không thay đổi dữ liệu.</p>
+      <p role="status" className="pds-compact-muted">M1 · Mô phỏng giao diện, không mở ứng dụng hoặc phiên đăng nhập thật.</p>
+      {session?<div className="pds-property-section" role="region" aria-label="Phiên hỗ trợ mô phỏng">
+        <h4 className="pds-property-heading">VIEW AS · {personName}</h4>
+        <ul className="pds-compact-list">
+          <li><span>Ứng dụng</span><strong>{session.target.surface}</strong></li>
+          <li><span>Vai trò</span><strong>{session.target.actor}</strong></li>
+          <li><span>Phạm vi</span><strong>{session.target.scope}</strong></li>
+          <li><span>Thời hạn</span><strong>Chỉ xem · {Math.floor(seconds/60)}:{String(seconds%60).padStart(2,"0")} còn lại</strong></li>
+        </ul>
+        <BoActionGroup><BoActionButton variant="secondary" type="button" onClick={reset}>Kết thúc phiên hỗ trợ</BoActionButton></BoActionGroup>
+      </div>:<form className="pds-property-section" onSubmit={event=>{event.preventDefault();start();}}>
+        <div className="pds-property-grid">
+          <div className="pds-property-row"><label className="pds-property-label" htmlFor={targetLabel}>Ứng dụng và vai trò</label>
+            <select className="pds-property-input" id={targetLabel} value={target} onChange={event=>setTarget(event.target.value)} required>
+              <option value="">Chọn trải nghiệm</option>
+              {supportPreviewTargets.map(item=><option key={item.id} value={item.id} disabled={!item.eligible}>
+                {item.surface} · {item.actor} · {item.scope}{item.unavailableReason?" — "+item.unavailableReason:""}
+              </option>)}
+            </select>
+          </div>
+          {selected&&<div className="pds-property-row"><span className="pds-property-label">Phạm vi</span><span className="pds-property-value">{selected.scope} · Chỉ xem</span></div>}
+          <div className="pds-property-row"><label className="pds-property-label" htmlFor={reasonLabel}>Lý do hỗ trợ</label>
+            <textarea className="pds-property-input" id={reasonLabel} required maxLength={500} value={reason} onChange={event=>setReason(event.target.value)} rows={3} placeholder="Nhập lý do hỗ trợ"/>
+          </div>
+        </div>
+        <BoActionGroup><BoActionButton variant="secondary" type="button" onClick={reset}>Hủy</BoActionButton>
+          <BoActionButton variant="primary" type="submit" disabled={!selected||!reason.trim()}>Mở phiên xem</BoActionButton></BoActionGroup>
+      </form>}
+    </div>
+  </section>;
 }
