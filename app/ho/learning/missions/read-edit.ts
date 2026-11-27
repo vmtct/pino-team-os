@@ -1,5 +1,7 @@
 /** PAP-1207: independent Founder HO read before versioned Mission Edit. No mutation. */
 import type { MissionInput } from "./command";
+import { isMissionCategory } from "./mission-category";
+import { normalizeMissionSupplementalUrl } from "./mission-supplemental-url";
 
 export type MissionEditLoad =
   | { readonly state: "ready"; readonly id: string; readonly version: number; readonly data: MissionInput }
@@ -28,7 +30,8 @@ export async function loadMissionForEdit(
   if (!raw || typeof raw !== "object" || Array.isArray(raw))
     return { state: "unavailable", message: "Core trả về dữ liệu Mission không hợp lệ." };
   const row = raw as Record<string, unknown>;
-  if (row.id !== id || !Number.isSafeInteger(row.version) || Number(row.version) < 1 ||
+  const url=normalizeMissionSupplementalUrl(row.supplementalUrl);
+  if ((row.category!==null&&!isMissionCategory(row.category))||!url.ok||url.value!==row.supplementalUrl||row.id !== id || !Number.isSafeInteger(row.version) || Number(row.version) < 1 ||
       typeof row.code !== "string" || !/^[a-z0-9][a-z0-9_-]{1,63}$/i.test(row.code) ||
       typeof row.name !== "string" || !row.name.trim() || row.name.length > 160 ||
       !Number.isInteger(row.level) || Number(row.level) < 1 || Number(row.level) > 5 ||
@@ -44,6 +47,7 @@ export async function loadMissionForEdit(
   return {
     state: "ready", id, version: Number(row.version),
     data: {
+      category: row.category as MissionInput["category"], supplementalUrl: url.value,
       code: row.code as string, name: row.name as string, level: Number(row.level),
       status: row.status as MissionInput["status"], plsValue: Number(row.plsValue),
       paperSize: row.paperSize as MissionInput["paperSize"],

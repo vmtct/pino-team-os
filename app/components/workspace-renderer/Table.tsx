@@ -10,6 +10,7 @@ import { latestRequest } from "./resource";
 import type { TablePolicy } from "./TablePolicy";
 import { dispatchCellEdit } from "./editing";
 import { PropertyEditor } from "./Editor";
+import {missionPresentationSelection,type MissionMetadataPresentation} from "@/app/ho/learning/missions/mission-inline-presentation";
 import {rolePresentationSelection,type RoleMetadataPresentation} from "@/lib/workspace-adapters/ho-inline-command-contract";
 import { normalizeFreezeBoundary } from "@/lib/tdd-column-freeze";
 import type { TddActionBindings } from "@/lib/workspace-schema";
@@ -61,7 +62,7 @@ export type TddTableProps<F extends readonly FieldSchema[]> = {
   /** Presentation only; receives the authorized record projection and a visible read-only field. */
   readonly renderReadOnlyCell?: (record: BoRecord, field: BoField) => ReactNode | undefined;
   readonly onRetry?: () => void; readonly total?: number; readonly viewTransport?: ViewTransport<F>;
-  readonly writes?: TableWrites<F>; readonly actionBindings?: TddActionBindings; readonly roleMetadata?: RoleMetadataPresentation; readonly roleVersionForRow?: (id:string)=>string|undefined; readonly onRoleSaved?:()=>void;
+  readonly writes?: TableWrites<F>; readonly actionBindings?: TddActionBindings; readonly missionMetadata?:MissionMetadataPresentation; readonly missionVersionForRow?:(id:string)=>string|undefined; readonly onMissionSaved?:()=>void; readonly roleMetadata?: RoleMetadataPresentation; readonly roleVersionForRow?: (id:string)=>string|undefined; readonly onRoleSaved?:()=>void;
 };
 export function TddTable<F extends readonly FieldSchema[]>(props: TddTableProps<F>) {
   const schema = registeredSchema(props.registry, props.schema);
@@ -69,7 +70,7 @@ export function TddTable<F extends readonly FieldSchema[]>(props: TddTableProps<
   // Erasure is limited to the existing scalar Table bridge; all transitions revalidate.
   return <TableContents key={renderScope(schema, props.context, "table")} {...props as unknown as TddTableProps<readonly FieldSchema[]>} schema={schema} />;
 }
-function TableContents({ schema, context, rows, query, onQueryChange, onOpen, status, onRetry, total, viewTransport, writes, roleMetadata, roleVersionForRow, onRoleSaved, renderReadOnlyCell }: TddTableProps<readonly FieldSchema[]>) {
+function TableContents({ schema, context, rows, query, onQueryChange, onOpen, status, onRetry, total, viewTransport, writes, roleMetadata, roleVersionForRow, onRoleSaved, missionMetadata, missionVersionForRow, onMissionSaved, renderReadOnlyCell }: TddTableProps<readonly FieldSchema[]>) {
   const [settings, setSettings] = useState<string | null>(null), [filterOpen, setFilterOpen] = useState(false);
   const [draft, setDraft] = useState<{ source: typeof query; state: BoTableState } | null>(null), [message, setMessage] = useState("");
   const [localViews, setLocalViews] = useState<BoSavedView[]>([]), [active, setActive] = useState<string | null>(null);
@@ -90,15 +91,17 @@ function TableContents({ schema, context, rows, query, onQueryChange, onOpen, st
   const fields = schema.fields.filter(f => allowsField(schema, context, f.key, "display"));
   const legacyFields = toLegacyModule(schema).fields.filter(f => allowsField(schema, context, f.key, "display"));
   const roleSelection=(id:string,field:string)=>{const row=rows.find(r=>r.id===id);return status==="ready"&&row?rolePresentationSelection(schema,context,roleMetadata,"table",row,roleVersionForRow?.(id),field,Boolean(writes)):null;};
+  const missionSelection=(id:string,field:string)=>{const row=rows.find(r=>r.id===id);return status==="ready"&&row&&!roleMetadata?missionPresentationSelection(schema,context,missionMetadata,"table",row,missionVersionForRow?.(id),field,Boolean(writes)):null;};
   const roleRow=roleEdit?rows.find(r=>r.id===roleEdit.id):undefined;
   const roleCurrent=roleEdit&&roleRow?roleSelection(roleEdit.id,roleEdit.field):null;
+  const missionCurrent=roleEdit&&roleRow?missionSelection(roleEdit.id,roleEdit.field):null;
   const policy: TablePolicy = {
     identity: schema.table.identity.field,
     search: schema.table.search.fields.filter(k => allowsField(schema, context, k, "search")),
     filter: schema.table.filters.fields.filter(k => allowsField(schema, context, k, "filter")),
     sort: schema.table.sort.fields.filter(k => allowsField(schema, context, k, "sort")),
     group: schema.table.group.fields.filter(k => allowsField(schema, context, k, "group")),
-    edit: schema.table.inlineEdit.enabled && writes ? schema.table.inlineEdit.fields.filter(k => allowsField(schema, context, k, "inlineEdit")) : rows.some(row=>roleSelection(row.id,"name"))?["name"]:[],
+    edit: schema.table.inlineEdit.enabled && writes ? schema.table.inlineEdit.fields.filter(k => allowsField(schema, context, k, "inlineEdit")) : schema.fields.filter(f=>rows.some(row=>roleSelection(row.id,f.key)||missionSelection(row.id,f.key))).map(f=>f.key),
     viewActions: schema.table.views.actions,
   };
   const update = (patch: Partial<BoTableState>, replacement?: BoTableState) => {
@@ -170,11 +173,11 @@ function TableContents({ schema, context, rows, query, onQueryChange, onOpen, st
     <BoDataTable module={{ label: schema.label, group: schema.group, fields: legacyFields.filter(f => fields.some(p => p.key === f.key)) }} rows={projected.map(p => p!.record)}
       loadState={status === "ready" ? "ready" : status === "loading" ? "loading" : "Không thể tải dữ liệu."}
       value={state} update={update} page={query.page} setPage={page => { try { onQueryChange(fromLegacyTableState(schema, state, context, page)); } catch { setMessage("Bộ lọc chưa hợp lệ."); } }}
-      onOpen={record=>{setRoleEdit(null);onOpen(record);}} canEditCell={writes?undefined:(record,key)=>Boolean(roleSelection(record.id,key))} onCellEdit={writes ? (record, key, anchor) => { dispatchCellEdit(schema, context, key, () => {
+      onOpen={record=>{setRoleEdit(null);onOpen(record);}} canEditCell={writes?undefined:(record,key)=>Boolean(roleSelection(record.id,key)||missionSelection(record.id,key))} onCellEdit={writes ? (record, key, anchor) => { dispatchCellEdit(schema, context, key, () => {
         const field = legacyFields.find(f => f.key === key), version = writes.versionForRow(record.id);
         if (!field || !version.trim()) { setMessage("Tải lại phiên bản bản ghi trước khi chỉnh sửa."); return; }
         setEdit({ record, field, anchor, version });
-      }); } : roleMetadata?(record,key,anchor)=>{const selection=roleSelection(record.id,key);if(selection)setRoleEdit({id:selection.id,field:selection.field,version:selection.expectedVersion,anchor});}:undefined} policy={renderedPolicy} serverTotal={schema.table.pagination.mode === "server" ? total : undefined}
+      }); } : (roleMetadata||missionMetadata)?(record,key,anchor)=>{const selection=roleSelection(record.id,key)||missionSelection(record.id,key);if(selection)setRoleEdit({id:selection.id,field:selection.field,version:selection.expectedVersion,anchor});}:undefined} policy={renderedPolicy} serverTotal={schema.table.pagination.mode === "server" ? total : undefined}
       renderReadOnlyCell={renderReadOnlyCell} onSettings={setSettings} filterOpen={filterOpen} setFilterOpen={setFilterOpen} minimal freezeEnabled
       views={views} changeViews={changeViews} activeView={active} applyView={view => { if (view && !schema.table.views.actions.includes("apply")) return; update({}, view?.state ?? initial); setActive(view?.id ?? null); }}
       reset={() => update(initial)} undo={() => restore(false)} canUndo={undo.length > 0}
@@ -184,6 +187,7 @@ function TableContents({ schema, context, rows, query, onQueryChange, onOpen, st
     {message ? <p role="alert">{message}</p> : null}
     {settings ? <BoTableSettings screen={settings} setScreen={setSettings} onClose={() => setSettings(null)} fields={legacyFields} rows={projected.map(p => p!.record)} value={state} update={update} views={views} setViews={changeViews} applyView={view => { if (schema.table.views.actions.includes("apply")) update({}, view.state); }} policy={renderedPolicy} /> : null}
     {roleEdit&&roleRow&&roleCurrent&&roleCurrent.expectedVersion===roleEdit.version&&roleMetadata&&onRoleSaved?roleMetadata.render({host:"table",row:roleRow,version:roleEdit.version,field:roleEdit.field,anchor:roleEdit.anchor,onClose:()=>setRoleEdit(null),onSaved:onRoleSaved}):null}
+    {roleEdit&&roleRow&&missionCurrent&&missionCurrent.expectedVersion===roleEdit.version&&missionMetadata&&onMissionSaved?missionMetadata.render({host:"table",row:roleRow,version:roleEdit.version,field:missionCurrent.field,anchor:roleEdit.anchor,onClose:()=>setRoleEdit(null),onSaved:onMissionSaved}):null}
     {edit && writes && rows.some(row => row.id === edit.record.id) ? <PropertyEditor key={JSON.stringify([edit.record.id, edit.field.key, edit.version])} schema={schema} context={context} record={edit.record} writes={{ adapter: writes.adapter, version: edit.version, onSaved: writes.onSaved }} selection={edit} onClose={() => setEdit(null)} /> : null}
   </div>;
 }

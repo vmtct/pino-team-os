@@ -19,7 +19,7 @@ test("PAP-1247: Drawer & Detail route action slots via one shared Action Host, n
   assert.match(detail, /\{actions\}/);
   assert.match(detail, /id="back-to-list"/);
   assert.match(surface, /status: recordStatus, actionBindings, writes/);
-  assert.match(surface, /status: recordStatus, actionBindings, writes, onRetry:/);
+  assert.match(surface, /kind: "detail", props: \{ \.\.\.common, record, status: recordStatus, actionBindings, writes, missionMetadata,missionVersion:selected\?\.version,onMissionSaved:\(\)=>\{detail\.retry\(\);list\.retry\(\);\},onRetry: detail\.retry/);
   assert.doesNotMatch(drawer, /<TosButton/);
 });
 test("PAP-1247: only authorized bound record actions appear in exact declared record host", () => {

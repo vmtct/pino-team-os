@@ -10,8 +10,8 @@ export const emptyMission: MissionInput = {
   prerequisiteMissionId: null, prerequisiteCodeSnapshot: null,
 };
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-export function validateMissionCreate(value: MissionInput, requireCategory = false): string | null {
-  if (requireCategory && !isMissionCategory(value.category)) return "Vui lòng chọn Category.";
+export function validateMissionCreate(value: MissionInput, requireCategory = false, allowUnclassified = false): string | null {
+  if (requireCategory && !isMissionCategory(value.category) && !(allowUnclassified && value.category === null)) return "Vui lòng chọn Category.";
   if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]{1,63}$/.test(value.code.trim())) return "Mã Mission phải có 2–64 ký tự chữ, số, _ hoặc -.";
   if (!value.name.trim() || value.name.trim().length > 160) return "Tên Mission phải có 1–160 ký tự.";
   if (!Number.isInteger(value.level) || value.level < 1 || value.level > 5) return "Cấp độ phải từ 1 đến 5.";
@@ -31,12 +31,12 @@ export function validateMissionCreate(value: MissionInput, requireCategory = fal
  * Status is a read-only property: Archive has a separate confirmed action.
  */
 export function MissionCreateFields({ value, setValue, disabled, editing = false, pathChoices = [],
-  pathState = "idle", pathError = "", requireCategory = false }: {
+  pathState = "idle", pathError = "", requireCategory = false, allowUnclassified = false }: {
   readonly value: MissionInput; readonly setValue: (value: MissionInput) => void;
   readonly disabled: boolean; readonly editing?: boolean;
   readonly pathChoices?: readonly MissionPathChoice[];
   readonly pathState?: "idle" | "loading" | "ready" | "error";
-  readonly pathError?: string; readonly requireCategory?: boolean;
+  readonly pathError?: string; readonly requireCategory?: boolean; readonly allowUnclassified?: boolean;
 }) {
   const set = <K extends keyof MissionInput>(key: K, entry: MissionInput[K]) => setValue({ ...value, [key]: entry });
   const pickPath = (id: string) => {
@@ -49,10 +49,10 @@ export function MissionCreateFields({ value, setValue, disabled, editing = false
       value={value.name} disabled={disabled} onChange={e => set("name", e.target.value)} /></label>
     <label className="v25-form-field form-row"><span>Mã *</span><input required maxLength={64}
       value={value.code} disabled={disabled} onChange={e => set("code", e.target.value)} /></label>
-    {requireCategory ? <label className="v25-form-field form-row"><span>Category *</span>
-      <select required aria-label="Category" value={value.category ?? ""} disabled={disabled}
+    {requireCategory ? <label className="v25-form-field form-row"><span>{allowUnclassified ? "Category" : "Category *"}</span>
+      <select required={!allowUnclassified} aria-label="Category" value={value.category ?? ""} disabled={disabled}
         onChange={e => set("category", isMissionCategory(e.target.value) ? e.target.value : null)}>
-        <option value="">Chọn Category</option>
+        <option value="">{allowUnclassified ? "Chưa phân loại" : "Chọn Category"}</option>
         {missionCategories.map(category => <option key={category} value={category}>{category}</option>)}
       </select></label> : null}
     <label className="v25-form-field form-row"><span>Cấp độ</span>

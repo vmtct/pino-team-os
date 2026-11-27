@@ -3,7 +3,7 @@ import {parseLiveSpaceQuery} from "./ho-learning-space-contract";
 import {parseNativeRoleQuery} from "../app/ho/system/roles/native-role-query";
 import {parseProductPlanNavigation} from "../app/ho/billing/product-plans/product-plan-stage-admission";
 import {nativePlanUrl} from "../app/ho/billing/product-plans/product-plan-native-binding";
-import {parseMissionM1Query} from "../app/ho/learning/missions/mission-m1-query";
+import {parseMissionIntegratedQuery} from "../app/ho/learning/missions/mission-m1-query";
 import {readWishDetailRoute,wishDetailUrl} from "./pls-wish-detail-route";
 import {validateAttributeDirectoryParams} from "./pap1841-attribute-directory-query";
 import {attributeModule} from "./ho-attribute-model";
@@ -67,9 +67,9 @@ export function safeHoReturnTo(raw: string | null | undefined): string | null {
       if(!state)return null;
       return parsed.pathname+(state.record?"?record="+encodeURIComponent(state.record):"");
     }
-    // PAP-2394: Mission M1-B uses only the canonical synthetic seed.
+    // PAP-2394: Mission M3 uses only canonical real UUIDv7 record links.
     if(parsed.pathname===HO_PAGE_PATHS.missions){
-      const state=parseMissionM1Query(parsed.searchParams);
+      const state=parseMissionIntegratedQuery(parsed.searchParams);
       if(!state)return null;
       return parsed.pathname+(state.record?"?record="+encodeURIComponent(state.record):"");
     }
