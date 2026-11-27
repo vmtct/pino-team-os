@@ -53,7 +53,13 @@ test("PAP-1169 roles use a registered canonical TDD + Shared DS (no new shell)",
  assert.match(ui,/@pino\/design-system\/components\.css/);
  assert.match(ui,/SurfaceWorkspace/);
  assert.match(ui,/detailApprovedExtension=/);
- assert.doesNotMatch(ui,/detailProperties=/);
+ // PAP-2408: suppress only the redundant native Overview; the approved extension renders the identical shared TDD property grid.
+ assert.match(ui,/detailProperties=\{nativeLifecycle\?\(\)=>null:undefined\}/);
+ assert.match(ui,/nativeOverview=\{nativeLifecycle\?nativeRoleOverview\(/);
+ assert.match(ui,/recordProjection\(schema,context,row\)/);
+ assert.match(edit,/import \{PropertySections as NativePropertySections,type OverviewProperties\} from "@\/app\/components\/workspace-renderer\/Properties"/);
+ assert.match(edit,/<NativePropertySections fields=\{nativeOverview.fields\} sections=\{nativeOverview.sections\} record=\{nativeRecord\} variant="detail"/);
+ assert.doesNotMatch(ui,/<(?:DetailFrame|DrawerFrame|BoDataTable)\b/);
  assert.equal(roleDefinition.detail.businessTabs.length,1);
  assert.deepEqual(roleDefinition.detail.businessTabs.map(tab=>[tab.id,tab.label,tab.kind]),[["permissions","Quyền","approved-extension"]]);
  assert.match(edit,/data-role-tab=\{activeTab\}/);
