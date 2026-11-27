@@ -3,7 +3,7 @@
 import {useMemo,useState,useSyncExternalStore} from "react";
 import {TddRegistry,type AuthorizationContext,type TddActionBindings,type ModuleRow} from "@/lib/workspace-schema";
 import type {AuthenticatedSurfaceAdapter} from "@/lib/workspace-adapters";
-import type {AdapterLocation,AdapterNavigation} from "@/lib/workspace-adapters/navigation";
+import {createAssignmentM1Navigation} from "./assignment-m1-navigation";
 import {TddRenderer} from "@/app/components/workspace-renderer/Renderer";
 import {SurfaceWorkspace} from "@/app/components/workspace-adapters/SurfaceWorkspace";
 import {expandedAssignmentQuery,registerExpandedAssignment,type ExpandedAssignmentFields} from "./assignment-expanded-schema";
@@ -11,15 +11,6 @@ import {ASSIGNMENT_M1_ID,ASSIGNMENT_M1_CENTER,staffAssignmentM1,staffAssignmentM
 import {assignmentPresentationScope} from "./assignment-subject-presentation";
 type F=ExpandedAssignmentFields;
 const READ="student.mission_assignment.view",EDIT="student.mission_assignment.manage";
-export function createAssignmentM1Navigation(record?:string):AdapterNavigation<F>{
- if(record!==undefined&&record!==ASSIGNMENT_M1_ID)throw Error("Unknown synthetic record");
- let state:AdapterLocation<F>={kind:record?"drawer":"table",...(record?{recordId:record}:{}),tab:"overview",query:expandedAssignmentQuery};
- const listeners=new Set<()=>void>();let focus:HTMLElement|null=null;
- return {read:()=>state,change:next=>{
-  if(next.kind!=="table"&&next.recordId!==ASSIGNMENT_M1_ID)throw Error("Unknown synthetic record");
-  state=next;listeners.forEach(fn=>fn());
- },subscribe:fn=>{listeners.add(fn);return()=>{listeners.delete(fn);}},capture:()=>{focus=document.activeElement instanceof HTMLElement?document.activeElement:null;},restore:()=>{if(focus?.isConnected)focus.focus({preventScroll:true});}};
-}
 export function createAssignmentM1Adapter(completed:boolean,version:number):AuthenticatedSurfaceAdapter<F>{
  const subject={...staffAssignmentM1,execution:completed?"COMPLETED" as const:"IN_PROGRESS" as const};
  const row:ModuleRow<F>={...staffAssignmentM1Row,executionStatus:completed?"Hoàn tất":"Đang thực hiện",executionVersion:version};
