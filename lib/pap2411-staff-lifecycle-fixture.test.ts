@@ -43,3 +43,4 @@ test("PAP-2411 synthetic audit metadata advances only after a successful lifecyc
  assert.throws(()=>f.deactivate(id,2,false));assert.deepEqual(f.rows()[0],edited);
  f.deactivate(id,2,true);assert.equal(f.rows()[0].updatedAt,"2026-11-26T08:02:00.000Z");assert.equal(f.rows()[0].id,id);
 });
+test("PAP-2411 inactive profile is readonly at fixture boundary; malformed name cannot mutate state",()=>{const f=createStaffLifecycleM1Fixture();const original=f.snapshot(),row=f.rows()[0];for(const displayLabel of [null,undefined,""," "])assert.throws(()=>f.edit(id,1,{displayLabel} as never));assert.deepEqual(f.snapshot(),original);assert.deepEqual(f.rows()[0],row);assert.equal(original.profile?.roleLabel,"Nhân sự (custom M1)");f.deactivate(id,1,true);const inactive=f.snapshot(),inactiveRow=f.rows()[0];assert.throws(()=>f.edit(id,2,{department:"Unexpected edit"}));assert.deepEqual(f.snapshot(),inactive);assert.deepEqual(f.rows()[0],inactiveRow);});
