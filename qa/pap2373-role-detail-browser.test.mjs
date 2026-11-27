@@ -50,6 +50,7 @@ test("PAP-2373 isolated native Role Detail typed metadata editor",async()=>{
       await expect(page.locator(".ho-role-technical")).toHaveCount(0);
       await expect(page.locator('[data-pds-field="name"]')).toHaveCount(0);
       await expect(page.locator(".v24-prop-item")).toHaveCount(12);
+      await expect(page.locator(".v24-section-heading .v24-lock")).toHaveCount(mode==="protected"||mode==="denied"?2:1);
       await expect(page.locator(".v24-section-heading h4").filter({hasText:"Thông tin Role"})).toHaveCount(1);
       await expect(page.locator(".v24-prop-key").filter({hasText:"Role ID"})).toHaveCount(1);
       await expect(page.locator(".v24-prop-key").filter({hasText:"Last Modified Time"})).toHaveCount(1);
