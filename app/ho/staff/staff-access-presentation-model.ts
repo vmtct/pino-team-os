@@ -24,5 +24,6 @@ export function prepareRemoval(snapshot:Snapshot,request:{staffId:string;revisio
  return {kind:"ready",assignmentId:item.id};
 }
 export function accountPresentation(snapshot:Snapshot,centers:readonly CenterChoice[]){
- return {employment:snapshot.employment,accountStatus:snapshot.accountStatus,affiliations:snapshot.affiliationIds.map(id=>({id,label:centers.find(c=>c.id===id)?.label??"Chưa xác minh",active:centers.some(c=>c.id===id&&c.active)})),assignments:structuredClone(snapshot.assignments),operationalReadiness:snapshot.employment==="inactive"||snapshot.accountStatus!=="active"?"not-ready":"unverified"} as const;
+ const accountStatus=snapshot.accountStatus==="active"&&!snapshot.accountId?"unknown":snapshot.accountStatus;
+ return {employment:snapshot.employment,accountStatus,affiliations:snapshot.affiliationIds.map(id=>({id,label:centers.find(c=>c.id===id)?.label??"Chưa xác minh",active:centers.some(c=>c.id===id&&c.active)})),assignments:structuredClone(snapshot.assignments),operationalReadiness:snapshot.employment==="inactive"||accountStatus!=="active"?"not-ready":"unverified"} as const;
 }
