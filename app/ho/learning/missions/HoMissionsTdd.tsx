@@ -59,7 +59,8 @@ type PathState =
   | { state: "ready"; choices: readonly MissionPathChoice[] };
 /** PAP-1207: Create/Edit/Archive use canonical TDD Action Host; no local mutation buttons. */
 export function HoMissionsContent({boundary=liveBoundary}:{boundary?:MissionBoundary} = {}) {
-  const [ready, setReady] = useState<Ready | null>(null);
+  const [scopedReady, setReady] = useState<(Ready & {boundary:MissionBoundary}) | null>(null);
+  const ready=scopedReady?.boundary===boundary?scopedReady:null;
   const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
   const [mode, setMode] = useState<"create" | "edit" | null>(null);
@@ -76,6 +77,7 @@ export function HoMissionsContent({boundary=liveBoundary}:{boundary?:MissionBoun
   const idempotency = useRef<string | null>(null);
   const writing = useRef(false);
   const inlineWriting = useRef(false);
+  const readingAction = useRef(false);
   const latest = useRef({ready,boundary,mode,pending,uncertain,archivePreview});
   useLayoutEffect(()=>{latest.current={ready,boundary,mode,pending,uncertain,archivePreview};},[ready,boundary,mode,pending,uncertain,archivePreview]);
   const [inlineScope,setInlineScope]=useState<{ready:Ready;boundary:MissionBoundary;presentation:MissionMetadataPresentation}|null>(null);
@@ -86,7 +88,7 @@ export function HoMissionsContent({boundary=liveBoundary}:{boundary?:MissionBoun
       if(!active)return false;
       const current=latest.current;
       return current.ready===ready&&current.boundary===boundary&&!current.mode&&!current.archivePreview&&!current.uncertain&&
-        (!current.pending||inlineWriting.current)&&(!writing.current||inlineWriting.current)&&
+        (!current.pending||inlineWriting.current)&&!readingAction.current&&(!writing.current||inlineWriting.current)&&
         ready.adapter.context.authorize("catalog.learning.view")&&ready.adapter.context.authorize("learning.mission.manage");
     };
     const binding=createMissionMetadataBinding({
@@ -113,7 +115,7 @@ export function HoMissionsContent({boundary=liveBoundary}:{boundary?:MissionBoun
       .then(result => {
         bound = result.adapter;
         if (controller.signal.aborted) { bound.dispose(); return; }
-        setReady(result);
+        setReady({...result,boundary});
       })
       .catch(() => { if (!controller.signal.aborted) setError("Không thể xác thực quyền xem Mission trên HO."); });
     return () => { controller.abort(); bound?.dispose(); };
@@ -157,36 +159,36 @@ export function HoMissionsContent({boundary=liveBoundary}:{boundary?:MissionBoun
     setMode(null); setEditTarget(null); setFormError(""); setPathState({ state: "idle" });
   };
   const open = () => {
-    if (writing.current || pending || uncertain) return;
+    if (writing.current || readingAction.current || pending || uncertain) return;
     idempotency.current = boundary.key("mission-create-");
     setDraft(emptyMission); setEditTarget(null); setPathState({ state: "loading" });
     setFormError(""); setEditLoadError(""); setConfirmed(""); setMode("create");
   };
   const openEdit = async () => {
-    if (writing.current || pending || uncertain || !ready || mode) return;
+    if (writing.current || readingAction.current || pending || uncertain || !ready || mode) return;
     if (!ready.adapter.context.authorize("learning.mission.manage")) return;
     const selected = ready.navigation.read();
     if (selected.kind !== "detail" || !selected.recordId) return;
-    setPending(true); setEditLoadError("");
+    readingAction.current=true; setPending(true); setEditLoadError("");
     try {
       const result = await boundary.load(selected.recordId);
       if (result.state !== "ready") { setEditLoadError(result.message); return; }
-      if (ready.navigation.read().recordId !== result.id) return; // stale selected row
+      if (latest.current.ready!==ready || latest.current.boundary!==boundary || ready.navigation.read().recordId !== result.id) return; // stale selected row or scope
       setEditTarget({ id: result.id, version: result.version, status: result.data.status, originalCategory:result.data.category });
       setDraft(result.data); setPathState({ state: "loading" }); idempotency.current = boundary.key("mission-edit-");
       setFormError(""); setConfirmed(""); setMode("edit");
-    } finally { setPending(false); }
+    } finally { readingAction.current=false; setPending(false); }
   };
   const archiveMission = async (confirmedPreview?: {id:string;version:number}) => {
-    if (writing.current || pending || uncertain || !ready || mode) return;
+    if (writing.current || readingAction.current || pending || uncertain || !ready || mode) return;
     if (!ready.adapter.context.authorize("learning.mission.manage")) return;
     const selected = ready.navigation.read();
     if (selected.kind !== "detail" || !selected.recordId) return;
-    setPending(true); setEditLoadError("");
+    readingAction.current=true; setPending(true); setEditLoadError("");
     try {
       const loaded = await boundary.load(selected.recordId);
       if (loaded.state !== "ready") { setEditLoadError(loaded.message); return; }
-      if (ready.navigation.read().recordId !== loaded.id) return;
+      if (latest.current.ready!==ready || latest.current.boundary!==boundary || ready.navigation.read().recordId !== loaded.id) return;
       if (loaded.data.status !== "ACTIVE") {
         setEditLoadError("Mission đã ở trạng thái INACTIVE; không cần lưu trữ lại.");
         return;
@@ -202,7 +204,7 @@ export function HoMissionsContent({boundary=liveBoundary}:{boundary?:MissionBoun
         "Lưu trữ Mission " + loaded.data.code + " — " + loaded.data.name +
         "? Mission sẽ chuyển sang INACTIVE và không còn được giao mới. Assignment và Nhật Ký hiện có vẫn được giữ nguyên; thao tác này không xóa dữ liệu.",
       ));
-      if (!accepted || ready.navigation.read().recordId !== loaded.id || writing.current || uncertain) return;
+      if (!accepted || latest.current.ready!==ready || latest.current.boundary!==boundary || ready.navigation.read().recordId !== loaded.id || writing.current || uncertain) return;
       writing.current = true;
       idempotency.current = boundary.key("mission-archive-");
       const result = await boundary.submit({
@@ -219,7 +221,7 @@ export function HoMissionsContent({boundary=liveBoundary}:{boundary?:MissionBoun
       }
     } catch {
       setEditLoadError("Không xác minh được thao tác lưu trữ. Đọc lại Core trước khi thử lại.");
-    } finally { writing.current = false; setPending(false); }
+    } finally { readingAction.current=false; writing.current = false; setPending(false); }
   };
   const submit = async () => {
     if (!mode) return { state: "invalid" as const };
@@ -230,7 +232,7 @@ export function HoMissionsContent({boundary=liveBoundary}:{boundary?:MissionBoun
       setFormError("Không đổi trạng thái tại Sửa Mission. Lưu trữ cần thao tác xác nhận riêng.");
       return { state: "invalid" as const };
     }
-    if (writing.current || uncertain || !idempotency.current) return { state: "unverified" as const };
+    if (writing.current || readingAction.current || uncertain || !idempotency.current) return { state: "unverified" as const };
     if (!ready?.adapter.context.authorize("learning.mission.manage")) return { state: "denied" as const };
     writing.current = true; setPending(true); setFormError("");
     try {
