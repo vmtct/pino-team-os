@@ -1,0 +1,24 @@
+"use client";
+// PAP-784: isolated hypothetical scenario, not an account or access writer.
+import {useState} from "react";
+import {TosButton} from "@pino/design-system/react";
+import {applyAccessScenario,type ScenarioCommand} from "./staff-access-scenario";
+import type {Snapshot,RoleChoice,CenterChoice,Scope} from "./staff-access-presentation-model";
+const messages={invalid:"Lựa chọn không hợp lệ.",denied:"Không đủ điều kiện thực hiện.",stale:"Phiên bản đã thay đổi.",duplicate:"Phân công đã tồn tại."};
+export function StaffAccessScenario({seed,roles,centers}:{seed:Snapshot;roles:readonly RoleChoice[];centers:readonly CenterChoice[]}){
+ const [s,setS]=useState(()=>structuredClone(seed)),[role,setRole]=useState(""),[scope,setScope]=useState<Scope["type"]>("CENTER"),[center,setCenter]=useState(""),[affiliation,setAffiliation]=useState(""),[pending,setPending]=useState<ScenarioCommand|null>(null),[notice,setNotice]=useState("");
+ const identity={staffId:s.staffId,revision:s.revision};
+ function commit(){if(!pending)return;const result=applyAccessScenario(s,pending,roles,centers);setPending(null);if(result.kind==="saved"){setS(result.snapshot);setNotice("Đã lưu trong tình huống mẫu.");}else setNotice(messages[result.kind]);}
+ return <section className="property-section" aria-label="Kiểm thử phân công mẫu"><h3>Kiểm thử phân công (M1)</h3><p>Tình huống giả định tài khoản đang hoạt động. Không thay đổi hồ sơ, tài khoản hoặc quyền thực tế ở trên.</p>
+ <div className="property-row"><label className="property-label" htmlFor="m1-role">Vai trò mẫu</label><select id="m1-role" className="property-control os-create-select" value={role} disabled={!!pending} onChange={e=>setRole(e.target.value)}><option value="">Chọn vai trò</option>{roles.map(r=><option key={r.id} value={r.id} disabled={!r.active||r.protected}>{r.label}</option>)}</select></div>
+ <div className="property-row"><label className="property-label" htmlFor="m1-scope">Phạm vi mẫu</label><select id="m1-scope" className="property-control os-create-select" value={scope} disabled={!!pending} onChange={e=>setScope(e.target.value as Scope["type"])}><option value="CENTER">Cơ sở</option><option value="GLOBAL">Toàn hệ thống</option></select></div>
+ {scope==="CENTER"&&<div className="property-row"><label className="property-label" htmlFor="m1-center">Cơ sở phân công mẫu</label><select id="m1-center" className="property-control os-create-select" value={center} disabled={!!pending} onChange={e=>setCenter(e.target.value)}><option value="">Chọn cơ sở</option>{centers.map(c=><option key={c.id} value={c.id} disabled={!c.active}>{c.label}</option>)}</select></div>}
+ <TosButton type="button" variant="secondary" disabled={!!pending||!role||(scope==="CENTER"&&!center)} onClick={()=>{setNotice("");setPending({kind:"assign",draft:{...identity,roleId:role,scope:scope==="GLOBAL"?{type:"GLOBAL",id:null}:{type:"CENTER",id:center}}});}}>Thêm phân công mẫu</TosButton>
+ <h4>Phân công mẫu hiện tại</h4>{s.assignments.length?s.assignments.map(a=><div className="property-row" key={a.id}><span>{roles.find(r=>r.id===a.roleId)?.label} · {a.scope.type==="GLOBAL"?"Toàn hệ thống":centers.find(c=>c.id===a.scope.id)?.label}</span><TosButton type="button" variant="secondary" disabled={!!pending||a.protected} onClick={()=>{setNotice("");setPending({kind:"remove",...identity,assignmentId:a.id});}}>Gỡ phân công mẫu</TosButton></div>):<p>Chưa có phân công mẫu.</p>}
+ <h4>Cơ sở làm việc mẫu</h4>{s.affiliationIds.map(id=><div className="property-row" key={id}><span>{centers.find(c=>c.id===id)?.label??id}</span><TosButton type="button" variant="secondary" disabled={!!pending||s.affiliationIds.length<=1} onClick={()=>{setNotice("");setPending({kind:"unaffiliate",...identity,centerId:id});}}>Gỡ cơ sở mẫu</TosButton></div>)}
+ <div className="property-row"><label className="property-label" htmlFor="m1-affiliation">Thêm cơ sở làm việc mẫu</label><select id="m1-affiliation" className="property-control os-create-select" value={affiliation} disabled={!!pending} onChange={e=>setAffiliation(e.target.value)}><option value="">Chọn cơ sở</option>{centers.filter(c=>!s.affiliationIds.includes(c.id)).map(c=><option key={c.id} value={c.id} disabled={!c.active}>{c.label}</option>)}</select></div>
+ <TosButton type="button" variant="secondary" disabled={!!pending||!affiliation||s.affiliationIds.includes(affiliation)} onClick={()=>{setNotice("");setPending({kind:"affiliate",...identity,centerId:affiliation});}}>Thêm cơ sở mẫu</TosButton>
+ {pending&&<div role="group" aria-label="Xác nhận thao tác mẫu"><p>Xác nhận thay đổi trong tình huống mẫu?</p><TosButton type="button" variant="secondary" onClick={()=>setPending(null)}>Hủy</TosButton><TosButton type="button" onClick={commit}>Xác nhận mẫu</TosButton></div>}
+ {notice&&<p role="status">{notice}</p>}
+ </section>;
+}
