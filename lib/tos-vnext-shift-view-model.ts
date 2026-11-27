@@ -1,4 +1,4 @@
-import {formatPayrollVnd} from "./tos-own-income-api";
+import {formatPayrollVnd,type OwnIncomePeriod} from "./tos-own-income-api";
 import type {Assignment} from "./workforce-api";
 /** Calendar-only arithmetic; localDate has already been resolved in the authorized center's timezone. */
 export function shiftWeek(localDate:string){
@@ -23,6 +23,14 @@ export function assignmentHours(row:Assignment){
  return start&&end?`${start}–${end}`:"Chưa xác định giờ ca";
 }
 export function formatIncome(minor:number|null|undefined){return formatPayrollVnd(minor)}
+/** PAP-2429: present the existing Core period breakdown without deriving or fabricating amounts. */
+export function incomeBreakdown(period:OwnIncomePeriod|undefined){
+ return [
+  ["Tiền công cơ bản",period?.standardMinor],
+  ["Làm thêm giờ",period?.extraTimeMinor],
+  ["Điều chỉnh",period?.adjustmentsMinor],
+ ] as const;
+}
 export function shiftRoleLabel(row:Assignment){
  const labels={FRONT_DESK:"Tiếp tân",TEACHER:"Giáo viên",TEACHING_ASSISTANT:"Trợ giảng",SHIFT_LEADER:"Trưởng ca"} as const;
  return [...new Set(row.roleAssignments?.map(role=>labels[role.roleType])??[])].join(" · ")||"Chưa có vai trò được phân công";

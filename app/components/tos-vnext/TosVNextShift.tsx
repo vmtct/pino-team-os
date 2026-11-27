@@ -7,7 +7,7 @@ import {AppBottomNav,AppCard,AppSheet,AppButton,createSlotKeys} from "../tos-ds"
 import {workforceApi,type Assignment,type TimekeepingSession} from "@/lib/workforce-api";
 import type {OwnIncomePage} from "@/lib/tos-own-income-api";
 import type {TosVNextShiftReadWarnings} from "./core-adapters";
-import {shiftWeek,shiftWeekOffset,activeScheduleAssignments,assignmentHours,formatIncome,shiftRoleLabel} from "@/lib/tos-vnext-shift-view-model";
+import {shiftWeek,shiftWeekOffset,activeScheduleAssignments,assignmentHours,formatIncome,incomeBreakdown,shiftRoleLabel} from "@/lib/tos-vnext-shift-view-model";
 import {TosVNextAvailability} from "./TosVNextAvailability";
 import styles from "./shift.module.css";
 const slot=createSlotKeys(styles);
@@ -98,7 +98,7 @@ export function TosVNextShift({data,localDate,centerId,centerName,profileLabel}:
     <div className={styles.intro}><span>THU NHẬP</span><h2>{latest?.name??"Thu nhập của tôi"}</h2><p>Theo dõi thu nhập và lịch sử thanh toán.</p></div>
     <section className={styles.hero}><span className={styles.pill}>{latest?.status??"Chưa có kỳ thu nhập"}</span><p>Thu nhập</p><div className={styles.money}>{formatIncome(latest?.amountMinor)}</div><small>{latest?.startDate} {latest?"–":""} {latest?.endDate}</small></section>
     {data.warnings.income&&<p role="alert">{data.warnings.income}</p>}
-    <AppCard className={styles.card}><h3>Chi tiết kỳ này</h3>{([["Tiền công cơ bản",latest?.standardMinor],["Điều chỉnh",latest?.adjustmentsMinor]] as const).map(([label,value])=><div className={styles.moneyRow} key={label}><span>{label}</span><strong>{formatIncome(value)}</strong></div>)}<div className={styles.moneyRow}><span>Trạng thái</span><strong>{latest?.status??"—"}</strong></div>{latest?.warnings.map(w=><p key={w}>{w}</p>)}</AppCard>
+    <AppCard className={styles.card}><h3>Chi tiết kỳ này</h3>{incomeBreakdown(latest).map(([label,value])=><div className={styles.moneyRow} key={label}><span>{label}</span><strong>{formatIncome(value)}</strong></div>)}<div className={styles.moneyRow}><span>Trạng thái</span><strong>{latest?.status??"—"}</strong></div>{latest?.warnings.map(w=><p key={w}>{w}</p>)}</AppCard>
     <AppCard className={styles.card}><h3>Kỳ lương trước</h3><button type="button" className={styles.secondary} onClick={()=>setSheet("history")}>Xem tất cả kỳ lương ›</button></AppCard>
    </>}
   </div>
