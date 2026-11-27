@@ -40,3 +40,31 @@ test("PAP-2411 complete synthetic registration can be reviewed; incomplete docum
  await assert.rejects(complete.approveStaffRegistration(STAFF_DIRECTORY_MOCK_ID,[{...assignments[0],scopeId:"foreign"}],identity,"foreign"));
  assert.equal((await complete.approveStaffRegistration(STAFF_DIRECTORY_MOCK_ID,assignments,identity,"valid")).status,"APPROVED");
 });
+
+test("PAP-2411 existing learner selection is exact and never inferred",async()=>{
+ const service=createStaffRegistrationM1Service();
+ const role=(await service.accessRoles())[0],center=(await service.scopeCatalog()).centers[0];
+ const assignments=[{roleId:role.id,scopeType:"CENTER" as const,scopeId:center.id}];
+ assert.deepEqual(await service.learners("unknown",50),[]);
+ const [learner]=await service.learners("PINO",50);
+ assert.equal(learner.id,"STAFF-MOCK-LEARNER");
+ await assert.rejects(service.approveStaffRegistration(STAFF_DIRECTORY_MOCK_ID,assignments,{mode:"LINK_EXISTING_STUDENT",studentProfileId:"foreign"},"foreign"));
+ assert.equal((await service.staffRegistrationRequests()).length,1);
+ assert.equal((await service.approveStaffRegistration(STAFF_DIRECTORY_MOCK_ID,assignments,{mode:"LINK_EXISTING_STUDENT",studentProfileId:learner.id},"explicit")).status,"APPROVED");
+});
+
+test("PAP-2411 existing Access requires explicit eligible Staff selection and denies already linked",async()=>{
+ const service=createStaffRegistrationM1Service({existingAccess:"unlinked"}),linked=createStaffRegistrationM1Service({existingAccess:"linked"});
+ const role=(await service.accessRoles())[0],center=(await service.scopeCatalog()).centers[0];
+ const assignments=[{roleId:role.id,scopeType:"CENTER" as const,scopeId:center.id}];
+ const [staff]=await service.staffRecords(),[account]=await service.accessUsers();
+ assert.equal(account.staffMemberId,null);assert.equal(account.email,(await service.staffRegistrationRequests())[0].email);
+ await assert.rejects(service.approveStaffRegistration(STAFF_DIRECTORY_MOCK_ID,assignments,identity,"missing"));
+ await assert.rejects(service.approveStaffRegistration(STAFF_DIRECTORY_MOCK_ID,assignments,identity,"foreign","foreign"));
+ await assert.rejects(linked.approveStaffRegistration(STAFF_DIRECTORY_MOCK_ID,assignments,identity,"linked",staff.id));
+ assert.deepEqual(await service.learners(),[]);
+ const receipt=await service.approveStaffRegistration(STAFF_DIRECTORY_MOCK_ID,assignments,identity,"exact",staff.id);
+ assert.equal(receipt.staffMemberId,staff.id);assert.equal(receipt.userId,account.id);assert.equal(receipt.accessState,"LINKED_EXISTING_ACCESS");
+ assert.equal(receipt.authenticationMethod,"EXISTING_ACCESS");
+ assert.deepEqual(await service.approveStaffRegistration(STAFF_DIRECTORY_MOCK_ID,assignments,identity,"exact",staff.id),receipt);
+});

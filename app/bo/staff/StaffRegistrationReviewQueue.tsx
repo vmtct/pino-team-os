@@ -19,6 +19,7 @@ import styles from "../bo.module.css";
 import { BoDataGrid, BoDataGridBadge, BoDrawer, type BoDataGridColumn } from "@/app/bo/components/data-grid";
 import { BoProperties } from "@/app/bo/components/BoProperties";
 import { DetailFrame } from "@/app/components/workspace-renderer/DetailFrame";
+import {useStaffRegistrationConfirmation} from "./StaffRegistrationConfirmation";
 
 const requestColumns: BoDataGridColumn<BoStaffRegistrationRequest>[] = [
   { key: "displayLabel", header: "H\u1ecd v\u00e0 t\u00ean", render: row => row.displayLabel, minWidth: 180 },
@@ -59,6 +60,10 @@ export function StaffRegistrationReviewQueue({service=boApi,newKey=liveReviewKey
   const [assignments, setAssignments] = useState<Draft[]>(()=>[blankDraft()]);
   const [rejectReason, setRejectReason] = useState("");
   const [busy, setBusy] = useState("");
+  const confirmation=useStaffRegistrationConfirmation();
+  const reviewInFlight=useRef(false);
+  const reviewTarget=useRef(selectedId);
+  useEffect(()=>{reviewTarget.current=selectedId;},[selectedId]);
   const [error, setError] = useState("");
   const [approval, setApproval] = useState<BoStaffRegistrationApprovalResult | null>(null);
   const approveAttempt = useRef<ReviewAttempt | null>(null);
@@ -147,7 +152,7 @@ export function StaffRegistrationReviewQueue({service=boApi,newKey=liveReviewKey
   }
 
   async function approve() {
-    if (!selected) return;
+    if (!selected || reviewInFlight.current) return;
     const normalized = normalizedAssignments();
     if (!normalized) { setError("Chọn đầy đủ role và scope trước khi duyệt."); return; }
     const identity = pinoriaIdentity();
@@ -164,7 +169,8 @@ export function StaffRegistrationReviewQueue({service=boApi,newKey=liveReviewKey
     const confirmMessage = existingAccess
       ? `Duyệt hồ sơ của ${selected.displayLabel} và liên kết Access hiện hữu với Staff “${targetStaff?.displayLabel ?? "đã chọn"}”?`
       : `Duyệt hồ sơ của ${selected.displayLabel} và tạo Staff + Access?`;
-    if (!confirm(confirmMessage)) return;
+    reviewInFlight.current=true;
+    if (!await confirmation.ask(confirmMessage) || reviewTarget.current!==selected.id) {reviewInFlight.current=false;return;}
     setBusy("approve"); setError(""); setApproval(null);
     try {
       const fingerprint = JSON.stringify({ normalized, pinoriaIdentity: identity, existingStaffMemberId: existingStaffMemberId || null });
@@ -185,12 +191,14 @@ export function StaffRegistrationReviewQueue({service=boApi,newKey=liveReviewKey
         await refresh();
       }
       setError(formatError(cause, "Không thể duyệt hồ sơ."));
-    } finally { setBusy(""); }
+    } finally { reviewInFlight.current=false;setBusy(""); }
   }
 
   async function reject() {
-    if (!selected || !rejectReason.trim()) { setError("Nhập lý do từ chối."); return; }
-    if (!confirm(`Từ chối hồ sơ của ${selected.displayLabel}?`)) return;
+    if (reviewInFlight.current) return;
+    if (!selected || !rejectReason.trim()) { setError("Nh\u1eadp l\u00fd do t\u1eeb ch\u1ed1i."); return; }
+    reviewInFlight.current=true;
+    if (!await confirmation.ask(`Từ chối hồ sơ của ${selected.displayLabel}?`) || reviewTarget.current!==selected.id) {reviewInFlight.current=false;return;}
     setBusy("reject"); setError("");
     try {
       const reason = rejectReason.trim();
@@ -205,7 +213,7 @@ export function StaffRegistrationReviewQueue({service=boApi,newKey=liveReviewKey
       setRequests((items) => items.filter((item) => item.id !== selected.id));
       setSelectedId("");
     } catch (cause) { setError(formatError(cause, "Không thể từ chối hồ sơ.")); }
-    finally { setBusy(""); }
+    finally { reviewInFlight.current=false;setBusy(""); }
   }
   return <section id="staff-registration-review" className={styles.page} data-staff-registration-surface={selected?surface:"table"}>
     <header className={styles.heading} data-staff-registration-legacy-heading>
@@ -293,6 +301,7 @@ export function StaffRegistrationReviewQueue({service=boApi,newKey=liveReviewKey
           </section>
       </div>}
     </DetailFrame>}
+    {confirmation.dialog}
   </section>;
 }
 
