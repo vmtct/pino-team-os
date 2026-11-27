@@ -8,7 +8,7 @@ import { useContext, useEffect, useMemo, useReducer, useRef, useState } from "re
 import { LeadReadModel } from "./lead-household-read-model";
 import { LeadCommandFence, memberInput, type LeadHouseholdApi, type LeadCommand } from "./lead-household-provider";
 import type { LeadDetail, LeadIntent, LeadMemberInput, LeadInterest, LeadRelationInput } from "@/lib/bo-lead-household-client";
-import { leadReadRow, leadReadDetail, leadAuditTime, leadInquiryLabel } from "./lead-household-read-presentation";
+import { leadReadRow, leadReadDetail, leadAuditTime, leadInquiryLabel, websiteProgramLabel, websiteInquirySummary } from "./lead-household-read-presentation";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { TddHostMenu } from "@/app/components/workspace-adapters/SurfaceWorkspace";
 import { BoApplicationShellContext } from "@/app/bo/shell/BoApplicationShellContext";
@@ -210,11 +210,11 @@ export function LeadHouseholdM1Preview({review,readApi,commandApi,recoveryJourna
 
   const reviewLabel = review?.label;
   const columns = useMemo<BoDataGridColumn<LeadM1Record>[]>(() => [
-    { ...LEAD_TABLE_COLUMNS.contact, sortable: !readModel, render: record => <div className={styles.identityCell}><strong>{record.contactName}</strong><small>{record.id}</small>{reviewLabel?<BoDataGridBadge>{reviewLabel}</BoDataGridBadge>:null}</div> },
+    { ...LEAD_TABLE_COLUMNS.contact, sortable: !readModel, render: record => <div className={styles.identityCell}><strong>{record.contactName}</strong>{record.websiteSubmittedName?<small>Tên gửi từ website: {record.websiteSubmittedName}</small>:null}<small>{record.id}</small>{reviewLabel?<BoDataGridBadge>{reviewLabel}</BoDataGridBadge>:null}</div> },
     { ...LEAD_TABLE_COLUMNS.phone, render: record => <span className={styles.mono}>{record.phone}</span> },
     { ...LEAD_TABLE_COLUMNS.household, render: record => <div className={styles.stackCell}><strong>{record.memberCount??record.members.length} thành viên</strong><small>{record.fixture?leadM1MemberSummary(record):"—"}</small></div> },
-    { ...LEAD_TABLE_COLUMNS.interest, render: record => <div className={styles.badgeWrap + " pds-choice-group"}>{record.fixture?record.intents.map(intent => <BoDataGridBadge key={intent.id}>{LEAD_M1_INTEREST_LABELS[intent.kind]}</BoDataGridBadge>):"—"}</div> },
-    { ...LEAD_TABLE_COLUMNS.source, render: record => <div className={styles.stackCell}>{record.fixture?Array.from(new Set(record.intents.map(intent => intent.source))).map(source => <small key={source}>{source}</small>):"—"}</div> },
+    { ...LEAD_TABLE_COLUMNS.interest, render: record => <div className={styles.badgeWrap + " pds-choice-group"}>{record.fixture?record.intents.map(intent => <BoDataGridBadge key={intent.id}>{LEAD_M1_INTEREST_LABELS[intent.kind]}</BoDataGridBadge>):record.websiteProgram?<BoDataGridBadge>{websiteProgramLabel(record.websiteProgram)}</BoDataGridBadge>:"—"}</div> },
+    { ...LEAD_TABLE_COLUMNS.source, render: record => <div className={styles.stackCell}>{record.fixture?Array.from(new Set(record.intents.map(intent => intent.source))).map(source => <small key={source}>{source}</small>):record.websiteProgram?"Website":"—"}</div> },
     { ...LEAD_TABLE_COLUMNS.lifecycle, render: record => <BoDataGridStatus value={record.lifecycle === "ACTIVE" ? "Đang hoạt động" : "Đã lưu trữ"} tone={record.lifecycle === "ACTIVE" ? "success" : "neutral"} /> },
     ...LEAD_AUDIT_TABLE_COLUMNS.map(field => ({ key: field.key, header: field.header, minWidth: field.minWidth, render: (record: LeadM1Record) => field.type==="datetime"?leadAuditTime(record[field.key]):record[field.key]??field.fallback })),
   ], [readModel,reviewLabel]);
@@ -386,6 +386,7 @@ function LeadQuickView({ record,presentationLabel }: { record: LeadM1Record;pres
     {presentationLabel?<div className="pds-compact-muted">{presentationLabel}</div>:null}
     <PropertySection title="Thông tin liên hệ" schema={CONTACT_FIELD_SCHEMA} values={{ contactName: record.contactName, phone: record.phone }} mode="VIEW" />
     <BoProperties compact items={[
+      ...(record.websiteSubmittedName?[{key:"websiteSubmittedName",label:"Tên gửi từ website",value:record.websiteSubmittedName}]:[]),
       { key: "status", label: "Trạng thái Lead", value: record.lifecycle === "ACTIVE" ? "Đang hoạt động" : "Đã lưu trữ" },
       { key: "members", label: "Household", value: leadM1MemberSummary(record) },
       { key: "person", label: "Person liên kết", value: "—" },
@@ -429,6 +430,7 @@ function LeadOverview({ record, onSave, onSaveInterests,liveContact }: { record:
     <BoProperties items={[
       { key: "contact", label: "Người liên hệ", value: liveContact?<LeadContactInline key={record.id+":"+liveContact.version+":name"} value={liveContact.name??""} label="Người liên hệ" disabled={liveContact.disabled} onSave={name=>liveContact.save("name",name)}/>:!record.fixture?record.contactName:<LeadInlineText key={record.id + record.contactName} label="Người liên hệ" value={record.contactName} onCommit={name => onSave(name, record.phone)} /> },
       { key: "phone", label: "Số điện thoại", value: liveContact?<LeadContactInline key={record.id+":"+liveContact.version+":phone"} value={liveContact.phone} label="Số điện thoại" inputMode="tel" disabled={liveContact.disabled} onSave={phone=>liveContact.save("phone",phone)}/>:!record.fixture?record.phone:<LeadInlineText key={record.id + record.phone} label="Số điện thoại" inputMode="tel" value={record.phone} onCommit={phone => onSave(record.contactName, phone)} /> },
+      ...(record.websiteSubmittedName?[{key:"websiteSubmittedName",label:"Tên gửi từ website",value:record.websiteSubmittedName}]:[]),
       { key: "status", label: "Trạng thái Lead", value: <BoDataGridStatus value={record.lifecycle === "ACTIVE" ? "Đang hoạt động" : "Đã lưu trữ"} tone={record.lifecycle === "ACTIVE" ? "success" : "neutral"} /> },
       { key: "household", label: "Household", value: record.members.length + " thành viên" },
       { key: "person", label: "Person liên kết", value: "—" },
@@ -512,7 +514,7 @@ type HistoryActions={disabled:boolean;submit:(intent:LeadIntent,action:IntentAct
 function LeadInquiryHistory({model,live}:{model:LeadReadModel;live?:HistoryActions}) {
  const history=model.history;
  return <section className={styles.detailContent}><h2>Lịch sử tiếp nhận</h2>
- {history.phase==="error"||history.phase==="loading"||history.phase==="idle"?<LeadReadStatus phase={history.phase} error={history.error?.status} onRetry={()=>void model.openHistory()}/>:history.items.length?<ul className="pds-compact-list">{history.items.map(intent=><li key={intent.id}><strong>{leadInquiryLabel(intent)}</strong><span>{intent.sourceSurface} · {intent.status} · {leadAuditTime(intent.createdAt)}</span>{live&&intent.status!=="CLOSED"?<LeadInquiryActions key={intent.id+":"+intent.version} intent={intent} live={live}/>:null}</li>)}</ul>:<p>Chưa có lượt tiếp nhận.</p>}
+ {history.phase==="error"||history.phase==="loading"||history.phase==="idle"?<LeadReadStatus phase={history.phase} error={history.error?.status} onRetry={()=>void model.openHistory()}/>:history.items.length?<ul className="pds-compact-list">{history.items.map(intent=><li key={intent.id}><strong>{leadInquiryLabel(intent)}</strong><span>{intent.sourceSurface} · {intent.status} · {leadAuditTime(intent.createdAt)}</span>{intent.websiteInterest?<><span>Tên gửi từ website: {intent.websiteInterest.contactName}</span><span>{websiteInquirySummary(intent)}</span><span>Đồng ý: {intent.websiteInterest.consent.version} · {leadAuditTime(intent.websiteInterest.consent.acceptedAt)}</span></>:null}{live&&intent.status!=="CLOSED"?<LeadInquiryActions key={intent.id+":"+intent.version} intent={intent} live={live}/>:null}</li>)}</ul>:<p>Chưa có lượt tiếp nhận.</p>}
  {history.nextCursor?<button className="secondary-btn" disabled={history.phase==="loading"} onClick={()=>void model.nextHistory()}>Tải thêm</button>:null}
  </section>;
 }

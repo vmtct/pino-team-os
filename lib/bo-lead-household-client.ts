@@ -35,9 +35,10 @@ function websiteMetadata(v:unknown):boolean{
  if(v===null||v===undefined)return true;
  if(!object(v)||!exactFields(v,["schemaVersion","contactName","interest","consent"])||v.schemaVersion!==1||!boundedText(v.contactName,100)||!object(v.consent)||!exactFields(v.consent,["version","acceptedAt"])||!boundedText(v.consent.version,80)||typeof v.consent.acceptedAt!=="string"||!object(v.interest))return false;
  const at=new Date(v.consent.acceptedAt);if(!Number.isFinite(at.getTime())||at.toISOString()!==v.consent.acceptedAt)return false;
+ if(new TextEncoder().encode(JSON.stringify(v)).byteLength>2048)return false;
  const s=v.interest;
- if(s.program==="AFTERSCHOOL")return exactFields(s,["program","path","planSessions"])&&["little-piner","artchitect","pianohouse","advice"].includes(String(s.path))&&(s.planSessions===null||s.planSessions===24||s.planSessions===36);
- if(s.program==="MYTIME")return exactFields(s,["program","activity","favoriteRef"])&&["acrylic","piano","advice"].includes(String(s.activity))&&(s.favoriteRef===null||(s.activity!=="advice"&&boundedText(s.favoriteRef,160)));
+ if(s.program==="AFTERSCHOOL")return exactFields(s,["program","path","planSessions"])&&typeof s.path==="string"&&["little-piner","artchitect","pianohouse","advice"].includes(s.path)&&(s.planSessions===null||s.planSessions===24||s.planSessions===36);
+ if(s.program==="MYTIME")return exactFields(s,["program","activity","favoriteRef"])&&typeof s.activity==="string"&&["acrylic","piano","advice"].includes(s.activity)&&(s.favoriteRef===null||(s.activity!=="advice"&&boundedText(s.favoriteRef,160)));
  return false;
 }
 function intentWebsiteFields(v:unknown):boolean{return object(v)&&!Object.hasOwn(v,"websiteInterestRaw")&&websiteMetadata(v.websiteInterest);}

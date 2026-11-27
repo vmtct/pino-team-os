@@ -62,7 +62,7 @@ test("PAP-2424 website metadata is typed, backward compatible and rejects malfor
  const detail={id,version:1,members:[],relationships:[],intents:[{id,websiteInterest:metadata}],intentHistoryHasMore:false};
  assert.equal((await fixture({data:detail}).api.detail(id)).intents[0]?.websiteInterest?.contactName,"Synthetic QA");
  assert.deepEqual((await fixture(page([{id,websiteInterest:null},{id}])).api.history(id)).items.map(i=>i.websiteInterest),[null,undefined]);
- for(const bad of [{...metadata,schemaVersion:2},{...metadata,phone:"0900000000"},{...metadata,interest:{program:"MYTIME",activity:"advice",favoriteRef:"retired"}},{...metadata,consent:{version:"qa-v1",acceptedAt:"invalid"}}]){
+ for(const bad of [{...metadata,interest:{program:"MYTIME",activity:["piano"],favoriteRef:null}},{...metadata,contactName:"界".repeat(101)},{...metadata,schemaVersion:2},{...metadata,phone:"0900000000"},{...metadata,interest:{program:"MYTIME",activity:"advice",favoriteRef:"retired"}},{...metadata,consent:{version:"qa-v1",acceptedAt:"invalid"}}]){
    await assert.rejects(fixture(page([{id,websiteInterest:bad}])).api.history(id),LeadApiError);
    await assert.rejects(fixture({data:{...detail,intents:[{id,websiteInterest:bad}]}}).api.detail(id),LeadApiError);
  }

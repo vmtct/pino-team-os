@@ -15,6 +15,7 @@ export type LeadM1Intent = {
 export type LeadM1Record = {
   id: string; fixture: boolean; contactName: string; phone: string; lifecycle: LeadM1Lifecycle;
   memberCount?: number; intentCount?: number; interestKinds?: LeadM1IntentKind[];
+  websiteSubmittedName?: string | null; websiteProgram?: "AFTERSCHOOL" | "MYTIME" | null;
   members: LeadM1Member[]; relationships: LeadM1Relationship[]; intents: LeadM1Intent[];
   createdAt: string | null; createdBy: string | null; updatedAt: string | null; updatedBy: string | null;
 };
