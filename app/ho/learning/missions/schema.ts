@@ -5,8 +5,8 @@ import type { BoRecord } from "@/lib/bo-registration";
 import { BoApiError } from "@/lib/bo-api-error";
 import { readMissionHistory } from "@/lib/mission-history";
 import { loadMissionPathChoices, type MissionPathChoice } from "./mission-path-options";
-import { missionCategories } from "./mission-category";
-import { missionSupplementalUrlMaxLength } from "./mission-supplemental-url";
+import { isMissionCategory, missionCategories } from "./mission-category";
+import { missionSupplementalUrlMaxLength, normalizeMissionSupplementalUrl } from "./mission-supplemental-url";
 
 const read = { display: true, search: true, filter: true, sort: true, group: true, inlineEdit: false } as const;
 const permission = "catalog.learning.view";
@@ -99,10 +99,18 @@ export const missionCategoryDefinition: SurfaceDefinition<F> = {
   drawer: {...missionDefinition.drawer,sections:[{id:"mission-summary",label:"Nhiệm vụ",fields:missionCategoryPropertyKeys}]},
   detail: {...missionDefinition.detail,overview:{sections:[{id:"mission-data",label:"Nhiệm vụ",fields:missionCategoryPropertyKeys}]}}
 };
+/** PAP-2394: real integrated read-only projection; no generic HO writer. */
+export const missionIntegratedDefinition: SurfaceDefinition<F> = {
+  ...missionCategoryDefinition,
+  fields: missionCategoryDefinition.fields.map(field=>({...field,readOnly:true,capabilities:{...field.capabilities,inlineEdit:false}})) as unknown as F,
+  table:{...missionCategoryDefinition.table,inlineEdit:{enabled:false,fields:[]}},
+};
 export const missionUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-function assertCoreMission(value: unknown): void {
+function assertCoreMission(value: unknown, requireMetadata = false): void {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new BoApiError(502, "Mission source không hợp lệ.", null);
   const m = value as Record<string, unknown>;
+  const url=normalizeMissionSupplementalUrl(m.supplementalUrl);
+  if(requireMetadata&&((m.category!==null&&!isMissionCategory(m.category))||!url.ok||url.value!==m.supplementalUrl||!Number.isSafeInteger(m.version)||Number(m.version)<1))throw new BoApiError(502,"Mission metadata hoặc version không đúng contract.",null);
   if (!missionUuid.test(String(m.id ?? "")) ||
       typeof m.name !== "string" || !m.name.trim() ||
       typeof m.code !== "string" || !m.code.trim() ||
@@ -148,7 +156,7 @@ function project(raw: BoRecord, paths: readonly MissionPathChoice[] = []): Modul
     throw new BoApiError(502, "Mission catalog không đúng contract.", null);
   }
   return {
-    id: String(raw.id), category: null, name: String(raw.name), code: String(raw.code),
+    id: String(raw.id), category: isMissionCategory(raw.category)?raw.category:null, name: String(raw.name), code: String(raw.code),
     level: typeof raw.level === "number" && raw.level > 0 ? raw.level : null,
     status: String(raw.status), plsValue: typeof raw.plsValue === "number" ? raw.plsValue : 0,
     paperSize: typeof raw.paperSize === "string" ? raw.paperSize : null,
@@ -160,11 +168,12 @@ function project(raw: BoRecord, paths: readonly MissionPathChoice[] = []): Modul
     prerequisite: typeof raw.prerequisite === "string" ? raw.prerequisite : null,
     description: typeof raw.description === "string" ? raw.description : null,
     guideline: typeof raw.guideline === "string" ? raw.guideline : null,
-    supplementalUrl: null,
+    supplementalUrl: typeof raw.supplementalUrl==="string"&&normalizeMissionSupplementalUrl(raw.supplementalUrl).ok?raw.supplementalUrl:null,
   };
 }
 export function projectMission(raw: BoRecord, paths: readonly MissionPathChoice[] = []): ModuleRow<F> { return project(raw, paths); }
-export const missionProvider: SurfaceProvider<F> = {
+function createMissionProvider(requireMetadata: boolean): SurfaceProvider<F> {
+return {
   pagination: "local-ui",
   async list(_query, scope, fetcher, signal) {
     if (scope.surface !== "HO") throw new BoApiError(403, "HO Global scope required.", null);
@@ -176,7 +185,7 @@ export const missionProvider: SurfaceProvider<F> = {
         if (!body || typeof body !== "object" || !("data" in body) || !Array.isArray(body.data)) {
           throw new BoApiError(502, "Mission catalog không đúng envelope.", null);
         }
-        for (const source of body.data) assertCoreMission(source);
+        for (const source of body.data) assertCoreMission(source,requireMetadata);
       }
       return response;
     });
@@ -185,8 +194,8 @@ export const missionProvider: SurfaceProvider<F> = {
       throw new BoApiError(502, "Mission catalog có ID trùng.", null);
     const paths = await loadMissionPathChoices(fetcher, signal);
     signal.throwIfAborted();
-    const rows = records.map(raw => project(raw, paths));
-    return { records: rows.map(row => ({ row })), total: rows.length };
+    const rows = records.map(raw => ({row:project(raw,paths),...(requireMetadata?{version:String(raw.version)}:{})}));
+    return { records: rows, total: rows.length };
   },
   async detail(id, scope, fetcher, signal) {
     if (scope.surface !== "HO") throw new BoApiError(403, "HO Global scope required.", null);
@@ -199,14 +208,14 @@ export const missionProvider: SurfaceProvider<F> = {
     signal.throwIfAborted();
     if (!json || typeof json !== "object" || !("data" in json) || !json.data ||
         typeof json.data !== "object" || Array.isArray(json.data)) throw new BoApiError(502, "Mission detail thiếu dữ liệu.", null);
-    assertCoreMission(json.data);
+    assertCoreMission(json.data,requireMetadata);
     const records = mapHoMissions([json.data]);
     if (String(records[0]?.id ?? "").toLowerCase() !== id.toLowerCase())
       throw new BoApiError(502, "Mission ID không khớp.", null);
     const paths = await loadMissionPathChoices(fetcher, signal);
     signal.throwIfAborted();
     const row = project(records[0]!, paths);
-    return { row };
+    return { row,...(requireMetadata?{version:String(records[0]!.version)}:{}) };
   },
   history: { subjectType: "learning_mission", bind: (fetcher, scope) => ({
     kind: "provider", source: { adapter: "core-ho-mission-history", permission: "learning.mission.manage" },
@@ -219,6 +228,9 @@ export const missionProvider: SurfaceProvider<F> = {
     },
   }) },
 };
+}
+export const missionProvider=createMissionProvider(false);
+export const missionIntegratedProvider=createMissionProvider(true);
 const missionRegistry = new TddRegistry();
 export const missionSchema = missionRegistry.register({ ...missionDefinition, data: {
   id: "ho-core-global-mission-catalog-readonly",

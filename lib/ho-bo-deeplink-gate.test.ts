@@ -43,7 +43,6 @@ const legacy:Record<string,string>={
  parents:"/bo/parents",missions:"/bo?module=missions",
 };
 const previews:Record<string,{path:string;expected:string;record?:string;negative:string}>={
- "/ho/learning/missions":{path:"/ho/learning/missions",expected:"/ho/learning/missions",record:"record=MISSION-MOCK-001",negative:"record="+id},
 
 };
 function discoverPreviewPages(dir:string):string[]{
@@ -200,14 +199,15 @@ test("PAP-2395 native Staff canonical link rejects mock and malformed authentica
  checkFlow(ho,path+"?record="+id,path+"?record="+id);
 });
 
-test("PAP-2394: canonical Mission M1-B admits only its seed before streaming and preserves login",()=>{
+test("PAP-2394: canonical native Mission links preserve login and reject fixture or malformed requests before streaming",()=>{
  const path="/ho/learning/missions",headers={cookie:"pino_staff_password_session=fixture-only"};
- for(const q of ["record="+id,"record=MISSION-MOCK-002","record=","record=MISSION-MOCK-001&record=MISSION-MOCK-001","m1Preview=1","tab=history","next=/bo"]){
+ for(const q of ["record=MISSION-MOCK-001","record=MISSION-MOCK-002","record=","record="+id+"&record="+id,"record=bad","m1Preview=1","m1Preview=1&record="+id,"tab=history","next=/bo","returnTo=//evil.example"]){
   assert.equal(parse(ho,path+"?"+q),null,q);
   for(const method of ["GET","HEAD"])assert.equal(middleware(new NextRequest("https://"+ho+path+"?"+q,{headers,method})).status,404,q);
  }
- for(const q of ["","?record=MISSION-MOCK-001","?utm_source=chatgpt.com&record=MISSION-MOCK-001"])assert.equal(middleware(new NextRequest("https://"+ho+path+q,{headers})).headers.get("x-middleware-next"),"1",q);
- assert.equal(middleware(new NextRequest("https://"+ho+path+"?record=MISSION-MOCK-001&_rsc=abc",{headers:{...headers,rsc:"1"}})).headers.get("x-middleware-next"),"1");
+ for(const q of ["","?record="+id,"?utm_source=chatgpt.com&record="+id])assert.equal(middleware(new NextRequest("https://"+ho+path+q,{headers})).headers.get("x-middleware-next"),"1",q);
+ assert.equal(middleware(new NextRequest("https://"+ho+path+"?record="+id+"&_rsc=abc",{headers:{...headers,rsc:"1"}})).headers.get("x-middleware-next"),"1");
+ checkFlow(ho,path+"?record="+id,path+"?record="+id);
  assert.equal(parse(bo,path),null);
 });
 test("PAP-2288 native Lead pre-stream query guard, only canonical or retired synthetic links",()=>{

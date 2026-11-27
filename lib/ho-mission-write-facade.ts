@@ -3,14 +3,17 @@ import { BoShellGateError } from "./bo-shell-gate";
 import { HO_STAGING_HOSTNAME, normalizeHostname } from "./host-boundary";
 import { callFounderCoreWithStaffPassword, type PinoCoreBinding } from "./founder-core";
 import { teamCredential, TeamAuthError } from "./team-auth";
+import { isMissionCategory, type MissionCategory } from "../app/ho/learning/missions/mission-category";
+import { normalizeMissionSupplementalUrl } from "../app/ho/learning/missions/mission-supplemental-url";
 
 /** PAP-1207 Core GLOBAL writer transport. No BO catalog writes and no Production admission. */
 export interface HoMissionWriteEnv extends HoEnv { PINO_CORE?: PinoCoreBinding }
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const idempotency = /^[a-zA-Z0-9][a-zA-Z0-9_-]{7,119}$/;
 const fields = ["code", "name", "level", "status", "plsValue", "description", "guideline",
-  "paperSize", "pathProgramId", "pathKeySnapshot", "prerequisiteMissionId", "prerequisiteCodeSnapshot"] as const;
+  "paperSize", "pathProgramId", "pathKeySnapshot", "prerequisiteMissionId", "prerequisiteCodeSnapshot", "category", "supplementalUrl"] as const;
 type CoreMission = {
+  category?: MissionCategory; supplementalUrl?: string | null;
   code: string; name: string; level: number; status: "ACTIVE" | "INACTIVE"; plsValue: number;
   description: string | null; guideline: string | null; paperSize: "B5" | "A4" | "A3" | null;
   pathProgramId: string | null; pathKeySnapshot: string | null;
@@ -36,6 +39,9 @@ export function parseHoMissionCommand(value: unknown, method: "POST" | "PUT"): M
       !["ACTIVE", "INACTIVE"].includes(String(raw.status)) ||
       !(raw.paperSize == null || ["B5", "A4", "A3"].includes(String(raw.paperSize))) ||
       (method === "PUT" && (!Number.isSafeInteger(raw.expectedVersion) || Number(raw.expectedVersion) < 1))) return null;
+  if((method==="POST"||raw.category!==undefined)&&!isMissionCategory(raw.category))return null;
+  const url=normalizeMissionSupplementalUrl(raw.supplementalUrl);
+  if(!url.ok)return null;
   const description = optionalText(raw.description, 4000);
   const guideline = optionalText(raw.guideline, 8000);
   const pathProgramId = optionalText(raw.pathProgramId, 36);
@@ -47,6 +53,8 @@ export function parseHoMissionCommand(value: unknown, method: "POST" | "PUT"): M
       (pathProgramId !== null && !uuid.test(pathProgramId!)) ||
       (prerequisiteMissionId !== null && !uuid.test(prerequisiteMissionId!))) return null;
   return {
+    ...(isMissionCategory(raw.category)?{category:raw.category}:{}),
+    ...(raw.supplementalUrl!==undefined||method==="POST"?{supplementalUrl:url.value}:{}),
     code: raw.code.trim().toUpperCase(), name: raw.name.trim(), level: Number(raw.level),
     status: raw.status as "ACTIVE" | "INACTIVE", plsValue: Number(raw.plsValue),
     description: description!, guideline: guideline!, paperSize: (raw.paperSize ?? null) as CoreMission["paperSize"],

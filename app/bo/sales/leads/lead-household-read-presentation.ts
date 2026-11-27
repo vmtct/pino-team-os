@@ -1,6 +1,6 @@
 /** PAP-2288 / PLT-LEAD — view-only projection, never synthesize acquisition intents. */
 import type {LeadRow,LeadDetail,LeadIntent} from "@/lib/bo-lead-household-client";
-import type {LeadM1Record,LeadM1Member} from "./lead-household-m1-fixtures";
+import type {LeadM1Record,LeadM1Member} from "./lead-household-presentation";
 export function leadReadRow(row:LeadRow):LeadM1Record {
  return {id:row.id,fixture:false,contactName:row.contactDisplayName??"—",phone:row.phone,lifecycle:row.status,
   memberCount:row.memberCount,intentCount:row.intentCount,members:[],relationships:[],intents:[],

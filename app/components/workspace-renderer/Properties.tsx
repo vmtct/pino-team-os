@@ -74,7 +74,7 @@ export function PropertySections({ fields, record, sections, variant, canEdit, o
     return <Shell key={section.id} className={variant === "drawer" ? "property-section" : "v24-prop-section"} data-tdd-create={createFields ? "" : undefined} data-tdd-properties={variant} data-tdd-detail-resize={variant === "detail" ? "" : undefined}
     data-tdd-collapsed={Shell === "details" ? "" : undefined}
     style={variant === "detail" ? { "--tdd-detail-label-width": String(labelWidth) + "px" } as CSSProperties : undefined}>
-    {variant === "drawer" ? section.collapsed ? <summary>{section.label}</summary> : <h3>{section.label}</h3> : <div className="v24-section-heading"><div style={{ display: "inline-flex", alignItems: "center", gap: 8 }}><h4>{section.label}</h4>{sectionActions?.(section.id)}</div><span className="v24-lock" aria-label="Chỉ đọc">⌁</span></div>}
+    {variant === "drawer" ? section.collapsed ? <summary>{section.label}</summary> : <h3>{section.label}</h3> : <div className="v24-section-heading"><div style={{ display: "inline-flex", alignItems: "center", gap: 8 }}><h4>{section.label}</h4>{sectionActions?.(section.id)}</div>{!section.fields.some(key => { const field = fields.find(f => f.key === key); return !!(field && onEdit && canEdit?.(field)); }) && <span className="v24-lock" aria-label="Chỉ đọc">⌁</span>}</div>}
     <div className={variant === "detail" ? "v24-prop-grid" : undefined}>{section.fields.map((key, index) => {
       const field = fields.find(f => f.key === key); if (!field) return null;
       const editable = Boolean(onEdit && canEdit?.(field));

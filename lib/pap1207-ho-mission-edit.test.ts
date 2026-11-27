@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { loadMissionForEdit } from "../app/ho/learning/missions/read-edit";
 import { submitHoMission, type MissionInput } from "../app/ho/learning/missions/command";
 const id = "01900000-0000-7000-8000-000000000002";
-const input: MissionInput = { code: "MORI-1", name: "Mori", level: 1,
+const input: MissionInput = { category: "Staff Training", supplementalUrl: "https://example.test/guide", code: "MORI-1", name: "Mori", level: 1,
   status: "ACTIVE", plsValue: 20, paperSize: "A4", description: null, guideline: null,
   pathProgramId: null, pathKeySnapshot: null, prerequisiteMissionId: null, prerequisiteCodeSnapshot: null };
 const response = (data: unknown, status = 200) => Response.json({ data }, { status });
@@ -44,4 +44,9 @@ test("PAP-1207: Edit uses optimistic version and exact readback, never blind ret
   }, f);
   assert.equal(outcome.state, "verified");
   assert.deepEqual(calls, ["PUT /api/ho/learning/missions/" + id, "GET /api/ho/learning/missions/" + id]);
+});
+
+test("PAP-2394 M3 edit loader rejects missing/invalid metadata and preserves legacy null",async()=>{
+ for(const fields of [{category:undefined},{category:"Other"},{supplementalUrl:undefined},{supplementalUrl:"ftp://example.test"}])assert.equal((await loadMissionForEdit(id,async()=>response({...input,id,version:3,...fields}))).state,"unavailable");
+ assert.deepEqual(await loadMissionForEdit(id,async()=>response({...input,id,version:3,category:null,supplementalUrl:null})),{state:"ready",id,version:3,data:{...input,category:null,supplementalUrl:null}});
 });

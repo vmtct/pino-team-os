@@ -11,12 +11,12 @@ import type { LeadDetail, LeadIntent, LeadMemberInput, LeadInterest, LeadRelatio
 import { leadReadRow, leadReadDetail, leadAuditTime, leadInquiryLabel } from "./lead-household-read-presentation";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { TddHostMenu } from "@/app/components/workspace-adapters/SurfaceWorkspace";
+import { BoApplicationShellContext } from "@/app/bo/shell/BoApplicationShellContext";
 import { applyBoFilterSettings, type BoFilterField, type BoFilterSettings } from "@/lib/bo-filter-settings-state";
 import { BoFullDetail } from "@/app/bo/components/BoFullDetail";
 import { BoProperties } from "@/app/bo/components/BoProperties";
 import { BoDataGrid, BoDataGridBadge, BoDataGridStatus, BoDrawer, type BoDataGridColumn } from "@/app/bo/components/data-grid";
 import {
-  LEAD_M1_FIXTURE,
   LEAD_M1_INTEREST_LABELS,
   leadM1MemberSummary,
   leadM1RoleLabel,
@@ -27,7 +27,7 @@ import {
   type LeadM1Record,
   type LeadM1Relationship,
   type LeadM1Role,
-} from "./lead-household-m1-fixtures";
+} from "./lead-household-presentation";
 import styles from "./lead-household-m1.module.css";
 import {CONTACT_FIELD_SCHEMA,LEAD_TABLE_COLUMNS,LEAD_AUDIT_TABLE_COLUMNS,LEAD_DETAIL_TABS,leadFixtureFilterable} from "./lead-presentation-schema";
 
@@ -91,12 +91,16 @@ function PropertySection<T extends Record<string, unknown>>({
   </section>;
 }
 
-export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi,recoveryJournal,recoverApi,intentApi,manualApi}: {localReview?: boolean; readApi?: Pick<LeadHouseholdApi,"search"|"detail"|"history">;commandApi?:LeadHouseholdApi;recoveryJournal?:LeadRecoveryJournal;recoverApi?:(input:LeadRecoveryInput)=>Promise<LeadRecoveryReceipt>;intentApi?:ReturnType<typeof createLeadIntentApi>;manualApi?:ReturnType<typeof createLeadManualIntakeApi>} = {}) {
-  const menu = useContext(TddHostMenu);
+export function LeadHouseholdM1Preview({localReview=false,fixtureSeed,readApi,commandApi,recoveryJournal,recoverApi,intentApi,manualApi}: ({readApi:Pick<LeadHouseholdApi,"search"|"detail"|"history">;fixtureSeed?:never;localReview?:false}|{readApi?:never;fixtureSeed:LeadM1Record;localReview?:boolean}) & {commandApi?:LeadHouseholdApi;recoveryJournal?:LeadRecoveryJournal;recoverApi?:(input:LeadRecoveryInput)=>Promise<LeadRecoveryReceipt>;intentApi?:ReturnType<typeof createLeadIntentApi>;manualApi?:ReturnType<typeof createLeadManualIntakeApi>}) {
+  if ((!readApi && !fixtureSeed) || (readApi && fixtureSeed)) throw new Error("Lead provider must be explicitly selected");
+  const hostMenu = useContext(TddHostMenu);
+  const applicationMenu = useContext(BoApplicationShellContext);
+  // Register the application-owned slot instead of duplicating its fallback trigger.
+  const menu = applicationMenu ?? hostMenu;
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [fixtureRecords, setRecords] = useState<LeadM1Record[]>([LEAD_M1_FIXTURE]);
+  const [fixtureRecords, setRecords] = useState<LeadM1Record[]>(()=>!readApi&&fixtureSeed?[fixtureSeed]:[]);
   const [,refreshRead] = useReducer((v:number)=>v+1,0);
   const readModel = useMemo(()=>readApi?new LeadReadModel(readApi,refreshRead):null,[readApi]);
   const commandFence=useMemo(()=>commandApi&&commandApi===readApi&&!localReview?new LeadCommandFence(commandApi,undefined,recoveryJournal,recoverApi,intentApi,manualApi):null,[commandApi,readApi,localReview,recoveryJournal,recoverApi,intentApi,manualApi]);
@@ -116,19 +120,6 @@ export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi,rec
   const [formError, setFormError] = useState("");
   const [fixtureNotice, setFixtureNotice] = useState("");
   const [nextFixtureNumber, setNextFixtureNumber] = useState(2);
-  const [convertLeadId, setConvertLeadId] = useState<string | null>(null);
-  const [convertSelected, setConvertSelected] = useState<string[]>([]);
-  const [convertMessage, setConvertMessage] = useState("");
-  const [contactPersonMode, setContactPersonMode] = useState<"NEW" | "EXISTING">("NEW");
-  const [contactPersonId, setContactPersonId] = useState("");
-  const [contactCanonicalName, setContactCanonicalName] = useState("");
-  const [contactActorRoles, setContactActorRoles] = useState<LeadM1Role[]>(["PARENT"]);
-  const [memberPersonModes, setMemberPersonModes] = useState<Record<string, "NEW" | "EXISTING">>({});
-  const [memberPersonIds, setMemberPersonIds] = useState<Record<string, string>>({});
-  const [memberCanonicalNames, setMemberCanonicalNames] = useState<Record<string, string>>({});
-  const [memberActorRoles, setMemberActorRoles] = useState<Record<string, LeadM1Role[]>>({});
-  const [guardianConfirmedIds, setGuardianConfirmedIds] = useState<string[]>([]);
-
   const selectedLeadId = searchParams.get("lead");
   const activeTab = searchParams.get("tab") ?? "detail";
   const quickViewId = searchParams.get("quickView");
@@ -140,7 +131,6 @@ export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi,rec
   useEffect(()=>{if(readModel)void readModel.select(detailId);},[readModel,detailId]);
   const detailReady=readModel?.selected.phase==="ready"&&readModel.selected.id===selectedLeadId;
   useEffect(()=>{if(readModel&&detailReady&&activeTab==="history")void readModel.openHistory();},[readModel,detailReady,activeTab,selectedLeadId]);
-  const convertLead = records.find(record => record.id === convertLeadId) ?? null;
 
   async function executeContact(operation:()=>Promise<LeadDetail|null>):Promise<boolean>{
     if(!commandFence||!readModel||commandBusyRef.current)return false;
@@ -212,45 +202,6 @@ export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi,rec
       return member?{kind:"updateMember",leadId:target.id,expectedVersion:target.version,memberId,member:memberInput(member,patch)}:null;
     });
   }
-  function openConvert(record: LeadM1Record) {
-    setConvertLeadId(record.id);
-    setConvertSelected(record.members.filter(member => member.roles.includes("STUDENT") || member.roles.includes("GUEST")).map(member => member.id));
-    setConvertMessage("");
-    setContactPersonMode("NEW");
-    setContactPersonId("");
-    setContactCanonicalName(record.contactName);
-    setContactActorRoles(record.members.find(member => member.primaryContact)?.roles ?? ["PARENT"]);
-    setMemberPersonModes({});
-    setMemberPersonIds({});
-    setMemberCanonicalNames(Object.fromEntries(record.members.map(member => [member.id, member.name])));
-    setMemberActorRoles(Object.fromEntries(record.members.map(member => [member.id, [...member.roles]])));
-    setGuardianConfirmedIds([]);
-  }
-
-  function previewConversion() {
-    if (!convertLead) return;
-    if (!contactCanonicalName.trim() || (contactPersonMode === "EXISTING" && !contactPersonId.trim()) || !contactActorRoles.length) {
-      setConvertMessage("Liên hệ chính cần tên canonical, Person ID nếu liên kết, và ít nhất một Actor."); return;
-    }
-    const chosen = convertLead.members.filter(member => !member.primaryContact && convertSelected.includes(member.id));
-    if (chosen.some(member => (memberActorRoles[member.id] ?? []).includes("PARENT"))) {
-      setConvertMessage("Thành viên không phải liên hệ chính chỉ được chọn Student hoặc Guest."); return;
-    }
-    if (chosen.some(member => !memberCanonicalNames[member.id]?.trim()
-      || (memberPersonModes[member.id] === "EXISTING" && !memberPersonIds[member.id]?.trim())
-      || !memberActorRoles[member.id]?.length)) {
-      setConvertMessage("Mỗi thành viên được chọn cần tên canonical, Person ID nếu liên kết, và ít nhất một Actor."); return;
-    }
-    const confirmed = convertLead.relationships.filter(relation => guardianConfirmedIds.includes(relation.id));
-    if (confirmed.some(relation => !convertSelected.includes(relation.toMemberId)
-      || !(convertLead.members.find(member => member.id === relation.fromMemberId)?.primaryContact
-        ? contactActorRoles.includes("PARENT")
-        : convertSelected.includes(relation.fromMemberId) && memberActorRoles[relation.fromMemberId]?.includes("PARENT")))) {
-      setConvertMessage("Quan hệ Guardian cần người được giám hộ nằm trong danh sách chuyển đổi và người giám hộ có vai trò Parent."); return;
-    }
-    setConvertMessage("Mô phỏng hợp lệ: liên hệ chính + " + chosen.length + " thành viên; " + confirmed.length + " quan hệ Guardian được chọn xác nhận (chưa ghi Core).");
-  }
-
   const filteredRecords = useMemo(() => {
     if(readModel)return records;
     const term = query.trim().toLocaleLowerCase("vi");
@@ -294,6 +245,7 @@ export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi,rec
   }
 
   function saveInlineContact(id: string, name: string, phone: string) {
+    if(readApi||!fixtureSeed)return false;
     const normalizedPhone = phone.replace(/\D/g, "");
     if (!name.trim() || !/^0\d{9}$/.test(normalizedPhone) || records.some(record => record.id !== id && record.phone === normalizedPhone)) return false;
     setRecords(current => current.map(record => record.id === id ? { ...record, contactName: name.trim(), phone: normalizedPhone } : record));
@@ -302,6 +254,7 @@ export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi,rec
   }
 
   function saveMemberInterests(leadId: string, memberId: string, kinds: LeadM1IntentKind[]) {
+    if(readApi||!fixtureSeed)return;
     setRecords(current => current.map(record => {
       if (record.id !== leadId) return record;
       const kept = record.intents.map(intent => ({ ...intent, memberIds: intent.memberIds.filter(id => id !== memberId) }));
@@ -317,6 +270,7 @@ export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi,rec
   }
 
   function updateMembers(leadId: string, members: LeadM1Member[]) {
+    if(readApi||!fixtureSeed)return false;
     const target = records.find(record => record.id === leadId);
     if (!target || members.filter(member => member.primaryContact).length > 1 || members.some(member => !member.name.trim() || !member.roles.length || (!member.primaryContact && member.roles.includes("PARENT")) || (member.age !== null && (!Number.isInteger(member.age) || member.age < 0 || member.age > 120)))) return false;
     const ids = new Set(members.map(member => member.id));
@@ -326,12 +280,14 @@ export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi,rec
     return true;
   }
   function updateRelationships(leadId: string, relationships: LeadM1Relationship[]) {
+    if(readApi||!fixtureSeed)return false;
     const target = records.find(record => record.id === leadId);
     if (!target || relationships.some(relation => !validLeadRelationship(relation, target.members)) || new Set(relationships.map(relation => relation.fromMemberId + ":" + relation.toMemberId)).size !== relationships.length) return false;
     setRecords(current => current.map(record => record.id === leadId ? { ...record, relationships } : record));
     return true;
   }
   function saveLeadInterests(leadId: string, kinds: LeadM1IntentKind[]) {
+    if(readApi||!fixtureSeed)return;
     setRecords(current => current.map(record => {
       if (record.id !== leadId) return record;
       const intents = record.intents.filter(intent => kinds.includes(intent.kind));
@@ -353,6 +309,7 @@ export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi,rec
       const primaryMemberIndex=draft.members.findIndex(m=>m.primaryContact);
       setFormError("");void executeContact(()=>commandFence.submit({kind:"create",input:{contact:{phone,contactDisplayName:draft.contactName.trim()||null},members,primaryMemberIndex:primaryMemberIndex<0?null:primaryMemberIndex}}));return;
     }
+    if(readApi||!fixtureSeed)return;
     if (!draft.contactName.trim()) { setFormError("Tên người liên hệ là bắt buộc."); setStep(1); return; }
     if (draft.members.filter(member => member.primaryContact).length > 1) { setFormError("Chỉ một thành viên được chọn là người liên hệ chính."); setStep(2); return; }
     if (!/^0\d{9}$/.test(draft.phone.replace(/\D/g, ""))) { setFormError("Số điện thoại mẫu phải có 10 chữ số và bắt đầu bằng 0."); setStep(1); return; }
@@ -386,7 +343,7 @@ export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi,rec
     if (drawer?.mode === "create") setPreviewParam("lead", nextRecord.id);
   }
 
-  const backToTable = localReview ? pathname + "?m1Preview=1" : pathname;
+  const backToTable = localReview && fixtureSeed ? pathname + "?m1Preview=1" : pathname;
   const currentUrl = pathname + (searchParams.size ? "?" + searchParams.toString() : "");
 
   return <main className={styles.page}>
@@ -448,7 +405,7 @@ export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi,rec
       designVariant="business-v25"
       actions={<div className={styles.detailActions}>{menu("lead-detail-menu-btn")}{commandFence&&currentDetail?.id===selectedLead.id&&currentDetail.status==="ACTIVE"?<button type="button" className="secondary-btn" disabled={commandBusy||commandFence.state!=="idle"} onClick={()=>{setArchiveReason("");setCommandNotice("");setArchiveTarget(selectedLead.id);}}>Lưu trữ Lead</button>:null}{selectedLead.fixture?<BoDataGridBadge>DỮ LIỆU MẪU</BoDataGridBadge>:null}</div>}
       tabs={[
-        { ...LEAD_DETAIL_TABS.detail, content: <LeadOverview record={selectedLead} liveContact={commandFence&&currentDetail&&currentDetail.id===selectedLead.id&&currentDetail.status==="ACTIVE"?{name:currentDetail.contactDisplayName,phone:currentDetail.phone,version:currentDetail.version,disabled:commandBusy||commandFence.state!=="idle",save:saveCanonicalContact}:undefined} onSave={(name, phone) => saveInlineContact(selectedLead.id, name, phone)} onConvert={() => openConvert(selectedLead)} onSaveInterests={kinds => saveLeadInterests(selectedLead.id, kinds)} /> },
+        { ...LEAD_DETAIL_TABS.detail, content: <LeadOverview record={selectedLead} liveContact={commandFence&&currentDetail&&currentDetail.id===selectedLead.id&&currentDetail.status==="ACTIVE"?{name:currentDetail.contactDisplayName,phone:currentDetail.phone,version:currentDetail.version,disabled:commandBusy||commandFence.state!=="idle",save:saveCanonicalContact}:undefined} onSave={(name, phone) => saveInlineContact(selectedLead.id, name, phone)} onSaveInterests={kinds => saveLeadInterests(selectedLead.id, kinds)} /> },
         { ...LEAD_DETAIL_TABS.members, content: <LeadMembers record={selectedLead} live={commandFence&&currentDetail?.id===selectedLead.id&&currentDetail.status==="ACTIVE"?{detail:currentDetail,disabled:commandBusy||commandFence.state!=="idle",update:updateCanonicalMember,add:(name,role)=>submitMember(target=>({kind:"addMember",leadId:target.id,expectedVersion:target.version,member:{displayName:name,intendedRoles:[role],gender:null,birthPrecision:"UNKNOWN",birthYear:null,birthMonth:null,birthDay:null,reportedAge:null,interestKinds:[]}})),primary:memberId=>submitMember(target=>({kind:"primary",leadId:target.id,expectedVersion:target.version,memberId})),retire:memberId=>submitMember(target=>({kind:"retireMember",leadId:target.id,expectedVersion:target.version,memberId}))}:undefined} onSave={members => updateMembers(selectedLead.id, members)} onSaveInterests={(memberId, kinds) => saveMemberInterests(selectedLead.id, memberId, kinds)} /> },
         { ...LEAD_DETAIL_TABS.relationships, content: <LeadRelationships record={selectedLead} live={commandFence&&currentDetail?.id===selectedLead.id&&currentDetail.status==="ACTIVE"?{disabled:commandBusy||commandFence.state!=="idle",add:relationship=>submitMember(target=>({kind:"addRelation",leadId:target.id,expectedVersion:target.version,relationship})),update:(relationshipId,relationship)=>submitMember(target=>target.relationships.some(r=>r.id===relationshipId&&r.status==="DECLARED")?{kind:"updateRelation",leadId:target.id,expectedVersion:target.version,relationshipId,relationship}:null),confirm:relationshipId=>submitMember(target=>target.relationships.some(r=>r.id===relationshipId&&r.status==="DECLARED")?{kind:"confirmRelation",leadId:target.id,expectedVersion:target.version,relationshipId}:null),retire:relationshipId=>submitMember(target=>target.relationships.some(r=>r.id===relationshipId)?{kind:"retireRelation",leadId:target.id,expectedVersion:target.version,relationshipId}:null)}:undefined} onSave={relationships => updateRelationships(selectedLead.id, relationships)} /> },
         { ...LEAD_DETAIL_TABS.history, content: readModel?<LeadInquiryHistory model={readModel} live={intentApi&&recoveryJournal&&commandFence&&currentDetail?.id===selectedLead.id&&currentDetail.status==="ACTIVE"?{disabled:commandBusy||commandFence.state!=="idle",submit:submitHistoryIntent}:undefined}/>:<LeadHistory /> },
@@ -463,51 +420,6 @@ export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi,rec
       onClose={() => setPreviewParam("quickView", null)}
       footer={quickViewLead ? <div className={styles.drawerFooter + " pds-compact-actions"}><button type="button" className="primary-btn" onClick={() => openFullDetail(quickViewLead.id)}>Mở chi tiết đầy đủ →</button></div> : null}
     >{quickViewLead ? <LeadQuickView record={quickViewLead} /> : readModel?<LeadReadStatus phase={readModel.selected.phase} error={readModel.selected.error?.status} onRetry={()=>void readModel.select(quickViewId)}/>:<p role="alert">Lead fixture không còn tồn tại trong bộ nhớ preview. Refresh để khôi phục fixture chuẩn.</p>}</BoDrawer> : null}
-
-    {convertLead ? <BoDrawer
-      title="Chuyển đổi Lead"
-      eyebrow="Xem trước"
-      mode="view"
-      size="lg"
-      onClose={() => { setConvertLeadId(null); setConvertMessage(""); }}
-      footer={<div className={styles.drawerFooter + " pds-compact-actions"}>
-        <button className="secondary-btn" type="button" onClick={() => setConvertLeadId(null)}>Hủy</button>
-        <button type="button" className="primary-btn" onClick={previewConversion}>Xác nhận xem trước</button>
-      </div>}
-    >
-      <div className={styles.drawerContent}>
-        <div className="pds-compact-muted">Chỉ xem trước, chưa tạo hồ sơ.</div>
-        <BoProperties compact items={[{ key: "contact", label: "Liên hệ chính", value: convertLead.contactName }, { key: "phone", label: "Số điện thoại", value: convertLead.phone }, { key: "actors", label: "Actor khả dụng", value: "Parent · Student · Guest" }]} />
-        <section className={styles.memberSection}>
-          <h3>Person · Liên hệ chính</h3>
-          <div className={styles.memberFields}>
-            <label className="pds-compact-label">Person<select className="pds-compact-field" value={contactPersonMode} onChange={event => setContactPersonMode(event.target.value as "NEW" | "EXISTING")}><option value="NEW">Tạo mới</option><option value="EXISTING">Liên kết hiện có</option></select></label>
-            <label className="pds-compact-label">Person ID<input className="pds-compact-field" placeholder="PERSON-..." value={contactPersonId} disabled={contactPersonMode !== "EXISTING"} onChange={event => setContactPersonId(event.target.value)} /></label>
-            <label className="pds-compact-label">Tên canonical<input className="pds-compact-field" value={contactCanonicalName} onChange={event => setContactCanonicalName(event.target.value)} /></label>
-          </div>
-          <div className={styles.roleOptions + " pds-choice-group"} aria-label="Actors liên hệ chính">{ROLE_OPTIONS.map(role => <label key={role}><input type="checkbox" checked={contactActorRoles.includes(role)} onChange={event => setContactActorRoles(current => event.target.checked ? [...current, role] : current.filter(item => item !== role))} />{leadM1RoleLabel(role)}</label>)}</div>
-          <h3>Chọn thành viên để chuyển đổi</h3>
-          {convertLead.members.filter(member => !member.primaryContact).map(member => <div className={styles.convertMember + " pds-compact-card"} key={member.id}><div className={styles.convertMemberHeader}>
-            <input type="checkbox" aria-label={"Chọn " + member.name} checked={convertSelected.includes(member.id)} onChange={event => setConvertSelected(current => event.target.checked ? [...current, member.id] : current.filter(id => id !== member.id))} />
-            <span>{member.name} · {member.roles.map(leadM1RoleLabel).join(" / ")}</span></div>
-            {convertSelected.includes(member.id) ? <><span className={styles.memberFields}>
-              <span className="pds-compact-label">Person<select className="pds-compact-field" aria-label={"Person " + member.name} value={memberPersonModes[member.id] ?? "NEW"} onChange={event => setMemberPersonModes(current => ({ ...current, [member.id]: event.target.value as "NEW" | "EXISTING" }))}><option value="NEW">Tạo mới</option><option value="EXISTING">Liên kết hiện có</option></select></span>
-              <span className="pds-compact-label">Person ID<input className="pds-compact-field" aria-label={"Person ID " + member.name} placeholder="PERSON-..." disabled={memberPersonModes[member.id] !== "EXISTING"} value={memberPersonIds[member.id] ?? ""} onChange={event => setMemberPersonIds(current => ({ ...current, [member.id]: event.target.value }))} /></span>
-              <span className="pds-compact-label">Tên canonical<input className="pds-compact-field" aria-label={"Tên canonical " + member.name} value={memberCanonicalNames[member.id] ?? ""} onChange={event => setMemberCanonicalNames(current => ({ ...current, [member.id]: event.target.value }))} /></span></span>
-              <span className={styles.roleOptions + " pds-choice-group"}>{ROLE_OPTIONS.filter(role => role !== "PARENT").map(role => <span key={role}><input type="checkbox" aria-label={leadM1RoleLabel(role) + " " + member.name} checked={(memberActorRoles[member.id] ?? []).includes(role)} onChange={event => setMemberActorRoles(current => ({ ...current, [member.id]: event.target.checked ? [...(current[member.id] ?? []), role] : (current[member.id] ?? []).filter(item => item !== role) }))} />{leadM1RoleLabel(role)}</span>)}</span>
-            </> : null}
-          </div>)}
-        </section>
-        <section className={styles.relationshipSection}><h3>Quan hệ khai báo (chưa xác nhận)</h3>
-          {convertLead.relationships.map(relation => <label className={styles.primaryContactOption + " pds-choice"} key={relation.id}>
-            <input type="checkbox" checked={guardianConfirmedIds.includes(relation.id)} onChange={event => setGuardianConfirmedIds(current => event.target.checked ? [...current, relation.id] : current.filter(id => id !== relation.id))} />
-            <span>{convertLead.members.find(member => member.id === relation.fromMemberId)?.name ?? "—"} → {convertLead.members.find(member => member.id === relation.toMemberId)?.name ?? "—"} · {relation.label} · {guardianConfirmedIds.includes(relation.id) ? "Đã chọn xác nhận trong preview" : "Chưa xác nhận"}</span>
-          </label>)}
-          <p>Không tự tạo Guardian từ quan hệ khai báo.</p>
-        </section>
-        {convertMessage ? <p role="status" className={styles.previewNotice}>{convertMessage}</p> : null}
-      </div>
-    </BoDrawer> : null}
 
     {archiveTarget&&commandFence?<BoDrawer title="Lưu trữ Lead" eyebrow="Lead" mode="edit" size="lg" onClose={()=>{if(!commandBusyRef.current&&commandFence.state==="idle"){setArchiveTarget(null);setArchiveReason("");}}} footer={<div className={styles.drawerFooter+" pds-compact-actions"}><button className="secondary-btn" type="button" disabled={commandBusy||commandFence.state!=="idle"} onClick={()=>{setArchiveTarget(null);setArchiveReason("");}}>Hủy</button><button className="primary-btn" type="button" disabled={commandBusy||commandFence.state!=="idle"||currentDetail?.id!==archiveTarget||currentDetail.status!=="ACTIVE"||!archiveReason.trim()||archiveReason.trim().length>240} onClick={submitArchive}>Xác nhận lưu trữ</button></div>}>
       <div className={styles.drawerContent}><p>Lead được lưu trữ, không bị xóa. Tất cả lượt tiếp nhận phải đã đóng trước khi lưu trữ.</p><label className="pds-compact-label">Lý do lưu trữ<textarea className="pds-compact-field" maxLength={240} required disabled={commandBusy||commandFence.state!=="idle"} value={archiveReason} onChange={event=>setArchiveReason(event.target.value)}/></label>{commandNotice?<p role="status">{commandNotice}</p>:null}{commandFence.state==="uncertain"?<button type="button" className="secondary-btn" disabled={commandBusy} onClick={()=>void executeContact(()=>commandFence.retry())}>Thử lại cùng yêu cầu</button>:null}{(commandFence.state==="conflict"||commandFence.state==="reload_required")&&commandFence.reloadTarget?<button type="button" className="secondary-btn" disabled={commandBusy} onClick={()=>{const id=commandFence.reloadTarget;if(id)void executeContact(()=>commandFence.reload(id));}}>Tải lại Lead</button>:null}</div>
@@ -597,7 +509,7 @@ function LeadContactInline({value,label,disabled,onSave,inputMode}:{value:string
     onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();e.currentTarget.blur();}if(e.key==="Escape"){e.preventDefault();canceled.current=true;setDraft(value);setError(false);e.currentTarget.blur();}}}/>
     {error?<small role="alert" className="pds-field-error">Chưa cập nhật</small>:null}</span>;
 }
-function LeadOverview({ record, onSave, onConvert, onSaveInterests,liveContact }: { record: LeadM1Record; onSave: (name: string, phone: string) => boolean; onConvert: () => void; onSaveInterests: (kinds: LeadM1IntentKind[]) => void;liveContact?:LiveContact }) {
+function LeadOverview({ record, onSave, onSaveInterests,liveContact }: { record: LeadM1Record; onSave: (name: string, phone: string) => boolean; onSaveInterests: (kinds: LeadM1IntentKind[]) => void;liveContact?:LiveContact }) {
   return <div className={styles.detailContent}>
     <BoProperties items={[
       { key: "contact", label: "Người liên hệ", value: liveContact?<LeadContactInline key={record.id+":"+liveContact.version+":name"} value={liveContact.name??""} label="Người liên hệ" disabled={liveContact.disabled} onSave={name=>liveContact.save("name",name)}/>:!record.fixture?record.contactName:<LeadInlineText key={record.id + record.contactName} label="Người liên hệ" value={record.contactName} onCommit={name => onSave(name, record.phone)} /> },
@@ -613,7 +525,6 @@ function LeadOverview({ record, onSave, onConvert, onSaveInterests,liveContact }
     ]} />
     {record.fixture&&!record.members.length ? <div className="pds-choice-group" aria-label="Chương trình quan tâm">{PROGRAM_OPTIONS.map(option => <label key={option.kind}><input type="checkbox" checked={record.intents.some(intent => intent.kind === option.kind)} onChange={event => { const kinds=record.intents.map(intent => intent.kind); onSaveInterests(event.target.checked ? [...kinds, option.kind] : kinds.filter(kind => kind !== option.kind)); }} />{LEAD_M1_INTEREST_LABELS[option.kind]}</label>)}</div> : null}
     <p className="pds-compact-muted">Trùng số điện thoại không đồng nghĩa đã xác minh danh tính.</p>
-    <div className={styles.detailActions}><button type="button" className="secondary-btn" disabled={!record.fixture} onClick={onConvert}>Convert Lead · Xem trước</button></div>
   </div>;
 }
 type LiveMembers={detail:LeadDetail;disabled:boolean;update:(id:string,patch:Partial<LeadMemberInput>)=>Promise<boolean>;add:(name:string,role:LeadM1Role)=>Promise<boolean>;primary:(id:string|null)=>Promise<boolean>;retire:(id:string)=>Promise<boolean>};

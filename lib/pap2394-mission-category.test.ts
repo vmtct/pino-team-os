@@ -66,7 +66,7 @@ test("PAP-2394 all nine inline fields validate and read back; protected fields s
 });
 
 test("PAP-2394 M1-B canonical query and actual admitted actor boundary",async()=>{
- const {parseMissionM1Query,hasMissionM1Permissions,MISSION_M1_READ,MISSION_M1_EDIT}=await import("../app/ho/learning/missions/mission-m1-query");
+ const {parseMissionM1Query,hasMissionM1Permissions,MISSION_M1_READ,MISSION_M1_EDIT}=await import("../app/ho/learning/missions/mission-local-query");
  assert.deepEqual(parseMissionM1Query(new URLSearchParams()),{});
  assert.deepEqual(parseMissionM1Query(new URLSearchParams("record=MISSION-MOCK-001")),{record:MISSION_M1_ID});
  for(const query of ["m1Preview=1","record=real-id","record=","record=MISSION-MOCK-001&record=MISSION-MOCK-001","tab=history"])assert.equal(parseMissionM1Query(new URLSearchParams(query)),null);
@@ -100,4 +100,31 @@ test("PAP-2394 supplemental URL is optional metadata directly after guideline; n
  assert.equal(created.state,"verified");if(created.state!=="verified")throw Error("create");
  assert.equal((await adapter.detail(created.record.id,signal))?.row.supplementalUrl,data.supplementalUrl);
  assert.equal((await b.submit({kind:"create",data:{...data,code:"URL-BAD",supplementalUrl:"file:///x"},idempotencyKey:"url-bad"})).state,"invalid");
+});
+
+test("PAP-2394 M3 accepts canonical real record links only and mounts the integrated boundary",async()=>{
+ const {parseMissionIntegratedQuery}=await import("../app/ho/learning/missions/mission-m1-query");
+ const id="01900000-0000-7000-8000-000000000002";
+ assert.deepEqual(parseMissionIntegratedQuery(new URLSearchParams()),{});
+ assert.deepEqual(parseMissionIntegratedQuery(new URLSearchParams("record="+id+"&utm_source=qa")),{record:id});
+ for(const query of ["m1Preview=1","record=MISSION-MOCK-001","record=","record=bad","record="+id+"&record="+id,"tab=history"])assert.equal(parseMissionIntegratedQuery(new URLSearchParams(query)),null);
+ const {readFileSync}=await import("node:fs");
+ const page=readFileSync("app/ho/learning/missions/page.tsx","utf8"),ui=readFileSync("app/ho/learning/missions/HoMissionsTdd.tsx","utf8");
+ assert.match(page,/env\.APP_ENV!=="staging"/);
+ assert.match(page,/normalizeHostname\(incoming\.get\("host"\)\|\|""\)!==HO_STAGING_HOSTNAME/);
+ assert.ok(page.indexOf("await authorizeHoShell")<page.indexOf("return <HoMissionsTdd"));
+ assert.match(page,/!actor\.entitled\|\|!hasMissionM1Permissions\(actor\.permissionKeys\)/);
+ assert.doesNotMatch(page,/HoMissionsTddPreview|decideM1Preview/);
+ assert.match(ui,/<HoMissionsContent boundary=\{integratedMissionBoundary\}/);
+});
+
+
+test("PAP-2394 M4 native Mission entry cannot import local seed or selector",async()=>{
+ const {build}=await import("esbuild");
+ const result=await build({entryPoints:["app/ho/learning/missions/HoMissionsTdd.tsx","app/ho/learning/missions/mission-m1-query.ts"],bundle:true,write:false,metafile:true,packages:"external",platform:"browser",loader:{".css":"empty"},outdir:"pap2394-native-graph",logLevel:"silent"});
+ const inputs=Object.keys(result.metafile?.inputs??{}).map(p=>p.replaceAll("\\","/"));
+ assert.ok(inputs.some(p=>p.endsWith("/HoMissionsTdd.tsx")));
+ assert.ok(inputs.some(p=>p.endsWith("/mission-m1-query.ts")));
+ assert.ok(!inputs.some(p=>/\/mission-(m1-boundary|local-query)\.ts$/.test(p)));
+ assert.ok(!result.outputFiles.some(file=>file.text.includes("MISSION-MOCK-001")));
 });
