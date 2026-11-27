@@ -7,7 +7,7 @@ import {Initials} from "./OpsInitials";
 import ReceptionOpenShift from "./ReceptionV4OpenShift";
 import {readReceptionReady,receptionCorrectionNotice,type ReceptionReadySlot,type ReceptionReadyReceipt,type ReceptionReadyState } from "@/lib/tos-reception-ready-client";
 
-import {unavailableOpsReadModel,type OpsReadModel,type ArrivalStatus} from "@/lib/tos-ops-v4-view-model";
+import {unavailableOpsReadModel,type OpsReadModel,type ArrivalStatus,type OpsGuest} from "@/lib/tos-ops-v4-view-model";
 import css from "./ops.module.css";
 import {AppSheet} from "../tos-ds";
 
@@ -18,7 +18,7 @@ const TABS: OpsTab[] = [
   { id:"pinoria", label:"Pinoria", icon:faStar },
 ];
 const labels:Record<ArrivalStatus,string>={EXPECTED:"Chưa đến",ARRIVED:"Đang ở PINO",LEFT:"Đã về"};
-export default function ReceptionV4Presentation({centerName,profileLabel,workDate,shiftTime,visitLookup,slots,model=unavailableOpsReadModel(),initialTab="overview",initialReadOnly=false,compactArrivalIntro=false,activityLoaded=model.loaded,expectedComplete=true,wishLoaded=model.loaded,showDayList=false}:{centerName:string;profileLabel:string;workDate:string;shiftTime:string;visitLookup?:ReactNode;slots?:readonly ReceptionReadySlot[];model?:OpsReadModel;initialTab?:Tab;initialReadOnly?:boolean;compactArrivalIntro?:boolean;activityLoaded?:boolean;expectedComplete?:boolean;wishLoaded?:boolean;showDayList?:boolean}){
+export default function ReceptionV4Presentation({centerName,profileLabel,workDate,shiftTime,visitLookup,slots,model=unavailableOpsReadModel(),initialTab="overview",initialReadOnly=false,compactArrivalIntro=false,activityLoaded=model.loaded,expectedComplete=true,wishLoaded=model.loaded,showDayList=false,wishCandidates,wishEnabled=false,renderWish}:{centerName:string;profileLabel:string;workDate:string;shiftTime:string;visitLookup?:ReactNode;slots?:readonly ReceptionReadySlot[];model?:OpsReadModel;initialTab?:Tab;initialReadOnly?:boolean;compactArrivalIntro?:boolean;activityLoaded?:boolean;expectedComplete?:boolean;wishLoaded?:boolean;showDayList?:boolean;wishCandidates?:readonly {learnerId:string;visitId:string}[];wishEnabled?:boolean;renderWish?:(guest:OpsGuest,visitId:string)=>ReactNode}){
   const state=model,guests=model.guests;
   const [readOnly,setReadOnly]=useState(initialReadOnly);
   const [readyReceipt,setReadyReceipt]=useState<ReceptionReadyReceipt|null>(null);
@@ -40,6 +40,7 @@ export default function ReceptionV4Presentation({centerName,profileLabel,workDat
   const [filter,setFilter]=useState<"ALL"|ArrivalStatus>("ALL");
   const [query,setQuery]=useState("");
   const [selectedId,setSelectedId]=useState<string|null>(null);
+  const [wishSelection,setWishSelection]=useState<{learnerId:string;visitId:string}|null>(null);
   const [guardianConfirmed,setGuardianConfirmed]=useState(false);
   const [notice,setNotice]=useState("");
   useEffect(()=>{if(!notice)return;const timer=window.setTimeout(()=>setNotice(""),2900);return()=>window.clearTimeout(timer);},[notice]);
@@ -50,11 +51,13 @@ export default function ReceptionV4Presentation({centerName,profileLabel,workDat
   const results=guests.filter(g=>(filter==="ALL"||state.attendance[g.id]===filter)&&(g.name+" "+g.className+" "+g.room).toLocaleLowerCase("vi").includes(query.toLocaleLowerCase("vi")));
   const selected=guests.find(g=>g.id===selectedId);
   const pendingWishes=guests.filter(g=>Object.prototype.hasOwnProperty.call(state.wishes,g.id)&&!state.wishes[g.id]);
+  const wishCandidateMap=new Map((wishCandidates??[]).map(v=>[v.learnerId,v.visitId]));
+  const wishGuest=wishEnabled&&wishSelection&&wishCandidateMap.get(wishSelection.learnerId)===wishSelection.visitId?guests.find(g=>g.id===wishSelection.learnerId):undefined;
   function openFilter(value:ArrivalStatus){setFilter(value);setQuery("");setTab("arrivals");}
   function closeDetail(){setSelectedId(null);setGuardianConfirmed(false);}
   function openDetail(id:string){setSelectedId(id);setGuardianConfirmed(false);}
   if(!readOnly)return <ReceptionOpenShift centerName={centerName} shiftTime={shiftTime} slots={slots} initialTemplateId={selectedTemplate??""} onReady={receipt=>{setVerified(null);setReadyReceipt(receipt);setReadOnly(true);}} onBypass={()=>{setVerified(null);setReadyReceipt(null);setReadOnly(true);}}/>;
-  return <OpsFrame app="reception" title="Tiếp Tân" tabs={TABS} tab={tab} onTab={value=>setTab(value as Tab)} notice={notice}>
+  return <OpsFrame app="reception" title="Tiếp Tân" tabs={TABS} tab={tab} onTab={value=>{setWishSelection(null);setTab(value as Tab);}} notice={notice}>
     {tab==="overview"&&<>
       <div className={css.intro}><span className={css.eyebrow}>{workDate}</span><h2 className={css.title}>Xin chào, {profileLabel||"bạn"} 👋</h2><p className={css.lead}>Học viên đến và về trong ca trực hôm nay.</p></div>
       <div className={css.openedStrip}><div><strong>{current?.state==="READY"?"Đã xác nhận mở ca":current?.state==="NOT_READY"?"Đang xem quầy · Chưa xác nhận mở ca":"Đang xem quầy · Chưa xác minh"}</strong><small>{centerName} · {shiftTime}</small>{correction?<><span className={css.badge} data-state="waiting">{correction.label}</span>{correction.reason?<small>{correction.reason}</small>:null}</>:null}</div><button className={css.photoBadge} type="button" onClick={()=>{setVerified(null);setReadOnly(false);}}><FontAwesomeIcon icon={faCamera}/> {correction?.rejected?"Bổ sung ảnh":"Ảnh setup"}</button></div>
@@ -88,12 +91,14 @@ export default function ReceptionV4Presentation({centerName,profileLabel,workDat
       </>}
     </>}
     {tab==="pinoria"&&<>
-      <div className={css.intro}><span className={css.eyebrow}>PINORIA · TIẾP TÂN</span><h2 className={css.title}>Wish đang chờ</h2><p className={css.lead}>Hỗ trợ các yêu cầu tương tác Pinoria tại quầy.</p></div>
+      <div className={css.intro}><span className={css.eyebrow}>PINORIA · TIẾP TÂN</span><h2 className={css.title}>{wishCandidates?"Wish tại quầy":"Wish đang chờ"}</h2><p className={css.lead}>Hỗ trợ các yêu cầu tương tác Pinoria tại quầy.</p></div>
       <div className={css.stats}><div className={css.stat}><strong>{wishLoaded?pendingWishes.length:"—"}</strong><span>Wish chờ</span></div><div className={css.stat}><strong>{wishLoaded?Object.values(state.wishes).filter(Boolean).length:"—"}</strong><span>Đã hỗ trợ</span></div><div className={css.stat}><strong>—</strong><span>Region chưa xác minh</span></div></div>
-      <section className={css.panel}><div className={css.panelTitle}><h3>Yêu cầu Pinoria</h3><span>Chưa xác minh Region</span></div>
-        <div className={css.list}>{guests.filter(g=>Object.prototype.hasOwnProperty.call(state.wishes,g.id)).map(g=><div className={css.listRow} key={g.id}><Initials text={g.initials}/><div className={css.rowCopy}><strong>{g.name}</strong><small>Wish · tương tác Pinoria</small><span className={css.badge} data-state={state.wishes[g.id]?"done":"waiting"}>{state.wishes[g.id]?"Đã hỗ trợ":"Đang chờ"}</span></div><button className={css.secondary} disabled title="Chưa xác minh command Wish">{state.wishes[g.id]?"✓":"Xử lý"}</button></div>)}</div>
+      <section className={css.panel}><div className={css.panelTitle}><h3>{wishCandidates?"Học viên đang ở PINO":"Yêu cầu Pinoria"}</h3><span>Chưa xác minh Region</span></div>
+        <div className={css.list}>{wishCandidates?guests.filter(g=>wishCandidateMap.has(g.id)).map(g=><div className={css.listRow} key={g.id}><Initials text={g.initials}/><div className={css.rowCopy}><strong>{g.name}</strong><small>Wish · tương tác Pinoria</small><span className={css.badge} data-state="ARRIVED">Đang ở PINO</span></div><button className={css.secondary} type="button" disabled={!wishEnabled||!renderWish} onClick={()=>setWishSelection({learnerId:g.id,visitId:wishCandidateMap.get(g.id)!})}>Xử lý</button></div>):guests.filter(g=>Object.prototype.hasOwnProperty.call(state.wishes,g.id)).map(g=><div className={css.listRow} key={g.id}><Initials text={g.initials}/><div className={css.rowCopy}><strong>{g.name}</strong><small>Wish · tương tác Pinoria</small><span className={css.badge} data-state={state.wishes[g.id]?"done":"waiting"}>{state.wishes[g.id]?"Đã hỗ trợ":"Đang chờ"}</span></div><button className={css.secondary} disabled title="Chưa xác minh command Wish">{state.wishes[g.id]?"✓":"Xử lý"}</button></div>)}</div>
+        {wishCandidates&&!wishCandidates.length&&<div className={css.empty}>{model.loaded?"Không có học viên đang ở PINO.":"Chưa tải được học viên."}</div>}
       </section>
-      <div className={css.callout}><strong><FontAwesomeIcon icon={faHeart}/> Thao tác chưa khả dụng</strong><span>Wish chỉ được xử lý sau khi có quyền và xác nhận từ hệ thống.</span></div>
+      {wishGuest&&wishSelection&&renderWish?.(wishGuest,wishSelection.visitId)}
+      <div className={css.callout}><strong><FontAwesomeIcon icon={faHeart}/> {wishEnabled&&wishCandidates?"Xác nhận Wish":"Thao tác chưa khả dụng"}</strong><span>Wish chỉ được xử lý sau khi có quyền và xác nhận từ hệ thống.</span></div>
       <button className={css.secondary} onClick={()=>setNotice("Trạm TOS mở riêng từ TOS Home trên desktop.")}>Trạm TOS là ứng dụng desktop <FontAwesomeIcon icon={faArrowRight}/></button>
     </>}
     {selected&&<AppSheet title="Hồ sơ Đón / Trả" onClose={closeDetail}>

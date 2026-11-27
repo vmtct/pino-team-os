@@ -8,7 +8,8 @@ type Props={centerId:string;learnerId:string;legalName:string;gender:"male"|"fem
 const listen=()=>()=>{};
 const staging=()=>window.location.hostname==="tos.staging.pinohouse.art";
 const server=()=>false;
-export function TosWishRuntime(p:Props){const enabled=useSyncExternalStore(listen,staging,server);return enabled?<Scope key={p.centerId+":"+p.learnerId} {...p}/>:null;}
+export function useTosWishEnabled(){return useSyncExternalStore(listen,staging,server);}
+export function TosWishRuntime(p:Props){const enabled=useTosWishEnabled();return enabled?<Scope key={p.centerId+":"+p.learnerId} {...p}/>:null;}
 function Scope(p:Props){
  const [actor,setActor]=useState<string|null>(null),[error,setError]=useState(""),[epoch,setEpoch]=useState(0);
  useEffect(()=>{const c=new AbortController();void readWishActor(c.signal).then(a=>{if(!c.signal.aborted)setActor(a);}).catch(e=>{if(!c.signal.aborted)setError(e instanceof Error?e.message:"Không thể xác thực Wish.");});return()=>c.abort();},[epoch]);

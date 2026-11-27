@@ -36,3 +36,10 @@ test("PAP-2431 mounted read model keeps Wish unknown, restores roster and retain
  const wish=await renderV4("ReceptionV4Presentation",{...common,initialTab:"pinoria"});
  assert.doesNotMatch(wish,/<strong>0<\/strong>/);
 });
+test("PAP-2431 Pinoria shows present learners, not invented pending requests, and keeps other environments disabled",async()=>{
+ const guest=(id:string,name:string)=>({id,name,initials:name[0],className:"Piano",classTime:"18:00",room:"A",guardian:"\u2014"});
+ const model={...unavailableOpsReadModel(),loaded:true,guests:[guest("a","Present Learner"),guest("b","Departed Learner")],attendance:{a:"ARRIVED",b:"LEFT"}};
+ const html=await renderV4("ReceptionV4Presentation",{...props,initialReadOnly:true,initialTab:"pinoria",model,wishLoaded:false,wishCandidates:[{learnerId:"a",visitId:"v"}],wishEnabled:false});
+ assert.match(html,/Present Learner/);assert.doesNotMatch(html,/Departed Learner/);assert.match(buttons(html,"Xử lý")[0],/disabled/);
+ assert.doesNotMatch(html,/<strong>0<\/strong>/);
+});

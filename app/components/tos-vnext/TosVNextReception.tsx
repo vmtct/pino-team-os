@@ -8,6 +8,7 @@ import ReceptionV4Presentation from "./ReceptionV4Presentation";
 import { OpenStudioReceptionPanel } from "./OpenStudioReceptionPanel";
 import { ReceptionHouseCheckIn } from "./ReceptionHouseCheckIn";
 import { tosReceptionHouseApi } from "@/lib/tos-reception-house-api";
+import {TosWishRuntime,useTosWishEnabled} from "./TosWishRuntime";
 
 /** PAP-942 shell, PAP-1239 CP1 physical House check-in.
  * Never use the session Day-of-Learning check-in as an unprojected Presence writer.
@@ -23,6 +24,7 @@ export function TosVNextReception({
   profileLabel?: string;
 }) {
   const today = ownReceptionAssignments(assignments, centerId, workDate);
+  const wishEnabled=useTosWishEnabled();
   const [revision,setRevision]=useState(0);
   const [snapshot,setSnapshot]=useState<{key:string;day:ReceptionDayReadModel|null}|null>(null);
   const key=JSON.stringify([centerId,workDate,revision]);
@@ -63,6 +65,9 @@ export function TosVNextReception({
     activityLoaded={activity!==null}
     expectedComplete={day?.unresolvedRegistrations===0}
     wishLoaded={false}
+    wishCandidates={day?Object.values(day.activeVisits).filter(v=>v.checkedOutAt===null).map(v=>({learnerId:v.studentProfileId,visitId:v.id})):[]}
+    wishEnabled={wishEnabled}
+    renderWish={(guest,visitId)=><TosWishRuntime key={visitId} centerId={centerId} learnerId={guest.id} legalName={guest.name} gender={null}/>}
     showDayList
     visitLookup={<>
       <ReceptionHouseCheckIn key={centerId} centerId={centerId} loadRecentLearners={tosReceptionHouseApi.recent} onVisitChanged={refresh} />
