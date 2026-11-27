@@ -31,6 +31,8 @@ export type ReceptionDayReadModel = {
   attendance: Record<string, ArrivalStatus>;
   events: ReceptionDayEvent[];
   activeVisits: Record<string, ReceptionDayVisit>;
+  scheduledWindows: Record<string,readonly {startsLocal:string;endsLocal:string}[]>;
+  startsAt:string;
   unresolvedRegistrations: number;
   hasRosterConflict: boolean;
   localDate: string;
@@ -59,6 +61,7 @@ export function projectReceptionDay(snapshot: ReceptionDaySnapshot, centerId: st
   const guests = new Map<string, OpsGuest>();
   const attendance: Record<string, ArrivalStatus> = Object.create(null);
   const activeVisits: Record<string, ReceptionDayVisit> = Object.create(null);
+  const scheduledWindows:ReceptionDayReadModel["scheduledWindows"]=Object.create(null);
   const events: ReceptionDayEvent[] = [];
   for (const learner of snapshot.learners) {
     if (!validId(learner.studentProfileId) || guests.has(learner.studentProfileId) ||
@@ -72,7 +75,7 @@ export function projectReceptionDay(snapshot: ReceptionDaySnapshot, centerId: st
       classTime: labels(related.map(s => s.scheduledStartsLocal + " \u2013 " + s.scheduledEndsLocal)),
       room: labels(related.map(s => s.spaceName)), guardian: "\u2014",
     });
-    if (related.length) attendance[learner.studentProfileId] = "EXPECTED";
+    if (related.length){ attendance[learner.studentProfileId] = "EXPECTED"; scheduledWindows[learner.studentProfileId]=related.map(s=>({startsLocal:s.scheduledStartsLocal,endsLocal:s.scheduledEndsLocal})); }
   }
   const visitIds = new Set<string>();
   for (const visit of snapshot.dayVisits) {
@@ -96,7 +99,7 @@ export function projectReceptionDay(snapshot: ReceptionDaySnapshot, centerId: st
   // A legacy current-open row that has no evidence in the requested day is not an expected arrival.
   const visible = [...guests.values()].filter(guest => attendance[guest.id] !== undefined);
   events.sort((a,b) => b.occurredAt.localeCompare(a.occurredAt) || a.id.localeCompare(b.id));
-  return {guests:visible.sort((a,b)=>a.name.localeCompare(b.name,"vi")),attendance,activeVisits,events,timeZone:snapshot.timeZone,localDate:snapshot.localDate,hasRosterConflict:snapshot.learners.some(l=>l.hasRosterConflict),
+  return {guests:visible.sort((a,b)=>a.name.localeCompare(b.name,"vi")),attendance,activeVisits,scheduledWindows,startsAt:snapshot.window.startsAt,events,timeZone:snapshot.timeZone,localDate:snapshot.localDate,hasRosterConflict:snapshot.learners.some(l=>l.hasRosterConflict),
     unresolvedRegistrations:snapshot.sessions.reduce((n,s)=>n+s.unresolvedRegistrations.length,0)};
 }
 export async function readReceptionDay(centerId: string, localDate: string, signal?: AbortSignal) {
@@ -105,6 +108,41 @@ export async function readReceptionDay(centerId: string, localDate: string, sign
   const body = await response.json() as {data?:ReceptionDaySnapshot;error?:{message?:string}};
   if (!response.ok || !body.data) throw new Error(body.error?.message || "Reception day is unavailable.");
   return projectReceptionDay(body.data,centerId,localDate);
+}
+
+type ShiftWindow={startsLocal:string;endsLocal:string};
+function localMinute(day:ReceptionDayReadModel,value:string){
+  const match=/^(?:(\d{4}-\d{2}-\d{2})T)?([01]\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?$/.exec(value);
+  return match&&(!match[1]||match[1]===day.localDate)?Number(match[2])*60+Number(match[3]):NaN;
+}
+function shiftRanges(day:ReceptionDayReadModel,windows:readonly ShiftWindow[]){
+ const ranges=windows.map(w=>({start:localMinute(day,w.startsLocal),end:localMinute(day,w.endsLocal)}));
+ return ranges.length&&ranges.every(w=>Number.isFinite(w.start)&&Number.isFinite(w.end)&&w.end>w.start)?ranges:null;
+}
+export type ReceptionShiftScope=Record<ArrivalStatus,readonly string[]>;
+/** Overview is shift scoped; the day list remains the authoritative Center-day view. */
+export function receptionShiftScope(day:ReceptionDayReadModel,windows:readonly ShiftWindow[]):ReceptionShiftScope|null{
+ const ranges=shiftRanges(day,windows);
+ if(!ranges)return null;
+ const scope:Record<ArrivalStatus,string[]>={EXPECTED:[],ARRIVED:[],LEFT:[]};
+ const fmt=new Intl.DateTimeFormat("en-GB",{timeZone:day.timeZone,hour:"2-digit",minute:"2-digit",hourCycle:"h23"});
+ const inShift=(at:number)=>ranges.some(w=>at>=w.start&&at<w.end);
+ const eventMinute=(at:string)=>localMinute(day,fmt.format(new Date(at)));
+ const departures=new Set(day.events.filter(e=>e.kind==="DEPARTURE"&&inShift(eventMinute(e.occurredAt))).map(e=>e.studentProfileId));
+ for(const guest of day.guests){
+  const id=guest.id,status=day.attendance[id];
+  if(status==="EXPECTED"){
+   const scheduled=shiftRanges(day,day.scheduledWindows[id]??[]);
+   if(!scheduled)return null;
+   if(scheduled.some(s=>ranges.some(w=>s.start<w.end&&s.end>w.start)))scope.EXPECTED.push(id);
+  }else if(status==="ARRIVED"){
+   const visit=day.activeVisits[id];
+   if(!visit||visit.checkedOutAt!==null)continue;
+   const at=Date.parse(visit.checkedInAt)<Date.parse(day.startsAt)?-1:eventMinute(visit.checkedInAt);
+   if(ranges.some(w=>at<w.end))scope.ARRIVED.push(id);
+  }else if(status==="LEFT"&&departures.has(id))scope.LEFT.push(id);
+ }
+ return scope;
 }
 
 /** Activity is only known for valid, actual own Front Desk shift windows. */

@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import {readReceptionDay,receptionShiftActivity,type ReceptionDayReadModel} from "@/lib/tos-reception-day-api";
+import {readReceptionDay,receptionShiftActivity,receptionShiftScope,type ReceptionDayReadModel} from "@/lib/tos-reception-day-api";
 import {unavailableOpsReadModel} from "@/lib/tos-ops-v4-view-model";
 import type { Assignment, TimekeepingSession } from "@/lib/workforce-api";
 import { ownReceptionAssignments } from "@/lib/tos-vnext-reception";
@@ -57,7 +57,9 @@ export function TosVNextReception({
     const endsLocal=a.effectiveEndLocal||a.shift?.endLocalTime;
     return startsLocal&&endsLocal?[{startsLocal,endsLocal}]:[];
   });
-  const activity=day&&!today.some(a=>a.effectiveWork?.reconciliationRequired)?receptionShiftActivity(day,windows):null;
+  const validWindows=today.length>0&&today.every(a=>!a.effectiveWork?.reconciliationRequired&&(a.effectiveWork?.windows.length||((a.effectiveStartLocal||a.shift?.startLocalTime)&&(a.effectiveEndLocal||a.shift?.endLocalTime))));
+  const activity=day&&validWindows?receptionShiftActivity(day,windows):null;
+  const overviewScope=day&&validWindows?receptionShiftScope(day,windows):null;
   const model=day?{...unavailableOpsReadModel(),loaded:true,guests:day.guests,attendance:day.attendance,events:activity??[]}:unavailableOpsReadModel();
   const shiftTime = today.map(a =>
     (a.effectiveStartLocal || a.shift?.startLocalTime || "Chưa có giờ")
@@ -75,6 +77,7 @@ export function TosVNextReception({
     compactArrivalIntro
     model={model}
     activityLoaded={activity!==null}
+    overviewScope={overviewScope}
     expectedComplete={day?.unresolvedRegistrations===0&&!day.hasRosterConflict}
     wishSupportedCount={wishEnabled&&wishSnapshot?.key===wishKey?wishSnapshot.count:null}
     wishCandidates={day?Object.values(day.activeVisits).filter(v=>v.checkedOutAt===null).map(v=>({learnerId:v.studentProfileId,visitId:v.id})):[]}

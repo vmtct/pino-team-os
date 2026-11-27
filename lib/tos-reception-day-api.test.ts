@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { projectReceptionDay, readReceptionDay, receptionShiftActivity, type ReceptionDaySnapshot, type ReceptionDayVisit } from "./tos-reception-day-api";
+import { projectReceptionDay, readReceptionDay, receptionShiftActivity,receptionShiftScope, type ReceptionDaySnapshot, type ReceptionDayVisit } from "./tos-reception-day-api";
 const date="2026-11-27", center="c1", start="2026-11-26T17:00:00.000Z", end="2026-11-27T17:00:00.000Z";
 const learner=(id:string)=>({studentProfileId:id,displayName:id,sessionIds:["s"],hasRosterConflict:false});
 const visit=(id:string,studentProfileId:string,checkedInAt:string,checkedOutAt:string|null):ReceptionDayVisit=>({id,studentProfileId,displayName:studentProfileId,checkedInAt,checkedOutAt,version:1});
@@ -57,4 +57,19 @@ test("PAP-2431 exposes unresolved roster conflicts and rejects wrong-date shift 
  assert.equal(day.attendance.returned,"ARRIVED");
  assert.equal(receptionShiftActivity(day,[{startsLocal:"2026-11-26T08:00",endsLocal:"2026-11-26T10:00"}]),null);
  assert.deepEqual(receptionShiftActivity(day,[{startsLocal:date+"T08:00",endsLocal:date+"T10:00"}])?.map(e=>e.id),["a:departure","b:departure","a:arrival","b:arrival"]);
+});
+
+test("PAP-2431 overview counts use own shift, keep full day and current presence independent",()=>{
+ const data=snapshot();data.sessions.push({id:"late",scheduledStartsLocal:"20:00",scheduledEndsLocal:"21:00",pathName:"Art",className:"Late",spaceName:"B",unresolvedRegistrations:[]});
+ data.learners.push({...learner("late"),sessionIds:["late"]});
+ const day=projectReceptionDay(data,center,date);
+ const scope=receptionShiftScope(day,[{startsLocal:"18:00",endsLocal:"19:30"}]);
+ assert.deepEqual(scope?.EXPECTED,["expected"]);
+ assert.deepEqual(scope?.ARRIVED?.slice().sort(),["carryover","returned"]);
+ assert.deepEqual(scope?.LEFT,[]);
+ assert.equal(day.attendance.late,"EXPECTED");assert.equal(day.attendance.walkin,"LEFT");
+ const morning=receptionShiftScope(day,[{startsLocal:"08:00",endsLocal:"10:00"}]);
+ assert.deepEqual(morning?.LEFT,["left"]);assert.deepEqual(morning?.ARRIVED,["carryover"]);
+ assert.equal(receptionShiftScope(day,[]),null);
+ assert.equal(receptionShiftScope(day,[{startsLocal:"18:00",endsLocal:"02:00"}]),null);
 });

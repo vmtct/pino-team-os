@@ -9,6 +9,7 @@ import {readReceptionReady,receptionCorrectionNotice,type ReceptionReadySlot,typ
 
 import {unavailableOpsReadModel,type OpsReadModel,type ArrivalStatus,type OpsGuest} from "@/lib/tos-ops-v4-view-model";
 import css from "./ops.module.css";
+import type {ReceptionShiftScope} from "@/lib/tos-reception-day-api";
 import {AppSheet} from "../tos-ds";
 
 type Tab = "overview" | "arrivals" | "pinoria";
@@ -18,7 +19,7 @@ const TABS: OpsTab[] = [
   { id:"pinoria", label:"Pinoria", icon:faStar },
 ];
 const labels:Record<ArrivalStatus,string>={EXPECTED:"Chưa đến",ARRIVED:"Đang ở PINO",LEFT:"Đã về"};
-export default function ReceptionV4Presentation({centerName,profileLabel,workDate,shiftTime,visitLookup,slots,model=unavailableOpsReadModel(),initialTab="overview",initialReadOnly=false,compactArrivalIntro=false,activityLoaded=model.loaded,expectedComplete=true,wishSupportedCount=null,showDayList=false,wishCandidates,wishEnabled=false,renderWish,renderHandover}:{centerName:string;profileLabel:string;workDate:string;shiftTime:string;visitLookup?:ReactNode;slots?:readonly ReceptionReadySlot[];model?:OpsReadModel;initialTab?:Tab;initialReadOnly?:boolean;compactArrivalIntro?:boolean;activityLoaded?:boolean;expectedComplete?:boolean;wishSupportedCount?:number|null;showDayList?:boolean;wishCandidates?:readonly {learnerId:string;visitId:string}[];wishEnabled?:boolean;renderWish?:(guest:OpsGuest,visitId:string)=>ReactNode;renderHandover?:(guest:OpsGuest,onDone:()=>void)=>ReactNode}){
+export default function ReceptionV4Presentation({centerName,profileLabel,workDate,shiftTime,visitLookup,slots,model=unavailableOpsReadModel(),initialTab="overview",initialReadOnly=false,compactArrivalIntro=false,activityLoaded=model.loaded,expectedComplete=true,wishSupportedCount=null,showDayList=false,wishCandidates,wishEnabled=false,renderWish,renderHandover,overviewScope}:{centerName:string;profileLabel:string;workDate:string;shiftTime:string;visitLookup?:ReactNode;slots?:readonly ReceptionReadySlot[];model?:OpsReadModel;initialTab?:Tab;initialReadOnly?:boolean;compactArrivalIntro?:boolean;activityLoaded?:boolean;expectedComplete?:boolean;wishSupportedCount?:number|null;showDayList?:boolean;wishCandidates?:readonly {learnerId:string;visitId:string}[];wishEnabled?:boolean;renderWish?:(guest:OpsGuest,visitId:string)=>ReactNode;renderHandover?:(guest:OpsGuest,onDone:()=>void)=>ReactNode;overviewScope?:ReceptionShiftScope|null}){
   const state=model,guests=model.guests;
   const [readOnly,setReadOnly]=useState(initialReadOnly);
   const [readyReceipt,setReadyReceipt]=useState<ReceptionReadyReceipt|null>(null);
@@ -39,6 +40,7 @@ export default function ReceptionV4Presentation({centerName,profileLabel,workDat
   const [tab,setTab]=useState<Tab>(initialTab);
   const [filter,setFilter]=useState<"ALL"|ArrivalStatus>("ALL");
   const [query,setQuery]=useState("");
+  const [shiftDrilldown,setShiftDrilldown]=useState(false);
   const [selectedId,setSelectedId]=useState<string|null>(null);
   const [wishSelection,setWishSelection]=useState<{learnerId:string;visitId:string}|null>(null);
   const [guardianConfirmed,setGuardianConfirmed]=useState(false);
@@ -48,26 +50,29 @@ export default function ReceptionV4Presentation({centerName,profileLabel,workDat
     const values=guests.map(g=>state.attendance[g.id]);
     return {EXPECTED:values.filter(v=>v==="EXPECTED").length,ARRIVED:values.filter(v=>v==="ARRIVED").length,LEFT:values.filter(v=>v==="LEFT").length};
   },[state.attendance,guests]);
-  const results=guests.filter(g=>(filter==="ALL"||state.attendance[g.id]===filter)&&(g.name+" "+g.className+" "+g.room).toLocaleLowerCase("vi").includes(query.toLocaleLowerCase("vi")));
+  const shiftKnown=overviewScope!==null;
+  const shownCounts=overviewScope?{EXPECTED:overviewScope.EXPECTED.length,ARRIVED:overviewScope.ARRIVED.length,LEFT:overviewScope.LEFT.length}:counts;
+  const drilldownKnown=!shiftDrilldown||shiftKnown;
+  const results=guests.filter(g=>(!shiftDrilldown||overviewScope===undefined||(overviewScope!==null&&filter!=="ALL"&&overviewScope[filter].includes(g.id)))&&(filter==="ALL"||state.attendance[g.id]===filter)&&(g.name+" "+g.className+" "+g.room).toLocaleLowerCase("vi").includes(query.toLocaleLowerCase("vi")));
   const selected=guests.find(g=>g.id===selectedId);
 
   const wishCandidateMap=new Map((wishCandidates??[]).map(v=>[v.learnerId,v.visitId]));
   const wishGuest=wishEnabled&&wishSelection&&wishCandidateMap.get(wishSelection.learnerId)===wishSelection.visitId?guests.find(g=>g.id===wishSelection.learnerId):undefined;
-  function openFilter(value:ArrivalStatus){setFilter(value);setQuery("");setTab("arrivals");}
+  function openFilter(value:ArrivalStatus){setShiftDrilldown(true);setFilter(value);setQuery("");setTab("arrivals");}
   function closeDetail(){setSelectedId(null);setGuardianConfirmed(false);}
   function openDetail(id:string){setSelectedId(id);setGuardianConfirmed(false);}
   if(!readOnly)return <ReceptionOpenShift centerName={centerName} shiftTime={shiftTime} slots={slots} initialTemplateId={selectedTemplate??""} onReady={receipt=>{setVerified(null);setReadyReceipt(receipt);setReadOnly(true);}} onBypass={()=>{setVerified(null);setReadyReceipt(null);setReadOnly(true);}}/>;
-  return <OpsFrame app="reception" title="Tiếp Tân" tabs={TABS} tab={tab} onTab={value=>{setWishSelection(null);setTab(value as Tab);}} notice={notice}>
+  return <OpsFrame app="reception" title="Tiếp Tân" tabs={TABS} tab={tab} onTab={value=>{setWishSelection(null);setShiftDrilldown(false);setTab(value as Tab);}} notice={notice}>
     {tab==="overview"&&<>
       <div className={css.intro}><span className={css.eyebrow}>{workDate}</span><h2 className={css.title}>Xin chào, {profileLabel||"bạn"} 👋</h2><p className={css.lead}>Học viên đến và về trong ca trực hôm nay.</p></div>
       <div className={css.openedStrip}><div><strong>{current?.state==="READY"?"Đã xác nhận mở ca":current?.state==="NOT_READY"?"Đang xem quầy · Chưa xác nhận mở ca":"Đang xem quầy · Chưa xác minh"}</strong><small>{centerName} · {shiftTime}</small>{correction?<><span className={css.badge} data-state="waiting">{correction.label}</span>{correction.reason?<small>{correction.reason}</small>:null}</>:null}</div><button className={css.photoBadge} type="button" onClick={()=>{setVerified(null);setReadOnly(false);}}><FontAwesomeIcon icon={faCamera}/> {correction?.rejected?"Bổ sung ảnh":"Ảnh setup"}</button></div>
       <div className={css.stats} aria-label="Tình trạng học viên hôm nay">
-        <button type="button" className={css.stat} onClick={()=>openFilter("EXPECTED")} aria-label={"Xem "+(model.loaded&&expectedComplete?counts.EXPECTED:"chưa xác minh")+" học viên chưa đến"}><strong>{model.loaded&&expectedComplete?counts.EXPECTED:"—"}</strong><span>Chưa đến <FontAwesomeIcon icon={faChevronRight}/></span></button>
-        <button type="button" className={css.stat} onClick={()=>openFilter("ARRIVED")} aria-label={"Xem "+(model.loaded?counts.ARRIVED:"chưa xác minh")+" học viên đang ở PINO"}><strong>{model.loaded?counts.ARRIVED:"—"}</strong><span>Đang ở PINO <FontAwesomeIcon icon={faChevronRight}/></span></button>
-        <button type="button" className={css.stat} onClick={()=>openFilter("LEFT")} aria-label={"Xem "+(model.loaded?counts.LEFT:"chưa xác minh")+" học viên đã về"}><strong>{model.loaded?counts.LEFT:"—"}</strong><span>Đã về <FontAwesomeIcon icon={faChevronRight}/></span></button>
+        <button type="button" className={css.stat} onClick={()=>openFilter("EXPECTED")} aria-label={"Xem "+(model.loaded&&shiftKnown&&expectedComplete?shownCounts.EXPECTED:"chưa xác minh")+" học viên chưa đến"}><strong>{model.loaded&&shiftKnown&&expectedComplete?shownCounts.EXPECTED:"—"}</strong><span>Chưa đến <FontAwesomeIcon icon={faChevronRight}/></span></button>
+        <button type="button" className={css.stat} onClick={()=>openFilter("ARRIVED")} aria-label={"Xem "+(model.loaded&&shiftKnown?shownCounts.ARRIVED:"chưa xác minh")+" học viên đang ở PINO"}><strong>{model.loaded&&shiftKnown?shownCounts.ARRIVED:"—"}</strong><span>Đang ở PINO <FontAwesomeIcon icon={faChevronRight}/></span></button>
+        <button type="button" className={css.stat} onClick={()=>openFilter("LEFT")} aria-label={"Xem "+(model.loaded&&shiftKnown?shownCounts.LEFT:"chưa xác minh")+" học viên đã về"}><strong>{model.loaded&&shiftKnown?shownCounts.LEFT:"—"}</strong><span>Đã về <FontAwesomeIcon icon={faChevronRight}/></span></button>
       </div>
       <section className={css.actionGrid}>
-        <button className={css.actionTile} onClick={()=>{setTab("arrivals");setFilter("ALL");setQuery("");}}><FontAwesomeIcon icon={faUserCheck}/><strong>Đón / Trả học viên</strong><small>Xác nhận đến và bàn giao</small></button>
+        <button className={css.actionTile} onClick={()=>{setShiftDrilldown(false);setTab("arrivals");setFilter("ALL");setQuery("");}}><FontAwesomeIcon icon={faUserCheck}/><strong>Đón / Trả học viên</strong><small>Xác nhận đến và bàn giao</small></button>
         <button className={css.actionTile} onClick={()=>setTab("pinoria")}><FontAwesomeIcon icon={faStar}/><strong>Wish Pinoria</strong><small>{wishSupportedCount??"—"} đã hỗ trợ trong ca</small></button>
       </section>
       <section className={css.panel}><div className={css.panelTitle}><h3>Hoạt động trong ca</h3><span>{activityLoaded?"Trong ca":"Chưa tải được"}</span></div>
@@ -81,12 +86,12 @@ export default function ReceptionV4Presentation({centerName,profileLabel,workDat
       {visitLookup}
       {(!visitLookup||showDayList)&&<>
       <div className={css.search}><FontAwesomeIcon icon={faMagnifyingGlass}/><input className={css.input} placeholder="Tìm tên, lớp hoặc phòng…" value={query} onChange={e=>setQuery(e.target.value)}/></div>
-      <div className={css.filters}>{([["ALL","Tất cả"],["EXPECTED","Chưa đến"],["ARRIVED","Đang ở PINO"],["LEFT","Đã về"]] as const).map(([value,label])=><button type="button" key={value} className={css.filter} aria-pressed={filter===value} onClick={()=>setFilter(value)}>{label}</button>)}</div>
-      <section className={css.panel}><div className={css.panelTitle}><h3>Học viên</h3><span>{model.loaded&&((filter!=="EXPECTED"&&filter!=="ALL")||expectedComplete)?results.length:"—"} kết quả</span></div>
+      <div className={css.filters}>{([["ALL","Tất cả"],["EXPECTED","Chưa đến"],["ARRIVED","Đang ở PINO"],["LEFT","Đã về"]] as const).map(([value,label])=><button type="button" key={value} className={css.filter} aria-pressed={filter===value} onClick={()=>{setShiftDrilldown(false);setFilter(value);}}>{label}</button>)}</div>
+      <section className={css.panel}><div className={css.panelTitle}><h3>Học viên</h3><span>{model.loaded&&drilldownKnown&&((filter!=="EXPECTED"&&filter!=="ALL")||expectedComplete)?results.length:"—"} kết quả</span></div>
         {results.length?<div className={css.list}>{results.map(g=><button type="button" className={css.listRow+" "+css.listRowButton} key={g.id} onClick={()=>openDetail(g.id)}>
           <Initials text={g.initials}/><div className={css.rowCopy}><strong>{g.name}</strong><small>{g.classTime} · {g.className}</small><small>{g.room}</small></div>
           <span className={css.badge} data-state={state.attendance[g.id]}>{labels[state.attendance[g.id]]}</span><FontAwesomeIcon className={css.chevron} icon={faChevronRight}/>
-        </button>)}</div>:<div className={css.empty}>{model.loaded&&((filter!=="EXPECTED"&&filter!=="ALL")||expectedComplete)?"Không có học viên phù hợp với bộ lọc.":"Chưa tải được danh sách đón / trả."}</div>}
+        </button>)}</div>:<div className={css.empty}>{model.loaded&&drilldownKnown&&((filter!=="EXPECTED"&&filter!=="ALL")||expectedComplete)?"Không có học viên phù hợp với bộ lọc.":"Chưa tải được danh sách đón / trả."}</div>}
       </section>
       </>}
     </>}
