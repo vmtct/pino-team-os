@@ -2,8 +2,8 @@
 import type {ApprovalVerifier} from "@/lib/workspace-schema";
 import {manualStaffDefinition} from "./manual-create-contract";
 export const staffAccessApproval={jira:"PAP-784",owner:"WFM-STAFF",designAuthority:"Founder",
- files:["app/ho/staff/StaffAccessControls.tsx","app/ho/staff/StaffManualWorkspace.tsx","app/ho/staff/staff-access-admission.ts"],
- tests:["app/ho/staff/staff-access-admission.test.ts","app/ho/staff/staff-access-fixture-port.test.ts"],
+ files:["app/ho/staff/StaffAccessControls.tsx","app/ho/staff/StaffAccessPresentation.tsx","app/ho/staff/staff-account-inline-sample.ts","app/ho/staff/StaffManualWorkspace.tsx","app/ho/staff/staff-access-admission.ts"],
+ tests:["app/ho/staff/staff-access-admission.test.ts","app/ho/staff/staff-access-fixture-port.test.ts","app/ho/staff/staff-account-inline-sample.test.ts"],
  reviewBy:"2026-11-30T00:00:00+07:00"} as const;
 export const staffAccessSlot={id:"access",label:"Access",kind:"approved-extension",
  source:{adapter:"staff.access.presentation",permission:"team.bo.access"},extensionId:"ho.staff.access",approval:staffAccessApproval} as const;

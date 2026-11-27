@@ -1,11 +1,12 @@
 "use client";
 // PAP-784 / WFM-STAFF: isolated local presentation only, no credential or assignment transport.
-import {useState} from "react";
+import {useRef,useState} from "react";
+import {applyAccountInlineSample,type AccountInlineField} from "./staff-account-inline-sample";
 import {StaffSecuritySample} from "./StaffSecuritySample";
 import {StaffAccessControls} from "./StaffAccessControls";
 import {createStaffAccessFixturePort} from "./staff-access-fixture-port";
 import {StaffAccessScenario} from "./StaffAccessScenario";
-import {PropertySections,type PropertyField} from "@pino/design-system/react";
+import {PropertySections,type PropertyField,type PropertyCommitResult,type PropertyValue} from "@pino/design-system/react";
 import {accountPresentation,type Snapshot,type CenterChoice,type RoleChoice} from "./staff-access-presentation-model";
 const labels={missing:"Chưa liên kết tài khoản",inactive:"Tài khoản chưa hoạt động",active:"Tài khoản đang hoạt động",unknown:"Chưa xác minh tài khoản"} as const;
 const fields:PropertyField[]=[
@@ -26,7 +27,26 @@ function LocalAccessSample({seed,centers,roles}:{seed:Snapshot;centers:readonly 
  const catalog=[...roles,{id:"M1-FOUR-SCOPE-ROLE",label:"Custom role (M1 sample)",active:true,protected:false,scopes:["CENTER","GLOBAL","PATH","RUNNING_CLASS"] as const}];
  const sampleCenters=[...centers,{id:"M1-HYPOTHETICAL-CENTER",label:"Center M1 sample 2",active:true}];
  const targets=[{id:"M1-PATH",label:"Path M1 sample",type:"PATH" as const,active:true},{id:"M1-RUNNING-CLASS",label:"Running Class M1 sample",type:"RUNNING_CLASS" as const,active:true}];
- const [snapshot,setSnapshot]=useState<Snapshot>(()=>({...structuredClone(seed),accountStatus:"active",accountId:"M1-HYPOTHETICAL-ACCOUNT:"+seed.staffId,assignments:[]}));
- const [port]=useState(()=>createStaffAccessFixturePort(snapshot,catalog,sampleCenters,targets));
- return <section><h3>Kiểm thử phân công (M1)</h3><p>Tình huống giả định tài khoản đang hoạt động; không thay đổi hồ sơ hoặc quyền thực tế.</p><StaffAccessControls snapshot={snapshot} roles={catalog} centers={sampleCenters} targets={targets} port={port} onVerified={setSnapshot}/><StaffAccessScenario seed={{...snapshot,assignments:[]}} roles={catalog} centers={sampleCenters} affiliationOnly/></section>;
+ const [snapshot,setSnapshot]=useState<Snapshot>(()=>({...structuredClone(seed),accountStatus:"inactive",accountId:"M1-HYPOTHETICAL-ACCOUNT:"+seed.staffId,assignments:[]}));
+ const [loginEmail,setLoginEmail]=useState("staff-m1@example.invalid");
+ const [port,setPort]=useState(()=>createStaffAccessFixturePort(snapshot,catalog,sampleCenters,targets));
+ const [epoch,setEpoch]=useState(0);
+ const current=useRef({snapshot,loginEmail});
+ const one=snapshot.assignments.length===1?snapshot.assignments[0]:undefined;
+ const inlineFields:PropertyField[]=[
+  {...fields.find(f=>f.key==="accountStatus")!,type:"select",readOnly:false,required:true,options:[{value:"inactive",label:"Ngưng hoạt động"},{value:"active",label:"Đang hoạt động"}]},
+  {...fields.find(f=>f.key==="loginEmail")!,readOnly:false,required:true},
+  {key:"role",label:"Vai trò",type:"select",required:true,readOnly:snapshot.accountStatus!=="active"||!one||one.protected,options:catalog.filter(r=>r.active&&!r.protected&&(!one||r.scopes.includes(one.scope.type))).map(r=>({value:r.id,label:r.label}))},
+ ];
+ const inlineValues={accountStatus:snapshot.accountStatus,loginEmail,role:one?.roleId??(snapshot.assignments.length?"Nhiều vai trò":"Chưa phân công")};
+ async function commit(key:string,value:PropertyValue,{signal}:{signal:AbortSignal}):Promise<PropertyCommitResult>{
+  if(signal.aborted||!["accountStatus","loginEmail","role"].includes(key))return {status:"denied"};
+  const next=applyAccountInlineSample(current.current,{staffId:snapshot.staffId,accountId:snapshot.accountId,revision:snapshot.revision,field:key as AccountInlineField,value},catalog,sampleCenters,targets);
+  if(!next)return {status:"denied"};
+  current.current=next;setSnapshot(next.snapshot);setLoginEmail(next.loginEmail);setPort(createStaffAccessFixturePort(next.snapshot,catalog,sampleCenters,targets));setEpoch(e=>e+1);
+  return {status:"saved",value:key==="accountStatus"?next.snapshot.accountStatus:key==="loginEmail"?next.loginEmail:next.snapshot.assignments[0]?.roleId??null};
+ }
+ function verified(next:Snapshot){current.current={snapshot:next,loginEmail:current.current.loginEmail};setSnapshot(next);}
+
+ return <section data-staff-account-lifecycle-sample><h3>Quản lý tài khoản (M1)</h3><p>Tài khoản giả định đã liên kết. Chỉnh sửa tại từng field; không thay đổi hồ sơ, tài khoản hay quyền thực tế.</p><PropertySections recordKey={snapshot.accountId??snapshot.staffId} fields={inlineFields} values={inlineValues} sections={[{id:"account-lifecycle",label:"Thông tin tài khoản",fields:inlineFields.map(f=>f.key)}]} variant="detail" surface="ho" canEdit={key=>key==="accountStatus"||key==="loginEmail"||(key==="role"&&snapshot.accountStatus==="active"&&!!one&&!one.protected)} onCommit={commit}/><p>Kích hoạt hoặc ngưng tài khoản không thay đổi trạng thái làm việc hay tự cấp vai trò. Phân công mới cần chọn phạm vi bên dưới.</p><StaffAccessControls key={epoch} snapshot={snapshot} roles={catalog} centers={sampleCenters} targets={targets} port={port} onVerified={verified}/><StaffAccessScenario seed={{...snapshot,assignments:[]}} roles={catalog} centers={sampleCenters} affiliationOnly/></section>;
 }
