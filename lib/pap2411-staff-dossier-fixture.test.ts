@@ -7,7 +7,7 @@ test("PAP-2411 BO dossier review moves to HO without identity or Access creation
  await assert.rejects(submit(id,1,"foreign","foreign"));
  await assert.rejects(submit(id,2,center,"stale"));
  const receipt=await submit(id,1,center,"valid");
- assert.deepEqual(receipt,{registrationRequestId:id,centerId:center,status:"REVIEWED_FOR_HO"});
+ assert.deepEqual(receipt,{registrationRequestId:id,centerId:center,status:"REVIEWED_FOR_HO",reviewedVersion:1,reviewedBy:"M1 BO Reviewer"});
  assert.deepEqual(f.readback(),receipt);assert.deepEqual(await f.service.staffRegistrationRequests(),[]);const rows=await f.dossierReview.list!();assert.equal(rows.length,1);assert.equal(rows[0].reviewStage,"REVIEWED_FOR_HO");assert.equal(rows[0].reviewedVersion,1);assert.equal(rows[0].reviewedBy,"M1 BO Reviewer");
  assert.deepEqual(await submit(id,1,center,"valid"),receipt);
  await assert.rejects(submit(id,1,center,"duplicate"));

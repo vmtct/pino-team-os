@@ -16,7 +16,7 @@ export function createStaffDossierM1Fixture({completeDocuments=true}:{completeDo
   try {
    const row=(await base.staffRegistrationRequests()).find(r=>r.id===id);
    if(!row||row.version!==version||!row.documents.front||!row.documents.back)throw Error("Invalid dossier review");
-   reviewed={registrationRequestId:id,centerId,status:"REVIEWED_FOR_HO"};
+   reviewed={registrationRequestId:id,centerId,status:"REVIEWED_FOR_HO",reviewedVersion:version,reviewedBy:"M1 BO Reviewer"};
    terminalRow={...row,reviewStage:"REVIEWED_FOR_HO",reviewedVersion:version,reviewedBy:"M1 BO Reviewer"};
    receipts.set(key,{fingerprint,receipt:reviewed});
    return structuredClone(reviewed);
