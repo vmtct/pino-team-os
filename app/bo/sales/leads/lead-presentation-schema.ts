@@ -1,6 +1,6 @@
 /** PAP-2288 / PLT-LEAD: existing Lead presentation metadata, consumed by native Table/Drawer/Detail.
  * This is not a TDD_DEFAULT admission or an authorization grant. */
-import {LEAD_M1_AUDIT_COLUMNS} from "./lead-household-m1-fixtures";
+import {LEAD_M1_AUDIT_COLUMNS} from "./lead-household-presentation";
 export const CONTACT_FIELD_SCHEMA=[
  {key:"contactName",label:"Người liên hệ"},
  {key:"phone",label:"Số điện thoại",required:true},
