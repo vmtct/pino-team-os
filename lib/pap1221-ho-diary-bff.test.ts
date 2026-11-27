@@ -23,6 +23,40 @@ test("PAP-1221 BFF denies outside HO staging before asking for Core credential",
   {headers:{host:"ho.staging.pinohouse.art"}}),env,[]);
  assert.equal(r.status,404,"APP_ENV production is forbidden");
 });
+test("PAP-1221 HO list forwards bounded filters in the Core Founder request body",async()=>{
+ const centerId="01912345-6789-7abc-8def-0123456789ad";
+ const localDate="2026-11-22";
+ const page={data:{centerId,localDate,diaries:[],hasMore:false,limit:100,offset:0}};
+ const forwarded:Array<{method:string;path:string;body?:unknown;token:string}>=[];
+ const authorizedEnv={
+  APP_ENV:"staging",
+  HO_PILOT_FOUNDER_USER_IDS:"founder",
+  PINO_BO_CORE:{async executeWithStaffPassword(request:{path:string},token:string){
+   assert.equal(token,"valid");
+   if(request.path==="context")return{status:200,requestId:"context",body:{data:{
+    userId:"founder",email:"founder@example.invalid",surface:"BO",entitled:true,
+   }}};
+   if(request.path==="ho/admission")return{status:200,requestId:"admission",body:{data:{admitted:true}}};
+   throw new Error("Unexpected BO Core request: "+request.path);
+  }},
+  PINO_CORE:{async executeWithStaffPassword(request:{method:string;path:string;body?:unknown},token:string){
+   forwarded.push({...request,token});
+   return{status:200,requestId:"diary-read",body:page};
+  }},
+ } as DiaryHoEnv;
+ const request=new Request(host+"/api/ho/learning/path-diaries?centerId="+centerId+
+  "&localDate="+localDate+"&limit=100&offset=0",{method:"GET",headers:{
+   host:"ho.staging.pinohouse.art",cookie:"pino_staff_password_session=valid",
+  }});
+ const response=await handleHoDiaryRead(request,authorizedEnv,[]);
+ assert.equal(response.status,200);
+ assert.deepEqual(await response.json(),page);
+ assert.equal(response.headers.get("x-request-id"),"diary-read");
+ assert.deepEqual(forwarded,[{
+  method:"GET",path:"/learning/path-diaries",
+  body:{centerId,localDate,limit:100,offset:0},token:"valid",
+ }]);
+});
 test("PAP-1221 shared HO TDD session admits only bounded GET GLOBAL Diary endpoint",async()=>{
  const calls:string[]=[];
  const transport:typeof fetch=async input=>{calls.push(String(input));return Response.json({data:[]})};

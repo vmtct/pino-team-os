@@ -28,7 +28,7 @@ function fixture(run) {
     const content=fs.readFileSync(path.join(repo,file),"utf8");
     // Existing PAP-901 factory fixtures have no TDD manifest; keep scopes independent.
     write(file,file===policy?content.replace(/\r\n/g,"\n").replace('  "/bo/payroll-daily",\n',"").replace('  "/bo/payroll-exceptions",\n',"").replace('  "/bo/pinoria-avatars",\n',"").replace('  "/bo/afterschool-accounts",\n',"").replace('  "/bo/open-studio-passes",\n',"")
-      .replace(/\s*"\/bo\/classroom-diaries",\r?\n/,"\n").replace('  "/bo/bills",\n',"").replace('  "/bo/missions",\n',"").replace('  "/bo/tvs",\n',"").replace('  "/bo/opening-evidence",\n',"").replace('  "/bo/piner-posts",\n',"").replace('  "/bo/pinoria-wish-events",\n',"").replace('  "/bo/mytime-guests",\n',"").replace('  "/bo/mytime-workshops",\n',"").replace('  "/bo/enrollments",\n',""):content);
+      .replace(/\s*"\/bo\/classroom-diaries",\r?\n/,"\n").replace('  "/bo/bills",\n',"").replace('  "/bo/missions",\n',"").replace('  "/bo/tvs",\n',"").replace('  "/bo/opening-evidence",\n',"").replace('  "/bo/piner-posts",\n',"").replace('  "/bo/sales/leads",\n',"").replace('  "/bo/pinoria-wish-events",\n',"").replace('  "/bo/mytime-guests",\n',"").replace('  "/bo/guests",\n',"").replace('  "/bo/mytime-workshops",\n',"").replace('  "/bo/enrollments",\n',"").replace('  "/bo/running-classes",\n',"").replace('  "/bo/parents",\n',""):content);
   }
   try { return run({ root, read, write }); }
   finally { fs.rmSync(root, { recursive: true, force: true }); }
@@ -43,12 +43,55 @@ test("PAP-1970 native Payroll is explicit, read-only and does not re-enter TDD E
     "lib/bo-payroll-daily-read-contract.test.ts",
     "lib/bo-native-payroll-route.ts",
     "lib/pap1970-native-payroll-route.test.ts",
+    "app/bo/payroll-periods/PayrollNativeTable.tsx",
   ];
   for(const file of files)write(file,fs.readFileSync(path.join(repo,file),"utf8"));
   assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/payroll-daily.*exactly one staging decision/);
   write(policy,read(policy).replace('  "/bo/payroll-periods",','  "/bo/payroll-periods",\n  "/bo/payroll-daily",'));
   assert.deepEqual(verifyBoStagingRoutePolicy(root).issues,[]);
   const view=files[1], original=read(view);
+  const wrapper=files[7], originalWrapper=read(wrapper);
+  for(const bad of [
+    original.replace('../payroll-periods/PayrollNativeTable','../payroll-periods/OtherTable'),
+    original.replace(/<PayrollDsaReadTable\b/g,"<OtherTable"),
+    original.replace(/<BoQuickView\b/g,"<OtherDrawer"),
+    original.replace('@/app/bo/components/registration/BoQuickView','@/app/bo/components/OtherDrawer')
+  ]){
+    write(view,bad);
+    assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/payroll-daily.*invalid native read-only route contract/);
+  }
+  write(view,original);
+  for(const bad of [
+    originalWrapper.replace('@/app/bo/components/registration/BoDataTable','@/app/bo/components/OtherTable'),
+    originalWrapper.replace(/<BoDataTable\b/g,"<OtherTable"),
+    originalWrapper.replace('export function PayrollDsaReadTable','function PayrollDsaReadTable'),
+    originalWrapper.replace('import {BoDataTable}','// import {BoDataTable}')
+  ]){
+    write(wrapper,bad);
+    assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/payroll-daily.*invalid native read-only route contract/);
+  }
+  fs.unlinkSync(path.join(root,wrapper));
+  assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/payroll-daily.*invalid native read-only route contract/);
+  write(wrapper,originalWrapper);
+  const exceptionFiles=[
+    "app/bo/payroll-exceptions/page.tsx",
+    "app/bo/payroll-exceptions/BoPayrollExceptionsReadView.tsx",
+    "app/bo/payroll-exceptions/[requestId]/BoPayrollExceptionDetail.tsx",
+    "lib/bo-payroll-exceptions-read.ts",
+    "lib/bo-payroll-exceptions-model.test.ts"
+  ];
+  for(const file of exceptionFiles)write(file,fs.readFileSync(path.join(repo,file),"utf8"));
+  write(policy,read(policy).replace('  "/bo/payroll-daily",','  "/bo/payroll-daily",\n  "/bo/payroll-exceptions",'));
+  assert.deepEqual(verifyBoStagingRoutePolicy(root).issues,[]);
+  const exception=read(exceptionFiles[1]);
+  write(exceptionFiles[1],exception.replace(/<BoQuickView\b/g,"<OtherDrawer"));
+  assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/payroll-exceptions.*invalid native read-only route contract/);
+  write(exceptionFiles[1],exception);
+  const client=read(exceptionFiles[3]);
+  write(exceptionFiles[3],client+'\nconst invalid={method:"POST"};');
+  assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/payroll-exceptions.*invalid native read-only route contract/);
+  write(exceptionFiles[3],client);
+  assert.deepEqual(verifyBoStagingRoutePolicy(root).issues,[]);
   write(view,original+"\n// BoModuleFactory");
   assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/payroll-daily.*invalid native read-only route contract/);
   write(view,original);
@@ -273,4 +316,32 @@ test("PAP-2032 native Wish Events requires exact authorized runtime and Center/a
   const f=files[index],original=read(f);assert.ok(original.includes(needle));write(f,original.replace(needle,"BROKEN_CONTRACT"));assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/Wish Events: invalid native scoped route contract/);write(f,original);
  }
  fs.unlinkSync(path.join(root,files[8]));assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/Wish Events: missing native scoped route contract/);
+}));
+
+test("PAP-1044 native Running Classes requires exact authorized live workspace without staging fixture fallback",()=>fixture(({root,read,write})=>{
+ const base="app/bo/running-classes/";
+ const files=[base+"page.tsx",base+"RunningClassNativeEntry.tsx",base+"running-class-stage-admission.ts",base+"running-class-provider.ts",base+"running-class-stage-admission.test.ts"];
+ for(const file of files)write(file,fs.readFileSync(path.join(repo,file),"utf8"));
+ write(policy,read(policy).replace('  "/bo/payroll-periods",','  "/bo/payroll-periods",\n  "/bo/running-classes",'));
+ assert.deepEqual(verifyBoStagingRoutePolicy(root).issues,[]);
+ for(const [index,from,to] of [[0,'./RunningClassNativeEntry','./OtherEntry'],[0,'!boSkeletonEnabled(env,host)','false'],[0,'await authorizeBoShell(new Headers(incoming),env).catch(()=>forbidden())','{userId:"mock"}'],[0,'return <RunningClassNativeEntry expectedActorId={actor.userId}/>;','return <RunningClassStagingEntry/>;'],[1,'runningClassLive:provider','runningClassLive:undefined'],[1,'!center.centers.some(c=>c.id===selected)','false'],[1,'body.data.userId!==expectedActorId','false'],[2,'return parseRunningClassLiveQuery(input,legacy);','return parseRunningClassReviewQuery(input,legacy);'],[3,'current.userId!==actorId','false'],[3,'current.permissionKeys?.includes("delivery.schedule.manage")','true'],[3,'current.permissionKeys?.includes("membership.subscription.view")','true'],[3,'if(write&&!writable)','if(false)']]){
+  const file=files[index],original=read(file);assert.ok(original.includes(from),from);write(file,original.replace(from,to));
+  assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/running-classes.*invalid native scoped live contract/);write(file,original);
+ }
+ write(base+"RunningClassStagingEntry.tsx","export function RunningClassStagingEntry(){}");
+ assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/running-classes.*invalid native scoped live contract/);
+ fs.unlinkSync(path.join(root,base+"RunningClassStagingEntry.tsx"));
+ fs.unlinkSync(path.join(root,files[4]));assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/running-classes.*missing exact native live contract/);
+}));
+
+test("PAP-2387/PAP-2389 exact native Parent live admission requires actor and Center binding",()=>fixture(({root,read,write})=>{
+ const files=["app/bo/parents/page.tsx","app/bo/parents/ParentStagingEntry.tsx","app/bo/parents/ParentDirectoryDsa.tsx","app/bo/parents/parent-live-context.tsx","app/bo/parents/parent-m1-context.tsx","app/bo/parents/parent-native-data.ts","app/bo/parents/parent-route.ts","app/bo/parents/ParentCreateDrawer.tsx","app/bo/components/registration/BoParentReadTabs.tsx","lib/pap2387-parent-staging-boundary.test.ts","lib/pap2389-parent-route.test.ts","app/bo/parents/parent-create-retry.ts"];
+ for(const f of files)write(f,fs.readFileSync(path.join(repo,f),"utf8"));
+ write(policy,read(policy).replace('  "/bo/payroll-periods",','  "/bo/payroll-periods",\n  "/bo/parents",'));
+ assert.deepEqual(verifyBoStagingRoutePolicy(root).issues,[]);
+ for(const [index,needle] of [[0,"host!==\"bo.staging.pinohouse.art\"||env.APP_ENV!==\"staging\"||!boSkeletonEnabled(env,host)"],[0,"if(!canonicalParentRoute(query))notFound()"],[0,"await authorizeBoShell(new Headers(incoming),env)"],[0,"if(!actor.permissionKeys.includes(\"identity.parent_directory.view\"))forbidden()"],[0,"actorId={actor.userId} actorEmail={actor.email}"],[1,"user.email!==actorEmail"],[1,"!center.centers.some(c=>c.id===selected)"],[1,"loadNativeParentLiveGrants(scope,ctl.signal)"],[1,"if(state!==\"ready\")return <RecordState status={state}/>"],[1,"<ParentLiveScope.Provider value={scope}>"],[1,"load:async()=>{throw Error(\"Parent owns scoped native record transport\")"],[1,"content={<ParentDirectoryDsa/>}"],[3,"createContext<NativeParentLiveScope|null>(null)"],[4,"self.origin!==\"null\""],[5,"loadNativeParentContext(scope.centerId,signal,fetcher,scope.actorId)"],[5,"scope.canCreate&&grants.has(\"identity.parent.create\")"],[5,"scope.canEdit&&grants.has(\"identity.parent.edit\")"],[5,"raw.userId !== expectedActorId"],[5,"grants.has(\"identity.parent_directory.view\")"],[5,"scopes.centers.some(c => c.id === centerId)"],[2,"liveScope.centerId!==centerId"],[2,"return loadNativeParentLiveGrants(liveScope,signal)"],[2,"return loadNativeParentDirectory(centerId,ctl.signal)"],[2,"const current=fixture?grants:await reattest(ctl.signal)"],[7,"liveScope.centerId!==attempt.centerId"],[7,"await loadNativeParentLiveGrants(liveScope,ctl.signal)"],[7,"parentCreateMayEdit(previouslyUncertain,true)"],[8,"await loadNativeParentLiveGrants(liveScope,controller.signal)"],[8,"new URLSearchParams({centerId:liveScope.centerId})"],[6,"export const PARENT_ROUTE = \"/bo/parents\""],[6,"!uuid.test(value)"],[11,"return !previouslyUncertain&&definiteRejection"]]){
+  const f=files[index],original=read(f);assert.ok(original.includes(needle),needle);write(f,original.replace(needle,"BROKEN_CONTRACT"));assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/parents: invalid exact native Parent live contract/,needle);write(f,original);
+ }
+ for(const [index,extra] of [[1,"\nconst retired = <ParentStagingFixtureProvider/>;"],[1,"\nconst retired = {ephemeral:true};"],[6,"\n// PARENT-MOCK-001"]]){const f=files[index],original=read(f);write(f,original+extra);assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/parents: invalid exact native Parent live contract/);write(f,original);}
+ fs.unlinkSync(path.join(root,files[9]));assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/parents: missing exact native Parent live contract/);
 }));

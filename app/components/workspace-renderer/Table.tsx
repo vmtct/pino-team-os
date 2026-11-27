@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { BoDataTable } from "../../bo/components/registration/BoDataTable";
 import { BoTableSettings, type BoSavedView } from "../../bo/components/registration/BoTableSettings";
 import type { BoField, BoRecord, BoTableState } from "@/lib/bo-registration";
@@ -10,6 +10,7 @@ import { latestRequest } from "./resource";
 import type { TablePolicy } from "./TablePolicy";
 import { dispatchCellEdit } from "./editing";
 import { PropertyEditor } from "./Editor";
+import {rolePresentationSelection,type RoleMetadataPresentation} from "@/lib/workspace-adapters/ho-inline-command-contract";
 import { normalizeFreezeBoundary } from "@/lib/tdd-column-freeze";
 import type { TddActionBindings } from "@/lib/workspace-schema";
 
@@ -57,8 +58,10 @@ export type TddTableProps<F extends readonly FieldSchema[]> = {
   readonly registry: TddRegistry; readonly schema: ModuleSchema<F>; readonly context: AuthorizationContext;
   readonly rows: readonly ModuleRow<F>[]; readonly query: TableQuery<F>; readonly onQueryChange: (query: TableQuery<F>) => void;
   readonly onOpen: (record: BoRecord) => void; readonly status: "ready" | "loading" | "error" | "denied";
+  /** Presentation only; receives the authorized record projection and a visible read-only field. */
+  readonly renderReadOnlyCell?: (record: BoRecord, field: BoField) => ReactNode | undefined;
   readonly onRetry?: () => void; readonly total?: number; readonly viewTransport?: ViewTransport<F>;
-  readonly writes?: TableWrites<F>; readonly actionBindings?: TddActionBindings;
+  readonly writes?: TableWrites<F>; readonly actionBindings?: TddActionBindings; readonly roleMetadata?: RoleMetadataPresentation; readonly roleVersionForRow?: (id:string)=>string|undefined; readonly onRoleSaved?:()=>void;
 };
 export function TddTable<F extends readonly FieldSchema[]>(props: TddTableProps<F>) {
   const schema = registeredSchema(props.registry, props.schema);
@@ -66,7 +69,7 @@ export function TddTable<F extends readonly FieldSchema[]>(props: TddTableProps<
   // Erasure is limited to the existing scalar Table bridge; all transitions revalidate.
   return <TableContents key={renderScope(schema, props.context, "table")} {...props as unknown as TddTableProps<readonly FieldSchema[]>} schema={schema} />;
 }
-function TableContents({ schema, context, rows, query, onQueryChange, onOpen, status, onRetry, total, viewTransport, writes }: TddTableProps<readonly FieldSchema[]>) {
+function TableContents({ schema, context, rows, query, onQueryChange, onOpen, status, onRetry, total, viewTransport, writes, roleMetadata, roleVersionForRow, onRoleSaved, renderReadOnlyCell }: TddTableProps<readonly FieldSchema[]>) {
   const [settings, setSettings] = useState<string | null>(null), [filterOpen, setFilterOpen] = useState(false);
   const [draft, setDraft] = useState<{ source: typeof query; state: BoTableState } | null>(null), [message, setMessage] = useState("");
   const [localViews, setLocalViews] = useState<BoSavedView[]>([]), [active, setActive] = useState<string | null>(null);
@@ -75,6 +78,7 @@ function TableContents({ schema, context, rows, query, onQueryChange, onOpen, st
   const [undo, setUndo] = useState<UiSnapshot[]>([]);
   const [future, setFuture] = useState<UiSnapshot[]>([]);
   const [edit, setEdit] = useState<{ record: ModuleRow<readonly FieldSchema[]>; field: BoField; anchor: HTMLButtonElement; version: string } | null>(null);
+  const [roleEdit,setRoleEdit]=useState<{id:string;field:string;version:string;anchor:HTMLElement}|null>(null);
   const request = useRef(latestRequest<readonly SavedTddView<readonly FieldSchema[]>[]>());
   useEffect(() => { const current = request.current; return () => current.cancel(); }, [schema, context, viewTransport]);
   let state: BoTableState;
@@ -85,13 +89,16 @@ function TableContents({ schema, context, rows, query, onQueryChange, onOpen, st
   if (projected.some(p => !p)) return <RecordState status="denied" />;
   const fields = schema.fields.filter(f => allowsField(schema, context, f.key, "display"));
   const legacyFields = toLegacyModule(schema).fields.filter(f => allowsField(schema, context, f.key, "display"));
+  const roleSelection=(id:string,field:string)=>{const row=rows.find(r=>r.id===id);return status==="ready"&&row?rolePresentationSelection(schema,context,roleMetadata,"table",row,roleVersionForRow?.(id),field,Boolean(writes)):null;};
+  const roleRow=roleEdit?rows.find(r=>r.id===roleEdit.id):undefined;
+  const roleCurrent=roleEdit&&roleRow?roleSelection(roleEdit.id,roleEdit.field):null;
   const policy: TablePolicy = {
     identity: schema.table.identity.field,
     search: schema.table.search.fields.filter(k => allowsField(schema, context, k, "search")),
     filter: schema.table.filters.fields.filter(k => allowsField(schema, context, k, "filter")),
     sort: schema.table.sort.fields.filter(k => allowsField(schema, context, k, "sort")),
     group: schema.table.group.fields.filter(k => allowsField(schema, context, k, "group")),
-    edit: schema.table.inlineEdit.enabled && writes ? schema.table.inlineEdit.fields.filter(k => allowsField(schema, context, k, "inlineEdit")) : [],
+    edit: schema.table.inlineEdit.enabled && writes ? schema.table.inlineEdit.fields.filter(k => allowsField(schema, context, k, "inlineEdit")) : rows.some(row=>roleSelection(row.id,"name"))?["name"]:[],
     viewActions: schema.table.views.actions,
   };
   const update = (patch: Partial<BoTableState>, replacement?: BoTableState) => {
@@ -163,12 +170,12 @@ function TableContents({ schema, context, rows, query, onQueryChange, onOpen, st
     <BoDataTable module={{ label: schema.label, group: schema.group, fields: legacyFields.filter(f => fields.some(p => p.key === f.key)) }} rows={projected.map(p => p!.record)}
       loadState={status === "ready" ? "ready" : status === "loading" ? "loading" : "Không thể tải dữ liệu."}
       value={state} update={update} page={query.page} setPage={page => { try { onQueryChange(fromLegacyTableState(schema, state, context, page)); } catch { setMessage("Bộ lọc chưa hợp lệ."); } }}
-      onOpen={onOpen} onCellEdit={writes ? (record, key, anchor) => { dispatchCellEdit(schema, context, key, () => {
+      onOpen={record=>{setRoleEdit(null);onOpen(record);}} canEditCell={writes?undefined:(record,key)=>Boolean(roleSelection(record.id,key))} onCellEdit={writes ? (record, key, anchor) => { dispatchCellEdit(schema, context, key, () => {
         const field = legacyFields.find(f => f.key === key), version = writes.versionForRow(record.id);
         if (!field || !version.trim()) { setMessage("Tải lại phiên bản bản ghi trước khi chỉnh sửa."); return; }
         setEdit({ record, field, anchor, version });
-      }); } : undefined} policy={renderedPolicy} serverTotal={schema.table.pagination.mode === "server" ? total : undefined}
-      onSettings={setSettings} filterOpen={filterOpen} setFilterOpen={setFilterOpen} minimal freezeEnabled
+      }); } : roleMetadata?(record,key,anchor)=>{const selection=roleSelection(record.id,key);if(selection)setRoleEdit({id:selection.id,field:selection.field,version:selection.expectedVersion,anchor});}:undefined} policy={renderedPolicy} serverTotal={schema.table.pagination.mode === "server" ? total : undefined}
+      renderReadOnlyCell={renderReadOnlyCell} onSettings={setSettings} filterOpen={filterOpen} setFilterOpen={setFilterOpen} minimal freezeEnabled
       views={views} changeViews={changeViews} activeView={active} applyView={view => { if (view && !schema.table.views.actions.includes("apply")) return; update({}, view?.state ?? initial); setActive(view?.id ?? null); }}
       reset={() => update(initial)} undo={() => restore(false)} canUndo={undo.length > 0}
       builtInViews={schema.table.views.builtIn.map(view => <button type="button" role="tab" aria-selected={active === view.id} aria-controls="table-scroll" tabIndex={active === view.id ? 0 : -1} className={"view-tab " + (active === view.id ? "active" : "")} key={view.id} onClick={() => { try { toLegacyTableState(schema, view.state, context); onQueryChange(view.state); setActive(view.id); } catch { setMessage("Không có quyền áp dụng Quick View."); } }}>{view.label}</button>)} />
@@ -176,6 +183,7 @@ function TableContents({ schema, context, rows, query, onQueryChange, onOpen, st
     {remote.unavailable.length ? <section aria-label="Quick View không khả dụng"><p role="status">Một số Quick View không thể áp dụng trong giao diện này. Nhờ người quản lý sửa cấu hình gốc hoặc xóa view; dữ liệu đã lưu được giữ nguyên.</p><ul>{remote.unavailable.map(view => <li key={view.id}><span>{view.name} — Không khả dụng</span>{canWriteViews && policy.viewActions.includes("delete") ? <button type="button" className="quiet-x" aria-label={"Xóa Quick View không khả dụng " + view.name} onClick={() => { if (schema.table.views.actions.includes("delete")) persistViews(externalViews.filter(v => v.id !== view.id)); }}>Xóa view</button> : null}</li>)}</ul></section> : null}
     {message ? <p role="alert">{message}</p> : null}
     {settings ? <BoTableSettings screen={settings} setScreen={setSettings} onClose={() => setSettings(null)} fields={legacyFields} rows={projected.map(p => p!.record)} value={state} update={update} views={views} setViews={changeViews} applyView={view => { if (schema.table.views.actions.includes("apply")) update({}, view.state); }} policy={renderedPolicy} /> : null}
+    {roleEdit&&roleRow&&roleCurrent&&roleCurrent.expectedVersion===roleEdit.version&&roleMetadata&&onRoleSaved?roleMetadata.render({host:"table",row:roleRow,version:roleEdit.version,field:roleEdit.field,anchor:roleEdit.anchor,onClose:()=>setRoleEdit(null),onSaved:onRoleSaved}):null}
     {edit && writes && rows.some(row => row.id === edit.record.id) ? <PropertyEditor key={JSON.stringify([edit.record.id, edit.field.key, edit.version])} schema={schema} context={context} record={edit.record} writes={{ adapter: writes.adapter, version: edit.version, onSaved: writes.onSaved }} selection={edit} onClose={() => setEdit(null)} /> : null}
   </div>;
 }

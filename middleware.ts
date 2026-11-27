@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { HO_STAGING_HOSTNAME, normalizeHostname, decideHostBoundary, requiresBoStaffPasswordSession, requiresTosStaffSession } from "@/lib/host-boundary";
 import { boSkeletonRoute, isBoStagingHost, requiresBoStagingPageSession } from "@/lib/bo-skeleton-routing";
 import { safeHoReturnTo } from "@/lib/ho-routes";
+import { BO_RETURN_HEADER, BO_STAGING_RETURN_HOST, safeBoStagingReturnTo } from "@/lib/bo-staging-return-to";
+
+import {RC_REVIEW_PATH} from "@/app/bo/running-classes/running-class-review-query";
+import {parseRunningClassStageQuery} from "@/app/bo/running-classes/running-class-stage-admission";
+import {canonicalLeadStageQuery} from "@/app/bo/sales/leads/native-lead-query";
+import { parseNativePostQuery } from "@/app/bo/piner-posts/native-post-query";
+import {invalidStaffPhaseOneRequest} from "@/app/ho/staff/staff-phase-one-route";
 
 export function middleware(request: NextRequest) {
   // Source assets are served only through the authenticated staging controller.
@@ -41,6 +48,11 @@ export function middleware(request: NextRequest) {
   // Never trust a caller-supplied internal route marker.
   const forwarded = new Headers(request.headers);
   forwarded.delete("x-pino-bo-runtime-path");
+  forwarded.delete(BO_RETURN_HEADER);
+  if(normalizeHostname(host)===BO_STAGING_RETURN_HOST){
+    const ret=safeBoStagingReturnTo(request.nextUrl.pathname+request.nextUrl.search);
+    if(ret)forwarded.set(BO_RETURN_HEADER,ret);
+  }
   forwarded.delete("x-pino-ho-auth-page");
   forwarded.delete("x-pino-ho-return-to");
   if (normalizeHostname(host) === HO_STAGING_HOSTNAME && request.nextUrl.pathname.startsWith("/ho")) {
@@ -80,7 +92,49 @@ export function middleware(request: NextRequest) {
     // Before React starts streaming: an async layout redirect can otherwise be HTTP 200.
     if ((requiresBoStaffPasswordSession(host, request.nextUrl.pathname) || requiresBoStagingPageSession(host, request.nextUrl.pathname)) && !request.cookies.get("pino_staff_password_session")?.value) {
       const login = new URL(request.url); login.pathname = "/staff-login"; login.search = "";
+      if (normalizeHostname(host) === BO_STAGING_RETURN_HOST && ["GET","HEAD"].includes(request.method)) {
+        const ret = safeBoStagingReturnTo(request.nextUrl.pathname + request.nextUrl.search);
+        if (ret) login.searchParams.set("returnTo",ret);
+      }
       return NextResponse.redirect(login, 307);
+    }
+    if (isBoStagingHost(host) && request.nextUrl.pathname===RC_REVIEW_PATH && ["GET","HEAD"].includes(request.method)) {
+      const params=new URLSearchParams(request.nextUrl.searchParams);if(request.headers.get("rsc")==="1")params.delete("_rsc");
+      if(parseRunningClassStageQuery(params)===null)return new NextResponse("Not Found",{status:404,headers:{"cache-control":"no-store"}});
+    }
+    // PAP-2386: reject invalid canonical native Post links before streaming.
+    if (normalizeHostname(host) === BO_STAGING_RETURN_HOST && request.nextUrl.pathname === "/bo/piner-posts" && ["GET","HEAD"].includes(request.method)) {
+      const params=new URLSearchParams(request.nextUrl.searchParams);
+      // Next internal RSC cache key is transport metadata, not fixture state.
+      if(request.headers.get("rsc")==="1")params.delete("_rsc");
+      if(!parseNativePostQuery(params))return new NextResponse("Not Found",{status:404,headers:{"cache-control":"no-store"}});
+    }
+    // PAP-2288: exact native Lead navigation; no synthetic record can become a real ID.
+    if(normalizeHostname(host)===BO_STAGING_RETURN_HOST&&request.nextUrl.pathname==="/bo/sales/leads"&&["GET","HEAD"].includes(request.method)){
+      const params=new URLSearchParams(request.nextUrl.searchParams);
+      if(request.headers.get("rsc")==="1")params.delete("_rsc");
+      if(canonicalLeadStageQuery(params)===null)return new NextResponse("Not Found",{status:404,headers:{"cache-control":"no-store"}});
+    }
+    // PAP-2395: once native Staff is admitted, reject malformed links before streaming.
+    if(invalidStaffPhaseOneRequest(normalizeHostname(host),request.nextUrl.pathname,request.method,request.nextUrl.searchParams,request.headers.get("rsc")))
+      return new NextResponse("Not Found",{status:404,headers:{"cache-control":"no-store"}});
+    // PAP-2369: exact canonical synthetic-only HO preview, reject invalid links before streaming.
+    if(normalizeHostname(host)===HO_STAGING_HOSTNAME && request.nextUrl.pathname==="/ho/learning-spaces" && ["GET","HEAD"].includes(request.method)){
+      const params=new URLSearchParams(request.nextUrl.searchParams);
+      if(request.headers.get("rsc")==="1")params.delete("_rsc");
+      if(!safeHoReturnTo(request.nextUrl.pathname+(params.size?"?"+params.toString():"")))return new NextResponse("Not Found",{status:404,headers:{"cache-control":"no-store"}});
+    }
+    // PAP-2373: reject retired Role fixtures and malformed native links before streaming.
+    if(normalizeHostname(host)===HO_STAGING_HOSTNAME && request.nextUrl.pathname==="/ho/system/roles" && ["GET","HEAD"].includes(request.method)){
+      const params=new URLSearchParams(request.nextUrl.searchParams);
+      if(request.headers.get("rsc")==="1")params.delete("_rsc");
+      if(!safeHoReturnTo(request.nextUrl.pathname+(params.size?"?"+params.toString():"")))return new NextResponse("Not Found",{status:404,headers:{"cache-control":"no-store"}});
+    }
+    // PAP-2394: exact canonical Mission M1-B query validation before streaming.
+    if(normalizeHostname(host)===HO_STAGING_HOSTNAME && request.nextUrl.pathname==="/ho/learning/missions" && ["GET","HEAD"].includes(request.method)){
+      const params=new URLSearchParams(request.nextUrl.searchParams);
+      if(request.headers.get("rsc")==="1")params.delete("_rsc");
+      if(!safeHoReturnTo(request.nextUrl.pathname+(params.size?"?"+params.toString():"")))return new NextResponse("Not Found",{status:404,headers:{"cache-control":"no-store"}});
     }
     return NextResponse.next({ request: { headers: forwarded } });
   }

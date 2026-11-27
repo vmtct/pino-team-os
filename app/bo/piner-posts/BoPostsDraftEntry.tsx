@@ -22,6 +22,8 @@ function ScopeSession({centerId,centerLabel,source}:{centerId:string;centerLabel
   void openNativeDraftSession(centerId,source,abort.signal).then(s=>{if(abort.signal.aborted){s.dispose();return;}own=s;setSession(s);},e=>{if(!abort.signal.aborted)setState(e instanceof CoreDraftRequestError&&[401,403].includes(e.status)?"denied":"error");});
   return()=>{abort.abort();own?.dispose();};
  },[centerId,source,retry]);
- if(session)return <BoPostsDraftRuntime session={session} centerLabel={centerLabel}/>;
+  if(session){
+  return <BoPostsDraftRuntime session={session} centerLabel={centerLabel}/>;
+ }
  return <section>{menu("posts-session-menu")}<RecordState status={state} onRetry={()=>{setState("loading");setRetry(n=>n+1);}}/></section>;
 }

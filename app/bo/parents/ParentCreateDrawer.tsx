@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import {useParentM1} from "./parent-m1-context";
+import {useParentLiveScope} from "./parent-live-context";
+import {loadNativeParentLiveGrants} from "./parent-native-data";
+import {parentCreateMayEdit} from "./parent-create-retry";
 import { BoActionButton } from "@pino/design-system/react";
 import { DrawerFrame } from "@/app/components/workspace-renderer/DrawerFrame";
 import { PropertySections } from "@/app/components/workspace-renderer/Properties";
@@ -21,9 +25,13 @@ function failureMessage(error: unknown) {
 export function ParentCreateDrawer({
   centerId, centerName, onClose, onCreated,
 }: { centerId: string; centerName?: string; onClose: () => void; onCreated: (result: BoParentStandaloneCreateResult) => void }) {
+  const fixture=useParentM1(),liveScope=useParentLiveScope();
+  const preflight=useRef<AbortController|null>(null);
+  useEffect(()=>()=>preflight.current?.abort(),[]);
   const inFlight = useRef(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const attemptRef = useRef<Attempt | null>(null);
+  const uncertainRef=useRef(false);
   const [name, setName] = useState("");
   const [contactValue, setContactValue] = useState("");
   const [busy, setBusy] = useState(false);
@@ -50,11 +58,12 @@ export function ParentCreateDrawer({
     onClose();
   }
   function clearAttempt() {
+    if(uncertainRef.current)return;
     attemptRef.current = null;
     setLocked(false); setCanEdit(false); setError("");
   }
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function submit(event?: FormEvent<HTMLFormElement>) {
+    event?.preventDefault();
     if (inFlight.current) return;
     if (attemptRef.current && attemptRef.current.centerId !== centerId) {
       setError("Cơ sở đã thay đổi. Hủy và bắt đầu yêu cầu mới.");
@@ -66,18 +75,32 @@ export function ParentCreateDrawer({
       return;
     }
     const attempt = attemptRef.current ?? {
-      centerId, key: crypto.randomUUID(),
+      centerId, key: fixture?Array.from(crypto.getRandomValues(new Uint32Array(4))).join("-"):crypto.randomUUID(),
       body: { displayName: name.trim(), contacts: [{ identifierType: inferredType!, value: contactValue.trim(), isPrimary: true }] },
     };
     attemptRef.current = attempt;
+    const previouslyUncertain=uncertainRef.current;
     setLocked(true); setCanEdit(false); setError("");
     inFlight.current = true; setBusy(true);
     try {
-      const result = await createStandaloneParent(attempt.centerId, attempt.body, attempt.key);
+      if(liveScope&&!fixture){
+        const ctl=new AbortController();preflight.current=ctl;
+        try {
+          if(liveScope.centerId!==attempt.centerId||!(await loadNativeParentLiveGrants(liveScope,ctl.signal)).has("identity.parent.create"))throw Error("Không có quyền tạo Phụ huynh tại cơ sở này.");
+          ctl.signal.throwIfAborted();
+        }catch(cause){
+          if(!ctl.signal.aborted){setError(failureMessage(cause));setCanEdit(parentCreateMayEdit(previouslyUncertain,true));}
+          return; // Do not dispatch or release a previously uncertain key.
+        }
+      }
+      const result = fixture?fixture.create(attempt.centerId,attempt.body,attempt.key):await createStandaloneParent(attempt.centerId, attempt.body, attempt.key);
+      uncertainRef.current=false;
       onCreated(result);
     } catch (cause) {
       setError(failureMessage(cause));
-      setCanEdit(cause instanceof BoApiError && cause.structuredResponse && cause.status >= 400 && cause.status < 500);
+      const editable=parentCreateMayEdit(previouslyUncertain,cause instanceof BoApiError && cause.structuredResponse && cause.status >= 400 && cause.status < 500);
+      uncertainRef.current=!editable;
+      setCanEdit(editable);
     } finally {
       inFlight.current = false; setBusy(false);
     }
@@ -87,9 +110,9 @@ export function ParentCreateDrawer({
     footer={<>
       {locked && error && canEdit ? <BoActionButton variant="secondary" type="button" disabled={busy} onClick={clearAttempt}>Sửa dữ liệu</BoActionButton> : null}
       <BoActionButton variant="secondary" type="button" disabled={busy || uncertain} onClick={closeIfSafe}>Hủy</BoActionButton>
-      <BoActionButton variant="primary" type="submit" form="parent-create-form" disabled={busy}>{busy ? "Đang tạo…" : locked ? "Thử lại cùng yêu cầu" : "Tạo Parent"}</BoActionButton>
+      <BoActionButton variant="primary" type={fixture?"button":"submit"} form="parent-create-form" onClick={fixture?()=>void submit():undefined} disabled={busy}>{busy ? "Đang tạo…" : locked ? "Thử lại cùng yêu cầu" : "Tạo Parent"}</BoActionButton>
     </>}>
-    <form id="parent-create-form" onSubmit={event => void submit(event)}>
+    <form id="parent-create-form" onSubmit={event => void submit(event)} onKeyDown={event=>{if(fixture&&event.key==="Enter"&&event.target instanceof HTMLInputElement){event.preventDefault();void submit();}}}>
       <PropertySections variant="drawer" fields={drawerFields} sections={parentNativeCreateSections}
         record={draft} createFields={{
           name: { id: "parent-create-name", label: "Họ và tên *", value: name, required: true,

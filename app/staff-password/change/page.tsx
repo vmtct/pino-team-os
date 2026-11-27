@@ -1,9 +1,12 @@
 "use client";
 import { FormEvent, useEffect, useState } from "react";
 import styles from "../../staff-login/staff-login.module.css";
-import { safeHoReturnTo, HO_HOME_PATH } from "@/lib/ho-routes";
+import { hoStagingReturnFromSearch, hoStagingAuthPath, HO_HOME_PATH } from "@/lib/ho-routes";
+import { BO_STAGING_RETURN_HOST, boStagingReturnFromSearch, boStagingAuthContinuation } from "@/lib/bo-staging-return-to";
 
-function homePath() { if (window.location.hostname === "ho.staging.pinohouse.art") return safeHoReturnTo(new URLSearchParams(window.location.search).get("returnTo")) ?? HO_HOME_PATH; return ["bo.pinohouse.art", "bo.staging.pinohouse.art"].includes(window.location.hostname) ? "/bo" : "/dashboard"; }
+function homePath() { if (window.location.hostname === "ho.staging.pinohouse.art") return hoStagingReturnFromSearch(window.location.search) ?? HO_HOME_PATH; if (window.location.hostname === BO_STAGING_RETURN_HOST) return boStagingReturnFromSearch(window.location.search) ?? "/bo"; return window.location.hostname === "bo.pinohouse.art" ? "/bo" : "/dashboard"; }
+
+function loginPath() { return window.location.hostname === BO_STAGING_RETURN_HOST ? boStagingAuthContinuation("/staff-login",window.location.search) : window.location.hostname === "ho.staging.pinohouse.art" ? hoStagingAuthPath("/staff-login",hoStagingReturnFromSearch(window.location.search)) : "/staff-login"; }
 
 export default function StaffPasswordChange() {
   const [password, setPassword] = useState("");
@@ -16,11 +19,11 @@ export default function StaffPasswordChange() {
     void fetch("/api/staff-auth/status", { cache: "no-store" })
       .then(async response => response.json() as Promise<{ data?: { authenticated?: boolean; passwordChangeRequired?: boolean } }>)
       .then(body => {
-        if (!body.data?.authenticated) window.location.assign("/staff-login");
+        if (!body.data?.authenticated) window.location.assign(loginPath());
         else if (!body.data.passwordChangeRequired) window.location.assign(homePath());
         else setReady(true);
       })
-      .catch(() => window.location.assign("/staff-login"));
+      .catch(() => window.location.assign(loginPath()));
   }, []);
 
   async function submit(event: FormEvent<HTMLFormElement>) {

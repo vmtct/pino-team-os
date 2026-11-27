@@ -2,7 +2,9 @@ import {openingEvidenceBoModule} from "@/lib/opening-evidence-host-contract";
 import {nativePayrollModule} from "@/lib/bo-native-payroll-route";
 /** PAP-901: explicit UI-only staging admission for canonical BO module routes. */
 export const boStagingAdmittedRoutes = new Set([
+  "/bo/running-classes",
   "/bo/missions",
+  "/bo/parents",
   "/bo/bills",
   "/bo/workforce-shift-plans",
   "/bo/workforce-availability",
@@ -15,7 +17,9 @@ export const boStagingAdmittedRoutes = new Set([
   "/bo/open-studio-passes",
   "/bo/classroom-diaries",
   "/bo/piner-posts",
-  "/bo/mytime-guests",
+  "/bo/sales/leads",
+
+  "/bo/guests",
   "/bo/mytime-workshops",
   "/bo/enrollments",
   "/bo/opening-evidence",

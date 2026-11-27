@@ -1,17 +1,17 @@
 "use client";
 /** PAP-1955 · BO Extra-time read-only PINO TDD. Never decides any request. */
-import Link from "next/link";
+import {useRouter} from "next/navigation";
 import {useEffect,useState} from "react";
-import {BoDataGrid,BoDataGridBadge,BoDataGridSidePeek,type BoDataGridColumn} from "@/app/bo/components/data-grid";
-import {BoProperties} from "@/app/bo/components/BoProperties";
+import {PayrollDsaReadTable,payrollPresentation} from "../payroll-periods/PayrollNativeTable";
+import {BoQuickView} from "@/app/bo/components/registration/BoQuickView";
 import {useBoCenterSelection} from "@/app/bo/components/registration/BoCenterSelection";
 import {exceptionReadApi,ExceptionReadError,type ReviewStatus} from "@/lib/bo-payroll-exceptions-read";
 import {toExceptionReadRow,validExceptionRange,minorVnd,type ExceptionReadRow} from "@/lib/bo-payroll-exceptions-model";
 export const exceptionProperties:[string,(r:ExceptionReadRow)=>string][]=[
- ["Mã yêu cầu",r=>r.id],["Nhân viên (CCCD)",r=>r.staffLegalName],
- ["Mã nhân viên",r=>r.staffMemberId],["Người gửi",r=>r.submittedBy],
- ["Cơ sở",r=>r.centerId],["Ngày làm",r=>r.workDate],
- ["Phân công",r=>r.assignmentId],["Giờ yêu cầu",r=>r.requestedWindow],
+ ["Nhân viên",r=>r.staffLegalName],
+ ["Người gửi",r=>r.submittedBy],
+ ["Ngày làm",r=>r.workDate],
+ ["Phân công",()=>"—"],["Giờ yêu cầu",r=>r.requestedWindow],
  ["Lý do yêu cầu",r=>r.requestReason],["Trạng thái",r=>r.statusLabel],
  ["Khoảng duyệt",r=>r.reviewedWindow],
  ["Số phút được duyệt",r=>r.reviewedMinutes===null?"—":String(r.reviewedMinutes)],
@@ -21,24 +21,7 @@ export const exceptionProperties:[string,(r:ExceptionReadRow)=>string][]=[
  ["Created Time",r=>r.createdAt],["Created By",r=>r.createdBy],
  ["Last Modified Time",r=>r.updatedAt],["Last Modified By",r=>r.updatedBy],
 ];
-const columns:BoDataGridColumn<ExceptionReadRow>[]=[
- {key:"id",header:"Mã yêu cầu",render:r=>r.id,minWidth:155},
- {key:"staffLegalName",header:"Nhân viên",render:r=>r.staffLegalName,minWidth:135},
- {key:"submittedBy",header:"Người gửi",render:r=>r.submittedBy,minWidth:130},
- {key:"centerId",header:"Cơ sở",render:r=>r.centerId,minWidth:165},
- {key:"workDate",header:"Ngày làm",render:r=>r.workDate,minWidth:115},
- {key:"requestedWindow",header:"Giờ yêu cầu",render:r=>r.requestedWindow,minWidth:140},
- {key:"reviewedMinutes",header:"Phút duyệt",render:r=>r.reviewedMinutes??"—",minWidth:105},
- {key:"statusLabel",header:"Trạng thái",render:r=><BoDataGridBadge>{r.statusLabel}</BoDataGridBadge>,minWidth:120},
- {key:"requestReason",header:"Lý do",render:r=>r.requestReason,minWidth:160},
- {key:"reviewerName",header:"Người duyệt",render:r=>r.reviewerName,minWidth:130},
- {key:"reviewedAt",header:"Thời gian duyệt",render:r=>r.reviewedAt,minWidth:155},
- {key:"reviewedAmountMinor",header:"Tiền Core duyệt",render:r=>minorVnd(r.reviewedAmountMinor),minWidth:150},
- {key:"createdAt",header:"Created Time",render:r=>r.createdAt,minWidth:140},
- {key:"createdBy",header:"Created By",render:r=>r.createdBy,minWidth:140},
- {key:"updatedAt",header:"Last Modified Time",render:r=>r.updatedAt,minWidth:155},
- {key:"updatedBy",header:"Last Modified By",render:r=>r.updatedBy,minWidth:140},
-];
+export const exceptionPresentation=payrollPresentation("Ngoại lệ & thêm giờ","Nhân viên",(r:ExceptionReadRow)=>r.staffLegalName,exceptionProperties);
 const statuses:ReadonlyArray<{value:ReviewStatus|"ALL";label:string}>=[
  {value:"PENDING",label:"Chờ duyệt"},{value:"APPROVED",label:"Đã duyệt"},
  {value:"REJECTED",label:"Từ chối"},{value:"WITHDRAWN",label:"Đã rút"},
@@ -67,21 +50,22 @@ export default function BoPayrollExceptionsReadView(){
  return <ExceptionScopeView key={JSON.stringify([centerId,allowed])}/>;
 }
 function ExceptionScopeView(){
+ const router=useRouter();
  const scope=useBoCenterSelection(),centerId=scope?.selected??"";
  const allowed=Boolean(scope&&!scope.loading&&!scope.error&&centerId&&scope.centers.some(x=>x.id===centerId));
  const [from,setFrom]=useState(()=>plusDay(vietnamToday(),-30)),[to,setTo]=useState(vietnamToday);
  const [status,setStatus]=useState<ReviewStatus|"ALL">("PENDING");
- const [offset,setOffset]=useState(0),[refresh,setRefresh]=useState(0);
+ const [offset,setOffset]=useState(0),[pageSize,setPageSize]=useState(15),[refresh,setRefresh]=useState(0);
  const [rows,setRows]=useState<ExceptionReadRow[]>([]),[total,setTotal]=useState(0);
  const [selected,setSelected]=useState<string|null>(null);
  const [servedScope,setServedScope]=useState("");
  const [state,setState]=useState<"loading"|"ready"|"permission"|"error">("loading"),[message,setMessage]=useState("");
- const valid=validExceptionRange(from,to),key=[centerId,from,to,status,offset,refresh].join("|");
+ const valid=validExceptionRange(from,to),key=[centerId,from,to,status,offset,pageSize,refresh].join("|");
  useEffect(()=>{
   let live=true;
   if(!allowed||!valid)return;
   void exceptionReadApi.list({centerId,startDate:from,endDate:to,
-   ...(status==="ALL"?{}:{status}),offset,limit:50}).then(reply=>{
+   ...(status==="ALL"?{}:{status}),offset,limit:pageSize}).then(reply=>{
     if(!live)return;
     const next=reply.data.data.map(x=>toExceptionReadRow(x,centerId));
     if(!Number.isSafeInteger(reply.data.total)||reply.data.total<next.length)
@@ -92,36 +76,27 @@ function ExceptionScopeView(){
     setMessage(errorMessage(e));
    });
   return()=>{live=false;};
- },[allowed,valid,centerId,from,to,status,offset,refresh,key]);
- const safe=allowed&&servedScope===key;
+ },[allowed,valid,centerId,from,to,status,offset,pageSize,refresh,key]);
+ const safe=allowed&&valid&&servedScope===key;
  const safeRows=safe?rows:[],safeTotal=safe?total:0;
  const safeSelected=safeRows.find(row=>row.id===selected)??null;
  return <section aria-label="Ngoại lệ & thêm giờ" data-pap-ticket="PAP-1955">
-  <header><small>NHÂN SỰ / LƯƠNG</small>
-   <h1>Ngoại lệ & thêm giờ</h1>
-   <p>Danh sách đọc từ Core · Theo cơ sở đang chọn · Không phê duyệt tại màn này</p></header>
+  <div className="page-heading"><div className="page-heading-left"><h1>Ngoại lệ &amp; thêm giờ</h1></div></div>
   {scope?.loading?<p role="status">Đang xác thực cơ sở…</p>:!allowed?
    <p role="alert">{scope?.error||"Chọn cơ sở được cấp quyền để xem ngoại lệ."}</p>:
-   <div role="group" aria-label="Lọc ngoại lệ">
-    <label>Từ ngày<input type="date" value={from} onChange={e=>{setOffset(0);setSelected(null);setFrom(e.target.value);}}/></label>
-    <label>Đến ngày<input type="date" value={to} onChange={e=>{setOffset(0);setSelected(null);setTo(e.target.value);}}/></label>
-    <label>Trạng thái<select value={status} onChange={e=>{setOffset(0);setSelected(null);setStatus(e.target.value as ReviewStatus|"ALL");}}>
-     {statuses.map(x=><option key={x.value} value={x.value}>{x.label}</option>)}</select></label>
-    <button type="button" onClick={()=>{setSelected(null);setRefresh(n=>n+1);}}>Tải lại</button>
-   </div>}
+   null}
   {allowed&&!valid?<p role="alert">Chọn khoảng thời gian hợp lệ, tối đa 91 ngày gồm hai đầu.</p>:null}
-  {allowed&&valid?<BoDataGrid rows={safeRows} columns={columns} rowKey={r=>r.id}
-   caption="Ngoại lệ và thêm giờ" state={safe?state:"loading"} stateMessage={message}
-   onRowOpen={row=>setSelected(row.id)} quickViewOpener resultLabel={String(safeRows.length)+" / "+String(safeTotal)+" yêu cầu"}
-   pagination={{page:Math.floor(offset/50)+1,pageSize:50,total:safeTotal,
-    onPageChange:p=>{setSelected(null);setOffset((p-1)*50);}}}
-   emptyTitle="Chưa có yêu cầu" emptyMessage="Core không trả về yêu cầu trong bộ lọc."/>:null}
-  {safeSelected?<BoDataGridSidePeek title={safeSelected.workDate} eyebrow="Ngoại lệ · Chỉ xem"
-   onClose={()=>setSelected(null)}
-   footer={<Link href={"/bo/payroll-exceptions/"+encodeURIComponent(safeSelected.id)+
-    "?centerId="+encodeURIComponent(centerId)}>Full Detail</Link>}>
-   <BoProperties compact items={exceptionProperties.map(([name,render])=>({
-    key:name,label:name,value:render(safeSelected)}))}/>
-  </BoDataGridSidePeek>:null}
+  {allowed?<PayrollDsaReadTable module={exceptionPresentation.module} rows={safeRows.map(exceptionPresentation.record)}
+   loadState={!valid?"Khoảng ngày không hợp lệ.":!safe?"loading":state==="ready"?"ready":message||"Không thể tải dữ liệu."}
+   onOpen={r=>setSelected(r.id)} selected={selected} page={Math.floor(offset/pageSize)+1} pageSize={pageSize} onPageSizeChange={n=>{setSelected(null);setOffset(0);setPageSize(n);}} total={safeTotal}
+   onPageChange={page=>{setSelected(null);setOffset((page-1)*pageSize);}} filterContent={<div className="rules-panel" role="group" aria-label="Lọc ngoại lệ">
+    <label className="rule-row">Từ ngày<input className="rule-value-input" type="date" value={from} onChange={e=>{setOffset(0);setSelected(null);setFrom(e.target.value);}}/></label>
+    <label className="rule-row">Đến ngày<input className="rule-value-input" type="date" value={to} onChange={e=>{setOffset(0);setSelected(null);setTo(e.target.value);}}/></label>
+    <label className="rule-row">Trạng thái<select className="rule-value-input" value={status} onChange={e=>{setOffset(0);setSelected(null);setStatus(e.target.value as ReviewStatus|"ALL");}}>
+     {statuses.map(x=><option key={x.value} value={x.value}>{x.label}</option>)}</select></label>
+    <button type="button" className="rule-clear" onClick={()=>{setSelected(null);setRefresh(n=>n+1);}}>Tải lại</button>
+   </div>} onReset={()=>{setSelected(null);setOffset(0);setFrom(plusDay(vietnamToday(),-30));setTo(vietnamToday());setStatus("ALL");setRefresh(n=>n+1);}}/>:null}
+  {safeSelected?<BoQuickView module={exceptionPresentation.module} record={exceptionPresentation.record(safeSelected)}
+   onClose={()=>setSelected(null)} onDetail={()=>router.push("/bo/payroll-exceptions/"+encodeURIComponent(safeSelected.id)+"?centerId="+encodeURIComponent(centerId))}/>:null}
  </section>;
 }

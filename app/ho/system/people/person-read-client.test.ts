@@ -3,10 +3,11 @@ import assert from "node:assert/strict";
 import {createPersonReader,decodePerson,decodePersonPage,decodeUnlinkedCounts,PersonReadError} from "./person-read-client";
 const uid=(n:number)=>"019d2170-0000-7000-8000-"+String(n).padStart(12,"0");
 const base={id:uid(1),displayName:null,roles:[],avatar:{id:null,status:"SELF_MISSING",selfStatus:null,nickname:null},createdAt:"2026-11-18T12:00:00Z",updatedAt:"2026-11-18T12:00:00Z",createdBy:null,updatedBy:null,version:1};
-test("PAP-2180 explicit canonical roles only and nullable display name",()=>{
+test("PAP-2180 explicit canonical roles including Parent and nullable display name",()=>{
  const dto=decodePerson({...base,roles:[{kind:"STUDENT",id:uid(2),displayName:"QA Student",status:"ACTIVE"}]});
  assert.equal(dto.displayName,null);assert.equal(dto.roles.length,1);
- assert.throws(()=>decodePerson({...base,roles:[{kind:"PARENT",id:uid(3),displayName:"QA Parent",status:null}]}));
+ const parent=decodePerson({...base,roles:[{kind:"PARENT",id:uid(3),displayName:"QA Parent",status:"ACTIVE"}]});assert.equal(parent.roles[0]?.kind,"PARENT");
+ assert.throws(()=>decodePerson({...base,roles:[{kind:"UNKNOWN",id:uid(4),displayName:"Unknown",status:null}]}));
  assert.throws(()=>decodePerson({...base,avatar:{...base.avatar,status:"READY"}}));
  assert.throws(()=>decodePerson({...base,id:"legacy-id"}));
 });
@@ -16,7 +17,9 @@ test("PAP-2180 strict page cursor, duplicate and diagnostic counts",()=>{
  assert.throws(()=>decodePersonPage({items:[base],nextAfter:uid(2)}));
  assert.throws(()=>decodePersonPage({items:[{...base,id:uid(2)},base],nextAfter:null}));
  assert.deepEqual(decodeUnlinkedCounts({students:0,staff:2}),{students:0,staff:2});
- assert.throws(()=>decodeUnlinkedCounts({students:-1,staff:2}));
+ assert.deepEqual(decodeUnlinkedCounts({students:0,staff:2,parents:3}),{students:0,staff:2,parents:3});
+ assert.throws(()=>decodeUnlinkedCounts({students:-1,staff:2,parents:0}));
+ assert.throws(()=>decodeUnlinkedCounts({students:0,staff:2,parents:-1}));
 });
 test("PAP-2180 GET only, same origin, no-store, abort propagation and malformed denial",async()=>{
  const calls:{url:string;init?:RequestInit}[]=[];const controller=new AbortController();

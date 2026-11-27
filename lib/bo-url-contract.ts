@@ -19,8 +19,8 @@ export const BO_TARGET_ROUTES = [
   { key: "pinoria-avatars", path: "/bo/pinoria-avatars", tabs: ["overview", "history"] },
   { key: "open-studio-passes", path: "/bo/open-studio-passes", tabs: ["overview", "history"] },
   { key: "classroom-diaries", path: "/bo/classroom-diaries", tabs: ["overview", "history"] },
-  { key: "piner-posts", path: "/bo/piner-posts", tabs: ["overview", "history"] },
-  { key: "mytime-guests", path: "/bo/mytime-guests", tabs: ["overview", "history"] },
+  { key: "piner-posts", path: "/bo/piner-posts", tabs: ["overview", "media", "history"] },
+  { key: "guests", path: "/bo/guests", tabs: ["overview", "history"] },
   { key: "mytime-workshops", path: "/bo/mytime-workshops", tabs: ["overview", "history"] },
   { key: "enrollments", path: "/bo/enrollments", tabs: ["overview", "history"] },
 ] as const satisfies readonly Target[];
@@ -58,6 +58,7 @@ export function retiredSalaryPeriodRedirectUrl(query: Readonly<Record<string,str
   return "/bo/payroll-periods"+(params.size?"?"+params.toString():"");
 }
 export function currentBoModuleHref(key: string, admitted: Readonly<Record<string,string>>): string {
+  if (key==="parents") return "/bo/parents"; // PAP-2389: explicit staging Parent route.
   if (key==="bills") return "/bo/bills";
   if (key==="salaryPeriods") return "/bo/payroll-periods";
   if (Object.prototype.hasOwnProperty.call(admitted,key)) return admitted[key];

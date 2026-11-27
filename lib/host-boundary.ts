@@ -1,4 +1,8 @@
+import {HO_LEARNING_SPACE_API,learningSpaceRoute} from "./ho-learning-space-contract";
+import {planRequest} from "../app/ho/billing/product-plans/product-plan-http-contract";
+import {catalogPath} from "../app/ho/billing/product-plans/product-plan-native-contract";
 import {guestHostDecision} from "./bo-mytime-guest-host-contract";
+import {leadHouseholdHostDecision} from "./bo-lead-household-route";
 import {workshopHostDecision} from "./mytime-workshop-host-contract";
 import {postDraftHostDecision} from "./bo-post-draft-host-contract";
 import {boPlsWishHostDecision} from "./bo-pls-wish-host-contract";
@@ -32,14 +36,36 @@ export type HostBoundaryDecision =
 
 export function decideHostBoundary(host: string, pathname: string, method = "GET"): HostBoundaryDecision {
   const hostname = normalizeHostname(host);
+  // PAP-2365: exact HO Product Plan API, no other host or verb.
+  if(pathname.toLowerCase()===catalogPath||pathname.toLowerCase().startsWith(catalogPath+"/"))return {action:hostname===HO_STAGING_HOSTNAME&&planRequest(pathname,method)?"next":"not_found"};
+  // PAP-2358: exact native Staff directory ingress, HO Staging read only.
+  const staffDirectoryBase="/api/ho/staff/directory";
+  const staffDirectoryPath=pathname.toLowerCase();
+  if(staffDirectoryPath===staffDirectoryBase||staffDirectoryPath.startsWith(staffDirectoryBase+"/")){
+    const id=pathname.slice(staffDirectoryBase.length+1);
+    const exact=pathname===staffDirectoryBase||(pathname.startsWith(staffDirectoryBase+"/")&&/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(id));
+    return {action:hostname===HO_STAGING_HOSTNAME&&method==="GET"&&exact?"next":"not_found"};
+  }
+  // PAP-2358: exact Staff creation and historical receipt namespace, HO Staging POST only.
+  const staffCreateBase="/api/ho/staff/create";
+  if(pathname.toLowerCase()===staffCreateBase||pathname.toLowerCase().startsWith(staffCreateBase+"/")){
+    return {action:hostname===HO_STAGING_HOSTNAME&&method==="POST"&&
+      (pathname===staffCreateBase||pathname===staffCreateBase+"/receipt")?"next":"not_found"};
+  }
   // PAP-2180: exact Person namespace, staging HO read only.
   const personPage="/ho/system/people",personApi="/api/ho/identity/persons",personPath=pathname.toLowerCase();
   if([personPage,personApi,"/api/bo/identity/persons","/api/tos/identity/persons","/bo/system/people","/tos/system/people"].some(p=>personPath===p||personPath.startsWith(p+"/"))){
     const read=pathname===personApi||pathname===personApi+"/unlinked-counts"||/^\/api\/ho\/identity\/persons\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(pathname);
     return {action:hostname===HO_STAGING_HOSTNAME&&(pathname===personPage&&(method==="GET"||method==="HEAD")||read&&method==="GET")?"next":"not_found"};
   }
+  // PAP-2371: exact private HO Learning Space methods only.
+  if(pathname.toLowerCase()===HO_LEARNING_SPACE_API||pathname.toLowerCase().startsWith(HO_LEARNING_SPACE_API+"/"))return {action:hostname===HO_STAGING_HOSTNAME&&learningSpaceRoute(pathname,method)?"next":"not_found"};
+  const leadHousehold = leadHouseholdHostDecision(hostname, pathname, method);
+  if (leadHousehold) return {action:leadHousehold};
   const workshop = workshopHostDecision(hostname, pathname, method);
   if (workshop) return {action:workshop};
+  // PAP-2389: exact native Parent page; existing BO Staging shell authorizes each request.
+  if (/^\/bo\/parents(?:\/|$)/i.test(pathname)) return { action: hostname === BO_STAGING_HOSTNAME && (pathname === "/bo/parents" || pathname === "/bo/parents/") && (method === "GET" || method === "HEAD") ? "next" : "not_found" };
   // PAP-2181: exact private native Enrollment page; no Production or cross-surface admission.
   if (pathname.toLowerCase().startsWith("/bo/enrollments")) return { action: hostname === BO_STAGING_HOSTNAME && (pathname === "/bo/enrollments" || pathname === "/bo/enrollments/") && (method === "GET" || method === "HEAD") ? "next" : "not_found" };
   const guest = guestHostDecision(hostname, pathname, method);
@@ -92,8 +118,9 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   }
   if (pathname.startsWith("/api/bo/identity/afterschool-users/")) {
     const command = /^\/api\/bo\/identity\/afterschool-users\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/pin\/(issue-initial|reset)$/.test(pathname);
+    const personActivation = /^\/api\/bo\/identity\/afterschool-users\/person\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/pin\/issue-initial$/.test(pathname);
     const history = /^\/api\/bo\/identity\/afterschool-users\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/history$/.test(pathname);
-    return { action: hostname === BO_STAGING_HOSTNAME && ((method === "POST" && command) || (method === "GET" && history)) ? "next" : "not_found" };
+    return { action: hostname === BO_STAGING_HOSTNAME && ((method === "POST" && (command || personActivation)) || (method === "GET" && (history || pathname === "/api/bo/identity/afterschool-users/person-options"))) ? "next" : "not_found" };
   }
   if (pathname === "/api/bo/identity/afterschool-users") {
     return { action: hostname === BO_STAGING_HOSTNAME && method === "GET" ? "next" : "not_found" };
@@ -254,7 +281,7 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
   // PAP-1932 / SCH-STUDENT-MGMT: narrow gender PATCH ingress. BO BFF and Core
   // independently enforce selected-Center authorization, CAS, and audit.
   // No other Student descendants or host/verb combinations are admitted.
-  const studentGenderEdit = /^\/api\/bo\/students\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/gender$/.test(pathname);
+  const studentGenderEdit = /^\/api\/bo\/students\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/(?:gender|birth-profile)$/.test(pathname);
   if (studentGenderEdit) {
     return hostname === BO_STAGING_HOSTNAME && method === "PATCH" ? { action: "next" } : { action: "not_found" };
   }
@@ -346,6 +373,9 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
     if (p === "/api/ho/workforce/shift-templates") return method === "GET" || method === "POST" ? { action: "next" } : { action: "not_found" };
     if (/^\/api\/ho\/workforce\/shift-templates\/[0-9a-f-]{36}\/(?:update|status)$/.test(p)) return method === "POST" ? { action: "next" } : { action: "not_found" };
     if (/^\/api\/ho\/workforce\/global-termweeks\/[0-9a-f-]{36}\/update$/.test(p)) return method === "POST" ? { action: "next" } : { action: "not_found" };
+    // PAP-2373: only the two exact native HO role lifecycle POSTs.
+    if (p === "/api/ho/system/roles/create" || /^\/api\/ho\/system\/roles\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/archive$/.test(p))
+      return { action: method === "POST" ? "next" : "not_found" };
     if (method === "POST" && (staffRoleWrite || hoRoleDefinitionWrite)) return { action: "next" };
     if (method === "POST" && staffPasswordReset) return { action: "next" };
     if ((method === "GET" || method === "POST") && staffRateWrite) return { action: "next" };
@@ -401,6 +431,12 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
       return hostname === BO_STAGING_HOSTNAME && method === "GET"
         ? { action: "next" } : { action: "not_found" };
     }
+    // PAP-2261 · Core BO — student-scoped Path Diary read for PAP-2221.
+    // Exact Center+Student GET only; BFF and Core independently validate ACL/scope.
+    if (/^\/api\/bo\/learning\/students\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/path-diaries$/i.test(pathname)) {
+      return hostname === BO_STAGING_HOSTNAME && method === "GET"
+        ? { action: "next" } : { action: "not_found" };
+    }
     // PAP-1224: new Pass TDD is BO Staging-only; production retains legacy Open Studio.
     if (pathname === "/bo/open-studio-passes") return (method==="GET"||method==="HEAD") ? {action:"next"} : {action:"not_found"};
     // PAP-1211: one exact synthetic salary adjustment E2E path, Founder BFF guarded.
@@ -450,6 +486,10 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
       return hostname === BO_STAGING_HOSTNAME && (method === "GET" || method === "POST")
         ? { action: "next" } : { action: "not_found" };
     }
+    // PAP-1043 / PAP-2225: exact Staging Running Class commands; BFF/Core still authorize.
+    const rcCreate=pathname==="/api/bo/delivery/running-classes/create-inactive";
+    const rcInline=/^\/api\/bo\/delivery\/running-classes\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/inline$/.test(pathname);
+    if(rcCreate||rcInline)return hostname===BO_STAGING_HOSTNAME && method===(rcCreate?"POST":"PATCH")?{action:"next"}:{action:"not_found"};
     // PAP-1035: Worker-first admission must match the already-authenticated
     // BO read facade. This is a staging-only GET/HEAD fence, never a write bypass.
     if (hostname === BO_STAGING_HOSTNAME && (method === "GET" || method === "HEAD") && (isBoStagingS3ReadPath(pathname) || isBoStagingRunningClassEnrollmentReadPath(pathname))) return { action: "next" };
@@ -719,7 +759,7 @@ function isApprovedBoPath(pathname: string): boolean {
     || /^\/api\/bo\/students\/[0-9a-f-]{36}\/lifecycle$/.test(normalized)
     || /^\/api\/bo\/students\/[0-9a-f-]{36}\/pinoria(?:\/companions\/[0-9a-f-]{36}\/feed)?$/.test(normalized)
     || /^\/api\/bo\/identity\/parents\/[0-9a-f-]{36}\/pin\/reset$/.test(normalized)
-    || /^\/api\/bo\/billing\/product-plans(?:\/[0-9a-f-]{36}\/configure)?$/.test(normalized)
+    || /^\/api\/bo\/billing\/product-plans$/.test(normalized)
     || normalized === "/api/bo/billing/sales"
     || /^\/api\/bo\/billing\/bills\/[0-9a-f-]{36}(?:\/(?:transactions|void))?$/.test(normalized)
     || /^\/api\/bo\/billing\/transactions\/[0-9a-f-]{36}\/void$/.test(normalized)
@@ -731,7 +771,7 @@ function isApprovedBoPath(pathname: string): boolean {
     || /^\/api\/bo\/policies\/specialty\/(?:purchase\.v1|session_settlement\.v1|completion\.v1|reward\.v1)\/(?:effective|stream|versions)$/.test(normalized)
     || /^\/api\/bo\/policies\/specialty\/(?:purchase\.v1|session_settlement\.v1|completion\.v1|reward\.v1)\/versions\/[0-9a-f-]{36}\/publish$/.test(normalized)
     || /^\/api\/bo\/subscriptions(?:\/[0-9a-f-]{36}\/(?:activate|renew|supersede|cancel|neutralize|service-grants|pauses|renewal-grace|projected-completion))?$/.test(normalized)
-    || /^\/api\/bo\/billing\/(?:product-plans(?:\/[0-9a-f-]{36}\/configure)?|sales|bills\/[0-9a-f-]{36}(?:\/(?:transactions|void))?|transactions\/[0-9a-f-]{36}\/void)$/.test(normalized)
+    || /^\/api\/bo\/billing\/(?:product-plans|sales|bills\/[0-9a-f-]{36}(?:\/(?:transactions|void))?|transactions\/[0-9a-f-]{36}\/void)$/.test(normalized)
     || /^\/api\/bo\/subscription-pauses\/[0-9a-f-]{36}\/cancel$/.test(normalized)
     || /^\/api\/bo\/renewal-grace\/[0-9a-f-]{36}\/revoke$/.test(normalized)
     || /^\/api\/bo\/enrollments(?:\/(?:bulk-preflight|bulk-place|[0-9a-f-]{36}\/(?:transfer|end)))?$/.test(normalized)

@@ -1,4 +1,5 @@
 /** PAP-2147 / MT-GUEST — native BO scoped Core projection. No fixture/network fallback. */
+import {categoryLabel,categoryValue,guardianProjection,guardianRef,relationshipLabel} from "@/lib/guest-intake-contract";
 import {BoApiError} from "@/lib/bo-api-error";
 import {readData} from "@/lib/workspace-adapters/providers";
 import type {SurfaceProvider,SurfaceScope,ProviderRecord} from "@/lib/workspace-adapters";
@@ -11,7 +12,7 @@ const keys=["name","gender","phone","birthDate","email","note"] as const;
 type Json=Record<string,unknown>;
 type Row=ModuleRow<GuestFields>;
 type SavedRow=Row&{mutationCenterId:string};
-function failure(status=502):never{throw new BoApiError(status,"Dữ liệu Khách MyTime hoặc phạm vi cơ sở không hợp lệ.",null);}
+function failure(status=502):never{throw new BoApiError(status,"Dữ liệu Khách hoặc phạm vi cơ sở không hợp lệ.",null);}
 function object(v:unknown):Json{if(!v||typeof v!=="object"||Array.isArray(v))return failure();return v as Json;}
 function center(scope:SurfaceScope){if(scope.surface!=="BO"||!UUID.test(scope.centerId))return failure(403);return scope.centerId;}
 function uid(v:unknown):string{if(typeof v!=="string"||!UUID.test(v))return failure();return v;}
@@ -24,14 +25,19 @@ export function mapGuest(value:unknown,centerId:string):ProviderRecord<GuestFiel
  if(typeof v.centerName!=="string"||!v.centerName.trim()||!Number.isSafeInteger(v.version)||Number(v.version)<1)return failure();
  if(v.gender!==null&&v.gender!=="MALE"&&v.gender!=="FEMALE")return failure();
  const birthDate=text(v.birthDate);if(birthDate!==null&&!/^\d{4}-\d{2}-\d{2}$/.test(birthDate))return failure();
- const row:Row={id,name:text(v.name),gender:v.gender==="MALE"?"Nam":v.gender==="FEMALE"?"Nữ":null,phone:text(v.phone),birthDate,email:text(v.email),note:text(v.note),center:v.centerName,createdAt:stamp(v.createdAt),createdBy:text(v.createdBy),updatedAt:stamp(v.updatedAt),updatedBy:text(v.updatedBy)};
+ const category=categoryLabel(v.category);if(!category)return failure();
+ if(v.guardian!==undefined&&v.guardian!==null&&(!guardianProjection(v.guardian)||category!=="Trẻ em"))return failure();
+ const guardian=guardianProjection(v.guardian)?v.guardian:null;
+ const row:Row={id,category,guardianName:guardian?.displayName??null,guardianPhone:guardian?.maskedPhone??null,guardianRelation:guardian?relationshipLabel(guardian.relationship):null,name:text(v.name),gender:v.gender==="MALE"?"Nam":v.gender==="FEMALE"?"Nữ":null,phone:text(v.phone),birthDate,email:text(v.email),note:text(v.note),center:v.centerName,createdAt:stamp(v.createdAt),createdBy:text(v.createdBy),updatedAt:stamp(v.updatedAt),updatedBy:text(v.updatedBy)};
  return {row,centerId,version:String(v.version)};
 }
 function encodeFields(input:Json):Json{
- if(!Object.keys(input).length||Object.keys(input).some(k=>!keys.includes(k as typeof keys[number])))return failure(400);
+ if(!Object.keys(input).length||Object.keys(input).some(k=>k!=="category"&&k!=="guardian"&&!keys.includes(k as typeof keys[number])))return failure(400);
  const v:Json={};
  for(const k of keys){if(!Object.hasOwn(input,k))continue;const raw=input[k];if(raw!==null&&typeof raw!=="string")return failure(400);const str=typeof raw==="string"?raw.trim():null;
   if(k==="gender"){if(str!=="Nam"&&str!=="Nữ"&&str!==null&&str!=="")return failure(400);v[k]=str==="Nam"?"MALE":str==="Nữ"?"FEMALE":null;}else v[k]=str||null;}
+ if(Object.hasOwn(input,"category")){const c=categoryValue(input.category);if(!c)return failure(400);v.category=c;}
+ if(Object.hasOwn(input,"guardian")){if(input.guardian!==null&&!guardianRef(input.guardian))return failure(400);v.guardian=input.guardian;}
  return v;
 }
 async function command(fetcher:typeof fetch,path:string,method:"POST"|"PATCH",body:Json,key:string,signal:AbortSignal){
@@ -41,7 +47,7 @@ async function command(fetcher:typeof fetch,path:string,method:"POST"|"PATCH",bo
 }
 export async function createGuest(centerId:string,input:Json,key:string,fetcher:typeof fetch,signal:AbortSignal){
  uid(centerId);const body=encodeFields(input);
- if(!body.name||!body.gender||!body.phone||!key.trim())return failure(400);
+ if(!body.name||!body.gender||!key.trim()||!body.category||(body.category==="ADULT"&&(!body.phone||body.guardian!=null))||(body.category==="MINOR"&&!guardianRef(body.guardian)))return failure(400);
  const result=await command(fetcher,url(centerId),"POST",body,key,signal);
  if(result.committedVersion!==1||typeof result.replayed!=="boolean")return failure();
  const row=mapGuest(result.guest,centerId);

@@ -1,7 +1,17 @@
+import {STAFF_PHASE_ONE_ENABLED,parseStaffPhaseOneQuery} from "../app/ho/staff/staff-phase-one-route";
+import {parseLiveSpaceQuery} from "./ho-learning-space-contract";
+import {parseNativeRoleQuery} from "../app/ho/system/roles/native-role-query";
+import {parseProductPlanNavigation} from "../app/ho/billing/product-plans/product-plan-stage-admission";
+import {nativePlanUrl} from "../app/ho/billing/product-plans/product-plan-native-binding";
+import {parseMissionM1Query} from "../app/ho/learning/missions/mission-m1-query";
 import {readWishDetailRoute,wishDetailUrl} from "./pls-wish-detail-route";
+import {validateAttributeDirectoryParams} from "./pap1841-attribute-directory-query";
+import {attributeModule} from "./ho-attribute-model";
 /** Single public-page manifest for the staging Head Office surface. No BO or production routes. */
 export const HO_PAGE_PATHS = {
   bills: "/ho/billing/bills",
+  productPlans: "/ho/billing/product-plans",
+  learningSpaces: "/ho/learning-spaces",
   centers: "/ho/centers",
   walkinPasses: "/ho/open-studio/walkin",
   mytimeWorkshops: "/ho/mytime-workshops",
@@ -15,6 +25,7 @@ export const HO_PAGE_PATHS = {
   missions: "/ho/learning/missions",
   specialties: "/ho/learning/specialties",
   classroomDiaries: "/ho/learning/diaries",
+  postApproval: "/ho/content/post-approval",
   worlds: "/ho/pinoria/worlds",
   wardrobe: "/ho/pinoria/wardrobe",
   wardrobeSets: "/ho/pinoria/wardrobe-sets",
@@ -44,16 +55,66 @@ export function safeHoReturnTo(raw: string | null | undefined): string | null {
     if (parsed.origin !== "https://ho.staging.pinohouse.art" || !approved.has(parsed.pathname) || parsed.hash) return null;
     // PAP-1645 / PAP-1491: strip harmless campaign metadata before validating
     // returnTo, without allowing arbitrary query keys or an off-host target.
+    // PAP-2395: canonical native Staff continuation, independently authorized by the page.
+    if(STAFF_PHASE_ONE_ENABLED&&parsed.pathname===HO_PAGE_PATHS.staffs){
+      const state=parseStaffPhaseOneQuery(parsed.searchParams);
+      return state?parsed.pathname+(state.record?"?record="+encodeURIComponent(state.record):""):null;
+    }
+
+    // PAP-2371: canonical real record state, independently authorized by the page.
+    if(parsed.pathname===HO_PAGE_PATHS.learningSpaces){
+      const state=parseLiveSpaceQuery(parsed.searchParams);
+      if(!state)return null;
+      return parsed.pathname+(state.record?"?record="+encodeURIComponent(state.record):"");
+    }
+    // PAP-2394: Mission M1-B uses only the canonical synthetic seed.
+    if(parsed.pathname===HO_PAGE_PATHS.missions){
+      const state=parseMissionM1Query(parsed.searchParams);
+      if(!state)return null;
+      return parsed.pathname+(state.record?"?record="+encodeURIComponent(state.record):"");
+    }
+    // PAP-2365: real Product Plan record/tab; no preview selector.
+    if(parsed.pathname===HO_PAGE_PATHS.productPlans){
+      const state=parseProductPlanNavigation(parsed.searchParams);
+      return state?nativePlanUrl(state.record,state.tab):null;
+    }
+    // PAP-2373: only canonical native Role links survive session recovery.
+    if(parsed.pathname===HO_PAGE_PATHS.roles){
+      const state=parseNativeRoleQuery(parsed.searchParams);
+      if(!state)return null;
+      return parsed.pathname+(state.record?"?record="+encodeURIComponent(state.record):"");
+    }
     const functionalKeys = [...parsed.searchParams.keys()].filter(key => !ignoredTrackingKeys.has(key));
+    // PAP-2359: validate the existing HO Custom Attributes table's shareable URL state.
+    if(parsed.pathname===HO_PAGE_PATHS.customAttributes && functionalKeys.some(k=>k!=="record")){
+      const q=new URLSearchParams();
+      for(const k of functionalKeys){
+        const value=parsed.searchParams.get(k)!;
+        if(!["search","sort","order","entityType","status","scope","centerId","size","page","columns"].includes(k)||q.has(k)||!value||value.length>256||/[\x00-\x1f\x7f\\]/.test(value))return null;
+        q.set(k,value);
+      }
+      const coreQuery=new URLSearchParams(q);
+      const size=q.get("size"),page=q.get("page"),columns=q.get("columns");
+      for(const key of ["size","page","columns"])coreQuery.delete(key);
+      if(size!==null&&!["8","15","30"].includes(size))return null;
+      if(page!==null&&(!/^[1-9]\d{0,4}$/.test(page)||(Number(page)-1)*Number(size??15)>10000))return null;
+      if(columns!==null){
+        const fields=columns.split(",");
+        if(new Set(fields).size!==fields.length||fields.some(k=>!attributeModule.fields.some(f=>f.key===k)))return null;
+      }
+      if(!validateAttributeDirectoryParams(coreQuery))return null;
+      return parsed.pathname+"?"+q.toString();
+    }
     if(parsed.pathname===HO_PAGE_PATHS.wishPolicies||parsed.pathname===HO_PAGE_PATHS.wishBanners){
       if(functionalKeys.some(k=>!["record","tab","wishSelection","wishRevision"].includes(k)))return null;
       const kind=parsed.pathname===HO_PAGE_PATHS.wishPolicies?"policy":"banner";
       const route=readWishDetailRoute(parsed.search,kind);
       return wishDetailUrl(parsed.origin+parsed.pathname,kind,route);
     }
-    if(parsed.pathname===HO_PAGE_PATHS.starterSets && functionalKeys.length===2 && functionalKeys.includes("record") && functionalKeys.includes("tab")){
+    if([HO_PAGE_PATHS.starterSets,HO_PAGE_PATHS.worlds].some(path=>path===parsed.pathname) && functionalKeys.length===2 && functionalKeys.includes("record") && functionalKeys.includes("tab")){
       const record=parsed.searchParams.get("record")??"",tab=parsed.searchParams.get("tab")??"";
-      if(!recordId.test(record)||!["overview","members","history"].includes(tab))return null;
+      const tabs=parsed.pathname===HO_PAGE_PATHS.worlds?["overview","scenes","preview","history"]:["overview","members","history"];
+      if(!recordId.test(record)||!tabs.includes(tab))return null;
       return parsed.pathname+"?record="+encodeURIComponent(record)+"&tab="+tab;
     }
     if (functionalKeys.length && (functionalKeys.length !== 1 || functionalKeys[0] !== "record" || parsed.pathname === "/ho" ||
@@ -61,6 +122,15 @@ export function safeHoReturnTo(raw: string | null | undefined): string | null {
     const record = parsed.searchParams.get("record");
     return parsed.pathname + (functionalKeys.length ? "?record=" + encodeURIComponent(record ?? "") : "");
   } catch { return null; }
+}
+/** PAP-2359: preserve a single validated HO return target during password/session recovery. */
+export function hoStagingReturnFromSearch(search:string):string|null{
+  const values=new URLSearchParams(search).getAll("returnTo");
+  return values.length===1?safeHoReturnTo(values[0]):null;
+}
+export function hoStagingAuthPath(path:"/staff-login"|"/staff-password/change",raw:string|null|undefined):string{
+  const ret=safeHoReturnTo(raw);
+  return ret?path+"?"+new URLSearchParams({returnTo:ret}).toString():path;
 }
 export function hoRecordId(raw: string | null): string | null {
   return raw && recordId.test(raw) ? raw : null;

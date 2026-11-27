@@ -1025,6 +1025,54 @@
 [data-surface="ho"] [data-tdd-business-slot="staff-rate"] > form > :is(h3,.property-row:nth-of-type(3),.primary-btn){grid-column:1}
 }
 
+/* PAP-2337 Post Approval — approved Gate1-A visual declarations, isolated namespace. */
+/* PAP-2337 / PNR-APP-HUB: editorial content layout; shared DS owns the shells. */
+:where(html[data-surface="ho"]) .pap2337-ho-root { display:block; max-width:1700px; min-width:0; }
+:where(html[data-surface="ho"]) .pap2337-ho-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 18px; }
+:where(html[data-surface="ho"]) .pap2337-ho-heading h1 { margin:0; font-size:28px; }
+:where(html[data-surface="ho"]) .pap2337-ho-queue { background:var(--bo-color-surface,#fff); border:1px solid var(--bo-color-border,#e8e6ee); border-radius:12px; overflow:hidden; min-width:0; }
+:where(html[data-surface="ho"]) .pap2337-ho-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid var(--bo-color-border,#e8e6ee); }
+:where(html[data-surface="ho"]) .pap2337-ho-toolbar label { display:flex; gap:8px; align-items:center; }
+:where(html[data-surface="ho"]) .pap2337-ho-toolbar input,:where(html[data-surface="ho"]) .pap2337-ho-toolbar select,:where(html[data-surface="ho"]) .pap2337-ho-control { box-sizing:border-box; border:1px solid var(--bo-color-border-strong,#dddbe5); border-radius:7px; padding:8px 10px; color:inherit; background:var(--bo-color-surface,#fff); min-height:36px; font:inherit; }
+:where(html[data-surface="ho"]) .pap2337-ho-toolbar input { flex:1 1 200px; min-width:0; }
+:where(html[data-surface="ho"]) .pap2337-ho-tableViewport { overflow-x:auto; max-width:100%; }
+:where(html[data-surface="ho"]) .pap2337-ho-tableViewport table { min-width:1830px; width:100%; table-layout:fixed; border-collapse:collapse; }
+:where(html[data-surface="ho"]) .pap2337-ho-tableViewport th,:where(html[data-surface="ho"]) .pap2337-ho-tableViewport td { padding:12px; white-space:normal; vertical-align:middle; text-align:left; overflow-wrap:anywhere; }
+:where(html[data-surface="ho"]) .pap2337-ho-tableViewport th:first-child { width:128px; }
+:where(html[data-surface="ho"]) .pap2337-ho-tableViewport th:nth-child(2) { width:210px; }
+:where(html[data-surface="ho"]) .pap2337-ho-tableViewport th:nth-child(3) { width:290px; }
+:where(html[data-surface="ho"]) .pap2337-ho-tableViewport th:nth-child(4),:where(html[data-surface="ho"]) .pap2337-ho-tableViewport th:nth-child(5) { width:145px; }
+:where(html[data-surface="ho"]) .pap2337-ho-tableViewport th:nth-child(6),:where(html[data-surface="ho"]) .pap2337-ho-tableViewport th:nth-child(7) { width:110px; }
+:where(html[data-surface="ho"]) .pap2337-ho-tableViewport th:nth-child(8),:where(html[data-surface="ho"]) .pap2337-ho-tableViewport th:nth-child(9) { width:130px; }
+:where(html[data-surface="ho"]) .pap2337-ho-tableViewport th:nth-child(n+10) { width:125px; }
+:where(html[data-surface="ho"]) .pap2337-ho-tableViewport th:last-child { width:90px; }
+:where(html[data-surface="ho"]) .pap2337-ho-cover { display:block; width:104px; height:78px; object-fit:cover; border-radius:6px; }
+:where(html[data-surface="ho"]) .pap2337-ho-excerpt { display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; line-height:1.5; }
+:where(html[data-surface="ho"]) .pap2337-ho-mediaHero { width:100%; max-width:480px; max-height:225px; object-fit:contain; display:block; border-radius:8px; margin-bottom:8px; }
+:where(html[data-surface="ho"]) .pap2337-ho-thumbnails,:where(html[data-surface="ho"]) .pap2337-ho-mediaActions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:8px 0; }
+:where(html[data-surface="ho"]) .pap2337-ho-thumb { border:1px solid var(--bo-color-border-strong,#dddbe5); border-radius:6px; padding:3px; background:transparent; cursor:pointer; }
+:where(html[data-surface="ho"]) .pap2337-ho-thumb[aria-pressed=true] { outline:2px solid currentColor; outline-offset:1px; }
+:where(html[data-surface="ho"]) .pap2337-ho-thumb img { display:block; width:64px; height:48px; object-fit:cover; border-radius:3px; }
+:where(html[data-surface="ho"]) .pap2337-ho-control { display:block; width:100%; max-width:100%; resize:vertical; }
+:where(html[data-surface="ho"]) .pap2337-ho-source { color:var(--bo-color-muted,#777); margin:6px 0; font-size:12px; }
+:where(html[data-surface="ho"]) .pap2337-ho-diaryGrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px; }
+:where(html[data-surface="ho"]) .pap2337-ho-diaryCard { min-width:0; display:grid; gap:5px; align-content:start; }
+:where(html[data-surface="ho"]) .pap2337-ho-diaryCard img { width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:6px; }
+:where(html[data-surface="ho"]) .pap2337-ho-diaryCard small { color:var(--bo-color-muted,#777); }
+:where(html[data-surface="ho"]) .pap2337-ho-returnReason { display:grid; gap:6px; margin:12px 0; }
+@media(max-width:600px){:where(html[data-surface="ho"]) .pap2337-ho-heading h1{font-size:22px}:where(html[data-surface="ho"]) .pap2337-ho-toolbar{padding:10px}:where(html[data-surface="ho"]) .pap2337-ho-toolbar label{flex:1 1 auto}:where(html[data-surface="ho"]) .pap2337-ho-diaryGrid{grid-template-columns:repeat(auto-fit,minmax(105px,1fr))}}
+
+/* PAP-2337 — HO Editorial compact native table and aligned property controls. */
+:where(html[data-surface="ho"]) .pap2337-ho-table-cover { display:block; width:44px; height:32px; object-fit:cover; border-radius:4px; }
+:where(html[data-surface="ho"]) .pap2337-ho-editor-fields .property-row { grid-template-columns:130px minmax(0,1fr); align-items:center; min-height:38px; gap:12px; padding:4px 0; }
+:where(html[data-surface="ho"]) .pap2337-ho-editor-fields .property-row[data-tdd-field="caption"], :where(html[data-surface="ho"]) .pap2337-ho-editor-fields .property-row[data-tdd-field="returnReason"] { align-items:start; }
+:where(html[data-surface="ho"]) .pap2337-ho-editor-fields .property-row[data-tdd-field="caption"] .property-label, :where(html[data-surface="ho"]) .pap2337-ho-editor-fields .property-row[data-tdd-field="returnReason"] .property-label { padding-top:9px; }
+:where(html[data-surface="ho"]) .pap2337-ho-editor-fields [data-tdd-custom-create-control] { padding:0; min-height:0; min-width:0; width:100%; border:0; background:none; }
+:where(html[data-surface="ho"]) .pap2337-ho-editor-input { box-sizing:border-box; display:block; width:100%; min-width:0; max-width:100%; min-height:34px; padding:7px 9px; border:1px solid var(--bo-color-border-strong,#dddbe5); border-radius:6px; background:var(--bo-color-surface,#fff); color:inherit; font:inherit; }
+:where(html[data-surface="ho"]) .pap2337-ho-editor-fields textarea.pap2337-ho-editor-input { resize:vertical; }
+:where(html[data-surface="ho"]) .pap2337-ho-editor-fields .property-row[data-tdd-field="status"] .property-control { padding:7px 9px; }
+@media(max-width:600px){ :where(html[data-surface="ho"]) .pap2337-ho-editor-fields .property-row { grid-template-columns:98px minmax(0,1fr); gap:8px; } }
+
 
 /* Shared TDD opt-in Freeze Column; single HO host-scope output */
 /* PAP-1105: shared opt-in TDD Table Freeze primitive; BO/HO host authority untouched. */

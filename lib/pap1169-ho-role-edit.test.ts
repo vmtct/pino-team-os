@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { decideHostBoundary } from "./host-boundary";
-import { parseHoRoleEdit, handleHoRoleEdit, type HoRoleEditEnv } from "./ho-role-edit-facade";
+import { parseHoRoleEdit, handleHoRoleEdit, prepareHoRoleMetadataUpdate, type HoRoleEditEnv } from "./ho-role-edit-facade";
 import { roleSchema, roleQuery, roleDefinition } from "../app/ho/system/roles/schema";
 import { validateModule } from "./workspace-schema";
 
@@ -44,7 +44,7 @@ test("PAP-1169 roles use a registered canonical TDD + Shared DS (no new shell)",
  validateModule(roleSchema);
  assert.equal(roleSchema.surface,"HO");
  assert.equal(roleSchema.key,"roles");
- assert.deepEqual(roleQuery.visible,["name","roleType","status","permissionCount","assignmentCount"]);
+ assert.deepEqual(roleQuery.visible,["name","roleType","status","permissionCount","assignmentCount","createdAt","createdBy","updatedAt","updatedBy"]);
  assert.equal(roleDefinition.detail.history.kind,"unavailable");
  const page=readFileSync("app/ho/system/roles/page.tsx","utf8");
  const ui=readFileSync("app/ho/system/roles/HoRolesTdd.tsx","utf8");
@@ -102,4 +102,50 @@ test("PAP-1169 HO Role writes use the dedicated BO Access Core binding, not Foun
  assert.match(facade,/authorizeHoShell\(request\.headers, env\)/);
  assert.match(facade,/actor\.permissionKeys\.includes\("access\.role\.edit"\)/);
  assert.match(facade,/role\.manage|HO_ROLE_PERMISSION_ESCALATION|current\.roleType !== "custom"/);
+});
+
+test("PAP-2373 metadata-only command derives exact CAS without a permission rewrite",()=>{
+ const metadataId="01a17d3f-8697-7080-bdf1-33e939758059";
+ const expectedVersion="2026-11-25T04:00:00.000Z";
+ const current={id:metadataId,roleType:"custom",roleKey:"role-example",status:"active",
+   displayName:"Old",description:"Preserve",permissionKeys:["access.role.view"],permissionCount:1,assignmentCount:0,updatedAt:expectedVersion};
+ const request={id:metadataId,expectedVersion,patch:{name:" New "}};
+ const next=prepareHoRoleMetadataUpdate(request,current);
+ assert.deepEqual(next?.body,{displayName:"New",description:"Preserve",expectedUpdatedAt:expectedVersion});
+ assert.deepEqual(next?.reviewed.body.permissionKeys,["access.role.view"]);
+ assert.equal(Object.hasOwn(next!.body,"permissionKeys"),false);
+ for(const invalid of [{...current,id:"other"},{...current,roleType:"system"},{...current,roleKey:"founder"},
+   {...current,status:"archived"},{...current,updatedAt:"2026-11-25T04:00:01.000Z"},{...current,permissionCount:2},
+   {...current,permissionKeys:["access.role.view","access.role.view"],permissionCount:2}])
+   assert.equal(prepareHoRoleMetadataUpdate(request,invalid),null);
+ assert.equal(prepareHoRoleMetadataUpdate({...request,patch:{name:"Old"}},current),null);
+});
+test("PAP-2373 metadata-only request fails before Core on extra grants, mismatched identity or wrong environment",async()=>{
+ const metadataId="01a17d3f-8697-7080-bdf1-33e939758059";
+ const expectedVersion="2026-11-25T04:00:00.000Z";
+ const payload={id:metadataId,expectedVersion,patch:{name:"New"}};
+ const path="/api/ho/system/roles/"+metadataId+"/update";
+ const request=(b:unknown=payload,hostname="ho.staging.pinohouse.art",suffix="")=>new Request("https://"+hostname+path+suffix,{
+  method:"POST",headers:{host:hostname,origin:"https://"+hostname,"content-type":"application/json","idempotency-key":"pap2373-metadata-negative"},body:JSON.stringify(b),
+ });
+ for(const b of [{...payload,permissionKeys:[]},{...payload,patch:{name:"New",permissionKeys:[]}},{...payload,id:"01a17d3f-8697-7080-bdf1-33e939758060"}])
+   assert.equal((await handleHoRoleEdit(request(b),env,metadataId)).status,400);
+ assert.equal((await handleHoRoleEdit(request(payload,"ho.staging.pinohouse.art","?x=1"),env,metadataId)).status,400);
+ assert.equal((await handleHoRoleEdit(request(),{...env,APP_ENV:"production"},metadataId)).status,404);
+ assert.ok([401,403,503].includes((await handleHoRoleEdit(request(),env,metadataId)).status));
+});
+
+test("PAP-2373 typed metadata is limited to native Role detail and preserves generic read-only adapter",()=>{
+ const ui=readFileSync("app/ho/system/roles/HoRolesTdd.tsx","utf8");
+ const editor=readFileSync("app/ho/system/roles/HoRoleEditor.tsx","utf8");
+ assert.match(ui,/metadataAuthorized=\{nativeLifecycle&&context\.authorize\("access\.role\.view"\)&&context\.authorize\("access\.role\.edit"\)\}/);
+ assert.match(editor,/metadataAuthorized\?<PropertySections/);
+ assert.match(editor,/onCommit=\{commitMetadata\} onSaved=\{\(\)=>onSaved\(\)\}/);
+ assert.match(editor,/!dirty&&\(!busy\|\|metadataPending\)/);
+ assert.match(editor,/if\(!canCommitMetadata\|\|lock\.current/);
+ assert.match(editor,/setMetadataBlocked\(true\)/);
+ assert.match(editor,/next!==null&&next\.role===result\.receipt/);
+ assert.equal(roleDefinition.table.inlineEdit.enabled,false);
+ assert.equal(roleDefinition.fields.every(field=>!field.capabilities.inlineEdit),true);
+ assert.doesNotMatch(ui,/mutation:/);
 });

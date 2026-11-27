@@ -1,0 +1,22 @@
+/** PAP-2337 / PNR-APP-HUB — canonical sandbox presentation adapter only. */
+import {createRoot} from "react-dom/client";
+import {BoPostSubmitShell} from "@/app/bo/content/posts/BoPostSubmitShell";
+import {HoPostApprovalShell} from "@/app/ho/content/post-approval/HoPostApprovalShell";
+import {BoRegistrationWorkspace,type BoWorkspaceSource} from "@/app/bo/components/registration/BoRegistrationWorkspace";
+import {postModule} from "@/app/bo/piner-posts/schema";
+import {TddPreferencePolicy} from "@/app/components/workspace-renderer/Record";
+import "@pino/design-system/bo-tokens.css";
+import "@pino/design-system/components.css";
+import "../../public/bo-authority-source/bo-scoped.css";
+import "../../app/bo/design-system/foundation.css";
+import "../../public/ho-authority-source/ho-scoped.css";
+import "../../app/components/workspace-renderer/tdd-detail-layout.css";
+import "../../app/components/workspace-renderer/tdd-table-geometry.css";
+import "../../app/components/workspace-renderer/tdd-freeze.css";
+const route=location.pathname,ho=route==="/ho/content/post-approval";
+const hoOrigin=location.origin==="http://desktop-isrdren:8800"||location.origin==="http://desktop-isrdren.tail3ee007.ts.net:8800";
+const boLegacy=location.origin==="http://192.168.1.6:8800"&&route==="/bo/piner-posts"&&new URLSearchParams(location.search).get("m1Preview")==="1";
+if(self.origin!=="null"||(ho?!hoOrigin:!boLegacy))throw Error("Local sandbox only");
+const key=ho?"postApproval":"piner-posts";
+const source:BoWorkspaceSource={surface:ho?"ho":undefined,readOnly:true,ephemeral:true,modules:{[key]:ho?{label:"Duyệt bài đăng",group:"Content",fields:[]}:postModule},routeForModule:k=>k===key?(ho?route:route+"?m1Preview=1"):"#unavailable-local-module",scopeLabel:()=>"",load:async()=>{throw Error("No live transport");}};
+createRoot(document.getElementById("root")!).render(<BoRegistrationWorkspace source={source} moduleKey={key} currentUser={{displayName:"M1 · Dữ liệu mẫu"}} content={<TddPreferencePolicy.Provider value="ephemeral">{ho?<HoPostApprovalShell/>:<BoPostSubmitShell/>}</TddPreferencePolicy.Provider>}/>);

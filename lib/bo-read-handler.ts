@@ -20,8 +20,9 @@ const PRACTICE_RESOURCE_READ = /^practice\/resources\/[0-9a-f-]{36}$/;
 const TV_POLICY_READ = new Set(["pinoria/tv-config/policy/head","pinoria/tv-config/policy/versions","pinoria/tv-config/policy/version","pinoria/tv-config/policy/active"]);
 const MISSION_CATALOG_READ = /^learning\/missions(?:\/[0-9a-f-]{36})?$/;
 const MISSION_ASSIGNMENT_READ = /^learning\/mission-assignments(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/(?:diaries|history))?)?$/i;
-/** PAP-1220: strictly Center/day-scoped BO Diary read facade; no HO GLOBAL. */
+/** PAP-1220: Center/day-scoped BO Diary reads; PAP-2261 adds exact student scope. */
 const BO_DIARY_READ = /^learning\/path-diaries(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/mission-links)?)?$/i;
+const BO_STUDENT_DIARY_READ = /^learning\/students\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/path-diaries$/i;
 const TV_DIALOGUE_CONFIG_READ = new Set(["pinoria/tv-config/dialogue/head","pinoria/tv-config/dialogue/versions","pinoria/tv-config/dialogue/version","pinoria/tv-config/dialogue/active"]);
 const TV_SPATIAL_CONFIG_READ = new Set(["pinoria/tv-config/spatial/head","pinoria/tv-config/spatial/versions","pinoria/tv-config/spatial/version","pinoria/tv-config/spatial/active"]);
 const WEB_CMS_SLOT_READ = /^web-cms\/slots\/[0-9a-f-]{36}(?:\/history)?$/;
@@ -39,6 +40,7 @@ const S3_ENROLLMENT_RECORD_READ = /^enrollments\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f
 const S3_ENROLLMENT_CAPACITY_READ = "enrollments/capacity";
 const S3_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const AFTERSCHOOL_DIRECTORY_READ = "identity/afterschool-users";
+const PERSON_PICKER_READ = "identity/afterschool-users/person-options";
 const S3_LOCAL_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 const BILLING_BILL_READ = /^billing\/bills\/[0-9a-f-]{36}$/;
@@ -48,16 +50,17 @@ const SPECIALTY_POLICY_READ = /^policies\/specialty\/(purchase\.v1|session_settl
 /** PAP-1407 / PAP-220: exact BO Center Staff application list and pending Drawer detail. */
 const STAFF_CENTER_APPLICATION_READ = /^workforce\/staff-center-registration-requests(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$/i;
 
-function afterschoolDirectoryRequest(url: URL): BoAccessRequest {
+function afterschoolDirectoryRequest(url: URL, personPicker = false): BoAccessRequest {
+  const cursorKey = personPicker ? "afterPersonId" : "afterParentId";
   const params = url.searchParams;
   for (const key of params.keys()) {
-    if (!["centerId", "limit", "afterParentId"].includes(key) || params.getAll(key).length !== 1) {
+    if (!["centerId", "limit", cursorKey].includes(key) || params.getAll(key).length !== 1) {
       throw new RangeError("Invalid Afterschool directory query");
     }
   }
   const centerId = params.get("centerId");
   const limit = params.get("limit");
-  const afterParentId = params.get("afterParentId");
+  const afterParentId = params.get(cursorKey);
   if (!centerId || !S3_UUID.test(centerId) ||
       (limit !== null && !/^(?:[1-9]|[1-4][0-9]|50)$/.test(limit)) ||
       (afterParentId !== null && !S3_UUID.test(afterParentId))) {
@@ -65,10 +68,10 @@ function afterschoolDirectoryRequest(url: URL): BoAccessRequest {
   }
   const paging = new URLSearchParams();
   if (limit !== null) paging.set("limit", limit);
-  if (afterParentId !== null) paging.set("afterParentId", afterParentId);
+  if (afterParentId !== null) paging.set(cursorKey, afterParentId);
   return {
     method: "GET",
-    path: AFTERSCHOOL_DIRECTORY_READ + (paging.size ? "?" + paging.toString() : ""),
+    path: (personPicker ? PERSON_PICKER_READ : AFTERSCHOOL_DIRECTORY_READ) + (paging.size ? "?" + paging.toString() : ""),
     resource: { centerId },
   };
 }
@@ -92,8 +95,8 @@ export async function handleBoOperationalReadRequest(
     const credential = await teamCredential(request, env, "BO");
     const url = new URL(request.url);
     // PAP-1886 · BO Users TDD / PAP-1832 Piner Identity.
-    if (path === AFTERSCHOOL_DIRECTORY_READ) {
-      const directoryRequest = afterschoolDirectoryRequest(url);
+    if (path === AFTERSCHOOL_DIRECTORY_READ || path === PERSON_PICKER_READ) {
+      const directoryRequest = afterschoolDirectoryRequest(url, path === PERSON_PICKER_READ);
       const result = await callBoAccessCoreWithCredential(env.PINO_BO_CORE, directoryRequest, credential);
       const body = result.body as { data?: { scopeCenterId?: unknown } } | null;
       if (result.status === 200 && body?.data?.scopeCenterId !== directoryRequest.resource?.centerId) {
@@ -117,15 +120,22 @@ export async function handleBoOperationalReadRequest(
 
     const readBody = readQueryBody(path, url);
     const readResource = readQueryResource(path, url);
-    // PAP-1536 / PAP-220: Core currently ignores resource.centerId for this
-    // broad Staff directory route. Until PAP-1537's canonical membership
-    // reader authorizes AND filters Center, never expose global rows under
-    // an apparently Center-scoped request (including unknown Center IDs).
-    if (path === "workforce/staff-records" && readResource?.centerId) {
-      return json({ error: { code: "STAFF_CENTER_DIRECTORY_NOT_READY", message: "Center Staff directory is not available yet" } }, 503);
-    }
+    // PAP-1536: the exact Center query is forwarded to the mounted Core
+    // membership reader. Release only after its exact serving contract is verified.
     const corePath = readCorePath(path, url);
     const result = await callBoAccessCoreWithCredential(env.PINO_BO_CORE, { method: "GET", path: corePath, ...(readResource ? { resource: readResource } : {}), ...(readBody ? { body: readBody } : {}) }, credential);
+    if (path === "workforce/staff-records" && readResource?.centerId && result.status === 200) {
+      // Never expose unexpected private fields or an invalid projection.
+      const rows = (result.body as { data?: unknown } | null)?.data;
+      const fields = ["department", "displayLabel", "id", "roleLabel", "status"];
+      if (!Array.isArray(rows) || !rows.every(row => row && typeof row === "object" &&
+        Object.keys(row).sort().join(",") === fields.join(",") && typeof row.id === "string" && S3_UUID.test(row.id) &&
+        typeof row.displayLabel === "string" && (row.status === "active" || row.status === "inactive") &&
+        (row.department === null || typeof row.department === "string") && (row.roleLabel === null || typeof row.roleLabel === "string"))) {
+        return json({ error: { code: "PLATFORM_INTERNAL_ERROR", message: "Unverified Staff directory response" } }, 502);
+      }
+      return json({ data: rows }, 200, { "x-request-id": result.requestId });
+    }
     return json(url.hostname === HO_STAGING_HOSTNAME && path === "access/audit" && result.status === 200 ? projectHoAuditResponse(result.body) : result.body, result.status, { "x-request-id": result.requestId });
   } catch (error) {
     if (error instanceof BoShellGateError) return json({ error: { code: "HO_ACCESS_DENIED", message: error.message } }, error.status);
@@ -190,6 +200,7 @@ export function isOperationalReadPath(path: string): boolean {
     || MISSION_CATALOG_READ.test(path)
     || MISSION_ASSIGNMENT_READ.test(path)
     || BO_DIARY_READ.test(path)
+    || BO_STUDENT_DIARY_READ.test(path)
     || TV_POLICY_READ.has(path)
     || path === "learning/syllabi/owners"
     || path === "learning/syllabi/media"
@@ -238,7 +249,7 @@ export function isOperationalReadPath(path: string): boolean {
     || STUDENT_VISIT_DETAIL_READ.test(path)
     || path === "identity/parents"
     || path === "identity/parents/center-search"
-    || path === AFTERSCHOOL_DIRECTORY_READ
+    || path === PERSON_PICKER_READ || path === AFTERSCHOOL_DIRECTORY_READ
     || AFTERSCHOOL_HISTORY_READ.test(path)
     || path === "identity/parents/directory"
     || /^identity\/parents\/[0-9a-f-]{36}\/detail$/.test(path)
@@ -308,6 +319,24 @@ export function readCorePath(path: string, url: URL): string {
         throw new RangeError("Invalid protected Mission history pagination");
     }
     return path + "?" + params.toString();
+  }
+  if (BO_STUDENT_DIARY_READ.test(path)) {
+    const studentId=path.split("/")[2];
+    if(!studentId||!S3_UUID.test(studentId))throw new RangeError("Student Diary identity required");
+    const allowed=["centerId","limit","offset"];
+    for(const key of url.searchParams.keys())
+      if(!allowed.includes(key)||url.searchParams.getAll(key).length!==1)throw new RangeError("Invalid student Diary query");
+    const centerId=url.searchParams.get("centerId");
+    if(!centerId||!S3_UUID.test(centerId))throw new RangeError("Student Diary Center required");
+    const query=new URLSearchParams({centerId});
+    for(const [name,max,min] of [["limit",100,1],["offset",10000,0]] as const){
+      const value=url.searchParams.get(name);
+      if(value===null)continue;
+      if(!/^(0|[1-9][0-9]*)$/.test(value)||!Number.isSafeInteger(Number(value))||Number(value)<min||Number(value)>max)
+        throw new RangeError("Invalid student Diary pagination");
+      query.set(name,value);
+    }
+    return path+"?"+query.toString();
   }
   if (BO_DIARY_READ.test(path)) {
     const detail = path !== "learning/path-diaries";
@@ -435,11 +464,9 @@ export function readQueryResource(path: string, url: URL): BoAccessRequest["reso
        !S3_UUID.test(centers[0]!)) throw new RangeError("Selected Subscription Center required");
     return {centerId:centers[0]!};
   }
-  // PAP-1536 / Epic PAP-220: validate an optional Center before
-  // fail-closed 503 in the caller above. Core still uses a global reader
-  // that ignores Center and has no canonical Staff membership filter.
-  // Do not forward Center-scoped reads until Core securely implements it.
-  // Legacy no-Center read remains unchanged; never infer a GLOBAL grant.
+  // PAP-1536 / Epic PAP-220: forward exactly one canonical Center to
+  // Core authorization and membership filtering. Legacy no-Center read
+  // remains unchanged; never infer a GLOBAL grant.
   if (path === "workforce/staff-records") {
     const keys = [...url.searchParams.keys()];
     if (!keys.length) return undefined;

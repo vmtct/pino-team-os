@@ -37,7 +37,7 @@ const s2Approval={
 } as const;
 export const itemDefinition={
  version:1,classification:"TDD_DEFAULT",surface:"HO",key:"wardrobe",label:"Pinoria · Items",group:"Pinoria",
- fields:itemFields,capabilities:{read:"pinoria.item.view"},
+ fields:itemFields,capabilities:{read:"pinoria.item.view",create:"pinoria.item.manage"}, actions:[{id:"item-open-create",label:"Thêm",slot:"table.header",variant:"primary",capability:"create",handler:"openCreate"}],
  table:{
   identity:{field:"displayName",pinned:"left",hideable:false,reorderable:false},
   columns:[{field:"displayName",visible:true},{field:"key",visible:false},{field:"type",visible:true},{field:"slot",visible:true},{field:"status",visible:true},{field:"revision",visible:true},...auditKeys.map(field=>({field,visible:true}))],

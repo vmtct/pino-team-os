@@ -2,10 +2,22 @@ import {test} from "node:test";
 import assert from "node:assert/strict";
 import {createDraftController,DraftCommandPending,type DraftActorScope} from "../app/bo/piner-posts/draft-controller";
 import {createSessionDraftJournal} from "../app/bo/piner-posts/draft-retry-journal";
-const A="01900000-0000-7000-8000-000000000001",S="01900000-0000-7000-8000-000000000003",P="01900000-0000-7000-8000-000000000004";
-const actor:DraftActorScope={actorId:"qa-actor-only",centerId:A,authorize:()=>true},sig=()=>new AbortController().signal;
-const stamp="2026-11-18T00:00:00.000Z",row={id:P,studentId:S,centerId:A,studentName:"QA",centerName:"A",caption:"private example",status:"DRAFT",publisher:"PINO Afterschool",version:1,createdAt:stamp,updatedAt:stamp,createdBy:null,updatedBy:null};
-function setup(){const store=new Map<string,string>();const storage={getItem:(k:string)=>store.get(k)??null,setItem:(k:string,v:string)=>{store.set(k,v);},removeItem:(k:string)=>{store.delete(k);}};return {store,storage,journal:createSessionDraftJournal(storage)};}
-test("reload retains exact retry key without storing plaintext content or scope identifiers",async()=>{const x=setup();let posts=0,keys=0;const sent:string[]=[];const fetcher:typeof fetch=async(_p,i)=>{if(i?.method==="POST"){sent.push(new Headers(i.headers).get("idempotency-key")!);if(++posts===1)throw Error("lost reply");return Response.json({data:{post:row,committedVersion:1,replayed:true}});}return Response.json({data:row});};const make=()=>createDraftController(actor,()=>actor,fetcher,()=>"opaque-command-000"+(++keys),createSessionDraftJournal(x.storage));let first=make();await assert.rejects(first.createDraft(S,row.caption,sig()));first.dispose();const contents=JSON.stringify([...x.store]);for(const raw of [row.caption,actor.actorId,A,S,P])assert(!contents.includes(raw));assert.equal(x.store.size,1);let second=make();assert(await second.hasRetainedCommand(sig()));await assert.rejects(second.createDraft(S,"wrong",sig()),DraftCommandPending);assert.equal(posts,1);assert.equal((await second.createDraft(S,row.caption,sig())).id,P);assert.equal(sent[0],sent[1]);assert.equal(keys,1);assert.equal(x.store.size,0);});
-test("unavailable or corrupt retry storage fails closed before mutation",async()=>{let calls=0;const x=setup();const denied=createSessionDraftJournal({...x.storage,setItem(){throw Error("storage unavailable");}});const fetcher:typeof fetch=async()=>{calls++;throw Error("must not call");};const controller=createDraftController(actor,()=>actor,fetcher,()=>"opaque-command-0001",denied);await assert.rejects(controller.createDraft(S,"",sig()));assert.equal(calls,0);});
-test("new scope cannot replay previous actor's receipt",async()=>{const x=setup();const fail:typeof fetch=async()=>{throw Error("lost");};const first=createDraftController(actor,()=>actor,fail,()=>"opaque-command-0001",x.journal);await assert.rejects(first.createDraft(S,"",sig()));const other={...actor,actorId:"other-actor"};const second=createDraftController(other,()=>other,fail,()=>"opaque-command-0002",x.journal);assert.equal(await second.hasRetainedCommand(sig()),false);assert.equal(await first.hasRetainedCommand(sig()),true);});
+const A="01900000-0000-7000-8000-000000000001",PERSON="01900000-0000-7000-8000-000000000005",POST="01900000-0000-7000-8000-000000000006";
+const stamp="2026-11-18T00:00:00.000Z",sig=()=>new AbortController().signal;
+const actor:DraftActorScope={actorId:"qa-actor-only",centerId:A,authorize:()=>true};
+const row={id:POST,studentId:null,personId:PERSON,personName:"QA Person",studentName:null,programKey:"MYTIME" as const,centerId:A,centerName:"A",caption:"private example",status:"DRAFT",publisher:"MyTime by PINO",version:1,createdAt:stamp,updatedAt:stamp,createdBy:null,updatedBy:null,mediaCount:0};
+const response=(data:unknown,status=200)=>Response.json({data},{status});
+function setup(){const store=new Map<string,string>();const storage={getItem:(k:string)=>store.get(k)??null,setItem:(k:string,v:string)=>{store.set(k,v);},removeItem:(k:string)=>{store.delete(k);}};return {store,storage};}
+test("reload retries the same Person command without persisting private content",async()=>{
+ const x=setup();let attempts=0,keys=0;const sent:string[]=[];
+ const make=()=>createDraftController(actor,()=>actor,async(_p,init)=>{if(init?.method==="POST"){sent.push(new Headers(init.headers).get("idempotency-key")!);if(++attempts===1)throw Error("lost reply");return response({post:row,committedVersion:1,replayed:true});}return response(row);},()=>"opaque-command-000"+(++keys),createSessionDraftJournal(x.storage));
+ const first=make();await assert.rejects(first.createDraft(PERSON,"MYTIME",row.caption,sig()));first.dispose();
+ const contents=JSON.stringify([...x.store]);for(const raw of [row.caption,actor.actorId,A,PERSON,POST])assert(!contents.includes(raw));assert.equal(x.store.size,1);
+ const second=make();assert(await second.hasRetainedCommand(sig()));await assert.rejects(second.createDraft(PERSON,"MYTIME","wrong",sig()),DraftCommandPending);
+ assert.equal((await second.createDraft(PERSON,"MYTIME",row.caption,sig())).personId,PERSON);assert.equal(sent[0],sent[1]);assert.equal(keys,1);assert.equal(x.store.size,0);
+});
+test("retry storage failure blocks Person mutation before Core call",async()=>{
+ const x=setup();let calls=0;const journal=createSessionDraftJournal({...x.storage,setItem(){throw Error("storage unavailable");}});
+ const controller=createDraftController(actor,()=>actor,async()=>{calls++;throw Error("must not call");},()=>"opaque-command-0001",journal);
+ await assert.rejects(controller.createDraft(PERSON,"MYTIME","",sig()));assert.equal(calls,0);
+});

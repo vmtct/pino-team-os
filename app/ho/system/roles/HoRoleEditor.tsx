@@ -3,6 +3,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { PropertySections, TosCard, TosButton, type PropertyField } from "@pino/design-system/react";
 import type { BoAccessPermission, BoAccessRoleDetail } from "@/lib/bo-access-model";
 import { boApi } from "@/lib/bo-api";
+import {verifiedExistingRoleEdit} from "./role-editor-receipt";
+import {ArchiveCustomRoleAction} from "./RoleLifecycleForms";
+import {canArchiveRole,verifyArchivedRole} from "./role-lifecycle-model";
+import {createRoleMetadataClient,createRoleMetadataFence} from "./role-metadata-flow";
+import {ROLE_METADATA_COMMAND,parseRoleInlineRequest} from "@/lib/workspace-adapters/ho-inline-command-contract";
 
 // PAP-1507 / PLT-ACCESS: module-owned, presentation-only helpers.
 export function groupSelectionState(selectedKeys:readonly string[],visibleKeys:readonly string[]):"none"|"mixed"|"all" {
@@ -75,8 +80,8 @@ function fromRole(role:BoAccessRoleDetail):Draft {
   return {displayName:role.displayName,description:role.description??"",keys:sorted(role.permissionKeys)};
 }
 /** HO-specific editing surface; TDD owns navigation, DS owns cards and property rows. */
-export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, onSaved }: {
-  roleId:string; assignmentCount:number; authorized:boolean; activeTab:string; onSaved:()=>void;
+export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, onSaved, archiveAuthorized=false, metadataAuthorized=false, metadataFence }: {
+  roleId:string; assignmentCount:number; authorized:boolean; activeTab:string; onSaved:()=>void; archiveAuthorized?:boolean; metadataAuthorized?:boolean; metadataFence?:ReturnType<typeof createRoleMetadataFence>;
 }) {
   const [data,setData]=useState<Ready|null>(null);
   const [draft,setDraft]=useState<Draft|null>(null);
@@ -90,9 +95,13 @@ export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, o
   const [platformFilter,setPlatformFilter]=useState<PlatformFilter>("all");
   const [expandedGroups,setExpandedGroups]=useState<Record<string,boolean>>({});
   const lock=useRef(false);
+  const [metadataPending,setMetadataPending]=useState(false);
+  const [metadataBlocked,setMetadataBlocked]=useState(false);
+  const latestMetadataRead=useRef<Ready|null>(null);
+  const metadataClient=useRef<ReturnType<typeof createRoleMetadataClient>|null>(null);
   useEffect(()=>{
     const controller=new AbortController();
-    setLoading(true);setError("");setNotice("");setData(null);setDraft(null);
+    setLoading(true);setError("");setNotice("");setData(null);setDraft(null);setMetadataBlocked(false);
     void loadRole(roleId,controller.signal).then(value=>{
       if(controller.signal.aborted)return;
       setData(value);setDraft(fromRole(value.role));setLoading(false);
@@ -103,7 +112,7 @@ export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, o
     return ()=>controller.abort();
   },[roleId]);
   const original=data?.role;
-  const editable=Boolean(authorized && original?.roleType==="custom" &&
+  const editable=Boolean(authorized && !metadataBlocked && original?.roleType==="custom" &&
     original.status==="active" && original.roleKey!=="founder");
   const additions=draft&&original?draft.keys.filter(x=>!original.permissionKeys.includes(x)):[];
   const removals=draft&&original?original.permissionKeys.filter(x=>!draft.keys.includes(x)):[];
@@ -162,9 +171,7 @@ export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, o
       if(!response.ok)throw Error("Không lưu được Role. Vui lòng kiểm tra lại.");
       const controller=new AbortController();
       const next=await loadRole(roleId,controller.signal);
-      if(next.role.displayName!==wanted.displayName ||
-        (next.role.description?.trim()||null)!==wanted.description ||
-        !same(next.role.permissionKeys,wanted.permissionKeys))
+      if(!verifiedExistingRoleEdit(current,wanted,next.role))
         throw Error("Core đã nhận yêu cầu nhưng chưa xác nhận được dữ liệu mới. Vui lòng tải lại Role.");
       setData(next);setDraft(fromRole(next.role));setConfirming(false);
       // Refresh the canonical TDD record/directory only after authoritative Core readback.
@@ -172,6 +179,58 @@ export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, o
       setNotice("Đã lưu và xác minh Role trên Core.");
     }catch(cause){setError(cause instanceof Error?cause.message:"Không lưu được Role.");}
     finally{setBusy(false);lock.current=false;}
+  }
+  const canCommitMetadata=Boolean(metadataAuthorized&&editable&&!dirty&&(!busy||metadataPending)&&activeTab==="overview");
+  async function commitMetadata(key:string,value:unknown,{signal}:{signal:AbortSignal}):Promise<{status:"saved";value:string|null}|{status:"error"|"conflict"|"denied"}>{
+    if(!canCommitMetadata||lock.current||!original||signal.aborted)return {status:"denied"};
+    const request=parseRoleInlineRequest({id:original.id,expectedVersion:original.updatedAt,patch:{[key]:value}});
+    if(!request||request.id!==roleId)return {status:"error"};
+    lock.current=true;setBusy(true);setMetadataPending(true);setError("");setNotice("");
+    latestMetadataRead.current=null;
+    try{
+      const client=metadataClient.current??(metadataClient.current=createRoleMetadataClient({
+        read:async(id,readSignal)=>{
+          const next=await loadRole(id,readSignal);
+          latestMetadataRead.current=next;
+          return next.role;
+        },
+        fetcher:(input,init)=>fetch(input,init),
+        idempotencyKey:()=>crypto.randomUUID(),
+      },metadataFence));
+      const result=await client(request,signal);
+      const next=latestMetadataRead.current as Ready|null;
+      if(result.status==="saved"&&!signal.aborted&&next!==null&&next.role===result.receipt){
+        setData(next);setDraft(fromRole(next.role));setConfirming(false);
+        setNotice("Role metadata verified on Core.");
+        return {status:"saved",value:key==="name"?next.role.displayName:next.role.description};
+      }
+      if(result.status==="uncertain"||result.status==="saved"||result.status==="conflict"){
+        setMetadataBlocked(true);
+        setError("Role changed or write not verified. Reload the Role before continuing.");
+        return {status:"conflict"};
+      }
+      return {status:result.status==="unavailable"?"denied":"error"};
+    }finally{lock.current=false;setBusy(false);setMetadataPending(false);}
+  }
+  async function archiveReviewed(id:string,expectedUpdatedAt:string):Promise<unknown>{
+    if(!archiveAuthorized||metadataBlocked||lock.current||busy||dirty||!original||id!==original.id||
+      expectedUpdatedAt!==original.updatedAt||!canArchiveRole(original))throw Error("Role archive unavailable");
+    lock.current=true;setBusy(true);setError("");setNotice("");
+    try{
+      const response=await fetch("/api/ho/system/roles/"+encodeURIComponent(id)+"/archive",{
+        method:"POST",credentials:"same-origin",cache:"no-store",redirect:"error",
+        headers:{"content-type":"application/json","idempotency-key":crypto.randomUUID()},
+        body:JSON.stringify({expectedUpdatedAt}),
+      });
+      if(response.status!==200)throw Error("Role archive not verified");
+      const payload:unknown=await response.json();
+      if(!payload||typeof payload!=="object"||!("data" in payload)||!verifyArchivedRole(original,payload.data))
+        throw Error("Role archive not verified");
+      const next=await loadRole(id,new AbortController().signal);
+      if(!verifyArchivedRole(original,next.role))throw Error("Role archive readback mismatch");
+      setData(next);setDraft(fromRole(next.role));setConfirming(false);onSaved();
+      return next.role;
+    }finally{lock.current=false;setBusy(false);}
   }
   if(loading)return <p role="status">Đang tải chi tiết và danh mục quyền…</p>;
   if(!data||!draft)return <p role="alert">{error||"Không tải được Role."}</p>;
@@ -187,6 +246,14 @@ export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, o
 
     <TosCard className="ho-role-card">
       <section aria-label="Chỉnh sửa thông tin Role">
+        {metadataAuthorized?<PropertySections recordKey={roleId}
+          fields={[{key:ROLE_METADATA_COMMAND.fields[0],label:"Tên vai trò",type:"text",required:true},
+            {key:ROLE_METADATA_COMMAND.fields[1],label:"Mô tả",type:"textarea"}]}
+          values={{name:original!.displayName,description:original!.description}}
+          sections={[{id:"role-metadata",label:"Thông tin Role",fields:ROLE_METADATA_COMMAND.fields}]}
+          variant="detail" surface="ho"
+          canEdit={key=>canCommitMetadata&&(key==="name"||key==="description")}
+          onCommit={commitMetadata} onSaved={()=>onSaved()}/> : <>
         <h3>Thông tin Role</h3>
         <div className="ho-role-field-row">
           <label className="ho-role-field-label" htmlFor="role-display-name">Tên vai trò</label>
@@ -198,7 +265,7 @@ export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, o
           <textarea id="role-description" value={draft.description} disabled={!editable||busy}
             maxLength={500} rows={3} onChange={e=>{setDraft(v=>v?{...v,description:e.target.value}:v);setConfirming(false);setNotice("");}} />
         </div>
-        {!editable?<p role="status" className="ho-role-readonly">Role hệ thống, đã lưu trữ hoặc tài khoản không có quyền chỉnh sửa: chỉ xem.</p>:null}
+        </>}{!editable?<p role="status" className="ho-role-readonly">Role hệ thống, đã lưu trữ hoặc tài khoản không có quyền chỉnh sửa: chỉ xem.</p>:null}
       </section>
     </TosCard>
     <div className="ho-role-technical">
@@ -208,6 +275,7 @@ export function HoRoleEditor({ roleId, assignmentCount, authorized, activeTab, o
     }} sections={[{id:"role-identity",label:"Thông tin kỹ thuật",fields:identityFields.map(f=>f.key)}]}
       variant="detail" surface="ho" />
     </div>
+    {archiveAuthorized&&original?<ArchiveCustomRoleAction role={original} label={original.displayName} onArchive={!dirty&&!busy&&!metadataBlocked?archiveReviewed:undefined}/>:null}
     </div>
     <div hidden={activeTab!=="permissions"}>
     <TosCard className="ho-role-card ho-role-permission-card">

@@ -15,7 +15,6 @@ test("Billing BO facade exposes only canonical Core billing paths", () => {
   assert.equal(isOperationalReadPath("policies/delivery/future_reservation.v1/stream"), true);
   assert.equal(isOperationalReadPath("policies/delivery/future_reservation.v1/effective"), true);
   for (const path of [
-    `billing/product-plans/${id}/configure`,
     "billing/sales",
     `billing/bills/${id}/transactions`,
     `billing/bills/${id}/void`,
@@ -26,11 +25,12 @@ test("Billing BO facade exposes only canonical Core billing paths", () => {
     "policies/delivery/future_reservation.v1/versions/" + id + "/publish",
   ]) assert.equal(isAllowedPostPath(path), true, path);
   assert.equal(isAllowedPostPath("billing/product-plans"), false);
+  assert.equal(isAllowedPostPath("billing/product-plans/"+id+"/configure"), false);
+  for (const method of ["GET","POST","PATCH"]) assert.deepEqual(decideHostBoundary(BO_HOSTNAME,"/api/bo/billing/product-plans/"+id+"/configure",method),{action:"not_found"});
   assert.equal(isAllowedPostPath(`billing/product-plans/${id}`), false);
   assert.equal(isAllowedPostPath(`billing/bills/${id}/delete`), false);
   for (const path of [
     "/api/bo/billing/product-plans",
-    `/api/bo/billing/product-plans/${id}/configure`,
     "/api/bo/billing/sales",
     `/api/bo/billing/bills/${id}`,
     `/api/bo/billing/bills/${id}/transactions`,
@@ -51,16 +51,18 @@ test("Subscriptions mounts Product Plan, sale, Bill and Payment presentation", a
   assert.match(view, /import \{ BillingWorkspace, type BillingReplayState \}/);
   assert.match(view, /<BillingWorkspace lifecycle=\{data\} paths=\{props\.catalog\.paths\} classes=\{props\.catalog\.classes\} onChanged=\{props\.onChanged\}/);
   assert.match(view, /replayState=\{props\.billingReplay\} setReplayState=\{props\.setBillingReplay\}/);
-  assert.match(billing, /const TERMS = \[12, 24, 48\] as const/);
-  assert.match(billing, /const CADENCES = \[1, 2, 3, 4, 5, 6\] as const/);
-  assert.match(billing, /boApi\.updateBillingProductPlan/);
+  assert.ok(billing.includes("plans.map(plan => <article key={plan.id}"));
+  assert.ok(billing.includes("productPlanLookupLabel(plan, plans)"));
+  assert.doesNotMatch(billing, /boApi\.updateBillingProductPlan|void configure\(plan\)/);
   assert.match(billing, /boApi\.createBillingSale/);
   assert.match(billing, /boApi\.billingBill/);
   assert.match(billing, /boApi\.recordBillingTransaction/);
   assert.match(billing, /"PAYMENT"/);
   assert.match(billing, /"REFUND"/);
   assert.match(api, /billingProductPlans:/);
-  assert.match(api, /billing\/product-plans\/\$\{encodeURIComponent\(productPlanId\)\}\/configure/);
+  // Shared legacy client declaration is inert: no BO UI caller, ingress or transport remains.
+  assert.match(api, /billingProductPlans/);
+  assert.doesNotMatch(writeHandler, /BILLING_PLAN_CONFIG_PATH/);
   assert.match(api, /createBillingSale: \(body: \{[^}]*centerId: string/);
   assert.match(api, /recordBillingTransaction:/);
   assert.match(api, /preflightBulkEnrollments:/);

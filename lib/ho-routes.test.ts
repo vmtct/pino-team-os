@@ -7,8 +7,11 @@ import { decideHostBoundary } from "./host-boundary";
 const ho="ho.staging.pinohouse.art";
 test("HO route manifest keeps the approved distinct pages",()=>{
  // PAP-1606 / PAP-1601 PLT-UI-LOCALE-BO-HO: include approved Language Mapping alongside Custom Attributes.
- assert.equal(Object.keys(HO_PAGE_PATHS).length,29);
- assert.equal(new Set(Object.values(HO_PAGE_PATHS)).size,29);
+ assert.equal(Object.keys(HO_PAGE_PATHS).length,32);
+ assert.equal(new Set(Object.values(HO_PAGE_PATHS)).size,32);
+ assert.equal(HO_PAGE_PATHS.learningSpaces,"/ho/learning-spaces");
+ assert.equal(HO_PAGE_PATHS.postApproval,"/ho/content/post-approval");
+ for(const host of ["bo.staging.pinohouse.art","tos.staging.pinohouse.art","ho.pinohouse.art"])assert.equal(decideHostBoundary(host,HO_PAGE_PATHS.postApproval).action,"not_found");
  assert.equal(HO_PAGE_PATHS.languageMappings,"/ho/language-mappings");
  assert.equal(HO_PAGE_PATHS.paths,"/ho/learning/paths");
  assert.equal(HO_PAGE_PATHS.specialties,"/ho/learning/specialties");
@@ -63,6 +66,23 @@ test("middleware and auth pages preserve safe return-to only for HO",()=>{
  assert.match(middleware,/forwarded\.delete\("x-pino-ho-return-to"\)/);
  assert.match(middleware,/login\.searchParams\.set\("returnTo", ret\)/);
  assert.match(layout,/safeHoReturnTo\(requestHeaders\.get\("x-pino-ho-return-to"\)\)/);
- assert.match(login,/safeHoReturnTo\(new URLSearchParams\(window\.location\.search\)\.get\("returnTo"\)\)/);
- assert.match(password,/safeHoReturnTo\(new URLSearchParams\(window\.location\.search\)\.get\("returnTo"\)\)/);
+ assert.match(login,/hoStagingReturnFromSearch\(window\.location\.search\)/);
+ assert.match(password,/hoStagingReturnFromSearch\(window\.location\.search\)/);
+});
+
+test("PAP-2395 canonical native Staff return-to rejects fixture and preserves real record",()=>{
+ const p=HO_PAGE_PATHS.staffs;
+ assert.equal(safeHoReturnTo(p+"?utm_source=chatgpt.com"),p);
+ assert.equal(safeHoReturnTo(p+"?m1Preview=1&utm_source=chatgpt.com"),null);
+ assert.equal(safeHoReturnTo(p+"?m1Preview=1&record=STAFF-MOCK-001&utm_source=chatgpt.com"),null);
+ for(const suffix of ["?record=STAFF-MOCK-001","?record=","?m1Preview=0","?m1Preview=1&m1Preview=1","?m1Preview=1&redirect=//evil.example","?m1Preview=1&record=0198d050-56c1-7ac5-b9ab-b0e45d912345","?m1Preview=1&record=STAFF-MOCK-001&record=STAFF-MOCK-002"])assert.equal(safeHoReturnTo(p+suffix),null);
+ assert.equal(safeHoReturnTo("/ho/centers?m1Preview=1"),null);
+ assert.equal(safeHoReturnTo(p+"?record=0198d050-56c1-7ac5-b9ab-b0e45d912345"),p+"?record=0198d050-56c1-7ac5-b9ab-b0e45d912345");
+});
+test("PAP-2365 Product Plans return path is HO-only and preserves real record/tab",()=>{
+ const path=HO_PAGE_PATHS.productPlans,id="0199f000-0001-7000-8000-000000000001";
+ assert.equal(path,"/ho/billing/product-plans");
+ assert.equal(safeHoReturnTo(path+"?record="+id+"&tab=history&utm_source=chatgpt.com"),path+"?record="+id+"&tab=history");
+ for(const q of ["?m1Preview=0","?m1Preview=1","?m1Preview=1&m1Preview=1","?record=PRODUCT-PLAN-MOCK-001","?record=ROLE-MOCK-001","?record="+id+"&tab=history&tab=overview","?tab=subscriptions","?next=/bo"])assert.equal(safeHoReturnTo(path+q),null);
+ for(const host of ["bo.staging.pinohouse.art","tos.staging.pinohouse.art","ho.pinohouse.art"])assert.equal(decideHostBoundary(host,path).action,"not_found");
 });

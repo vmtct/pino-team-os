@@ -84,7 +84,7 @@ test("PAP-1962 launcher title width contract is scoped to Afterschool", async ()
  const sheet=await handleRequest(req("/piner-shell.css"),fixture);
  const css=await sheet.text();
  assert.match(css, /\.house \.card-copy strong \.pino-word\{font-size:calc\(1em \+ 2px\)\}/);
- assert.match(css, /\.house \.card-copy strong \.afterschool-word\{font-size:calc\(\.4244em - 1px\);letter-spacing:-\.06em;/);
+ assert.match(css, /\.house \.card-copy strong \.afterschool-word\{font-size:calc\(\.4244em\);letter-spacing:-\.06em;/);
  assert.match(css, /\.house \.card-copy strong \.pino-word,\.house \.card-copy strong \.afterschool-word\{display:block\}/);
  assert.doesNotMatch(css,/\.mytime \.card-copy strong \.afterschool-word/);
 });
@@ -98,3 +98,10 @@ test("PAP-1964 brand scale on launcher only: Piner -20%, PINO sigil +50%",async(
  assert.match(css,/\.brand \.sigil\{width:29px;height:29px;/);
  assert.match(css,/\.brand \.wordmark\{width:auto;height:29px;/);
 });
+test("PAP-2194 launcher fade opaque 10 percent and transparent 33 percent",async()=>{const css=await (await handleRequest(req("/piner-shell.css"),fixture)).text();assert.match(css,/linear-gradient\(90deg,#fffcf5 0%,#fffcf5 10%,rgba\(255,252,245,0\) 33%\)/);assert.match(css,/linear-gradient\(90deg,#f0fcf9 0%,#f0fcf9 10%,rgba\(240,252,249,0\) 33%\)/);});
+
+test("PAP-2194 launcher cards retain subtle warm elevation",async()=>{const css=await (await handleRequest(req("/piner-shell.css"),fixture)).text();assert.match(css,/box-shadow:0 9px 26px #765e481c,0 2px 6px #765e480a;isolation:isolate/);});
+
+test("PAP-2194 signed-in launcher has increased responsive program gap",async()=>{const css=await (await handleRequest(req("/piner-shell.css"),fixture)).text();assert.match(css,/grid-template-rows:repeat\(2,minmax\(0,1fr\)\);gap:clamp\(12px,2.6dvh,22px\)/);});
+
+test("PAP-2194 launcher interaction feedback respects input and reduced motion",async()=>{const css=await (await handleRequest(req("/piner-shell.css"),fixture)).text();assert.match(css,/@media\(hover:hover\) and \(pointer:fine\)/);assert.match(css,/program-card:hover\{transform:translateY\(-2px\)/);assert.match(css,/program-card:active\{transform:scale\(\.985\)/);assert.match(css,/program-card:focus-visible\{outline:2px solid #805a7b/);});

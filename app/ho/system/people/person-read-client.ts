@@ -1,5 +1,5 @@
 /** PAP-2180 — HO Person read-only client; never infer identity from matching names. */
-export type PersonRole={kind:"STUDENT"|"STAFF"|"GUEST";id:string;displayName:string|null;status:string|null};
+export type PersonRole={kind:"STUDENT"|"STAFF"|"PARENT"|"GUEST";id:string;displayName:string|null;status:string|null};
 export type PersonDto={id:string;displayName:string|null;roles:PersonRole[];avatar:{id:string|null;status:"SELF_MISSING"|"NEEDS_REPAIR"|"NOT_STARTED"|"IN_PROGRESS"|"READY";selfStatus:"ACTIVE"|"ARCHIVED"|null;nickname:string|null};createdAt:string;updatedAt:string;createdBy:string|null;updatedBy:string|null;version:number};
 const ID=/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const fail=():never=>{throw new Error("Invalid Person projection");};
@@ -11,7 +11,7 @@ const oneOf=<T extends string>(v:unknown,values:readonly T[]):T=>typeof v==="str
 export function decodePerson(value:unknown):PersonDto{
  const r=obj(value),a=obj(r.avatar);
  if(!Array.isArray(r.roles))fail();
- const roles=(r.roles as unknown[]).map(v=>{const o=obj(v);return {kind:oneOf(o.kind,["STUDENT","STAFF","GUEST"] as const),id:id(o.id),displayName:nullable(o.displayName),status:nullable(o.status)};});
+ const roles=(r.roles as unknown[]).map(v=>{const o=obj(v);return {kind:oneOf(o.kind,["STUDENT","STAFF","PARENT","GUEST"] as const),id:id(o.id),displayName:nullable(o.displayName),status:nullable(o.status)};});
  if(new Set(roles.map(x=>x.kind)).size!==roles.length)fail();
  const self=a.id===null?null:id(a.id);
  const status=oneOf(a.status,["SELF_MISSING","NEEDS_REPAIR","NOT_STARTED","IN_PROGRESS","READY"] as const);
@@ -31,7 +31,8 @@ export function decodePersonPage(value:unknown){
 export function decodeUnlinkedCounts(value:unknown){
  const r=obj(value);
  for(const n of [r.students,r.staff])if(typeof n!=="number"||!Number.isSafeInteger(n)||n<0)fail();
- return {students:r.students as number,staff:r.staff as number};
+ if(r.parents!==undefined&&(typeof r.parents!=="number"||!Number.isSafeInteger(r.parents)||r.parents<0))fail();
+ return {students:r.students as number,staff:r.staff as number,...(r.parents===undefined?{}:{parents:r.parents as number})};
 }
 export class PersonReadError extends Error{constructor(readonly status:number){super("Person read unavailable");}}
 export function createPersonReader(fetcher:typeof fetch=fetch){

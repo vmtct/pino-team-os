@@ -1,11 +1,17 @@
 "use client";
 import { NativeCustomAttributeValues } from "@/app/components/custom-attributes/NativeCustomAttributeValues";
+import { CustomAttributeProperties } from "@/app/components/custom-attributes/CustomAttributeProperties";
+import {useParentM1,useParentM1Grants} from "./parent-m1-context";
+import {useParentLiveScope} from "./parent-live-context";
+import {parentMockId,PARENT_MOCK_CENTER} from "./parent-m1-fixture";
 /** PAP-1814 · Epic PAP-1384 / SCH-PARENTS-GUARDIANS.
  * Native BO DSA Parent Table → Quick Drawer → Full Detail.
  * No TDD registry/controller/surface adapter; Core owns scope and writes.
  */
 import "@pino/design-system/bo-tokens.css";
 import "@pino/design-system/components.css";
+import { PinoNavLocaleContext } from "@/lib/pino-nav-locale-context";
+import { pinoLocalizedLabel } from "@/lib/pino-nav-locale";
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { BoDataTable } from "@/app/bo/components/registration/BoDataTable";
 import { BoQuickView } from "@/app/bo/components/registration/BoQuickView";
@@ -17,7 +23,7 @@ import { DetailFrame } from "@/app/components/workspace-renderer/DetailFrame";
 import { defaultTable, type BoRecord, type BoTableState } from "@/lib/bo-registration";
 import { ParentCreateDrawer } from "./ParentCreateDrawer";
 import { parentNativeModule } from "./parent-native-model";
-import { loadNativeParentContext, loadNativeParentDirectory, nativeParentUuid,
+import { loadNativeParentContext, loadNativeParentLiveGrants, loadNativeParentDirectory, nativeParentUuid,
   saveNativeParentName, type NativeParentRow } from "./parent-native-data";
 
 const initial = (): BoTableState => ({ ...defaultTable(parentNativeModule.fields), pageSize: 15 });
@@ -35,7 +41,7 @@ function readableError(cause:unknown) {
 }
 
 export function ParentDirectoryDsa() {
-  const center=useBoCenterSelection(), menu=useContext(BoApplicationShellContext);
+  const center=useBoCenterSelection(), menu=useContext(BoApplicationShellContext),fixture=useParentM1();
   const id=center && !center.loading && !center.error ? center.selected : "";
   useEffect(()=>{document.title="Parents & Guardians · PINO BO";},[]);
   return <section aria-label="Parents & Guardians" data-parent-native-dsa="PAP-1814">
@@ -43,11 +49,20 @@ export function ParentDirectoryDsa() {
       center.loading ? <p role="status">Đang xác thực cơ sở…</p> :
       center.error ? <p role="alert">{center.error}</p> :
       !id ? <p role="status">Chọn cơ sở được cấp quyền để xem Parent.</p> :
-      <ScopedParents key={id+":"+center.source} centerId={id}
-        centerName={center.centers.find(x=>x.id===id)?.displayName} menu={menu?.("menu-btn")}/>}
+      <ScopedParents key={id+":"+center.source} centerId={fixture?PARENT_MOCK_CENTER:id}
+        centerName={fixture?"Cần Thơ · Mẫu":center.centers.find(x=>x.id===id)?.displayName} menu={menu?.("menu-btn")}/>}
   </section>;
 }
 function ScopedParents({centerId,centerName,menu}:{centerId:string;centerName?:string;menu?:React.ReactNode}) {
+  // PAP-2387 / SCH-PARENTS-GUARDIANS: reuse the BO navigation language.
+  const fixture=useParentM1(),fixtureGrants=useParentM1Grants(),liveScope=useParentLiveScope();
+  const reattest=useCallback((signal:AbortSignal)=>{
+    if(liveScope){if(liveScope.centerId!==centerId)return Promise.reject(Error("Parent Center scope changed"));return loadNativeParentLiveGrants(liveScope,signal);}
+    return loadNativeParentContext(centerId,signal);
+  },[centerId,liveScope]);
+  const language=useContext(PinoNavLocaleContext)?.language??"vi";
+  const title=pinoLocalizedLabel("bo","Module Title","parents",parentNativeModule.label,language);
+  const createLabel=language==="vi"?"+ Phụ huynh":"+ Parent";
   const [table,setTable]=useState<BoTableState>(initial);
   const [rows,setRows]=useState<NativeParentRow[]>([]);
   const [status,setStatus]=useState<"loading"|"ready"|"error">("loading");
@@ -74,28 +89,28 @@ function ScopedParents({centerId,centerName,menu}:{centerId:string;centerName?:s
   useEffect(()=>{
     const ctl=new AbortController();
     queueMicrotask(()=>{if(!ctl.signal.aborted){setAuthorized(false);setError("");}});
-    void loadNativeParentContext(centerId,ctl.signal).then(value=>{
+    void (fixture?Promise.resolve(fixtureGrants??new Set<string>()):reattest(ctl.signal)).then(value=>{
       if(!ctl.signal.aborted){setGrants(value);setAuthorized(true);}
-    }).catch(cause=>{if(!ctl.signal.aborted){setStatus("error");setError(readableError(cause));}});
+    }).catch(cause=>{if(!ctl.signal.aborted){setStatus("error");setError(readableError(cause));setGrants(new Set());setRows([]);setDrawer(null);setDetail(null);setCreating(false);}});
     return()=>ctl.abort();
-  },[centerId]);
+  },[centerId,fixture,fixtureGrants,reattest]);
   useEffect(()=>{
     if(!authorized)return;
     const ctl=new AbortController();
     queueMicrotask(()=>{if(!ctl.signal.aborted)setStatus("loading");});
-    void loadNativeParentDirectory(centerId,ctl.signal).then(value=>{
+    void (fixture?Promise.resolve().then(()=>fixture.list(centerId)):reattest(ctl.signal).then(value=>{ctl.signal.throwIfAborted();setGrants(value);return loadNativeParentDirectory(centerId,ctl.signal);})).then(value=>{
       if(ctl.signal.aborted)return;
       setRows(value);setStatus("ready");setError("");
       const target=new URL(window.location.href).searchParams.get("record");
-      if(target&&nativeParentUuid(target)) {
+      if(target&&(fixture?parentMockId(target):nativeParentUuid(target))) {
         const match=value.find(x=>x.id===target);
         if(match&&!selectionOpen.current){selectionOpen.current=true;setDrawer(match);}
         else if(!match)setError("Parent không tồn tại hoặc không thuộc cơ sở được cấp quyền.");
-      }
-    }).catch(cause=>{if(!ctl.signal.aborted){setRows([]);setStatus("error");setError(readableError(cause));}});
+      }else if(target&&fixture)setError("M1 chỉ hiển thị dữ liệu mẫu; bản ghi thật không được tải.");
+    }).catch(cause=>{if(!ctl.signal.aborted){setRows([]);setGrants(new Set());setDrawer(null);setDetail(null);setCreating(false);selectionOpen.current=false;setStatus("error");setError(readableError(cause));}});
     return()=>ctl.abort();
   // A write refresh must never silently switch Center or broaden Directory scope.
-  },[centerId,authorized,refresh]);
+  },[centerId,authorized,refresh,fixture,reattest]);
   useEffect(()=>{
     const onBack=()=>{
       const id=new URL(window.location.href).searchParams.get("record");
@@ -124,8 +139,9 @@ function ScopedParents({centerId,centerName,menu}:{centerId:string;centerName?:s
     const ctl=new AbortController();
     mutations.current?.abort();mutations.current=ctl;
     // Recheck Core actor/Center before attempting name-only PATCH.
-    const current=await loadNativeParentContext(centerId,ctl.signal);
-    const actual=await saveNativeParentName(centerId,detail,value,current,ctl.signal);
+    const current=fixture?grants:await reattest(ctl.signal);
+    ctl.signal.throwIfAborted();
+    const actual=fixture?fixture.rename(centerId,detail.id,value,Number(detail.version)):await saveNativeParentName(centerId,detail,value,current,ctl.signal);
     if(ctl.signal.aborted)return;
     setGrants(current);setRows(list=>list.map(r=>r.id===actual.id?actual:r));
     setDetail(actual);setRefresh(n=>n+1);
@@ -138,7 +154,7 @@ function ScopedParents({centerId,centerName,menu}:{centerId:string;centerName?:s
     rows.filter(r=>preset==="linked" ? Number(r.studentCount)>0 : r.studentCount===0);
   const builtInViews=<div className="quick-views" role="group" aria-label="Lọc Parents">
     {viewLabels.map(v=><button key={v.id} type="button" aria-pressed={preset===v.id}
-      className={preset===v.id?"selected":""} onClick={()=>changePreset(v.id)}>{v.title}</button>)}
+      className={"view-tab "+(preset===v.id?"active":"")} onClick={()=>changePreset(v.id)}>{v.title}</button>)}
   </div>;
   return <>
     {detail ? <DetailFrame title={detail.name} subtitle={detail.id} onBack={close}
@@ -147,10 +163,11 @@ function ScopedParents({centerId,centerName,menu}:{centerId:string;centerName?:s
         {null}
       </DetailFrame> :
     <section id="list-screen">
-      <div className="page-heading"><div className="page-heading-left">{menu}<h1>Parents & Guardians</h1></div>
+      <div className="page-heading"><div className="page-heading-left">{menu}<h1>{title}</h1></div>
         <div className="heading-actions">{authorized&&grants.has("identity.parent.create")&&
-          <button className="primary-btn" type="button" onClick={()=>setCreating(true)}>＋ Parent</button>}</div>
+          <button className="primary-btn" type="button" onClick={()=>setCreating(true)}>{createLabel}</button>}</div>
       </div>
+      {fixture&&<p className="settings-hint">M1 · Dữ liệu mẫu — không ghi vào hệ thống</p>}
       {notice&&<p role="status">{notice}</p>}
       {error&&<p role="alert">{error} <button type="button" onClick={()=>setRefresh(x=>x+1)}>Thử lại</button></p>}
       {!authorized ? <p role="status">Đang xác minh quyền theo Center…</p> :
@@ -164,7 +181,7 @@ function ScopedParents({centerId,centerName,menu}:{centerId:string;centerName?:s
           undo={()=>{}} canUndo={false}/>}
     </section>}
     {drawer&&!detail&&<BoQuickView module={parentNativeModule} moduleKey="parents" record={drawer}
-      onClose={close} onDetail={full} extraSection={authorized&&centerId?<NativeCustomAttributeValues entity="Parent" entityId={drawer.id} centerId={centerId} variant="drawer"/>:null}/>}
+      onClose={close} onDetail={full} extraSection={fixture?<CustomAttributeProperties items={[]} variant="drawer"/>:authorized&&centerId?<NativeCustomAttributeValues entity="Parent" entityId={drawer.id} centerId={centerId} variant="drawer"/>:null}/>}
     {creating&&authorized&&grants.has("identity.parent.create")&&
       <ParentCreateDrawer centerId={centerId} centerName={centerName}
         onClose={()=>setCreating(false)} onCreated={()=>{setCreating(false);setNotice("Đã tạo Parent.");

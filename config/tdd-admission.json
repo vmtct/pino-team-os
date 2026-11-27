@@ -3,6 +3,88 @@
   "modules": [
     {
       "profile": "TDD_DEFAULT",
+      "surface": "HO",
+      "key": "learningSpaces",
+      "route": "/ho/learning-spaces",
+      "file": "app/ho/learning-spaces/page.tsx",
+      "files": [
+        "app/ho/learning-spaces/page.tsx",
+        "app/ho/learning-spaces/LearningSpaceM1Content.tsx",
+        "app/ho/learning-spaces/schema.ts",
+
+        "app/ho/learning-spaces/learning-space-client.ts",
+        "app/ho/learning-spaces/learning-space-live-schema.ts",
+        "app/ho/learning-spaces/learning-space-provider.ts",
+        "lib/ho-learning-space-contract.ts"
+      ],
+      "schema": {
+        "file": "app/ho/learning-spaces/learning-space-live-schema.ts",
+        "export": "liveSpaceSchema"
+      },
+      "binding": {
+        "file": "app/ho/learning-spaces/LearningSpaceM1Content.tsx"
+      },
+      "tests": [
+        "lib/pap2369-learning-space-native.test.ts",
+
+        "app/ho/learning-spaces/learning-space-client.test.ts",
+        "app/ho/learning-spaces/learning-space-live-schema.test.ts",
+        "app/ho/learning-spaces/learning-space-provider.test.ts",
+        "lib/ho-learning-space-handler.test.ts",
+        "lib/ho-routes.test.ts"
+      ],
+      "externalReferences": [
+        {"file":"lib/host-boundary.ts","owner":"PAP-1169"},
+        {"file":"app/ho/HoWorkspace.tsx","owner":"PAP-990"},
+        {"file":"lib/ho-routes.ts","owner":"PAP-990"},
+        {"file":"lib/ho-system.ts","owner":"PAP-1153"},
+        {"file":"lib/workspace-adapters/session.ts","owner":"PAP-2395"}
+      ]
+    },
+    {
+      "profile": "TDD_DEFAULT",
+      "surface": "HO",
+      "key": "productPlans",
+      "route": "/ho/billing/product-plans",
+      "file": "app/ho/billing/product-plans/page.tsx",
+      "files": [
+        "app/ho/billing/product-plans/page.tsx",
+        "app/ho/billing/product-plans/ProductPlanNativeContent.tsx",
+        "app/ho/billing/product-plans/schema.ts",
+        "app/ho/billing/product-plans/product-plan-native-binding.ts",
+        "app/ho/billing/product-plans/product-plan-native-contract.ts",
+        "app/ho/billing/product-plans/product-plan-stage-admission.ts",
+        "app/ho/billing/product-plans/product-plan-http-contract.ts",
+        "app/ho/billing/product-plans/product-plan-pending-journal.ts"
+      ],
+      "schema": {
+        "file": "app/ho/billing/product-plans/product-plan-native-binding.ts",
+        "export": "nativePlanSchema"
+      },
+      "binding": {
+        "file": "app/ho/billing/product-plans/ProductPlanNativeContent.tsx"
+      },
+      "tests": [
+        "lib/pap2183-product-plan-native.test.ts",
+        "app/ho/billing/product-plans/product-plan-m1-preview.test.ts",
+        "lib/ho-routes.test.ts",
+        "app/ho/billing/product-plans/product-plan-stage-admission.test.ts",
+        "app/ho/billing/product-plans/product-plan-native-binding.test.ts",
+        "app/ho/billing/product-plans/product-plan-native-contract.test.ts"
+      ],
+      "externalReferences": [
+        {
+          "file": "lib/host-boundary.ts",
+          "owner": "PAP-1169"
+        },
+        {"file":"app/ho/HoWorkspace.tsx","owner":"PAP-990"},
+        {"file":"lib/ho-routes.ts","owner":"PAP-990"},
+        {"file":"lib/ho-system.ts","owner":"PAP-1153"},
+        {"file":"lib/workspace-adapters/session.ts","owner":"PAP-2395"}
+      ]
+    },
+    {
+      "profile": "TDD_DEFAULT",
       "surface": "BO",
       "key": "classroom-diaries",
       "route": "/bo/classroom-diaries",
@@ -62,7 +144,20 @@
         "app/ho/staff/StaffPasswordReset.tsx",
         "app/ho/staff/StaffRoleAccess.tsx",
         "app/ho/staff/schema.ts",
-        "app/ho/staff/staff-rate-provider.ts"
+        "app/ho/staff/staff-rate-provider.ts",
+        "app/ho/staff/StaffManualCreateDrawer.tsx",
+        "app/ho/staff/StaffManualWorkspace.tsx",
+        "app/ho/staff/manual-create-contract.ts",
+        "app/ho/staff/manual-create-preview.ts",
+        "app/ho/staff/StaffNativeWorkspace.tsx",
+        "app/ho/staff/StaffPersonPicker.tsx",
+        "app/ho/staff/manual-staff-centers.ts",
+        "app/ho/staff/native-staff-provider.ts",
+        "app/ho/staff/staff-native-command.ts",
+        "app/ho/staff/staff-native-overview.ts",
+        "app/ho/staff/staff-person-reader.ts",
+        "app/ho/staff/staff-recovery-journal.ts",
+        "app/ho/staff/staff-phase-one-route.ts"
       ],
       "externalReferences": [
         {
@@ -86,6 +181,22 @@
           "owner": "PAP-1117"
         },
         {
+          "file": "lib/ho-manual-staff-create-receipt.ts",
+          "owner": "PAP-2358"
+        },
+        {
+          "file": "lib/ho-manual-staff-create-client.ts",
+          "owner": "PAP-2358"
+        },
+        {
+          "file": "lib/ho-manual-staff-create-flow.ts",
+          "owner": "PAP-2358"
+        },
+        {
+          "file": "lib/ho-manual-staff-readback-client.ts",
+          "owner": "PAP-2358"
+        },
+        {
           "file": "lib/workspace-adapters/session.ts",
           "owner": "PAP-1166"
         }
@@ -103,7 +214,16 @@
         "lib/pap1108-staff-rate-provider.test.ts",
         "lib/pap1144-ho-staff-password-reset.test.ts",
         "lib/pap1147-ho-staff-role.test.ts",
-        "lib/pap1117-ho-staff-properties.test.ts"
+        "lib/pap1117-ho-staff-properties.test.ts",
+        "lib/pap2353-staff-manual-create.test.ts",
+        "app/ho/staff/manual-staff-centers.test.ts",
+        "app/ho/staff/native-staff-provider.test.ts",
+        "app/ho/staff/staff-native-command.test.ts",
+        "app/ho/staff/staff-native-overview.test.ts",
+        "app/ho/staff/staff-person-reader.test.ts",
+        "app/ho/staff/staff-recovery-journal.test.ts",
+        "lib/pap2395-staff-phase-one-route.test.ts",
+        "lib/pap2395-ho-staff-directory-session.test.ts"
       ]
     },
     {
@@ -116,7 +236,17 @@
         "app/ho/system/roles/page.tsx",
         "app/ho/system/roles/HoRolesTdd.tsx",
         "app/ho/system/roles/HoRoleEditor.tsx",
-        "app/ho/system/roles/schema.ts"
+        "app/ho/system/roles/RoleMetadataPropertyHost.tsx",
+        "app/ho/system/roles/role-editor-receipt.ts",
+        "app/ho/system/roles/role-metadata-edit.ts",
+        "app/ho/system/roles/role-metadata-flow.ts",
+        "app/ho/system/roles/schema.ts",
+        "app/ho/system/roles/RoleLifecycleForms.tsx",
+        "app/ho/system/roles/role-lifecycle-model.ts",
+        "app/ho/system/roles/useRoleCreateFlow.ts",
+        "app/ho/system/roles/RoleM1Preview.tsx",
+        "app/ho/system/roles/role-m1-preview.ts",
+        "app/ho/system/roles/native-role-query.ts"
       ],
       "externalReferences": [
         {
@@ -138,6 +268,10 @@
         {
           "file": "lib/workspace-adapters/session.ts",
           "owner": "PAP-1166"
+        },
+        {
+          "file": "lib/workspace-adapters/ho-inline-command-contract.ts",
+          "owner": "PAP-1247"
         }
       ],
       "schema": {
@@ -150,6 +284,12 @@
       },
       "tests": [
         "lib/pap1169-ho-role-edit.test.ts",
+        "lib/pap2373-role-editor-receipt.test.ts",
+        "lib/pap2373-role-metadata-flow.test.ts",
+        "lib/pap1247-ho-inline-command-contract.test.ts",
+        "lib/pap2192-role-lifecycle-model.test.ts",
+        "lib/pap2192-role-m1.test.ts",
+        "lib/pap2373-native-role-query.test.ts",
         "lib/host-boundary.test.ts"
       ]
     },
@@ -484,6 +624,10 @@
         "app/ho/learning/missions/read-edit.ts",
         "app/ho/learning/missions/MissionCreateFields.tsx",
         "app/ho/learning/missions/mission-path-options.ts",
+        "app/ho/learning/missions/mission-category.ts",
+        "app/ho/learning/missions/mission-supplemental-url.ts",
+        "app/ho/learning/missions/mission-m1-boundary.ts",
+        "app/ho/learning/missions/mission-m1-query.ts",
         "lib/mission-history.ts",
         "lib/bo-registration.ts"
       ],
@@ -502,9 +646,15 @@
         "lib/pap1207-ho-mission-create-ui.test.ts",
         "lib/pap1207-ho-mission-s2-path-selector.test.ts",
         "lib/pap1207-ho-mission-edit.test.ts",
-        "lib/pap1188-mission-history.test.ts"
+        "lib/pap1188-mission-history.test.ts",
+        "lib/pap1207-ho-mission-s5-parity.test.ts",
+        "lib/pap2394-mission-category.test.ts"
       ],
       "externalReferences": [
+        {
+          "file": "lib/m1-preview/admission.server.ts",
+          "owner": "PAP-2342"
+        },
         {
           "file": "app/ho/HoWorkspace.tsx",
           "owner": "PAP-1606"
@@ -761,6 +911,7 @@
         "lib/pap1526-bo-bill-table.test.ts"
       ],
       "externalReferences": [
+        {"file":"lib/bo-student-center-api.ts","owner":"PAP-2219"},
         {"file":"app/bo/architecture/bo-unified-workspace-source.ts","owner":"PAP-1421"},
         {"file":"app/bo/components/registration/BoRuntimeBoundary.tsx","owner":"PAP-1407"},
         {"file":"lib/host-boundary.ts","owner":"PAP-1220"},
@@ -944,8 +1095,36 @@
         "app/bo/piner-posts/draft-retry-journal.ts",
         "app/bo/piner-posts/native-draft-binding.ts",
         "app/bo/piner-posts/native-draft-session.ts",
+        "app/bo/piner-posts/native-post-query.ts",
+        "app/bo/piner-posts/native-post-navigation.ts",
+        "app/bo/piner-posts/post-preview-navigation.ts",
+        "app/bo/piner-posts/post-preview-query.ts",
+        "app/bo/piner-posts/post-preview-session.ts",
+        "app/bo/piner-posts/post-preview-photos.ts",
         "app/bo/piner-posts/page.tsx",
-        "app/bo/piner-posts/schema.ts"
+        "app/bo/piner-posts/schema.ts",
+        "app/bo/piner-posts/NativePrivateMediaPanel.tsx",
+        "app/bo/piner-posts/private-media-client.ts",
+        "app/bo/piner-posts/private-media-controller.ts",
+        "app/bo/piner-posts/private-media-shell.module.css",
+        "app/bo/piner-posts/private-media-shell.tsx",
+        "app/bo/piner-posts/NativeDiarySources.tsx",
+        "app/bo/piner-posts/NativeReviewFilmstrip.tsx",
+        "app/bo/piner-posts/diary-upload-recovery.ts",
+        "app/bo/piner-posts/native-diary-composer.ts",
+        "app/bo/piner-posts/native-review-order.ts",
+        "app/bo/piner-posts/native-submit-review.ts",
+        "app/bo/piner-posts/workflow-client.ts",
+        "app/bo/piner-posts/workflow-coordinator.ts",
+        "app/bo/piner-posts/workflow-read-client.ts"
+      ],
+      "businessStyles": [
+        {
+          "file": "app/bo/piner-posts/private-media-shell.module.css",
+          "owner": "PAP-2172",
+          "consumer": "app/bo/piner-posts/private-media-shell.tsx",
+          "classes": ["stack", "row", "preview", "image"]
+        }
       ],
       "schema": {
         "file": "app/bo/piner-posts/native-draft-binding.ts",
@@ -959,7 +1138,22 @@
         "lib/pap2134-native-draft-binding.test.ts",
         "lib/pap2134-native-draft-session.test.ts",
         "lib/pap2134-posts-nav-access.test.ts",
-        "lib/pap2134-posts-url.test.ts"
+        "lib/pap2134-posts-url.test.ts",
+        "lib/pap2172-private-media-shell.test.ts",
+        "lib/pap2173-private-media-controller.test.ts",
+        "lib/pap2173-private-media-client.test.ts",
+        "lib/pap2173-private-media-handler.test.ts",
+        "lib/bo-post-diary-upload-recovery.test.ts",
+        "lib/bo-post-native-diary-composer.test.ts",
+        "lib/bo-post-native-review-order.test.ts",
+        "lib/bo-post-native-submit-review.test.ts",
+        "lib/bo-post-workflow-client.test.ts",
+        "lib/bo-post-workflow-coordinator.test.ts",
+        "lib/bo-post-workflow-handler.test.ts",
+        "lib/bo-post-workflow-read-client.test.ts",
+        "lib/bo-post-workflow-read-handler.test.ts",
+        "lib/bo-post-native-navigation.test.ts",
+        "lib/bo-post-actor-continuity.test.ts"
       ],
       "externalReferences": [
           {
@@ -987,10 +1181,6 @@
           "owner": "PAP-1732"
         },
         {
-          "file": "lib/bo-mission-assignment-options.ts",
-          "owner": "PAP-1210"
-        },
-        {
           "file": "lib/bo-student-center-api.ts",
           "owner": "PAP-1426"
         },
@@ -1004,24 +1194,29 @@
     {
       "profile": "TDD_DEFAULT",
       "surface": "BO",
-      "key": "mytime-guests",
-      "route": "/bo/mytime-guests",
-      "file": "app/bo/mytime-guests/page.tsx",
+      "key": "guests",
+      "route": "/bo/guests",
+      "file": "app/bo/guests/page.tsx",
       "files": [
-        "app/bo/mytime-guests/page.tsx",
+        "app/bo/guests/page.tsx",
         "app/bo/mytime-guests/BoMyTimeGuests.tsx",
         "app/bo/mytime-guests/MyTimeGuestsRuntime.tsx",
         "app/bo/mytime-guests/schema.ts",
         "app/bo/mytime-guests/provider.ts",
-        "app/bo/mytime-guests/nav-access.ts"
+        "app/bo/mytime-guests/nav-access.ts",
+        "app/bo/mytime-guests/GuardianPreview.tsx",
+        "app/bo/mytime-guests/guardian-recovery.ts",
+        "lib/guest-intake-contract.ts"
       ],
       "schema": {"file":"app/bo/mytime-guests/schema.ts","export":"guestSchema"},
       "binding": {"kind":"SURFACE_WORKSPACE_ADAPTER","file":"app/bo/mytime-guests/BoMyTimeGuests.tsx"},
-      "tests": ["lib/pap2147-guest-provider.test.ts","lib/pap2147-guest-boundary.test.ts"],
+      "tests": ["lib/pap2147-guest-provider.test.ts","lib/pap2147-guest-boundary.test.ts","lib/guest-intake-contract.test.ts","lib/pap2202-guardian-recovery.test.ts"],
       "externalReferences": [
+        {"file":"app/bo/components/registration/BoCenterSelection.tsx","owner":"PAP-1316"},
         {"file":"lib/host-boundary.ts","owner":"PAP-2147"},
         {"file":"lib/workspace-adapters/session.ts","owner":"PAP-1221"},
-        {"file":"lib/ho-routes.ts","owner":"PAP-2164"}
+        {"file":"lib/ho-routes.ts","owner":"PAP-2164"},
+        {"file":"app/bo/components/registration/BoQuickView.tsx","owner":"PAP-1669"}
       ]
     },
     {
@@ -1041,12 +1236,15 @@
       ],
       "schema": {"file":"app/components/mytime-workshop/schema.ts","export":"boWorkshopSchema"},
       "binding": {"kind":"SURFACE_WORKSPACE_ADAPTER","file":"app/components/mytime-workshop/WorkshopWorkspace.tsx"},
-      "tests": ["lib/mytime-workshop-api-client.test.ts","lib/mytime-workshop-runtime-binding.test.ts","lib/mytime-workshop-host-contract.test.ts","lib/mytime-workshop-navigation.test.ts","lib/mytime-workshop-reference-codec.test.ts"],
+      "tests": ["lib/mytime-workshop-api-client.test.ts","lib/mytime-workshop-runtime-binding.test.ts","lib/mytime-workshop-host-contract.test.ts","lib/mytime-workshop-navigation.test.ts","lib/mytime-workshop-reference-codec.test.ts","lib/mytime-workshop-datetime.test.ts"],
       "externalReferences": [
+        {"file":"app/bo/components/registration/BoCenterSelection.tsx","owner":"PAP-1316"},
         {"file":"lib/mytime-workshop-host-contract.ts","owner":"PAP-2164"},
         {"file":"lib/host-boundary.ts","owner":"PAP-2164"},
         {"file":"lib/workspace-adapters/session.ts","owner":"PAP-1221"},
-        {"file":"lib/ho-routes.ts","owner":"PAP-2164"}
+        {"file":"lib/ho-routes.ts","owner":"PAP-2164"},
+        {"file":"app/bo/components/registration/BoQuickView.tsx","owner":"PAP-1669"},
+        {"file":"app/components/mytime-workshop/datetime.ts","owner":"PAP-2199"}
       ]
     },
     {
@@ -1066,15 +1264,18 @@
       ],
       "schema": {"file":"app/components/mytime-workshop/schema.ts","export":"hoWorkshopSchema"},
       "binding": {"kind":"SURFACE_WORKSPACE_ADAPTER","file":"app/components/mytime-workshop/WorkshopWorkspace.tsx"},
-      "tests": ["lib/mytime-workshop-api-client.test.ts","lib/mytime-workshop-runtime-binding.test.ts","lib/mytime-workshop-host-contract.test.ts","lib/mytime-workshop-navigation.test.ts"],
+      "tests": ["lib/mytime-workshop-api-client.test.ts","lib/mytime-workshop-runtime-binding.test.ts","lib/mytime-workshop-host-contract.test.ts","lib/mytime-workshop-navigation.test.ts","lib/mytime-workshop-datetime.test.ts"],
       "externalReferences": [
+        {"file":"app/bo/components/registration/BoCenterSelection.tsx","owner":"PAP-1316"},
         {"file":"lib/mytime-workshop-host-contract.ts","owner":"PAP-2164"},
         {"file":"lib/host-boundary.ts","owner":"PAP-2164"},
         {"file":"lib/workspace-adapters/session.ts","owner":"PAP-1221"},
         {"file":"lib/ho-routes.ts","owner":"PAP-2164"},
         {"file":"lib/ho-system.ts","owner":"PAP-2164"},
         {"file":"app/ho/HoWorkspace.tsx","owner":"PAP-2164"},
-        {"file":"app/components/mytime-workshop/nav-access.ts","owner":"PAP-2164"}
+        {"file":"app/components/mytime-workshop/nav-access.ts","owner":"PAP-2164"},
+        {"file":"app/bo/components/registration/BoQuickView.tsx","owner":"PAP-1669"},
+        {"file":"app/components/mytime-workshop/datetime.ts","owner":"PAP-2199"}
       ]
     }
     ,{
@@ -1087,7 +1288,8 @@
       "schema":{"file":"app/bo/enrollments/schema.ts","export":"enrollmentSchema"},
       "binding":{"kind":"SURFACE_WORKSPACE_ADAPTER","file":"app/bo/enrollments/BoEnrollmentDirectory.tsx"},
       "tests":["app/bo/enrollments/schema.test.ts","app/bo/enrollments/provider.test.ts","app/bo/enrollments/enrollment-read-client.test.ts","app/bo/enrollments/route.test.ts"],
-      "externalReferences":[{"file":"lib/host-boundary.ts","owner":"PAP-2181"},{"file":"lib/workspace-adapters/session.ts","owner":"PAP-1221"},{"file":"lib/bo-skeleton.ts","owner":"PAP-901"},{"file":"lib/ho-routes.ts","owner":"PAP-1220"}]
+      "externalReferences":[
+        {"file":"app/bo/components/registration/BoCenterSelection.tsx","owner":"PAP-1316"},{"file":"lib/host-boundary.ts","owner":"PAP-2181"},{"file":"lib/workspace-adapters/session.ts","owner":"PAP-1221"},{"file":"lib/bo-skeleton.ts","owner":"PAP-901"},{"file":"lib/ho-routes.ts","owner":"PAP-1220"},{"file":"app/bo/components/registration/BoQuickView.tsx","owner":"PAP-1669"}]
     }
     ,{
       "profile":"TDD_DEFAULT",
@@ -1099,7 +1301,7 @@
       "schema":{"file":"app/ho/system/people/schema.ts","export":"personSchema"},
       "binding":{"file":"app/ho/system/people/HoPersonDirectory.tsx"},
       "tests":["app/ho/system/people/schema.test.ts","app/ho/system/people/person-read-client.test.ts","app/ho/system/people/person-directory-loader.test.ts","lib/ho-person-host-contract.test.ts","lib/ho-person-handler.test.ts"],
-      "externalReferences":[{"file":"lib/ho-routes.ts","owner":"PAP-2180"},{"file":"lib/ho-system.ts","owner":"PAP-2180"},{"file":"app/ho/HoWorkspace.tsx","owner":"PAP-2180"},{"file":"lib/host-boundary.ts","owner":"PAP-2180"}]
+      "externalReferences":[{"file":"lib/ho-routes.ts","owner":"PAP-2180"},{"file":"lib/ho-system.ts","owner":"PAP-2180"},{"file":"app/ho/HoWorkspace.tsx","owner":"PAP-2180"},{"file":"lib/host-boundary.ts","owner":"PAP-2180"},{"file":"lib/workspace-adapters/session.ts","owner":"PAP-2395"}]
     }
   ],
   "approvals": []

@@ -2,6 +2,15 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { BO_STAGING_HOSTNAME, HO_STAGING_HOSTNAME, TOS_STAGING_HOSTNAME, BO_HOSTNAME, decideHostBoundary, requiresBoStaffPasswordSession, requiresTosStaffSession, RETIRED_TEAM_HOSTNAME, STAFF_REGISTRATION_HOSTNAME, TOS_HOSTNAME } from "./host-boundary";
 
+test("PAP-2389 exact Parent page is BO Staging read-only ingress",()=>{
+  for(const path of ["/bo/parents","/bo/parents/"]) {
+    for(const method of ["GET","HEAD"]) assert.equal(decideHostBoundary(BO_STAGING_HOSTNAME,path,method).action,"next");
+    for(const method of ["POST","PATCH","DELETE","PUT"]) assert.equal(decideHostBoundary(BO_STAGING_HOSTNAME,path,method).action,"not_found");
+    for(const host of [BO_HOSTNAME,HO_STAGING_HOSTNAME,TOS_STAGING_HOSTNAME]) assert.equal(decideHostBoundary(host,path,"GET").action,"not_found");
+  }
+  for(const path of ["/bo/parents/child","/bo/Parents","/bo/parents/../staff"]) assert.equal(decideHostBoundary(BO_STAGING_HOSTNAME,path,"GET").action,"not_found");
+});
+
 const roleId = "0198d050-56c1-7ac5-b9ab-b0e45d912345";
 
 test("PAP-1886 native Accounts page is BO Staging and session gated", () => {
@@ -164,7 +173,7 @@ test("BO root redirects on the same host and only governed BO routes are availab
     "/api/bo/open-studio/member-path-centers/assign", "/api/bo/open-studio/passes/issue-monthly-path", "/api/bo/open-studio/admission",
     `/api/bo/open-studio/passes/${roleId}/claim-eligibility`, `/api/bo/open-studio/students/${roleId}/lifecycle`, `/api/bo/students/${roleId}/lifecycle`, `/api/bo/students/${roleId}/pinoria`, `/api/bo/students/${roleId}/pinoria/companions/${roleId}/feed`, `/api/bo/identity/parents/${roleId}/pin/reset`,
     "/api/bo/subscriptions", `/api/bo/subscriptions/${roleId}/renew`, `/api/bo/subscriptions/${roleId}/neutralize`, `/api/bo/subscriptions/${roleId}/projected-completion`,
-    "/api/bo/billing/product-plans", `/api/bo/billing/product-plans/${roleId}/configure`, "/api/bo/billing/sales",
+    "/api/bo/billing/product-plans", "/api/bo/billing/sales",
     `/api/bo/billing/bills/${roleId}`, `/api/bo/billing/bills/${roleId}/transactions`, `/api/bo/billing/bills/${roleId}/void`, `/api/bo/billing/transactions/${roleId}/void`,
     "/api/bo/enrollments", `/api/bo/enrollments/${roleId}/end`,
     "/api/bo/centers", "/api/bo/delivery/bootstrap-state", "/api/bo/delivery/enrollment-activation", "/api/bo/delivery/terms", "/api/bo/delivery/term-weeks", `/api/bo/delivery/term-weeks/${roleId}/update`, `/api/bo/delivery/term-weeks/${roleId}/delete`, `/api/bo/delivery/terms/${roleId}/neutralize`, "/api/bo/delivery/learning-spaces", `/api/bo/delivery/learning-spaces/${roleId}/lifecycle`, `/api/bo/delivery/running-classes/${roleId}/lifecycle`, "/api/bo/delivery/calendar-scope", "/api/bo/delivery/calendar-exclusions", "/api/bo/delivery/calendar-exclusions/preview", `/api/bo/delivery/calendar-exclusions/${roleId}`,
@@ -196,7 +205,7 @@ test("BO cannot reach TOS, Companion, Founder, or unapproved BO routes", () => {
     "/bo/tvs", "/bo/tvs/", "/bo/tvs/tv_123",
     "/api/workforce/context", "/api/tos-learning/sessions/day", "/api/tos-learning/open-studio/day", "/api/companion/login",
     "/founder", "/founder/sessions", "/api/founder/sessions", "/api/founder/pinoria/wish/catalog/extra", "/api/founder/pinoria/wish/catalog/wearables", `/api/founder/pinoria/wish/catalog/wearables/${roleId}`, `/api/founder/pinoria/wish/catalog/wearables/${roleId}/projection/extra`, "/api/founder/pinoria/wish/catalog/wearables/not-a-canonical-id/projection", "/api/founder/pinoria/wish/catalog/variants", `/api/founder/pinoria/wish/catalog/variants/${roleId}`, `/api/founder/pinoria/wish/banners/${roleId}/delete`, `/api/founder/pinoria/wish/release-phases/${roleId}/assign/extra`, "/api/founder/pinoria/companions/species/not-a-canonical-id", `/api/founder/pinoria/companions/species/${roleId}/delete`, "/api/founder/web-cms/manifests", "/api/founder/web-cms/manifests/sync/extra", "/api/founder/web-cms/slots", "/api/founder/ai/change-sets/not-a-canonical-id", "/api/founder/ai/change-sets/------------------------------------", "/api/founder/ai/change-sets/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", `/api/founder/ai/change-sets/${roleId}/delete`, `/api/founder/ai/change-sets/${roleId}/approve/extra`, "/bo/users", "/bo/bookings", "/api/bo/users", "/api/bo/bookings", "/bo/training/builder/extra",
-    "/api/bo/billing/product-plans/not-a-canonical-id/configure", "/api/bo/billing/sales/extra", `/api/bo/billing/bills/${roleId}/delete`, "/api/bo/billing/bills/not-a-canonical-id", `/api/bo/billing/transactions/${roleId}/void/extra`,
+    `/api/bo/billing/product-plans/${roleId}/configure`, "/api/bo/billing/product-plans/not-a-canonical-id/configure", "/api/bo/billing/sales/extra", `/api/bo/billing/bills/${roleId}/delete`, "/api/bo/billing/bills/not-a-canonical-id", `/api/bo/billing/transactions/${roleId}/void/extra`,
     "/api/bo/legacy-imports/pap21", "/api/bo/legacy-imports/pap21/dry-run/extra", "/api/bo/legacy-imports/pap21/execute/extra",
     "/api/bo/web-cms/manifests/sync", "/api/bo/web-cms/slots/not-a-canonical-id", `/api/bo/web-cms/slots/${roleId}/retire`, `/api/bo/web-cms/slots/${roleId}/draft/extra`,
     "/bo/pinoria-world/extra", "/bo/pinoria-wish/extra", "/bo/pinoria-companions/extra", "/api/bo/pinoria/worlds/extra", `/api/bo/pinoria/worlds/${roleId}/scenes/extra`, "/api/bo/pinoria/worlds/learners/not-a-canonical-id", `/api/bo/pinoria/worlds/instances/${roleId}/delete/extra`, "/api/bo/pinoria/onboarding/sets/extra", `/api/bo/pinoria/onboarding/students/${roleId}/grant/extra`, "/api/bo/pinoria/ward/sets/not-a-canonical-id", `/api/bo/pinoria/ward/sets/${roleId}/delete`, `/api/bo/pinoria/ward/sets/${roleId}/members/extra`, "/api/bo/pinoria/ward/set-webm-assets/extra",
@@ -533,16 +542,16 @@ test("HO World private facade host and method fence",()=>{const path="/api/ho/pi
   assert.deepEqual(decideHostBoundary("bo.staging.pinohouse.art",p+"/other","GET"),{action:"not_found"});
  });
 
-// PAP-2134: exact Staging-only draft verbs and UUIDv7 record; no aliases or Publish.
-test("PAP-2134 private BO Post Draft exact host and method fence",()=>{
- const page="/bo/piner-posts",base="/api/bo/learning/piner-posts",record=base+"/01912345-6789-7abc-8def-0123456789ab";
+// PAP-2134 · BO Post Draft + PAP-2228 · Piner Post: exact Staging-only draft verbs and Person GET; no aliases or Publish.
+test("PAP-2228 Piner Post Person lookup + PAP-2134 BO Post Draft exact host and method fence",()=>{
+ const page="/bo/piner-posts",base="/api/bo/learning/piner-posts",people=base+"/people",record=base+"/01912345-6789-7abc-8def-0123456789ab";
  const methods=["GET","HEAD","POST","PATCH","PUT","DELETE","OPTIONS"];
- for(const [path,allowed] of [[page,["GET","HEAD"]],[base,["GET","POST"]],[record,["GET","PATCH"]]] as const){
+ for(const [path,allowed] of [[page,["GET","HEAD"]],[base,["GET","POST"]],[people,["GET"]],[record,["GET","PATCH"]]] as const){
   for(const method of methods){assert.deepEqual(decideHostBoundary(BO_STAGING_HOSTNAME,path,method),{action:(allowed as readonly string[]).includes(method)?"next":"not_found"});}
   for(const host of [BO_HOSTNAME,TOS_HOSTNAME,TOS_STAGING_HOSTNAME,HO_STAGING_HOSTNAME,"localhost","unknown.invalid"])for(const method of methods)assert.deepEqual(decideHostBoundary(host,path,method),{action:"not_found"});
  }
  assert.equal(requiresBoStaffPasswordSession(BO_STAGING_HOSTNAME,page),true);
- for(const path of [base+"/",base+"/publish",record+"/media",base+"/01912345-6789-4abc-8def-0123456789ab",base+"%2f",base.toUpperCase(),page+"/extra",page+"/"])assert.deepEqual(decideHostBoundary(BO_STAGING_HOSTNAME,path,"GET"),{action:"not_found"});
+ for(const path of [base+"/",base+"/publish",people+"/",people+"/extra",record+"/media",base+"/01912345-6789-4abc-8def-0123456789ab",base+"%2f",base.toUpperCase(),page+"/extra",page+"/"])assert.deepEqual(decideHostBoundary(BO_STAGING_HOSTNAME,path,"GET"),{action:"not_found"});
 });
 
 test("PAP-2030 exact historical Wish Item record is HO staging GET only",()=>{
@@ -551,4 +560,33 @@ test("PAP-2030 exact historical Wish Item record is HO staging GET only",()=>{
  for(const host of ["ho.staging.pinohouse.art","bo.staging.pinohouse.art","tos.staging.pinohouse.art",BO_HOSTNAME])for(const method of ["POST","PATCH","DELETE"])assert.deepEqual(decideHostBoundary(host,p,method),{action:"not_found"});
  for(const host of ["bo.staging.pinohouse.art","tos.staging.pinohouse.art",BO_HOSTNAME])assert.deepEqual(decideHostBoundary(host,p,"GET"),{action:"not_found"});
  for(const suffix of ["/x","/0","/3/extra"])assert.deepEqual(decideHostBoundary("ho.staging.pinohouse.art","/api/ho/pinoria/pls-wish/config/item-record/"+roleId+suffix,"GET"),{action:"not_found"});
+});
+test("PAP-2371 exact HO Learning Space ingress only",()=>{
+ const root="/api/ho/learning-spaces",host=HO_STAGING_HOSTNAME,id=roleId;
+ for(const [suffix,methods] of [["",["GET","POST"]],["/"+id,["GET","PATCH","DELETE"]],["/"+id+"/classes",["GET"]],["/"+id+"/history",["GET"]],["/",[]],["/bad",[]],["/"+id+"/extra",[]]] as const){
+  for(const m of ["GET","HEAD","POST","PATCH","DELETE","PUT","OPTIONS"]){assert.deepEqual(decideHostBoundary(host,root+suffix,m),{action:(methods as readonly string[]).includes(m)?"next":"not_found"});for(const other of [BO_STAGING_HOSTNAME,TOS_STAGING_HOSTNAME,BO_HOSTNAME,"ho.pinohouse.art"])assert.deepEqual(decideHostBoundary(other,root+suffix,m),{action:"not_found"});}
+ }
+ assert.deepEqual(decideHostBoundary(host,"/api/HO/learning-spaces","GET"),{action:"not_found"});
+});
+
+test("PAP-2358 exact HO Staging Staff create and historical receipt only",()=>{
+  for(const path of ["/api/ho/staff/create","/api/ho/staff/create/receipt"]){
+    assert.deepEqual(decideHostBoundary(HO_STAGING_HOSTNAME,path,"POST"),{action:"next"});
+    for(const method of ["GET","HEAD","PATCH","DELETE"])assert.deepEqual(decideHostBoundary(HO_STAGING_HOSTNAME,path,method),{action:"not_found"});
+    for(const host of [BO_HOSTNAME,BO_STAGING_HOSTNAME,TOS_HOSTNAME,TOS_STAGING_HOSTNAME,"ho.pinohouse.art","localhost"])
+      assert.deepEqual(decideHostBoundary(host,path,"POST"),{action:"not_found"});
+  }
+  for(const path of ["/api/ho/staff/create/other","/api/ho/staff/create/receipt/other","/api/ho/staff/CREATE","/api/ho/staff/create/"])
+    assert.deepEqual(decideHostBoundary(HO_STAGING_HOSTNAME,path,"POST"),{action:"not_found"});
+});
+
+test("PAP-2358 exact HO Staging Staff directory GET only",()=>{
+  const base="/api/ho/staff/directory",id="01900000-0000-7000-8000-000000000001";
+  for(const path of [base,base+"/"+id]){
+    assert.deepEqual(decideHostBoundary(HO_STAGING_HOSTNAME,path,"GET"),{action:"next"});
+    for(const method of ["HEAD","POST","PATCH","DELETE","PUT","OPTIONS"])assert.deepEqual(decideHostBoundary(HO_STAGING_HOSTNAME,path,method),{action:"not_found"});
+    for(const host of [BO_HOSTNAME,BO_STAGING_HOSTNAME,TOS_HOSTNAME,TOS_STAGING_HOSTNAME,"ho.pinohouse.art","localhost"])assert.deepEqual(decideHostBoundary(host,path,"GET"),{action:"not_found"});
+  }
+  for(const path of [base+"/",base+"/bad",base+"/"+id+"/extra",base+"/01900000-0000-4000-8000-000000000001","/api/ho/staff/DIRECTORY"])
+    assert.deepEqual(decideHostBoundary(HO_STAGING_HOSTNAME,path,"GET"),{action:"not_found"});
 });

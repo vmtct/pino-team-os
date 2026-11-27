@@ -1,0 +1,15 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import fs from "node:fs";
+test("PAP-2286 detail replaces table in M1", () => {
+ const view=fs.readFileSync("app/bo/sales/leads/LeadHouseholdM1Preview.tsx","utf8");
+ const css=fs.readFileSync("app/bo/sales/leads/lead-household-m1.module.css","utf8");
+ assert.match(view, /!selectedLead && !\(readModel&&selectedLeadId\) \? <><header/);
+ assert.match(view, /readModel&&selectedLeadId&&!selectedLead\?<div role="status">[\s\S]*?<LeadReadStatus/);
+ assert.match(view, /<BoDataGrid[\s\S]*?<\/\> : null\}[\s\S]*?selectedLead \? <BoFullDetail/);
+ assert.match(view, /designVariant="business-v25"/);
+ assert.match(view, /styles\.propertyRows/);
+ assert.match(css, /\.propertyRows\s*\{\s*display: grid; min-width: 0/);
+ assert.match(css, /\.headingActions\s*\{[^}]*height:\s*max-content/);
+ assert.match(css, /@media \(max-width: 900px\)[\s\S]*?\.headingActions\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/);
+});

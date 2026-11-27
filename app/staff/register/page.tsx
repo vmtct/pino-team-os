@@ -1,6 +1,7 @@
 "use client";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import styles from "./staff-register.module.css";
+import { submitStaffRegistration } from "@/lib/staff-registration-submit";
 import { VIETNAM_REGISTRATION_BANKS } from "@/lib/vietnam-registration-banks";
 
 type IntakeState = "LOADING" | "OPEN" | "CLOSED";
@@ -10,6 +11,9 @@ export default function StaffRegistrationPage() {
   const [centers, setCenters] = useState<Array<{id:string;displayName:string}>>([]);
   const [selectedCenterId,setSelectedCenterId]=useState("");
   const [busy, setBusy] = useState(false);
+  const inFlight = useRef(false);
+  const terminalAttempt = useRef(false);
+  const [uncertain, setUncertain] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
 
@@ -27,16 +31,28 @@ export default function StaffRegistrationPage() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setBusy(true); setError("");
+    if (inFlight.current || terminalAttempt.current) return;
+    inFlight.current = true;
     try {
       const form = new FormData(event.currentTarget);
-      const response = await fetch("/api/staff-registration", { method: "POST", body: form });
-      const body = await response.json() as { error?: { message?: string } };
-      if (!response.ok) throw new Error(body.error?.message ?? "Không thể gửi hồ sơ nhân sự.");
-      setSubmitted(true);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Không thể gửi hồ sơ nhân sự.");
-    } finally { setBusy(false); }
+      setBusy(true); setError("");
+      const result = await submitStaffRegistration(form);
+      if (result.kind === "accepted") {
+        terminalAttempt.current = true;
+        setSubmitted(true);
+      }
+      else if (result.kind === "rejected") setError(result.message);
+      else {
+        terminalAttempt.current = true;
+        setUncertain(true);
+        setError("Chưa xác nhận được kết quả gửi hồ sơ. Thông tin vẫn được giữ trên trang này. Vui lòng liên hệ quản lý PINO để kiểm tra trước khi gửi lại.");
+      }
+    } catch {
+      setError("Không thể chuẩn bị hồ sơ nhân sự. Vui lòng kiểm tra thông tin.");
+    } finally {
+      inFlight.current = false;
+      setBusy(false);
+    }
   }
   return <main className={styles.page}>
     <div className={styles.shell}>
@@ -113,7 +129,7 @@ export default function StaffRegistrationPage() {
           <span>Tôi xác nhận các thông tin trên là chính xác và đồng ý để PINO House sử dụng cho mục đích quản lý nhân sự, xác minh hồ sơ và thanh toán liên quan đến công việc.</span>
         </label>
         {error ? <div className={styles.error} role="alert">{error}</div> : null}
-        <button className={styles.submit} disabled={busy}>{busy ? "Đang gửi hồ sơ…" : "Gửi hồ sơ nhân sự"}<span>→</span></button>
+        <button className={styles.submit} disabled={busy || uncertain}>{busy ? "Đang gửi hồ sơ…" : uncertain ? "Chưa xác nhận kết quả" : "Gửi hồ sơ nhân sự"}<span>→</span></button>
         <small className={styles.submitNote}>Việc gửi hồ sơ chưa tạo tài khoản hoặc cấp quyền. Tài khoản chỉ được provision khi Manager duyệt hồ sơ.</small>
       </form> : null}
 

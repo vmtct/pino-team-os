@@ -21,8 +21,14 @@ import { BoStudentLatestSubscription } from "./BoStudentLatestSubscription";
 import { BoStudentCreate } from "./BoStudentCreate";
 import { BoWorkforceShiftPlanCreate } from "./BoWorkforceShiftPlanCreate";
 import { BoFullDetail } from "./BoFullDetail";
+import { RunningClassCreateDrawer } from "../../running-classes/RunningClassDraftControls";
+import { classPropertyFields } from "../../running-classes/running-class-presentation";
+import type { RunningClassProvider } from "../../running-classes/running-class-provider";
+import type { ClassCreate } from "../../running-classes/running-class-draft";
+import type { ClassEditCommand } from "../../running-classes/running-class-presentation";
+import type { RunningClassReview } from "../../running-classes/running-class-review";
 import { BoTableSettings, type BoSavedView } from "./BoTableSettings";
-export type BoWorkspaceSource = { modules: Record<string, BoModule>; load: (key: string, fetcher: typeof fetch, options: Record<string, string>) => Promise<BoRecord[]>; scopeLabel: (key: string, options: Record<string, string>) => string; surface?: "ho"; readOnly?: boolean; ephemeral?: boolean; allowStudentCreate?: boolean; isModuleReadOnly?: (key: string) => boolean; routeForModule?: (key: string) => string; loadRecordDetails?: (key: string, record: BoRecord, fetcher: typeof fetch) => Promise<BoRecord> };
+export type BoWorkspaceSource = { modules: Record<string, BoModule>; load: (key: string, fetcher: typeof fetch, options: Record<string, string>) => Promise<BoRecord[]>; scopeLabel: (key: string, options: Record<string, string>) => string; surface?: "ho"; readOnly?: boolean; ephemeral?: boolean; allowStudentCreate?: boolean; runningClassReview?: RunningClassReview; runningClassLive?: RunningClassProvider; isModuleReadOnly?: (key: string) => boolean; routeForModule?: (key: string) => string; loadRecordDetails?: (key: string, record: BoRecord, fetcher: typeof fetch) => Promise<BoRecord> };
 type WorkspaceSnapshot = { table: BoTableState; views: BoSavedView[]; activeView: string | null };
 type Context = { displayName: string | null };
 const icons: Record<string, string> = { students: "◉", classes: "▦", subscriptions: "▤", enrollments: "↗", visits: "◷", staffs: "◉", termWeeks: "▦", timekeeping: "◷", salaryPeriods: "▤", worlds: "◈", catalog: "▦", sets: "▤", users: "◉", roles: "▣", audits: "≡" };
@@ -57,9 +63,13 @@ function BoWorkspace({ moduleKey, options, currentUser, source, content, headerC
   }, []);
   const readOnly = source.readOnly || source.isModuleReadOnly?.(moduleKey) === true;
   const shiftPlanCreate = moduleKey === "workforce-shift-plans" && !ho;
+  const classReview = moduleKey === "classes" && source.ephemeral ? source.runningClassReview : undefined;
+  const classLive = moduleKey === "classes" && !source.ephemeral && !ho ? source.runningClassLive : undefined;
   const studentCreate = moduleKey === "students" && (source === readApi || source.allowStudentCreate) && !readOnly;
   const definition = source.modules[moduleKey], [rows, setRows] = useState<BoRecord[]>([]), [loadState, setLoadState] = useState("loading");
   const [retry, setRetry] = useState(0);
+  const [classError,setClassError]=useState("");
+  const [classPending,setClassPending]=useState(false);
   const [table, setTable] = useState(() => defaultTable(definition.fields)), [page, setPage] = useState(1), [filterOpen, setFilterOpen] = useState(false);
   const [drawer, setDrawer] = useState<BoRecord | "create" | null>(null), [detail, setDetail] = useState<BoRecord | null>(null), [settings, setSettings] = useState<string | null>(null);
   const [undoAvailable, setUndoAvailable] = useState(false);
@@ -109,7 +119,8 @@ function BoWorkspace({ moduleKey, options, currentUser, source, content, headerC
     try { sessionStorage.setItem("pino:ho:sidebar:v1", JSON.stringify({collapsed,search:navSearch})); } catch { /* keep navigation working when storage is unavailable */ }
   }, [ho,hoNavReady,collapsed,navSearch,source.ephemeral]);
   function syncRecordFromUrl(data: BoRecord[]) {
-    const target = hoRecordId(new URL(window.location.href).searchParams.get("record"));
+    const rawTarget = new URL(window.location.href).searchParams.get("record");
+    const target = classReview ? rawTarget === classReview.fixtureId ? rawTarget : null : hoRecordId(rawTarget);
     const row = target ? data.find(r => r.id === target) : undefined;
     setDrawer(row ?? null);
     setDetail(null);
@@ -117,7 +128,7 @@ function BoWorkspace({ moduleKey, options, currentUser, source, content, headerC
   }
   function setRecordUrl(id: string | null) {
     const url = new URL(window.location.href);
-    if (id) url.searchParams.set("record", id); else url.searchParams.delete("record");
+    if (id && (!classReview || id === classReview.fixtureId)) url.searchParams.set("record", id); else url.searchParams.delete("record");
     window.history.pushState(null, "", url.pathname + url.search + url.hash);
     setHoRecordNotFound(false);
   }
@@ -188,14 +199,38 @@ function BoWorkspace({ moduleKey, options, currentUser, source, content, headerC
   const userLabel = currentUser.displayName || "Tài khoản";
   let scope = ""; try { scope = source.scopeLabel(moduleKey, options); } catch { /* adapter renders the invalid range error, with no fallback data */ }
 
-  const workspaceContent = <>{shellOnly && applicationMenuSlots === 0 ? menu("bo-application-menu-btn") : null}{content ? content : detail ? <BoFullDetail key={detail.id} module={definition} moduleKey={moduleKey} record={detail} mobileMenu={menu("detail-menu-btn")} onBack={back} onStudentNeutralized={studentCreate ? () => { setDetail(null); setRetry(n => n + 1); } : undefined}
-        onStudentRenamed={!ho && moduleKey === "students" ? nextName => {
+  const liveReady=Boolean(classLive && loadState==="ready" && classLive.state().loaded);
+  const livePending=Boolean(classLive && (classPending || classLive.state().pending));
+  async function runLiveClass(operation:()=>Promise<BoRecord>,kind:"create"|"edit"|"retry"){
+    if(!classLive||classPending)throw Error("Running Class chưa sẵn sàng.");
+    setClassPending(true);setClassError("");
+    try{
+      const updated=await operation();
+      if(!classLive.state().loaded)throw Error("Phạm vi lớp đã thay đổi.");
+      setRows(classLive.list());setLoadState("ready");
+      if(kind==="edit")setDetail(current=>current?.id===updated.id?updated:current);
+      else {setDrawer(updated);setDetail(null);setRecordUrl(updated.id);}
+    }catch(error){
+      setRows([]);setDrawer(null);setDetail(null);setLoadState("Không thể xác nhận dữ liệu lớp.");
+      setClassError(error instanceof Error?error.message:"Không thể xác nhận thao tác.");throw error;
+    }finally{setClassPending(false);}
+  }
+  const createLive=(command:ClassCreate)=>runLiveClass(()=>classLive!.create(command),"create");
+  const editLive=(command:ClassEditCommand)=>runLiveClass(()=>classLive!.edit(command),"edit");
+  const workspaceContent = <>{shellOnly && applicationMenuSlots === 0 ? menu("bo-application-menu-btn") : null}{content ? content : detail ? <BoFullDetail key={detail.id} module={definition} moduleKey={moduleKey} record={detail} mobileMenu={menu("detail-menu-btn")} onBack={back}
+        reviewOnly={source.ephemeral && moduleKey === "students"}
+        runningClassReview={classReview}
+        runningClassLive={liveReady?classLive:undefined}
+        runningClassLiveEditable={!readOnly&&Boolean(classLive?.writable)&&!livePending}
+        onRunningClassLiveEdit={editLive}
+        onRunningClassSaved={classReview ? (updated:BoRecord)=>{setRows(classReview.list());setDetail(updated);} : undefined}
+        onStudentRenamed={!source.ephemeral && !ho && moduleKey === "students" ? nextName => {
           setRows(rows => rows.map(row => row.id === detail.id ? { ...row, name: nextName } : row));
           setDetail(row => row && row.id === detail.id ? { ...row, name: nextName } : row);
         } : undefined}
-        enableStudentSubscriptions={!ho && moduleKey === "students"} /> : <section id="list-screen"><div className="page-heading"><div className="page-heading-left">{menu("menu-btn")}<h1><LocalizedModuleTitle label={definition.label} moduleKey={moduleKey} /></h1></div><div className="heading-actions">{!readOnly ? <button id="settings-btn" type="button" className="settings-trigger" title="Cài đặt bảng" aria-label="Cài đặt bảng" onClick={() => setSettings("home")}>☷</button> : null}{!readOnly && !parentReadOnly && moduleKey !== "classes" ? <button id="add-record" type="button" className="primary-btn" onClick={() => setDrawer("create")}><span>＋</span> Tạo mới</button> : null}{shiftPlanCreate ? <button id="add-shift-plan" type="button" className="primary-btn" onClick={() => setDrawer("create")}>＋ Tạo Shift Plan</button> : null}</div></div>{headerContent ?? null}{scope ? <p className="settings-hint">{scope}</p> : null}{hoRecordNotFound ? <p role="status" className="settings-hint">Bản ghi trong liên kết không còn trong danh sách hoặc không có quyền xem.</p> : null}{ho && loadState !== "loading" && loadState !== "ready" ? <button type="button" className="secondary-btn" onClick={() => setRetry(n => n + 1)}>Thử lại</button> : null}<BoDataTable legacyStyles={ho} minimal={readOnly} module={definition} rows={rows} loadState={loadState} value={table} update={update} page={page} setPage={setPage} selected={typeof drawer === "object" ? drawer?.id : undefined} onOpen={record => { setDrawer(record); setRecordUrl(record.id); if (ho) { setDetailLoading(Boolean(source.loadRecordDetails)); setDetailError(""); } }} onSettings={setSettings} filterOpen={filterOpen} setFilterOpen={setFilterOpen} views={views} changeViews={next => { update({}); setViews(next); }} activeView={activeView} applyView={view => { update(view?.state ?? defaultTable(definition.fields)); setActiveView(view?.id ?? null); }} reset={() => update(defaultTable(definition.fields))} undo={() => undo()} canUndo={undoAvailable} /></section>}</>;
+        enableStudentSubscriptions={!ho && moduleKey === "students"} /> : <section id="list-screen"><div className="page-heading"><div className="page-heading-left">{menu("menu-btn")}<h1><LocalizedModuleTitle label={definition.label} moduleKey={moduleKey} /></h1></div><div className="heading-actions">{!readOnly ? <button id="settings-btn" type="button" className="settings-trigger" title="Cài đặt bảng" aria-label="Cài đặt bảng" onClick={() => setSettings("home")}>☷</button> : null}{!readOnly && !parentReadOnly && (moduleKey !== "classes" || Boolean(classReview) || (liveReady&&classLive?.writable&&!livePending)) ? <button id="add-record" type="button" className="primary-btn" onClick={() => setDrawer("create")}><span>＋</span> Tạo mới</button> : null}{shiftPlanCreate ? <button id="add-shift-plan" type="button" className="primary-btn" onClick={() => setDrawer("create")}>＋ Tạo Shift Plan</button> : null}</div></div>{headerContent ?? null}{classLive && (classError||livePending) ? <div role="status" className="settings-hint">{classError || "Đang xác nhận thao tác Running Class."} {classLive.state().pending && (classLive.state().recovery==="READBACK"||classLive.state().recovery==="SAME_CREATE") ? <button type="button" className="secondary-btn" disabled={classPending} onClick={()=>{void runLiveClass(()=>classLive.retry(),"retry").catch(()=>{});}}>Kiểm tra lại thao tác</button> : classLive.state().pending ? "Cần đối soát thao tác chưa xác định trước khi ghi tiếp." : null}</div> : null}{classLive && !liveReady && !classPending && !classLive.state().pending ? <button type="button" className="secondary-btn" onClick={()=>{setClassError("");setRetry(n=>n+1);}}>Tải lại danh sách</button> : null}{scope ? <p className="settings-hint">{scope}</p> : null}{hoRecordNotFound ? <p role="status" className="settings-hint">Bản ghi trong liên kết không còn trong danh sách hoặc không có quyền xem.</p> : null}{ho && loadState !== "loading" && loadState !== "ready" ? <button type="button" className="secondary-btn" onClick={() => setRetry(n => n + 1)}>Thử lại</button> : null}<BoDataTable legacyStyles={ho} minimal={readOnly} module={definition} rows={rows} loadState={loadState} value={table} update={update} page={page} setPage={setPage} selected={typeof drawer === "object" ? drawer?.id : undefined} onOpen={record => { setDrawer(record); setRecordUrl(record.id); if (ho) { setDetailLoading(Boolean(source.loadRecordDetails)); setDetailError(""); } }} onSettings={setSettings} filterOpen={filterOpen} setFilterOpen={setFilterOpen} views={views} changeViews={next => { update({}); setViews(next); }} activeView={activeView} applyView={view => { update(view?.state ?? defaultTable(definition.fields)); setActiveView(view?.id ?? null); }} reset={() => update(defaultTable(definition.fields))} undo={() => undo()} canUndo={undoAvailable} /></section>}</>;
   const overlays = <>
-    {drawer === "create" && shiftPlanCreate ? <BoWorkforceShiftPlanCreate onClose={() => setDrawer(null)} onCreated={() => { setDrawer(null); setRetry(n => n + 1); }} /> : drawer === "create" && studentCreate ? <BoStudentCreate onClose={() => setDrawer(null)} onCreated={() => { setDrawer(null); setRetry(n => n + 1); }} /> : drawer ? <BoQuickView moduleKey={moduleKey} legacyStyles={ho} detailLoading={ho && detailLoading} detailError={ho ? detailError : ""} onRetryDetail={() => setDetailRetry(x => x + 1)} extraSection={!ho && moduleKey === "students" && drawer !== "create" ? <BoStudentLatestSubscription studentId={drawer.id} /> : undefined} key={typeof drawer === "string" ? "create" : drawer.id} module={definition} record={drawer === "create" ? null : drawer} onClose={() => { setDrawer(null); setRecordUrl(null); }} onDetail={() => { if (drawer === "create") return; returnScroll.current = window.scrollY; const scroll = document.getElementById("table-scroll"); returnTableScroll.current = { left: scroll?.scrollLeft ?? 0, top: scroll?.scrollTop ?? 0 }; returnSubject.current = drawer.id; setDetail(drawer); setDrawer(null); setRecordUrl(null); window.scrollTo(0, 0); }} /> : null}
+    {drawer === "create" && classReview ? <RunningClassCreateDrawer catalog={classReview.catalog} selectedCenterId={classReview.selectedCenterId} onClose={()=>setDrawer(null)} onCreate={command=>{const created=classReview.create(command);setRows(classReview.list());setDrawer(created);setRecordUrl(created.id);}} /> : drawer === "create" && liveReady && classLive?.writable ? <RunningClassCreateDrawer catalog={classLive.catalog()} selectedCenterId={options.centerId} onClose={()=>setDrawer(null)} onCreate={createLive}/> : drawer === "create" && shiftPlanCreate ? <BoWorkforceShiftPlanCreate onClose={() => setDrawer(null)} onCreated={() => { setDrawer(null); setRetry(n => n + 1); }} /> : drawer === "create" && studentCreate ? <BoStudentCreate onClose={() => setDrawer(null)} onCreated={() => { setDrawer(null); setRetry(n => n + 1); }} /> : drawer ? <BoQuickView moduleKey={moduleKey} legacyStyles={ho} detailLoading={ho && detailLoading} detailError={ho ? detailError : ""} onRetryDetail={() => setDetailRetry(x => x + 1)} extraSection={!ho && moduleKey === "students" && drawer !== "create" ? <BoStudentLatestSubscription studentId={drawer.id} /> : undefined} key={typeof drawer === "string" ? "create" : drawer.id} module={classReview || liveReady ? {...definition,fields:classPropertyFields} : definition} record={drawer === "create" ? null : classReview ? classReview.properties(drawer.id) : liveReady && classLive ? classLive.properties(drawer.id) ?? null : drawer} onClose={() => { setDrawer(null); setRecordUrl(null); }} onDetail={() => { if (drawer === "create") return; returnScroll.current = window.scrollY; const scroll = document.getElementById("table-scroll"); returnTableScroll.current = { left: scroll?.scrollLeft ?? 0, top: scroll?.scrollTop ?? 0 }; returnSubject.current = drawer.id; setDetail(drawer); setDrawer(null); setRecordUrl(null); window.scrollTo(0, 0); }} /> : null}
 
     {settings ? <BoTableSettings screen={settings} setScreen={setSettings} onClose={() => setSettings(null)} fields={definition.fields} rows={rows} value={table} update={update} views={views} setViews={next => { update({}); setViews(next); }} applyView={view => { update(view.state); setActiveView(view.id); }} /> : null}
 </>;

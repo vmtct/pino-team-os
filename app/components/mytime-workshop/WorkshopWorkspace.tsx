@@ -9,7 +9,8 @@ import {TddHostMenu} from "@/app/components/workspace-adapters/SurfaceWorkspace"
 import {fieldValueErrors,type AuthorizationContext,type ModuleRow,type MutationAdapter,type TableQuery} from "@/lib/workspace-schema";
 import type {BoRecord,BoValue} from "@/lib/bo-registration";
 import {boWorkshopSchema,hoWorkshopSchema,canonicalWorkshopSchema,type WorkshopBinding,type WorkshopFields} from "./schema";
-import {WorkshopApiError} from "./api-client";
+import {WorkshopApiError,ictWorkshopInstant} from "./api-client";
+import {workshopEditorValue} from "./datetime";
 export type WorkshopRow=ModuleRow<WorkshopFields>;
 export type VersionedWorkshop={row:WorkshopRow;version:string};
 export type WorkshopInput={name:string;center:string;startAt:string;endAt:string;missions:string[];specialty:string|null;capacity:number|null;eventLead:string|null;academicLead:string|null;otherStaff:string[];facebookUrl:string|null;note:string|null};
@@ -18,7 +19,7 @@ const keys=["name","center","startAt","endAt","missions","specialty","capacity",
 const blank=():BoRecord=>({id:"",name:"",center:"",startAt:"",endAt:"",missions:[],specialty:"",capacity:null,status:"Đã lên lịch",eventLead:"",academicLead:"",otherStaff:[],facebookUrl:"",note:"",createdAt:null,createdBy:null,updatedAt:null,updatedBy:null});
 export function checkWorkshop(input:WorkshopInput){
  if(!input.name.trim()||!input.center||!input.startAt||!input.endAt||!input.missions.length)return "Vui lòng nhập tên, chi nhánh, thời gian và ít nhất một nhiệm vụ.";
- if(!Number.isFinite(Date.parse(input.startAt))||!Number.isFinite(Date.parse(input.endAt))||Date.parse(input.endAt)<=Date.parse(input.startAt))return "Thời gian kết thúc phải sau thời gian bắt đầu.";
+ try{if(Date.parse(ictWorkshopInstant(input.endAt))<=Date.parse(ictWorkshopInstant(input.startAt)))return "Thời gian kết thúc phải sau thời gian bắt đầu.";}catch{return "Thời gian không hợp lệ.";}
  if(input.facebookUrl){try{const u=new URL(input.facebookUrl);if(!["http:","https:"].includes(u.protocol))return "Facebook link không hợp lệ.";}catch{return "Facebook link không hợp lệ.";}}
  if(input.capacity!==null&&(!Number.isInteger(input.capacity)||input.capacity<1))return "Sức chứa phải là số nguyên dương.";
  return "";
@@ -44,7 +45,7 @@ export function WorkshopWorkspace({binding,context,initialRows,port,read,nativeN
   const unsubscribe=navigation.subscribe(sync);sync();const sequence=opening;return ()=>{sequence.current++;unsubscribe();};
  },[navigation,open]);
  const navigate=(id:string,toDetail=false)=>{if(inFlight.current||request.current||draftOpen.current)return;if(navigation){if(!toDetail)navigation.capture(id);navigation.change({kind:toDetail?"detail":"drawer",recordId:id,tab:"overview",query});}else void open(id,toDetail);};
- const change=(key:string,value:BoValue)=>{if(!creatable||uncertain||inFlight.current||!keys.some(k=>k===key))return;setDraft(old=>old?{...old,[key]:value}:old);setError("");};
+ const change=(key:string,value:BoValue)=>{if(!creatable||uncertain||inFlight.current||!keys.some(k=>k===key))return;let next=value;if((key==="startAt"||key==="endAt")&&value){try{next=ictWorkshopInstant(String(value));}catch{setError("Thời gian không hợp lệ.");return;}}setDraft(old=>old?{...old,[key]:next}:old);setError("");};
  const create=async()=>{
   if(!draft||!creatable||!port||inFlight.current)return;
   const input:WorkshopInput={name:String(draft.name??"").trim(),center:String(draft.center??""),startAt:String(draft.startAt??""),endAt:String(draft.endAt??""),missions:Array.isArray(draft.missions)?draft.missions.map(String):[],specialty:String(draft.specialty??"")||null,capacity:draft.capacity==null||draft.capacity===""?null:Number(draft.capacity),eventLead:String(draft.eventLead??"")||null,academicLead:String(draft.academicLead??"")||null,otherStaff:Array.isArray(draft.otherStaff)?draft.otherStaff.map(String):[],facebookUrl:String(draft.facebookUrl??"").trim()||null,note:String(draft.note??"").trim()||null};
@@ -62,7 +63,7 @@ export function WorkshopWorkspace({binding,context,initialRows,port,read,nativeN
  return <TddPreferencePolicy.Provider value="ephemeral">
   {!draft&&error?<p role="alert">{error}</p>:null}
   <div hidden={detail}><TddRenderer view={{kind:"table",mobileMenu:menu("mytime-workshops-menu"),headerActions:creatable?<button type="button" className="primary-btn" disabled={busy||uncertain||!!draft} onClick={()=>{if(inFlight.current||request.current||draft)return;opening.current++;request.current=null;draftOpen.current=true;loaded.current=null;setDraft(blank());setSelected(null);setError("");}}>Thêm Workshop</button>:null,props:{registry,schema:nativeNavigation?(schema.surface==="HO"?canonicalWorkshopSchema(hoWorkshopSchema,schema):canonicalWorkshopSchema(boWorkshopSchema,schema)):schema,context,rows:rows.map(r=>r.row),query,status:"ready",onQueryChange:q=>{setQuery(q);if(navigation)navigation.change({...navigation.read(),query:q},true);},onOpen:r=>navigate(r.id)}}}/></div>
-  {detail&&item?<TddDetail registry={registry} schema={schema} context={context} record={item.row} subject={{type:"mytime_workshop",id:item.row.id}} mobileMenu={menu("workshop-detail-menu")} onBack={close} activeTab={navigation?tab:undefined} onTabChange={navigation?id=>{setTab(id);navigation.change({...navigation.read(),tab:id},true);}:undefined} headerActions={writable&&port?.cancel&&item.row.status!=="Đã hủy"?<button type="button" className="secondary-btn" disabled={busy} onClick={()=>void cancel()}>Hủy Workshop</button>:null} writes={writable&&port&&item.row.status!=="Đã hủy"?{adapter:port.update,version:item.version,onSaved:save}:undefined}/>:null}
-  {draft||item&&!detail?<BoQuickView key={draft?"create":item!.row.id} module={module} moduleKey="mytime-workshops" record={draft?null:{...item!.row,missions:[...(item!.row.missions??[])],otherStaff:[...(item!.row.otherStaff??[])],name:String(item!.row.name??"")}} onClose={close} onDetail={()=>{if(item)navigate(item.row.id,true);}} create={draft?{draft,editable:f=>creatable&&!busy&&!uncertain&&keys.some(k=>k===f.key),editorField:f=>({...f,readonly:false}),onChange:change,onCreate:create,busy,error,title:"Thêm Workshop",path:"Workshop MyTime"}:undefined}/>:null}
+  {detail&&item?<TddDetail registry={registry} schema={schema} context={context} record={item.row} subject={{type:"mytime_workshop",id:item.row.id}} mobileMenu={menu("workshop-detail-menu")} onBack={close} activeTab={navigation?tab:undefined} onTabChange={navigation?id=>{setTab(id);navigation.change({...navigation.read(),tab:id},true);}:undefined} overviewAfter={writable&&port?.cancel&&item.row.status!=="Đã hủy"?<button type="button" className="secondary-btn" disabled={busy} onClick={()=>void cancel()}>Hủy Workshop</button>:null} writes={writable&&port&&item.row.status!=="Đã hủy"?{adapter:port.update,version:item.version,editorValue:workshopEditorValue,onSaved:save}:undefined}/>:null}
+  {draft||item&&!detail?<BoQuickView key={draft?"create":item!.row.id} module={module} moduleKey="mytime-workshops" record={draft?null:{...item!.row,missions:[...(item!.row.missions??[])],otherStaff:[...(item!.row.otherStaff??[])],name:String(item!.row.name??"")}} onClose={close} onDetail={()=>{if(item)navigate(item.row.id,true);}} create={draft?{draft,editable:f=>creatable&&!busy&&!uncertain&&keys.some(k=>k===f.key),editorField:f=>({...f,readonly:false}),editorValue:workshopEditorValue,onChange:change,onCreate:create,busy,error,title:"Thêm Workshop",path:"Workshop MyTime"}:undefined}/>:null}
  </TddPreferencePolicy.Provider>;
 }

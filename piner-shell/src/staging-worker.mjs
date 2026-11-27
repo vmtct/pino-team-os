@@ -1,6 +1,9 @@
 // PAP-1952 / PNR-APP-HUB — Staging ONLY, suppress Cloudflare automatic HTML mutation
 // without allowing third-party scripts or weakening no-store on member shell responses.
 import base from "./worker.mjs";
+import {parseRoute} from "./adapter.mjs";
+import {readMemberChrome} from "./member-session.mjs";
+import {readStaticReviewPortfolio} from "./static-review-portfolio.mjs";
 const PIN_ROUTES = new Map([
   ["/api/piner/afterschool/pin/login", "POST"],
   ["/api/piner/afterschool/pin/change", "POST"],
@@ -37,17 +40,31 @@ export default {
     const method = PIN_ROUTES.get(path);
     const allowedMethods = isLogin || isAsset ? ["GET", "HEAD"] : method ? [method] : null;
     let response;
+    const route = parseRoute(path);
+    const shellRead = route && ["GET", "HEAD"].includes(request.method);
+    const loginRead = isCanonicalLogin && ["GET", "HEAD"].includes(request.method);
+    let memberChrome=null, sessionUnavailable=false;
+    if(shellRead || loginRead){try{memberChrome=await readMemberChrome(request,env?.AFTERSCHOOL_PIN_WORKER,shellRead ? route : {kind:"launcher"});}catch{sessionUnavailable=true;}}
+    const redirect = (target) => new Response(null, {status: 302, headers:{Location:new URL(target,request.url).href,"Cache-Control":"no-store, no-transform","X-Robots-Tag":"noindex, nofollow, noarchive",Vary:"Cookie"}});
     if (isLegacyLogin && allowedMethods.includes(request.method)) {
       // Canonical public URL; never honor query-supplied redirect destinations.
       response = new Response(null, { status: 308, headers: { Location: new URL(LOGIN_PATH, request.url).href } });
+    } else if (sessionUnavailable) {
+      // An unavailable validator is not an anonymous session. Stop the redirect loop without admitting member data.
+      response=new Response(request.method==="HEAD"?null:'<!doctype html><html lang="vi"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Piner APP</title><main><h1>Chưa thể kiểm tra phiên đăng nhập</h1><p>Vui lòng thử lại sau ít phút. Không cần nhập lại PIN.</p><a href="/">Thử lại</a></main></html>',{status:503,headers:{"Content-Type":"text/html; charset=utf-8","Cache-Control":"no-store, no-transform","X-Robots-Tag":"noindex, nofollow, noarchive","X-Content-Type-Options":"nosniff","Content-Security-Policy":"default-src 'none'; frame-ancestors 'none'; base-uri 'none'",Vary:"Cookie"}});
+    } else if (shellRead && !memberChrome) {
+      response = redirect(LOGIN_PATH);
+    } else if (loginRead && memberChrome) {
+      response = redirect("/");
     } else {
       // Rewrite only the page request. PIN API requests remain the original Request.
       const forwarded = isCanonicalLogin && allowedMethods.includes(request.method)
         ? new Request(new URL(INTERNAL_LOGIN_PATH, request.url), request)
         : request;
+      const portfolio = shellRead && memberChrome ? await readStaticReviewPortfolio(request, env, memberChrome) : null;
       response = allowedMethods
         ? await forwardAfterschoolPin(forwarded, env?.AFTERSCHOOL_PIN_WORKER, allowedMethods)
-        : isPinRoute ? new Response(null, { status: 404 }) : await base.fetch(request, env, ctx, { afterschoolLoginAvailable: typeof env?.AFTERSCHOOL_PIN_WORKER?.fetch === "function" });
+        : isPinRoute ? new Response(null, { status: 404 }) : await base.fetch(request, env, ctx, { afterschoolLoginAvailable: typeof env?.AFTERSCHOOL_PIN_WORKER?.fetch === "function", memberChrome, portfolio });
     }
     const headers = new Headers(response.headers);
     headers.set("X-Piner-Environment", "staging");
@@ -61,6 +78,7 @@ export default {
       }
     } else if ((headers.get("Content-Type") || "").includes("text/html")) {
       headers.set("Cache-Control", "no-store, no-transform");
+      if(memberChrome?.runtime){headers.set("Content-Security-Policy",headers.get("Content-Security-Policy").replace("connect-src 'none'","connect-src 'self'"));headers.set("Vary","Cookie");}
     }
     return new Response(response.body, {
       status: response.status,

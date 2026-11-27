@@ -1,14 +1,17 @@
 "use client";
 import type { MissionInput } from "./command";
 import type { MissionPathChoice } from "./mission-path-options";
+import { isMissionCategory, missionCategories } from "./mission-category";
+import { missionSupplementalUrlMaxLength, normalizeMissionSupplementalUrl } from "./mission-supplemental-url";
 
 export const emptyMission: MissionInput = {
   code: "", name: "", level: 1, status: "ACTIVE", plsValue: 0, paperSize: null,
-  description: null, guideline: null, pathProgramId: null, pathKeySnapshot: null,
+  description: null, guideline: null, supplementalUrl: null, pathProgramId: null, pathKeySnapshot: null,
   prerequisiteMissionId: null, prerequisiteCodeSnapshot: null,
 };
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-export function validateMissionCreate(value: MissionInput): string | null {
+export function validateMissionCreate(value: MissionInput, requireCategory = false): string | null {
+  if (requireCategory && !isMissionCategory(value.category)) return "Vui lòng chọn Category.";
   if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]{1,63}$/.test(value.code.trim())) return "Mã Mission phải có 2–64 ký tự chữ, số, _ hoặc -.";
   if (!value.name.trim() || value.name.trim().length > 160) return "Tên Mission phải có 1–160 ký tự.";
   if (!Number.isInteger(value.level) || value.level < 1 || value.level > 5) return "Cấp độ phải từ 1 đến 5.";
@@ -18,6 +21,7 @@ export function validateMissionCreate(value: MissionInput): string | null {
   }
   if (value.description && value.description.length > 4000) return "Mô tả quá dài.";
   if (value.guideline && value.guideline.length > 8000) return "Hướng dẫn quá dài.";
+  if (requireCategory && !normalizeMissionSupplementalUrl(value.supplementalUrl).ok) return "URL bổ sung phải là URL HTTP/HTTPS hợp lệ (tối đa 2048 ký tự).";
   return null;
 }
 
@@ -27,12 +31,12 @@ export function validateMissionCreate(value: MissionInput): string | null {
  * Status is a read-only property: Archive has a separate confirmed action.
  */
 export function MissionCreateFields({ value, setValue, disabled, editing = false, pathChoices = [],
-  pathState = "idle", pathError = "" }: {
+  pathState = "idle", pathError = "", requireCategory = false }: {
   readonly value: MissionInput; readonly setValue: (value: MissionInput) => void;
   readonly disabled: boolean; readonly editing?: boolean;
   readonly pathChoices?: readonly MissionPathChoice[];
   readonly pathState?: "idle" | "loading" | "ready" | "error";
-  readonly pathError?: string;
+  readonly pathError?: string; readonly requireCategory?: boolean;
 }) {
   const set = <K extends keyof MissionInput>(key: K, entry: MissionInput[K]) => setValue({ ...value, [key]: entry });
   const pickPath = (id: string) => {
@@ -45,6 +49,12 @@ export function MissionCreateFields({ value, setValue, disabled, editing = false
       value={value.name} disabled={disabled} onChange={e => set("name", e.target.value)} /></label>
     <label className="v25-form-field form-row"><span>Mã *</span><input required maxLength={64}
       value={value.code} disabled={disabled} onChange={e => set("code", e.target.value)} /></label>
+    {requireCategory ? <label className="v25-form-field form-row"><span>Category *</span>
+      <select required aria-label="Category" value={value.category ?? ""} disabled={disabled}
+        onChange={e => set("category", isMissionCategory(e.target.value) ? e.target.value : null)}>
+        <option value="">Chọn Category</option>
+        {missionCategories.map(category => <option key={category} value={category}>{category}</option>)}
+      </select></label> : null}
     <label className="v25-form-field form-row"><span>Cấp độ</span>
       <select value={value.level} disabled={disabled} onChange={e => set("level", Number(e.target.value))}>
         {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n}</option>)}
@@ -72,6 +82,8 @@ export function MissionCreateFields({ value, setValue, disabled, editing = false
       value={value.description ?? ""} onChange={e => set("description", e.target.value || null)} /></label>
     <label className="v25-form-field form-row"><span>Hướng dẫn</span><textarea rows={4} maxLength={8000} disabled={disabled}
       value={value.guideline ?? ""} onChange={e => set("guideline", e.target.value || null)} /></label>
+    {requireCategory ? <label className="v25-form-field form-row"><span>URL bổ sung</span><input type="url" inputMode="url" maxLength={missionSupplementalUrlMaxLength} disabled={disabled}
+      placeholder="https://..." value={value.supplementalUrl ?? ""} onChange={e => set("supplementalUrl", e.target.value || null)} /></label> : null}
     {!editing ? <div className="v25-form-metadata edit-form" aria-label="Thông tin hệ thống" data-mission-create-audit>
       {(["Created Time", "Created by (User)", "Last Modified Time", "Last Modified By (User)"] as const)
         .map(label => <label key={label} className="v25-form-field form-row"><span>{label}</span>

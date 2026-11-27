@@ -1,0 +1,40 @@
+name: PAP-2337 Post Approval M1 CI
+on:
+  pull_request:
+    paths:
+      - 'app/ho/content/post-approval/**'
+      - 'app/bo/content/posts/**'
+      - 'app/bo/piner-posts/**'
+      - 'lib/pap2337-native-post-expansion.test.ts'
+      - 'lib/pap2337-post-preview.test.ts'
+      - 'scripts/build-native-m1-post.mjs'
+      - 'scripts/native-m1-local/post-entry.tsx'
+      - '.github/workflows/pap2337-post-approval-m1.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - name: Verify synthetic lifecycle and actor boundary
+        run: node --import tsx --test lib/pap2337-post-preview.test.ts lib/pap2337-native-post-expansion.test.ts lib/pap2172-private-media-shell.test.ts
+      - name: Verify shared native renderer wiring
+        run: |
+          node - <<'NODE'
+          const fs=require('fs'),read=p=>fs.readFileSync(p,'utf8');
+          const ho=read('app/ho/content/post-approval/HoPostApprovalShell.tsx');
+          const bo=read('app/bo/content/posts/BoPostSubmitShell.tsx');
+          const shared=read('app/bo/content/posts/PostPreviewShell.tsx');
+          if(!ho.includes('PostPreviewShell surface="ho"')||!bo.includes('BoPostsDraftRuntime session=')||!bo.includes('createPostPreviewSession'))throw Error('Native wrapper mismatch');
+          for(const x of ['Hide Post','Lưu & Xuất bản','Gửi duyệt','PropertySections','TableFrame','DrawerFrame','DetailFrame','onPaste','transitionPost']) if(!shared.includes(x))throw Error('Shared renderer missing '+x);
+          if(!shared.includes('!ho&&draft.status==="Nháp"')||!shared.includes('ho&&draft.status==="Chờ duyệt"'))throw Error('Actor action boundary missing');
+          NODE

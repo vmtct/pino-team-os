@@ -2,6 +2,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { mountsExactNamedComponent, mountsPayrollNativeTable } from "./bo-route-import-guard.mjs";
 import { isFounderMigratedBoAvatarNativeDsaRoute } from "./verify-tdd-authority.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -16,7 +17,7 @@ function policyRoutes(source, name, issues) {
   let routes;
   try { routes = JSON.parse(match[1].replace(/,\s*\]$/, "]")); }
   catch { issues.push(`${name} must contain only JSON string literals`); return new Set(); }
-  if (!Array.isArray(routes) || routes.some(route => typeof route !== "string" || !/^\/bo\/[a-z0-9-]+$/.test(route))) {
+  if (!Array.isArray(routes) || routes.some(route => typeof route !== "string" || !(/^\/bo\/[a-z0-9-]+$/.test(route) || route === "/bo/sales/leads"))) {
     issues.push(`${name} must be a literal Set of BO route strings`);
     return new Set();
   }
@@ -60,7 +61,7 @@ function nativePayrollRoutes(root,issues){
   const files=[page,base+e.view+".tsx",base+e.detail,e.client,e.test,"lib/bo-native-payroll-route.ts","lib/pap1970-native-payroll-route.test.ts"];
   if(files.some(f=>!fs.existsSync(path.join(root,f)))){issues.push(e.key+": missing native read-only route contract");continue;}
   const [p,v,d,c]=files.map(f=>read(root,f));
-  if(!p.includes("<"+e.view)||!p.includes("PAP-1970")||!v.includes("BoDataGrid")||!v.includes("BoDataGridSidePeek")||
+  if(!p.includes("<"+e.view)||!p.includes("PAP-1970")||!mountsPayrollNativeTable(root,base+e.view+".tsx",v,"PayrollDsaReadTable","../payroll-periods/PayrollNativeTable")||!mountsExactNamedComponent(base+e.view+".tsx",v,"@/app/bo/components/registration/BoQuickView","BoQuickView")||
      !v.includes("useBoCenterSelection")||!d.includes("BoFullDetail")||!d.includes("useBoCenterSelection")||
      !c.includes("same-origin")||!c.includes("no-store")||[p,v,d].some(x=>/BoModuleFactory|BoWorkforceRoute|defineTddModule|SurfaceWorkspace/.test(x))||
      /method:\s*["'](?:POST|PATCH|PUT|DELETE)["']/.test(c)){issues.push(e.key+": invalid native read-only route contract");continue;}
@@ -131,6 +132,81 @@ function nativeWishEventRoute(root,issues){
  return valid;
 }
 
+/** PAP-2286: exact native Lead route, gated by server ACL; legacy experience remains production-only. */
+function nativeLeadsRoute(root, issues) {
+  const files = ["app/bo/sales/leads/page.tsx", "app/bo/sales/leads/SalesLeadPipelineView.tsx", "app/bo/shell/BoApplicationShell.tsx", "lib/pap901-staging-routes.test.ts"];
+  if (files.some(file => !fs.existsSync(path.join(root, file)))) { issues.push("Leads: missing native route contract"); return false; }
+  const [page, view, shell, test] = files.map(file => read(root, file));
+  const valid = page.includes('await authorizeBoShell(') &&
+    page.includes('actor.permissionKeys.includes("acquisition.lead.manage")') &&
+    page.includes('APP_ENV === "staging"') && page.includes('return <NativeLeadEntry actorId={actor.userId}/>;') &&
+    page.includes('canonicalLeadStageQuery(raw)') && page.includes('resolveLegacyLeadIntent(env.PINO_BO_CORE,credential,actor.userId,query.leadIntent)') && !page.includes('LeadHouseholdM1Preview') && page.includes('return <SalesLeadPipelineView />;') &&
+    view.includes('return <SalesLeadIntentPipelineView />;') && !view.includes('LeadHouseholdM1Preview') &&
+    shell.includes('"sales/leads": { label: "Leads"') && shell.includes('Object.hasOwn(directModules, key) ? "/bo/" + key') &&
+    !shell.includes('/bo/sales/leads?m1Preview=1') &&
+    test.includes('isBoStagingRouteAdmitted("/bo/sales/leads"),true') &&
+    !/<BoModuleFactory|<BoWorkforceRoute/.test(page);
+  if (!valid) issues.push("Leads: invalid exact native staging route contract");
+  return valid;
+}
+
+/** PAP-1044 / PAP-2225: exact authenticated live Running Classes workspace; M1 staging fixture retired. */
+function nativeRunningClassesRoute(root,issues){
+ const route="/bo/running-classes",base="app/bo/running-classes/";
+ if(!read(root,POLICY).includes('"'+route+'"'))return false;
+ const files=[base+"page.tsx",base+"RunningClassNativeEntry.tsx",base+"running-class-stage-admission.ts",base+"running-class-provider.ts",base+"running-class-stage-admission.test.ts"];
+ if(files.some(f=>!fs.existsSync(path.join(root,f)))){issues.push(route+": missing exact native live contract");return false;}
+ const [page,live,phase,provider]=files.map(f=>read(root,f));
+ const required=[
+ [page,'if(env.APP_ENV==="staging"||isBoStagingHost(host)){if(host!=="bo.staging.pinohouse.art"||!boSkeletonEnabled(env,host))notFound();}'],
+ [page,'else return <BoOperationalView view="running-classes"/>;'],
+ [page,'if(parseRunningClassStageQuery(runningClassSearchParams(await searchParams))===null)notFound();'],
+ [page,'const actor=await authorizeBoShell(new Headers(incoming),env).catch(()=>forbidden());'],
+ [page,'return <RunningClassNativeEntry expectedActorId={actor.userId}/>;'],
+ [phase,'return parseRunningClassLiveQuery(input,legacy);'],
+ [live,'if(!selected||!center.centers.some(c=>c.id===selected))return <RecordState status="denied"/>;'],
+ [live,'fetcher("/api/bo/context?centerId="+encodeURIComponent(centerId),{method:"GET"})'],
+ [live,'if(!body.data||body.data.userId!==expectedActorId)'],
+ [live,'openRunningClassProvider({centerId,expectedActorId,context,selectedCenter:()=>abort.signal.aborted?"":centerId,fetcher,storage:window.sessionStorage})'],
+ [live,'runningClassLive:provider'],
+ [live,'return()=>{abort.abort();opened?.dispose();};'],
+ [live,'<BoRegistrationWorkspace source={session.source} moduleKey="classes" options={options} currentUser={user}/>'],
+ [provider,'current.userId!==actorId'],
+ [provider,'current.permissionKeys?.includes("delivery.schedule.manage")'],
+ [provider,'current.permissionKeys?.includes("membership.subscription.view")'],
+ [provider,'if(write&&!writable)return fail("Running Class is read-only.");']
+ ];
+ const valid=mountsExactNamedComponent(files[0],page,"./RunningClassNativeEntry","RunningClassNativeEntry")&&
+ mountsExactNamedComponent(files[1],live,"../components/registration/BoRegistrationWorkspace","BoRegistrationWorkspace")&&
+ required.every(([source,needle])=>source.includes(needle))&&
+ !fs.existsSync(path.join(root,base+"RunningClassStagingEntry.tsx"))&&
+ !/RunningClassStagingEntry|RUNNING_CLASS_LIVE_ADMISSION|createRunningClassReview/.test(page+live)&&
+ !/parseRunningClassReviewQuery|RUNNING_CLASS_LIVE_ADMISSION/.test(phase);
+ if(!valid)issues.push(route+": invalid native scoped live contract");
+ return valid;
+}
+
+/** PAP-2387/PAP-2389: exact authenticated native Parent live route. */
+function nativeParentRoute(root,issues){
+ const route="/bo/parents";
+ if(!read(root,POLICY).includes('"'+route+'"'))return false;
+ const files=["app/bo/parents/page.tsx","app/bo/parents/ParentStagingEntry.tsx","app/bo/parents/ParentDirectoryDsa.tsx","app/bo/parents/parent-live-context.tsx","app/bo/parents/parent-m1-context.tsx","app/bo/parents/parent-native-data.ts","app/bo/parents/parent-route.ts","app/bo/parents/ParentCreateDrawer.tsx","app/bo/components/registration/BoParentReadTabs.tsx","lib/pap2387-parent-staging-boundary.test.ts","lib/pap2389-parent-route.test.ts","app/bo/parents/parent-create-retry.ts"];
+ if(files.some(f=>!fs.existsSync(path.join(root,f)))){issues.push(route+": missing exact native Parent live contract");return false;}
+ const source=files.map(f=>read(root,f));
+ const [page,view,native,scope,local,access,query]=source;
+ const required=[[0,"host!==\"bo.staging.pinohouse.art\"||env.APP_ENV!==\"staging\"||!boSkeletonEnabled(env,host)"],[0,"if(!canonicalParentRoute(query))notFound()"],[0,"await authorizeBoShell(new Headers(incoming),env)"],[0,"if(!actor.permissionKeys.includes(\"identity.parent_directory.view\"))forbidden()"],[0,"actorId={actor.userId} actorEmail={actor.email}"],[1,"user.email!==actorEmail"],[1,"!center.centers.some(c=>c.id===selected)"],[1,"loadNativeParentLiveGrants(scope,ctl.signal)"],[1,"if(state!==\"ready\")return <RecordState status={state}/>"],[1,"<ParentLiveScope.Provider value={scope}>"],[1,"load:async()=>{throw Error(\"Parent owns scoped native record transport\")"],[1,"content={<ParentDirectoryDsa/>}"],[3,"createContext<NativeParentLiveScope|null>(null)"],[4,"self.origin!==\"null\""],[5,"loadNativeParentContext(scope.centerId,signal,fetcher,scope.actorId)"],[5,"scope.canCreate&&grants.has(\"identity.parent.create\")"],[5,"scope.canEdit&&grants.has(\"identity.parent.edit\")"],[5,"raw.userId !== expectedActorId"],[5,"grants.has(\"identity.parent_directory.view\")"],[5,"scopes.centers.some(c => c.id === centerId)"],[2,"liveScope.centerId!==centerId"],[2,"return loadNativeParentLiveGrants(liveScope,signal)"],[2,"return loadNativeParentDirectory(centerId,ctl.signal)"],[2,"const current=fixture?grants:await reattest(ctl.signal)"],[7,"liveScope.centerId!==attempt.centerId"],[7,"await loadNativeParentLiveGrants(liveScope,ctl.signal)"],[7,"parentCreateMayEdit(previouslyUncertain,true)"],[8,"await loadNativeParentLiveGrants(liveScope,controller.signal)"],[8,"new URLSearchParams({centerId:liveScope.centerId})"],[6,"export const PARENT_ROUTE = \"/bo/parents\""],[6,"!uuid.test(value)"],[11,"return !previouslyUncertain&&definiteRejection"]];
+ const valid=mountsExactNamedComponent(files[0],page,"./ParentStagingEntry","ParentStagingEntry")&&
+ mountsExactNamedComponent(files[1],view,"../components/registration/BoRegistrationWorkspace","BoRegistrationWorkspace")&&
+ mountsExactNamedComponent(files[1],view,"./ParentDirectoryDsa","ParentDirectoryDsa")&&
+ mountsExactNamedComponent(files[2],native,"@/app/bo/components/registration/BoDataTable","BoDataTable")&&
+ mountsExactNamedComponent(files[2],native,"@/app/bo/components/registration/BoQuickView","BoQuickView")&&
+ required.every(([index,needle])=>source[index].includes(needle))&&
+ ![page,view].some(s=>/ParentStagingFixtureProvider|ParentM1Provider|createParentFixture|ephemeral\s*:\s*true|BoModuleFactory|BoWorkforceRoute|BoLocalReviewCenter|localStorage\.|sessionStorage\.|method:\s*["'](?:POST|PATCH|PUT|DELETE)["']/.test(s))&&
+ !local.includes("ParentStagingFixtureProvider")&&!query.includes("PARENT-MOCK");
+ if(!valid)issues.push(route+": invalid exact native Parent live contract");
+ return valid;
+}
+
 function canonicalRoutes(root, issues) {
   const base = path.join(root, "app/bo");
   const routes = new Set();
@@ -164,7 +240,12 @@ function canonicalRoutes(root, issues) {
     native.add("/bo/afterschool-accounts");
   }
   if(nativeOpeningEvidenceRoute(root,issues)){routes.add("/bo/opening-evidence");native.add("/bo/opening-evidence");}
+  if(nativeRunningClassesRoute(root,issues)){routes.add("/bo/running-classes");native.add("/bo/running-classes");}
+  if(nativeParentRoute(root,issues)){routes.add("/bo/parents");native.add("/bo/parents");}
   if(nativeWishEventRoute(root,issues)){routes.add("/bo/pinoria-wish-events");native.add("/bo/pinoria-wish-events");}
+  if (fs.existsSync(path.join(root, "app/bo/sales/leads/page.tsx")) && read(root, POLICY).includes('"/bo/sales/leads"')) {
+    if (nativeLeadsRoute(root, issues)) { routes.add("/bo/sales/leads"); native.add("/bo/sales/leads"); }
+  }
   return {routes,tdd,native};
 }
 

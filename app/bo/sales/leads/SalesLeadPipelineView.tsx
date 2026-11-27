@@ -28,7 +28,7 @@ const FILTERS: Array<{ value: FilterStatus; label: string }> = [
   { value: "CLOSED", label: "Đã đóng" },
 ];
 
-export function SalesLeadPipelineView() {
+function SalesLeadIntentPipelineView() {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -327,6 +327,9 @@ export function SalesLeadPipelineView() {
   );
 }
 
+export function SalesLeadPipelineView() {
+  return <SalesLeadIntentPipelineView />;
+}
 function compareLeadRows(left: BoAcquisitionIntent, right: BoAcquisitionIntent, key: string) {
   if (key === "contact") return left.phone.localeCompare(right.phone) || left.id.localeCompare(right.id);
   if (key === "source") return `${left.sourceBrand} ${left.sourceSurface}`.localeCompare(`${right.sourceBrand} ${right.sourceSurface}`) || left.phone.localeCompare(right.phone);

@@ -1,0 +1,11 @@
+{
+    "tdd":  true,
+    "tests":  [
+                  "lib/mytime-workshop-api-client.test.ts",
+                  "lib/mytime-workshop-handler.test.ts",
+                  "lib/mytime-workshop-host-contract.test.ts",
+                  "lib/mytime-workshop-nav-access.test.ts",
+                  "lib/mytime-workshop-navigation.test.ts",
+                  "lib/mytime-workshop-runtime-binding.test.ts"
+              ]
+}
