@@ -30,7 +30,7 @@ const personReader=activationPersonReader(()=>state.records.some(row=>row.existi
 const rateProvider=activationRateProvider(principal,id=>!!fixtureSubject(state,id));
 // This value is a display filter for synthetic rows only. No authenticated session or
 // transport is created and the value cannot leave this sandbox or grant live access.
-const context:AuthorizationContext=Object.freeze({surface:"HO",authorize:(permission:string)=>permission===manualStaffDefinition.capabilities.read});
+const context:AuthorizationContext=Object.freeze({surface:"HO",authorize:(permission:string)=>permission===manualStaffDefinition.capabilities.read||permission==="staff.compensation.manage"});
 const registry=new TddRegistry();
 const schema:ModuleSchema<ManualStaffFields>=registry.register({...manualStaffDefinition,data:{id:"local-synthetic-presentation",list:async(query,_context,signal)=>{
   signal.throwIfAborted();validateQuery(schema,query,context);return {rows:state.records.map(projectStaffPreviewRow),total:state.records.length};
