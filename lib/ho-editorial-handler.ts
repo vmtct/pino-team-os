@@ -3,27 +3,16 @@ import {authorizeHoShell,type HoEnv} from "./ho-auth";
 import {HO_STAGING_HOSTNAME,normalizeHostname} from "./host-boundary";
 import {teamCredentialFromHeaders} from "./team-auth";
 import {BoShellGateError} from "./bo-shell-gate";
+import {EDITORIAL_CORE_PATH as core,EDITORIAL_ID as id,editorialRoute,type EditorialRouteKind} from "./ho-editorial-route-contract";
 type EditorialRequest={method:string;path:string;body?:unknown;idempotencyKey?:string};
 type EditorialResult={status:number;body:unknown;requestId:string};
 export interface HoEditorialEnv extends HoEnv{
  PINO_HO_EDITORIAL_CORE?:{executeWithStaffPassword(request:EditorialRequest,token:string):Promise<EditorialResult>};
 }
-const root="/api/ho/learning/piner-posts/editorial",core="ho/learning/piner-posts/editorial";
-const id=/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const key=/^[A-Za-z0-9_-]{16,128}$/,max=8192;
 function json(status:number,body:unknown,requestId?:string){return new Response(JSON.stringify(body),{status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"private, no-store",...(requestId?{"x-request-id":requestId}:{})}});}
 const fail=(status:number,code:string)=>json(status,{error:{code,message:"Editorial request unavailable"}});
-type Kind="queue"|"detail"|"history"|"decision";
-function route(path:string):{kind:Kind;suffix:string}|null{
- if(path===root)return {kind:"queue",suffix:""};
- if(!path.startsWith(root+"/"))return null;
- const suffix=path.slice(root.length),parts=suffix.slice(1).split("/");
- if(suffix==="/decision")return {kind:"decision",suffix};
- if(parts.length===1&&id.test(parts[0]!))return {kind:"detail",suffix};
- if(parts.length===2&&id.test(parts[0]!)&&parts[1]==="history")return {kind:"history",suffix};
- return null;
-}
-function validQuery(u:URL,kind:Kind){
+function validQuery(u:URL,kind:EditorialRouteKind){
  const allowed=kind==="queue"?["centerId","status","limit","offset"]:kind==="history"?["centerId","limit","offset"]:kind==="detail"?["centerId"]:[];
  for(const k of u.searchParams.keys()){
   const v=u.searchParams.get(k)!;
@@ -54,7 +43,7 @@ async function payload(req:Request){
 export async function handleHoEditorialRequest(req:Request,env:HoEditorialEnv):Promise<Response>{
  const u=new URL(req.url);
  if(env.APP_ENV!=="staging"||u.protocol!=="https:"||normalizeHostname(u.hostname)!==HO_STAGING_HOSTNAME||normalizeHostname(req.headers.get("host")??"")!==HO_STAGING_HOSTNAME)return fail(404,"NOT_FOUND");
- const r=route(u.pathname);if(!r)return fail(404,"NOT_FOUND");
+ const r=editorialRoute(u.pathname);if(!r)return fail(404,"NOT_FOUND");
  const writing=r.kind==="decision";
  if(req.method!==(writing?"POST":"GET"))return fail(405,"METHOD_NOT_ALLOWED");
  if(!validQuery(u,r.kind))return fail(400,"INVALID_INPUT");
