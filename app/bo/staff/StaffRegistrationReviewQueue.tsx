@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { boApi, BoApiError } from "@/lib/bo-api";
+import {formatPinoDateTime} from "@/lib/pino-datetime";
 import type { BoAccessSystemUser } from "@/lib/bo-access-model";
 import type {
   BoAccessRole,
@@ -27,10 +28,13 @@ const requestColumns: BoDataGridColumn<StaffDossierReviewRow>[] = [
   { key: "displayLabel", header: "H\u1ecd v\u00e0 t\u00ean", render: row => row.displayLabel, minWidth: 180 },
   { key: "submittedAt", header: "Ng\u00e0y g\u1eedi", render: row => formatSubmittedAt(row.submittedAt), minWidth: 160 },
   { key: "status", header: "Tr\u1ea1ng th\u00e1i", render: row => <BoDataGridBadge>{dossierStatus(row)}</BoDataGridBadge>, minWidth: 120 },
-  ...["Created Time", "Created By", "Last Modified Time", "Last Modified By"].map((header, index) => ({ key: "audit-" + index, header, render: () => "\u2014", minWidth: 145 })),
+  {key:"createdAt",header:"Created Time",render:row=>formatPinoDateTime(row.createdAt),minWidth:170},
+  {key:"createdBy",header:"Created By",render:row=>row.createdBy?.trim()||"—",minWidth:145},
+  {key:"updatedAt",header:"Last Modified Time",render:row=>formatPinoDateTime(row.updatedAt),minWidth:170},
+  {key:"updatedBy",header:"Last Modified By",render:row=>row.updatedBy?.trim()||"—",minWidth:145},
 ];
 function formatSubmittedAt(value: string) {
-  return new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", dateStyle: "short", timeStyle: "short" }).format(new Date(value));
+  return formatPinoDateTime(value);
 }
 
 type ScopeType = BoStaffAccessAssignmentInput["scopeType"];
