@@ -4,6 +4,7 @@ import {useMemo,useState,useSyncExternalStore} from "react";
 import {TddRegistry,type AuthorizationContext,type TddActionBindings,type ModuleRow} from "@/lib/workspace-schema";
 import type {AuthenticatedSurfaceAdapter} from "@/lib/workspace-adapters";
 import {createAssignmentM1Navigation} from "./assignment-m1-navigation";
+import type {AdapterNavigation} from "@/lib/workspace-adapters/navigation";
 import {TddRenderer} from "@/app/components/workspace-renderer/Renderer";
 import {SurfaceWorkspace} from "@/app/components/workspace-adapters/SurfaceWorkspace";
 import {expandedAssignmentQuery,registerExpandedAssignment,type ExpandedAssignmentFields} from "./assignment-expanded-schema";
@@ -42,6 +43,10 @@ export function createAssignmentM1Adapter(completed:boolean,version:number,share
 }
 export function MissionAssignmentM1({initialRecord}:{initialRecord?:string}){
  const navigation=useMemo(()=>createAssignmentM1Navigation(initialRecord),[initialRecord]);
+ return <MissionAssignmentM1Content navigation={navigation}/>;
+}
+/** Shared isolated fixture UI; no live command transport. */
+export function MissionAssignmentM1Content({navigation}:{navigation:AdapterNavigation<F>}){
  const selected=useSyncExternalStore(navigation.subscribe,navigation.read,navigation.read);
  const [store]=useState(()=>{
   let value:SampleState={completed:false,version:0,executionVersion:0,contextLabel:null};
