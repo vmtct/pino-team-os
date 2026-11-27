@@ -17,7 +17,8 @@ type Scene={id:string;displayName:string;status:"ACTIVE"|"DISABLED";layers:Layer
 type World={id:string;displayName:string;status:WorldStatus;version:number;scenes:Scene[]};
 function auditName(v:unknown):string|null{return v===null?null:typeof v==="string"&&v.trim()===v&&v.length>0&&v.length<=160&&!UUID.test(v)&&!v.includes("@")?v:fail();}
 type Instance={createdAt:string;updatedAt:string;createdByUser:string|null;updatedByUser:string|null;id:string;worldId:string;displayLabel:string;status:InstanceStatus;grantedAt:string;revokedAt:string|null;version:number;world:World;sceneAccess:Readonly<Record<string,boolean>>;unlockedLayerIds:string[]};
-export type AvatarWorldState=Scope&{grantableWorlds:World[];instances:Instance[];loadoutVersion:number};
+export type WorldCapabilities=Readonly<{grant:boolean;configure:boolean;setLive:boolean}>;
+export type AvatarWorldState=Scope&{grantableWorlds:World[];instances:Instance[];loadoutVersion:number;capabilities:WorldCapabilities};
 export type WorldIntent={kind:"grant";worldId:string;label:string}|{kind:"live";instanceId:string}|{kind:"scene";instanceId:string;sceneId:string;accessible:boolean}|{kind:"layer";instanceId:string;layerId:string;unlocked:boolean};
 export type WorldCommand=WorldIntent&{expectedVersion:number};
 function world(raw:unknown):World{
@@ -56,11 +57,15 @@ export function parseAvatarWorld(raw:unknown,scope:Scope):AvatarWorldState{
  unique(active.map(i=>i.worldId));if(active.filter(i=>i.status==="LIVE").length>1||grantableWorlds.some(w=>active.some(i=>i.worldId===w.id)))return fail();
  const loadout=object(r.loadout);
  if(id(loadout.selfId)!==scope.selfId||typeof loadout.ready!=="boolean")return fail();
- return {...scope,grantableWorlds,instances,loadoutVersion:version(loadout.version,0)};
+ const capabilities=object(r.capabilities);
+ if(Object.keys(capabilities).sort().join(",")!=="configure,grant,setLive"||typeof capabilities.grant!=="boolean"||typeof capabilities.configure!=="boolean"||typeof capabilities.setLive!=="boolean")return fail();
+ return {...scope,grantableWorlds,instances,loadoutVersion:version(loadout.version,0),capabilities:Object.freeze({grant:capabilities.grant,configure:capabilities.configure,setLive:capabilities.setLive})};
 }
 /** Only explicit scoped permission flags, never infer from a visible tab or selected Center. */
 export function buildWorldCommand(state:AvatarWorldState,intent:WorldIntent,grants:ReadonlySet<string>):WorldCommand{
  const key=intent.kind==="grant"?"grant":intent.kind==="live"?"set_live":"configure";
+ const capability=intent.kind==="grant"?"grant":intent.kind==="live"?"setLive":"configure";
+ if(state.capabilities?.[capability]!==true)return fail();
  for(const p of ["pinoria.avatar.directory.view","pinoria.self.loadout.view","pinoria.world.avatar.view","pinoria.world.avatar."+key])if(!grants.has(p))return fail();
  if(intent.kind==="grant"){
   const w=state.grantableWorlds.find(w=>w.id===id(intent.worldId)),label=intent.label.trim();

@@ -9,7 +9,7 @@ const grants=new Set(["pinoria.avatar.directory.view","pinoria.self.loadout.view
 function Fixture(){
  const [version,setVersion]=useState(1),[deny,setDeny]=useState(false),[foreign,setForeign]=useState(false),[busy,setBusy]=useState(false);
  const [calls,setCalls]=useState<WorldIntent[]>([]);
- const state=parseAvatarWorld({...scope,grantableWorlds:[{id:id(4),displayName:"World QA",status:"ACTIVE",version,scenes:[]}],instances:[],loadout:{selfId:scope.selfId,version:0,ready:false}},scope);
+ const state=parseAvatarWorld({...scope,capabilities:{grant:true,configure:true,setLive:true},grantableWorlds:[{id:id(4),displayName:"World QA",status:"ACTIVE",version,scenes:[]}],instances:[],loadout:{selfId:scope.selfId,version:0,ready:false}},scope);
  return <><button onClick={()=>setVersion(n=>n+1)}>Refresh fixture</button><button onClick={()=>setDeny(x=>!x)}>Toggle permission</button><button onClick={()=>setForeign(x=>!x)}>Toggle Center</button><button onClick={()=>setBusy(x=>!x)}>Toggle busy</button>
  <output data-testid="calls">{JSON.stringify(calls)}</output><SelfWorldActions scope={foreign?{...scope,centerId:id(9)}:scope} state={state} grants={deny?new Set<string>():grants} busy={busy} instanceId={null} onConfirm={i=>setCalls(c=>[...c,i])}/></>;
 }

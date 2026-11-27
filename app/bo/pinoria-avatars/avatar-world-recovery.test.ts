@@ -5,7 +5,7 @@ import {createWorldTabController} from "./avatar-world-controller";
 const id=(n:number)=>"01a194f0-9bd0-7896-89a0-"+n.toString(16).padStart(12,"0");
 const scope={selfId:id(1),centerId:id(2),studentProfileId:id(3)};
 const world={id:id(4),displayName:"QA",version:1,status:"ACTIVE",scenes:[]};
-const data={...scope,grantableWorlds:[world],instances:[],loadout:{selfId:scope.selfId,version:0,ready:false}};
+const data={...scope,capabilities:{grant:true,configure:true,setLive:true},grantableWorlds:[world],instances:[],loadout:{selfId:scope.selfId,version:0,ready:false}};
 const grants=new Set(["pinoria.avatar.directory.view","pinoria.self.loadout.view","pinoria.world.avatar.view","pinoria.world.avatar.grant"]);
 const intent={kind:"grant",worldId:world.id,label:"QA"} as const;
 const instance={id:id(5),worldId:world.id,studentProfileId:scope.studentProfileId,displayLabel:"QA",status:"INACTIVE",createdAt:"2026-11-18T00:00:00Z",updatedAt:"2026-11-18T00:00:00Z",createdByUser:null,updatedByUser:null,grantedAt:"2026-11-18T00:00:00Z",revokedAt:null,version:1,world,sceneAccess:{},unlockedLayerIds:[]};
