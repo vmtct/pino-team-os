@@ -16,3 +16,8 @@
 .layerCheck{display:block}
 .empty{display:block}
 @media(max-width:850px){.worldLayout{grid-template-columns:minmax(0,1fr)}.panelHead,.inlineAction,.builderActions,.mediaCell{display:grid}}
+/* PAP-2143: keep activation content inside the existing PINO panel. */
+.activationPanel{display:grid;gap:12px;padding:16px;min-width:0;justify-items:start}
+.activationPanel p,.activationConfirm p{margin:0}
+.activationConfirm{display:grid;gap:12px;min-width:0;width:100%}
+.activationActions{display:flex;gap:8px;flex-wrap:wrap;min-width:0}
