@@ -1,0 +1,19 @@
+// PAP-2418 · WFM-STAFF. In-memory presentation adapters; no live endpoints.
+import type {BusinessFormProvider,BusinessFormRequest,BusinessFormValue} from "@/app/components/workspace-renderer/Slots";
+import type {createStaffPersonReader} from "./staff-person-reader";
+export const fixturePerson={id:"01912345-6789-7abc-8def-0123456789ab",label:"Person mẫu M1"} as const;
+export function activationPersonReader(isLinked:()=>boolean):ReturnType<typeof createStaffPersonReader>{
+ return {async search(query,after,signal){signal?.throwIfAborted();const q=query.trim();if(!q||q.length>120)throw Error("Invalid fixture search");return {options:!after&&!isLinked()&&fixturePerson.label.toLocaleLowerCase("vi").includes(q.toLocaleLowerCase("vi"))?[fixturePerson]:[],nextAfter:null};},
+ async select(id,signal){signal?.throwIfAborted();if(id!==fixturePerson.id||isLinked())throw Error("Unknown fixture Person");return fixturePerson;}};
+}
+const fields=[{key:"amount",label:"Mức lương (đ/giờ)",type:"number",required:true},{key:"effectiveDate",label:"Hiệu lực từ",type:"date",required:true},{key:"reason",label:"Lý do",type:"textarea",required:true}] as const;
+type Rate={id:string;amount:number;date:string;reason:string};
+const dateValid=(v:unknown):v is string=>typeof v==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(v)&&Number.isFinite(Date.parse(v))&&new Date(v).toISOString().slice(0,10)===v;
+const displayDay=(v:string)=>v.split("-").reverse().join("/");
+export function activationRateProvider(principal:string,exists:(id:string)=>boolean):BusinessFormProvider{
+ const ledger=new Map<string,Rate[]>();
+ const valid=(r:BusinessFormRequest)=>r.surface==="HO"&&r.moduleKey==="staffs"&&r.slotId==="staff-rate"&&r.sourceAdapter==="salary.staff-rate"&&r.subject.type==="staffs"&&r.subject.id===r.recordId&&r.principalId===principal&&/^STAFF-MOCK-\d{3,}$/.test(r.recordId)&&exists(r.recordId);
+ return {surface:"HO",moduleKey:"staffs",slotId:"staff-rate",sourceAdapter:"salary.staff-rate",presentation:{heading:"Mức lương mới",actionLabel:"Lưu mức lương",compact:true,hideRecordsToolbar:true},
+ async load(r,signal){signal.throwIfAborted();if(!valid(r))return {status:"denied"};const rates=[...(ledger.get(r.recordId)??[])].sort((a,b)=>b.date.localeCompare(a.date));return {status:"authorized",fields,values:{amount:null,effectiveDate:null,reason:""},records:{label:"Lịch sử Rate",columns:[{key:"effectiveFrom",label:"Ngày hiệu lực",type:"text"},{key:"effectiveUntil",label:"Ngày kết thúc",type:"text"},{key:"amount",label:"Mức lương",type:"text"},{key:"reason",label:"Lý do",type:"text"}],rows:rates.map((v,i)=>({id:v.id,values:{effectiveFrom:displayDay(v.date),effectiveUntil:i===0?"—":displayDay(new Date(Date.parse(rates[i-1]!.date)-86400000).toISOString().slice(0,10)),amount:new Intl.NumberFormat("vi-VN").format(v.amount)+" đ/giờ",reason:v.reason}}))}};},
+ async submit(r,values:Readonly<Record<string,BusinessFormValue>>,signal){signal.throwIfAborted();if(!valid(r))return {status:"denied"};const {amount,effectiveDate,reason}=values;const current=ledger.get(r.recordId)??[];const invalid:string[]=[];if(Object.keys(values).some(k=>!fields.some(f=>f.key===k)))return {status:"invalid",fields:fields.map(f=>f.key)};if(typeof amount!=="number"||!Number.isSafeInteger(amount)||amount<1||amount>1_000_000_000_000)invalid.push("amount");if(!dateValid(effectiveDate)||current.some(v=>v.date===effectiveDate))invalid.push("effectiveDate");if(typeof reason!=="string"||!reason.trim()||reason.trim().length>500)invalid.push("reason");if(invalid.length)return {status:"invalid",fields:invalid};ledger.set(r.recordId,[...current,{id:"RATE-MOCK-"+String(current.length+1),amount:amount as number,date:effectiveDate as string,reason:(reason as string).trim()}]);return {status:"saved",message:"Đã lưu mức lương mẫu."};}};
+}

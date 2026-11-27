@@ -5,6 +5,7 @@ import {StaffManualWorkspace} from "@/app/ho/staff/StaffManualWorkspace";
 import {manualStaffDefinition,manualStaffQuery,type ManualStaffFields} from "@/app/ho/staff/manual-create-contract";
 import {readStaffPreview,staffPreviewCenter,projectStaffPreviewRow} from "@/app/ho/staff/manual-create-preview";
 import {newActivationPreview,activateFixture,createInactiveFixture,fixtureSubject} from "@/app/ho/staff/staff-activation-preview";
+import {activationPersonReader,activationRateProvider,fixturePerson} from "@/app/ho/staff/staff-activation-baseline-preview";
 import {TddRegistry,validateQuery,type AuthorizationContext,type ModuleSchema} from "@/lib/workspace-schema";
 import type {AuthenticatedSurfaceAdapter} from "@/lib/workspace-adapters/contracts";
 import type {AdapterNavigation,AdapterLocation} from "@/lib/workspace-adapters/navigation";
@@ -25,6 +26,8 @@ if(!["http://desktop-isrdren:8800","http://192.168.1.6:8800"].includes(origin)||
   (params.has("record")&&params.get("record")!=="STAFF-MOCK-001"))throw Error("Local sandbox only");
 const principal="synthetic-presentation-only";
 let state=newActivationPreview(principal);
+const personReader=activationPersonReader(()=>state.records.some(row=>row.existingPersonId===fixturePerson.id));
+const rateProvider=activationRateProvider(principal,id=>!!fixtureSubject(state,id));
 // This value is a display filter for synthetic rows only. No authenticated session or
 // transport is created and the value cannot leave this sandbox or grant live access.
 const context:AuthorizationContext=Object.freeze({surface:"HO",authorize:(permission:string)=>permission===manualStaffDefinition.capabilities.read});
@@ -50,4 +53,4 @@ const navigation:AdapterNavigation<ManualStaffFields>={
  restore(){requestAnimationFrame(()=>{window.scrollTo(scroll.x,scroll.y);const table=document.getElementById("table-scroll");if(table){table.scrollLeft=scroll.left;table.scrollTop=scroll.top;}const el=focus?.isConnected?focus:[...document.querySelectorAll<HTMLElement>("button[data-open]")].find(n=>n.dataset.open===recordId);el?.focus({preventScroll:true});});}
 };
 const source:BoWorkspaceSource={surface:"ho",readOnly:true,ephemeral:true,modules:hoModules,routeForModule:key=>key==="staffs"?route:"#unavailable-local-module",scopeLabel:()=>"",load:async()=>{throw Error("No live transport");}};
-createRoot(document.getElementById("root")!).render(<BoRegistrationWorkspace source={source} moduleKey="staffs" currentUser={{displayName:"M1 · Dữ liệu mẫu"}} content={<TddPreferencePolicy.Provider value="ephemeral"><StaffManualWorkspace adapter={adapter} navigation={navigation} centers={[staffPreviewCenter]} allowLogin={false} onCreate={async command=>{state=createInactiveFixture(state,command);}} activation={{subject:id=>fixtureSubject(state,id),activate:async request=>{const next=activateFixture(state,request);state=next.state;return next.result;}}}/></TddPreferencePolicy.Provider>}/>);
+createRoot(document.getElementById("root")!).render(<BoRegistrationWorkspace source={source} moduleKey="staffs" currentUser={{displayName:"M1 · Dữ liệu mẫu"}} content={<TddPreferencePolicy.Provider value="ephemeral"><StaffManualWorkspace adapter={adapter} navigation={navigation} centers={[staffPreviewCenter]} allowLogin={false} personReader={personReader} detailSlots={{businessForms:[rateProvider]}} onCreate={async command=>{state=createInactiveFixture(state,command);}} activation={{subject:id=>fixtureSubject(state,id),activate:async request=>{const next=activateFixture(state,request);state=next.state;return next.result;}}}/></TddPreferencePolicy.Provider>}/>);

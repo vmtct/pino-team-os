@@ -3,7 +3,8 @@ import {createPreviewState,reducePreview,readPreviewRecord,type PreviewState} fr
 import {staffPreviewCenter,staffPreviewSeed,type StaffPreviewRecord} from "./manual-create-preview";
 import type {StaffCreateCommand} from "./manual-create-contract";
 import {activationRequest,sameActivationRequest,type ActivationSubject,type ActivationRequest,type ActivationResult} from "./staff-activation-model";
-type Fixture=StaffPreviewRecord&{activationRevision:number};
+import {fixturePerson} from "./staff-activation-baseline-preview";
+type Fixture=StaffPreviewRecord&{activationRevision:number;existingPersonId?:string};
 const feature={feature:"STAFF-ACTIVATE",jiraTask:"PAP-2418",surface:"HO",idPrefix:"STAFF-MOCK-",seed:{...staffPreviewSeed,status:"Ngưng",role:null,loginEmail:null,activationRevision:1} as Fixture,operations:["create","replace"]} as const;
 export const newActivationPreview=(principal:string)=>createPreviewState<Fixture>(feature,"HO:"+principal);
 export function fixtureSubject(state:PreviewState<Fixture>,id:string):ActivationSubject|null{
@@ -18,6 +19,6 @@ export function activateFixture(state:PreviewState<Fixture>,request:ActivationRe
  return {state:next,result:{kind:"activated",subject:fixtureSubject(next,row.id)!}};
 }
 export function createInactiveFixture(state:PreviewState<Fixture>,command:StaffCreateCommand):PreviewState<Fixture>{
- if(command.login||command.existingPersonId||command.centerId!==staffPreviewCenter.id||state.records.some(row=>row.phone===command.phone))throw Error("Invalid isolated staff fixture");
- return reducePreview(state,{type:"create",record:{fixture:true,name:command.name,phone:command.phone,email:command.email,gender:command.gender,birthDate:command.birthDate,center:staffPreviewCenter.label,status:"Ngưng",role:null,loginEmail:null,activationRevision:1,createdAt:null,createdBy:null,updatedAt:null,updatedBy:null}});
+ if(command.login||(command.existingPersonId!==undefined&&(command.existingPersonId!==fixturePerson.id||state.records.some(r=>r.existingPersonId===command.existingPersonId)))||command.centerId!==staffPreviewCenter.id||state.records.some(row=>row.phone===command.phone))throw Error("Invalid isolated staff fixture");
+ return reducePreview(state,{type:"create",record:{fixture:true,name:command.name,phone:command.phone,email:command.email,gender:command.gender,birthDate:command.birthDate,center:staffPreviewCenter.label,status:"Ngưng",role:null,loginEmail:null,activationRevision:1,...(command.existingPersonId?{existingPersonId:command.existingPersonId}:{}),createdAt:null,createdBy:null,updatedAt:null,updatedBy:null}});
 }
