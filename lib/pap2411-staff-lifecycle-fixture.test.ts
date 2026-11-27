@@ -24,3 +24,13 @@ test("PAP-2411 profile edit and deactivation retain same record, reject stale an
  const inactive=f.deactivate(id,2,true);assert.equal(inactive.profile?.status,"inactive");assert.equal(inactive.profile?.roleLabel,original.profile?.roleLabel);assert.equal(f.rows()[0].status,"inactive");
  assert.throws(()=>f.deactivate(id,3,true));assert.equal(createStaffLifecycleM1Fixture().snapshot().profile?.status,"active");
 });
+
+test("PAP-2411 BO edits do not mutate identity, account, role or imply eligibility",()=>{
+ const f=createStaffLifecycleM1Fixture();
+ assert.equal(f.snapshot().accountState,"UNKNOWN");assert.equal(f.snapshot().operationalReadiness,"NOT_VERIFIED");
+ for(const patch of [{email:"other@example.invalid"},{mobile:"0000"},{roleLabel:"Founder"},{startDate:"2026-02-30"}])assert.throws(()=>f.edit(id,1,patch));
+ assert.equal(f.snapshot().revision,1);
+ const saved=f.edit(id,1,{startDate:"2026-02-28",employmentType:"M1"});assert.equal(saved.operationalReadiness,"NOT_VERIFIED");
+ assert.equal(f.deactivate(id,2,true).operationalReadiness,"NOT_READY");
+ assert.equal(f.snapshot().accountState,"UNKNOWN");
+});
