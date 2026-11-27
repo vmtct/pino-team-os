@@ -2,6 +2,7 @@
 import {useState} from "react";
 import styles from "@/app/bo/sales/leads/lead-household-m1.module.css";
 import {LeadHouseholdM1Preview,validLeadRelationship,type LeadDraft,type LeadReviewPort,type LeadReviewSaveContext} from "@/app/bo/sales/leads/LeadHouseholdM1Preview";
+import {leadM1MemberSummary,LEAD_M1_INTEREST_LABELS} from "@/app/bo/sales/leads/lead-household-presentation";
 import type {LeadM1Record,LeadM1Intent,LeadM1IntentKind,LeadM1Member,LeadM1Relationship} from "@/app/bo/sales/leads/lead-household-presentation";
 
 function createFixtureFromDraft(draft: LeadDraft, id: string): LeadM1Record {
@@ -104,7 +105,7 @@ export function LeadLocalReview({seed,canonicalReview=false}:{seed:LeadM1Record;
     setDrawer(null);
     if (drawer?.mode === "create") openCreated(nextRecord.id);
   }
-  const review:LeadReviewPort={records,notice,label:"DỮ LIỆU MẪU",createLabel:"＋ Tạo Lead mẫu",drawer:{createTitle:"Tạo Lead mẫu",editTitle:"Chỉnh sửa Lead mẫu",eyebrow:"Dữ liệu mẫu",saveLabel:"Lưu mẫu",contactRequired:true,missingContactMessage:"Nhập người liên hệ và số điện thoại trước khi tiếp tục.",interestDescription:"Chọn riêng theo từng chương trình; có thể chọn cả hai."},missingRecordMessage:"Lead fixture không còn tồn tại trong bộ nhớ preview. Refresh để khôi phục fixture chuẩn.",emptyHistory:<LeadHistory/>,backToTable:path=>canonicalReview?path+"?m1Preview=1":path,saveDraft,saveInlineContact,saveMemberInterests,updateMembers,updateRelationships,saveLeadInterests,addMember,addRelationship};
+  const review:LeadReviewPort={records:records.map(record=>({...record,tablePresentation:{memberSummary:leadM1MemberSummary(record),interestLabels:record.intents.map(intent=>({id:intent.id,label:LEAD_M1_INTEREST_LABELS[intent.kind]})),sourceLabels:[...new Set(record.intents.map(intent=>intent.source))]}})),notice,label:"DỮ LIỆU MẪU",createLabel:"＋ Tạo Lead mẫu",drawer:{createTitle:"Tạo Lead mẫu",editTitle:"Chỉnh sửa Lead mẫu",eyebrow:"Dữ liệu mẫu",saveLabel:"Lưu mẫu",contactRequired:true,missingContactMessage:"Nhập người liên hệ và số điện thoại trước khi tiếp tục.",interestDescription:"Chọn riêng theo từng chương trình; có thể chọn cả hai."},missingRecordMessage:"Lead fixture không còn tồn tại trong bộ nhớ preview. Refresh để khôi phục fixture chuẩn.",emptyHistory:<LeadHistory/>,backToTable:path=>canonicalReview?path+"?m1Preview=1":path,saveDraft,saveInlineContact,saveMemberInterests,updateMembers,updateRelationships,saveLeadInterests,addMember,addRelationship};
   return <LeadHouseholdM1Preview review={review}/>;
 }
 
