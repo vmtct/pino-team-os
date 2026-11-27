@@ -42,7 +42,7 @@ export function HoPersonSupportPreview({personId,personName}:{personId:string;pe
           <li><span>Thời hạn</span><strong>Chỉ xem · {Math.floor(seconds/60)}:{String(seconds%60).padStart(2,"0")} còn lại</strong></li>
         </ul>
         <BoActionGroup className="tdd-action-host"><BoActionButton variant="secondary" type="button" onClick={reset}>Kết thúc phiên hỗ trợ</BoActionButton></BoActionGroup>
-      </div>:<form className="pds-property-section" onSubmit={event=>{event.preventDefault();start();}}>
+      </div>:<div role="group" aria-label="Thông tin phiên hỗ trợ" className="pds-property-section">
         <div className="pds-property-grid">
           <div className="pds-property-row"><label className="pds-property-label" htmlFor={targetLabel}>Ứng dụng và vai trò</label>
             <select className="pds-property-input" id={targetLabel} value={target} onChange={event=>setTarget(event.target.value)} required>
@@ -58,8 +58,8 @@ export function HoPersonSupportPreview({personId,personName}:{personId:string;pe
           </div>
         </div>
         <BoActionGroup className="tdd-action-host"><BoActionButton variant="secondary" type="button" onClick={reset}>Hủy</BoActionButton>
-          <BoActionButton variant="primary" type="submit" disabled={!selected||!reason.trim()}>Mở phiên xem</BoActionButton></BoActionGroup>
-      </form>}
+          <BoActionButton variant="primary" type="button" onClick={start} disabled={!selected||!reason.trim()}>Mở phiên xem</BoActionButton></BoActionGroup>
+      </div>}
     </div>
   </section>;
 }
