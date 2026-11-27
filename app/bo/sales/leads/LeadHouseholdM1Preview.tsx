@@ -44,6 +44,7 @@ export interface LeadReviewPort {
   notice: string;
   label: string;
   createLabel: string;
+  drawer: {createTitle:string;editTitle:string;eyebrow:string;saveLabel:string;contactRequired:boolean;missingContactMessage:string;interestDescription:string};
   missingRecordMessage: string;
   emptyHistory: React.ReactNode;
   backToTable: (pathname:string)=>string;
@@ -348,6 +349,7 @@ export function LeadHouseholdM1Preview({review,readApi,commandApi,recoveryJourna
       step={step}
       error={formError}
       live={Boolean(commandFence)}
+      reviewPresentation={review?.drawer}
       locked={Boolean(commandFence)&&(commandBusy||commandFence?.state!=="idle")}
       recovery={commandFence?<>{commandNotice?<p role="status">{commandNotice}</p>:null}{commandFence.state==="uncertain"?<button type="button" className="secondary-btn" disabled={commandBusy} onClick={()=>void executeContact(()=>commandFence.retry())}>Thử lại cùng yêu cầu</button>:null}{commandFence.isCreateConflict?<button type="button" className="secondary-btn" disabled={commandBusy} onClick={()=>void executeContact(()=>commandFence.reloadCreateConflict())}>Kiểm tra Lead đã có</button>:null}{commandFence.state==="reload_required"&&commandFence.reloadTarget?<button type="button" className="secondary-btn" disabled={commandBusy} onClick={()=>{const id=commandFence.reloadTarget;if(id)void executeContact(()=>commandFence.reload(id));}}>Tải lại Lead</button>:null}</>:undefined}
       onClose={() => { if(commandFence&&(commandBusyRef.current||commandFence.state!=="idle"))return;setDrawer(null); setFormError(""); }}
@@ -530,9 +532,9 @@ function LeadInquiryActions({intent,live}:{intent:LeadIntent;live:HistoryActions
  </div>;
 }
 function LeadCreateEditDrawer({
-  mode, draft, step, error, onClose, onStepChange, onDraftChange, onSave,live=false,locked=false,recovery,
+  mode, draft, step, error, onClose, onStepChange, onDraftChange, onSave,live=false,locked=false,recovery,reviewPresentation,
 }: {
-  mode: "create" | "edit"; draft: LeadDraft; step: 1 | 2; error: string; live?:boolean;locked?:boolean;recovery?:React.ReactNode;
+  mode: "create" | "edit"; draft: LeadDraft; step: 1 | 2; error: string; live?:boolean;locked?:boolean;recovery?:React.ReactNode;reviewPresentation?:LeadReviewPort["drawer"];
   onClose: () => void; onStepChange: (step: 1 | 2) => void; onDraftChange: (draft: LeadDraft) => void; onSave: () => void;
 }) {
   const [relationshipFrom, setRelationshipFrom] = useState("");
@@ -568,14 +570,14 @@ function LeadCreateEditDrawer({
   }
 
   return <BoDrawer
-    title={live?"Tạo Lead":mode === "create" ? "Tạo Lead mẫu" : "Chỉnh sửa Lead mẫu"}
-    eyebrow={live?"Lead":"Dữ liệu mẫu"}
+    title={reviewPresentation?(mode==="create"?reviewPresentation.createTitle:reviewPresentation.editTitle):"Tạo Lead"}
+    eyebrow={reviewPresentation?.eyebrow??"Lead"}
     mode={mode}
     size="lg"
     onClose={onClose}
     footer={<div className={styles.drawerFooter + " pds-compact-actions"}>
       {step === 2 ? <button className="secondary-btn" type="button" disabled={locked} onClick={() => { setLocalError(""); onStepChange(1); }}>← Quay lại</button> : <button className="secondary-btn" type="button" disabled={locked} onClick={onClose}>Hủy</button>}
-      {step === 1 ? <button type="button" className="primary-btn" disabled={locked} onClick={() => { if ((!live&&!draft.contactName.trim()) || !draft.phone.trim()) { setLocalError(live?"Nhập số điện thoại trước khi tiếp tục.":"Nhập người liên hệ và số điện thoại trước khi tiếp tục."); return; } setLocalError(""); onStepChange(2); }}>Tiếp tục: Thành viên →</button> : <button type="button" className="primary-btn" disabled={locked} onClick={onSave}>{live?"Tạo Lead":"Lưu mẫu"}</button>}
+      {step === 1 ? <button type="button" className="primary-btn" disabled={locked} onClick={() => { if ((reviewPresentation?.contactRequired&&!draft.contactName.trim()) || !draft.phone.trim()) { setLocalError(reviewPresentation?.missingContactMessage??"Nhập số điện thoại trước khi tiếp tục."); return; } setLocalError(""); onStepChange(2); }}>Tiếp tục: Thành viên →</button> : <button type="button" className="primary-btn" disabled={locked} onClick={onSave}>{reviewPresentation?.saveLabel??"Tạo Lead"}</button>}
     </div>}
   >
     <div className={styles.drawerContent}>
@@ -585,7 +587,7 @@ function LeadCreateEditDrawer({
       {step === 1 ? <>
         <PropertySection title="Thông tin liên hệ" schema={CONTACT_FIELD_SCHEMA} values={{ contactName: draft.contactName, phone: draft.phone }} mode={mode === "create" ? "CREATE" : "EDIT"} onChange={(key, value) => onDraftChange({ ...draft, [key]: value as string })} />
         <section className={styles.interestSection}>
-          <div className={styles.sectionHeading + " pds-compact-heading"}><div><h3>Chương trình quan tâm</h3><p>{live?"Áp dụng cho các thành viên Student/Guest được khai báo.":"Chọn riêng theo từng chương trình; có thể chọn cả hai."}</p></div><BoDataGridBadge>Tùy chọn</BoDataGridBadge></div>
+          <div className={styles.sectionHeading + " pds-compact-heading"}><div><h3>Chương trình quan tâm</h3><p>{reviewPresentation?.interestDescription??"Áp dụng cho các thành viên Student/Guest được khai báo."}</p></div><BoDataGridBadge>Tùy chọn</BoDataGridBadge></div>
           <div className={styles.programGrid}>
             {(["AFTERSCHOOL", "MYTIME"] as const).map(program => <article className={styles.programCard + " pds-compact-card"} key={program}>
               <strong>{program === "AFTERSCHOOL" ? "PINO Afterschool" : "MyTime by PINO"}</strong>
@@ -614,7 +616,7 @@ function LeadCreateEditDrawer({
           </article>)}
         </section>
         {live?<p className="pds-compact-muted">Sau khi tạo Lead, mở tab Quan hệ để khai báo liên kết giữa các thành viên.</p>:null}
-        {!live&&draft.members.length ? <section className={styles.relationshipSection}>
+        {reviewPresentation&&draft.members.length ? <section className={styles.relationshipSection}>
           <div className={styles.sectionHeading + " pds-compact-heading"}><div><h3>Quan hệ được khai báo</h3><p>Parent → Student hoặc Guest nhỏ tuổi; không xác thực quyền giám hộ.</p></div><BoDataGridBadge>{draft.relationships.length} quan hệ</BoDataGridBadge></div>
           <div className={styles.relationshipComposer}>
             <label className="pds-compact-label">Parent<select className="pds-compact-field" value={relationshipFrom} onChange={event => setRelationshipFrom(event.target.value)}><option value="">Chọn Parent</option>{draft.members.filter(member => member.roles.includes("PARENT")).map(member => <option key={member.id} value={member.id}>{member.name || "Chưa nhập tên"}</option>)}</select></label>
