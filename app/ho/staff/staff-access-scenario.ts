@@ -1,10 +1,10 @@
 // PAP-784 / WFM-STAFF. Isolated scenario, never a live Staff or Access mutation.
-import {prepareAssignment,prepareRemoval,type Snapshot,type Draft,type RoleChoice,type CenterChoice} from "./staff-access-presentation-model";
+import {prepareAssignment,prepareRemoval,type Snapshot,type Draft,type RoleChoice,type CenterChoice,type ScopeTarget} from "./staff-access-presentation-model";
 export type ScenarioCommand={kind:"assign";draft:Draft}|{kind:"remove";staffId:string;revision:number;assignmentId:string}|{kind:"affiliate"|"unaffiliate";staffId:string;revision:number;centerId:string};
 export type ScenarioResult={kind:"saved";snapshot:Snapshot}|{kind:"invalid"|"denied"|"stale"|"duplicate"};
-export function applyAccessScenario(s:Snapshot,command:ScenarioCommand,roles:readonly RoleChoice[],centers:readonly CenterChoice[]):ScenarioResult{
+export function applyAccessScenario(s:Snapshot,command:ScenarioCommand,roles:readonly RoleChoice[],centers:readonly CenterChoice[],targets:readonly ScopeTarget[]=[]):ScenarioResult{
  if(command.kind==="assign"){
-  const checked=prepareAssignment(s,command.draft,roles,centers);if(checked.kind!=="ready")return checked;
+  const checked=prepareAssignment(s,command.draft,roles,centers,targets);if(checked.kind!=="ready")return checked;
   const d=checked.draft;
   return {kind:"saved",snapshot:{...structuredClone(s),revision:s.revision+1,assignments:[...structuredClone(s.assignments),{id:"M1-ASSIGNMENT-"+(s.revision+1),roleId:d.roleId,scope:d.scope,protected:false}]}};
  }
