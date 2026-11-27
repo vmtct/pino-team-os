@@ -64,7 +64,7 @@ export function TosVNextReception({
     model={model}
     activityLoaded={activity!==null}
     expectedComplete={day?.unresolvedRegistrations===0&&!day.hasRosterConflict}
-    wishLoaded={false}
+    wishSupportedCount={null}
     wishCandidates={day?Object.values(day.activeVisits).filter(v=>v.checkedOutAt===null).map(v=>({learnerId:v.studentProfileId,visitId:v.id})):[]}
     wishEnabled={wishEnabled}
     renderWish={(guest,visitId)=><TosWishRuntime key={visitId} centerId={centerId} learnerId={guest.id} legalName={guest.name} gender={null}/>}

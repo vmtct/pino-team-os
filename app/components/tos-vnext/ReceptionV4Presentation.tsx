@@ -18,7 +18,7 @@ const TABS: OpsTab[] = [
   { id:"pinoria", label:"Pinoria", icon:faStar },
 ];
 const labels:Record<ArrivalStatus,string>={EXPECTED:"Chưa đến",ARRIVED:"Đang ở PINO",LEFT:"Đã về"};
-export default function ReceptionV4Presentation({centerName,profileLabel,workDate,shiftTime,visitLookup,slots,model=unavailableOpsReadModel(),initialTab="overview",initialReadOnly=false,compactArrivalIntro=false,activityLoaded=model.loaded,expectedComplete=true,wishLoaded=model.loaded,showDayList=false,wishCandidates,wishEnabled=false,renderWish}:{centerName:string;profileLabel:string;workDate:string;shiftTime:string;visitLookup?:ReactNode;slots?:readonly ReceptionReadySlot[];model?:OpsReadModel;initialTab?:Tab;initialReadOnly?:boolean;compactArrivalIntro?:boolean;activityLoaded?:boolean;expectedComplete?:boolean;wishLoaded?:boolean;showDayList?:boolean;wishCandidates?:readonly {learnerId:string;visitId:string}[];wishEnabled?:boolean;renderWish?:(guest:OpsGuest,visitId:string)=>ReactNode}){
+export default function ReceptionV4Presentation({centerName,profileLabel,workDate,shiftTime,visitLookup,slots,model=unavailableOpsReadModel(),initialTab="overview",initialReadOnly=false,compactArrivalIntro=false,activityLoaded=model.loaded,expectedComplete=true,wishSupportedCount=null,showDayList=false,wishCandidates,wishEnabled=false,renderWish}:{centerName:string;profileLabel:string;workDate:string;shiftTime:string;visitLookup?:ReactNode;slots?:readonly ReceptionReadySlot[];model?:OpsReadModel;initialTab?:Tab;initialReadOnly?:boolean;compactArrivalIntro?:boolean;activityLoaded?:boolean;expectedComplete?:boolean;wishSupportedCount?:number|null;showDayList?:boolean;wishCandidates?:readonly {learnerId:string;visitId:string}[];wishEnabled?:boolean;renderWish?:(guest:OpsGuest,visitId:string)=>ReactNode}){
   const state=model,guests=model.guests;
   const [readOnly,setReadOnly]=useState(initialReadOnly);
   const [readyReceipt,setReadyReceipt]=useState<ReceptionReadyReceipt|null>(null);
@@ -50,7 +50,7 @@ export default function ReceptionV4Presentation({centerName,profileLabel,workDat
   },[state.attendance,guests]);
   const results=guests.filter(g=>(filter==="ALL"||state.attendance[g.id]===filter)&&(g.name+" "+g.className+" "+g.room).toLocaleLowerCase("vi").includes(query.toLocaleLowerCase("vi")));
   const selected=guests.find(g=>g.id===selectedId);
-  const pendingWishes=guests.filter(g=>Object.prototype.hasOwnProperty.call(state.wishes,g.id)&&!state.wishes[g.id]);
+
   const wishCandidateMap=new Map((wishCandidates??[]).map(v=>[v.learnerId,v.visitId]));
   const wishGuest=wishEnabled&&wishSelection&&wishCandidateMap.get(wishSelection.learnerId)===wishSelection.visitId?guests.find(g=>g.id===wishSelection.learnerId):undefined;
   function openFilter(value:ArrivalStatus){setFilter(value);setQuery("");setTab("arrivals");}
@@ -68,7 +68,7 @@ export default function ReceptionV4Presentation({centerName,profileLabel,workDat
       </div>
       <section className={css.actionGrid}>
         <button className={css.actionTile} onClick={()=>{setTab("arrivals");setFilter("ALL");setQuery("");}}><FontAwesomeIcon icon={faUserCheck}/><strong>Đón / Trả học viên</strong><small>Xác nhận đến và bàn giao</small></button>
-        <button className={css.actionTile} onClick={()=>setTab("pinoria")}><FontAwesomeIcon icon={faStar}/><strong>Wish Pinoria</strong><small>{wishLoaded?pendingWishes.length:"—"} yêu cầu đang chờ</small></button>
+        <button className={css.actionTile} onClick={()=>setTab("pinoria")}><FontAwesomeIcon icon={faStar}/><strong>Wish Pinoria</strong><small>{wishSupportedCount??"—"} đã hỗ trợ trong ca</small></button>
       </section>
       <section className={css.panel}><div className={css.panelTitle}><h3>Hoạt động trong ca</h3><span>{activityLoaded?"Trong ca":"Chưa tải được"}</span></div>
         <div className={css.activity}>{state.events.slice(0,5).map(x=><div className={css.activityItem} key={x.id}><i className={css.activityDot}/><span>{x.text}</span><small>{x.time}</small></div>)}</div>
@@ -91,11 +91,11 @@ export default function ReceptionV4Presentation({centerName,profileLabel,workDat
       </>}
     </>}
     {tab==="pinoria"&&<>
-      <div className={css.intro}><span className={css.eyebrow}>PINORIA · TIẾP TÂN</span><h2 className={css.title}>{wishCandidates?"Wish tại quầy":"Wish đang chờ"}</h2><p className={css.lead}>Hỗ trợ các yêu cầu tương tác Pinoria tại quầy.</p></div>
-      <div className={css.stats}><div className={css.stat}><strong>{wishLoaded?pendingWishes.length:"—"}</strong><span>Wish chờ</span></div><div className={css.stat}><strong>{wishLoaded?Object.values(state.wishes).filter(Boolean).length:"—"}</strong><span>Đã hỗ trợ</span></div><div className={css.stat}><strong>—</strong><span>Region chưa xác minh</span></div></div>
-      <section className={css.panel}><div className={css.panelTitle}><h3>{wishCandidates?"Học viên đang ở PINO":"Yêu cầu Pinoria"}</h3><span>Chưa xác minh Region</span></div>
-        <div className={css.list}>{wishCandidates?guests.filter(g=>wishCandidateMap.has(g.id)).map(g=><div className={css.listRow} key={g.id}><Initials text={g.initials}/><div className={css.rowCopy}><strong>{g.name}</strong><small>Wish · tương tác Pinoria</small><span className={css.badge} data-state="ARRIVED">Đang ở PINO</span></div><button className={css.secondary} type="button" disabled={!wishEnabled||!renderWish} onClick={()=>setWishSelection({learnerId:g.id,visitId:wishCandidateMap.get(g.id)!})}>Xử lý</button></div>):guests.filter(g=>Object.prototype.hasOwnProperty.call(state.wishes,g.id)).map(g=><div className={css.listRow} key={g.id}><Initials text={g.initials}/><div className={css.rowCopy}><strong>{g.name}</strong><small>Wish · tương tác Pinoria</small><span className={css.badge} data-state={state.wishes[g.id]?"done":"waiting"}>{state.wishes[g.id]?"Đã hỗ trợ":"Đang chờ"}</span></div><button className={css.secondary} disabled title="Chưa xác minh command Wish">{state.wishes[g.id]?"✓":"Xử lý"}</button></div>)}</div>
-        {wishCandidates&&!wishCandidates.length&&<div className={css.empty}>{model.loaded?"Không có học viên đang ở PINO.":"Chưa tải được học viên."}</div>}
+      <div className={css.intro}><span className={css.eyebrow}>PINORIA · TIẾP TÂN</span><h2 className={css.title}>Wish tại quầy</h2><p className={css.lead}>Hỗ trợ các yêu cầu tương tác Pinoria tại quầy.</p></div>
+      <div className={css.stats}><div className={css.stat}><strong>{wishSupportedCount??"—"}</strong><span>Đã hỗ trợ trong ca</span></div></div>
+      <section className={css.panel}><div className={css.panelTitle}><h3>Học viên đang ở PINO</h3></div>
+        <div className={css.list}>{guests.filter(g=>wishCandidateMap.has(g.id)).map(g=><div className={css.listRow} key={g.id}><Initials text={g.initials}/><div className={css.rowCopy}><strong>{g.name}</strong><small>Wish · tương tác Pinoria</small><span className={css.badge} data-state="ARRIVED">Đang ở PINO</span></div><button className={css.secondary} type="button" disabled={!wishEnabled||!renderWish} onClick={()=>setWishSelection({learnerId:g.id,visitId:wishCandidateMap.get(g.id)!})}>Xử lý</button></div>)}</div>
+        {!wishCandidateMap.size&&<div className={css.empty}>{model.loaded?"Không có học viên đang ở PINO.":"Chưa tải được học viên."}</div>}
       </section>
       {wishGuest&&wishSelection&&renderWish?.(wishGuest,wishSelection.visitId)}
       <div className={css.callout}><strong><FontAwesomeIcon icon={faHeart}/> {wishEnabled&&wishCandidates?"Xác nhận Wish":"Thao tác chưa khả dụng"}</strong><span>Wish chỉ được xử lý sau khi có quyền và xác nhận từ hệ thống.</span></div>
