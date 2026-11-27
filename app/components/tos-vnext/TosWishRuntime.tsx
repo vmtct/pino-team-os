@@ -4,7 +4,7 @@ import {useEffect,useMemo,useState,useSyncExternalStore} from "react";
 import {TosVNextButton} from "../tos-ds";
 import {TosWishExecution} from "./TosWishExecution";
 import {browserTosWishHost,readWishActor} from "@/lib/tos-pls-wish-client";
-type Props={centerId:string;learnerId:string;legalName:string;gender:"male"|"female"|null};
+type Props={centerId:string;learnerId:string;legalName:string;gender:"male"|"female"|null;onCommitted?:()=>void};
 const listen=()=>()=>{};
 const staging=()=>window.location.hostname==="tos.staging.pinohouse.art";
 const server=()=>false;

@@ -8,6 +8,7 @@ import ReceptionV4Presentation from "./ReceptionV4Presentation";
 import { OpenStudioReceptionPanel } from "./OpenStudioReceptionPanel";
 import { ReceptionHouseCheckIn } from "./ReceptionHouseCheckIn";
 import { tosReceptionHouseApi } from "@/lib/tos-reception-house-api";
+import {readReceptionWishCount} from "@/lib/tos-pls-wish-client";
 import {TosWishRuntime,useTosWishEnabled} from "./TosWishRuntime";
 
 /** PAP-942 shell, PAP-1239 CP1 physical House check-in.
@@ -26,6 +27,16 @@ export function TosVNextReception({
   const today = ownReceptionAssignments(assignments, centerId, workDate);
   const wishEnabled=useTosWishEnabled();
   const [revision,setRevision]=useState(0);
+  const [wishRevision,setWishRevision]=useState(0);
+  const [wishSnapshot,setWishSnapshot]=useState<{key:string;count:number|null}|null>(null);
+  const wishKey=JSON.stringify([centerId,workDate,wishRevision]);
+  const refreshWish=useCallback(()=>setWishRevision(v=>v+1),[]);
+  useEffect(()=>{
+    if(!wishEnabled||!centerId||!workDate)return;
+    const c=new AbortController();
+    void readReceptionWishCount(centerId,workDate,c.signal).then(count=>{if(!c.signal.aborted)setWishSnapshot({key:wishKey,count});}).catch(()=>{if(!c.signal.aborted)setWishSnapshot({key:wishKey,count:null});});
+    return ()=>c.abort();
+  },[wishEnabled,centerId,workDate,wishKey]);
   const [snapshot,setSnapshot]=useState<{key:string;day:ReceptionDayReadModel|null}|null>(null);
   const key=JSON.stringify([centerId,workDate,revision]);
   const refresh=useCallback(()=>setRevision(v=>v+1),[]);
@@ -64,13 +75,13 @@ export function TosVNextReception({
     model={model}
     activityLoaded={activity!==null}
     expectedComplete={day?.unresolvedRegistrations===0&&!day.hasRosterConflict}
-    wishSupportedCount={null}
+    wishSupportedCount={wishEnabled&&wishSnapshot?.key===wishKey?wishSnapshot.count:null}
     wishCandidates={day?Object.values(day.activeVisits).filter(v=>v.checkedOutAt===null).map(v=>({learnerId:v.studentProfileId,visitId:v.id})):[]}
     wishEnabled={wishEnabled}
-    renderWish={(guest,visitId)=><TosWishRuntime key={visitId} centerId={centerId} learnerId={guest.id} legalName={guest.name} gender={null}/>}
+    renderWish={(guest,visitId)=><TosWishRuntime key={visitId} centerId={centerId} learnerId={guest.id} legalName={guest.name} gender={null} onCommitted={refreshWish}/>}
     showDayList
     visitLookup={<>
-      <ReceptionHouseCheckIn key={centerId} centerId={centerId} loadRecentLearners={tosReceptionHouseApi.recent} onVisitChanged={refresh} />
+      <ReceptionHouseCheckIn key={centerId} centerId={centerId} loadRecentLearners={tosReceptionHouseApi.recent} onVisitChanged={refresh} onWishCommitted={refreshWish} />
       <OpenStudioReceptionPanel
         key={centerId + ":" + workDate} centerId={centerId}
         workDate={workDate} assignments={assignments} session={currentSession}

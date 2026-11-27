@@ -30,3 +30,13 @@ test("TOS Wish rejects cross-host, production, support, missing session, duplica
  assert.equal((await handleTosPlsWish(req(root+"quote?"+qs),{...env,PINO_STAFF_PASSWORD_CORE:{status:async()=>({userId:id,staffMemberId:null,email:"",passwordChangeRequired:false})}})).status,403);
  assert.equal(calls.length,0);
 });
+test("PAP-2431 Reception count uses exact staging actor and date, no client shift windows",async()=>{calls.length=0;
+ const query="centerId="+id+"&workDate=2026-11-27";
+ assert.equal((await handleTosPlsWish(req(root+"reception-count?"+query),env)).status,200);
+ assert.deepEqual(calls,[{request:{method:"GET",path:"/pinoria/pls-wish/reception-count",body:{centerId:id,workDate:"2026-11-27"}},token:"qa"}]);
+ calls.length=0;
+ for(const q of [query+"&workDate=2026-11-27",query+"&startsAt=18:00",query.replace("2026-11-27","2026-02-30"),"centerId="+id])assert.equal((await handleTosPlsWish(req(root+"reception-count?"+q),env)).status,400);
+ assert.equal((await handleTosPlsWish(req(root+"reception-count?"+query,"GET",undefined,undefined,undefined,"wrong"),env)).status,403);
+ assert.equal((await handleTosPlsWish(req(root+"reception-count?"+query),{...env,APP_ENV:"production"})).status,404);
+ assert.equal(calls.length,0);
+});

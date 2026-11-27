@@ -29,3 +29,14 @@ export function createTosWishHost(actor:string,scope:WishScope,journal:WishAttem
  };
 }
 export function browserTosWishHost(actor:string,scope:WishScope){return createTosWishHost(actor,scope,indexedWishJournal(actor));}
+export async function readReceptionWishCount(centerId:string,workDate:string,signal:AbortSignal,fetcher:Fetcher=fetch):Promise<number|null>{
+ if(!id.test(centerId)||!/^\d{4}-\d{2}-\d{2}$/.test(workDate)||!Number.isFinite(Date.parse(workDate+"T00:00:00.000Z"))||new Date(workDate+"T00:00:00.000Z").toISOString().slice(0,10)!==workDate)throw Error("Invalid Reception Wish scope");
+ const actor=await readWishActor(signal,fetcher);
+ const raw=await read(fetcher,"reception-count?"+new URLSearchParams({centerId,workDate}),{signal},actor);
+ if(!raw||typeof raw!=="object")throw Error("Invalid Reception Wish count");
+ const data=raw as Record<string,unknown>,count=data.supportedCount;
+ if(data.centerId!==centerId||data.workDate!==workDate||(count!==null&&(typeof count!=="number"||!Number.isSafeInteger(count)||count<0)))throw Error("Invalid Reception Wish count");
+ if(await readWishActor(signal,fetcher)!==actor)throw Error("Wish actor changed");
+ signal.throwIfAborted();
+ return count as number|null;
+}

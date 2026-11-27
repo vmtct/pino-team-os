@@ -11,9 +11,10 @@ import styles from "./reception-house.module.css";
 type Intent = { learnerId: string; centerId: string; key: string; checkedInAt: string };
 
 /** PAP-2131: optional read-only recent learner port; Core integration is a separate gate. */
-export function ReceptionHouseCheckIn({ centerId, loadRecentLearners, onVisitChanged }: {
+export function ReceptionHouseCheckIn({ centerId, loadRecentLearners, onVisitChanged, onWishCommitted }: {
   centerId: string;
   onVisitChanged?: () => void;
+  onWishCommitted?: () => void;
   loadRecentLearners?: (centerId: string, signal: AbortSignal) => Promise<ReceptionLearner[]>;
 }) {
   const [query, setQuery] = useState("");
@@ -145,5 +146,5 @@ export function ReceptionHouseCheckIn({ centerId, loadRecentLearners, onVisitCha
             {submitting ? "Đang xác nhận…" : "Xác nhận đã đến"}
           </TosVNextButton></>}
     </div>}
-  </TosVNextCard>{selected && <TosWishRuntime centerId={centerId} learnerId={selected.studentProfileId} legalName={selected.displayName} gender={null}/>}</>;
+  </TosVNextCard>{selected && <TosWishRuntime centerId={centerId} learnerId={selected.studentProfileId} legalName={selected.displayName} gender={null} onCommitted={onWishCommitted}/>}</>;
 }

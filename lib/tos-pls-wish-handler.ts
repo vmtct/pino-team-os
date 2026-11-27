@@ -8,6 +8,7 @@ const prefix="/api/tos-learning/pinoria/pls-wish/";
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const isId=(x:unknown):x is string=>typeof x==="string"&&uuid.test(x);
 const max=8192;
+const isDate=(x:unknown):x is string=>typeof x==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(x)&&Number.isFinite(Date.parse(x+"T00:00:00.000Z"))&&new Date(x+"T00:00:00.000Z").toISOString().slice(0,10)===x;
 const json=(status:number,body:unknown,requestId?:string)=>Response.json(body,{status,headers:{"cache-control":"private, no-store",...(requestId?{"x-request-id":requestId}:{})}});
 const fail=(status:number,code:string)=>json(status,{error:{code,message:"Không thể xác minh yêu cầu Wish."}});
 async function boundedJson(r:Request):Promise<unknown>{
@@ -20,7 +21,7 @@ async function boundedJson(r:Request):Promise<unknown>{
 }
 export async function handleTosPlsWish(r:Request,env:Env){
  const u=new URL(r.url),action=u.pathname.slice(prefix.length);
- if(env.APP_ENV!=="staging"||normalizeHostname(u.hostname)!==TOS_STAGING_HOSTNAME||normalizeHostname(r.headers.get("host")??"")!==TOS_STAGING_HOSTNAME||!u.pathname.startsWith(prefix)||!["session","quote","draw","reveal"].includes(action))return fail(404,"NOT_FOUND");
+ if(env.APP_ENV!=="staging"||normalizeHostname(u.hostname)!==TOS_STAGING_HOSTNAME||normalizeHostname(r.headers.get("host")??"")!==TOS_STAGING_HOSTNAME||!u.pathname.startsWith(prefix)||!["session","quote","draw","reveal","reception-count"].includes(action))return fail(404,"NOT_FOUND");
  const draw=action==="draw",method=draw?"POST":"GET";
  if(r.method!==method)return fail(405,"METHOD_NOT_ALLOWED");
  try{
@@ -41,8 +42,8 @@ export async function handleTosPlsWish(r:Request,env:Env){
    if(Object.keys(body).length!==keys.length||keys.some(k=>!Object.hasOwn(body,k))||!keys.slice(0,4).every(k=>isId(body[k]))||!Number.isSafeInteger(body.count)||Number(body.count)<1||Number(body.count)>10||!Number.isSafeInteger(body.expectedCost)||Number(body.expectedCost)<1||Number(body.expectedCost)>1000000)return fail(400,"INVALID_INPUT");
   }else{
    if(r.headers.has("idempotency-key"))return fail(400,"INVALID_INPUT");
-   const keys=action==="quote"?["centerId","learnerId"]:["centerId","learnerId","eventId"];
-   const entries=[...u.searchParams.entries()];if(entries.length!==keys.length||keys.some(k=>u.searchParams.getAll(k).length!==1||!isId(u.searchParams.get(k))))return fail(400,"INVALID_INPUT");
+   const keys=action==="reception-count"?["centerId","workDate"]:action==="quote"?["centerId","learnerId"]:["centerId","learnerId","eventId"];
+   const entries=[...u.searchParams.entries()];if(entries.length!==keys.length||keys.some(k=>u.searchParams.getAll(k).length!==1||!(k==="workDate"?isDate(u.searchParams.get(k)):isId(u.searchParams.get(k)))))return fail(400,"INVALID_INPUT");
    body=Object.fromEntries(entries);
   }
   const result=await callTosLearningCoreWithStaffPassword(binding,{method,path:"/pinoria/pls-wish/"+action,body,...(key?{idempotencyKey:key}:{})},credential.token);
