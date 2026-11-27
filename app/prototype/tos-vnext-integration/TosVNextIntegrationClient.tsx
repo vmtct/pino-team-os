@@ -25,6 +25,7 @@ import {
 } from "@/app/components/tos-vnext/core-adapters";
 import type {Assignment,TimekeepingSession} from "@/lib/workforce-api";
 import type {OwnIncomePage,OwnDailyIncomePage} from "@/lib/tos-own-income-api";
+import {scopedExtraTimeCenter} from "@/lib/tos-payroll-extra-time-api";
 
 
 
@@ -43,6 +44,7 @@ export default function TosVNextIntegrationPreview(){
  const [homeNotice,setHomeNotice]=useState("");
  const [centerId,setCenterId]=useState("");
  const [app,setApp]=useState<Section>("home");
+ const [initialShiftTab,setInitialShiftTab]=useState<"today"|"pay">("today");
  const [classDetailOpen,setClassDetailOpen]=useState(false);
  const [data,setData]=useState<ReadData>({});
  const [loading,setLoading]=useState(true); // Identity and Center readiness only
@@ -77,7 +79,15 @@ export default function TosVNextIntegrationPreview(){
   let valid=true;
   void workforceApi.profile().then(value=>{if(valid)setProfileLabel(value.data.displayLabel)}).catch(()=>{});
   void staffContext().then(value=>{
-   if(!valid)return;setCtx(value);setCenterId(value.centers[0]?.id||"");if(!value.centers.length)setError("Tài khoản không có trung tâm được cấp quyền.");
+   if(!valid)return;
+   setCtx(value);
+   const requested=scopedExtraTimeCenter(window.location.search,"extra-time",value);
+   if(requested===""){
+    setCenterId("");setError("Cơ sở yêu cầu chưa được cấp quyền.");return;
+   }
+   setCenterId(requested??value.centers[0]?.id??"");
+   if(requested){setInitialShiftTab("pay");setApp("shift");}
+   if(!value.centers.length)setError("Tài khoản không có trung tâm được cấp quyền.");
   }).catch(e=>{if(valid)setError(e instanceof Error?e.message:"Không thể xác thực người dùng.")})
    .finally(()=>{if(valid)setLoading(false)});
   return()=>{valid=false;media.removeEventListener("change",fn)};
@@ -119,7 +129,7 @@ export default function TosVNextIntegrationPreview(){
   return()=>{active=false};
  },[centerId,ctx,zone,fromDate,scheduleRefresh]);
  async function choose(next:Section){
-  if(next==="home"){setApp("home");return}
+  if(next==="home"){setInitialShiftTab("today");setApp("home");return}
   if(!ctx||!centerId||loading){setHomeNotice("Cần xác thực nhân viên và cơ sở trước khi mở ứng dụng.");return}
   if(!canOpenVNextApp(next,{authenticated:!!ctx,centerReady:!!centerId,
    desktop})){
@@ -271,7 +281,7 @@ export default function TosVNextIntegrationPreview(){
    onHome={()=>void choose("home")}/></TosVNextFrame>;
  return <TosVNextFrame app={app} mode="mobile">
   {(app!=="classroom"||!classDetailOpen)&&<TosVNextAppHeader app={app} station={center?.displayName} onHome={()=>void choose("home")}/> }
-  {app==="reception"?<TosVNextReception centerId={centerId} centerName={center?.displayName||""} profileLabel={profileLabel||""} workDate={today(zone)} assignments={data.shift?.assignments??[]} currentSession={data.shift?.current??null}/>:app==="training"?<TosVNextTraining/>:app==="classroom"?<div className={frameLayout.nativeBody}><TosVNextClassroom centerId={centerId} localDate={fromDate} profileLabel={profileLabel} onDetailChange={setClassDetailOpen}/></div>:app==="shift"&&data.shift?<div className={frameLayout.nativeBody}><TosVNextShift data={data.shift} localDate={fromDate} centerId={centerId} centerName={center?.displayName||""} profileLabel={profileLabel} key={centerId+":"+fromDate}/></div>:<TosVNextContent>
+  {app==="reception"?<TosVNextReception centerId={centerId} centerName={center?.displayName||""} profileLabel={profileLabel||""} workDate={today(zone)} assignments={data.shift?.assignments??[]} currentSession={data.shift?.current??null}/>:app==="training"?<TosVNextTraining/>:app==="classroom"?<div className={frameLayout.nativeBody}><TosVNextClassroom centerId={centerId} localDate={fromDate} profileLabel={profileLabel} onDetailChange={setClassDetailOpen}/></div>:app==="shift"&&data.shift?<div className={frameLayout.nativeBody}><TosVNextShift data={data.shift} localDate={fromDate} centerId={centerId} centerName={center?.displayName||""} profileLabel={profileLabel} initialTab={initialShiftTab} key={centerId+":"+fromDate}/></div>:<TosVNextContent>
    {app==="shift-lead"&&<TosVNextShiftLead centerId={centerId} workDate={today(zone)}/>}
    {shiftLoading&&<p role="status">Đang tải dữ liệu ca từ Core…</p>}
    {app==="shift"&&!shiftLoading&&!data.shift&&<TosVNextCard><p role="status">Lịch ca và giờ công chưa khả dụng. Trạng thái chấm công chưa được xác minh.</p></TosVNextCard>}

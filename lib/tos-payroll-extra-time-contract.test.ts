@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  availableExtraTimeWindows,createExtraTimePayload,formatVietnamTime,
+  availableExtraTimeWindows,createExtraTimePayload,formatVietnamTime,caLamExtraTimeHref,caLamIncomeHref,scopedExtraTimeCenter,
   type AttendanceEvidence,type OwnShift,
 } from "./tos-payroll-extra-time-api";
 
@@ -60,4 +60,20 @@ test("PAP-2429 extra-time uses latest effective attendance, rejects unknown dura
  assert.equal(createExtraTimePayload(choice,center,"21:00","21:10","Valid setup work description").endAt,"2026-10-20T21:10:00+07:00");
  assert.throws(()=>createExtraTimePayload(choice,"center-b","21:00","21:10","Valid setup work description"));
  assert.deepEqual(availableExtraTimeWindows(assignments,[{...corrected,effective:{...corrected.effective!,durationSeconds:null}}],center),[]);
+});
+test("PAP-2429 fixed extra-time entry/return routes preserve only an authorized Staff Center",()=>{
+ const ctx={staffMemberId:"self",centers:[{id:"center-a"},{id:"center-b"}]};
+ const entry=new URL(caLamExtraTimeHref("center-b"),"https://example.test");
+ const back=new URL(caLamIncomeHref("center-b"),"https://example.test");
+ assert.equal(entry.pathname,"/earnings/extra-time");
+ assert.equal(back.pathname,"/tos-v4");
+ assert.equal(scopedExtraTimeCenter(entry.search,"ca-lam",ctx),"center-b");
+ assert.equal(scopedExtraTimeCenter(back.search,"extra-time",ctx),"center-b");
+ assert.equal(scopedExtraTimeCenter("","ca-lam",ctx),null);
+ for(const query of ["?from=ca-lam&centerId=foreign","?from=ca-lam","?from=ca-lam&centerId=center-a&centerId=center-b","?from=ca-lam&from=other&centerId=center-a"]){
+  assert.equal(scopedExtraTimeCenter(query,"ca-lam",ctx),"");
+ }
+ assert.equal(scopedExtraTimeCenter(entry.search,"ca-lam",{...ctx,staffMemberId:null}),"");
+ assert.equal(scopedExtraTimeCenter(entry.search,"ca-lam",{...ctx,founderMode:true}),"");
+ assert.equal(scopedExtraTimeCenter(entry.search+"&return=https://evil.test","ca-lam",ctx),"center-b");
 });

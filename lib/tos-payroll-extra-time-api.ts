@@ -103,3 +103,22 @@ export function createExtraTimePayload(
     startAt,endAt,reason:trimmed};
 }
 function isClock(value:string){return /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value);}
+
+/** PAP-2429: fixed existing paths, never a caller-provided redirect. */
+export function caLamExtraTimeHref(centerId:string){
+ return "/earnings/extra-time?"+new URLSearchParams({from:"ca-lam",centerId});
+}
+export function caLamIncomeHref(centerId:string){
+ return "/tos-v4?"+new URLSearchParams({from:"extra-time",centerId});
+}
+/** null = ordinary entry; empty string = invalid scoped entry (never fall back). */
+export function scopedExtraTimeCenter(search:string,origin:"ca-lam"|"extra-time",context:{
+ staffMemberId?:string|null;founderMode?:boolean;centers:readonly {id:string}[];
+}):string|null{
+ const query=new URLSearchParams(search);
+ if(!query.getAll("from").includes(origin))return null;
+ const ids=query.getAll("centerId");
+ if(query.getAll("from").length!==1||ids.length!==1||!context.staffMemberId||context.founderMode||
+   !context.centers.some(c=>c.id===ids[0]))return "";
+ return ids[0]!;
+}
