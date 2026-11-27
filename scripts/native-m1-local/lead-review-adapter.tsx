@@ -55,6 +55,14 @@ export function LeadLocalReview({seed,canonicalReview=false}:{seed:LeadM1Record;
     setRecords(current => current.map(record => record.id === leadId ? { ...record, relationships } : record));
     return true;
   }
+  function addMember(leadId:string,name:string,role:LeadM1Member["roles"][number]) {
+    const record=records.find(row=>row.id===leadId);if(!record)return false;
+    return updateMembers(leadId,[...record.members,{id:leadId+"-MEM-"+crypto.randomUUID(),name,age:null,gender:"—",roles:[role],primaryContact:false}]);
+  }
+  function addRelationship(leadId:string,from:string,to:string,label:string) {
+    const record=records.find(row=>row.id===leadId);if(!record)return false;
+    return updateRelationships(leadId,[...record.relationships,{id:leadId+"-REL-"+crypto.randomUUID(),fromMemberId:from,toMemberId:to,label,status:"DECLARED"}]);
+  }
   function saveLeadInterests(leadId: string, kinds: LeadM1IntentKind[]) {
     setRecords(current => current.map(record => {
       if (record.id !== leadId) return record;
@@ -96,7 +104,7 @@ export function LeadLocalReview({seed,canonicalReview=false}:{seed:LeadM1Record;
     setDrawer(null);
     if (drawer?.mode === "create") openCreated(nextRecord.id);
   }
-  const review:LeadReviewPort={records,notice,label:"DỮ LIỆU MẪU",createLabel:"＋ Tạo Lead mẫu",missingRecordMessage:"Lead fixture không còn tồn tại trong bộ nhớ preview. Refresh để khôi phục fixture chuẩn.",emptyHistory:<LeadHistory/>,backToTable:path=>canonicalReview?path+"?m1Preview=1":path,saveDraft,saveInlineContact,saveMemberInterests,updateMembers,updateRelationships,saveLeadInterests};
+  const review:LeadReviewPort={records,notice,label:"DỮ LIỆU MẪU",createLabel:"＋ Tạo Lead mẫu",missingRecordMessage:"Lead fixture không còn tồn tại trong bộ nhớ preview. Refresh để khôi phục fixture chuẩn.",emptyHistory:<LeadHistory/>,backToTable:path=>canonicalReview?path+"?m1Preview=1":path,saveDraft,saveInlineContact,saveMemberInterests,updateMembers,updateRelationships,saveLeadInterests,addMember,addRelationship};
   return <LeadHouseholdM1Preview review={review}/>;
 }
 
