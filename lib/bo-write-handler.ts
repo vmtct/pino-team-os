@@ -80,7 +80,6 @@ const ACQUISITION_INTENT_COMMAND = /^acquisition\/intents\/[0-9a-f-]{36}\/(conta
 const ACQUISITION_LEAD_ARCHIVE = /^acquisition\/leads\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/archive$/;
 const PANCAKE_CHANNEL_CONFIG = /^acquisition\/pancake\/channels\/[0-9a-f-]{36}\/configure$/;
 const PANCAKE_SETTINGS_COMMAND = "acquisition/pancake/settings";
-const BILLING_PLAN_CONFIG_PATH = /^billing\/product-plans\/([0-9a-f-]{36})\/configure$/;
 const BILLING_SALE_PATH = "billing/sales";
 const BILLING_TRANSACTION_PATH = /^billing\/bills\/[0-9a-f-]{36}\/transactions$/;
 const BILLING_BILL_VOID_PATH = /^billing\/bills\/[0-9a-f-]{36}\/void$/;
@@ -230,7 +229,6 @@ export async function handleBoWriteRequest(
       return json({ error: { code: "PLATFORM_INVALID_INPUT", message: "Companion Feed request body must be empty" } }, 400);
     }
 
-    const billingPlanConfig = BILLING_PLAN_CONFIG_PATH.exec(path);
     const specialtyOfferConfig = SPECIALTY_OFFER_CONFIG_PATH.exec(path);
     // PAP-1426: selected Center is an explicit resource constraint, never a role/grant.
     // Reject malformed, missing or ambiguous Center and any legacy status payload.
@@ -347,11 +345,7 @@ export async function handleBoWriteRequest(
         staffRegistrationResource={centerId:ids[0]!};
       }
     }
-    const coreRequest: BoAccessRequest = billingPlanConfig ? {
-      method: "PATCH",
-      path: `billing/product-plans/${billingPlanConfig[1]}`,
-      body,
-    } : specialtyOfferConfig ? {
+    const coreRequest: BoAccessRequest = specialtyOfferConfig ? {
       method: "PATCH",
       path: `specialty/offers/${specialtyOfferConfig[1]}`,
       body,
@@ -483,7 +477,6 @@ export function isAllowedPostPath(path: string): boolean {
     || PINORIA_WORLD_WRITE.test(path)
     || path === PINORIA_WORLD_MEDIA
     || path === WARD_SET_MEDIA
-    || BILLING_PLAN_CONFIG_PATH.test(path)
     || path === BILLING_SALE_PATH
     || BILLING_TRANSACTION_PATH.test(path)
     || BILLING_BILL_VOID_PATH.test(path)

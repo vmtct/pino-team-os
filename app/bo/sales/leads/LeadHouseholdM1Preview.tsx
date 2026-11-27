@@ -11,6 +11,7 @@ import type { LeadDetail, LeadIntent, LeadMemberInput, LeadInterest, LeadRelatio
 import { leadReadRow, leadReadDetail, leadAuditTime, leadInquiryLabel } from "./lead-household-read-presentation";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { TddHostMenu } from "@/app/components/workspace-adapters/SurfaceWorkspace";
+import { BoApplicationShellContext } from "@/app/bo/shell/BoApplicationShellContext";
 import { applyBoFilterSettings, type BoFilterField, type BoFilterSettings } from "@/lib/bo-filter-settings-state";
 import { BoFullDetail } from "@/app/bo/components/BoFullDetail";
 import { BoProperties } from "@/app/bo/components/BoProperties";
@@ -92,7 +93,10 @@ function PropertySection<T extends Record<string, unknown>>({
 }
 
 export function LeadHouseholdM1Preview({localReview=false,readApi,commandApi,recoveryJournal,recoverApi,intentApi,manualApi}: {localReview?: boolean; readApi?: Pick<LeadHouseholdApi,"search"|"detail"|"history">;commandApi?:LeadHouseholdApi;recoveryJournal?:LeadRecoveryJournal;recoverApi?:(input:LeadRecoveryInput)=>Promise<LeadRecoveryReceipt>;intentApi?:ReturnType<typeof createLeadIntentApi>;manualApi?:ReturnType<typeof createLeadManualIntakeApi>} = {}) {
-  const menu = useContext(TddHostMenu);
+  const hostMenu = useContext(TddHostMenu);
+  const applicationMenu = useContext(BoApplicationShellContext);
+  // Register the application-owned slot instead of duplicating its fallback trigger.
+  const menu = applicationMenu ?? hostMenu;
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();

@@ -15,6 +15,7 @@ import type { BoField, BoRecord } from "@/lib/bo-registration";
 import { nativeSubscriptionModule } from "@/lib/pap1334-native-subscription-read";
 import { amountFromPercent, percentFromAmount, quoteAfterDiscounts, suggestedContractSunday } from "@/lib/bo-subscription-create-ux";
 import { assertIndependentSaleReadback, buildIndependentSaleBody, eligibleSalePayers, validSaleCenter, type EligibleSalePayer, type IndependentSaleBody } from "@/lib/pap1882-independent-sale";
+import {productPlanLookupLabel} from "@/lib/bo-product-plan-lookup";
 import styles from "./subscription-create-drawer.module.css";
 
 type Props = {
@@ -287,7 +288,7 @@ export function SubscriptionCreateDrawer({initialStudentId,paths,onChanged,onClo
       <option value="">Chọn hành trình</option>{selectablePaths.map(p=><option key={p.id} value={p.id}>{p.displayName}</option>)}
     </select>),
     plan:control("subscription-create-plan",<select id="subscription-create-plan" className="edit-input" required value={planId} disabled={locked||planState!=="ready"} onChange={e=>setPlanId(e.target.value)}>
-      <option value="">Chọn gói học</option>{selectablePlans.map(p=><option key={p.id} value={p.id}>{p.cadence} buổi/tuần · {p.termWeeks} tuần · {formatVnd(p.listPriceMinor)}</option>)}
+      <option value="">Chọn gói học</option>{selectablePlans.map(p=><option key={p.id} value={p.id}>{productPlanLookupLabel(p, selectablePlans)}</option>)}
     </select>),
     start:control("subscription-create-start",<input id="subscription-create-start" className="edit-input" type="date" required value={startsOn} disabled={locked} onChange={e=>{setStartsOn(e.target.value);if(!endManual)setContractEndsOn(suggestedContractSunday(e.target.value,plan?.termWeeks||12));}} />),
     end:control("subscription-create-end",<div className={styles.inlineControl}><input id="subscription-create-end" className="edit-input" type="date" min={startsOn} required value={contractEndsOn} disabled={locked} onChange={e=>{setEndManual(true);setContractEndsOn(e.target.value);}} /><button type="button" className="secondary-btn" disabled={locked} onClick={()=>{setEndManual(false);setContractEndsOn(suggestedContractSunday(startsOn,plan?.termWeeks||12));}}>Ngày gợi ý</button></div>),
