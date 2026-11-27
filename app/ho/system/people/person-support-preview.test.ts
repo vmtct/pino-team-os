@@ -1,3 +1,5 @@
+import {admitPersonSupportFixture} from "./person-support-stage-admission";
+import type {BoShellContext} from "@/lib/bo-shell-gate";
 import {authorizedTabs} from "@/lib/workspace-schema";
 import {personSchema,personPreviewSchema,READ,VIEW_AS} from "./schema";
 import {test} from "node:test";
@@ -38,4 +40,14 @@ test("PAP-1523 reusable fixture is one isolated synthetic Person with null audit
  for(const value of [row.createdAt,row.createdBy,row.updatedAt,row.updatedBy])assert.equal(value,null);
  assert.notEqual(row,other);
  assert.notEqual(row.roles,other.roles);
+});
+test("PAP-1523 staging synthetic admission is default-off and requires existing authorized context",()=>{
+ const context:BoShellContext={userId:"synthetic-reviewer",email:"qa@example.invalid",displayName:null,staffMemberId:null,surface:"BO",entitled:true,permissionKeys:[READ,VIEW_AS]};
+ const host="ho.staging.pinohouse.art";
+ assert.equal(admitPersonSupportFixture("staging",host,"1",context),true);
+ for(const flag of [undefined,"","0","true"])assert.equal(admitPersonSupportFixture("staging",host,flag,context),false);
+ for(const env of [undefined,"production","development"])assert.equal(admitPersonSupportFixture(env,host,"1",context),false);
+ for(const h of ["bo.staging.pinohouse.art","ho.pinohouse.art","localhost",""])assert.equal(admitPersonSupportFixture("staging",h,"1",context),false);
+ assert.equal(admitPersonSupportFixture("staging",host,"1",null),false);
+ for(const permissionKeys of [[],[READ],[VIEW_AS]])assert.equal(admitPersonSupportFixture("staging",host,"1",{...context,permissionKeys}),false);
 });
