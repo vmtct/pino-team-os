@@ -19,6 +19,7 @@ const shims={"next/navigation":navigation,"next/link":`import {useRouter} from "
 const code=await build({stdin:{contents:`
 import {createRoot} from "react-dom/client";
 import {LeadHouseholdM1Preview} from "./app/bo/sales/leads/LeadHouseholdM1Preview";
+import {LEAD_M1_FIXTURE} from "./app/bo/sales/leads/lead-household-m1-fixtures";
 import {BoApplicationShellContext} from "./app/bo/shell/BoApplicationShellContext";
 import {TddHostMenu} from "./app/components/workspace-adapters/SurfaceWorkspace";
 import {NativeLeadEntry} from "./app/bo/sales/leads/NativeLeadEntry";
@@ -73,13 +74,22 @@ const root=createRoot(document.querySelector("main"));
 window.syntheticMountNative=actorId=>root.render(<NativeLeadEntry actorId={actorId}/>);
 window.syntheticUnmountNative=()=>root.unmount();
 if(location.origin==="https://bo.staging.pinohouse.art"||new URLSearchParams(location.search).has("nativeEntry"))window.syntheticMountNative(a);
-else {const content=<LeadHouseholdM1Preview readApi={new URLSearchParams(location.search).has("fixture")?undefined:api} commandApi={new URLSearchParams(location.search).has("commands")?api:undefined} recoveryJournal={new URLSearchParams(location.search).has("journal")?new LeadRecoveryJournal(sessionStorage,a):undefined} intentApi={new URLSearchParams(location.search).has("intentActions")?syntheticIntentApi:undefined} manualApi={new URLSearchParams(location.search).has("manualActions")?syntheticManualApi:undefined}/>;
+else {const content=<LeadHouseholdM1Preview {...(new URLSearchParams(location.search).has("fixture")?{fixtureSeed:LEAD_M1_FIXTURE}:{readApi:api})} commandApi={new URLSearchParams(location.search).has("commands")?api:undefined} recoveryJournal={new URLSearchParams(location.search).has("journal")?new LeadRecoveryJournal(sessionStorage,a):undefined} intentApi={new URLSearchParams(location.search).has("intentActions")?syntheticIntentApi:undefined} manualApi={new URLSearchParams(location.search).has("manualActions")?syntheticManualApi:undefined}/>;
 const mode=new URLSearchParams(location.search).get("menuHarness");
 const host=id=><button id={id} data-testid="lead-host-menu">Host menu</button>;
 const application=id=><button id={id} data-testid="lead-application-menu">Application menu</button>;
 root.render(mode?<TddHostMenu.Provider value={host}><BoApplicationShellContext.Provider value={mode==="application"?application:null}>{content}</BoApplicationShellContext.Provider></TddHostMenu.Provider>:content);}
 `,resolveDir:process.cwd(),loader:"tsx"},jsx:"automatic",bundle:true,write:false,outdir:"out",loader:{".css":"empty"},define:{"process.env.NODE_ENV":'"production"'},plugins:[{name:"isolated-next-navigation",setup(p){p.onResolve({filter:/^next\/(navigation|link|image|dynamic)$/},args=>({path:args.path,namespace:"lead-test"}));p.onLoad({filter:/.*/,namespace:"lead-test"},args=>({contents:shims[args.path],loader:"jsx",resolveDir:process.cwd()}));}}]});
 const js=code.outputFiles.find(f=>f.path.endsWith(".js")).text;
+
+test("PAP-2360 native Lead client bundle excludes fixture seed and retired Convert simulation",async()=>{
+ const result=await build({entryPoints:["app/bo/sales/leads/NativeLeadEntry.tsx"],bundle:true,write:false,outdir:"out",metafile:true,jsx:"automatic",loader:{".css":"empty"},external:["next","next/*"],define:{"process.env.NODE_ENV":'"production"'}});
+ const paths=Object.keys(result.metafile.inputs).map(p=>p.replaceAll("\\","/"));
+ assert.ok(paths.some(p=>p.endsWith("/lead-household-presentation.ts")));
+ assert.ok(!paths.some(p=>p.endsWith("/lead-household-m1-fixtures.ts")||p.includes("/native-m1-local/")));
+ const output=result.outputFiles.find(f=>f.path.endsWith(".js")).text;
+ for(const forbidden of ["LEAD_M1_FIXTURE","LEAD-MOCK-001","MEM-MOCK-001","Convert Lead","previewConversion"])assert.ok(!output.includes(forbidden),forbidden);
+});
 test("PAP-2288 mounted native Lead table, cursor, drawer, detail, history and failure states",async()=>{
  const browser=await chromium.launch();
  try{
@@ -97,6 +107,8 @@ test("PAP-2288 mounted native Lead table, cursor, drawer, detail, history and fa
   await page.getByText("MyTime · Piano",{exact:true}).waitFor();
   await page.getByRole("button",{name:"Mở chi tiết đầy đủ →"}).click();
   await page.getByText("25/11/2026 · 07:00",{exact:true}).first().waitFor();
+  assert.equal(await page.getByRole("button",{name:/Convert Lead/i}).count(),0);
+  assert.equal(await page.getByText("DỮ LIỆU MẪU",{exact:true}).count(),0);
   await page.getByText("Lịch sử",{exact:true}).click();
   await page.getByText("Tư vấn chung",{exact:true}).waitFor();
   await open("?lead="+c);
