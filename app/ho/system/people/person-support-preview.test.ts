@@ -2,7 +2,7 @@ import {authorizedTabs} from "@/lib/workspace-schema";
 import {personSchema,personPreviewSchema,READ,VIEW_AS} from "./schema";
 import {test} from "node:test";
 import assert from "node:assert/strict";
-import {previewRemainingSeconds,startSupportPreview,SUPPORT_FIXTURE_ID,SUPPORT_PREVIEW_TTL_MS} from "./person-support-preview";
+import {createSupportPreviewPerson,previewRemainingSeconds,startSupportPreview,SUPPORT_FIXTURE_ID,SUPPORT_PREVIEW_TTL_MS} from "./person-support-preview";
 test("PAP-1523 fixture-only VIEW targets, reason, expiry",()=>{
  const at=1000;
  for(const id of ["student","parent","staff","manager"]){
@@ -27,4 +27,15 @@ test("PAP-1523 preview-only View as tab, native ordering and scoped permission",
  assert.deepEqual(authorizedTabs(personPreviewSchema,ctx).map(t=>t.id),["overview","view-as","history"]);
  assert.deepEqual(authorizedTabs(personPreviewSchema,denied).map(t=>t.id),["overview","history"]);
  assert.deepEqual(authorizedTabs(personPreviewSchema,{surface:"BO",centerId:"qa",authorize:()=>true}),[]);
+});
+
+test("PAP-1523 reusable fixture is one isolated synthetic Person with null audit provenance",()=>{
+ const row=createSupportPreviewPerson(),other=createSupportPreviewPerson();
+ assert.equal(row.id,SUPPORT_FIXTURE_ID);
+ assert.equal(row.name,"Person QA Synthetic");
+ assert.deepEqual(row.roles,["Student","Staff","Parent","MyTime Guest"]);
+ assert.equal(row.avatarId,null);
+ for(const value of [row.createdAt,row.createdBy,row.updatedAt,row.updatedBy])assert.equal(value,null);
+ assert.notEqual(row,other);
+ assert.notEqual(row.roles,other.roles);
 });
