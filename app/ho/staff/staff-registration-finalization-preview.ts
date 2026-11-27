@@ -29,4 +29,12 @@ export function createFinalizationFixture(d:Dossier,roles:readonly RoleOption[],
  }};
 }
 export const reviewedDossierSeed:Dossier={id:"STAFF-DOSSIER-MOCK-001",version:1,name:"Ứng viên mẫu PINO",email:"applicant@example.invalid",mobile:null,centerId:"STAFF-MOCK-CENTER",documents:{front:true,back:true},receipt:{registrationRequestId:"STAFF-DOSSIER-MOCK-001",centerId:"STAFF-MOCK-CENTER",status:"REVIEWED_FOR_HO",reviewedVersion:1,reviewedBy:"M1 BO Reviewer"}};
-export const finalizationRoleOptions:readonly RoleOption[]=[{id:"STAFF-MOCK-ROLE",label:"Staff (M1)",active:true,scopes:["CENTER"]}];
+export const finalizationRoleOptions:readonly RoleOption[]=[{id:"STAFF-MOCK-ROLE",label:"Nhân sự (custom M1)",active:true,scopes:["CENTER"]}];
+export type FinalizationReview={kind:"approve";request:FinalizeRequest}|{kind:"reject";receipt:ReviewedDossierReceipt;reason:string;key:string};
+export function matchesFinalization(review:FinalizationReview,result:FinalizationResult|null):result is Extract<FinalizationResult,{kind:"approved"|"rejected"}>{
+ if(!result)return false;
+ if(review.kind==="reject")return result.kind==="rejected"&&result.registrationRequestId===review.receipt.registrationRequestId&&result.reviewedVersion===review.receipt.reviewedVersion&&result.reason===review.reason;
+ if(result.kind!=="approved")return false;
+ const r=result.receipt,q=review.request;return r.fixture===true&&r.status==="APPROVED"&&r.registrationRequestId===q.receipt.registrationRequestId&&r.reviewedVersion===q.receipt.reviewedVersion&&r.roleId===q.roleId&&r.scopeType===q.scopeType&&r.scopeId===q.scopeId&&[r.personId,r.staffId,r.userId].every(id=>typeof id==="string"&&!!id.trim())&&new Set([r.personId,r.staffId,r.userId]).size===3&&r.employmentStatus==="inactive"&&r.operationalReadiness==="unverified";
+}
+export function verifyFinalizationReadback(review:FinalizationReview,readback:FinalizationResult|null,ack:FinalizationResult|null=null):readback is Extract<FinalizationResult,{kind:"approved"|"rejected"}>{if(!matchesFinalization(review,readback))return false;if(!ack)return true;if(!matchesFinalization(review,ack)||ack.kind!==readback.kind)return false;if(ack.kind==="approved"&&readback.kind==="approved")return ack.receipt.personId===readback.receipt.personId&&ack.receipt.staffId===readback.receipt.staffId&&ack.receipt.userId===readback.receipt.userId;return ack.kind==="rejected"&&readback.kind==="rejected"&&ack.reason===readback.reason;}
