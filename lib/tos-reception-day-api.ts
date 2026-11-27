@@ -32,6 +32,8 @@ export type ReceptionDayReadModel = {
   events: ReceptionDayEvent[];
   activeVisits: Record<string, ReceptionDayVisit>;
   unresolvedRegistrations: number;
+  hasRosterConflict: boolean;
+  localDate: string;
   timeZone: string;
 };
 const instant = (value: unknown) => typeof value === "string" && Number.isFinite(Date.parse(value));
@@ -60,7 +62,7 @@ export function projectReceptionDay(snapshot: ReceptionDaySnapshot, centerId: st
   const events: ReceptionDayEvent[] = [];
   for (const learner of snapshot.learners) {
     if (!validId(learner.studentProfileId) || guests.has(learner.studentProfileId) ||
-        !validId(learner.displayName) || !Array.isArray(learner.sessionIds) ||
+        !validId(learner.displayName) || typeof learner.hasRosterConflict!=="boolean" || !Array.isArray(learner.sessionIds) ||
         learner.sessionIds.some(id => !sessions.has(id))) throw new Error("Invalid Reception learner projection.");
     const related = learner.sessionIds.map(id => sessions.get(id)!);
     const labels = (values: Array<string | null | undefined>) => [...new Set(values.filter((x): x is string => Boolean(x?.trim())))].join(" \u00b7 ") || "\u2014";
@@ -94,7 +96,7 @@ export function projectReceptionDay(snapshot: ReceptionDaySnapshot, centerId: st
   // A legacy current-open row that has no evidence in the requested day is not an expected arrival.
   const visible = [...guests.values()].filter(guest => attendance[guest.id] !== undefined);
   events.sort((a,b) => b.occurredAt.localeCompare(a.occurredAt) || a.id.localeCompare(b.id));
-  return {guests:visible.sort((a,b)=>a.name.localeCompare(b.name,"vi")),attendance,activeVisits,events,timeZone:snapshot.timeZone,
+  return {guests:visible.sort((a,b)=>a.name.localeCompare(b.name,"vi")),attendance,activeVisits,events,timeZone:snapshot.timeZone,localDate:snapshot.localDate,hasRosterConflict:snapshot.learners.some(l=>l.hasRosterConflict),
     unresolvedRegistrations:snapshot.sessions.reduce((n,s)=>n+s.unresolvedRegistrations.length,0)};
 }
 export async function readReceptionDay(centerId: string, localDate: string, signal?: AbortSignal) {
@@ -108,8 +110,8 @@ export async function readReceptionDay(centerId: string, localDate: string, sign
 /** Activity is only known for valid, actual own Front Desk shift windows. */
 export function receptionShiftActivity(day: ReceptionDayReadModel, windows: readonly {startsLocal:string;endsLocal:string}[]) {
   const minute=(value:string)=> {
-    const match=/^(?:\d{4}-\d{2}-\d{2}T)?([01]\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?$/.exec(value);
-    return match?Number(match[1])*60+Number(match[2]):NaN;
+    const match=/^(?:(\d{4}-\d{2}-\d{2})T)?([01]\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?$/.exec(value);
+    return match&&(!match[1]||match[1]===day.localDate)?Number(match[2])*60+Number(match[3]):NaN;
   };
   const ranges=windows.map(w=>({start:minute(w.startsLocal),end:minute(w.endsLocal)}));
   if (!ranges.length || ranges.some(w=>!Number.isFinite(w.start)||!Number.isFinite(w.end)||w.end<=w.start)) return null;

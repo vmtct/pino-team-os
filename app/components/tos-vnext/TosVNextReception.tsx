@@ -63,7 +63,7 @@ export function TosVNextReception({
     compactArrivalIntro
     model={model}
     activityLoaded={activity!==null}
-    expectedComplete={day?.unresolvedRegistrations===0}
+    expectedComplete={day?.unresolvedRegistrations===0&&!day.hasRosterConflict}
     wishLoaded={false}
     wishCandidates={day?Object.values(day.activeVisits).filter(v=>v.checkedOutAt===null).map(v=>({learnerId:v.studentProfileId,visitId:v.id})):[]}
     wishEnabled={wishEnabled}

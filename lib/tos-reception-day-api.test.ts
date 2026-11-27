@@ -49,3 +49,12 @@ test("PAP-2431 activity uses only actual Center-local shift windows",()=>{
  const events=receptionShiftActivity(day,[{startsLocal:"08:00",endsLocal:"10:00"}]);
  assert.deepEqual(events?.map(e=>e.id),["a:departure","b:departure","a:arrival","b:arrival"]);
 });
+
+test("PAP-2431 exposes unresolved roster conflicts and rejects wrong-date shift windows",()=>{
+ const data=snapshot();data.learners[0]!.hasRosterConflict=true;
+ const day=projectReceptionDay(data,center,date);
+ assert.equal(day.hasRosterConflict,true);
+ assert.equal(day.attendance.returned,"ARRIVED");
+ assert.equal(receptionShiftActivity(day,[{startsLocal:"2026-11-26T08:00",endsLocal:"2026-11-26T10:00"}]),null);
+ assert.deepEqual(receptionShiftActivity(day,[{startsLocal:date+"T08:00",endsLocal:date+"T10:00"}])?.map(e=>e.id),["a:departure","b:departure","a:arrival","b:arrival"]);
+});

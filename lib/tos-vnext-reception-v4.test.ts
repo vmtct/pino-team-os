@@ -43,3 +43,9 @@ test("PAP-2431 Pinoria shows present learners, not invented pending requests, an
  assert.match(html,/Present Learner/);assert.doesNotMatch(html,/Departed Learner/);assert.match(buttons(html,"Xử lý")[0],/disabled/);
  assert.doesNotMatch(html,/<strong>0<\/strong>/);
 });
+
+test("PAP-2431 incomplete roster is not a confirmed empty ALL filter",async()=>{
+ const html=await renderV4("ReceptionV4Presentation",{...props,initialReadOnly:true,initialTab:"arrivals",model:{...unavailableOpsReadModel(),loaded:true},expectedComplete:false,showDayList:true});
+ assert.match(html,/\u2014 kết quả/);
+ assert.doesNotMatch(html,/Không có học viên phù hợp/);
+});

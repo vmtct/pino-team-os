@@ -82,11 +82,11 @@ export default function ReceptionV4Presentation({centerName,profileLabel,workDat
       {(!visitLookup||showDayList)&&<>
       <div className={css.search}><FontAwesomeIcon icon={faMagnifyingGlass}/><input className={css.input} placeholder="Tìm tên, lớp hoặc phòng…" value={query} onChange={e=>setQuery(e.target.value)}/></div>
       <div className={css.filters}>{([["ALL","Tất cả"],["EXPECTED","Chưa đến"],["ARRIVED","Đang ở PINO"],["LEFT","Đã về"]] as const).map(([value,label])=><button type="button" key={value} className={css.filter} aria-pressed={filter===value} onClick={()=>setFilter(value)}>{label}</button>)}</div>
-      <section className={css.panel}><div className={css.panelTitle}><h3>Học viên</h3><span>{model.loaded&&(filter!=="EXPECTED"||expectedComplete)?results.length:"—"} kết quả</span></div>
+      <section className={css.panel}><div className={css.panelTitle}><h3>Học viên</h3><span>{model.loaded&&((filter!=="EXPECTED"&&filter!=="ALL")||expectedComplete)?results.length:"—"} kết quả</span></div>
         {results.length?<div className={css.list}>{results.map(g=><button type="button" className={css.listRow+" "+css.listRowButton} key={g.id} onClick={()=>openDetail(g.id)}>
           <Initials text={g.initials}/><div className={css.rowCopy}><strong>{g.name}</strong><small>{g.classTime} · {g.className}</small><small>{g.room}</small></div>
           <span className={css.badge} data-state={state.attendance[g.id]}>{labels[state.attendance[g.id]]}</span><FontAwesomeIcon className={css.chevron} icon={faChevronRight}/>
-        </button>)}</div>:<div className={css.empty}>{model.loaded&&(filter!=="EXPECTED"||expectedComplete)?"Không có học viên phù hợp với bộ lọc.":"Chưa tải được danh sách đón / trả."}</div>}
+        </button>)}</div>:<div className={css.empty}>{model.loaded&&((filter!=="EXPECTED"&&filter!=="ALL")||expectedComplete)?"Không có học viên phù hợp với bộ lọc.":"Chưa tải được danh sách đón / trả."}</div>}
       </section>
       </>}
     </>}
