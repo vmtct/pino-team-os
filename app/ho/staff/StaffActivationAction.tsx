@@ -2,7 +2,7 @@
 // PAP-2418 · WFM-STAFF. Injected presentation, no network or permissions.
 import {useId,useRef,useState} from "react";
 import {TosCard} from "@pino/design-system/react";
-import {activationRequest,sameActivationRequest,verifiedActivation,operationalAccountState,type ActivationSubject,type ActivationRequest,type ActivationResult} from "./staff-activation-model";
+import {activationRequest,sameActivationRequest,verifiedActivation,operationalAccountNotice,type ActivationSubject,type ActivationRequest,type ActivationResult} from "./staff-activation-model";
 type Props={subject:ActivationSubject;activate?:(request:ActivationRequest)=>Promise<ActivationResult>;readback?:(request:ActivationRequest)=>Promise<ActivationResult>;onVerified:(subject:ActivationSubject)=>void};
 type Phase="idle"|"confirm"|"pending"|"unknown"|"stale"|"denied";
 export function StaffActivationAction({subject,activate,readback,onVerified}:Props){
@@ -10,8 +10,7 @@ export function StaffActivationAction({subject,activate,readback,onVerified}:Pro
   const [review,setReview]=useState<ActivationRequest|null>(null);
   const locked=useRef(false),section=useRef<HTMLElement>(null),label=useId();
   const current=activationRequest(subject);
-  const readiness=operationalAccountState(subject);
-  const operationalNotice=readiness==="account-required"?"Chưa đủ điều kiện vận hành: cần liên kết tài khoản đang hoạt động.":"Chưa xác minh điều kiện vận hành: cần kiểm tra quyền và phạm vi cơ sở.";
+  const operationalNotice=operationalAccountNotice(subject);
   if(subject.status==="Đang làm")return <p role="status">{operationalNotice}</p>;
   const eligible=!!current&&!!activate;
   async function run(check:boolean){

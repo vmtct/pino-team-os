@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {activationRequest,sameActivationRequest,verifiedActivation,operationalAccountState,type ActivationSubject} from "./staff-activation-model";
+import {activationRequest,sameActivationRequest,verifiedActivation,operationalAccountState,operationalAccountNotice,type ActivationSubject} from "./staff-activation-model";
 const subject:ActivationSubject={id:"STAFF-MOCK-001",name:"Nhân sự mẫu M1",status:"Ngưng",revision:"1",accountState:"missing",affiliation:{id:"mock-affiliation",version:1,centerId:"m1-staff-center",label:"PINO Cần Thơ · M1",active:true}};
 test("binds exact inactive subject and affiliation",()=>assert.deepEqual(activationRequest(subject),{staffId:subject.id,expectedRevision:"1",affiliationId:"mock-affiliation",affiliationVersion:1,centerId:"m1-staff-center"}));
 test("denies active or missing or ended affiliation",()=>{assert.equal(activationRequest({...subject,status:"Đang làm"}),null);assert.equal(activationRequest({...subject,affiliation:null}),null);assert.equal(activationRequest({...subject,affiliation:{...subject.affiliation!,active:false}}),null);});
@@ -8,3 +8,4 @@ test("rejects stale subject and changed center",()=>{const request=activationReq
 test("only accepts verified active same record and exact affiliation with changed revision",()=>{const request=activationRequest(subject)!;const active={...subject,status:"Đang làm" as const,revision:"2"};assert.equal(verifiedActivation(request,active),true);assert.equal(verifiedActivation(request,{...active,id:"other"}),false);assert.equal(verifiedActivation(request,{...active,revision:"1"}),false);assert.equal(verifiedActivation(request,{...active,affiliation:{...subject.affiliation!,version:2}}),false);});
 
 test("employment activation never implies operational admission",()=>{for(const accountState of ["missing","inactive","unknown"] as const){assert.equal(operationalAccountState({...subject,status:"Đang làm",accountState}),"account-required");}assert.equal(operationalAccountState({...subject,status:"Đang làm",accountState:"active"}),"authority-unverified");});
+test("account notice distinguishes unknown from missing and inactive",()=>{const notices=["missing","inactive","unknown","active"].map(accountState=>operationalAccountNotice({...subject,accountState:accountState as ActivationSubject["accountState"]}));assert.equal(new Set(notices).size,4);assert.match(notices[2]!,/chưa xác minh trạng thái tài khoản liên kết/);});
