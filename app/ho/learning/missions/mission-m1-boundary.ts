@@ -14,8 +14,8 @@ import { validateMissionSelectedPath, type MissionPathChoice } from "./mission-p
 type F = typeof missionFields;
 type Draft = MissionInput & {readonly category: NonNullable<MissionInput["category"]>};
 type Record = {readonly id:string; readonly version:number; readonly draft:Draft};
-import {MISSION_M1_ID,MISSION_M1_READ as READ,MISSION_M1_EDIT as EDIT,hasMissionM1Permissions} from "./mission-m1-query";
-export {MISSION_M1_ROUTE,MISSION_M1_ID} from "./mission-m1-query";
+import {MISSION_M1_ID,MISSION_M1_READ as READ,MISSION_M1_EDIT as EDIT,hasMissionM1Permissions} from "./mission-local-query";
+export {MISSION_M1_ROUTE,MISSION_M1_ID} from "./mission-local-query";
 type Admission = Readonly<{userId:string;permissionKeys:readonly string[]}>;
 const paths: readonly MissionPathChoice[]=[
  {id:"01900000-0000-7000-8000-000000000011",code:"artchitect",label:"Artchitect"},
