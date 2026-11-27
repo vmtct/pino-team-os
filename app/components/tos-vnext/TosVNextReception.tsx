@@ -87,7 +87,7 @@ export function TosVNextReception({
     }}
     showDayList
     visitLookup={<>
-      <ReceptionHouseCheckIn key={centerId} centerId={centerId} loadRecentLearners={tosReceptionHouseApi.recent} onVisitChanged={refresh} onWishCommitted={refreshWish} />
+      <ReceptionHouseCheckIn key={centerId} centerId={centerId} loadRecentLearners={tosReceptionHouseApi.recent} onVisitChanged={refresh} onWishCommitted={refreshWish} visitRevision={revision} activeVisitIds={Object.fromEntries(Object.values(day?.activeVisits??{}).filter(v=>v.checkedOutAt===null).map(v=>[v.studentProfileId,v.id]))} />
       <OpenStudioReceptionPanel
         key={centerId + ":" + workDate} centerId={centerId}
         workDate={workDate} assignments={assignments} session={currentSession}

@@ -11,10 +11,12 @@ import styles from "./reception-house.module.css";
 type Intent = { learnerId: string; centerId: string; key: string; checkedInAt: string };
 
 /** PAP-2131: optional read-only recent learner port; Core integration is a separate gate. */
-export function ReceptionHouseCheckIn({ centerId, loadRecentLearners, onVisitChanged, onWishCommitted }: {
+export function ReceptionHouseCheckIn({ centerId, loadRecentLearners, onVisitChanged, onWishCommitted, visitRevision=0, activeVisitIds }: {
   centerId: string;
   onVisitChanged?: () => void;
   onWishCommitted?: () => void;
+  visitRevision?: number;
+  activeVisitIds?: Readonly<Record<string,string>>;
   loadRecentLearners?: (centerId: string, signal: AbortSignal) => Promise<ReceptionLearner[]>;
 }) {
   const [query, setQuery] = useState("");
@@ -63,9 +65,10 @@ export function ReceptionHouseCheckIn({ centerId, loadRecentLearners, onVisitCha
       } finally { if (!controller.signal.aborted) setLoading(false); }
     }, recent || refresh ? 0 : 250);
     return () => { window.clearTimeout(timeout); controller.abort(); };
-  }, [centerId, query, refresh, loadRecentLearners]);
+  }, [centerId, query, refresh, loadRecentLearners, visitRevision]);
 
   const selected = learners.find(row => row.studentProfileId === selectedId);
+  const wishVisit=selected?.openVisit&&activeVisitIds?.[selected.studentProfileId]===selected.openVisit.id?selected.openVisit:null;
   function choose(learner: ReceptionLearner) {
     setSelectedId(learner.studentProfileId); setOptionsOpen(false);
     setNotice(""); setError(""); intent.current = null;
@@ -146,5 +149,5 @@ export function ReceptionHouseCheckIn({ centerId, loadRecentLearners, onVisitCha
             {submitting ? "Đang xác nhận…" : "Xác nhận đã đến"}
           </TosVNextButton></>}
     </div>}
-  </TosVNextCard>{selected && <TosWishRuntime centerId={centerId} learnerId={selected.studentProfileId} legalName={selected.displayName} gender={null} onCommitted={onWishCommitted}/>}</>;
+  </TosVNextCard>{selected && wishVisit && <TosWishRuntime key={wishVisit.id} centerId={centerId} learnerId={selected.studentProfileId} legalName={selected.displayName} gender={null} onCommitted={onWishCommitted}/>}</>;
 }
