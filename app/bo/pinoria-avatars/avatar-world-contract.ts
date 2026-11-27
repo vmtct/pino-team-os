@@ -77,10 +77,16 @@ export function buildWorldCommand(state:AvatarWorldState,intent:WorldIntent,gran
  if(!s||!l||typeof intent.unlocked!=="boolean"||(intent.unlocked&&(!l.enabled||s.status!=="ACTIVE"||!i.sceneAccess[s.id])))return fail();
  return {kind:"layer",instanceId:i.id,layerId:l.id,unlocked:intent.unlocked,expectedVersion:i.version};
 }
+export type WorldReceipt=Readonly<{instanceId:string;version:number}>;
+export function parseWorldReceipt(command:WorldCommand,raw:unknown):WorldReceipt{
+ const r=object(raw),instanceId=id(r.instanceId),v=version(r.version);
+ if(v!==(command.kind==="grant"?1:command.expectedVersion+1)||(command.kind!=="grant"&&instanceId!==command.instanceId))return fail();
+ return Object.freeze({instanceId,version:v});
+}
 /** A commit receipt alone is not a UI success. A separate same-scope GET must match. */
-export function verifyWorldReadback(previous:AvatarWorldState,command:WorldCommand,receiptRaw:unknown,fresh:AvatarWorldState):Instance{
+export function verifyWorldReadback(previous:Scope,command:WorldCommand,receiptRaw:unknown,fresh:AvatarWorldState):Instance{
  if(fresh.selfId!==previous.selfId||fresh.centerId!==previous.centerId||fresh.studentProfileId!==previous.studentProfileId)return fail();
- const r=object(receiptRaw),rid=id(r.instanceId),v=version(r.version),i=fresh.instances.find(i=>i.id===rid);
+ const r=parseWorldReceipt(command,receiptRaw),v=r.version,i=fresh.instances.find(i=>i.id===r.instanceId);
  if(!i||i.version!==v||v!==(command.kind==="grant"?1:command.expectedVersion+1))return fail();
  if(command.kind==="grant"){if(i.worldId!==command.worldId||i.displayLabel!==command.label||i.status!=="INACTIVE"||fresh.grantableWorlds.some(w=>w.id===i.worldId))return fail();}
  else{

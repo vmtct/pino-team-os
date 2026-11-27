@@ -2,7 +2,7 @@
 import {loadAvatarWorld,mutateAvatarWorld,AvatarWorldApiError} from "./avatar-world-api";
 import {beginWorldOperation,type PendingWorldOperation} from "./avatar-world-operation";
 import {createWorldOperationJournal,type WorldOperationJournal} from "./avatar-world-journal";
-import type {Scope,AvatarWorldState,WorldIntent} from "./avatar-world-contract";
+import {verifyWorldReadback,type Scope,type AvatarWorldState,type WorldIntent} from "./avatar-world-contract";
 export type WorldTabSnapshot={
  status:"loading"|"ready"|"denied"|"error"; state:AvatarWorldState|null;
  busy:boolean; instanceId:string|null; pending:PendingWorldOperation|null; blocked:boolean; message:string;
@@ -22,8 +22,13 @@ export function createWorldTabController(scope:Scope,grants:ReadonlySet<string>,
   try{
    const state=await loadAvatarWorld(bound,fetcher,abort.signal);
    if(disposed)return;
+   const pending=pendingHere(),receipt=pending?journal.receipt(pending):null;
+   let recovered=false;
+   if(pending&&receipt){
+    try{verifyWorldReadback(bound,pending.command,receipt,state);recovered=journal.complete(pending)}catch{/* mismatch stays locked */}
+   }
    emit({status:"ready",state,instanceId:state.instances.some(i=>i.id===current.instanceId)?current.instanceId:null,
-    message:journal.pending(bound)?"Kết quả thao tác trước chưa được xác nhận. Không gửi lại thao tác.":""});
+    message:journal.pending(bound)?"Kết quả thao tác trước chưa được xác nhận. Không gửi lại thao tác.":recovered?"Đã xác nhận kết quả thao tác trước.":""});
   }catch(e){emit({status:failure(e),state:null,message:"Không tải được World."})}
   finally{inFlight=false;emit({busy:false})}
  }
@@ -34,7 +39,7 @@ export function createWorldTabController(scope:Scope,grants:ReadonlySet<string>,
   try{pending=beginWorldOperation(previous,intent,permissions,keyFactory())}catch{emit({message:"Thao tác không còn khả dụng."});return}
   if(!journal.begin(pending)){emit({message:"Đang có thao tác chưa xác nhận."});return} inFlight=true;emit({busy:true,message:""});
   try{
-   const result=await mutateAvatarWorld(previous,pending.intent,permissions,pending.key,fetcher,abort.signal);
+   const result=await mutateAvatarWorld(previous,pending.intent,permissions,pending.key,fetcher,abort.signal,receipt=>{journal.recordReceipt(pending,receipt)});
    journal.complete(pending);emit({state:result.state,status:"ready",message:"Đã xác nhận thao tác World."});
   }catch(e){
    // Even a failed readback after a successful POST is uncertain. Never replay automatically.
