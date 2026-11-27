@@ -1,6 +1,7 @@
 "use client";
 // PAP-784 / WFM-STAFF: isolated local presentation only, no credential or assignment transport.
 import {useState} from "react";
+import {StaffSecuritySample} from "./StaffSecuritySample";
 import {StaffAccessControls} from "./StaffAccessControls";
 import {createStaffAccessFixturePort} from "./staff-access-fixture-port";
 import {StaffAccessScenario} from "./StaffAccessScenario";
@@ -19,7 +20,7 @@ const sections=[{id:"staff-access-presentation",label:"Tài khoản và quyền 
 export function StaffAccessPresentation({snapshot,centers,roles,loginEmail}:{snapshot:Snapshot;centers:readonly CenterChoice[];roles:readonly RoleChoice[];loginEmail:string|null}){
  const v=accountPresentation(snapshot,centers);
  const values={employment:v.employment==="active"?"Đang làm":"Ngưng",accountStatus:labels[v.accountStatus],loginEmail:loginEmail??"—",readiness:v.operationalReadiness==="not-ready"?"Chưa đủ điều kiện":"Chưa xác minh quyền và phạm vi cơ sở",affiliations:v.affiliations.map(c=>c.label+(c.active?"":" — Chưa xác minh hoạt động")).join("; ")||"Chưa xác minh cơ sở làm việc",assignments:v.assignments.map(a=>(roles.find(r=>r.id===a.roleId)?.label??"Chưa xác minh vai trò")+" · "+(a.scope.type==="GLOBAL"?"Toàn hệ thống":centers.find(c=>c.id===a.scope.id)?.label??"Chưa xác minh cơ sở")+(v.accountStatus!=="active"?" (chưa xác minh hiệu lực)":"")).join("; ")||"Chưa có phân công quyền được xác minh"};
- return <div><PropertySections recordKey={snapshot.staffId} fields={fields} values={values} sections={sections} variant="detail" surface="ho" canEdit={()=>false}/><p>Phạm vi quyền truy cập không tự tạo liên kết cơ sở làm việc.</p><p>Thay đổi quyền và đặt lại mật khẩu chưa khả dụng trong bản xem trước này.</p><LocalAccessSample key={snapshot.staffId+":"+snapshot.revision} seed={snapshot} centers={centers} roles={roles}/></div>;
+ return <div><PropertySections recordKey={snapshot.staffId} fields={fields} values={values} sections={sections} variant="detail" surface="ho" canEdit={()=>false}/><p>Phạm vi quyền truy cập không tự tạo liên kết cơ sở làm việc.</p><p>Thay đổi quyền và đặt lại mật khẩu chưa khả dụng trong bản xem trước này.</p><StaffSecuritySample key={snapshot.staffId+":"+snapshot.revision}/><LocalAccessSample key={snapshot.staffId+":"+snapshot.revision} seed={snapshot} centers={centers} roles={roles}/></div>;
 }
 function LocalAccessSample({seed,centers,roles}:{seed:Snapshot;centers:readonly CenterChoice[];roles:readonly RoleChoice[]}){
  const catalog=[...roles,{id:"M1-FOUR-SCOPE-ROLE",label:"Custom role (M1 sample)",active:true,protected:false,scopes:["CENTER","GLOBAL","PATH","RUNNING_CLASS"] as const}];
