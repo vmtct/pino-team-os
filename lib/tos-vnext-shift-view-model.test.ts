@@ -28,3 +28,20 @@ test("PAP-2429 period breakdown includes exact approved extra-time and preserves
  assert.equal(incomeBreakdown({...period,warnings:[],extraTimeMinor:null})[1][1],null);
  assert.deepEqual(incomeBreakdown(undefined).map(x=>x[1]),[undefined,undefined,undefined]);
 });
+import {monthToDateHistory,effectiveHistorySeconds,formatHistoryHours} from "./tos-vnext-shift-view-model";
+import type {TimekeepingSession} from "./workforce-api";
+test("PAP-2429 sums effective closed attendance, excludes future and previous-month rows, and preserves unknown",()=>{
+ const closed:TimekeepingSession={id:"1",centerId:"center",assignmentId:null,workDate:"2026-11-01",status:"CLOSED",
+  checkInAt:"2026-11-01T01:00:00Z",checkOutAt:"2026-11-01T04:00:00Z",
+  effective:{checkInAt:"2026-11-01T01:30:00Z",checkOutAt:"2026-11-01T04:00:00Z",durationSeconds:9000},corrected:true};
+ const split={...closed,id:"2",effective:{...closed.effective!,durationSeconds:1800}};
+ assert.equal(effectiveHistorySeconds(closed),9000);
+ assert.equal(monthToDateHistory([closed,split,{...closed,id:"3",workDate:"2026-11-28"},{...closed,id:"4",workDate:"2026-10-31"}],"2026-11-27").seconds,10800);
+ assert.equal(monthToDateHistory([closed,{...closed,id:"5",status:"OPEN"}],"2026-11-27").seconds,null);
+ const {effective:_,...legacy}=closed;
+ assert.equal(monthToDateHistory([legacy],"2026-11-27").seconds,null);
+ assert.equal(monthToDateHistory([],"2026-11-27").seconds,0);
+ assert.equal(monthToDateHistory(null,"2026-11-27").seconds,null);
+ assert.equal(formatHistoryHours(9000),"2,5 giờ");
+ assert.equal(formatHistoryHours(null),"—");
+});

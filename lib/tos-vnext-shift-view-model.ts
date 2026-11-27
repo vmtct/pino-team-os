@@ -1,5 +1,19 @@
 import {formatPayrollVnd,type OwnIncomePeriod} from "./tos-own-income-api";
-import type {Assignment} from "./workforce-api";
+import type {Assignment,TimekeepingSession} from "./workforce-api";
+/** PAP-2429: actual timekeeping duration, never substituted with payable payroll minutes. */
+export function effectiveHistorySeconds(row:TimekeepingSession):number|null{
+ const seconds=row.effective?.durationSeconds;
+ return row.status==="CLOSED"&&typeof seconds==="number"&&Number.isFinite(seconds)&&seconds>0?seconds:null;
+}
+export function monthToDateHistory(rows:TimekeepingSession[]|null,localDate:string){
+ if(rows===null)return {rows:null,seconds:null};
+ const selected=rows.filter(row=>row.workDate>=localDate.slice(0,8)+"01"&&row.workDate<=localDate);
+ const durations=selected.map(effectiveHistorySeconds);
+ return {rows:selected,seconds:durations.some(value=>value===null)?null:durations.reduce<number>((total,value)=>total+(value??0),0)};
+}
+export function formatHistoryHours(seconds:number|null){
+ return seconds===null?"—":new Intl.NumberFormat("vi-VN",{maximumFractionDigits:2}).format(seconds/3600)+" giờ";
+}
 /** Calendar-only arithmetic; localDate has already been resolved in the authorized center's timezone. */
 export function shiftWeek(localDate:string){
  const date=new Date(localDate+"T12:00:00Z");

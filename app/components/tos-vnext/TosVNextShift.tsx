@@ -7,7 +7,7 @@ import {AppBottomNav,AppCard,AppSheet,AppButton,createSlotKeys} from "../tos-ds"
 import {workforceApi,type Assignment,type TimekeepingSession} from "@/lib/workforce-api";
 import type {OwnIncomePage} from "@/lib/tos-own-income-api";
 import type {TosVNextShiftReadWarnings} from "./core-adapters";
-import {shiftWeek,shiftWeekOffset,activeScheduleAssignments,assignmentHours,formatIncome,incomeBreakdown,shiftRoleLabel} from "@/lib/tos-vnext-shift-view-model";
+import {shiftWeek,shiftWeekOffset,activeScheduleAssignments,assignmentHours,formatIncome,incomeBreakdown,shiftRoleLabel,monthToDateHistory,effectiveHistorySeconds,formatHistoryHours} from "@/lib/tos-vnext-shift-view-model";
 import {TosVNextAvailability} from "./TosVNextAvailability";
 import styles from "./shift.module.css";
 const slot=createSlotKeys(styles);
@@ -26,6 +26,7 @@ export function TosVNextShift({data,localDate,centerId,centerName,profileLabel}:
  const currentAssignment=data.assignments.find(x=>x.id===data.current?.assignmentId)??data.assignments.find(x=>x.workDate===localDate&&x.status==="ACTIVE");
  const latest=data.income?.data[0];
  const paidMinutes=latest?.paidMinutes;
+ const monthHistory=monthToDateHistory(data.history,localDate);
  function stopCamera(){cameraEpoch.current++;stream.current?.getTracks().forEach(x=>x.stop());stream.current=null}
  function closeSheet(){stopCamera();setPhoto(null);setCameraError("");setSheet(null)}
  useEffect(()=>()=>{cameraEpoch.current++;stream.current?.getTracks().forEach(x=>x.stop())},[]);
@@ -88,10 +89,10 @@ export function TosVNextShift({data,localDate,centerId,centerName,profileLabel}:
     </AppCard><AppCard className={styles.card}><h3>Quy trình đăng ký</h3><p>Nhân viên đăng ký thời gian có thể làm. Vai trò trong ca do quản lý phân công sau.</p></AppCard>
    </>}
    {tab==="hours"&&<>
-    <div className={styles.intro}><span>GIỜ CÔNG</span><h2>Lịch sử chấm công</h2><p>Từ đầu tháng đến hiện tại</p></div>
+    <div className={styles.intro}><span>GIỜ CÔNG</span><h2>Lịch sử chấm công</h2><p>Từ đầu tháng đến hiện tại · {monthHistory.seconds===null?"Chưa đủ dữ liệu tổng giờ công":formatHistoryHours(monthHistory.seconds)}</p></div>
     <AppCard className={styles.card}><h3>Ca gần đây</h3>{data.warnings.history&&<p role="alert">{data.warnings.history}</p>}
-     {data.history?.map(row=><div className={styles.history} key={row.id}><div><strong>{row.workDate}</strong><p>{row.checkInAt} – {row.checkOutAt??"Chưa check-out"}</p></div><span className={styles.smallStatus}>{row.status==="OPEN"?"Đang trong ca":"Đã kết thúc"}</span></div>)}
-     {data.history?.length===0&&<p>Chưa có phiên chấm công trong khoảng này.</p>}
+     {monthHistory.rows?.map(row=><div className={styles.history} key={row.id}><div><strong>{row.workDate}</strong><p>{row.effective?.checkInAt??row.checkInAt} – {row.effective?.checkOutAt??row.checkOutAt??"Chưa check-out"}</p></div><span className={styles.smallStatus}>{row.status==="OPEN"?"Đang trong ca":formatHistoryHours(effectiveHistorySeconds(row))}{row.corrected?" · Đã điều chỉnh":""}</span></div>)}
+     {monthHistory.rows?.length===0&&<p>Chưa có phiên chấm công trong khoảng này.</p>}
     </AppCard><AppCard className={styles.card}><h3>Có sai lệch giờ công?</h3><button type="button" className={styles.secondary} onClick={()=>setSheet("adjust")}>Yêu cầu điều chỉnh</button></AppCard>
    </>}
    {tab==="pay"&&<>
