@@ -1,6 +1,8 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
-import {projectPortfolioPage} from "../src/portfolio-read-model.mjs";
+import {projectPortfolioPage as project} from "../src/portfolio-read-model.mjs";
+import {renderHtml} from "../src/view.mjs";
+import {parseRoute,getShellAdapter} from "../src/adapter.mjs";
 import {renderPortfolio} from "../src/portfolio-view.mjs";
 const id=n=>"018f0000-0000-7000-8000-"+String(n).padStart(12,"0");
 const at="2026-11-26T12:00:00.000Z";
@@ -8,6 +10,9 @@ const item={postId:id(4),editorialVersion:8,caption:"Synthetic caption",occurred
 const cursor={postId:item.postId,editorialVersion:8,occurredAt:at};
 const page={items:[item],nextCursor:cursor};
 const link=m=>"/test-only-private/"+m.postId+"/"+m.editorialVersion+"/"+m.attachmentId;
+const chrome={runtime:true,selectedId:id(1),students:[{id:id(1),label:"QA"},{id:id(2),label:"Other"}]};
+const scope=space=>({space,studentId:space==="house"?id(1):null,memberChrome:chrome});
+const projectPortfolioPage=(space,page,link)=>project(space,page,link,scope(space));
 test("PAP-2432 projects real reader DTO into existing Feed and Gallery without invented metadata",()=>{
  for(const space of ["house","mytime"]){
   const out=projectPortfolioPage(space,page,link);
@@ -29,4 +34,19 @@ test("PAP-2432 rejects external, raw object and unsafe media links",()=>{
 test("PAP-2432 empty is honest and invalid order is not silently repaired",()=>{
  assert.equal(projectPortfolioPage("house",{items:[],nextCursor:null},link).model.state,"empty");
  assert.equal(projectPortfolioPage("house",{items:[item,{...item,postId:id(7)}],nextCursor:null},link).model.state,"error");
+});
+
+test("PAP-2432 native shell binds exact authorized profile and suppresses stale content",()=>{
+ const result=project("house",page,link,scope("house"));
+ assert.equal(result.model.profileKey,id(1));
+ const render=(space,tab,model,memberChrome)=>renderHtml(parseRoute("/piner/"+space+(tab==="grid"?"/grid":"")),getShellAdapter(),{memberChrome,portfolio:model});
+ for(const tab of ["home","grid"]){
+  assert.match(render("house",tab,result.model,chrome),/data-portfolio-state="ready"/);
+  assert.doesNotMatch(render("house",tab,result.model,{...chrome,selectedId:id(2)}),/Synthetic caption/);
+  assert.doesNotMatch(render("house",tab,result.model,null),/Synthetic caption/);
+  assert.match(render("mytime",tab,project("mytime",page,link,scope("mytime")).model,chrome),/data-portfolio-state="ready"/);
+ }
+ assert.equal(project("house",page,link,{...scope("house"),studentId:id(2)}).model.state,"no-profile");
+ assert.equal(project("house",page,link,null).model.state,"error");
+ assert.equal(project("mytime",page,link,{...scope("mytime"),studentId:id(1)}).model.state,"error");
 });

@@ -9,7 +9,13 @@ const path=v=>typeof v==="string"&&/^\/(?!\/)[A-Za-z0-9_./%-]+$/.test(v)&&!v.inc
 const labels={house:"PINO Afterschool",mytime:"MyTime by PINO"};
 const date=new Intl.DateTimeFormat("vi-VN",{timeZone:"Asia/Ho_Chi_Minh",day:"2-digit",month:"2-digit",year:"numeric"});
 const denied=space=>({model:{space,state:"error",posts:[]},nextCursor:null});
-export function projectPortfolioPage(space,page,privateMediaPath){
+export function projectPortfolioPage(space,page,privateMediaPath,serverScope){
+ // Scope is server-owned and bound to the exact authorized Core request.
+ if(!serverScope||serverScope.space!==space||serverScope.memberChrome?.runtime!==true)return denied(space);
+ const selected=serverScope.memberChrome.selectedId;
+ if(space==="house"&&(!canonical(serverScope.studentId)||selected!==serverScope.studentId||!Array.isArray(serverScope.memberChrome.students)||!serverScope.memberChrome.students.some(x=>x.id===selected)))return {model:{space,state:"no-profile",posts:[]},nextCursor:null};
+ if(space==="mytime"&&serverScope.studentId!==null)return denied(space);
+ const profileKey=space==="house"?selected:null;
  if(!Object.hasOwn(labels,space)||typeof privateMediaPath!=="function"||!keys(page,["items","nextCursor"])||!Array.isArray(page.items)||page.items.length>10)return denied(space);
  const seen=new Set(),posts=[];
  let previous=null;
@@ -28,5 +34,5 @@ export function projectPortfolioPage(space,page,privateMediaPath){
  }
  const c=page.nextCursor;
  if(c!==null&&(!keys(c,["postId","occurredAt","editorialVersion"])||!previous||c.postId!==previous.postId||c.occurredAt!==previous.occurredAt||c.editorialVersion!==previous.editorialVersion))return denied(space);
- return {model:{space,state:posts.length?"ready":"empty",posts},nextCursor:c===null?null:{postId:c.postId,occurredAt:c.occurredAt,editorialVersion:c.editorialVersion}};
+ return {model:{space,profileKey,state:posts.length?"ready":"empty",posts},nextCursor:c===null?null:{postId:c.postId,occurredAt:c.occurredAt,editorialVersion:c.editorialVersion}};
 }
