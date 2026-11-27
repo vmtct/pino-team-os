@@ -1,7 +1,10 @@
 // PAP-2418 · WFM-STAFF · PAP-220 Staff. Presentation contract only.
-export type ActivationSubject = Readonly<{id:string;name:string;status:"Ngưng"|"Đang làm";revision:string;affiliation:Readonly<{id:string;version:number;centerId:string;label:string;active:boolean}>|null}>;
+export type StaffAccountState = "missing"|"inactive"|"active"|"unknown";
+export type ActivationSubject = Readonly<{id:string;name:string;status:"Ngưng"|"Đang làm";revision:string;accountState:StaffAccountState;affiliation:Readonly<{id:string;version:number;centerId:string;label:string;active:boolean}>|null}>;
 export type ActivationRequest = Readonly<{staffId:string;expectedRevision:string;affiliationId:string;affiliationVersion:number;centerId:string}>;
 export type ActivationResult = {kind:"activated";subject:ActivationSubject}|{kind:"stale"|"denied"|"unknown"};
+// Employment activation is not operational admission. Even an active account requires independent scope/action checks.
+export function operationalAccountState(subject:ActivationSubject):"account-required"|"authority-unverified" {return subject.accountState==="active"?"authority-unverified":"account-required";}
 export function activationRequest(subject:ActivationSubject):ActivationRequest|null {
   const a=subject.affiliation;
   if(subject.status!=="Ngưng"||!subject.id||!subject.revision||!a?.active||!a.id||!a.centerId||!a.label||!Number.isSafeInteger(a.version)||a.version<1)return null;
