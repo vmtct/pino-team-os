@@ -6,6 +6,7 @@ import { handleBoPublicViewRequest, type BoPublicViewEnv } from "@/lib/bo-public
 import { handleBoOperationalReadRequest, type BoReadEnv } from "@/lib/bo-read-handler";
 import { handleBoSelfItemRequest, isBoSelfItemPath, type BoSelfItemEnv } from "@/lib/bo-self-item-ownership-handler";
 import { handleBoSelfLoadoutRequest, isBoSelfLoadoutPath, type BoSelfLoadoutEnv } from "@/lib/bo-self-loadout-handler";
+import { handleBoAvatarWorldRequest, isBoAvatarWorldPath, type BoAvatarWorldEnv } from "@/lib/bo-avatar-world-handler";
 import { handleBoMissionAssignmentWrite, isBoMissionAssignmentWritePath, type BoMissionWriteEnv } from "@/lib/bo-mission-assignment-write-facade";
 import { handleBoMissionCompletionRequest, isBoMissionCompletionPath, type BoMissionCompletionEnv } from "@/lib/bo-mission-completion-facade";
 import { handleBoWriteRequest, type BoWriteEnv } from "@/lib/bo-write-handler";
@@ -28,7 +29,7 @@ import { handleReviewedEnrollmentActivation, REVIEWED_ENROLLMENT_ACTIVATION_PATH
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type BoEnv = BoCustomAttributeValueEnv & BoAvatarNicknameEnv & BoSubscriptionSpecialtyEnv & BoSelfCreateEnv & BoSelfLoadoutEnv & BoSelfItemEnv & BoMissionWriteEnv & BoMissionCompletionEnv & BoPublicViewEnv & BoReadEnv & BoWriteEnv & BoWorkforcePlanningEnv & BoWorkforceTrainingEnv & BoWorkforceDutyExceptionEnv & BoPayrollReviewEnv & BoPayrollPeriodEnv & ReviewedEnrollmentEnv & BoPracticeMediaEnv & BoSyllabusMediaEnv & BoStaffPrivateEnv & BoWardSetMediaEnv & BoPinoriaWorldMediaEnv;
+type BoEnv = BoAvatarWorldEnv & BoCustomAttributeValueEnv & BoAvatarNicknameEnv & BoSubscriptionSpecialtyEnv & BoSelfCreateEnv & BoSelfLoadoutEnv & BoSelfItemEnv & BoMissionWriteEnv & BoMissionCompletionEnv & BoPublicViewEnv & BoReadEnv & BoWriteEnv & BoWorkforcePlanningEnv & BoWorkforceTrainingEnv & BoWorkforceDutyExceptionEnv & BoPayrollReviewEnv & BoPayrollPeriodEnv & ReviewedEnrollmentEnv & BoPracticeMediaEnv & BoSyllabusMediaEnv & BoStaffPrivateEnv & BoWardSetMediaEnv & BoPinoriaWorldMediaEnv;
 type RouteContext = { params: Promise<{ path: string[] }> };
 
 export async function GET(request: Request, context: RouteContext): Promise<Response> {
@@ -41,6 +42,7 @@ export async function GET(request: Request, context: RouteContext): Promise<Resp
   if (isBoSubscriptionSpecialtyPath(joined)) return handleBoSubscriptionSpecialtyRequest(request,env,joined);
   if (isBoMissionCompletionPath(joined)) return handleBoMissionCompletionRequest(request, env, joined);
   if (isBoBillsPath(joined)) return handleBoBillsRequest(request, env, joined);
+  if (isBoAvatarWorldPath(joined)) return handleBoAvatarWorldRequest(request, env, joined);
   if (isBoSelfLoadoutPath(joined)) return handleBoSelfLoadoutRequest(request, env, joined);
   if (isBoSelfItemPath(joined)) return handleBoSelfItemRequest(request, env, joined);
   if (joined.startsWith("views/")) return handleBoPublicViewRequest(request, env, joined);
@@ -65,6 +67,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
   if (isBoSubscriptionSpecialtyPath(joined)) return handleBoSubscriptionSpecialtyRequest(request,env,joined);
   if (isBoMissionCompletionPath(joined)) return handleBoMissionCompletionRequest(request, env, joined);
   if (isBoBillsPath(joined)) return handleBoBillsRequest(request, env, joined);
+  if (isBoAvatarWorldPath(joined)) return handleBoAvatarWorldRequest(request, env, joined);
   if (isBoSelfLoadoutPath(joined)) return handleBoSelfLoadoutRequest(request, env, joined);
   if (isBoSelfItemPath(joined)) return handleBoSelfItemRequest(request, env, joined);
   if (joined === "pinoria/avatars") return handleBoSelfCreateRequest(request, env, joined);
@@ -93,6 +96,7 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
   if (isBoScopedEnrollmentPath(joined)) return handleBoScopedEnrollment(request,env,joined);
   if (isBoSubscriptionSpecialtyPath(joined)) return handleBoSubscriptionSpecialtyRequest(request,env,joined);
   if (isBoBillsPath(joined)) return handleBoBillsRequest(request, env, joined);
+  if (isBoAvatarWorldPath(joined)) return handleBoAvatarWorldRequest(request, env, joined);
   if (isBoSelfLoadoutPath(joined)) return handleBoSelfLoadoutRequest(request, env, joined);
   if (isBoSelfItemPath(joined)) return handleBoSelfItemRequest(request, env, joined);
   if (joined.startsWith("views/")) return handleBoPublicViewRequest(request, env, joined);
@@ -107,6 +111,7 @@ export async function PUT(request: Request, context: RouteContext): Promise<Resp
   if (isBoCutoverPath(joined)) return handleBoCutoverRequest(request,env,joined);
   if (isBoCustomAttributeValuePath(joined)) return handleBoCustomAttributeValueRequest(request,env,joined);
   if (isBoBillsPath(joined)) return handleBoBillsRequest(request, env, joined);
+  if (isBoAvatarWorldPath(joined)) return handleBoAvatarWorldRequest(request, env, joined);
   if (isBoSelfLoadoutPath(joined)) return handleBoSelfLoadoutRequest(request, env, joined);
   if (isBoSelfItemPath(joined)) return handleBoSelfItemRequest(request, env, joined);
   if (joined.startsWith("views/")) return handleBoPublicViewRequest(request, env, joined);
@@ -121,6 +126,7 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
   if (isBoCutoverPath(joined)) return handleBoCutoverRequest(request,env,joined);
   if (isBoCustomAttributeValuePath(joined)) return handleBoCustomAttributeValueRequest(request,env,joined);
   if (isBoBillsPath(joined)) return handleBoBillsRequest(request, env, joined);
+  if (isBoAvatarWorldPath(joined)) return handleBoAvatarWorldRequest(request, env, joined);
   if (isBoSelfLoadoutPath(joined)) return handleBoSelfLoadoutRequest(request, env, joined);
   if (isBoSelfItemPath(joined)) return handleBoSelfItemRequest(request, env, joined);
   if (joined.startsWith("views/")) return handleBoPublicViewRequest(request, env, joined);

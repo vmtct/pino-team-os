@@ -154,7 +154,10 @@ export function decideHostBoundary(host: string, pathname: string, method = "GET
     return {action:hostname===BO_STAGING_HOSTNAME&&method==="GET"?"next":"not_found"};
   if (pathname.startsWith("/api/bo/pinoria/avatars/")) {
     const exactAvatar = /^\/api\/bo\/pinoria\/avatars\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pathname);
-    return hostname === BO_STAGING_HOSTNAME && method === "PATCH" && exactAvatar
+    // PAP-2153 / PNR-WORLD: only the two approved selected-Center management endpoints.
+    const exactWorld = /^\/api\/bo\/pinoria\/avatars\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/world(\/commands)?$/.exec(pathname);
+    const worldMethod = exactWorld && method === (exactWorld[1] ? "POST" : "GET");
+    return hostname === BO_STAGING_HOSTNAME && ((method === "PATCH" && exactAvatar) || worldMethod)
       ? { action: "next" } : { action: "not_found" };
   }
   // PAP-1871 / PAP-1491: exact BO Staging GET only. Core still rechecks Center and payer ACL.
