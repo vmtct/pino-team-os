@@ -50,3 +50,16 @@ test("PAP-2432 native shell binds exact authorized profile and suppresses stale 
  assert.equal(project("house",page,link,null).model.state,"error");
  assert.equal(project("mytime",page,link,{...scope("mytime"),studentId:id(1)}).model.state,"error");
 });
+
+test("PAP-2432 private media builder failure and path aliasing deny entire page",()=>{
+ const broken=projectPortfolioPage("house",page,()=>{throw Error("private builder detail");});
+ assert.equal(broken.model.state,"error");assert.deepEqual(broken.model.posts,[]);assert.equal(broken.nextCursor,null);
+ for(const src of ["/private/test","/private/%252fescape","/private/%","/private/%zz"]){
+  const out=projectPortfolioPage("house",page,()=>src);
+  assert.equal(out.model.state,"error");assert.deepEqual(out.model.posts,[]);assert.equal(out.nextCursor,null);
+ }
+ const one={items:[{...item,media:[item.media[0]]}],nextCursor:null};
+ for(const src of ["/private/%252fescape","/private/%","/private/%zz"])assert.equal(projectPortfolioPage("house",one,()=>src).model.state,"error");
+ const second={...item,postId:id(3),media:[{attachmentId:id(7),position:1}]};
+ assert.equal(projectPortfolioPage("house",{items:[one.items[0],second],nextCursor:null},()=>"/private/shared").model.state,"error");
+});
