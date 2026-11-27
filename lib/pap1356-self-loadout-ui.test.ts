@@ -12,8 +12,8 @@ const admission=JSON.parse(readFileSync(new URL("../config/tdd-admission.json",i
 const selfId="01a18140-10b8-70d3-ad6b-3e747a0cddea";
 const path="/api/bo/pinoria/selfs/"+selfId+"/loadout";
 
-test("PAP-1356 approved TDD: overview/wardrobe/loadout/history",()=>{
-  assert.deepEqual(composeTabs(selfSchema).map(t=>t.id),["overview","wardrobe","loadout","history"]);
+test("PAP-1356 approved TDD: overview/wardrobe/loadout/world/history",()=>{
+  assert.deepEqual(composeTabs(selfSchema).map(t=>t.id),["overview","wardrobe","loadout","world","history"]);
   const approved=selfSchema.detail.businessTabs[1];
   assert.equal(approved?.kind,"approved-extension");
   if(approved?.kind!=="approved-extension")return;
