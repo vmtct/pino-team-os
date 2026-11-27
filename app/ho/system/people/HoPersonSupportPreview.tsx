@@ -28,7 +28,7 @@ export function HoPersonSupportPreview({personId,personName}:{personId:string;pe
     setSeconds(previewRemainingSeconds(next,Date.now()));
     setSession(next);
   };
-  return <section className="pds-property-section" aria-labelledby={heading} data-testid="pap1523-view-launcher">
+  return <section data-pino-ds="bo" className="pds-property-section" aria-labelledby={heading} data-testid="pap1523-view-launcher">
     <div className="pds-compact-card">
       <div className="pds-compact-heading"><h3 id={heading}>Phiên hỗ trợ</h3><span className="datatag blue">VIEW ONLY</span></div>
       <p className="pds-compact-muted">Chỉ xem theo quyền của Person. Không thay đổi dữ liệu.</p>
@@ -41,7 +41,7 @@ export function HoPersonSupportPreview({personId,personName}:{personId:string;pe
           <li><span>Phạm vi</span><strong>{session.target.scope}</strong></li>
           <li><span>Thời hạn</span><strong>Chỉ xem · {Math.floor(seconds/60)}:{String(seconds%60).padStart(2,"0")} còn lại</strong></li>
         </ul>
-        <BoActionGroup><BoActionButton variant="secondary" type="button" onClick={reset}>Kết thúc phiên hỗ trợ</BoActionButton></BoActionGroup>
+        <BoActionGroup className="tdd-action-host"><BoActionButton variant="secondary" type="button" onClick={reset}>Kết thúc phiên hỗ trợ</BoActionButton></BoActionGroup>
       </div>:<form className="pds-property-section" onSubmit={event=>{event.preventDefault();start();}}>
         <div className="pds-property-grid">
           <div className="pds-property-row"><label className="pds-property-label" htmlFor={targetLabel}>Ứng dụng và vai trò</label>
@@ -57,7 +57,7 @@ export function HoPersonSupportPreview({personId,personName}:{personId:string;pe
             <textarea className="pds-property-input" id={reasonLabel} required maxLength={500} value={reason} onChange={event=>setReason(event.target.value)} rows={3} placeholder="Nhập lý do hỗ trợ"/>
           </div>
         </div>
-        <BoActionGroup><BoActionButton variant="secondary" type="button" onClick={reset}>Hủy</BoActionButton>
+        <BoActionGroup className="tdd-action-host"><BoActionButton variant="secondary" type="button" onClick={reset}>Hủy</BoActionButton>
           <BoActionButton variant="primary" type="submit" disabled={!selected||!reason.trim()}>Mở phiên xem</BoActionButton></BoActionGroup>
       </form>}
     </div>
