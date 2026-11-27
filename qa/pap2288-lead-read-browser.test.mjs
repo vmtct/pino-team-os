@@ -19,6 +19,8 @@ const shims={"next/navigation":navigation,"next/link":`import {useRouter} from "
 const code=await build({stdin:{contents:`
 import {createRoot} from "react-dom/client";
 import {LeadHouseholdM1Preview} from "./app/bo/sales/leads/LeadHouseholdM1Preview";
+import {BoApplicationShellContext} from "./app/bo/shell/BoApplicationShellContext";
+import {TddHostMenu} from "./app/components/workspace-adapters/SurfaceWorkspace";
 import {NativeLeadEntry} from "./app/bo/sales/leads/NativeLeadEntry";
 import {LeadApiError} from "./lib/bo-lead-household-client";
 import {LeadRecoveryJournal} from "./app/bo/sales/leads/lead-recovery-journal";
@@ -71,7 +73,11 @@ const root=createRoot(document.querySelector("main"));
 window.syntheticMountNative=actorId=>root.render(<NativeLeadEntry actorId={actorId}/>);
 window.syntheticUnmountNative=()=>root.unmount();
 if(location.origin==="https://bo.staging.pinohouse.art"||new URLSearchParams(location.search).has("nativeEntry"))window.syntheticMountNative(a);
-else root.render(<LeadHouseholdM1Preview readApi={new URLSearchParams(location.search).has("fixture")?undefined:api} commandApi={new URLSearchParams(location.search).has("commands")?api:undefined} recoveryJournal={new URLSearchParams(location.search).has("journal")?new LeadRecoveryJournal(sessionStorage,a):undefined} intentApi={new URLSearchParams(location.search).has("intentActions")?syntheticIntentApi:undefined} manualApi={new URLSearchParams(location.search).has("manualActions")?syntheticManualApi:undefined}/>);
+else {const content=<LeadHouseholdM1Preview readApi={new URLSearchParams(location.search).has("fixture")?undefined:api} commandApi={new URLSearchParams(location.search).has("commands")?api:undefined} recoveryJournal={new URLSearchParams(location.search).has("journal")?new LeadRecoveryJournal(sessionStorage,a):undefined} intentApi={new URLSearchParams(location.search).has("intentActions")?syntheticIntentApi:undefined} manualApi={new URLSearchParams(location.search).has("manualActions")?syntheticManualApi:undefined}/>;
+const mode=new URLSearchParams(location.search).get("menuHarness");
+const host=id=><button id={id} data-testid="lead-host-menu">Host menu</button>;
+const application=id=><button id={id} data-testid="lead-application-menu">Application menu</button>;
+root.render(mode?<TddHostMenu.Provider value={host}><BoApplicationShellContext.Provider value={mode==="application"?application:null}>{content}</BoApplicationShellContext.Provider></TddHostMenu.Provider>:content);}
 `,resolveDir:process.cwd(),loader:"tsx"},jsx:"automatic",bundle:true,write:false,outdir:"out",loader:{".css":"empty"},define:{"process.env.NODE_ENV":'"production"'},plugins:[{name:"isolated-next-navigation",setup(p){p.onResolve({filter:/^next\/(navigation|link|image|dynamic)$/},args=>({path:args.path,namespace:"lead-test"}));p.onLoad({filter:/.*/,namespace:"lead-test"},args=>({contents:shims[args.path],loader:"jsx",resolveDir:process.cwd()}));}}]});
 const js=code.outputFiles.find(f=>f.path.endsWith(".js")).text;
 test("PAP-2288 mounted native Lead table, cursor, drawer, detail, history and failure states",async()=>{
@@ -371,5 +377,26 @@ test("PAP-2288 manual intake Drawer selects authorized Center, preserves masked 
   assert.deepEqual(calls.find(c=>c.kind==="manual").input,{centerId:b,phone:"0900032402",sourceBrand:"TOPPI",intentKind:"OPEN_STUDIO",childAge:7});
   assert.equal(await page.evaluate(()=>sessionStorage.getItem("pino.leads.pending.v1")),null);
   assert.deepEqual(errors,[]);
+ }finally{await browser.close();}
+});
+
+// PAP-2421: prefer the registered application slot; standalone retains host fallback.
+test("PAP-2421 Lead table/detail prefer registered application slot over host fallback",async()=>{
+ const browser=await chromium.launch();
+ try{
+  const page=await browser.newPage({viewport:{width:390,height:844}});
+  await page.route("**/*",r=>r.request().isNavigationRequest()&&new URL(r.request().url()).hostname==="fixture.invalid"?r.fulfill({contentType:"text/html",body:"<main></main>"}):r.abort());
+  for(const mode of ["application","standalone"]){
+   for(const query of ["","&lead="+a]){
+    await page.goto("http://fixture.invalid/bo/sales/leads?menuHarness="+mode+query);
+    await page.addScriptTag({content:js});
+    const selected=page.getByTestId(mode==="application"?"lead-application-menu":"lead-host-menu");
+    const other=page.getByTestId(mode==="application"?"lead-host-menu":"lead-application-menu");
+    await selected.waitFor();
+    assert.equal(await selected.count(),1);
+    assert.equal(await other.count(),0);
+    assert.equal(await selected.getAttribute("id"),query?"lead-detail-menu-btn":"lead-menu-btn");
+   }
+  }
  }finally{await browser.close();}
 });
