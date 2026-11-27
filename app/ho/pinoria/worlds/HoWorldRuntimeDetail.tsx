@@ -7,7 +7,7 @@ import {PropertySections} from "@/app/components/workspace-renderer/Properties";
 import {BoTypedEditor} from "@/app/bo/components/registration/BoTypedEditor";
 import type {BoField,BoRecord,BoValue} from "@/lib/bo-registration";
 import {worldDrawerModule} from "./world-drawer-contract";
-import {fetchWorldCatalog,patchWorld,type CoreWorld} from "./world-runtime-client";
+import {fetchWorldCatalog,patchWorld,activateWorld,type CoreWorld} from "./world-runtime-client";
 import {projectRuntimeWorld,createRuntimeScene,saveRuntimeScene,WorldMutationJournal} from "./world-runtime-model";
 import {SceneBuilder} from "./WorldDetailPanels";
 import {HoWorldHistory} from "./HoWorldHistory";
@@ -31,10 +31,15 @@ export function HoWorldRuntimeDetail({record,canManage,onBack,onConfirmed,tab,on
   finally{flight.current=false;if(mounted.current)setBusy(false)}
  }
  function update(key:string,value:BoValue){if(!world||typeof value!=="string"||!["name","description","worldType"].includes(key))return;const patch=key==="name"?{displayName:value}:key==="description"?{descriptionText:value}:{worldType:value as CoreWorld["worldType"]};void mutate(()=>patchWorld(world.id,{expectedVersion:world.version,...patch})).catch(()=>{})}
+ function activate(){
+  if(!world||!canManage||flight.current||world.status!=="DRAFT"||!world.scenes.some(s=>s.status==="ACTIVE"))return;
+  if(!window.confirm("Kích hoạt World này? Sau khi kích hoạt, World sẽ có thể được cấp cho học viên."))return;
+  void mutate(()=>activateWorld(world)).catch(()=>{});
+ }
  return <DetailFrame title={world?.displayName??record.name} subtitle={record.id} mobileMenu={menu("detail-menu-btn")} tabs={[{id:"overview",label:"Tổng quan"},{id:"scenes",label:"Cảnh"},{id:"preview",label:"Preview"},{id:"history",label:"Lịch sử"}]} selected={tab} onSelect={id=>{if(!flight.current)onTab(id)}} onBack={()=>{if(!flight.current)onBack()}}>
  {notice&&<p role="alert">{notice}</p>}
  {!model||!world?<div role={result.error?"alert":"status"}>{result.error||"Đang tải World…"} {result.error&&<button type="button" className="secondary-btn" onClick={()=>{setResult({world:null,error:""});setRetry(n=>n+1)}}>Thử lại</button>}</div>:
- tab==="overview"?<><PropertySections fields={fields} record={mergeRow(world)} sections={[{id:"overview",label:"Thông tin World",fields:fields.map(f=>f.key)}]} variant="detail" canEdit={f=>canManage&&!busy&&["name","worldType","description"].includes(f.key)} onEdit={(f,anchor)=>setEdit({field:f,anchor})}/>{edit&&<BoTypedEditor field={{...edit.field,readonly:false}} value={mergeRow(world)[edit.field.key]} anchor={edit.anchor} onClose={closeEdit} onSave={v=>update(edit.field.key,v)}/>}</>:
+ tab==="overview"?<><PropertySections fields={fields} record={mergeRow(world)} sections={[{id:"overview",label:"Thông tin World",fields:fields.map(f=>f.key)}]} variant="detail" canEdit={f=>canManage&&!busy&&["name","worldType","description"].includes(f.key)} onEdit={(f,anchor)=>setEdit({field:f,anchor})}/>{canManage&&world.status==="DRAFT"&&<section className="grid-card"><p>World cần ít nhất một cảnh hoạt động để có thể cấp cho học viên.</p><button type="button" className="primary-btn" disabled={busy||!world.scenes.some(s=>s.status==="ACTIVE")} onClick={activate}>Kích hoạt World</button></section>}{edit&&<BoTypedEditor field={{...edit.field,readonly:false}} value={mergeRow(world)[edit.field.key]} anchor={edit.anchor} onClose={closeEdit} onSave={v=>update(edit.field.key,v)}/>}</>:
  tab==="scenes"||tab==="preview"?<SceneBuilder key={world.id+tab} world={model.world} scenes={model.scenes} layers={model.layers} selected={sceneId} onSelect={setScene} onCreate={()=>{throw Error("Runtime Scene requires PNG.")}} onSave={()=>{throw Error("Runtime Scene requires Core acknowledgement.")}} can={canManage&&!busy} previewOnly={tab==="preview"} runtime={{create:async(name,file)=>{await mutate(async()=>{const r=await createRuntimeScene(world,name,file,journal.current);setScene(r.sceneId);return r.world})},save:async(id,rows)=>{const s=world.scenes.find(x=>x.id===id);if(!s)throw Error("Cảnh không còn khả dụng.");await mutate(()=>saveRuntimeScene(s,rows,journal.current))}}}/>:
  <HoWorldHistory key={world.id} worldId={world.id}/>}
  </DetailFrame>
