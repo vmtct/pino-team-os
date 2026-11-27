@@ -2,6 +2,7 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { callTosLearningCoreWithCredential, type TosLearningCoreBinding } from "@/lib/tos-learning-core";
 import { teamCredential, TeamAuthError, type TeamAccessEnv } from "@/lib/team-auth";
 import { tosQueryParamValue } from "@/lib/tos-query-params";
+import {receptionHandoverBoundary} from "@/lib/tos-reception-handover-boundary";
 import { tosLearningCoreTarget } from "@/lib/tos-completion-get-bridge";
 
 export const runtime = "nodejs";
@@ -19,6 +20,8 @@ async function handle(request: Request, context: Context) {
     }
     let body: Record<string, unknown> = {};
     const url = new URL(request.url);
+    const handoverError=receptionHandoverBoundary(request.method,normalizedPath,url.searchParams);
+    if(handoverError)return Response.json({error:{code:handoverError===405?"PLATFORM_METHOD_NOT_ALLOWED":"PLATFORM_INVALID_INPUT",message:"Invalid Reception handover request"}},{status:handoverError,headers:{"cache-control":"no-store"}});
     for (const [key, value] of url.searchParams) if (key !== "t") body[key] = tosQueryParamValue(key, value, normalizedPath);
     if (request.method !== "GET" && request.method !== "HEAD") {
       const parsed = await request.json().catch(() => ({}));
