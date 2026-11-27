@@ -76,6 +76,13 @@ export const selfDefinition = {
       approval: { jira: "PAP-1312", owner: "BO Runtime", designAuthority: "Founder",
         files: ["app/bo/pinoria-avatars/SelfLoadoutDetail.tsx", "app/bo/pinoria-avatars/SelfDirectoryTdd.tsx"],
         tests: ["lib/pap1356-self-loadout-ui.test.ts"], reviewBy: "2026-12-01T00:00:00+07:00" },
+    }, {
+      id: "world", label: "World", kind: "approved-extension",
+      source: { adapter: "bo-avatar-world", permission: "pinoria.world.avatar.view" },
+      extensionId: "pap2153-bo-avatar-world",
+      approval: { jira: "PAP-2153", owner: "BO Runtime", designAuthority: "Founder",
+        files: ["app/bo/pinoria-avatars/SelfWorldNative.tsx", "app/bo/pinoria-avatars/SelfDirectoryTdd.tsx"],
+        tests: ["app/bo/pinoria-avatars/SelfWorldNative.test.ts"], reviewBy: "2026-12-01T00:00:00+07:00" },
     }], history: { kind: "unavailable", reason: "Core chưa cung cấp lịch sử sự kiện sở hữu Item qua BO. Provenance và mốc cấp gần nhất hiển thị trong Tủ đồ." } },
 } as const satisfies SurfaceDefinition<SelfFields>;
 
@@ -92,7 +99,10 @@ export const verifySelfWardrobeApproval: ApprovalVerifier = (approval, scope) =>
     approval.tests.includes("lib/pap1300-self-wardrobe-ui.test.ts")) ||
    (scope.extensionId === "pap1356-bo-self-loadout" && approval.jira === "PAP-1312" &&
     approval.files.includes("app/bo/pinoria-avatars/SelfLoadoutDetail.tsx") &&
-    approval.tests.includes("lib/pap1356-self-loadout-ui.test.ts")));
+    approval.tests.includes("lib/pap1356-self-loadout-ui.test.ts")) ||
+   (scope.extensionId === "pap2153-bo-avatar-world" && approval.jira === "PAP-2153" &&
+    approval.files.includes("app/bo/pinoria-avatars/SelfWorldNative.tsx") &&
+    approval.tests.includes("app/bo/pinoria-avatars/SelfWorldNative.test.ts")));
 const registry = new TddRegistry(verifySelfWardrobeApproval);
 export const selfSchema = registry.register({
   ...selfDefinition,
