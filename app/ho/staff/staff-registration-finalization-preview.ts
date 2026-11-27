@@ -28,5 +28,5 @@ export function createFinalizationFixture(d:Dossier,roles:readonly RoleOption[],
  return finish(key,fingerprint,{kind:"rejected",registrationRequestId:dossier.id,reviewedVersion:dossier.version,reason:reason.trim()});
  }};
 }
-export const reviewedDossierSeed:Dossier={id:"STAFF-DIRECTORY-MOCK-001",version:1,name:"Nhân sự mẫu PINO",email:"staff@example.invalid",mobile:null,centerId:"STAFF-MOCK-CENTER",documents:{front:true,back:true},receipt:{registrationRequestId:"STAFF-DIRECTORY-MOCK-001",centerId:"STAFF-MOCK-CENTER",status:"REVIEWED_FOR_HO",reviewedVersion:1,reviewedBy:"M1 BO Reviewer"}};
+export const reviewedDossierSeed:Dossier={id:"STAFF-DOSSIER-MOCK-001",version:1,name:"Ứng viên mẫu PINO",email:"applicant@example.invalid",mobile:null,centerId:"STAFF-MOCK-CENTER",documents:{front:true,back:true},receipt:{registrationRequestId:"STAFF-DOSSIER-MOCK-001",centerId:"STAFF-MOCK-CENTER",status:"REVIEWED_FOR_HO",reviewedVersion:1,reviewedBy:"M1 BO Reviewer"}};
 export const finalizationRoleOptions:readonly RoleOption[]=[{id:"STAFF-MOCK-ROLE",label:"Staff (M1)",active:true,scopes:["CENTER"]}];
