@@ -133,3 +133,24 @@ test("PAP-2431 rejects legacy checkout receipt without confirmed handover",async
  const spy=mock.method(globalThis,"fetch",async()=>Response.json({data:{visit:{id:"visit-1",centerId:input.centerId,studentProfileId:input.studentProfileId,checkedOutAt:input.checkedOutAt,version:2},character:null}}));
  try{await assert.rejects(tosReceptionHouseApi.checkOut(input,"key"),(e:unknown)=>e instanceof ReceptionHouseError&&e.code==="UNVERIFIED_CHECKOUT");}finally{spy.mock.restore();}
 });
+
+test("PAP-2431 pickup options accept exact Visit only, never OTHER, duplicate or stale proof",async()=>{
+ const scope={centerId:"0198d050-56c1-7ac5-b9ab-b0e45d912341",studentProfileId:"0198d050-56c1-7ac5-b9ab-b0e45d912342",expectedVisitId:"0198d050-56c1-7ac5-b9ab-b0e45d912343",expectedVersion:1};
+ const {identityVerified:_,...identity}=guardianProof;void _;
+ const option={...identity,displayName:"Synthetic Guardian",relationshipType:"GUARDIAN"};
+ const data={centerId:scope.centerId,studentProfileId:scope.studentProfileId,visitId:scope.expectedVisitId,visitVersion:1,options:[option]};
+ const signal=new AbortController().signal;
+ let next:unknown=data;
+ const spy=mock.method(globalThis,"fetch",async(url:string|URL|Request,init:RequestInit)=>{
+  assert.match(String(url),/pickup-options\?/);
+  assert.equal(init.signal,signal);assert.equal(init.cache,"no-store");
+  return Response.json({data:next});
+ });
+ try{
+  assert.deepEqual(await tosReceptionHouseApi.pickupOptions(scope,signal),[option]);
+  for(const invalid of [{...data,visitVersion:2},{...data,visitId:scope.studentProfileId},{...data,options:[option,option]},{...data,options:[{...option,relationshipType:"OTHER"}]}]){
+   next=invalid;await assert.rejects(tosReceptionHouseApi.pickupOptions(scope,signal),ReceptionHouseError);
+  }
+  next={...data,options:[]};assert.deepEqual(await tosReceptionHouseApi.pickupOptions(scope,signal),[]);
+ }finally{spy.mock.restore();}
+});
