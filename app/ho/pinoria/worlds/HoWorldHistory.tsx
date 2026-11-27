@@ -3,9 +3,9 @@ import {useEffect,useState} from "react";
 import {formatPinoDateTime} from "@/lib/pino-datetime";
 import {fetchWorldHistory,type WorldHistory} from "./world-runtime-client";
 import styles from "./WorldUiShell.module.css";
-export function HoWorldHistory({worldId}:{worldId:string}){
+export function HoWorldHistory({worldId,transport=fetch}:{worldId:string;transport?:typeof fetch}){
  const [result,setResult]=useState<WorldHistory|null>(null),[error,setError]=useState(""),[retry,setRetry]=useState(0);
- useEffect(()=>{const ctl=new AbortController();void fetchWorldHistory(worldId,fetch,ctl.signal).then(r=>{if(!ctl.signal.aborted)setResult(r)}).catch(e=>{if(!ctl.signal.aborted)setError(e instanceof Error?e.message:"Không thể tải lịch sử.")});return()=>ctl.abort()},[worldId,retry]);
+ useEffect(()=>{const ctl=new AbortController();void fetchWorldHistory(worldId,transport,ctl.signal).then(r=>{if(!ctl.signal.aborted)setResult(r)}).catch(e=>{if(!ctl.signal.aborted)setError(e instanceof Error?e.message:"Không thể tải lịch sử.")});return()=>ctl.abort()},[worldId,retry,transport]);
  if(error)return <div role="alert">{error} <button type="button" className="secondary-btn" onClick={()=>{setError("");setResult(null);setRetry(n=>n+1)}}>Thử lại</button></div>;
  if(!result)return <p role="status" className={styles.empty}>Đang tải lịch sử…</p>;
  if(!result.events.length)return <p role="status" className={styles.empty}>Chưa có lịch sử World.</p>;

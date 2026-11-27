@@ -1,7 +1,7 @@
 /** PAP-2286 / PLT-LEAD: canonical i5, synthetic presentation only. */
 import {createRoot} from "react-dom/client";
 import {BoRegistrationWorkspace,type BoWorkspaceSource} from "@/app/bo/components/registration/BoRegistrationWorkspace";
-import {LeadHouseholdM1Preview} from "@/app/bo/sales/leads/LeadHouseholdM1Preview";
+import {LeadLocalReview} from "./lead-review-adapter";
 import {LEAD_M1_FIXTURE} from "@/app/bo/sales/leads/lead-household-m1-fixtures";
 import {TddPreferencePolicy} from "@/app/components/workspace-renderer/Record";
 import "@pino/design-system/bo-tokens.css";
@@ -23,5 +23,5 @@ const source:BoWorkspaceSource={
 };
 createRoot(document.getElementById("root")!).render(
   <BoRegistrationWorkspace source={source} moduleKey="sales/leads" currentUser={{displayName:"M1 · Dữ liệu mẫu"}}
-    content={<TddPreferencePolicy.Provider value="ephemeral"><LeadHouseholdM1Preview localReview fixtureSeed={LEAD_M1_FIXTURE}/></TddPreferencePolicy.Provider>}/>
+    content={<TddPreferencePolicy.Provider value="ephemeral"><LeadLocalReview canonicalReview seed={LEAD_M1_FIXTURE}/></TddPreferencePolicy.Provider>}/>
 );
