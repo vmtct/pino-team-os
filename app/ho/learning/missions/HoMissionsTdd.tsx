@@ -11,8 +11,6 @@ import { TddRegistry, type TddActionBindings } from "@/lib/workspace-schema";
 import { SurfaceWorkspace } from "@/app/components/workspace-adapters/SurfaceWorkspace";
 import { TddRenderer } from "@/app/components/workspace-renderer/Renderer";
 import { HoWorkspace } from "@/app/ho/HoWorkspace";
-import { TddPreferencePolicy } from "@/app/components/workspace-renderer/Record";
-import { createMissionM1Boundary } from "./mission-m1-boundary";
 import { missionDefinition, missionFields, missionProvider, missionQuery, missionIntegratedDefinition, missionIntegratedProvider, missionCategoryQuery } from "./schema";
 import { submitHoMission, type MissionInput } from "./command";
 import { loadMissionForEdit } from "./read-edit";
@@ -305,9 +303,4 @@ export function HoMissionsContent({boundary=liveBoundary}:{boundary?:MissionBoun
 }
 export function HoMissionsTdd() {
   return <HoWorkspace module="missions" content={<HoMissionsContent boundary={integratedMissionBoundary}/>} />;
-}
-/** PAP-2394: server-admitted Staging shell; same renderer as approved local M1-A. */
-export function HoMissionsTddPreview({scopeKey,permissionKeys,initialRecord}:{scopeKey:string;permissionKeys:readonly string[];initialRecord?:string}) {
- const [boundary]=useState(()=>createMissionM1Boundary(initialRecord,{userId:scopeKey,permissionKeys}));
- return <HoWorkspace module="missions" content={<TddPreferencePolicy.Provider value="ephemeral"><HoMissionsContent boundary={boundary}/></TddPreferencePolicy.Provider>}/>;
 }
