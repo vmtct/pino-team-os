@@ -20,6 +20,7 @@ import { BoDataGrid, BoDataGridBadge, BoDrawer, type BoDataGridColumn } from "@/
 import { BoProperties } from "@/app/bo/components/BoProperties";
 import { DetailFrame } from "@/app/components/workspace-renderer/DetailFrame";
 import {useStaffRegistrationConfirmation} from "./StaffRegistrationConfirmation";
+import type {StaffDossierReviewPort} from "../workforce/staffs/staff-dossier-review";
 
 const requestColumns: BoDataGridColumn<BoStaffRegistrationRequest>[] = [
   { key: "displayLabel", header: "H\u1ecd v\u00e0 t\u00ean", render: row => row.displayLabel, minWidth: 180 },
@@ -40,7 +41,7 @@ type ReviewAttempt = { requestId: string; fingerprint: string; key: string };
 const liveReviewKey = () => crypto.randomUUID();
 
 export type StaffRegistrationReviewService = Pick<typeof boApi,"accessUsers"|"staffRegistrationRequests"|"accessRoles"|"scopeCatalog"|"staffRecords"|"learners"|"approveStaffRegistration"|"rejectStaffRegistration">;
-export function StaffRegistrationReviewQueue({service=boApi,newKey=liveReviewKey}:{service?:StaffRegistrationReviewService;newKey?:()=>string}={}) {
+export function StaffRegistrationReviewQueue({service=boApi,newKey=liveReviewKey,dossierReview}:{service?:StaffRegistrationReviewService;newKey?:()=>string;dossierReview?:StaffDossierReviewPort}={}) {
   const blankDraft = useCallback((): Draft => ({key:newKey(),roleId:"",scopeType:"GLOBAL",scopeId:""}),[newKey]);
   const [requests, setRequests] = useState<BoStaffRegistrationRequest[]>([]);
   const [roles, setRoles] = useState<BoAccessRole[]>([]);
@@ -65,6 +66,7 @@ export function StaffRegistrationReviewQueue({service=boApi,newKey=liveReviewKey
   const reviewTarget=useRef(selectedId);
   useEffect(()=>{reviewTarget.current=selectedId;},[selectedId]);
   const [error, setError] = useState("");
+  const [reviewNotice,setReviewNotice]=useState("");
   const [approval, setApproval] = useState<BoStaffRegistrationApprovalResult | null>(null);
   const approveAttempt = useRef<ReviewAttempt | null>(null);
   const rejectAttempt = useRef<ReviewAttempt | null>(null);
@@ -100,6 +102,7 @@ export function StaffRegistrationReviewQueue({service=boApi,newKey=liveReviewKey
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
+      if(dossierReview){const next=await service.staffRegistrationRequests();setRequests(next);setSelectedId(current=>next.some(r=>r.id===current)?current:"");return;}
       const accessUsersRequest = service.accessUsers().catch((cause) => {
         if (cause instanceof BoApiError && (cause.status === 401 || cause.status === 403)) return [];
         throw cause;
@@ -113,7 +116,7 @@ export function StaffRegistrationReviewQueue({service=boApi,newKey=liveReviewKey
       setError(cause instanceof Error ? cause.message : "Không thể tải hàng đợi đăng ký nhân sự.");
     }
     finally { setLoading(false); }
-  }, [service]);
+  }, [service,dossierReview]);
   useEffect(() => { void refresh(); }, [refresh]);
 
   function patchDraft(key: string, patch: Partial<Draft>) {
@@ -153,6 +156,13 @@ export function StaffRegistrationReviewQueue({service=boApi,newKey=liveReviewKey
 
   async function approve() {
     if (!selected || reviewInFlight.current) return;
+    if(dossierReview){
+      if(!dossierReview.submit||!dossierReview.centerId||!selected.documents.front||!selected.documents.back)return;
+      reviewInFlight.current=true;
+      if(!await confirmation.ask("Duy\u1ec7t h\u1ed3 s\u01a1 v\u00e0 chuy\u1ec3n HO ho\u00e0n t\u1ea5t?")||reviewTarget.current!==selected.id){reviewInFlight.current=false;return;}
+      setBusy("approve");setError("");
+      try{const fingerprint=JSON.stringify([selected.id,selected.version,dossierReview.centerId]);const attempt=approveAttempt.current;const key=attempt?.requestId===selected.id&&attempt.fingerprint===fingerprint?attempt.key:newKey();approveAttempt.current={requestId:selected.id,fingerprint,key};const receipt=await dossierReview.submit(selected.id,selected.version,dossierReview.centerId,key);if(receipt.registrationRequestId!==selected.id||receipt.centerId!==dossierReview.centerId||receipt.status!=="REVIEWED_FOR_HO")throw Error("Review receipt mismatch");approveAttempt.current=null;setReviewNotice("\u0110\u00e3 duy\u1ec7t h\u1ed3 s\u01a1. Ch\u1edd HO ho\u00e0n t\u1ea5t.");setRequests(items=>items.filter(r=>r.id!==selected.id));setSelectedId("");setSurface("table");}catch(cause){setError(formatError(cause,"Kh\u00f4ng th\u1ec3 duy\u1ec7t h\u1ed3 s\u01a1."));}finally{reviewInFlight.current=false;setBusy("");}return;
+    }
     const normalized = normalizedAssignments();
     if (!normalized) { setError("Chọn đầy đủ role và scope trước khi duyệt."); return; }
     const identity = pinoriaIdentity();
@@ -223,6 +233,7 @@ export function StaffRegistrationReviewQueue({service=boApi,newKey=liveReviewKey
     </header>
 
     {error ? <p className={styles.ownerError}>{error}</p> : null}
+    {reviewNotice?<p role="status">{reviewNotice}</p>:null}
     {approval ? <section className={styles.staffPinReveal} data-testid="registration-password-ready">
       <span>Access đã sẵn sàng</span>
       <p>Staff đăng nhập bằng email + mật khẩu đã tạo lúc đăng ký. Không có Staff PIN.</p>
@@ -248,6 +259,7 @@ export function StaffRegistrationReviewQueue({service=boApi,newKey=liveReviewKey
             <p className={styles.registrationPrivacyNote}>{"CCCD v\u00e0 th\u00f4ng tin ng\u00e2n h\u00e0ng ch\u1ec9 hi\u1ec3n th\u1ecb d\u1eef li\u1ec7u \u0111\u00e3 che."}</p>
           </section>
 
+          {dossierReview?<section className={styles.panel}><BoProperties authority items={[{key:"center",label:"C\u01a1 s\u1edf",value:dossierReview.centerName}]}/><p className={styles.registrationPrivacyNote}>{"HO qu\u1ea3n l\u00fd danh t\u00ednh v\u00e0 quy\u1ec1n truy c\u1eadp sau khi duy\u1ec7t."}</p>{!dossierReview.submit?<p role="status">{"Ch\u01b0a c\u00f3 k\u1ebft n\u1ed1i duy\u1ec7t h\u1ed3 s\u01a1."}</p>:null}</section>:<>
           {existingAccess ? <section className={styles.panel}>
             <div className={styles.panelHeading}><div><h2>Access hiện hữu</h2><p>Email đăng ký đã có tài khoản Access; không tạo tài khoản trùng.</p></div><span className={styles.writePill}>LINK</span></div>
             {existingAccess.staffMemberId ? <p className={styles.ownerError}>Access này đã liên kết với Staff <code>{existingAccess.staffMemberId}</code>. Không thể duyệt vào Staff khác.</p> : <>
@@ -292,11 +304,12 @@ export function StaffRegistrationReviewQueue({service=boApi,newKey=liveReviewKey
             </div>
             <button type="button" className={styles.secondaryButton} onClick={() => setAssignments((items) => [...items, blankDraft()])}>+ Thêm role assignment</button>
           </section>
+          </>}
           <section className={styles.registrationDecisionBar}>
             <label className={styles.field}>Lý do từ chối<input value={rejectReason} onChange={(event) => setRejectReason(event.target.value)} placeholder="Chỉ cần khi từ chối" /></label>
             <div className={styles.registrationDecisionActions}>
               <button type="button" className={styles.secondaryButton} disabled={Boolean(busy) || !rejectReason.trim()} onClick={() => void reject()}>{busy === "reject" ? "Đang từ chối…" : "Từ chối"}</button>
-              <button type="button" className={styles.primaryButton} disabled={Boolean(busy) || !identityReady || !selected.documents.front || !selected.documents.back || Boolean(existingAccess?.staffMemberId) || Boolean(existingAccess && !existingStaffMemberId)} onClick={() => void approve()}>{busy === "approve" ? "Đang duyệt…" : existingAccess ? "Duyệt & liên kết" : "Duyệt & cấp quyền"}</button>
+              <button type="button" className={styles.primaryButton} disabled={Boolean(busy)||!selected.documents.front||!selected.documents.back||(dossierReview?!dossierReview.submit||!dossierReview.centerId:!identityReady||Boolean(existingAccess?.staffMemberId)||Boolean(existingAccess&&!existingStaffMemberId))} onClick={() => void approve()}>{busy==="approve"?"\u0110ang duy\u1ec7t...":dossierReview?"Duy\u1ec7t h\u1ed3 s\u01a1":existingAccess?"Duy\u1ec7t & li\u00ean k\u1ebft":"Duy\u1ec7t & c\u1ea5p quy\u1ec1n"}</button>
             </div>
           </section>
       </div>}

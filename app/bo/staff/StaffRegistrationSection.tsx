@@ -1,5 +1,5 @@
 "use client";
-import {useEffect,useState,useRef} from "react";
+import {useEffect,useState,useRef,useMemo} from "react";
 import {BoDataGrid,BoDataGridBadge,BoDrawer,type BoDataGridColumn} from "@/app/bo/components/data-grid";
 import {BoProperties} from "@/app/bo/components/BoProperties";
 import {DetailFrame} from "@/app/components/workspace-renderer/DetailFrame";
@@ -47,6 +47,9 @@ const columns:BoDataGridColumn<RequestRow>[]=[
 // Core's Founder-only intake capability distinguishes the legacy global surface.
 // A network failure is not a grant or a reason to fall back to global data.
 export function StaffRegistrationSection({embedded=false}:{embedded?:boolean}){
+  const scope=useBoCenterSelection();
+  const center=scope?.centers.find(c=>c.id===scope.selected);
+  const dossierReview=useMemo(()=>embedded?{centerId:center?.id??"",centerName:center?.displayName??"\u2014"}:undefined,[embedded,center?.id,center?.displayName]);
   const [mode,setMode]=useState<"loading"|"founder"|"center"|"error">("loading");
   const [error,setError]=useState("");
   useEffect(()=>{
@@ -60,7 +63,7 @@ export function StaffRegistrationSection({embedded=false}:{embedded?:boolean}){
   },[]);
   if(mode==="loading")return <p role="status">Đang xác minh quyền duyệt hồ sơ…</p>;
   if(mode==="error")return <p role="alert">{error}</p>;
-  if(mode==="founder")return <><StaffRegistrationIntakeToggle/><StaffRegistrationReviewQueue/></>;
+  if(mode==="founder")return <><StaffRegistrationIntakeToggle/><StaffRegistrationReviewQueue dossierReview={dossierReview}/></>;
   return <StaffCenterRegistrationReview embedded={embedded}/>;
 }
 function StaffCenterRegistrationReview({embedded}:{embedded:boolean}){
@@ -105,7 +108,7 @@ export function CenterReview({centerId,centerName,embedded,service=liveCenterReg
   const close=()=>{if(!inFlight.current)resetSelection();};
   const requestClose=()=>{if(canClose())close();};
   async function review(mode:Mode){
-    if(!selected||inFlight.current||!reviewReady||reviewError||(mode==="approve"&&!roles.some(r=>r.id===roleId))||(mode==="reject"&&!reason.trim()))return;
+    if((embedded&&mode==="approve")||!selected||inFlight.current||!reviewReady||reviewError||(mode==="approve"&&!roles.some(r=>r.id===roleId))||(mode==="reject"&&!reason.trim()))return;
     const body=mode==="approve"?{expectedVersion:selected.version,assignments:[{roleId,scopeType:"CENTER",scopeId:centerId}],pinoriaIdentity:{mode:"CREATE_STAFF_ONLY_PERSON"}}:{expectedVersion:selected.version,reason:reason.trim()};
     const fingerprint=JSON.stringify([centerId,selected.id,mode,body]);
     const key=attempts.current.get(fingerprint)??crypto.randomUUID();
@@ -141,11 +144,13 @@ export function CenterReview({centerId,centerName,embedded,service=liveCenterReg
       {tab==="history"?<p role="status">Lịch sử chi tiết chưa có trong dữ liệu hồ sơ này.</p>:<>
       <BoProperties authority items={[{key:"center",label:"Cơ sở",value:centerName},{key:"date",label:"Ngày gửi",value:time(selected.submittedAt)},{key:"status",label:"Trạng thái",value:"Chờ duyệt"}]}/>
       <div className={styles.registrationReviewDetail}>
+      {embedded?<p role="status">{"HO qu\u1ea3n l\u00fd danh t\u00ednh v\u00e0 quy\u1ec1n truy c\u1eadp. Ch\u01b0a c\u00f3 k\u1ebft n\u1ed1i duy\u1ec7t h\u1ed3 s\u01a1."}</p>:<>
       <label className={styles.field}>Vai trò Staff<select aria-label="Vai trò Staff" value={roleId} disabled={busy||!reviewReady||!!reviewError} onChange={e=>setRoleId(e.target.value)}>
         <option value="">Chọn vai trò</option>{roles.map(r=><option value={r.id} key={r.id}>{r.displayName}</option>)}
       </select></label>
       <p className={styles.registrationPrivacyNote}>Tài khoản mới chỉ được cấp quyền tại cơ sở này.</p>
-      <div className={styles.registrationDecisionActions}><button type="button" className={styles.primaryButton} disabled={busy||!reviewReady||!!reviewError||!roleId} onClick={()=>void review("approve")}>Duyệt hồ sơ</button></div>
+      </>}
+      <div className={styles.registrationDecisionActions}><button type="button" className={styles.primaryButton} disabled={embedded||busy||!reviewReady||!!reviewError||!roleId} onClick={()=>void review("approve")}>Duyệt hồ sơ</button></div>
       <label className={styles.field}>Lý do từ chối<textarea rows={3} aria-label="Lý do từ chối" value={reason} maxLength={500} disabled={busy||!reviewReady||!!reviewError} onChange={e=>setReason(e.target.value)}/></label>
       <div className={styles.registrationDecisionActions}><button type="button" className={styles.secondaryButton} disabled={busy||!reviewReady||!!reviewError||!reason.trim()} onClick={()=>void review("reject")}>Từ chối</button></div>
       </div>
