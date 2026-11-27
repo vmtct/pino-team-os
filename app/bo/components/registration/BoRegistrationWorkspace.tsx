@@ -28,7 +28,7 @@ import type { ClassCreate } from "../../running-classes/running-class-draft";
 import type { ClassEditCommand } from "../../running-classes/running-class-presentation";
 import type { RunningClassReview } from "../../running-classes/running-class-review";
 import { BoTableSettings, type BoSavedView } from "./BoTableSettings";
-export type BoWorkspaceSource = { modules: Record<string, BoModule>; load: (key: string, fetcher: typeof fetch, options: Record<string, string>) => Promise<BoRecord[]>; scopeLabel: (key: string, options: Record<string, string>) => string; surface?: "ho"; readOnly?: boolean; ephemeral?: boolean; allowStudentCreate?: boolean; runningClassReview?: RunningClassReview; runningClassLive?: RunningClassProvider; isModuleReadOnly?: (key: string) => boolean; routeForModule?: (key: string) => string; loadRecordDetails?: (key: string, record: BoRecord, fetcher: typeof fetch) => Promise<BoRecord> };
+export type BoWorkspaceSource = { modules: Record<string, BoModule>; load: (key: string, fetcher: typeof fetch, options: Record<string, string>) => Promise<BoRecord[]>; scopeLabel: (key: string, options: Record<string, string>) => string; surface?: "ho"; readOnly?: boolean; ephemeral?: boolean; allowStudentCreate?: boolean; runningClassReview?: RunningClassReview; runningClassLive?: RunningClassProvider; staffDetailReview?: (record:BoRecord,options:Record<string,string>,onSaved:(record:BoRecord,rows:BoRecord[])=>void)=>React.ReactNode; isModuleReadOnly?: (key: string) => boolean; routeForModule?: (key: string) => string; loadRecordDetails?: (key: string, record: BoRecord, fetcher: typeof fetch) => Promise<BoRecord> };
 type WorkspaceSnapshot = { table: BoTableState; views: BoSavedView[]; activeView: string | null };
 type Context = { displayName: string | null };
 const icons: Record<string, string> = { students: "◉", classes: "▦", subscriptions: "▤", enrollments: "↗", visits: "◷", staffs: "◉", termWeeks: "▦", timekeeping: "◷", salaryPeriods: "▤", worlds: "◈", catalog: "▦", sets: "▤", users: "◉", roles: "▣", audits: "≡" };
@@ -222,6 +222,7 @@ function BoWorkspace({ moduleKey, options, currentUser, source, content, headerC
   const workspaceContent = <>{shellOnly && applicationMenuSlots === 0 ? menu("bo-application-menu-btn") : null}{content ? content : detail ? <BoFullDetail key={detail.id} module={definition} moduleKey={moduleKey} record={detail} mobileMenu={menu("detail-menu-btn")} onBack={back}
         reviewOnly={source.ephemeral && moduleKey === "students"}
         staffReviewOnly={source.ephemeral === true && moduleKey === "staffs"}
+        staffDetailContent={source.ephemeral===true&&moduleKey==="staffs"&&source.staffDetailReview?source.staffDetailReview(detail,options,(updated,nextRows)=>{if(updated.id!==detail.id)return;setRows(nextRows);setDetail(current=>current?.id===updated.id?updated:current);}):undefined}
         runningClassReview={classReview}
         runningClassLive={liveReady?classLive:undefined}
         runningClassLiveEditable={!readOnly&&Boolean(classLive?.writable)&&!livePending}
