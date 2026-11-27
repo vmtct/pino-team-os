@@ -1,7 +1,7 @@
 "use client";
 import "@pino/design-system/bo-tokens.css";
 import "@pino/design-system/components.css";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { BoActionButton, BoActionGroup } from "@pino/design-system/react";
 import { DrawerFrame } from "@/app/components/workspace-renderer/DrawerFrame";
 import type { TableQuery } from "@/lib/workspace-schema";
@@ -16,6 +16,9 @@ import { createMissionM1Boundary } from "./mission-m1-boundary";
 import { missionDefinition, missionFields, missionProvider, missionQuery, missionIntegratedDefinition, missionIntegratedProvider, missionCategoryQuery } from "./schema";
 import { submitHoMission, type MissionInput } from "./command";
 import { loadMissionForEdit } from "./read-edit";
+import { createMissionMetadataBinding } from "./mission-metadata-binding";
+import { MissionMetadataPropertyHost } from "./MissionMetadataPropertyHost";
+import { MISSION_METADATA_COMMAND, type MissionMetadataPresentation } from "./mission-inline-presentation";
 import { emptyMission, MissionCreateFields, validateMissionCreate } from "./MissionCreateFields";
 import { loadMissionPathChoices, validateMissionSelectedPath, type MissionPathChoice } from "./mission-path-options";
 
@@ -27,9 +30,9 @@ export type MissionBoundary = {
   readonly integratedMetadata?: true;
   readonly query: TableQuery<F>;
   readonly open: (signal: AbortSignal) => Promise<Ready>;
-  readonly load: (id:string)=>ReturnType<typeof loadMissionForEdit>;
+  readonly load: (id:string,signal?:AbortSignal)=>ReturnType<typeof loadMissionForEdit>;
   readonly paths: (signal?: AbortSignal) => Promise<readonly MissionPathChoice[]>;
-  readonly submit: (command: Parameters<typeof submitHoMission>[0]) => ReturnType<typeof submitHoMission>;
+  readonly submit: (command: Parameters<typeof submitHoMission>[0],signal?:AbortSignal) => ReturnType<typeof submitHoMission>;
   readonly key: (prefix:string)=>string;
 };
 const liveBoundary: MissionBoundary = {
@@ -39,8 +42,8 @@ const liveBoundary: MissionBoundary = {
     try { return {adapter,navigation:browserTddNavigation("HO","missions",missionQuery)}; }
     catch (error) { adapter.dispose(); throw error; }
   },
-  load:id=>loadMissionForEdit(id), paths:signal=>loadMissionPathChoices(fetch,signal),
-  submit:command=>submitHoMission(command), key:prefix=>prefix+crypto.randomUUID(),
+  load:(id,signal)=>loadMissionForEdit(id,fetch,signal), paths:signal=>loadMissionPathChoices(fetch,signal),
+  submit:(command,signal)=>submitHoMission(command,fetch,signal), key:prefix=>prefix+crypto.randomUUID(),
 };
 /** PAP-2394: unmounted integrated boundary; server route stays M1 until Core serving and M3 admission. */
 export const integratedMissionBoundary: MissionBoundary = {
@@ -72,6 +75,37 @@ export function HoMissionsContent({boundary=liveBoundary}:{boundary?:MissionBoun
   const [archivePreview, setArchivePreview] = useState<{id:string;version:number;name:string}|null>(null);
   const idempotency = useRef<string | null>(null);
   const writing = useRef(false);
+  const inlineWriting = useRef(false);
+  const latest = useRef({ready,boundary,mode,pending,uncertain,archivePreview});
+  useLayoutEffect(()=>{latest.current={ready,boundary,mode,pending,uncertain,archivePreview};},[ready,boundary,mode,pending,uncertain,archivePreview]);
+  const [inlineScope,setInlineScope]=useState<{ready:Ready;boundary:MissionBoundary;presentation:MissionMetadataPresentation}|null>(null);
+  useLayoutEffect(()=>{
+    if (!ready || boundary.preview || boundary.integratedMetadata!==true) return;
+    let active=true;
+    const allowed=()=>{
+      if(!active)return false;
+      const current=latest.current;
+      return current.ready===ready&&current.boundary===boundary&&!current.mode&&!current.archivePreview&&!current.uncertain&&
+        (!current.pending||inlineWriting.current)&&(!writing.current||inlineWriting.current)&&
+        ready.adapter.context.authorize("catalog.learning.view")&&ready.adapter.context.authorize("learning.mission.manage");
+    };
+    const binding=createMissionMetadataBinding({
+      read:(id,signal)=>boundary.load(id,signal),paths:signal=>boundary.paths(signal),
+      submit:(command,signal)=>boundary.submit(command,signal),key:()=>boundary.key("mission-inline-"),
+      canEdit:request=>{const selected=ready.navigation.read();return allowed()&&(selected.kind==="table"||selected.recordId===request.id);},
+      acquireActionLock:()=>{
+        if (!allowed()||writing.current) return null;
+        writing.current=true;inlineWriting.current=true;setPending(true);
+        return ()=>{inlineWriting.current=false;writing.current=false;setPending(false);};
+      },
+      onUncertain:()=>setUncertain(true),
+    });
+    const presentation:MissionMetadataPresentation={command:MISSION_METADATA_COMMAND,render:input=><MissionMetadataPropertyHost {...input} schema={ready.adapter.schema}
+      context={ready.adapter.context} binding={binding} hasGenericWrites={false}/>};
+    queueMicrotask(()=>{if(active)setInlineScope({ready,boundary,presentation});});
+    return ()=>{active=false;};
+  },[ready,boundary]);
+  const missionMetadata=inlineScope?.ready===ready&&inlineScope.boundary===boundary?inlineScope.presentation:undefined;
   useEffect(() => {
     const controller = new AbortController();
     let bound: AuthenticatedSurfaceAdapter<F> | null = null;
@@ -251,7 +285,7 @@ export function HoMissionsContent({boundary=liveBoundary}:{boundary?:MissionBoun
     {uncertain ? <p role="alert">Lệnh ghi chưa được xác minh. Không gửi lại thao tác hoặc mở form mới trước khi đối chiếu Mission trên Core.</p> : null}
     {error ? <p role="alert">{error} <button type="button" onClick={() => { setReady(null); setError(""); setRetry(n => n + 1); }}>Thử lại</button></p> :
       ready ? <>
-        <SurfaceWorkspace adapter={ready.adapter} navigation={ready.navigation} initialQuery={boundary.query} actionBindings={actions} />
+        <SurfaceWorkspace adapter={ready.adapter} navigation={ready.navigation} initialQuery={boundary.query} actionBindings={actions} missionMetadata={missionMetadata} />
         {mode ? <TddRenderer view={{ kind: "form", props: {
           registry: ready.adapter.registry, schema: ready.adapter.schema, context: ready.adapter.context,
           mode, ...(mode === "edit" ? { recordId: editTarget?.id } : {}),
