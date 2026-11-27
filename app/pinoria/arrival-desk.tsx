@@ -98,7 +98,7 @@ export function ArrivalDesk() {
         headers: { "content-type": "application/json", "idempotency-key": crypto.randomUUID() },
         body: JSON.stringify(checkIn
           ? { studentProfileId: learner.studentProfileId, centerId, checkedInAt: new Date().toISOString() }
-          : { studentProfileId: learner.studentProfileId, centerId, expectedVersion: learner.openVisit!.version, checkedOutAt: new Date().toISOString(), reason: "Rời PINO House" }),
+          : { studentProfileId: learner.studentProfileId, centerId, expectedVisitId: learner.openVisit!.id, expectedVersion: learner.openVisit!.version, checkedOutAt: new Date().toISOString(), reason: "Rời PINO House" }),
       });
       const json = await response.json() as Envelope<unknown>;
       if (!response.ok) throw new Error(json.error?.message ?? "Thao tác thất bại");

@@ -86,7 +86,7 @@ test("PAP-2138 recent read uses exact Center, abort and no-store; preserves auth
   } finally {spy.mock.restore();}
 });
 test("PAP-2431 checkout sends exact scope, CAS and stable replay key", async () => {
-  const input = {centerId:"center-1",studentProfileId:"student-1",expectedVersion:1,checkedOutAt:"2026-11-27T10:00:00Z",reason:"Authorized handover"};
+  const input = {centerId:"center-1",studentProfileId:"student-1",expectedVisitId:"visit-1",expectedVersion:1,checkedOutAt:"2026-11-27T10:00:00Z",reason:"Authorized handover"};
   const calls: Array<{url:string;init:RequestInit}> = [];
   const spy = mock.method(globalThis,"fetch",async (url:string|URL|Request,init:RequestInit)=>{
     calls.push({url:String(url),init});
@@ -103,13 +103,14 @@ test("PAP-2431 checkout sends exact scope, CAS and stable replay key", async () 
       assert.deepEqual(JSON.parse(String(call.init.body)),input);
     }
     assert.throws(()=>tosReceptionHouseApi.checkOut({...input,expectedVersion:0},"stable-key"),ReceptionHouseError);
+    assert.throws(()=>tosReceptionHouseApi.checkOut({...input,expectedVisitId:""},"stable-key"),ReceptionHouseError);
     assert.throws(()=>tosReceptionHouseApi.checkOut({...input,reason:" "},"stable-key"),ReceptionHouseError);
     assert.equal(calls.length,2);
   } finally {spy.mock.restore();}
 });
 
 test("PAP-2431 checkout rejects denied, stale and unverified responses", async () => {
-  const input={centerId:"center-1",studentProfileId:"student-1",expectedVersion:1,checkedOutAt:"2026-11-27T10:00:00Z",reason:"Authorized handover"};
+  const input={centerId:"center-1",studentProfileId:"student-1",expectedVisitId:"visit-1",expectedVersion:1,checkedOutAt:"2026-11-27T10:00:00Z",reason:"Authorized handover"};
   for (const status of [403,409]){
     const spy=mock.method(globalThis,"fetch",async()=>Response.json({error:{code:"REJECTED",message:"Rejected"}},{status}));
     try {await assert.rejects(tosReceptionHouseApi.checkOut(input,"stable-key"),(e:unknown)=>e instanceof ReceptionHouseError&&e.status===status);}
@@ -118,4 +119,10 @@ test("PAP-2431 checkout rejects denied, stale and unverified responses", async (
   const spy=mock.method(globalThis,"fetch",async()=>Response.json({data:{visit:{id:"visit-1",centerId:"wrong-center",studentProfileId:input.studentProfileId,checkedOutAt:input.checkedOutAt,version:2},character:null}}));
   try {await assert.rejects(tosReceptionHouseApi.checkOut(input,"stable-key"),(e:unknown)=>e instanceof ReceptionHouseError&&e.code==="UNVERIFIED_CHECKOUT");}
   finally {spy.mock.restore();}
+});
+test("PAP-2431 rejects a receipt for a different visit even with matching student, Center and version",async()=>{
+  const input={centerId:"center-1",studentProfileId:"student-1",expectedVisitId:"old-visit",expectedVersion:1,checkedOutAt:"2026-11-27T10:00:00Z",reason:"Authorized handover"};
+  const spy=mock.method(globalThis,"fetch",async()=>Response.json({data:{visit:{id:"new-visit",centerId:input.centerId,studentProfileId:input.studentProfileId,checkedOutAt:input.checkedOutAt,version:2},character:null}}));
+  try{await assert.rejects(()=>tosReceptionHouseApi.checkOut(input,"stable-key"),(e:unknown)=>e instanceof ReceptionHouseError&&e.code==="UNVERIFIED_CHECKOUT");}
+  finally{spy.mock.restore();}
 });

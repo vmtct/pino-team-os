@@ -11,6 +11,7 @@ export type ReceptionLearner = {
 export type ReceptionHouseCheckOutInput = {
   centerId: string;
   studentProfileId: string;
+  expectedVisitId: string;
   expectedVersion: number;
   checkedOutAt: string;
   reason: string;
@@ -65,7 +66,7 @@ export const tosReceptionHouseApi = {
   },
   // PAP-2431: transport only. The calling UI must first establish authorized pickup.
   checkOut: (input: ReceptionHouseCheckOutInput, idempotencyKey: string) => {
-    if (!input.centerId || !input.studentProfileId || !idempotencyKey.trim() ||
+    if (!input.centerId || !input.studentProfileId || !input.expectedVisitId?.trim() || !idempotencyKey.trim() ||
       !Number.isSafeInteger(input.expectedVersion) || input.expectedVersion < 1 ||
       !input.reason.trim() || !Number.isFinite(Date.parse(input.checkedOutAt))) {
       throw new ReceptionHouseError(400, "INVALID_INPUT", "Invalid checkout scope or evidence.");
@@ -77,7 +78,7 @@ export const tosReceptionHouseApi = {
     }).then(result => {
       const visit = result?.visit;
       if (!visit || visit.studentProfileId !== input.studentProfileId ||
-          visit.centerId !== input.centerId || !visit.id ||
+          visit.centerId !== input.centerId || visit.id !== input.expectedVisitId ||
           !Number.isSafeInteger(visit.version) || visit.version <= input.expectedVersion ||
           !Number.isFinite(Date.parse(visit.checkedOutAt))) {
         throw new ReceptionHouseError(502, "UNVERIFIED_CHECKOUT", "Checkout result could not be verified.");
