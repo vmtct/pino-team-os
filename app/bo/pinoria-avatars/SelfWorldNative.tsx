@@ -40,7 +40,7 @@ function MountedWorld({scope,principalId,grantStamp,journals}:{scope:Scope;princ
  return <>
  {snapshot.message&&<p role="status">{snapshot.message}</p>}
  {snapshot.blocked&&<button type="button" className="secondary-btn" disabled={snapshot.busy} onClick={()=>{void ctl.current?.reload()}}>Kiểm tra lại kết quả</button>}
- <SelfWorldTabContent scope={scope} state={snapshot.state} status={snapshot.status} grants={grants} instanceId={snapshot.instanceId} busy={snapshot.busy||snapshot.blocked}
+ <SelfWorldTabContent scope={scope} state={snapshot.state} status={snapshot.status} grants={grants} instanceId={snapshot.instanceId} busy={snapshot.busy} mutationBlocked={snapshot.blocked}
   onReload={()=>{void ctl.current?.reload()}} onOpen={id=>ctl.current?.open(id)} onBack={()=>ctl.current?.back()} onConfirm={intent=>{void ctl.current?.confirm(intent)}}/>
  </>;
 }

@@ -26,3 +26,8 @@ test("removed detail and busy state cannot expose grant as a fallback or enable 
  const removed=render({instanceId:id(99)});assert.match(removed,/không còn khả dụng/);assert.doesNotMatch(removed,/Cấp World|Thao tác World/);
  assert.match(render({busy:true}),/aria-busy="true"/);assert.match(render({busy:true}),/disabled=""/);
 });
+test("uncertain receipt disables mutation without presenting read-only tab as loading",()=>{
+ const html=render({mutationBlocked:true});
+ assert.match(html,/aria-busy="false"/);assert.match(html,/disabled=""/);
+ assert.match(html,/Chưa có World/);assert.match(html,/Cấp World · World QA/);
+});
