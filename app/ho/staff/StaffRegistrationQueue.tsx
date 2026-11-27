@@ -4,10 +4,11 @@ import {useState} from "react";
 import {SurfaceWorkspace} from "@/app/components/workspace-adapters/SurfaceWorkspace";
 import type {AuthenticatedSurfaceAdapter} from "@/lib/workspace-adapters/contracts";
 import type {AdapterNavigation,AdapterLocation} from "@/lib/workspace-adapters/navigation";
-import {manualStaffQuery,type ManualStaffFields} from "./manual-create-contract";
+import type {ManualStaffFields} from "./manual-create-contract";
+import {registrationQueueQuery} from "./staff-registration-queue-contract";
 import {StaffRegistrationFinalization} from "./StaffRegistrationFinalization";
 import type {createFinalizationFixture,FinalizationResult,FinalizeRequest,ReviewedDossierReceipt} from "./staff-registration-finalization-preview";
-export const registrationQueueQuery={...manualStaffQuery,order:manualStaffQuery.order.filter(k=>k!=="role"),visible:manualStaffQuery.visible.filter(k=>k!=="role")};
+
 type Fixture=ReturnType<typeof createFinalizationFixture>;
 type Props={adapter:AuthenticatedSurfaceAdapter<ManualStaffFields>;fixture:Fixture;centerLabel:string;onBack:()=>void;finalize:(r:FinalizeRequest)=>FinalizationResult;reject:(r:ReviewedDossierReceipt,reason:string,key:string)=>FinalizationResult};
 export function StaffRegistrationQueue({adapter,fixture,centerLabel,onBack,finalize,reject}:Props){
