@@ -48,6 +48,9 @@ export function mapHoMissions(value:unknown):BoRecord[]{
   updatedByVerifiedLegalName:nullable(r.updatedByVerifiedLegalName),
   prerequisite:nullable(r.prerequisiteCodeSnapshot)||nullable(r.prerequisiteMissionId),
   reconciliation:word(r.reconciliation),description:nullable(r.description),guideline:nullable(r.guideline),
+    ...(Object.hasOwn(r,"category")?{category:nullable(r.category)}:{}),
+    ...(Object.hasOwn(r,"supplementalUrl")?{supplementalUrl:nullable(r.supplementalUrl)}:{}),
+    ...(typeof r.version==="number"?{version:r.version}:{}),
   diagnostics:words(r.diagnostics),
  }));
 }

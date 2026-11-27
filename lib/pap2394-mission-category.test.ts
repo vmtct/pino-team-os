@@ -101,3 +101,19 @@ test("PAP-2394 supplemental URL is optional metadata directly after guideline; n
  assert.equal((await adapter.detail(created.record.id,signal))?.row.supplementalUrl,data.supplementalUrl);
  assert.equal((await b.submit({kind:"create",data:{...data,code:"URL-BAD",supplementalUrl:"file:///x"},idempotencyKey:"url-bad"})).state,"invalid");
 });
+
+test("PAP-2394 M3 accepts canonical real record links only and mounts the integrated boundary",async()=>{
+ const {parseMissionIntegratedQuery}=await import("../app/ho/learning/missions/mission-m1-query");
+ const id="01900000-0000-7000-8000-000000000002";
+ assert.deepEqual(parseMissionIntegratedQuery(new URLSearchParams()),{});
+ assert.deepEqual(parseMissionIntegratedQuery(new URLSearchParams("record="+id+"&utm_source=qa")),{record:id});
+ for(const query of ["m1Preview=1","record=MISSION-MOCK-001","record=","record=bad","record="+id+"&record="+id,"tab=history"])assert.equal(parseMissionIntegratedQuery(new URLSearchParams(query)),null);
+ const {readFileSync}=await import("node:fs");
+ const page=readFileSync("app/ho/learning/missions/page.tsx","utf8"),ui=readFileSync("app/ho/learning/missions/HoMissionsTdd.tsx","utf8");
+ assert.match(page,/env\.APP_ENV!=="staging"/);
+ assert.match(page,/normalizeHostname\(incoming\.get\("host"\)\|\|""\)!==HO_STAGING_HOSTNAME/);
+ assert.ok(page.indexOf("await authorizeHoShell")<page.indexOf("return <HoMissionsTdd"));
+ assert.match(page,/!actor\.entitled\|\|!hasMissionM1Permissions\(actor\.permissionKeys\)/);
+ assert.doesNotMatch(page,/HoMissionsTddPreview|decideM1Preview/);
+ assert.match(ui,/<HoMissionsContent boundary=\{integratedMissionBoundary\}/);
+});

@@ -61,7 +61,7 @@ test("PAP-1495 S4: Core-backed empty Level is truthful, no phantom mission or wr
 });
 
 test("PAP-1495 S4: linked Mission list verifies canonical Core GET, duplicates count once",async()=>{
- const mission={id:missionId,version:1,code:"A-01",name:"Hình khối",level:1,
+ const mission={id:missionId,version:1,category:null,supplementalUrl:null,code:"A-01",name:"Hình khối",level:1,
    status:"ACTIVE",plsValue:10,paperSize:null,description:null,guideline:null,
    pathProgramId:path,pathKeySnapshot:null,prerequisiteMissionId:null,prerequisiteCodeSnapshot:null};
  const full={...detail,missionCountDistinct:1,levels:[
@@ -82,7 +82,7 @@ test("PAP-1495 S4: linked Mission list verifies canonical Core GET, duplicates c
 
 test("PAP-1495 S4: wrong-Path Mission does not become a verified label",async()=>{
  const full={...detail,levels:[{id:levelId,order:1,name:"Cấp 1",missionIds:[missionId]}]};
- const other={id:missionId,version:1,code:"Q-01",name:"Not same Path",level:1,status:"ACTIVE",
+ const other={id:missionId,version:1,category:null,supplementalUrl:null,code:"Q-01",name:"Not same Path",level:1,status:"ACTIVE",
   plsValue:10,paperSize:null,description:null,guideline:null,pathProgramId:prereq,
   pathKeySnapshot:null,prerequisiteMissionId:null,prerequisiteCodeSnapshot:null};
  const fetcher:typeof fetch=async u=>Response.json({data:String(u).includes("/missions/")?other:full});
