@@ -49,3 +49,15 @@ test("PAP-802 UI formats source timestamps in Vietnam local clock",()=>{
   assert.equal(formatVietnamTime("2026-10-20T11:05:00.000Z"),"18:05");
   assert.equal(formatVietnamTime("garbage"),"--:--");
 });
+
+test("PAP-2429 extra-time uses latest effective attendance, rejects unknown duration and stale Center choice",()=>{
+ const corrected:AttendanceEvidence={...attendance[0]!,effective:{
+  checkInAt:"2026-10-20T18:30:00+07:00",checkOutAt:"2026-10-20T21:15:00+07:00",durationSeconds:9900}};
+ const choice=availableExtraTimeWindows(assignments,[corrected],center)[0]!;
+ assert.equal(choice.checkInAt,"2026-10-20T18:30:00+07:00");
+ assert.equal(choice.checkOutAt,"2026-10-20T21:15:00+07:00");
+ assert.throws(()=>createExtraTimePayload(choice,center,"18:10","18:20","Valid setup work description"));
+ assert.equal(createExtraTimePayload(choice,center,"21:00","21:10","Valid setup work description").endAt,"2026-10-20T21:10:00+07:00");
+ assert.throws(()=>createExtraTimePayload(choice,"center-b","21:00","21:10","Valid setup work description"));
+ assert.deepEqual(availableExtraTimeWindows(assignments,[{...corrected,effective:{...corrected.effective!,durationSeconds:null}}],center),[]);
+});
