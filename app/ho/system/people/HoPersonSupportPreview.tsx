@@ -1,6 +1,7 @@
 "use client";
 /** PAP-1523: synthetic support tab; no session, request, redirect, storage or credential. */
 import {useEffect,useId,useState} from "react";
+import "@pino/design-system/bo-tokens.css";
 import {BoActionButton,BoActionGroup} from "@pino/design-system/react";
 import {previewRemainingSeconds,startSupportPreview,SUPPORT_FIXTURE_ID,supportPreviewTargets,type PreviewSession} from "./person-support-preview";
 
