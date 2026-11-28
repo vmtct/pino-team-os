@@ -5,6 +5,7 @@ export const boStagingAdmittedRoutes = new Set([
   "/bo/running-classes",
   "/bo/missions",
   "/bo/parents",
+  "/bo/workforce/staffs",
   "/bo/bills",
   "/bo/workforce-shift-plans",
   "/bo/workforce-availability",

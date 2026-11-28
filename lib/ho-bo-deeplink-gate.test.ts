@@ -30,7 +30,7 @@ const hoPaths=[
  "/ho/system/audit","/ho/system/tdd-reference","/ho/language-mappings",
 ];
 const boPaths=[
- "/bo/missions","/bo/parents","/bo/bills","/bo/workforce-shift-plans","/bo/workforce-availability",
+ "/bo/missions","/bo/parents","/bo/workforce/staffs","/bo/bills","/bo/workforce-shift-plans","/bo/workforce-availability",
  "/bo/workforce-assignments","/bo/workforce/timekeeping","/bo/payroll-periods","/bo/payroll-daily","/bo/payroll-exceptions",
  "/bo/pinoria-avatars","/bo/afterschool-accounts","/bo/open-studio-passes","/bo/classroom-diaries",
  "/bo/piner-posts","/bo/sales/leads","/bo/guests","/bo/mytime-workshops","/bo/enrollments",
@@ -38,7 +38,7 @@ const boPaths=[
 ];
 const legacy:Record<string,string>={
  students:"/bo?module=students",classes:"/bo/running-classes",subscriptions:"/bo?module=subscriptions",
- enrollments:"/bo/enrollments",visits:"/bo?module=visits",staffs:"/bo?module=staffs",
+ enrollments:"/bo/enrollments",visits:"/bo?module=visits",staffs:"/bo/workforce/staffs",
  timekeeping:"/bo?module=timekeeping",salaryPeriods:"/bo/payroll-periods",audits:"/bo?module=audits",
  parents:"/bo/parents",missions:"/bo?module=missions",
 };

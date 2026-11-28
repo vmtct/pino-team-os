@@ -1,48 +1,19 @@
 /** PAP-2345 / PLT-M1-DELIVERY: local-only presentation entry, never a live session. */
 import {createRoot} from "react-dom/client";
-import {BoRegistrationWorkspace,type BoWorkspaceSource} from "@/app/bo/components/registration/BoRegistrationWorkspace";
-import {StaffManualWorkspace} from "@/app/ho/staff/StaffManualWorkspace";
-import {manualStaffDefinition,manualStaffQuery,type ManualStaffFields} from "@/app/ho/staff/manual-create-contract";
-import {newStaffPreview,readStaffPreview,createStaffPreviewRecord,staffPreviewCenter,projectStaffPreviewRow} from "@/app/ho/staff/manual-create-preview";
-import {TddRegistry,validateQuery,type AuthorizationContext,type ModuleSchema} from "@/lib/workspace-schema";
-import type {AuthenticatedSurfaceAdapter} from "@/lib/workspace-adapters/contracts";
-import type {AdapterNavigation,AdapterLocation} from "@/lib/workspace-adapters/navigation";
-import {TddPreferencePolicy} from "@/app/components/workspace-renderer/Record";
-import {hoModules} from "@/lib/ho-system";
+import {parseStaffLocalRoute,staffLocalRouteSearch} from "@/app/ho/staff/staff-local-route-state";
+import {createHoStaffReviewController,HoStaffReviewContent} from "@/app/ho/staff/StaffReviewContent";
 import "@pino/design-system/bo-tokens.css";
 import "@pino/design-system/components.css";
 import "../../public/ho-authority-source/ho-scoped.css";
 import "../../app/components/workspace-renderer/tdd-detail-layout.css";
 import "../../app/components/workspace-renderer/tdd-table-geometry.css";
 import "../../app/components/workspace-renderer/tdd-freeze.css";
+import "./staff-navigation.css";
 
-const route="/ho/staff", origin="http://192.168.1.6:8800", event="pino:m1:staff:local";
-if(location.origin!==origin||location.pathname!==route||new URLSearchParams(location.search).get("m1Preview")!=="1"||self.origin!=="null")throw Error("Local sandbox only");
-const principal="synthetic-presentation-only";
-let state=newStaffPreview(principal);
-// This value is a display filter for synthetic rows only. No authenticated session or
-// transport is created and the value cannot leave this sandbox or grant live access.
-const context:AuthorizationContext=Object.freeze({surface:"HO",authorize:(permission:string)=>permission===manualStaffDefinition.capabilities.read});
-const registry=new TddRegistry();
-const schema:ModuleSchema<ManualStaffFields>=registry.register({...manualStaffDefinition,data:{id:"local-synthetic-presentation",list:async(query,_context,signal)=>{
-  signal.throwIfAborted();validateQuery(schema,query,context);return {rows:state.records.map(projectStaffPreviewRow),total:state.records.length};
-},detail:async(id,_context,signal)=>{signal.throwIfAborted();const row=readStaffPreview(state,id);return row?projectStaffPreviewRow(row):null;}}});
-const adapter:AuthenticatedSurfaceAdapter<ManualStaffFields>={
-  registry,schema,context,scope:{surface:"HO"},userId:principal,
-  capabilities:{read:true,edit:false,create:false,delete:false,reveal:false,audit:false},
-  list:async(query,signal)=>({...await schema.data.list(query,context,signal),versions:{}}),
-  detail:async(id,signal)=>{const row=await schema.data.detail(id,context,signal);return row?{row}:null;},
-  views:async signal=>{signal.throwIfAborted();return {unavailable:[]};},
-  subject:id=>({type:"staffs",id}),history:async()=>({status:"unavailable",reason:"Chưa có nhật ký hệ thống cho Staff."}),dispose:()=>{}
-};
-let focus:HTMLElement|null=null,recordId:string|undefined,scroll={x:0,y:0,left:0,top:0};
-const validId=(id:string|null|undefined):id is string=>typeof id==="string"&&/^STAFF-MOCK-\d{3,}$/.test(id);
-const navigation:AdapterNavigation<ManualStaffFields>={
- read(){const selected=new URLSearchParams(location.search).get("record");const owned=history.state?.[event] as AdapterLocation<ManualStaffFields>|undefined;return {kind:validId(selected)?owned?.recordId===selected&&owned.kind==="detail"?"detail":"drawer":"table",...(validId(selected)?{recordId:selected}:{}),tab:owned?.recordId===selected?owned.tab:"overview",query:owned?.query??manualStaffQuery};},
- change(next,replace=false){if(next.kind!=="table"&&!validId(next.recordId))throw Error("Synthetic record required");const url=new URL(location.href);if(next.kind==="table")url.searchParams.delete("record");else url.searchParams.set("record",next.recordId!);history[replace?"replaceState":"pushState"]({...history.state,[event]:next},"",url.pathname+url.search);window.dispatchEvent(new Event(event));},
- subscribe(listener){window.addEventListener("popstate",listener);window.addEventListener(event,listener);return()=>{window.removeEventListener("popstate",listener);window.removeEventListener(event,listener);};},
- capture(id){recordId=id;focus=document.activeElement instanceof HTMLElement?document.activeElement:null;const table=document.getElementById("table-scroll");scroll={x:window.scrollX,y:window.scrollY,left:table?.scrollLeft??0,top:table?.scrollTop??0};},
- restore(){requestAnimationFrame(()=>{window.scrollTo(scroll.x,scroll.y);const table=document.getElementById("table-scroll");if(table){table.scrollLeft=scroll.left;table.scrollTop=scroll.top;}const el=focus?.isConnected?focus:[...document.querySelectorAll<HTMLElement>("button[data-open]")].find(n=>n.dataset.open===recordId);el?.focus({preventScroll:true});});}
-};
-const source:BoWorkspaceSource={surface:"ho",readOnly:true,ephemeral:true,modules:hoModules,routeForModule:key=>key==="staffs"?route+"?m1Preview=1":"#unavailable-local-module",scopeLabel:()=>"",load:async()=>{throw Error("No live transport");}};
-createRoot(document.getElementById("root")!).render(<BoRegistrationWorkspace source={source} moduleKey="staffs" currentUser={{displayName:"M1 · Dữ liệu mẫu"}} content={<TddPreferencePolicy.Provider value="ephemeral"><StaffManualWorkspace adapter={adapter} navigation={navigation} centers={[staffPreviewCenter]} onCreate={async command=>{state=createStaffPreviewRecord(state,command);}}/></TddPreferencePolicy.Provider>}/>);
+const route="/ho/staff";
+const origin=location.origin.toLowerCase();
+const params=new URLSearchParams(location.search);
+if(!["http://desktop-isrdren:8800","http://192.168.1.6:8800"].includes(origin)||location.pathname!==route||self.origin!=="null"||
+  !parseStaffLocalRoute(params))throw Error("Local sandbox only");
+const controller=createHoStaffReviewController({readParams:()=>new URLSearchParams(location.search),routeSearch:staffLocalRouteSearch});
+createRoot(document.getElementById("root")!).render(<HoStaffReviewContent controller={controller}/>);

@@ -1,0 +1,70 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {createStaffRegistrationM1Service,createStaffM1KeyFactory} from "../app/bo/workforce/staffs/staff-registration-m1-service";
+import {STAFF_DIRECTORY_MOCK_ID} from "../app/bo/workforce/staffs/staff-directory-m1-fixture";
+const identity={mode:"CREATE_STAFF_ONLY_PERSON"} as const;
+test("PAP-2411 synthetic approval is isolated and idempotent",async()=>{
+  const service=createStaffRegistrationM1Service();
+  const role=(await service.accessRoles())[0];const center=(await service.scopeCatalog()).centers[0];
+  const assignments=[{roleId:role.id,scopeType:"CENTER" as const,scopeId:center.id}];
+  await assert.rejects(service.approveStaffRegistration("real-id",assignments,identity,"bad"));
+  const receipt=await service.approveStaffRegistration(STAFF_DIRECTORY_MOCK_ID,assignments,identity,"a");
+  assert.deepEqual(await service.approveStaffRegistration(STAFF_DIRECTORY_MOCK_ID,assignments,identity,"a"),receipt);
+  await assert.rejects(service.rejectStaffRegistration(STAFF_DIRECTORY_MOCK_ID,"test","a"));
+  assert.equal((await service.staffRegistrationRequests()).length,0);
+  assert.equal((await createStaffRegistrationM1Service().staffRegistrationRequests()).length,1);
+});
+test("PAP-2411 reject and intake state stay within each fixture instance",async()=>{
+  const a=createStaffRegistrationM1Service(),b=createStaffRegistrationM1Service();
+  await assert.rejects(a.rejectStaffRegistration(STAFF_DIRECTORY_MOCK_ID," ","bad"));
+  const rejected=await a.rejectStaffRegistration(STAFF_DIRECTORY_MOCK_ID,"test","r");
+  assert.deepEqual(await a.rejectStaffRegistration(STAFF_DIRECTORY_MOCK_ID,"test","r"),rejected);
+  assert.equal((await a.staffRegistrationRequests()).length,0);
+  assert.equal((await b.staffRegistrationRequests()).length,1);
+  assert.equal((await a.setStaffRegistrationIntake(false)).enabled,false);
+  assert.equal((await b.staffRegistrationIntake()).enabled,true);
+});
+
+test("PAP-2411 fixture review keys are independent and do not need secure context",()=>{
+ const a=createStaffM1KeyFactory(),b=createStaffM1KeyFactory();assert.equal(a(),"M1-STAFF-REVIEW-1");assert.equal(a(),"M1-STAFF-REVIEW-2");assert.equal(b(),"M1-STAFF-REVIEW-1");
+});
+
+test("PAP-2411 complete synthetic registration can be reviewed; incomplete documents fail closed",async()=>{
+ const complete=createStaffRegistrationM1Service(),incomplete=createStaffRegistrationM1Service({completeDocuments:false});
+ const role=(await complete.accessRoles())[0],center=(await complete.scopeCatalog()).centers[0];
+ const assignments=[{roleId:role.id,scopeType:"CENTER" as const,scopeId:center.id}];
+ assert.deepEqual((await complete.staffRegistrationRequests())[0].documents,{front:true,back:true});
+ assert.deepEqual((await incomplete.staffRegistrationRequests())[0].documents,{front:false,back:false});
+ await assert.rejects(incomplete.approveStaffRegistration(STAFF_DIRECTORY_MOCK_ID,assignments,identity,"missing-docs"));
+ assert.equal((await incomplete.staffRegistrationRequests()).length,1);
+ await assert.rejects(complete.approveStaffRegistration(STAFF_DIRECTORY_MOCK_ID,[{...assignments[0],scopeId:"foreign"}],identity,"foreign"));
+ assert.equal((await complete.approveStaffRegistration(STAFF_DIRECTORY_MOCK_ID,assignments,identity,"valid")).status,"APPROVED");
+});
+
+test("PAP-2411 existing learner selection is exact and never inferred",async()=>{
+ const service=createStaffRegistrationM1Service();
+ const role=(await service.accessRoles())[0],center=(await service.scopeCatalog()).centers[0];
+ const assignments=[{roleId:role.id,scopeType:"CENTER" as const,scopeId:center.id}];
+ assert.deepEqual(await service.learners("unknown",50),[]);
+ const [learner]=await service.learners("PINO",50);
+ assert.equal(learner.id,"STAFF-MOCK-LEARNER");
+ await assert.rejects(service.approveStaffRegistration(STAFF_DIRECTORY_MOCK_ID,assignments,{mode:"LINK_EXISTING_STUDENT",studentProfileId:"foreign"},"foreign"));
+ assert.equal((await service.staffRegistrationRequests()).length,1);
+ assert.equal((await service.approveStaffRegistration(STAFF_DIRECTORY_MOCK_ID,assignments,{mode:"LINK_EXISTING_STUDENT",studentProfileId:learner.id},"explicit")).status,"APPROVED");
+});
+
+test("PAP-2411 existing Access requires explicit eligible Staff selection and denies already linked",async()=>{
+ const service=createStaffRegistrationM1Service({existingAccess:"unlinked"}),linked=createStaffRegistrationM1Service({existingAccess:"linked"});
+ const role=(await service.accessRoles())[0],center=(await service.scopeCatalog()).centers[0];
+ const assignments=[{roleId:role.id,scopeType:"CENTER" as const,scopeId:center.id}];
+ const [staff]=await service.staffRecords(),[account]=await service.accessUsers();
+ assert.equal(account.staffMemberId,null);assert.equal(account.email,(await service.staffRegistrationRequests())[0].email);
+ await assert.rejects(service.approveStaffRegistration(STAFF_DIRECTORY_MOCK_ID,assignments,identity,"missing"));
+ await assert.rejects(service.approveStaffRegistration(STAFF_DIRECTORY_MOCK_ID,assignments,identity,"foreign","foreign"));
+ await assert.rejects(linked.approveStaffRegistration(STAFF_DIRECTORY_MOCK_ID,assignments,identity,"linked",staff.id));
+ assert.deepEqual(await service.learners(),[]);
+ const receipt=await service.approveStaffRegistration(STAFF_DIRECTORY_MOCK_ID,assignments,identity,"exact",staff.id);
+ assert.equal(receipt.staffMemberId,staff.id);assert.equal(receipt.userId,account.id);assert.equal(receipt.accessState,"LINKED_EXISTING_ACCESS");
+ assert.equal(receipt.authenticationMethod,"EXISTING_ACCESS");
+ assert.deepEqual(await service.approveStaffRegistration(STAFF_DIRECTORY_MOCK_ID,assignments,identity,"exact",staff.id),receipt);
+});

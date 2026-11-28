@@ -125,6 +125,9 @@ function DetailRecord<F extends readonly FieldSchema[]>({ schema, context, recor
             {renderApprovedExtension(projection.record, context, active?.id ?? "overview")}
           </div>
           {overview}
+          {active?.owner === "business" && !approvedExtension && allowsField(schema, context, schema.table.identity.field, "display") ? active.slot.kind === "form"
+            ? <>{renderActionSlot?.("businessTab.toolbar", active.id)}<BusinessFormPanel key={active.id} schema={readOnlySchema} context={context} record={projection.record} slot={active.slot} binding={businessForms} /></>
+            : <>{renderActionSlot?.("businessTab.toolbar", active.id)}<BusinessPanel key={active.id} schema={readOnlySchema} context={context} record={projection.record} slot={active.slot} loaders={loaders} /></> : null}
           {active?.id === "history" ? (historyContent && allows(schema, context, "history") ? historyContent : <TddHistory schema={readOnlySchema} context={context} subject={subject} />) : null}
         </>
       : !projection ? <RecordState status={allows(schema, context, "read") ? status === "ready" ? "denied" : status : "denied"} onRetry={onRetry} />

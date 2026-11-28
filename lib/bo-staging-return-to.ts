@@ -1,3 +1,4 @@
+import {STAFF_REVIEW_QUERY,staffStageReviewUrl} from "../app/ho/staff/staff-stage-review-route";
 /** PAP-2203 — safe navigation hints, never authority. */
 import {BO_LEGACY_QUERY_MODULES,BO_TARGET_ROUTES} from "./bo-url-contract";
 import {isBoStagingRouteAdmitted} from "../app/bo/architecture/bo-staging-route-policy";
@@ -9,6 +10,7 @@ import {RC_REVIEW_PATH} from "../app/bo/running-classes/running-class-review-que
 import {parseRunningClassStageQuery} from "../app/bo/running-classes/running-class-stage-admission";
 import {CAMERA_STAGE_HOST,CAMERA_STAGE_PATH,parseCameraStageReview} from "./pap1612-camera-stage-route";
 import {canonicalParentRoute,PARENT_ROUTE} from "../app/bo/parents/parent-route";
+import {canonicalStaffDirectoryRoute,STAFF_DIRECTORY_ROUTE} from "../app/bo/workforce/staffs/staff-directory-route";
 export const BO_STAGING_RETURN_HOST="bo.staging.pinohouse.art";
 export const BO_RETURN_HEADER="x-pino-bo-return-to";
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -31,6 +33,8 @@ export function safeBoStagingReturnTo(raw:string|null|undefined):string|null{
  }
  let moduleKey=p.get("module");
  if(path===PARENT_ROUTE||(path==="/bo"&&moduleKey==="parents"))return canonicalParentRoute(Object.fromEntries(p),path==="/bo");
+ if(path===STAFF_DIRECTORY_ROUTE&&p.has(STAFF_REVIEW_QUERY)){const review=staffStageReviewUrl("BO",p);return review?review.pathname+review.search:null;}
+ if(path===STAFF_DIRECTORY_ROUTE||(path==="/bo"&&moduleKey==="staffs"))return canonicalStaffDirectoryRoute(Object.fromEntries(p),path==="/bo");
  if(path===RC_REVIEW_PATH||(path==="/bo"&&moduleKey==="classes"))return parseRunningClassStageQuery(p,path==="/bo");
  if(path==="/bo/subscriptions"){if(moduleKey!==null&&moduleKey!=="subscriptions")return null;path="/bo";moduleKey="subscriptions";p.set("module",moduleKey);}
  if(path==="/bo/registrations"){if(moduleKey!==null)return null;path="/bo/enrollments";p.delete("record");p.delete("sessionId");}

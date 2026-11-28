@@ -9,6 +9,36 @@
   },
   "consumers": [
     {
+      "file": "app/bo/staff/StaffRegistrationReviewQueue.tsx",
+      "uses": 1,
+      "jira": "PAP-2411",
+      "mode": "tabbed",
+      "tabSource": "literal",
+      "tabs": [
+        [
+          "overview",
+          "Tổng quan"
+        ],
+        [
+          "history",
+          "Lịch sử"
+        ]
+      ],
+      "g4": {
+        "surface": "BO",
+        "module": "staffRegistrationFounderQueue",
+        "route": "/bo/workforce/staffs",
+        "tableSelector": "#staff-registration-review table tbody tr",
+        "detailSelector": "#staff-registration-review #detail-screen",
+        "runner": "scripts/pap2411-staff-dossier-detail-live-cdp.mjs",
+        "qaPorts": [
+          9342,
+          9343,
+          9344
+        ]
+      }
+    },
+    {
       "file": "app/bo/content/posts/PostPreviewShell.tsx",
       "uses": 1,
       "mode": "tabbed",

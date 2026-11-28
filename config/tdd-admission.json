@@ -157,7 +157,38 @@
         "app/ho/staff/staff-native-overview.ts",
         "app/ho/staff/staff-person-reader.ts",
         "app/ho/staff/staff-recovery-journal.ts",
-        "app/ho/staff/staff-phase-one-route.ts"
+        "app/ho/staff/staff-phase-one-route.ts",
+        "app/ho/staff/StaffAccessControls.tsx",
+        "app/ho/staff/StaffAccessPresentation.tsx",
+        "app/ho/staff/StaffAccessScenario.tsx",
+        "app/ho/staff/StaffActivationAction.tsx",
+        "app/ho/staff/StaffPasswordResetPresentation.tsx",
+        "app/ho/staff/StaffProfilePresentation.tsx",
+        "app/ho/staff/StaffRateSample.tsx",
+        "app/ho/staff/StaffRegistrationFinalization.tsx",
+        "app/ho/staff/StaffRegistrationQueue.tsx",
+        "app/ho/staff/StaffReviewContent.tsx",
+        "app/ho/staff/StaffStageReview.tsx",
+        "app/ho/staff/staff-access-admission.ts",
+        "app/ho/staff/staff-access-fixture-port.ts",
+        "app/ho/staff/staff-access-presentation-model.ts",
+        "app/ho/staff/staff-access-readback.ts",
+        "app/ho/staff/staff-access-scenario.ts",
+        "app/ho/staff/staff-account-inline-sample.ts",
+        "app/ho/staff/staff-activation-baseline-preview.ts",
+        "app/ho/staff/staff-activation-model.ts",
+        "app/ho/staff/staff-activation-preview.ts",
+        "app/ho/staff/staff-finalization-directory-preview.ts",
+        "app/ho/staff/staff-local-route-state.ts",
+        "app/ho/staff/staff-navigation-view.ts",
+        "app/ho/staff/staff-profile-local.ts",
+        "app/ho/staff/staff-rate-local-action.ts",
+        "app/ho/staff/staff-record-sample.ts",
+        "app/ho/staff/staff-registration-finalization-preview.ts",
+        "app/ho/staff/staff-registration-queue-contract.ts",
+        "app/ho/staff/staff-stage-review-admission.server.ts",
+        "app/ho/staff/staff-stage-review-client.ts",
+        "app/ho/staff/staff-stage-review-route.ts"
       ],
       "externalReferences": [
         {
@@ -199,6 +230,18 @@
         {
           "file": "lib/workspace-adapters/session.ts",
           "owner": "PAP-1166"
+        },
+        {
+          "file": "app/bo/components/registration/BoRegistrationWorkspace.tsx",
+          "owner": "PAP-2411"
+        },
+        {
+          "file": "app/bo/components/registration/BoStaffsViews.tsx",
+          "owner": "PAP-2411"
+        },
+        {
+          "file": "app/bo/workforce/staffs/staff-directory-m1-fixture.ts",
+          "owner": "PAP-2411"
         }
       ],
       "schema": {
@@ -223,7 +266,13 @@
         "app/ho/staff/staff-person-reader.test.ts",
         "app/ho/staff/staff-recovery-journal.test.ts",
         "lib/pap2395-staff-phase-one-route.test.ts",
-        "lib/pap2395-ho-staff-directory-session.test.ts"
+        "lib/pap2395-ho-staff-directory-session.test.ts",
+        "lib/pap2423-staff-stage-review.test.ts",
+        "lib/pap2423-staff-stage-review-client.test.ts",
+        "app/ho/staff/staff-record-sample.test.ts",
+        "app/ho/staff/staff-profile-local.test.ts",
+        "app/ho/staff/staff-access-scenario.test.ts",
+        "app/ho/staff/staff-activation-preview.test.ts"
       ]
     },
     {
@@ -1325,7 +1374,7 @@
       "schema":{"file":"app/ho/system/people/schema.ts","export":"personSchema"},
       "binding":{"file":"app/ho/system/people/HoPersonDirectory.tsx"},
       "tests":["app/ho/system/people/schema.test.ts","app/ho/system/people/person-read-client.test.ts","app/ho/system/people/person-directory-loader.test.ts","lib/ho-person-host-contract.test.ts","lib/ho-person-handler.test.ts","app/ho/system/people/person-support-preview.test.ts"],
-      "externalReferences":[{"file":"lib/ho-routes.ts","owner":"PAP-2180"},{"file":"lib/ho-system.ts","owner":"PAP-2180"},{"file":"app/ho/HoWorkspace.tsx","owner":"PAP-2180"},{"file":"lib/host-boundary.ts","owner":"PAP-2180"},{"file":"lib/workspace-adapters/session.ts","owner":"PAP-2395"}]
+      "externalReferences":[{"file":"lib/ho-routes.ts","owner":"PAP-2180"},{"file":"lib/ho-system.ts","owner":"PAP-2180"},{"file":"app/ho/HoWorkspace.tsx","owner":"PAP-2180"},{"file":"lib/host-boundary.ts","owner":"PAP-2180"},{"file":"lib/workspace-adapters/session.ts","owner":"PAP-2395"},{"file":"app/bo/components/registration/BoRegistrationWorkspace.tsx","owner":"PAP-2411"}]
     }
   ],
   "approvals": []

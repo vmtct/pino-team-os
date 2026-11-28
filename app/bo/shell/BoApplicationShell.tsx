@@ -119,7 +119,7 @@ export function BoApplicationShell({ currentUser, staging, children }: {
   const productionKey = destinationKey(productionDestination?.href ?? "/bo");
   const stagingKey = pathname === "/bo" || pathname === "/bo/"
     ? query.get("module") ?? "students"
-    : pathname==="/bo/running-classes"?"classes":nativePayrollModule(pathname) ?? openingEvidenceBoModule(pathname) ?? pathname.slice("/bo/".length);
+    : pathname==="/bo/running-classes"?"classes":pathname==="/bo/workforce/staffs"?"staffs":nativePayrollModule(pathname) ?? openingEvidenceBoModule(pathname) ?? pathname.slice("/bo/".length);
   return <BoRegistrationWorkspace shellOnly currentUser={currentUser}
     moduleKey={staging ? stagingKey : productionKey}
     source={staging ? scopedSource : productionSource}

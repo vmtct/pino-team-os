@@ -85,7 +85,11 @@ test("Staff BO surfaces derive scope catalogs from canonical delivery bootstrap"
   ]).then((items) => items.join("\n"));
 
   assert.match(apiSource, /scopeCatalog:[\s\S]*delivery\/bootstrap-state/);
-  assert.equal((staffSources.match(/boApi\.scopeCatalog\(\)/g) ?? []).length, 2);
+  assert.equal((staffSources.match(/boApi\.scopeCatalog\(\)/g) ?? []).length, 1);
+  const queue = await readFile("app/bo/staff/StaffRegistrationReviewQueue.tsx", "utf8");
+  assert.match(queue, /StaffRegistrationReviewQueue\(\{service=boApi,/);
+  assert.match(queue, /service\.scopeCatalog\(\)/);
+  assert.doesNotMatch(queue, /service\.(?:centers|pathPrograms|runningClasses)\(/);
   assert.doesNotMatch(staffSources, /boApi\.(?:centers|pathPrograms|runningClasses)\(/);
 });
 
