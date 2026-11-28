@@ -4,6 +4,7 @@ import {authorizedTabs} from "@/lib/workspace-schema";
 import {personSchema,personPreviewSchema,READ,VIEW_AS} from "./schema";
 import {test} from "node:test";
 import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
 import {createSupportPreviewPerson,previewRemainingSeconds,startSupportPreview,SUPPORT_FIXTURE_ID,SUPPORT_PREVIEW_TTL_MS} from "./person-support-preview";
 test("PAP-1523 fixture-only VIEW targets, reason, expiry",()=>{
  const at=1000;
@@ -50,4 +51,15 @@ test("PAP-1523 staging synthetic admission is default-off and requires existing 
  for(const h of ["bo.staging.pinohouse.art","ho.pinohouse.art","localhost",""])assert.equal(admitPersonSupportFixture("staging",h,"1",context),false);
  assert.equal(admitPersonSupportFixture("staging",host,"1",null),false);
  for(const permissionKeys of [[],[READ],[VIEW_AS]])assert.equal(admitPersonSupportFixture("staging",host,"1",{...context,permissionKeys}),false);
+});
+test("PAP-1523 fixture flag exists only in guarded HO staging configuration",()=>{
+ const staging=JSON.parse(readFileSync("wrangler.ho-staging.json","utf8"));
+ assert.equal(staging.name,"pino-team-os-staging");
+ assert.equal(staging.vars.APP_ENV,"staging");
+ assert.equal(staging.vars.PAP1523_PERSON_SUPPORT_FIXTURE,"1");
+ assert.equal(staging.keep_vars,false);
+ assert.equal(staging.services.every((s:{service:string})=>s.service==="pino-core-staging"),true);
+ for(const file of ["wrangler.jsonc","wrangler.staging.jsonc","wrangler.greenfield-preview.json"]){
+  assert.equal(readFileSync(file,"utf8").includes("PAP1523_PERSON_SUPPORT_FIXTURE"),false,file);
+ }
 });
