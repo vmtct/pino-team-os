@@ -31,10 +31,10 @@ function ActionPanel({scope,state,grants,instanceId,busy,onConfirm}:Props){
  const live=choices.find(c=>c.intent.kind==="live");
  if(instanceId===null&&!choices.length)return null;
  if(instanceId!==null&&!instance)return null;
- return <section aria-label="Thao tác World" style={{display:"grid",gap:8}}>
- {instanceId===null?<div style={{display:"flex",flexWrap:"wrap",alignItems:"end",gap:8}}>
- <label style={{display:"grid",gap:4}}>World khả dụng<select aria-label="Chọn World để cấp" data-world-grant value={grantChoice?grantId:""} disabled={busy} onChange={e=>{setGrantId(e.target.value);setSelected(null);setInvalidated(false);}}><option value="">Chọn World</option>{choices.map(c=>c.intent.kind==="grant"?<option key={c.intent.worldId} value={c.intent.worldId}>{c.intent.label}</option>:null)}</select></label>
- <button type="button" className="primary-btn" disabled={busy||!grantChoice} onClick={()=>choose(grantChoice)}>Cấp World</button>
+ return <section aria-label="Thao tác World" style={{display:"grid",gap:12,minWidth:0}}>
+ {instanceId===null?<div data-world-grant-toolbar style={{display:"flex",flexWrap:"wrap",alignItems:"end",gap:12,minWidth:0}}>
+ <label style={{display:"grid",gap:6,flex:"1 1 200px",maxWidth:320,minWidth:0}}><span className="pds-property-label">World khả dụng</span><select className="pds-property-input" style={{minHeight:44,color:"var(--bo-color-text)",borderColor:"var(--bo-color-border)"}} aria-label="Chọn World để cấp" data-world-grant value={grantChoice?grantId:""} disabled={busy} onChange={e=>{setGrantId(e.target.value);setSelected(null);setInvalidated(false);}}><option value="">Chọn World</option>{choices.map(c=>c.intent.kind==="grant"?<option key={c.intent.worldId} value={c.intent.worldId}>{c.intent.label}</option>:null)}</select></label>
+ <button type="button" className="primary-btn" style={{minHeight:44}} disabled={busy||!grantChoice} onClick={()=>choose(grantChoice)}>Cấp World</button>
  </div>:instance&&<>
  {instance.status==="INACTIVE"&&<div><button type="button" className="secondary-btn" disabled={busy||!live} onClick={()=>choose(live)}>Đặt LIVE</button></div>}
  {instance.world.scenes.map(scene=>{
@@ -48,11 +48,11 @@ function ActionPanel({scope,state,grants,instanceId,busy,onConfirm}:Props){
  {!instance.world.scenes.length&&<p>World chưa có cảnh.</p>}
  </>}
  {stale&&<p role="alert">Dữ liệu đã thay đổi. Vui lòng chọn lại thao tác.</p>}
- {active&&intent&&!stale&&<section aria-label="Xác nhận thao tác">
- <h4>{active.label}</h4>{active.confirmation&&<p>{active.confirmation}</p>}
- {intent.kind==="grant"&&<label>Tên World<input value={label} maxLength={180} disabled={busy} onChange={e=>setLabel(e.target.value)}/></label>}
- <button type="button" className="secondary-btn" disabled={busy} onClick={()=>setSelected(null)}>Hủy</button>
- <button type="button" className="primary-btn" disabled={busy||!valid} onClick={()=>{if(!busy&&valid){setSelected(null);onConfirm(intent)}}}>Xác nhận</button>
+ {active&&intent&&!stale&&<section aria-label="Xác nhận thao tác" data-world-confirmation style={{display:"grid",gap:12,padding:16,border:"1px solid var(--bo-color-border)",borderRadius:12,background:"var(--bo-color-surface)",minWidth:0,maxWidth:520,boxSizing:"border-box"}}>
+ <header style={{display:"grid",gap:6}}><h4 style={{margin:0,fontSize:14,color:"var(--bo-color-text)"}}>{active.label}</h4>{active.confirmation&&<p style={{margin:0,lineHeight:1.5}}>{active.confirmation}</p>}</header>
+ {intent.kind==="grant"&&<label style={{display:"grid",gap:6,minWidth:0}}><span className="pds-property-label">Tên World</span><input className="pds-property-input" style={{minHeight:44,color:"var(--bo-color-text)",borderColor:"var(--bo-color-border)"}} value={label} maxLength={180} disabled={busy} onChange={e=>setLabel(e.target.value)}/></label>}
+ <div style={{display:"flex",flexWrap:"wrap",justifyContent:"flex-end",gap:8}}><button type="button" className="secondary-btn" disabled={busy} onClick={()=>setSelected(null)}>Hủy</button>
+ <button type="button" className="primary-btn" disabled={busy||!valid} onClick={()=>{if(!busy&&valid){setSelected(null);onConfirm(intent)}}}>Xác nhận</button></div>
  </section>}
  </section>;
 }
