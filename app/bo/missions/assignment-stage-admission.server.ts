@@ -8,14 +8,14 @@ import { parseMissionAssignment } from "@/lib/bo-mission-assignments";
 import { loadAuthorizedDirectoryCenters } from "@/app/bo/pinoria-avatars/centers";
 import { parseAssignmentStageReview } from "./assignment-stage-admission";
 const host = "bo.staging.pinohouse.art";
-const grants = ["team.bo.access","student.mission_assignment.view","student.mission_assignment.manage"];
+import {hasAssignmentStageReviewPermissions} from "./assignment-stage-route";
 export async function authorizeAssignmentStageReview(input: {url:URL; headers:Headers; env:BoReadEnv; featureEnabled:boolean}) {
   if (typeof window !== "undefined") throw Error("Server admission only");
   const {url,headers,env,featureEnabled} = input;
   const route = parseAssignmentStageReview(url);
   if (!route || headers.get("host") !== host || env.APP_ENV !== "staging" || featureEnabled !== true) throw Error("Mission review disabled");
   const actor = await authorizeBoShell(headers,env);
-  if (!grants.every(key=>actor.permissionKeys.includes(key))) throw Error("Mission review denied");
+  if (!actor.entitled || !hasAssignmentStageReviewPermissions(actor.permissionKeys)) throw Error("Mission review denied");
   const controller = new AbortController();
   const read:typeof fetch = async (resource,init) => {
     const path = new URL(String(resource),url.origin);
@@ -34,7 +34,7 @@ export async function authorizeAssignmentStageReview(input: {url:URL; headers:He
     for(const row of body.data) parseMissionAssignment(row,route.centerId);
     const current=await authorizeBoShell(headers,env);
     const currentChoices=await loadAuthorizedDirectoryCenters(read,controller.signal);
-    const admission=decideM1Preview({environment:env.APP_ENV,hostname:host,surface:"BO",requested:true,featureEnabled,authenticated:current.entitled,surfaceAuthorized:current.userId===actor.userId,featureReviewAuthorized:grants.every(key=>current.permissionKeys.includes(key)),scopeAuthorized:currentChoices.centers.some(center=>center.id===route.centerId)});
+    const admission=decideM1Preview({environment:env.APP_ENV,hostname:host,surface:"BO",requested:true,featureEnabled,authenticated:current.entitled,surfaceAuthorized:current.userId===actor.userId,featureReviewAuthorized:hasAssignmentStageReviewPermissions(current.permissionKeys),scopeAuthorized:currentChoices.centers.some(center=>center.id===route.centerId)});
     if(!admission.allowed) throw Error("Mission review admission denied");
     return Object.freeze({actorId:actor.userId,centerId:route.centerId,centerSource:currentChoices.source});
   } finally {controller.abort();}

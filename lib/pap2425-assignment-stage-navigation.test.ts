@@ -28,7 +28,7 @@ test("PAP-2425 URL authority and local guard preserved; staged wrapper shares sa
  assert.match(wrapper,/verifyAssignmentStageReview/);assert.match(wrapper,/center\.selected===admission\.centerId/);
  assert.match(wrapper,/<MissionAssignmentM1Content key=\{key\} navigation=\{ready\.navigation\}/);
  assert.match(wrapper,/value="ephemeral"/);assert.match(local,/self\.origin!=="null"/);
- assert.doesNotMatch(readFileSync("app/bo/missions/page.tsx","utf8"),/MissionAssignmentStageReview/);
+ assert.match(readFileSync("app/bo/missions/page.tsx","utf8"),/authorizeAssignmentStageReview/);
 });
 
 test("PAP-2425 scope loss unmounts the verified child; returning scope must start from fresh proof",()=>{
