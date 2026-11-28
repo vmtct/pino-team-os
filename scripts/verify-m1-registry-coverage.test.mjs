@@ -1,0 +1,13 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {discoverCoverage,auditCoverage} from "./verify-m1-registry-coverage.mjs";
+const revision="a".repeat(40),file=(path,body)=>({path,bytes:Buffer.from(body)});
+const files=[file("app/ho/staff/page.tsx","m1Preview"),file("app/ho/staff/fixture.ts","STAFF-MOCK-001"),file("app/ho/role/page.tsx","M1 FE Shell"),file("lib/m1-preview/state.ts","createPreviewState"),file("lib/example.test.ts","FAKE-MOCK-001"),file("app/bo/ordinary.ts","preview attachment")];
+const staff={jiraTask:"PAP-2353",phase:"M1",coverageFiles:["app/ho/staff/page.tsx","app/ho/staff/fixture.ts","lib/m1-preview/state.ts"]};
+const role={jiraTask:"PAP-2192",phase:"M1",coverageFiles:["app/ho/role/page.tsx","lib/m1-preview/state.ts"]};
+const run=features=>auditCoverage({revision,files,registry:{sourceRevision:revision,features}});
+test("explicit activation, fixtures and shared lifecycle discovered; ordinary preview and tests excluded",()=>assert.equal(discoverCoverage(files).length,4));
+test("unregistered feature fails even if supplied registry covers pilot",()=>{const r=run([staff]);assert.equal(r.lexicalCoveragePass,false);assert.equal(r.uncovered[0].path,"app/ho/role/page.tsx");});
+test("complete lexical coverage not semantic/runtime proof",()=>{const r=run([staff,role]);assert.equal(r.lexicalCoveragePass,true);assert.equal(r.semanticCompleteness,"NOT_PROVEN");assert.equal(r.productionAuthorized,false);});
+test("M4 leftover source signals remain failures",()=>{const r=run([{...staff,phase:"M4"},role]);assert.equal(r.lexicalCoveragePass,false);assert.equal(r.m4Residual.length,2);assert.equal(r.sharedReview.length,1);});
+test("stale registry, duplicate and invalid paths rejected",()=>{assert.throws(()=>auditCoverage({revision,files,registry:{sourceRevision:"b".repeat(40),features:[staff]}}));assert.throws(()=>run([staff,staff]));assert.throws(()=>run([{...staff,coverageFiles:["app/../secret.ts"]}]));});
