@@ -16,5 +16,5 @@ export default async function TosV4StagingPage(){
   if(error instanceof TosV4GateError&&error.code==="ACCESS_STAFF_PASSWORD_CHANGE_REQUIRED")redirect("/staff-password/change");
   forbidden();
  }
- return <TosVNextIntegrationClient/>;
+ return <TosVNextIntegrationClient progressiveHome/>;
 }

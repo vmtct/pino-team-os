@@ -8,11 +8,12 @@ import {
 
 const ctx={userId:"auth-u",staffMemberId:"self-staff",email:"user@example.com",centers:[{id:"center-1",key:"NK",displayName:"Ninh Kiều",timeZone:"Asia/Ho_Chi_Minh"}],termWeeks:[]};
 const session={id:"t1",centerId:"center-1",assignmentId:"a1",workDate:"2026-10-23",status:"OPEN",checkInAt:"2026-10-23T10:00:00Z",checkOutAt:null};
-function mockFetch(handlers:(url:string,init:RequestInit)=>{data?:unknown;status?:number;error?:unknown}){
+type MockResult={data?:unknown;status?:number;error?:unknown};
+function mockFetch(handlers:(url:string,init:RequestInit)=>MockResult|Promise<MockResult>){
  const original=globalThis.fetch;const calls:Array<{url:string,method:string}>=[];
  globalThis.fetch=(async(input:RequestInfo|URL,init:RequestInit={})=>{
   const url=String(input),method=init.method??"GET";calls.push({url,method});
-  const result=handlers(url,init);
+  const result=await handlers(url,init);
   return new Response(JSON.stringify(result.error?{error:result.error}:{data:result.data}),
     {status:result.status??200,headers:{"content-type":"application/json"}});
  }) as typeof fetch;
@@ -187,4 +188,53 @@ test("PAP-2429 daily income 403 masks daily only, 401 invalidates all shift data
    assert.equal(model.dailyIncome,null);assert.ok(model.warnings.dailyIncome);assert.ok(model.income);
   }finally{mock.restore()}
  }
+});
+test("PAP-938 the Staging home schedule is ready before optional payroll",{timeout:3000},async()=>{
+ let release!:()=>void;
+ const optional=new Promise<void>(resolve=>{release=resolve;});
+ let publish!:(ids:string[])=>void;
+ const ready=new Promise<string[]>(resolve=>{publish=resolve;});
+ const mock=mockFetch(async url=>{
+  if(url.includes("/payroll/income?"))await optional;
+  return backend(url);
+ });
+ try{
+  let complete=false;
+  const model=shiftReadModel("center-1","2026-10-22","2026-10-30",undefined,{
+   expectedStaff:ctx,onSchedule:rows=>publish(rows.map(r=>r.id)),
+  }).then(value=>{complete=true;return value;});
+  assert.deepEqual(await ready,["a1"]);
+  assert.equal(complete,false);
+  release();
+  assert.equal((await model).current?.id,"t1");
+ }finally{release();mock.restore()}
+});
+test("PAP-938 an observed optional 401 invalidates early schedule without waiting for slow payroll",{timeout:3000},async()=>{
+ let release!:()=>void;
+ const optional=new Promise<void>(resolve=>{release=resolve;});
+ const mock=mockFetch(async url=>{
+  if(url.includes("/payroll/income?"))await optional;
+  if(url.includes("/timekeeping/history?"))return {status:401,error:{code:"UNAUTHORIZED",message:"Expired"}};
+  return backend(url);
+ });
+ try{
+  const seen:string[]=[];
+  await assert.rejects(shiftReadModel("center-1","2026-10-22","2026-10-30",undefined,{
+   expectedStaff:ctx,onSchedule:rows=>seen.push(...rows.map(r=>r.id)),
+  }),{status:401});
+  assert.deepEqual(seen,["a1"]);
+ }finally{release();mock.restore()}
+});
+test("PAP-938 the Staging home never publishes a different actor or denied Center schedule",async()=>{
+ const mock=mockFetch(url=>backend(url));
+ try{
+  const never=()=>assert.fail("must not publish a denied schedule");
+  await assert.rejects(shiftReadModel("center-1","2026-10-22","2026-10-30",undefined,{
+   expectedStaff:{...ctx,userId:"different-actor"},onSchedule:never,
+  }),TosVNextScopeError);
+  await assert.rejects(shiftReadModel("different-center","2026-10-22","2026-10-30",undefined,{
+   expectedStaff:ctx,onSchedule:never,
+  }),TosVNextScopeError);
+  assert.equal(mock.calls.some(c=>c.url.includes("/schedule?")),false);
+ }finally{mock.restore()}
 });
