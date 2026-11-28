@@ -24,6 +24,8 @@ import { CreateSelfDrawer } from "./CreateSelfDrawer";
 import { canEditNickname, nicknameInput, patchAvatarNickname, reloadAvatarAfterNickname } from "./avatar-nickname-client";
 import { SelfWardrobeDetail } from "./SelfWardrobeDetail";
 import { SelfLoadoutDetail } from "./SelfLoadoutDetail";
+import { assertAvatarWorldReviewLocation, avatarWorldReviewRecord, avatarWorldReviewScope } from "./avatar-world-m1-fixture";
+type AvatarReview = Readonly<{row:AvatarRow;centerId:string;worldContent:React.ReactNode}>;
 
 const initialTable = (): BoTableState => ({ ...defaultTable(avatarModule.fields), pageSize: 15 });
 const tablePolicy = {
@@ -46,10 +48,10 @@ function AvatarDrawer({ record, onClose, onDetail }: {record: AvatarRow; onClose
     <PropertySections variant="drawer" fields={avatarModule.fields} record={record} sections={avatarSections}/>
   </DrawerFrame>;
 }
-type AvatarTab = "overview" | "wardrobe" | "loadout" | "history";
-function AvatarDetail({record,centerId,grants,onBack,onSaved,onRecordLoaded,onStale}:{
+type AvatarTab = "overview" | "wardrobe" | "loadout" | "history" | "world";
+function AvatarDetail({record,centerId,grants,onBack,onSaved,onRecordLoaded,onStale,review}:{
   record:AvatarRow;centerId:string;grants:ReadonlySet<string>;onBack:()=>void;onSaved:()=>void;
-  onRecordLoaded:(row:AvatarRow)=>void;onStale:(message:string)=>void;
+  onRecordLoaded:(row:AvatarRow)=>void;onStale:(message:string)=>void;review?:AvatarReview;
 }) {
   const [tab,setTab]=useState<AvatarTab>("overview");
   const [editor,setEditor]=useState<{field:BoField;anchor:HTMLButtonElement}|null>(null);
@@ -60,7 +62,7 @@ function AvatarDetail({record,centerId,grants,onBack,onSaved,onRecordLoaded,onSt
   useEffect(()=>()=>{controller.current?.abort();},[]);
   const closeEditor=useCallback(()=>{if(!busy.current)setEditor(null);},[]);
   const saveNickname=useCallback(async(value:BoValue)=>{
-    if(busy.current)return;
+    if(busy.current||review)return;
     if(!canEditNickname(record,grants)){setFeedback("Không đủ quyền hoặc thiếu phiên bản Avatar.");return;}
     let nickname:string|null;
     try{nickname=nicknameInput(value);}catch(cause){setFeedback(dateSafeError(cause));return;}
@@ -89,18 +91,21 @@ function AvatarDetail({record,centerId,grants,onBack,onSaved,onRecordLoaded,onSt
         else onStale("Không thể xác nhận trạng thái Avatar từ Core. Đã đóng Detail để tránh dữ liệu cũ.");
       }
     }finally{busy.current=false;setPending(false);controller.current=null;}
-  },[record,centerId,grants,onRecordLoaded,onStale]);
+  },[record,centerId,grants,onRecordLoaded,onStale,review]);
   const tabs: {id:AvatarTab;label:string}[] = [
     {id:"overview",label:"Tổng quan"}, {id:"wardrobe",label:"Tủ đồ"},
     {id:"loadout",label:"Loadout"}, {id:"history",label:"Lịch sử"}
   ];
+  if(review)tabs.splice(3,0,{id:"world",label:"World"});
   return <><DetailFrame title={record.name} subtitle="Pinoria Avatar"
     tabs={tabs} selected={tab} onSelect={v=>setTab(v as AvatarTab)} onBack={onBack}>
     {feedback&&<p role="status" data-avatar-nickname-feedback="">{feedback}</p>}
     {tab==="overview" ? <PropertySections variant="detail" fields={avatarModule.fields}
       record={record} sections={avatarSections}
-      canEdit={field=>field.key==="nickname" && canEditNickname(record,grants)}
+      canEdit={field=>!review && field.key==="nickname" && canEditNickname(record,grants)}
       onEdit={(field,anchor)=>{if(!pending)setEditor({field:{...field,readonly:false},anchor});}}/> :
+    tab==="world"&&review ? review.worldContent :
+    review ? <p role="status">M1: Ngoài phạm vi World review.</p> :
     tab==="wardrobe" ? <SelfWardrobeDetail row={record} centerId={centerId} activeTab="wardrobe"
       canView={grants.has("pinoria.self.item.view")} canManage={grants.has("pinoria.self.item.manage")} onSaved={onSaved}/> :
     tab==="loadout" ? <SelfLoadoutDetail row={record} centerId={centerId} activeTab="loadout"
@@ -113,11 +118,12 @@ function AvatarDetail({record,centerId,grants,onBack,onSaved,onRecordLoaded,onSt
     onSave={value=>{void saveNickname(value);}}/>}</>;
 }
 
-export function AvatarDirectoryDsa() {
+export function AvatarDirectoryDsa({review}:{review?:AvatarReview}={}) {
   const center = useBoCenterSelection();
   const selected = center && !center.loading && !center.error ? center.selected : "";
   const header = useContext(BoApplicationShellContext);
   useEffect(() => { document.title = "Pinoria Avatar · PINO BO"; }, []);
+  if(review){assertAvatarWorldReviewLocation(new URL(location.href),self.origin);if(review.row!==avatarWorldReviewRecord||review.centerId!==avatarWorldReviewScope.centerId)throw Error("Invalid review fixture");return <ScopedAvatarDirectory key="avatar-world-local-review" centerId={review.centerId} menu={header?.("menu-btn")} review={review}/>;}
   return <section aria-label="Danh bạ Pinoria Avatar">
     {!center ? <p role="alert">Không tìm thấy Center context của BO.</p> :
     center.loading ? <p role="status">Đang xác thực cơ sở được cấp quyền…</p> :
@@ -127,16 +133,16 @@ export function AvatarDirectoryDsa() {
   </section>;
 }
 
-function ScopedAvatarDirectory({centerId,menu}:{centerId:string;menu?:React.ReactNode}) {
+function ScopedAvatarDirectory({centerId,menu,review}:{centerId:string;menu?:React.ReactNode;review?:AvatarReview}) {
   const [table,setTable]=useState<BoTableState>(initialTable);
-  const [rows,setRows]=useState<AvatarRow[]>([]);
-  const [loadState,setLoadState]=useState("loading");
+  const [rows,setRows]=useState<AvatarRow[]>(()=>review?[review.row]:[]);
+  const [loadState,setLoadState]=useState(review?"ready":"loading");
   const [page,setPage]=useState(1);
-  const [serverTotal,setServerTotal]=useState(0);
+  const [serverTotal,setServerTotal]=useState(review?1:0);
   const [grants,setGrants]=useState<ReadonlySet<string>>(new Set());
-  const [ready,setReady]=useState(false);
+  const [ready,setReady]=useState(!!review);
   const [refresh,setRefresh]=useState(0);
-  const [drawer,setDrawer]=useState<AvatarRow|null>(null);
+  const [drawer,setDrawer]=useState<AvatarRow|null>(()=>review&&new URL(location.href).searchParams.get("record")===review.row.id?review.row:null);
   const [detail,setDetail]=useState<AvatarRow|null>(null);
   const [creating,setCreating]=useState(false);
   const [notice,setNotice]=useState("");
@@ -164,6 +170,7 @@ function ScopedAvatarDirectory({centerId,menu}:{centerId:string;menu?:React.Reac
   const closeDrawer=()=>{setDrawer(null);window.history.replaceState(null,"",recordHref(null));returnFocus.current?.focus({preventScroll:true});};
   const exitDetail=()=>{setDetail(null);window.history.replaceState(null,"",recordHref(null));returnFocus.current?.focus({preventScroll:true});};
   useEffect(()=>{
+    if(review)return;
     const ctl=new AbortController();
     authorized.current=false;
     queueMicrotask(()=>{if(!ctl.signal.aborted){setReady(false);setError("");}});
@@ -172,9 +179,9 @@ function ScopedAvatarDirectory({centerId,menu}:{centerId:string;menu?:React.Reac
       authorized.current=true;setGrants(keys);setReady(true);
     }).catch(cause=>{if(!ctl.signal.aborted){setError(dateSafeError(cause));setLoadState("error");}});
     return ()=>{ctl.abort();authorized.current=false;};
-  },[centerId]);
+  },[centerId,review]);
   useEffect(()=>{
-    if(!ready||!authorized.current)return;
+    if(review||!ready||!authorized.current)return;
     const ctl=new AbortController();
     queueMicrotask(()=>{if(!ctl.signal.aborted){setLoadState("loading");setError("");}});
     const cursor=cursors.current.get(page);
@@ -191,11 +198,11 @@ function ScopedAvatarDirectory({centerId,menu}:{centerId:string;menu?:React.Reac
         setRows([]);setServerTotal(0);setLoadState("error");setError(dateSafeError(cause));
       });
     return ()=>ctl.abort();
-  },[ready,centerId,page,queryKey,refresh,table.pageSize,table.search,table.rules]);
+  },[ready,centerId,page,queryKey,refresh,table.pageSize,table.search,table.rules,review]);
 
   // Deep links cannot rely on an in-memory TDD navigation snapshot. Bounded Core search only.
   useEffect(()=>{
-    if(!ready||!authorized.current||loadState!=="ready")return;
+    if(review||!ready||!authorized.current||loadState!=="ready")return;
     const target=new URL(window.location.href).searchParams.get("record");
     if(!target||drawer?.id===target||detail?.id===target)return;
     if(!validAvatarRowId(target)){queueMicrotask(()=>setError("Liên kết Avatar không hợp lệ."));return;}
@@ -215,7 +222,7 @@ function ScopedAvatarDirectory({centerId,menu}:{centerId:string;menu?:React.Reac
       if(!ctl.signal.aborted)setError("Bản ghi không tồn tại hoặc không có quyền xem tại Center này.");
     })().catch(cause=>{if(!ctl.signal.aborted)setError(dateSafeError(cause));});
     return ()=>ctl.abort();
-  },[ready,loadState,centerId,rows,drawer?.id,detail?.id]);
+  },[ready,loadState,centerId,rows,drawer?.id,detail?.id,review]);
 
   const switchToDetail=()=>{
     if(!drawer)return;
@@ -231,9 +238,9 @@ function ScopedAvatarDirectory({centerId,menu}:{centerId:string;menu?:React.Reac
   const failNicknameReadback=useCallback((message:string)=>{
     setDetail(null);setDrawer(null);setError(message);setRefresh(v=>v+1);
   },[]);
-  const canCreate=grants.has("pinoria.self.create");
+  const canCreate=!review&&grants.has("pinoria.self.create");
   return <>
-    {detail ? <AvatarDetail record={detail} centerId={centerId} grants={grants} onBack={exitDetail}
+    {detail ? <AvatarDetail record={detail} centerId={centerId} grants={grants} review={review} onBack={exitDetail}
       onSaved={refreshAfterWrite} onRecordLoaded={acceptNicknameReadback} onStale={failNicknameReadback}/> :
     <section id="list-screen" data-avatar-native-dsa="PAP-1810">
       <div className="page-heading">
