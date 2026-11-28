@@ -709,7 +709,17 @@
         "lib/bo-mission-assignment-command.ts",
         "lib/bo-mission-assignment-options.ts",
         "lib/mission-history.ts",
-        "app/bo/missions/MissionDetailEnhancements.module.css"
+        "app/bo/missions/MissionDetailEnhancements.module.css",
+        "app/bo/missions/MissionAssignmentM1.tsx",
+        "app/bo/missions/MissionAssignmentStageReview.tsx",
+        "app/bo/missions/assignment-expanded-schema.ts",
+        "app/bo/missions/assignment-m1-fixture.ts",
+        "app/bo/missions/assignment-m1-navigation.ts",
+        "app/bo/missions/assignment-stage-admission.server.ts",
+        "app/bo/missions/assignment-stage-admission.ts",
+        "app/bo/missions/assignment-stage-navigation.ts",
+        "app/bo/missions/assignment-stage-route.ts",
+        "app/bo/missions/assignment-subject-presentation.ts"
       ],
       "externalReferences": [
         {
@@ -764,7 +774,15 @@
         "lib/pap1210-bo-mission-options.test.ts",
         "lib/pap1210-bo-mission-form.test.ts",
         "lib/pap1188-mission-history.test.ts",
-        "lib/pap1818-diary-enhancements.test.ts"
+        "lib/pap1818-diary-enhancements.test.ts",
+        "lib/pap2425-assignment-expanded-schema.test.ts",
+        "lib/pap2425-assignment-m1-inline.test.ts",
+        "lib/pap2425-assignment-m1-navigation.test.ts",
+        "lib/pap2425-assignment-stage-admission.test.ts",
+        "lib/pap2425-assignment-stage-navigation.test.ts",
+        "lib/pap2425-assignment-stage-route.test.ts",
+        "lib/pap2425-assignment-stage-server.test.ts",
+        "lib/pap2425-assignment-subject-presentation.test.ts"
       ],
       "businessStyles": [
         {
