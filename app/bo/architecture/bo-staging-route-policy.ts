@@ -9,6 +9,7 @@ export const boStagingAdmittedRoutes = new Set([
   "/bo/workforce-shift-plans",
   "/bo/workforce-availability",
   "/bo/workforce-assignments",
+  "/bo/workforce/timekeeping",
   "/bo/payroll-periods",
   "/bo/payroll-daily",
   "/bo/payroll-exceptions",
