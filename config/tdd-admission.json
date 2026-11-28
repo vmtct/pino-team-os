@@ -1321,10 +1321,10 @@
       "key":"people",
       "route":"/ho/system/people",
       "file":"app/ho/system/people/page.tsx",
-      "files":["app/ho/system/people/page.tsx","app/ho/system/people/HoPersonDirectory.tsx","app/ho/system/people/HoPersonRuntime.tsx","app/ho/system/people/schema.ts","app/ho/system/people/person-read-client.ts","app/ho/system/people/person-directory-loader.ts"],
+      "files":["app/ho/system/people/page.tsx","app/ho/system/people/HoPersonDirectory.tsx","app/ho/system/people/HoPersonRuntime.tsx","app/ho/system/people/schema.ts","app/ho/system/people/person-read-client.ts","app/ho/system/people/person-directory-loader.ts","app/ho/system/people/person-support-preview.ts","app/ho/system/people/HoPersonSupportFixture.tsx","app/ho/system/people/HoPersonSupportPreview.tsx","app/ho/system/people/person-support-stage-admission.ts"],
       "schema":{"file":"app/ho/system/people/schema.ts","export":"personSchema"},
       "binding":{"file":"app/ho/system/people/HoPersonDirectory.tsx"},
-      "tests":["app/ho/system/people/schema.test.ts","app/ho/system/people/person-read-client.test.ts","app/ho/system/people/person-directory-loader.test.ts","lib/ho-person-host-contract.test.ts","lib/ho-person-handler.test.ts"],
+      "tests":["app/ho/system/people/schema.test.ts","app/ho/system/people/person-read-client.test.ts","app/ho/system/people/person-directory-loader.test.ts","lib/ho-person-host-contract.test.ts","lib/ho-person-handler.test.ts","app/ho/system/people/person-support-preview.test.ts"],
       "externalReferences":[{"file":"lib/ho-routes.ts","owner":"PAP-2180"},{"file":"lib/ho-system.ts","owner":"PAP-2180"},{"file":"app/ho/HoWorkspace.tsx","owner":"PAP-2180"},{"file":"lib/host-boundary.ts","owner":"PAP-2180"},{"file":"lib/workspace-adapters/session.ts","owner":"PAP-2395"}]
     }
   ],
