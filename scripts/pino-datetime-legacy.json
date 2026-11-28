@@ -95,20 +95,6 @@
       "reason": "PRE_EXISTING_UNZONED_OPERATOR_DATE_UI"
     },
     {
-      "file": "app/bo/staff/StaffRegistrationReviewQueue.tsx",
-      "line": 212,
-      "sha256": "e74cc47395c1ff9080b90bead1ec0e670d785bcb0642cfd27677ecfc1f95bdb6",
-      "jira": "PAP-1820",
-      "reason": "PRE_EXISTING_UNZONED_OPERATOR_DATE_UI"
-    },
-    {
-      "file": "app/bo/staff/StaffRegistrationReviewQueue.tsx",
-      "line": 218,
-      "sha256": "dbd3d720ee70024498b57b835f41816aad6b3982bdf01c1292c5c4a4757e400e",
-      "jira": "PAP-1820",
-      "reason": "PRE_EXISTING_UNZONED_OPERATOR_DATE_UI"
-    },
-    {
       "file": "app/bo/system/ai-data/AiDataInboxView.tsx",
       "line": 139,
       "sha256": "07243ed2c9dbf751a25520d9b06d49569a50b5868b56f43ef96fb6ea51afcd5a",
