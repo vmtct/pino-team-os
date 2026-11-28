@@ -1,0 +1,21 @@
+/** PAP-2425 / MISSION-ASSIGNMENT — isolated canonical local native review. */
+import {createRoot} from "react-dom/client";
+import {BoLocalReviewCenter} from "@/app/bo/components/registration/BoCenterSelection";
+import {BoRegistrationWorkspace,type BoWorkspaceSource} from "@/app/bo/components/registration/BoRegistrationWorkspace";
+import {unifiedBoWorkspaceSource} from "@/app/bo/architecture/bo-unified-workspace-source";
+import {MissionAssignmentM1} from "@/app/bo/missions/MissionAssignmentM1";
+import {ASSIGNMENT_M1_ROUTE,ASSIGNMENT_M1_CENTER} from "@/app/bo/missions/assignment-m1-fixture";
+import {assignmentLocalRecord} from "@/app/bo/missions/assignment-m1-navigation";
+import {TddPreferencePolicy} from "@/app/components/workspace-renderer/Record";
+import "@pino/design-system/bo-tokens.css";
+import "@pino/design-system/components.css";
+import "../../public/bo-authority-source/bo-scoped.css";
+import "../../app/bo/design-system/foundation.css";
+import "../../app/components/workspace-renderer/tdd-detail-layout.css";
+import "../../app/components/workspace-renderer/tdd-table-geometry.css";
+import "../../app/components/workspace-renderer/tdd-freeze.css";
+const route=ASSIGNMENT_M1_ROUTE;
+if(self.origin!=="null")throw Error("Local sandbox only");
+const source:BoWorkspaceSource={ephemeral:true,readOnly:true,modules:unifiedBoWorkspaceSource.modules,routeForModule:key=>key==="missions"?route:"#unavailable-local-module",scopeLabel:()=>"M1 · Dữ liệu mẫu",load:async()=>{throw Error("No live transport");}};
+const record=assignmentLocalRecord(new URL(location.href));
+createRoot(document.getElementById("root")!).render(<TddPreferencePolicy.Provider value="ephemeral"><BoLocalReviewCenter center={{id:ASSIGNMENT_M1_CENTER,displayName:"Cần Thơ · Mẫu"}}><BoRegistrationWorkspace source={source} moduleKey="missions" currentUser={{displayName:"M1 · Dữ liệu mẫu"}} content={<MissionAssignmentM1 initialRecord={record}/>}/></BoLocalReviewCenter></TddPreferencePolicy.Provider>);
