@@ -5,6 +5,8 @@ import { faBolt, faChevronRight, faDesktop, faGear, faShieldHalved, faStar, faTa
 import StationDesktopFrame from "./StationV4Frame";
 import { Initials } from "./OpsInitials";
 import { StationLogicalTv } from "./StationLogicalTv";
+import { StationQuickChoicePanel, type StationQuickChoiceBinding } from "./StationQuickChoicePanel";
+import { canMountStationQuickChoice } from "@/lib/pnr-tv-station-choice-presentation";
 import { readStaffStationTvs } from "@/lib/pnr-tv-station-read";
 import type { LogicalTvListItem } from "@/lib/pnr-tv-logical-visibility";
 import {unavailableOpsReadModel,type OpsReadModel} from "@/lib/tos-ops-v4-view-model";
@@ -15,7 +17,7 @@ type Tab="overview"|"pinoria"|"students"|"devices"|"tv";
 const statusText=(value:string)=>value==="ARRIVED"?"Đang ở PINO":value==="LEFT"?"Đã về":value==="EXPECTED"?"Chưa đến":"Chưa xác minh";
 const statusKind=(value:string)=>value==="ARRIVED"?"ok":value==="LEFT"?"left":"waiting";
 
-export function TosVNextStation({onHome,desktop,centerName,centerId,authorizedCenterIds,model=unavailableOpsReadModel(),initialTab="overview"}:{onHome:()=>void;desktop:boolean;centerName:string;centerId:string|null;authorizedCenterIds:readonly string[];model?:OpsReadModel;initialTab?:Tab}){
+export function TosVNextStation({onHome,desktop,centerName,centerId,authorizedCenterIds,model=unavailableOpsReadModel(),initialTab="overview",quickChoice}:{onHome:()=>void;desktop:boolean;centerName:string;centerId:string|null;authorizedCenterIds:readonly string[];model?:OpsReadModel;initialTab?:Tab;quickChoice?:StationQuickChoiceBinding}){
  const state=model,guests=model.guests,assetNames=model.assetNames,outfits=model.outfits;
  const [tab,setTab]=useState<Tab>(initialTab);
  const [studentId,setStudentId]=useState<string|null>(model.guests[0]?.id??null);
@@ -50,6 +52,7 @@ export function TosVNextStation({onHome,desktop,centerName,centerId,authorizedCe
  return <StationDesktopFrame desktop={desktop} centerName={centerName} tab={tab} onTab={navigate} onHome={onHome} query={query} onQuery={setQuery}
   onReset={()=>{}} notice={notice}>
   {tab==="overview"&&<>
+    {quickChoice&&canMountStationQuickChoice(tab,centerId,authorizedCenterIds,quickChoice.read)&&<StationQuickChoicePanel {...quickChoice} selectedCenterId={centerId}/>}
     <div className={desk.metricGrid}>
       <div className={desk.metricCard}><FontAwesomeIcon icon={faUsers}/><strong>{model.loaded?arrived.length:"—"}</strong><span>Học viên tại PINO</span></div>
       <div className={desk.metricCard}><FontAwesomeIcon icon={faStar}/><strong>{model.loaded?wishes:"—"}</strong><span>Wish đang chờ</span></div>
