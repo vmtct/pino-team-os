@@ -9,6 +9,7 @@ import {parseRunningClassStageQuery} from "./running-classes/running-class-stage
 import { BoRuntimeEntry } from "./components/registration/BoRuntimeBoundary";
 import { canonicalParentRoute } from "./parents/parent-route";
 import { canonicalStaffDirectoryRoute } from "./workforce/staffs/staff-directory-route";
+import {assignmentStageReviewEnabled,assignmentStageSearchParams,assignmentStageReviewUrl,type AssignmentStageReviewEnv} from "./missions/assignment-stage-route";
 
 export default async function BoPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const query = await searchParams;
@@ -20,6 +21,16 @@ export default async function BoPage({ searchParams }: { searchParams: Promise<R
   if(query.module==="parents"){
     const incoming=await headers();const {env}=await getCloudflareContext({async:true}) as unknown as {env:{APP_ENV?:string;BO_UI_ONLY?:string}};
     if(boSkeletonEnabled(env,incoming.get("host")??"")){const target=canonicalParentRoute(query,true);if(!target)notFound();redirect(target);}
+  }
+  // PAP-2425: one canonical Mission review route; ordinary live alias remains unchanged when disabled.
+  if(query.module==="missions"){
+    const incoming=await headers();
+    const {env}=await getCloudflareContext({async:true}) as unknown as {env:AssignmentStageReviewEnv};
+    if(assignmentStageReviewEnabled(env,incoming.get("host")??"")){
+      const target=assignmentStageReviewUrl(assignmentStageSearchParams(query),true);
+      if(!target)notFound();
+      redirect(target.pathname+target.search);
+    }
   }
   // PAP-2411: exact Staff Directory compatibility alias, Staging only.
   if(query.module==="staffs"){

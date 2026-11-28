@@ -4,7 +4,7 @@
  * Some existing clients are LEGACY session / Training F0 only — never label those VNext complete.
  */
 import {workforceApi,type Assignment,type StaffDutyBoard,type TimekeepingSession,type WorkforceContext} from "@/lib/workforce-api";
-import {ownIncome,type OwnIncomePage} from "@/lib/tos-own-income-api";
+import {ownIncome,ownDailyIncome,type OwnIncomePage,type OwnDailyIncomePage} from "@/lib/tos-own-income-api";
 import {tosDayOfLearningApi,type StudentVisit} from "@/lib/tos-day-of-learning-api";
 import {tosLearningApi,type DaySession,type SessionRoster} from "@/lib/tos-learning-api";
 import {workforceTraining} from "@/lib/workforce-training-client";
@@ -39,13 +39,14 @@ export function assertOwnCenter(context:WorkforceContext,centerId:string){
  return center;
 }
 /** Fail closed if context or Core scope fails. Read-only; no client trust of mock role. */
-export type TosVNextShiftReadWarnings=Partial<Record<"timekeeping"|"history"|"income",string>>;
-export async function shiftReadModel(centerId:string,fromDate:string,toDate:string):Promise<{
+export type TosVNextShiftReadWarnings=Partial<Record<"timekeeping"|"history"|"income"|"dailyIncome",string>>;
+export async function shiftReadModel(centerId:string,fromDate:string,toDate:string,localDate?:string):Promise<{
  context:WorkforceContext;
  assignments:Assignment[];
  current:TimekeepingSession|null;
  history:TimekeepingSession[]|null;
  income:OwnIncomePage|null;
+ dailyIncome:OwnDailyIncomePage|null;
  warnings:TosVNextShiftReadWarnings;
 }>{
  const context=await staffContext();
@@ -53,15 +54,16 @@ export async function shiftReadModel(centerId:string,fromDate:string,toDate:stri
  // Schedule is the mandatory source of shift-role access. NEVER infer permissions
  // from optional payroll/timekeeping success or preserve stale shift assignments.
  const assignments=await workforceApi.schedule({centerId,startDate:fromDate,endDate:toDate});
- const [current,history,income]=await Promise.allSettled([
+ const [current,history,income,dailyIncome]=await Promise.allSettled([
   workforceApi.currentTimekeeping(centerId),
   workforceApi.history({centerId,startDate:fromDate,endDate:toDate}),
-  ownIncome(centerId,20,0)
+  ownIncome(centerId,20,0),
+  localDate?ownDailyIncome(centerId,localDate.slice(0,8)+"01",localDate):Promise.resolve(null)
  ]);
  // Session expiry invalidates the entire read. A 403 can instead mean
  // a single optional feature is forbidden: keep that feature hidden while
  // preserving Core-backed schedule access to otherwise authorized apps.
- for(const result of [current,history,income]){
+ for(const result of [current,history,income,dailyIncome]){
   if(result.status==="rejected"&&result.reason?.status===401)throw result.reason;
  }
  const warnings:TosVNextShiftReadWarnings={};
@@ -71,11 +73,13 @@ export async function shiftReadModel(centerId:string,fromDate:string,toDate:stri
  if(current.status==="rejected")unavailable("timekeeping",current.reason);
  if(history.status==="rejected")unavailable("history",history.reason);
  if(income.status==="rejected")unavailable("income",income.reason);
+ if(dailyIncome.status==="rejected")unavailable("dailyIncome",dailyIncome.reason);
  return {
   context,assignments:assignments.data,
   current:current.status==="fulfilled"?current.value.data:null,
   history:history.status==="fulfilled"?history.value.data:null,
   income:income.status==="fulfilled"?income.value:null,
+  dailyIncome:dailyIncome.status==="fulfilled"?dailyIncome.value:null,
   warnings
  };
 }

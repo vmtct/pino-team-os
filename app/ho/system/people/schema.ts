@@ -29,3 +29,27 @@ const sections=[{id:"identity",label:"Identity",fields:["name","personId","ident
 export const definition={version:1,classification:"TDD_DEFAULT",surface:"HO",key:"people",label:"Person",group:"System",fields,capabilities:{read:READ},data:{id:"person-directory-unbound",list:async()=>{throw Error("Unbound Person provider");},detail:async()=>{throw Error("Unbound Person provider");}},table:{identity:{field:"name",pinned:"left",hideable:false,reorderable:false},columns:order.map(field=>({field,visible:field!=="personId"})),search:{fields:["name"],normalization:"vi-diacritic-insensitive"},filters:{fields:["name","roles","avatarState","identityState"],mode:"flat",logic:"AND"},sort:{fields:["name","avatarState","identityState"],mode:"single",nulls:"last",tieBreak:"record-id"},group:{fields:["avatarState","identityState"],mode:"single"},views:{builtIn:[],saved:{kind:"local-ui"},actions:["add","apply","rename","delete","reorder"]},pagination:{sizes:[8,15,30],defaultSize:15,mode:"local-ui"},inlineEdit:{fields:[],enabled:false},interaction:{settings:["properties","grouping","filters","quick-views"],quickView:"separate-opener",keyboard:"canonical",undo:"local-ui-only"}},drawer:{density:"one-column",sections,actions:[]},detail:{overview:{sections},businessTabs:[],history:{kind:"unavailable",reason:"Chưa có lịch sử Person riêng."}}} as const satisfies ModuleSchema<PersonFields>;
 export const registry=new TddRegistry();
 export const personSchema=registry.register(definition);
+
+// PAP-1523: explicit Founder direction for a separate synthetic M1-A review tab.
+// This separate registration does not modify the live Person schema or grant runtime ACL.
+export const VIEW_AS = "access.support.impersonate";
+export const VIEW_AS_TAB = "view-as";
+const viewApproval = {
+ jira:"PAP-1523",owner:"Person Impersonation",designAuthority:"Founder",
+ files:["app/ho/system/people/HoPersonDirectory.tsx","app/ho/system/people/HoPersonSupportPreview.tsx"],
+ tests:["app/ho/system/people/person-support-preview.test.ts"],
+ reviewBy:"2026-12-04T00:00:00+07:00"
+} as const;
+export const previewRegistry = new TddRegistry((approval,scope)=>
+ scope.surface==="HO"&&scope.key==="people"&&scope.extensionId==="ho.people.view-as-preview"&&
+ approval.jira===viewApproval.jira&&approval.owner===viewApproval.owner&&approval.designAuthority===viewApproval.designAuthority&&
+ approval.files.every(file=>viewApproval.files.some(expected=>expected===file))&&approval.files.length===viewApproval.files.length&&
+ approval.tests.every(file=>viewApproval.tests.some(expected=>expected===file))&&approval.tests.length===viewApproval.tests.length);
+export const personPreviewSchema = previewRegistry.register({
+ ...definition,
+ detail:{...definition.detail,businessTabs:[{
+  id:VIEW_AS_TAB,label:"View as",kind:"approved-extension",
+  source:{adapter:"pap1523-synthetic-view-as",permission:VIEW_AS},
+  extensionId:"ho.people.view-as-preview",approval:viewApproval
+ }]}
+});
