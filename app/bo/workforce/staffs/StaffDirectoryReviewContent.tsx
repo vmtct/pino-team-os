@@ -13,11 +13,11 @@ import {StaffRegistrationReviewQueue} from "@/app/bo/staff/StaffRegistrationRevi
 import {StaffRegistrationIntakeToggle} from "@/app/bo/staff/StaffRegistrationIntakeToggle";
 import {TddPreferencePolicy} from "@/app/components/workspace-renderer/Record";
 export const STAFF_REVIEW_CENTER_ID="STAFF-MOCK-CENTER";
-export function createBoStaffReviewController(){
-const route="/bo/workforce/staffs",centerId=STAFF_REVIEW_CENTER_ID;
+export function createBoStaffReviewController(centerId=STAFF_REVIEW_CENTER_ID){
+const route="/bo/workforce/staffs";
 const {service,dossierReview}=createStaffDossierM1Fixture(),newKey=createStaffM1KeyFactory(),lifecycle=createStaffLifecycleM1Fixture();
 const source:BoWorkspaceSource={ephemeral:true,readOnly:true,modules:{...unifiedBoWorkspaceSource.modules,staffs:staffDirectoryModule},routeForModule:key=>key==="staffs"?route:"#unavailable-local-module",scopeLabel:()=>"M1 - D\u1eef li\u1ec7u m\u1eabu",load:async(key,_fetcher,options)=>{if(key!=="staffs"||options.centerId!==centerId)throw Error("Unknown local fixture scope");return lifecycle.rows();},staffDetailReview:(record,options)=>options.centerId===centerId&&record.id===STAFF_DIRECTORY_MOCK_ID?<StaffLifecycleDetail key={record.id} fixture={{snapshot:lifecycle.snapshot,rows:lifecycle.rows}} recordId={record.id} centerName={dossierReview.centerName}/>:undefined};
-return {source,service,newKey,dossierReview};
+return {source,service,newKey,dossierReview,centerId};
 }
 export type BoStaffReviewController=ReturnType<typeof createBoStaffReviewController>;
-export function BoStaffReviewContent({controller,view}:{controller:BoStaffReviewController;view:string}){const {source,service,newKey,dossierReview}=controller;return <TddPreferencePolicy.Provider value="ephemeral"><StaffDirectoryWorkspace source={source} currentUser={{displayName:"M1 - D\u1eef li\u1ec7u m\u1eabu"}} options={{view}} centerId={STAFF_REVIEW_CENTER_ID} registration={<><StaffRegistrationIntakeToggle service={service}/><StaffRegistrationReviewQueue service={service} newKey={newKey} dossierReview={dossierReview}/></>}/></TddPreferencePolicy.Provider>;}
+export function BoStaffReviewContent({controller,view}:{controller:BoStaffReviewController;view:string}){const {source,service,newKey,dossierReview}=controller;return <TddPreferencePolicy.Provider value="ephemeral"><StaffDirectoryWorkspace source={source} currentUser={{displayName:"M1 - D\u1eef li\u1ec7u m\u1eabu"}} options={{view}} centerId={controller.centerId} registration={<><StaffRegistrationIntakeToggle service={service}/><StaffRegistrationReviewQueue service={service} newKey={newKey} dossierReview={dossierReview}/></>}/></TddPreferencePolicy.Provider>;}
