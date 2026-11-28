@@ -63,3 +63,9 @@ test("PAP-1523 fixture flag exists only in guarded HO staging configuration",()=
   assert.equal(readFileSync(file,"utf8").includes("PAP1523_PERSON_SUPPORT_FIXTURE"),false,file);
  }
 });
+
+test("PAP-1523 native support preview loads canonical DS tokens in both runtimes",()=>{
+ const source=readFileSync("app/ho/system/people/HoPersonSupportPreview.tsx","utf8");
+ assert.match(source,/import "@pino\/design-system\/bo-tokens\.css";/);
+ assert.match(source,/data-pino-ds="bo"/);
+});
