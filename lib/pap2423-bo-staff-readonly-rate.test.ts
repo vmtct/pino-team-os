@@ -17,7 +17,9 @@ test("PAP-2423 PAP-1063 unique current effective rate, not historical or schedul
 });
 test("PAP-2423 BO mounted Staff detail has no record mutation controls and registration workflow stays separate",()=>{
  const view=readFileSync("app/bo/workforce/staffs/StaffLifecycleDetail.tsx","utf8");
- const entry=readFileSync("scripts/native-m1-local/bo-staff-directory-entry.tsx","utf8");
+ const bootstrap=readFileSync("scripts/native-m1-local/bo-staff-directory-entry.tsx","utf8");
+ const entry=readFileSync("app/bo/workforce/staffs/StaffDirectoryReviewContent.tsx","utf8");
+ assert.match(bootstrap,/Local sandbox only/);assert.match(bootstrap,/<BoStaffReviewContent controller=/);
  assert.match(view,/data-staff-directory-readonly/);assert.match(view,/data-staff-rate-current/);
  assert.doesNotMatch(view,/fixture\.(edit|deactivate)|BoTypedCellEditor|<button|onSaved/);
  assert.match(entry,/staffDetailReview:/);assert.match(entry,/StaffRegistrationReviewQueue service=/);
