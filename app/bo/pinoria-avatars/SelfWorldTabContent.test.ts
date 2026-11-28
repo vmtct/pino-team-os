@@ -12,7 +12,7 @@ const never=()=>{throw Error("render must not invoke callback")};
 const props={scope,state,grants,status:"ready" as const,instanceId:null,busy:false,onReload:never,onOpen:never,onBack:never,onConfirm:never};
 const render=(patch:Partial<Parameters<typeof SelfWorldTabContent>[0]>={})=>renderToStaticMarkup(createElement(SelfWorldTabContent,{...props,...patch}));
 test("ready summary uses existing presentation and requires explicit action confirmation",()=>{
- const html=render();assert.match(html,/Chưa có World/);assert.match(html,/Cấp World · World QA/);assert.doesNotMatch(html,/Xác nhận thao tác/);
+ const html=render();assert.match(html,/Chưa có World/);assert.match(html,/Chọn World để cấp/);assert.doesNotMatch(html,/Xác nhận thao tác/);
 });
 test("denied, loading, failed and mismatched scope never expose stale actions or catalog",()=>{
  for(const patch of [{status:"denied" as const},{status:"loading" as const},{status:"error" as const},{grants:new Set<string>()},{scope:{...scope,centerId:id(9)}},{state:null}]){
@@ -29,12 +29,12 @@ test("removed detail and busy state cannot expose grant as a fallback or enable 
 test("uncertain receipt disables mutation without presenting read-only tab as loading",()=>{
  const html=render({mutationBlocked:true});
  assert.match(html,/aria-busy="false"/);assert.match(html,/disabled=""/);
- assert.match(html,/Chưa có World/);assert.match(html,/Cấp World · World QA/);
+ assert.match(html,/Chưa có World/);assert.match(html,/Chọn World để cấp/);
 });
 
 test("PAP-2153 original World workspace retains owned table and grants while selecting LIVE or another instance",()=>{
  const make=(n:number,status:"LIVE"|"INACTIVE")=>({id:id(n),studentProfileId:scope.studentProfileId,worldId:id(n+10),displayLabel:"Instance "+n,status,version:1,grantedAt:"2026-11-17T00:00:00Z",revokedAt:null,createdAt:"2026-11-17T00:00:00Z",updatedAt:"2026-11-17T00:00:00Z",createdByUser:null,updatedByUser:null,world:{id:id(n+10),displayName:"World "+n,status:"ACTIVE",version:1,scenes:[]},sceneAccess:{},unlockedLayerIds:[]});
  const seeded={...state,instances:parseAvatarWorld({...scope,capabilities:state.capabilities,grantableWorlds:[],instances:[make(20,"INACTIVE"),make(21,"LIVE")],loadout:{selfId:scope.selfId,version:0,ready:false}},scope).instances};
- const initial=render({state:seeded});assert.match(initial,/World LIVE: Instance 21/);assert.match(initial,/data-world-instance-layout/);assert.match(initial,/aria-pressed="true"[^>]*>Instance 21/);assert.match(initial,/Cấp World · World QA/);assert.match(initial,/Instance 20/);
- const picked=render({state:seeded,instanceId:id(20)});assert.match(picked,/aria-pressed="true"[^>]*>Instance 20/);assert.match(picked,/Instance 21/);assert.match(picked,/Cấp World · World QA/);
+ const initial=render({state:seeded});assert.match(initial,/World LIVE: Instance 21/);assert.match(initial,/data-world-instance-layout/);assert.match(initial,/aria-pressed="true"[^>]*>Instance 21/);assert.match(initial,/Chọn World để cấp/);assert.match(initial,/Instance 20/);
+ const picked=render({state:seeded,instanceId:id(20)});assert.match(picked,/aria-pressed="true"[^>]*>Instance 20/);assert.match(picked,/Instance 21/);assert.match(picked,/Chọn World để cấp/);
 });
