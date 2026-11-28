@@ -17,6 +17,13 @@ test("PAP-1170 PINO package exact artifact",()=>{
  // PAP-2363 / PLT-LEAD: pin exact released artifact and retain every historical digest.
  const expected = [
    [
+     "0.4.4",
+     "77bd9b23a85e6d9167a14bb7ea8f7385411de424",
+     "577d43110b781afd954a1d3d3eb3d5dac53e4f",
+     9,
+     "b9b3c59eab59fe820727e4c1fdeafe71390b6e8fd6757830aaa72cf0902bad54"
+   ],
+   [
      "0.4.3",
      "9af10aa2df5f64b6bf74f96eac8e12171bf26e0a",
      "2427d0c5b92e62542f8e185f0a90fa887b402156",
