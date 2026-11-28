@@ -1,4 +1,13 @@
-import type {CenterRegistrationService} from "../../staff/StaffRegistrationSection";
+type RequestRow={id:string;centerId:string;displayLabel:string;submittedAt:string;version:number};
+type RoleOption={id:string;displayName:string};
+
+type Mode="approve"|"reject";
+export type CenterRegistrationReviewBody={expectedVersion:number;assignments?:{roleId:string;scopeType:string;scopeId:string}[];pinoriaIdentity?:{mode:string};reason?:string};
+export type CenterRegistrationService={
+  list:(centerId:string,signal:AbortSignal)=>Promise<RequestRow[]>;
+  roles:(centerId:string,signal:AbortSignal)=>Promise<RoleOption[]>;
+  review:(centerId:string,id:string,mode:Mode,body:CenterRegistrationReviewBody,key:string)=>Promise<{registrationRequestId:string;status:string}>;
+};
 import {createStaffRegistrationM1Service} from "./staff-registration-m1-service";
 import {STAFF_DIRECTORY_MOCK_ID} from "./staff-directory-m1-fixture";
 export const STAFF_M1_CENTER="STAFF-MOCK-CENTER";
