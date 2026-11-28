@@ -35,7 +35,7 @@ test("BO Staff surface renders the pending registration review queue", () => {
   const directory = fs.readFileSync(path.join(process.cwd(), "app/bo/workforce/staffs/StaffDirectoryWorkspace.tsx"), "utf8");
   const preview = fs.readFileSync(path.join(process.cwd(), "app/bo/workforce/staffs/StaffDirectoryReviewContent.tsx"), "utf8");
   assert.match(runtime, /<StaffDirectoryWorkspace/);
-  assert.match(directory, /view==="register"\?<RegistrationContent tabs=\{tabs\}>\{registration\}/);
+  assert.match(directory, /view==="register"\?<RegistrationContent tabs=\{tabs\} hideHeader=\{hideRegistrationHeader\}>\{registration\}/);
   assert.match(preview, /<StaffRegistrationReviewQueue service=\{service\} newKey=\{newKey\} dossierReview=\{dossierReview\}/);
   assert.doesNotMatch(section, /dossierReview=|embedded\|\|busy/);
   assert.match(section, /onClick=\{\(\)=>void review\("approve"\)\}/);

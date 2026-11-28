@@ -6,9 +6,9 @@ import {TddHostMenu} from "@/app/components/workspace-adapters/SurfaceWorkspace"
 import {staffDirectoryModule,staffDirectoryPresentationRow} from "./staff-directory-model";
 import styles from "./staff-registration-layout.module.css";
 /** PAP-2411: identical native presentation for authorized live data and isolated review data. */
-export function StaffDirectoryWorkspace({currentUser,options,centerId,source,registration}:{
+export function StaffDirectoryWorkspace({currentUser,options,centerId,source,registration,hideRegistrationHeader=false}:{
   currentUser:{displayName:string|null};options:Record<string,string>;centerId:string;
-  source:BoWorkspaceSource;registration:ReactNode;
+  source:BoWorkspaceSource;registration:ReactNode;hideRegistrationHeader?:boolean;
 }) {
   const [view,setView]=useState<StaffsView>(()=>parseStaffsView(options.view));
   useEffect(()=>{
@@ -32,9 +32,9 @@ export function StaffDirectoryWorkspace({currentUser,options,centerId,source,reg
   }),[source,view]);
   const tabs=<BoStaffsViews selected={view} onSelect={selectView}/>;
   return <BoRegistrationWorkspace key={"staffs:"+view+":"+centerId} currentUser={currentUser} source={presentation} moduleKey="staffs" options={scopedOptions}
-    headerContent={tabs} content={view==="register"?<RegistrationContent tabs={tabs}>{registration}</RegistrationContent>:undefined}/>;
+    headerContent={tabs} content={view==="register"?<RegistrationContent tabs={tabs} hideHeader={hideRegistrationHeader}>{registration}</RegistrationContent>:undefined}/>;
 }
-function RegistrationContent({tabs,children}:{tabs:ReactNode;children:ReactNode}){
+function RegistrationContent({tabs,children,hideHeader}:{tabs:ReactNode;children:ReactNode;hideHeader:boolean}){
   const menu=useContext(TddHostMenu);
-  return <div className={styles.workspace}><div data-staff-registration-list-chrome><div className="page-heading"><div className="page-heading-left">{menu("staff-register-menu-btn")}<h1>{"Nh\u00e2n s\u1ef1"}</h1></div></div>{tabs}</div>{children}</div>;
+  return <div className={styles.workspace}>{!hideHeader&&<div data-staff-registration-list-chrome><div className="page-heading"><div className="page-heading-left">{menu("staff-register-menu-btn")}<h1>{"Nh\u00e2n s\u1ef1"}</h1></div></div>{tabs}</div>}{children}</div>;
 }

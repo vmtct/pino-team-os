@@ -1,5 +1,6 @@
 "use client";
 /** PAP-2411 synthetic Staff directory presentation, no live transport. Caller provides admitted Center context. */
+import {useState} from "react";
 import type {BoWorkspaceSource} from "@/app/bo/components/registration/BoRegistrationWorkspace";
 import {unifiedBoWorkspaceSource} from "@/app/bo/architecture/bo-unified-workspace-source";
 import {StaffDirectoryWorkspace} from "@/app/bo/workforce/staffs/StaffDirectoryWorkspace";
@@ -20,4 +21,4 @@ const source:BoWorkspaceSource={ephemeral:true,readOnly:true,modules:{...unified
 return {source,service,newKey,dossierReview,centerId};
 }
 export type BoStaffReviewController=ReturnType<typeof createBoStaffReviewController>;
-export function BoStaffReviewContent({controller,view}:{controller:BoStaffReviewController;view:string}){const {source,service,newKey,dossierReview}=controller;return <TddPreferencePolicy.Provider value="ephemeral"><StaffDirectoryWorkspace source={source} currentUser={{displayName:"M1 - D\u1eef li\u1ec7u m\u1eabu"}} options={{view}} centerId={controller.centerId} registration={<><StaffRegistrationIntakeToggle service={service}/><StaffRegistrationReviewQueue service={service} newKey={newKey} dossierReview={dossierReview}/></>}/></TddPreferencePolicy.Provider>;}
+export function BoStaffReviewContent({controller,view}:{controller:BoStaffReviewController;view:string}){const {source,service,newKey,dossierReview}=controller;const [detail,setDetail]=useState(false);return <TddPreferencePolicy.Provider value="ephemeral"><StaffDirectoryWorkspace source={source} currentUser={{displayName:"M1 - D\u1eef li\u1ec7u m\u1eabu"}} options={{view}} centerId={controller.centerId} hideRegistrationHeader={detail&&view==="register"} registration={<>{!detail&&<StaffRegistrationIntakeToggle service={service}/>}<StaffRegistrationReviewQueue service={service} newKey={newKey} dossierReview={dossierReview} onDetailChange={setDetail}/></>}/></TddPreferencePolicy.Provider>;}
