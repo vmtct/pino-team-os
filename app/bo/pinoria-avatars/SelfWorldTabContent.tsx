@@ -21,7 +21,7 @@ export function SelfWorldTabContent({scope,state,status,grants,instanceId,busy,m
  const confirm=(intent:WorldIntent)=>{if(!blocked)onConfirm(intent)};
  if(instanceId!==null&&!selected)return <p role="alert">World không còn khả dụng.</p>;
  const scene=selected?.world.scenes.find(s=>selected.sceneAccess[s.id]&&s.status==="ACTIVE");
- return <section aria-label="World" aria-busy={busy} data-world-instance-workspace style={{display:"grid",gap:16,minWidth:0}}>
+ return <section aria-label="World" aria-busy={busy} data-world-instance-workspace style={{display:"grid",gridTemplateColumns:"minmax(0,1fr)",gap:16,minWidth:0,width:"100%"}}>
  <header><h3>World</h3><p>World LIVE: {live?.displayLabel??"Chưa có World LIVE"}</p></header>
  <div className="pds-properties" data-pds-variant="detail" style={{minWidth:0}}>
  <div data-world-instance-layout style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(min(100%, 310px),1fr))",gap:16,alignItems:"start"}}>
@@ -36,7 +36,7 @@ export function SelfWorldTabContent({scope,state,status,grants,instanceId,busy,m
  {selected?<><p>{selected.displayLabel} · {selected.status}</p><p>{selected.world.scenes.filter(s=>selected.sceneAccess[s.id]).length}/{selected.world.scenes.length} cảnh</p>
  <SelfWorldActions scope={scope} state={state} grants={grants} instanceId={selected.id} busy={blocked} onConfirm={confirm}/></>:<p>Cấp World để bắt đầu.</p>}
  </section></div></div>
- <section aria-label="World đã sở hữu"><h3>World đã sở hữu ({state.instances.length})</h3>
+ <section aria-label="World đã sở hữu" style={{minWidth:0,maxWidth:"100%"}}><h3>World đã sở hữu ({state.instances.length})</h3>
  <SelfWorldActions scope={scope} state={state} grants={grants} instanceId={null} busy={blocked} onConfirm={confirm}/>
  <SelfWorldSummary scope={scope} state={state} status="ready" onReload={onReload} selectedId={selected?.id} onOpen={id=>{if(!busy)onOpen(id)}}/>
  </section></section>;
