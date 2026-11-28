@@ -14,6 +14,9 @@ import { boApi, BoApiError } from "@/lib/bo-api";
 import type { BoTimekeepingPage, BoTimekeepingSession } from "@/lib/bo-model";
 import { loadBoTimekeepingPageForState } from "@/lib/bo-timekeeping-page-controller";
 import styles from "./timekeeping.module.css";
+import {BoCheckInEvidence} from "./BoCheckInEvidence";
+import {TIMEKEEPING_REVIEW_CENTER,TIMEKEEPING_REVIEW_DATE,isTimekeepingLocalReview,reviewTimekeepingPage,type TimekeepingCameraReview} from "./timekeeping-camera-local-review";
+import {parseBoDataGridUrlState,withBoDataGridFilter,withBoDataGridPatch} from "@/lib/bo-data-grid-state";
 import { isoToLocalInput, localInputToIso } from "@/lib/bo-timekeeping-local-time";
 // Attention cards share the Timekeeping stylesheet.
 
@@ -22,25 +25,42 @@ type TimekeepingCenter = { id: string; displayName: string; timeZone: string };
 type Load = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; page: BoTimekeepingPage };
 const PAGE_SIZES = [25, 50, 100] as const;
 
-export function TimekeepingView() {
-  const [centers, setCenters] = useState<TimekeepingCenter[]>([]);
+export function TimekeepingView({localEvidenceReview}:{localEvidenceReview?:TimekeepingCameraReview}={}) {
+  if(localEvidenceReview){
+    if(typeof window==="undefined"||!isTimekeepingLocalReview(location.origin,self.origin,location.pathname,location.search,location.hash))throw Error("Local sandbox only");
+    return <TimekeepingReviewContent review={localEvidenceReview}/>;
+  }
+  return <LiveTimekeepingView/>;
+}
+function LiveTimekeepingView(){
+  const grid=useBoDataGridUrlState({defaultPageSize:25,allowedPageSizes:PAGE_SIZES});
+  return <TimekeepingViewBody grid={grid}/>;
+}
+export function TimekeepingReviewContent({review}:{review:TimekeepingCameraReview}){
+  const [state,setState]=useState(()=>parseBoDataGridUrlState("",{defaultPageSize:25,allowedPageSizes:PAGE_SIZES}));
+  const grid={state,setPage:(page:number)=>setState(s=>withBoDataGridPatch(s,{page},false)),setPageSize:(pageSize:number)=>setState(s=>withBoDataGridPatch(s,{pageSize})),setFilter:(key:string,value:string|null)=>setState(s=>withBoDataGridFilter(s,key,value))};
+  return <TimekeepingViewBody grid={grid} review={review}/>;
+}
+function TimekeepingViewBody({grid,review}:{grid:Pick<ReturnType<typeof useBoDataGridUrlState>,"state"|"setPage"|"setPageSize"|"setFilter">;review?:TimekeepingCameraReview}) {
+  const [evidenceOpen,setEvidenceOpen]=useState(false);
+  const [centers, setCenters] = useState<TimekeepingCenter[]>(()=>review?[TIMEKEEPING_REVIEW_CENTER]:[]);
   const [selectedId, setSelectedId] = useState("");
   const [load, setLoad] = useState<Load>({ state: "loading" });
   const [refreshToken, setRefreshToken] = useState(0);
-  const { state, setPage, setPageSize, setFilter } = useBoDataGridUrlState({ defaultPageSize: 25, allowedPageSizes: PAGE_SIZES });
+  const { state, setPage, setPageSize, setFilter } = grid;
   const setPageRef = useRef(setPage);
   setPageRef.current = setPage;
 
   const mode: Mode = state.filters.mode === "history" ? "history" : state.filters.mode === "attention" ? "attention" : "today";
   const centerId = state.filters.center ?? centers[0]?.id ?? "";
   const selectedCenter = centers.find((center) => center.id === centerId) ?? centers[0] ?? null;
-  const today = selectedCenter ? localDate(selectedCenter.timeZone) : "";
+  const today = review ? TIMEKEEPING_REVIEW_DATE : selectedCenter ? localDate(selectedCenter.timeZone) : "";
   const startDate = state.filters.from ?? (mode === "attention" ? dateDaysBefore(today, 30) : today);
   const endDate = state.filters.to ?? today;
   const invalidRange = mode !== "today" && (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(endDate) || startDate > endDate);
   const status = state.filters.status === "OPEN" || state.filters.status === "CLOSED" ? state.filters.status : "";
   const staffId = state.filters.staff ?? "";
-  const page = load.state === "ready" ? load.page : null;
+  const page = review ? reviewTimekeepingPage(review,{centerId,startDate:mode==="today"?today:startDate,endDate:mode==="today"?today:endDate,staffId,status:mode==="attention"?"OPEN":status}) : load.state === "ready" ? load.page : null;
   const timeZone = selectedCenter?.timeZone ?? "UTC";
   const selected = page?.data.find((session) => session.id === selectedId) ?? null;
   const staffOptions = useMemo(() => {
@@ -62,16 +82,17 @@ export function TimekeepingView() {
   ], [timeZone, today]);
 
   useEffect(() => {
+    if (review) return;
     let active = true;
     void boApi.timekeepingCenters().then((items) => {
       if (!active) return;
       setCenters(items.map((center) => ({ id: center.id, displayName: center.displayLabel, timeZone: center.timeZone })));
     }).catch((error) => active && setLoad({ state: "error", message: message(error) }));
     return () => { active = false; };
-  }, []);
+  }, [review]);
 
   useEffect(() => {
-    if (!centerId || !selectedCenter || !today || invalidRange) return;
+    if (review || !centerId || !selectedCenter || !today || invalidRange) return;
     let active = true;
     setLoad({ state: "loading" });
     const params = mode === "today" ? { centerId, workDate: today } : { centerId, startDate, endDate };
@@ -96,17 +117,19 @@ export function TimekeepingView() {
       if (active) setLoad({ state: "error", message: message(error) });
     });
     return () => { active = false; };
-  }, [centerId, endDate, mode, refreshToken, staffId, startDate, state.page, state.pageSize, status, selectedCenter, today, invalidRange]);
+  }, [centerId, endDate, mode, refreshToken, staffId, startDate, state.page, state.pageSize, status, selectedCenter, today, invalidRange, review]);
 
   function setMode(next: Mode) {
     setFilter("mode", next === "today" ? null : next);
   }
 
+  if (review && evidenceOpen) return <BoCheckInEvidence row={review.evidence} onBack={()=>setEvidenceOpen(false)}/>;
   return <main className={styles.page}>
     <header className={styles.heading}>
       <span>Back Office · Workforce</span>
       <h1><LocalizedModuleTitle label="Timekeeping" moduleKey="workforce/timekeeping" /></h1>
       <p>Recorded attendance stays immutable. Authorized corrections are appended as provenance and shown separately.</p>
+      {review&&<><p role="status">M1 · Dữ liệu chấm công mẫu, không ghi nhận chỉnh sửa.</p><button type="button" className="secondary-btn" onClick={()=>setEvidenceOpen(true)}>Bằng chứng check-in</button></>}
     </header>
 
     {page && mode === "today" ? <section className={styles.metrics}>
@@ -132,7 +155,7 @@ export function TimekeepingView() {
       columns={columns}
       rowKey={(row) => row.id}
       caption={mode === "today" ? "Today timekeeping sessions" : mode === "attention" ? "OPEN sessions for review" : "Timekeeping history"}
-      state={invalidRange ? "ready" : load.state === "loading" ? "loading" : load.state === "error" ? "error" : "ready"}
+      state={review || invalidRange ? "ready" : load.state === "loading" ? "loading" : load.state === "error" ? "error" : "ready"}
       stateMessage={load.state === "error" ? load.message : undefined}
       filterChips={[
         ...(mode !== "today" ? [{ key: "mode", label: "View", value: mode === "history" ? "History" : "Needs Attention", onClear: () => setMode("today") }] : []),
@@ -157,12 +180,12 @@ export function TimekeepingView() {
       resultLabel={`${page?.summary.totalSessions ?? 0} sessions · effective view`}
       pagination={page ? { page: state.page, pageSize: state.pageSize, total: page.summary.totalSessions, pageSizeOptions: PAGE_SIZES, onPageChange: setPage, onPageSizeChange: setPageSize } : undefined}
       selectedRowKey={selectedId || null}
-      onRowOpen={(row) => setSelectedId(row.id)}
+      onRowOpen={(row) => {if(review)setEvidenceOpen(true);else setSelectedId(row.id);}}
       emptyTitle={mode === "today" ? "No timekeeping sessions today" : mode === "attention" ? "No OPEN sessions in this date range" : "No matching timekeeping history"}
       emptyMessage="Adjust the bounded date, status or staff filters. Canonical attendance remains in Core."
     />
 
-    {selected ? <BoDataGridSidePeek title={selected.staff.displayLabel} eyebrow={`TimekeepingSession · ${selected.workDate}`} onClose={() => setSelectedId("")}>
+    {!review && selected ? <BoDataGridSidePeek title={selected.staff.displayLabel} eyebrow={`TimekeepingSession · ${selected.workDate}`} onClose={() => setSelectedId("")}>
       <Detail row={selected} timeZone={timeZone} onSaved={async () => { const params = mode === "today" ? { centerId, workDate: today } : { centerId, startDate, endDate }; const result = await loadBoTimekeepingPageForState({ page: state.page, pageSize: state.pageSize, query: { ...params, ...(mode === "attention" ? { status: "OPEN" as const } : status ? { status } : {}), ...(staffId ? { staffMemberId: staffId } : {}) }, load: boApi.timekeeping }); if (result.kind === "reconcile-page") { setPage(result.page); return; } setLoad({ state: "ready", page: result.data }); setSelectedId((current) => result.data.data.some((session) => session.id === current) ? current : ""); }} />
     </BoDataGridSidePeek> : null}
   </main>;
