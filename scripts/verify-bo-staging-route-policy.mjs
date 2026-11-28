@@ -17,7 +17,7 @@ function policyRoutes(source, name, issues) {
   let routes;
   try { routes = JSON.parse(match[1].replace(/,\s*\]$/, "]")); }
   catch { issues.push(`${name} must contain only JSON string literals`); return new Set(); }
-  if (!Array.isArray(routes) || routes.some(route => typeof route !== "string" || !(/^\/bo\/[a-z0-9-]+$/.test(route) || route === "/bo/sales/leads"))) {
+  if (!Array.isArray(routes) || routes.some(route => typeof route !== "string" || !(/^\/bo\/[a-z0-9-]+$/.test(route) || route === "/bo/sales/leads" || route === "/bo/workforce/timekeeping"))) {
     issues.push(`${name} must be a literal Set of BO route strings`);
     return new Set();
   }
@@ -207,6 +207,20 @@ function nativeParentRoute(root,issues){
  return valid;
 }
 
+/** PAP-1612: exact existing Timekeeping native page, with separately authenticated synthetic review. */
+function nativeCameraTimekeepingRoute(root,issues){
+ const route="/bo/workforce/timekeeping";
+ if(!read(root,POLICY).includes('"'+route+'"'))return false;
+ const base="app/bo/workforce/timekeeping/";
+ const files=[base+"page.tsx",base+"TimekeepingView.tsx",base+"TimekeepingCameraStageReview.tsx",base+"BoCheckInEvidence.tsx","lib/pap1612-camera-stage-admission.server.ts","lib/pap1612-camera-stage-client.ts","lib/pap1612-camera-stage-route.ts","lib/pap1612-camera-routing.test.ts"];
+ if(files.some(f=>!fs.existsSync(path.join(root,f)))){issues.push(route+": missing exact native Camera Timekeeping contract");return false;}
+ const [page,view,review,evidence,server,client,parser]=files.map(f=>read(root,f));
+ const required=[[page,'if(!("cameraReview" in query))return <TimekeepingView/>;'],[page,'if(!parseCameraStageReview("BO",url,env))notFound();'],[page,'await authorizeBoCameraStageReview(url,incoming,env).catch(()=>forbidden())'],[page,'<TimekeepingCameraStageReview'],[view,'if (review) return;'],[view,'if (review || !centerId'],[view,'review && evidenceOpen'],[review,'useBoCenterSelection'],[review,'center.selected===proof.centerId'],[review,'verifyCameraStageClient("BO"'],[review,'if(state!=="ready")return'],[evidence,'<PayrollDsaReadTable'],[evidence,'<BoQuickView'],[evidence,'<DetailFrame'],[server,'await authorizeBoShell(headers,env)'],[server,'staff.timekeeping.view'],[server,'centerIncluded(centers,route.centerId)'],[server,'method:"GET"'],[server,'handleBoOperationalReadRequest'],[client,'credentials:"same-origin"'],[client,'cache:"no-store"'],[client,'actor.userId!==proof.actorId'],[parser,'env.APP_ENV!=="staging"'],[parser,'flag!=="enabled"']];
+ const valid=required.every(([source,marker])=>source.includes(marker))&&mountsPayrollNativeTable(root,base+"BoCheckInEvidence.tsx",evidence,"PayrollDsaReadTable","../../payroll-periods/PayrollNativeTable")&&mountsExactNamedComponent(base+"BoCheckInEvidence.tsx",evidence,"@/app/bo/components/registration/BoQuickView","BoQuickView")&&![page,review,evidence].some(x=>/BoModuleFactory|BoWorkforceRoute|BoDataGridSidePeek|BoCenterSelectionProvider/.test(x));
+ if(!valid)issues.push(route+": invalid exact native Camera Timekeeping contract");
+ return valid;
+}
+
 function canonicalRoutes(root, issues) {
   const base = path.join(root, "app/bo");
   const routes = new Set();
@@ -241,6 +255,7 @@ function canonicalRoutes(root, issues) {
   }
   if(nativeOpeningEvidenceRoute(root,issues)){routes.add("/bo/opening-evidence");native.add("/bo/opening-evidence");}
   if(nativeRunningClassesRoute(root,issues)){routes.add("/bo/running-classes");native.add("/bo/running-classes");}
+  if(nativeCameraTimekeepingRoute(root,issues)){routes.add("/bo/workforce/timekeeping");native.add("/bo/workforce/timekeeping");}
   if(nativeParentRoute(root,issues)){routes.add("/bo/parents");native.add("/bo/parents");}
   if(nativeWishEventRoute(root,issues)){routes.add("/bo/pinoria-wish-events");native.add("/bo/pinoria-wish-events");}
   if (fs.existsSync(path.join(root, "app/bo/sales/leads/page.tsx")) && read(root, POLICY).includes('"/bo/sales/leads"')) {

@@ -27,7 +27,7 @@ function fixture(run) {
   for (const file of [policy, layout, rootLayout, source, gateway, cd, ci, ...pages.map(name => `app/bo/${name}/page.tsx`)]) {
     const content=fs.readFileSync(path.join(repo,file),"utf8");
     // Existing PAP-901 factory fixtures have no TDD manifest; keep scopes independent.
-    write(file,file===policy?content.replace(/\r\n/g,"\n").replace('  "/bo/payroll-daily",\n',"").replace('  "/bo/payroll-exceptions",\n',"").replace('  "/bo/pinoria-avatars",\n',"").replace('  "/bo/afterschool-accounts",\n',"").replace('  "/bo/open-studio-passes",\n',"")
+    write(file,file===policy?content.replace(/\r\n/g,"\n").replace('  "/bo/workforce/timekeeping",\n',"").replace('  "/bo/payroll-daily",\n',"").replace('  "/bo/payroll-exceptions",\n',"").replace('  "/bo/pinoria-avatars",\n',"").replace('  "/bo/afterschool-accounts",\n',"").replace('  "/bo/open-studio-passes",\n',"")
       .replace(/\s*"\/bo\/classroom-diaries",\r?\n/,"\n").replace('  "/bo/bills",\n',"").replace('  "/bo/missions",\n',"").replace('  "/bo/tvs",\n',"").replace('  "/bo/opening-evidence",\n',"").replace('  "/bo/piner-posts",\n',"").replace('  "/bo/sales/leads",\n',"").replace('  "/bo/pinoria-wish-events",\n',"").replace('  "/bo/mytime-guests",\n',"").replace('  "/bo/guests",\n',"").replace('  "/bo/mytime-workshops",\n',"").replace('  "/bo/enrollments",\n',"").replace('  "/bo/running-classes",\n',"").replace('  "/bo/parents",\n',""):content);
   }
   try { return run({ root, read, write }); }
@@ -344,4 +344,19 @@ test("PAP-2387/PAP-2389 exact native Parent live admission requires actor and Ce
  }
  for(const [index,extra] of [[1,"\nconst retired = <ParentStagingFixtureProvider/>;"],[1,"\nconst retired = {ephemeral:true};"],[6,"\n// PARENT-MOCK-001"]]){const f=files[index],original=read(f);write(f,original+extra);assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/parents: invalid exact native Parent live contract/);write(f,original);}
  fs.unlinkSync(path.join(root,files[9]));assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/parents: missing exact native Parent live contract/);
+}));
+
+test("PAP-1612 native Timekeeping is exact and requires actual scope proof",()=>fixture(({root,read,write})=>{
+ const base="app/bo/workforce/timekeeping/";
+ const files=[base+"page.tsx",base+"TimekeepingView.tsx",base+"TimekeepingCameraStageReview.tsx",base+"BoCheckInEvidence.tsx","lib/pap1612-camera-stage-admission.server.ts","lib/pap1612-camera-stage-client.ts","lib/pap1612-camera-stage-route.ts","lib/pap1612-camera-routing.test.ts","app/bo/payroll-periods/PayrollNativeTable.tsx"];
+ for(const file of files)write(file,fs.readFileSync(path.join(repo,file),"utf8"));
+ const original=read(policy);
+ write(policy,original.replace('  "/bo/payroll-periods",','  "/bo/payroll-periods",\n  "/bo/workforce/timekeeping",'));
+ assert.deepEqual(verifyBoStagingRoutePolicy(root).issues,[]);
+ const proof=files[4],source=read(proof);
+ write(proof,source.replace("centerIncluded(centers,route.centerId)","true"));
+ assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/invalid exact native Camera Timekeeping contract/);
+ write(proof,source);
+ write(policy,read(policy).replace('"/bo/workforce/timekeeping",','"/bo/workforce/timekeeping/other",'));
+ assert.match(verifyBoStagingRoutePolicy(root).issues.join("\n"),/literal Set of BO route strings/);
 }));
