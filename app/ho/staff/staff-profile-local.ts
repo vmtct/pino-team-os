@@ -16,3 +16,10 @@ export function commitStaffProfile(state:PreviewState<StaffActivationFixture>,id
  const next={...r,name:v.name,phone:v.phone,email:v.email,gender:v.gender,birthDate:v.birthDate,activationRevision:revision+1};
  return reducePreview(state,{type:"replace",id,record:next});
 }
+
+/** PAP-2423: synthetic employment stop, never an account or ACL mutation. */
+export function stopStaffEmployment(state:PreviewState<StaffActivationFixture>,id:string,revision:number,confirmed:boolean){
+ const r=readPreviewRecord(state,id);
+ if(confirmed!==true||!r||!/^STAFF-MOCK-\d{3,}$/.test(id)||r.activationRevision!==revision||r.status!=="\u0110ang l\u00e0m")return null;
+ return reducePreview(state,{type:"replace",id,record:{...r,status:"Ng\u01b0ng",activationRevision:revision+1}});
+}
