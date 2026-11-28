@@ -2,8 +2,7 @@
 import {decideM1Preview} from "@/lib/m1-preview/admission.server";
 import type {BoShellContext} from "@/lib/bo-shell-gate";
 import type {AvatarAuthority} from "./avatar-dsa-data";
-import {WORLD_PERMISSIONS} from "./SelfWorldNative";
-import {avatarWorldReviewMarker} from "./avatar-world-m1-fixture";
+import {WORLD_PERMISSIONS,avatarWorldReviewMarker} from "./avatar-world-review-identity";
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 export function requestedAvatarWorldFixture(query:Record<string,string|string[]|undefined>){
  return query.record===avatarWorldReviewMarker&&Object.keys(query).every(key=>key==="record"||key==="centerId")&&(query.centerId===undefined||(typeof query.centerId==="string"&&uuid.test(query.centerId)));

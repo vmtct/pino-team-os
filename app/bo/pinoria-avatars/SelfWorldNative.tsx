@@ -7,7 +7,8 @@ import {createWorldOperationJournal,type WorldOperationJournal} from "./avatar-w
 import type {Scope} from "./avatar-world-contract";
 
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-export const WORLD_PERMISSIONS=["pinoria.avatar.directory.view","pinoria.self.loadout.view","pinoria.world.avatar.view","pinoria.world.avatar.grant","pinoria.world.avatar.configure","pinoria.world.avatar.set_live"] as const;
+import {WORLD_PERMISSIONS} from "./avatar-world-review-identity";
+export {WORLD_PERMISSIONS} from "./avatar-world-review-identity";
 export function worldScope(row:{pinoriaSelfId?:unknown;studentProfileId?:unknown;personId?:unknown;selfStatus?:unknown;subjectStatus?:unknown},centerId:string):Scope|null{
  const {pinoriaSelfId:selfId,studentProfileId,personId}=row;
  if(typeof selfId!=="string"||typeof studentProfileId!=="string"||typeof personId!=="string"||![selfId,studentProfileId,personId,centerId].every(v=>uuid.test(v))||row.selfStatus!=="ACTIVE"||!["ACTIVE","MIXED"].includes(String(row.subjectStatus)))return null;

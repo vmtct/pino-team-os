@@ -25,7 +25,7 @@ import { canEditNickname, nicknameInput, patchAvatarNickname, reloadAvatarAfterN
 import { SelfWardrobeDetail } from "./SelfWardrobeDetail";
 import { SelfLoadoutDetail } from "./SelfLoadoutDetail";
 import { assertAvatarWorldReviewLocation, avatarWorldReviewRecord, avatarWorldReviewScope, avatarWorldReviewMarker } from "./avatar-world-m1-fixture";
-type AvatarReview = Readonly<{row:AvatarRow;centerId:string;worldContent:React.ReactNode}>;
+type AvatarReview = Readonly<{row:AvatarRow;centerId:string;worldContent:React.ReactNode;stageCenterId?:string}>;
 
 const initialTable = (): BoTableState => ({ ...defaultTable(avatarModule.fields), pageSize: 15 });
 const tablePolicy = {
@@ -123,7 +123,7 @@ export function AvatarDirectoryDsa({review}:{review?:AvatarReview}={}) {
   const selected = center && !center.loading && !center.error ? center.selected : "";
   const header = useContext(BoApplicationShellContext);
   useEffect(() => { document.title = "Pinoria Avatar · PINO BO"; }, []);
-  if(review){assertAvatarWorldReviewLocation(new URL(location.href),self.origin);if(review.row!==avatarWorldReviewRecord||review.centerId!==avatarWorldReviewScope.centerId)throw Error("Invalid review fixture");return <ScopedAvatarDirectory key="avatar-world-local-review" centerId={review.centerId} menu={header?.("menu-btn")} review={review}/>;}
+  if(review){if(review.stageCenterId){if(center?.loading)return <p role="status">Loading Center...</p>;if(!center||center.error||center.selected!==review.stageCenterId)return <p role="alert">M1: Center unavailable.</p>;}else assertAvatarWorldReviewLocation(new URL(location.href),self.origin);if(review.row!==avatarWorldReviewRecord||review.centerId!==avatarWorldReviewScope.centerId)throw Error("Invalid review fixture");return <ScopedAvatarDirectory key={review.stageCenterId??"avatar-world-local-review"} centerId={review.centerId} menu={header?.("menu-btn")} review={review}/>;}
   return <section aria-label="Danh bạ Pinoria Avatar">
     {!center ? <p role="alert">Không tìm thấy Center context của BO.</p> :
     center.loading ? <p role="status">Đang xác thực cơ sở được cấp quyền…</p> :
@@ -142,7 +142,7 @@ function ScopedAvatarDirectory({centerId,menu,review}:{centerId:string;menu?:Rea
   const [grants,setGrants]=useState<ReadonlySet<string>>(new Set());
   const [ready,setReady]=useState(!!review);
   const [refresh,setRefresh]=useState(0);
-  const [drawer,setDrawer]=useState<AvatarRow|null>(()=>review&&new URL(location.href).searchParams.get("record")===avatarWorldReviewMarker?review.row:null);
+  const [drawer,setDrawer]=useState<AvatarRow|null>(()=>review&&!review.stageCenterId&&typeof window!=="undefined"&&new URL(location.href).searchParams.get("record")===avatarWorldReviewMarker?review.row:null);
   const [detail,setDetail]=useState<AvatarRow|null>(null);
   const [creating,setCreating]=useState(false);
   const [notice,setNotice]=useState("");
@@ -165,10 +165,10 @@ function ScopedAvatarDirectory({centerId,menu,review}:{centerId:string;menu?:Rea
     const typed=row as AvatarRow;
     returnFocus.current=document.activeElement instanceof HTMLElement?document.activeElement:null;
     if(review&&typed.id!==review.row.id)return;setDrawer(typed);setDetail(null);
-    window.history.pushState(null,"",recordHref(typed.id,!!review));
+    if(!review?.stageCenterId)window.history.pushState(null,"",recordHref(typed.id,!!review));
   },[review]);
-  const closeDrawer=()=>{setDrawer(null);window.history.replaceState(null,"",recordHref(null));returnFocus.current?.focus({preventScroll:true});};
-  const exitDetail=()=>{setDetail(null);window.history.replaceState(null,"",recordHref(null));returnFocus.current?.focus({preventScroll:true});};
+  const closeDrawer=()=>{setDrawer(null);if(!review?.stageCenterId)window.history.replaceState(null,"",recordHref(null));returnFocus.current?.focus({preventScroll:true});};
+  const exitDetail=()=>{setDetail(null);if(!review?.stageCenterId)window.history.replaceState(null,"",recordHref(null));returnFocus.current?.focus({preventScroll:true});};
   useEffect(()=>{
     if(review)return;
     const ctl=new AbortController();
@@ -226,7 +226,7 @@ function ScopedAvatarDirectory({centerId,menu,review}:{centerId:string;menu?:Rea
 
   const switchToDetail=()=>{
     if(!drawer)return;
-    setDetail(drawer);setDrawer(null);window.history.replaceState(null,"",recordHref(drawer.id,!!review));
+    setDetail(drawer);setDrawer(null);if(!review?.stageCenterId)window.history.replaceState(null,"",recordHref(drawer.id,!!review));
   };
   const refreshAfterWrite=()=>setRefresh(v=>v+1);
   const acceptNicknameReadback=useCallback((next:AvatarRow)=>{

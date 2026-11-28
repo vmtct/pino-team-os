@@ -1,9 +1,9 @@
 /** PAP-2153 / PNR-WORLD — isolated local M1 review model, no IO. */
 import {projectAvatarRow} from "./avatar-dsa-data";
 import {buildWorldCommand,parseAvatarWorld,verifyWorldReadback,type AvatarWorldState,type WorldIntent} from "./avatar-world-contract";
-import {WORLD_PERMISSIONS} from "./SelfWorldNative";
+import {WORLD_PERMISSIONS,avatarWorldReviewMarker} from "./avatar-world-review-identity";
+export {avatarWorldReviewMarker} from "./avatar-world-review-identity";
 const id=(n:number)=>"01a194f0-9bd0-7896-89a0-"+n.toString(16).padStart(12,"0");
-export const avatarWorldReviewMarker="AVATAR-WORLD-MOCK-001";
 export const avatarWorldReviewRoute="/bo/pinoria-avatars";
 export const avatarWorldReviewScope=Object.freeze({selfId:id(1),centerId:id(2),studentProfileId:id(3)});
 const personId=id(4),worldId=id(5),sceneId=id(6),mediaId=id(7),instanceId=id(8);
