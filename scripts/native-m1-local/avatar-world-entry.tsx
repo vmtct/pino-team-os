@@ -5,7 +5,7 @@ import {BoRegistrationWorkspace,type BoWorkspaceSource} from "@/app/bo/component
 import {unifiedBoWorkspaceSource} from "@/app/bo/architecture/bo-unified-workspace-source";
 import {AvatarDirectoryDsa} from "@/app/bo/pinoria-avatars/AvatarDirectoryDsa";
 import {avatarModule} from "@/app/bo/pinoria-avatars/avatar-dsa-model";
-import {assertAvatarWorldReviewLocation,avatarWorldReviewRoute,avatarWorldReviewRecord,avatarWorldReviewScope,createAvatarWorldReview} from "@/app/bo/pinoria-avatars/avatar-world-m1-fixture";
+import {assertAvatarWorldReviewLocation,avatarWorldReviewRoute,avatarWorldReviewMarker,avatarWorldReviewRecord,avatarWorldReviewScope,createAvatarWorldReview} from "@/app/bo/pinoria-avatars/avatar-world-m1-fixture";
 import {SelfWorldTabContent} from "@/app/bo/pinoria-avatars/SelfWorldTabContent";
 import {TddPreferencePolicy} from "@/app/components/workspace-renderer/Record";
 import "@pino/design-system/bo-tokens.css";
@@ -22,7 +22,7 @@ function Review(){
  const [state,setState]=useState(()=>fixture.read());
  const [instanceId,setInstanceId]=useState<string|null>(null);
  const [message,setMessage]=useState("");
- const content=<><p role="status">M1: Mô phỏng World, không lưu vào hệ thống.</p>{message&&<p role="status">{message}</p>}<SelfWorldTabContent scope={avatarWorldReviewScope} state={state} grants={fixture.grants} status="ready" busy={false} instanceId={instanceId} onOpen={setInstanceId} onBack={()=>setInstanceId(null)} onReload={()=>setState(fixture.read())} onConfirm={intent=>{try{setState(fixture.confirm(state,intent));setMessage("M1: Đã cập nhật mô phỏng.");}catch{setMessage("M1: Thao tác không hợp lệ.");}}}/></>;
+ const content=<><p role="status" data-m1-fixture={avatarWorldReviewMarker}>M1: Mô phỏng World, không lưu vào hệ thống.</p>{message&&<p role="status">{message}</p>}<SelfWorldTabContent scope={avatarWorldReviewScope} state={state} grants={fixture.grants} status="ready" busy={false} instanceId={instanceId} onOpen={setInstanceId} onBack={()=>setInstanceId(null)} onReload={()=>setState(fixture.read())} onConfirm={intent=>{try{setState(fixture.confirm(state,intent));setMessage("M1: Đã cập nhật mô phỏng.");}catch{setMessage("M1: Thao tác không hợp lệ.");}}}/></>;
  return <BoRegistrationWorkspace source={source} moduleKey="pinoria-avatars" currentUser={{displayName:"M1 · Dữ liệu mẫu"}} content={<AvatarDirectoryDsa review={{row:avatarWorldReviewRecord,centerId:avatarWorldReviewScope.centerId,worldContent:content}}/>}/>;
 }
 createRoot(document.getElementById("root")!).render(<TddPreferencePolicy.Provider value="ephemeral"><Review/></TddPreferencePolicy.Provider>);
