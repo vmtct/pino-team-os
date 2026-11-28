@@ -11,7 +11,7 @@ type Scope=Pick<WishDrawPayload,"centerId"|"learnerId">;
 /** Host must persist atomically, across unmount/reload, and deny concurrent attempts. No default memory-only journal. */
 export type {WishAttemptJournal} from "@/lib/pls-wish-attempt-journal";
 export type WishExecutionHost={quote:(scope:Scope,signal:AbortSignal)=>Promise<unknown>;draw:(attempt:WishAttempt)=>Promise<unknown>;journal:WishAttemptJournal;reveal?:WishRevealLoader};
-type Props={centerId:string;learnerId:string;legalName:string;gender:"male"|"female"|null;host:WishExecutionHost};
+type Props={centerId:string;learnerId:string;legalName:string;gender:"male"|"female"|null;host:WishExecutionHost;onCommitted?:()=>void};
 type Confirmation=ReturnType<typeof prepareWishConfirmation>;
 async function readAttempt(host:WishExecutionHost,scope:Scope){
  const a=await host.journal.read(scope);
@@ -19,7 +19,7 @@ async function readAttempt(host:WishExecutionHost,scope:Scope){
  return a?createWishAttempt(a.payload,a.key):null;
 }
 export function TosWishExecution(p:Props){return <WishExecution key={p.centerId+":"+p.learnerId} {...p}/>;}
-function WishExecution({centerId,learnerId,legalName,gender,host}:Props){
+function WishExecution({centerId,learnerId,legalName,gender,host,onCommitted}:Props){
  const [journalError,setJournalError]=useState("");
  const [attempt,setAttempt]=useState<WishAttempt|null>(null),[quote,setQuote]=useState<ReturnType<typeof parseWishQuote>|null>(null),[error,setError]=useState(""),[loading,setLoading]=useState(true),[epoch,setEpoch]=useState(0);
  const [revision,setRevision]=useState(""),[count,setCount]=useState<number|"MAX">(1),[confirm,setConfirm]=useState<Confirmation|null>(null),[receipt,setReceipt]=useState<CommittedWish|null>(null),[busy,setBusy]=useState(false);
@@ -46,7 +46,7 @@ function WishExecution({centerId,learnerId,legalName,gender,host}:Props){
    if(!a){if(!c||!quote||loading)throw Error("Tải lại báo giá.");const next=prepareWishConfirmation(quote,scope,revision,count);if(JSON.stringify(next)!==JSON.stringify(c))throw Error("Báo giá đã thay đổi.");a=createWishAttempt(c.payload);await host.journal.reserve(a);if(!mounted.current)return;}
    attemptRef.current=a;setAttempt(a);setConfirm(null);
    const raw=await host.draw(a);if(!mounted.current)return;
-   setReceipt(parseWishReceipt(raw,a.payload));
+   setReceipt(parseWishReceipt(raw,a.payload));onCommitted?.();
   }catch(e){if(!mounted.current)return;setConfirm(null);setError((e instanceof Error?e.message:"Chưa xác minh giao dịch.")+" Không tạo giao dịch mới trước khi đối soát.");try{const pending=await readAttempt(host,scope);if(!mounted.current)return;attemptRef.current=pending;setAttempt(pending);setJournalError(pending?"":"Chưa xác minh được giữ chỗ giao dịch. Tải lại trước khi tiếp tục.");}catch{if(mounted.current)setJournalError("Không thể kiểm tra giao dịch đang chờ.");}}
   finally{flight.current=false;if(mounted.current)setBusy(false);}
  }

@@ -19,6 +19,42 @@ test("PAP-942 V4 three tabs distinguish unavailable from confirmed empty",async(
 });
 test("PAP-942 Wish controls stay disabled with supplied records and no store can write",async()=>{
  const model={...unavailableOpsReadModel(),loaded:true,guests:[{id:"s",name:"Test",initials:"T",className:"Test",classTime:"08:00",room:"R",guardian:"G"}],wishes:{s:false}};
- const before=JSON.stringify(model),html=await renderV4("ReceptionV4Presentation",{...props,initialReadOnly:true,initialTab:"pinoria",model});assert.match(buttons(html,"Xử lý")[0],/disabled/);assert.equal(JSON.stringify(model),before);
+ const before=JSON.stringify(model),html=await renderV4("ReceptionV4Presentation",{...props,initialReadOnly:true,initialTab:"pinoria",model});assert.equal(buttons(html,"Xử lý").length,0);assert.equal(JSON.stringify(model),before);
  for(const name of ["ReceptionV4Presentation","ReceptionV4OpenShift"]){const source=readFileSync("app/components/tos-vnext/"+name+".tsx","utf8");assert.doesNotMatch(source,/useOpsDemo|useReceptionShiftDemo|ops-demo-store|localStorage|sessionStorage|fetch\(/)}
+});
+
+test("PAP-2431 mounted read model keeps Wish unknown, restores roster and retains House lookup",async()=>{
+ const model={...unavailableOpsReadModel(),loaded:true,guests:[{id:"a",name:"Synthetic Learner",initials:"S",className:"Piano",classTime:"18:00",room:"Room A",guardian:"\u2014"}],attendance:{a:"ARRIVED"},events:[{id:"a:arrival",text:"Synthetic Arrival",time:"18:00"}]};
+ const common={...props,initialReadOnly:true,model,activityLoaded:true,expectedComplete:false,wishSupportedCount:null,showDayList:true,visitLookup:"REAL_CORE_HOUSE_PANEL"};
+ const overview=await renderV4("ReceptionV4Presentation",{...common,initialTab:"overview"});
+ assert.match(overview,/Synthetic Arrival/);
+ assert.match(overview,/<strong>1<\/strong>/);
+ assert.match(overview,/\u2014 đã hỗ trợ trong ca/);
+ const arrivals=await renderV4("ReceptionV4Presentation",{...common,initialTab:"arrivals"});
+ assert.match(arrivals,/REAL_CORE_HOUSE_PANEL/);assert.match(arrivals,/Synthetic Learner/);
+ assert.match(arrivals,/Room A/);
+ const wish=await renderV4("ReceptionV4Presentation",{...common,initialTab:"pinoria"});
+ assert.doesNotMatch(wish,/<strong>0<\/strong>/);
+});
+test("PAP-2431 Pinoria shows present learners, not invented pending requests, and keeps other environments disabled",async()=>{
+ const guest=(id:string,name:string)=>({id,name,initials:name[0],className:"Piano",classTime:"18:00",room:"A",guardian:"\u2014"});
+ const model={...unavailableOpsReadModel(),loaded:true,guests:[guest("a","Present Learner"),guest("b","Departed Learner")],attendance:{a:"ARRIVED",b:"LEFT"}};
+ const html=await renderV4("ReceptionV4Presentation",{...props,initialReadOnly:true,initialTab:"pinoria",model,wishSupportedCount:null,wishCandidates:[{learnerId:"a",visitId:"v"}],wishEnabled:false});
+ assert.match(html,/Present Learner/);assert.doesNotMatch(html,/Departed Learner/);assert.match(buttons(html,"Xử lý")[0],/disabled/);
+ assert.doesNotMatch(html,/<strong>0<\/strong>/);
+});
+
+test("PAP-2431 incomplete roster is not a confirmed empty ALL filter",async()=>{
+ const html=await renderV4("ReceptionV4Presentation",{...props,initialReadOnly:true,initialTab:"arrivals",model:{...unavailableOpsReadModel(),loaded:true},expectedComplete:false,showDayList:true});
+ assert.match(html,/\u2014 kết quả/);
+ assert.doesNotMatch(html,/Không có học viên phù hợp/);
+});
+
+test("PAP-2431 approved Wish simplification removes queue and Region; count is authoritative or unknown",async()=>{
+ const common={...props,initialReadOnly:true,initialTab:"pinoria",wishCandidates:[]};
+ const unknown=await renderV4("ReceptionV4Presentation",common);
+ assert.doesNotMatch(unknown,/Region|Wish ch\u1edd|Wish \u0111ang ch\u1edd|Y\u00eau c\u1ea7u Pinoria/);
+ assert.match(unknown,/<strong>\u2014<\/strong>/);
+ const known=await renderV4("ReceptionV4Presentation",{...common,wishSupportedCount:3});
+ assert.match(known,/<strong>3<\/strong>/);
 });
