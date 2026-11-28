@@ -20,6 +20,7 @@
   },
   "vars": {
     "APP_ENV": "staging",
+    "PAP1523_PERSON_SUPPORT_FIXTURE": "1",
     "FOUNDER_EMAIL": "",
     "BO_UI_ONLY": "enabled",
     "HO_PILOT_FOUNDER_USER_IDS": "01a208c5-d735-7188-9fc2-e114ee549820"
