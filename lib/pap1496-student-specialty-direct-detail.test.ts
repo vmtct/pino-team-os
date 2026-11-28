@@ -8,7 +8,7 @@ const detail = readFileSync(new URL("../app/bo/learners/StudentFullDetail.tsx",i
 
 test("PAP-1496: direct Student Full Detail is not gated by unrelated BO scope catalog loading/errors",()=>{
   const entry='if (fullDetailId) return <StudentFullDetail';
-  const loading='if (catalog.state === "loading") return';
+  const loading='if (catalog.state === "loading")';
   const error='if (catalog.state === "error") return';
   for(const token of [entry,loading,error])assert.ok(list.includes(token),token);
   assert.ok(list.indexOf(entry)<list.indexOf(loading));

@@ -10,6 +10,7 @@ import {StaffRoleAccess} from "./StaffRoleAccess";
 import {StaffPasswordReset} from "./StaffPasswordReset";
 import {staffRateProvider} from "./staff-rate-provider";
 import {manualStaffDefinition,manualStaffQuery,type ManualStaffFields,type StaffCenterOption} from "./manual-create-contract";
+import {initialStaffDirectoryFetch} from "./initial-directory-fetch";
 import {nativeManualStaffProvider} from "./native-staff-provider";
 import {readManualStaffCenters} from "./manual-staff-centers";
 import {staffNativeOverviewProperties} from "./staff-native-overview";
@@ -34,10 +35,11 @@ export function StaffNativeWorkspace({principalId,createAdmission}:{principalId:
   useEffect(()=>{
     const controller=new AbortController();
     let adapter:AuthenticatedSurfaceAdapter<ManualStaffFields>|undefined;
-    void createHoTddAdapter({registry:new TddRegistry(),definition:manualStaffDefinition,provider:nativeManualStaffProvider},controller.signal).then(result=>{
+    const directoryFetch=initialStaffDirectoryFetch(window.location.origin,principalId,controller.signal);
+    void createHoTddAdapter({fetcher:directoryFetch,registry:new TddRegistry(),definition:manualStaffDefinition,provider:nativeManualStaffProvider},controller.signal).then(result=>{
       adapter=result;
       if(controller.signal.aborted||result.userId!==principalId||result.scope.surface!=="HO"||!result.context.authorize("team.bo.access")){
-        result.dispose();if(!controller.signal.aborted)setError(true);return;
+        result.dispose();if(!controller.signal.aborted){setError(true);controller.abort();}return;
       }
       if(createAdmission){
         try{
@@ -48,7 +50,7 @@ export function StaffNativeWorkspace({principalId,createAdmission}:{principalId:
       }else{setJournal(null);setJournalError(false);}
       setReady({adapter:result,navigation:browserTddNavigation("HO","staffs",manualStaffQuery),signal:controller.signal});
       void readManualStaffCenters(fetch,controller.signal).then(options=>{if(!controller.signal.aborted)setCenters(options);}).catch(()=>{if(!controller.signal.aborted)setCenterError(true);});
-    }).catch(()=>{if(!controller.signal.aborted)setError(true);});
+    }).catch(()=>{if(!controller.signal.aborted){setError(true);controller.abort();}});
     return ()=>{controller.abort();adapter?.dispose();};
   },[principalId,retry,createAdmission,operationState]);
   const restart=()=>{setReady(null);setCenters([]);setError(false);setCenterError(false);setRetry(x=>x+1);};

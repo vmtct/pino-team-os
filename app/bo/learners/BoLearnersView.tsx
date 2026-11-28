@@ -22,6 +22,8 @@ import { StudentFullDetail } from "./StudentFullDetail";
 import { NativeCustomAttributeValues } from "@/app/components/custom-attributes/NativeCustomAttributeValues";
 import { useStudentCenterEditCapability } from "./useStudentCenterEditCapability";
 import { useBoCenterSelection } from "../components/registration/BoCenterSelection";
+import { useBoStagingUser } from "../components/registration/BoRuntimeBoundary";
+import { showStudentsWhileCatalogLoads } from "./directory-readiness";
 
 type Catalog = { paths: BoPathProgram[]; classes: BoRunningClass[] };
 type Load<T> = { state: "loading" } | { state: "error"; message: string } | { state: "ready"; data: T };
@@ -55,11 +57,14 @@ function StudentNameInlineCell({ student, canEditName, onSaved }: { student: BoL
   return <BoTypedCellEditor label={`Tên học viên ${student.displayName}`} value={draft} saving={saving} error={error} onChange={setDraft} onCommit={() => void submit()} onCancel={() => setEditing(false)} />;
 }
 export function BoLearnersView() {
-  const activeCenter = useBoCenterSelection()?.selected ?? "";
+  const context = useBoCenterSelection();
+  const staging = Boolean(useBoStagingUser());
+  const activeCenter = context?.selected ?? "";
+  const centerAuthorized = Boolean(activeCenter && !context?.loading && !context?.error && context?.centers.some(entry => entry.id === activeCenter));
   // PAP-1426: remount the whole Student workspace on Center switch so no old-Center rows, drawer or in-flight editor survive.
-  return <CenterScopedLearnersView key={activeCenter} activeCenter={activeCenter} />;
+  return <CenterScopedLearnersView key={activeCenter} activeCenter={activeCenter} staging={staging} centerAuthorized={centerAuthorized} />;
 }
-function CenterScopedLearnersView({ activeCenter }: { activeCenter: string }) {
+function CenterScopedLearnersView({ activeCenter, staging, centerAuthorized }: { activeCenter: string; staging: boolean; centerAuthorized: boolean }) {
   const canEditName = useStudentCenterEditCapability(activeCenter);
   const publicViewRuntime = useAuthorizedBoPublicView("students", "student.profile.view", BO_STUDENT_PILOT_DEFAULT_COLUMNS);
   const pathname = usePathname();
@@ -73,6 +78,7 @@ function CenterScopedLearnersView({ activeCenter }: { activeCenter: string }) {
   const sharedGrid = useBoPilotSharedGridView({ runtime: publicViewRuntime, fields: BO_STUDENT_PILOT_FIELDS, sortableKeys: ["name", "birth", "paths", "learning", "member", "attention"], typed: pilotSettings, setTyped: setPilotSettings, grid });
   const [detail, setDetail] = useState<Load<BoLearnerLifecycle> | null>(null);
   const [catalog, setCatalog] = useState<Load<Catalog>>({ state: "loading" });
+  const catalogReady = catalog.state === "ready";
   const [showCreate, setShowCreate] = useState(false);
   const [neutralizeTarget, setNeutralizeTarget] = useState<BoLearnerLifecycle | null>(null);
   const detailRequestFence = useRef(new LatestRequestFence());
@@ -152,22 +158,37 @@ function CenterScopedLearnersView({ activeCenter }: { activeCenter: string }) {
   const visibleRows = pilotFiltered.slice((range.page - 1) * grid.state.pageSize, range.page * grid.state.pageSize);
   const selectedRow = rows.find((student) => student.id === selectedId) ?? null;
   const columns = useMemo<BoDataGridColumn<BoLearnerDirectoryItem>[]>(() => [
-    { key: "name", header: "Học viên", sortable: true, sticky: true, minWidth: 230, render: (student) => <StudentNameInlineCell key={`${student.id}:${activeCenter}`} student={student} canEditName={canEditName} onSaved={() => { void loadDirectory(); if (selectedIdRef.current === student.id) void loadDetail(student.id); }} /> },
+    { key: "name", header: "Học viên", sortable: true, sticky: true, minWidth: 230, render: (student) => <StudentNameInlineCell key={`${student.id}:${activeCenter}`} student={student} canEditName={catalogReady && canEditName} onSaved={() => { void loadDirectory(); if (selectedIdRef.current === student.id) void loadDetail(student.id); }} /> },
     { key: "id", header: "Student ID", minWidth: 180, render: (student) => <BoDataGridCanonicalId value={student.id} label="Copy Student ID" /> },
     { key: "birth", header: "Tuổi / sinh", sortable: true, minWidth: 130, render: (student) => <div className={styles.gridStack}><strong>{ageLabel(student.birthYear)}</strong><small>{student.birthPrecision.replaceAll("_", " ")}</small></div> },
     { key: "paths", header: "Active Paths", sortable: true, minWidth: 210, render: (student) => student.activePaths.length ? <div className={styles.gridPathList}>{student.activePaths.slice(0, 2).map((path) => <BoDataGridBadge key={path.id}>{path.displayName}</BoDataGridBadge>)}{student.activePaths.length > 2 ? <BoDataGridBadge>+{student.activePaths.length - 2}</BoDataGridBadge> : null}</div> : <span className={styles.gridMuted}>Chưa có active Path</span> },
     { key: "learning", header: "Subscription / Class", sortable: true, minWidth: 170, render: (student) => <div className={styles.gridStack}><BoDataGridStatus value={student.activeSubscriptions > 0 ? "Đang học" : "Chưa active"} tone={student.activeSubscriptions > 0 ? "success" : "warning"} /><small>{student.activeSubscriptions > 0 ? `${student.activeSubscriptions} active Path · mở detail để xem class` : "Cần Subscription trước khi xếp lớp"}</small></div> },
     { key: "member", header: "House", sortable: true, minWidth: 115, render: (student) => <BoDataGridStatus value={student.houseMember ? "Member" : "Non-member"} tone={student.houseMember ? "info" : "neutral"} /> },
     { key: "attention", header: "Attention", sortable: true, minWidth: 150, render: (student) => { const attention = studentAttention(student); return <BoDataGridStatus value={attention.label} tone={attention.tone} />; } },
-  ], [activeCenter, canEditName]);
+  ], [activeCenter, canEditName, catalogReady]);
 
   // PAP-1496 / SPEC-UNLOCK: direct Student Full Detail has its own Center-scoped
   // Core lifecycle read. An unrelated list/scope catalog failure must not
   // prevent that authorized detail reader from resolving its own 403/404.
   if (fullDetailId) return <StudentFullDetail key={`${fullDetailId}:${activeCenter}`} studentId={fullDetailId} />;
 
-  if (catalog.state === "loading") return <BoDataGridState kind="loading" message="Đang tải canonical scope catalog cho Student detail…" />;
+  // Both the Center selector and canonical directory must already have admitted
+  // the list. The optional early view does not unlock detail or writes. A settled
+  // catalog error (including denial/expiry) keeps the existing fail-closed UI.
   if (catalog.state === "error") return <BoDataGridState kind="error" message={catalog.message} />;
+  if (catalog.state === "loading") {
+    if (!showStudentsWhileCatalogLoads(staging, centerAuthorized, directory.state)) {
+      return <BoDataGridState kind="loading" message="Đang tải canonical scope catalog cho Student detail…" />;
+    }
+    return <main className={styles.page}>
+      <header className={styles.heading}><h1><LocalizedModuleTitle label="Students" moduleKey="learners" /></h1></header>
+      <BoDataGrid rows={visibleRows} columns={columns} rowsAlreadyFiltered rowKey={student => student.id}
+        caption="School Students directory" state="ready"
+        emptyTitle="Không có học viên phù hợp"
+        pagination={{ page: range.page, pageSize: grid.state.pageSize, total: pilotFiltered.length,
+          pageSizeOptions: STUDENT_GRID_OPTIONS.allowedPageSizes, onPageChange: grid.setPage, onPageSizeChange: grid.setPageSize }} />
+    </main>;
+  }
   return <main className={styles.page}>
     <header className={styles.heading}>
       <div>
