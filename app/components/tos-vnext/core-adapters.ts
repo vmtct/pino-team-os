@@ -40,7 +40,18 @@ export function assertOwnCenter(context:WorkforceContext,centerId:string){
 }
 /** Fail closed if context or Core scope fails. Read-only; no client trust of mock role. */
 export type TosVNextShiftReadWarnings=Partial<Record<"timekeeping"|"history"|"income"|"dailyIncome",string>>;
-export async function shiftReadModel(centerId:string,fromDate:string,toDate:string,localDate?:string):Promise<{
+type ShiftProgress={
+ expectedStaff: Pick<WorkforceContext,"userId"|"staffMemberId">;
+ onSchedule: (assignments:Assignment[])=>void;
+};
+async function settleShiftRead<T>(read:Promise<T>,failFast:boolean):Promise<PromiseSettledResult<T>>{
+ try{return {status:"fulfilled",value:await read}}
+ catch(reason){
+  if(failFast&&typeof reason==="object"&&reason!==null&&"status" in reason&&reason.status===401)throw reason;
+  return {status:"rejected",reason};
+ }
+}
+export async function shiftReadModel(centerId:string,fromDate:string,toDate:string,localDate?:string,progress?:ShiftProgress):Promise<{
  context:WorkforceContext;
  assignments:Assignment[];
  current:TimekeepingSession|null;
@@ -51,14 +62,17 @@ export async function shiftReadModel(centerId:string,fromDate:string,toDate:stri
 }>{
  const context=await staffContext();
  assertOwnCenter(context,centerId);
+ if(progress&&(context.founderMode||!context.staffMemberId||context.userId!==progress.expectedStaff.userId||context.staffMemberId!==progress.expectedStaff.staffMemberId))throw new TosVNextScopeError();
  // Schedule is the mandatory source of shift-role access. NEVER infer permissions
  // from optional payroll/timekeeping success or preserve stale shift assignments.
  const assignments=await workforceApi.schedule({centerId,startDate:fromDate,endDate:toDate});
- const [current,history,income,dailyIncome]=await Promise.allSettled([
-  workforceApi.currentTimekeeping(centerId),
-  workforceApi.history({centerId,startDate:fromDate,endDate:toDate}),
-  ownIncome(centerId,20,0),
-  localDate?ownDailyIncome(centerId,localDate.slice(0,8)+"01",localDate):Promise.resolve(null)
+ progress?.onSchedule(assignments.data);
+ const failFast=Boolean(progress);
+ const [current,history,income,dailyIncome]=await Promise.all([
+  settleShiftRead(workforceApi.currentTimekeeping(centerId),failFast),
+  settleShiftRead(workforceApi.history({centerId,startDate:fromDate,endDate:toDate}),failFast),
+  settleShiftRead(ownIncome(centerId,20,0),failFast),
+  settleShiftRead(localDate?ownDailyIncome(centerId,localDate.slice(0,8)+"01",localDate):Promise.resolve(null),failFast)
  ]);
  // Session expiry invalidates the entire read. A 403 can instead mean
  // a single optional feature is forbidden: keep that feature hidden while

@@ -141,3 +141,35 @@ test("PAP-2190 canonical login forwards only GET/HEAD and legacy redirects witho
  assert.equal((await staging.fetch(req("/login"))).status, 503);
  assert.deepEqual(calls, [["/piner-space/afterschool/login", "", "GET"], ["/piner-space/afterschool/login", "", "HEAD"]]);
 });
+
+test("PAP-2432 the unmounted member Portfolio cannot inherit PIN or synthetic review admission", async () => {
+ const calls = [];
+ const env = {
+  APP_ENV: "staging",
+  PINER_SYNTHETIC_REVIEW_ENABLED: "true",
+  PINER_SYNTHETIC_REVIEW: { verify: async request => {
+   calls.push(new URL(request.url).pathname + ":synthetic-review");
+   return { allowed: true, program: "mytime" };
+  } },
+  AFTERSCHOOL_PIN_WORKER: { fetch: async request => {
+   calls.push(new URL(request.url).pathname);
+   return Response.json({ data: { authenticated: true, expiresAt: "2099-01-01T00:00:00Z" } });
+  } },
+  PINER_BRAND_R2: { get: async () => { throw new Error("private Portfolio must not reach public assets"); } },
+ };
+ const origin = "https://app.staging.pinohouse.art";
+ const headers = { cookie: "__Host-PINO_AFTERSCHOOL=synthetic-member", origin, "sec-fetch-site": "same-origin" };
+ const session = await staging.fetch(new Request(origin + "/api/piner/afterschool/session", { headers }), env);
+ assert.equal((await session.json()).data.authenticated, true);
+ const synthetic = await staging.fetch(new Request(origin + "/piner/mytime", { headers }), env);
+ assert.equal(synthetic.status, 200);
+ assert.match(await synthetic.text(), /PORTFOLIO-MOCK-001/);
+ for (const kind of ["list", "detail", "media"]) {
+  const response = await staging.fetch(new Request(origin + "/api/piner/afterschool/portfolio/" + kind, { headers }), env);
+  assert.equal(response.status, 404);
+  assert.match(response.headers.get("Cache-Control"), /no-store/);
+  assert.equal(response.headers.get("set-cookie"), null);
+  assert.equal(await response.text(), "");
+ }
+ assert.deepEqual(calls, ["/api/piner/afterschool/session", "/api/piner/afterschool/session", "/piner/mytime:synthetic-review"]);
+});
