@@ -47,14 +47,14 @@ const missionBusinessLoaders = (onOpenDiary: (row: LinkedMissionDiary) => void):
  * Keyed children discard stale TDD/Drawer/navigation state on Center switch.
  * Original Core assignment command IDs and CAS remain Center-bound.
  */
-export function BoMissionsTdd() {
+export function BoMissionsTdd({reviewContent}:{reviewContent?:ReactNode} = {}) {
   const user = useBoStagingUser();
   const center = useBoCenterSelection();
   // Kept in the BO module root across keyed Center switches: no second
   // business command while an earlier Center mutation has unknown outcome.
   const [writeLease,setWriteLease] = useState<MissionWriteLease | null>(null);
   const selected = (!center || center.loading || center.error) ? "" : center.selected;
-  const content = <section data-testid="bo-missions-tdd" aria-label="Nhiệm vụ tại Center">
+  const content = reviewContent ?? <section data-testid="bo-missions-tdd" aria-label="Nhiệm vụ tại Center">
     {!center ? <p role="alert">Không tìm thấy Center context của BO.</p> :
       center.loading ? <p role="status">Đang xác thực cơ sở được cấp quyền…</p> :
       center.error ? <p role="alert">{center.error}</p> :
@@ -116,9 +116,14 @@ function ScopedMissionAssignment({centerId,centerSource,writeLease,setWriteLease
     },
     ()=>null,
   );
+  // Reset the child drawer before rendering a different Detail; the parent is Center-keyed.
+  const [diaryDetailId,setDiaryDetailId] = useState(detailId);
   const [selectedDiary,setSelectedDiary] = useState<LinkedMissionDiary|null>(null);
+  if(diaryDetailId!==detailId){
+    setDiaryDetailId(detailId);
+    setSelectedDiary(null);
+  }
   const businessLoaders = useMemo(() => missionBusinessLoaders(row => setSelectedDiary(row)), []);
-  useEffect(() => setSelectedDiary(null), [centerId,detailId]);
   useEffect(()=>{
     if(!ready || ready.centerId!==centerId || !detailId)return;
     const controller=new AbortController();
