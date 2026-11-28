@@ -52,3 +52,11 @@ test("PAP-2425 legacy linked Diary selection resets before a new assignment Deta
  assert.match(source,/<ScopedMissionAssignment key=\{selected\+":"\+center.source\}/);
  assert.match(source,/onClose=\{\(\) => setSelectedDiary\(null\)\}/);
 });
+
+test("PAP-2425 guarded Staging deployment opts in only the isolated review",()=>{
+ const config=JSON.parse(readFileSync("wrangler.ho-staging.json","utf8"));
+ assert.equal(assignmentStageReviewEnabled(config.vars,"bo.staging.pinohouse.art"),true);
+ assert.equal(assignmentStageReviewEnabled(config.vars,"bo.pinohouse.art"),false);
+ assert.equal(assignmentStageReviewEnabled({...config.vars,APP_ENV:"production"},"bo.staging.pinohouse.art"),false);
+ assert.equal(assignmentStageReviewEnabled({...config.vars,BO_MISSION_ASSIGNMENT_M1_REVIEW:undefined},"bo.staging.pinohouse.art"),false);
+});
