@@ -1,10 +1,10 @@
 import { authorizeHoShell, type HoEnv } from "./ho-auth";
 import { BoShellGateError } from "./bo-shell-gate";
 import { HO_STAGING_HOSTNAME, normalizeHostname } from "./host-boundary";
-import { callFounderCoreWithStaffPassword, type PinoCoreBinding } from "./founder-core";
+import { callBoAccessCoreWithStaffPassword, type BoAccessCoreBinding } from "./bo-core";
 import { teamCredential, TeamAuthError } from "./team-auth";
 
-export interface HoStaffPasswordResetEnv extends HoEnv { PINO_CORE: PinoCoreBinding }
+export interface HoStaffPasswordResetEnv extends HoEnv { PINO_BO_CORE: BoAccessCoreBinding }
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const keyPattern = /^[a-z0-9:-]{8,120}$/i;
 const json = (body: unknown, status: number) => Response.json(body, { status, headers: {
@@ -45,14 +45,14 @@ export async function handleHoStaffPasswordReset(request: Request, env: HoStaffP
     const credential = await teamCredential(request, env, "BO");
     if (credential.kind !== "password") return json({ error: { code: "IDENTITY_UNAUTHORIZED" } }, 401);
 
-    const directory = await callFounderCoreWithStaffPassword(env.PINO_CORE,
+    const directory = await callBoAccessCoreWithStaffPassword(env.PINO_BO_CORE,
       { method: "GET", path: "access/users" }, credential.token);
     if (directory.status !== 200) return json({ error: { code: "HO_ACCESS_LOOKUP_DENIED" } },
       directory.status === 401 ? 401 : directory.status === 403 ? 403 : 503);
     const payload = directory.body as { data?: unknown } | null;
     const target = resetTarget(payload?.data, staffId, actor.userId);
     if (target.status !== 200) return json({ error: { code: "HO_RESET_TARGET_UNAVAILABLE" } }, target.status);
-    const result = await callFounderCoreWithStaffPassword(env.PINO_CORE, {
+    const result = await callBoAccessCoreWithStaffPassword(env.PINO_BO_CORE, {
       method: "POST", path: `access/users/${target.userId}/staff-password/reset`,
       body: {}, idempotencyKey,
     }, credential.token);
