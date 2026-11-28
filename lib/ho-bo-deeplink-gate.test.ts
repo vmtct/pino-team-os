@@ -31,7 +31,7 @@ const hoPaths=[
 ];
 const boPaths=[
  "/bo/missions","/bo/parents","/bo/workforce/staffs","/bo/bills","/bo/workforce-shift-plans","/bo/workforce-availability",
- "/bo/workforce-assignments","/bo/payroll-periods","/bo/payroll-daily","/bo/payroll-exceptions",
+ "/bo/workforce-assignments","/bo/workforce/timekeeping","/bo/payroll-periods","/bo/payroll-daily","/bo/payroll-exceptions",
  "/bo/pinoria-avatars","/bo/afterschool-accounts","/bo/open-studio-passes","/bo/classroom-diaries",
  "/bo/piner-posts","/bo/sales/leads","/bo/guests","/bo/mytime-workshops","/bo/enrollments",
  "/bo/opening-evidence","/bo/pinoria-wish-events","/bo/running-classes",
@@ -130,6 +130,7 @@ test("HO_BO_DEEPLINK_CONTINUITY_P0: route-specific detail, tab, grid, center and
   [ho,"/ho/pinoria/starter-sets?record="+id+"&tab=members","/ho/pinoria/starter-sets?record="+id+"&tab=members"],
   [ho,"/ho/pinoria/wish-banners?record="+id+"&tab=items&wishSelection=pending&wishRevision=2","/ho/pinoria/wish-banners?record="+id+"&tab=items&wishSelection=pending&wishRevision=2"],
   [ho,"/ho/system/custom-attributes?sort=displayName&size=30&page=2&scope=CENTER&centerId="+center,"/ho/system/custom-attributes?sort=displayName&size=30&page=2&scope=CENTER&centerId="+center],
+  [bo,"/bo/workforce/timekeeping?cameraReview=1&centerId="+center,"/bo/workforce/timekeeping?cameraReview=1&centerId="+center],
   [bo,"/bo/parents?centerId="+center+"&record="+id,"/bo/parents?centerId="+center+"&record="+id],
   [bo,"/bo?module=parents&centerId="+center+"&record="+id,"/bo/parents?centerId="+center+"&record="+id],
   [bo,"/bo/subscriptions?centerId="+center+"&record="+id+"&tab=enrollment","/bo?module=subscriptions&centerId="+center+"&record="+id+"&tab=enrollment"],

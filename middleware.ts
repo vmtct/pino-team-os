@@ -8,6 +8,7 @@ import {RC_REVIEW_PATH} from "@/app/bo/running-classes/running-class-review-quer
 import {parseRunningClassStageQuery} from "@/app/bo/running-classes/running-class-stage-admission";
 import {canonicalLeadStageQuery} from "@/app/bo/sales/leads/native-lead-query";
 import { parseNativePostQuery } from "@/app/bo/piner-posts/native-post-query";
+import {CAMERA_STAGE_HOST,CAMERA_STAGE_PATH,parseCameraStageReview} from "@/lib/pap1612-camera-stage-route";
 import {invalidStaffPhaseOneRequest} from "@/app/ho/staff/staff-phase-one-route";
 
 export function middleware(request: NextRequest) {
@@ -76,7 +77,16 @@ export function middleware(request: NextRequest) {
     target.pathname = "/bo";
     return NextResponse.redirect(target, 307);
   }
-  const decision = decideHostBoundary(host, request.nextUrl.pathname, request.method);
+  const ordinaryDecision = decideHostBoundary(host, request.nextUrl.pathname, request.method);
+  // PAP-1612: navigation only. The page still enforces server flag, auth and Center proof.
+  const cameraSurface=host===CAMERA_STAGE_HOST.TOS&&request.nextUrl.pathname===CAMERA_STAGE_PATH.TOS?"TOS":
+    host===CAMERA_STAGE_HOST.BO&&request.nextUrl.pathname===CAMERA_STAGE_PATH.BO?"BO":null;
+  const cameraRequested=!!cameraSurface&&request.nextUrl.searchParams.has("cameraReview")&&["GET","HEAD"].includes(request.method);
+  const cameraUrl=new URL(request.nextUrl.href);
+  if(request.headers.get("rsc")==="1")cameraUrl.searchParams.delete("_rsc");
+  const cameraRoute=cameraRequested&&cameraSurface?parseCameraStageReview(cameraSurface,cameraUrl,{APP_ENV:"staging",BO_CAMERA_M1_REVIEW:"enabled",TOS_CAMERA_M1_REVIEW:"enabled"}):null;
+  if(cameraRequested&&!cameraRoute)return new NextResponse("Not Found",{status:404,headers:{"cache-control":"no-store"}});
+  const decision=cameraRoute?.surface==="TOS"&&ordinaryDecision.action==="redirect"&&ordinaryDecision.pathname==="/tos-v4"?{action:"next" as const}:ordinaryDecision;
 
   if (decision.action === "next") {
     if (normalizeHostname(host) === HO_STAGING_HOSTNAME && request.nextUrl.pathname.startsWith("/ho") && !request.cookies.get("pino_staff_password_session")?.value) {

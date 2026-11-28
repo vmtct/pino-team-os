@@ -8,6 +8,7 @@ import {canonicalLeadStageQuery} from "../app/bo/sales/leads/native-lead-query";
 import {parseNativePostQuery} from "../app/bo/piner-posts/native-post-query";
 import {RC_REVIEW_PATH} from "../app/bo/running-classes/running-class-review-query";
 import {parseRunningClassStageQuery} from "../app/bo/running-classes/running-class-stage-admission";
+import {CAMERA_STAGE_HOST,CAMERA_STAGE_PATH,parseCameraStageReview} from "./pap1612-camera-stage-route";
 import {canonicalParentRoute,PARENT_ROUTE} from "../app/bo/parents/parent-route";
 import {canonicalStaffDirectoryRoute,STAFF_DIRECTORY_ROUTE} from "../app/bo/workforce/staffs/staff-directory-route";
 export const BO_STAGING_RETURN_HOST="bo.staging.pinohouse.art";
@@ -48,6 +49,11 @@ export function safeBoStagingReturnTo(raw:string|null|undefined):string|null{
  // PAP-2286: canonical Lead fixture continuation; old preview links normalize. Navigation only, not authorization.
  if(path==="/bo/piner-posts"){const q=parseNativePostQuery(p);return q?path+(q.canonical?"?"+q.canonical:""):null;}
  if(path==="/bo/sales/leads"){const q=canonicalLeadStageQuery(p);return q===null?null:path+(q?"?"+q:"");}
+ if(p.has("cameraReview")){
+  if(path!==CAMERA_STAGE_PATH.BO)return null;
+  const route=parseCameraStageReview("BO",new URL(path+"?"+p.toString(),"https://"+CAMERA_STAGE_HOST.BO),{APP_ENV:"staging",BO_CAMERA_M1_REVIEW:"enabled"});
+  return route?path+"?"+new URLSearchParams({cameraReview:"1",centerId:route.centerId}).toString():null;
+ }
  if(p.has("m1Preview"))return null;
  const key=path==="/bo"?moduleKey??"students":path.split("/")[2]!;
  const sub=key==="subscriptions",period=key==="payroll-periods",event=key==="pinoria-wish-events";

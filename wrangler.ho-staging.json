@@ -25,6 +25,8 @@
     "FOUNDER_EMAIL": "",
     "BO_UI_ONLY": "enabled",
     "BO_MISSION_ASSIGNMENT_M1_REVIEW": "enabled",
+    "BO_CAMERA_M1_REVIEW": "enabled",
+    "TOS_CAMERA_M1_REVIEW": "enabled",
     "STAFF_M1_REVIEW": "enabled",
     "HO_PILOT_FOUNDER_USER_IDS": "01a208c5-d735-7188-9fc2-e114ee549820"
   },
