@@ -57,6 +57,14 @@ export async function patchWorld(worldId:string,patch:{expectedVersion:number;di
  for(const f of ["displayName","descriptionText","worldType"] as const)if(patch[f]!==undefined&&(result[f]!==patch[f]?.trim()||fresh[f]!==result[f]))return fail();
  return fresh;
 }
+/** PAP-2143 / PNR-WORLD: explicit one-way activation, no optimistic status or automatic retry. */
+export async function activateWorld(previous:CoreWorld,fetcher:typeof fetch=fetch){
+ if(previous.status!=="DRAFT"||!previous.scenes.some(s=>s.status==="ACTIVE"))throw Error("World cần có cảnh hoạt động trước khi kích hoạt.");
+ const result=world(await request(fetcher,"/"+id(previous.id),json("PATCH",{expectedVersion:previous.version,status:"ACTIVE"})));
+ const fresh=findWorld(await fetchWorldCatalog(fetcher),previous.id);
+ if(result.id!==previous.id||result.key!==previous.key||result.status!=="ACTIVE"||result.version!==previous.version+1||fresh.key!==previous.key||fresh.status!=="ACTIVE"||fresh.version!==result.version)return fail();
+ return fresh;
+}
 export type SceneCreate={expectedWorldVersion:number;key:string;displayName:string;descriptionText?:string;canvasWidth:number;canvasHeight:number;baseAssetKey:string};
 export async function createScene(worldId:string,body:SceneCreate,replay:string,fetcher:typeof fetch=fetch){
  const result=parseScene(await request(fetcher,"/"+id(worldId)+"/scenes",json("POST",body,replay)),worldId);

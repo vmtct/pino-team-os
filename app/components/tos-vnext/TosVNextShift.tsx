@@ -5,15 +5,16 @@ import {FontAwesomeIcon} from "@fortawesome/react-fontawesome";
 import {faCalendarDays,faClock,faWallet,faCircleCheck,faLocationDot} from "@fortawesome/free-solid-svg-icons";
 import {AppBottomNav,AppCard,AppSheet,AppButton,createSlotKeys} from "../tos-ds";
 import {workforceApi,type Assignment,type TimekeepingSession} from "@/lib/workforce-api";
-import type {OwnIncomePage} from "@/lib/tos-own-income-api";
+import type {OwnIncomePage,OwnDailyIncomePage} from "@/lib/tos-own-income-api";
 import type {TosVNextShiftReadWarnings} from "./core-adapters";
-import {shiftWeek,shiftWeekOffset,activeScheduleAssignments,assignmentHours,formatIncome,shiftRoleLabel} from "@/lib/tos-vnext-shift-view-model";
+import {shiftWeek,shiftWeekOffset,activeScheduleAssignments,assignmentHours,formatIncome,incomeBreakdown,shiftRoleLabel,monthToDateHistory,effectiveHistorySeconds,formatHistoryHours,dailyIncomeStatus} from "@/lib/tos-vnext-shift-view-model";
 import {TosVNextAvailability} from "./TosVNextAvailability";
 import styles from "./shift.module.css";
+import {caLamExtraTimeHref} from "@/lib/tos-payroll-extra-time-api";
 const slot=createSlotKeys(styles);
-export type ShiftReadData={assignments:Assignment[];current:TimekeepingSession|null;history:TimekeepingSession[]|null;income:OwnIncomePage|null;warnings:TosVNextShiftReadWarnings};
-export function TosVNextShift({data,localDate,centerId,centerName,profileLabel}:{data:ShiftReadData;localDate:string;centerId:string;centerName:string;profileLabel:string|null}){
- const [tab,setTab]=useState("today"),[selected,setSelected]=useState(localDate),[weekAnchor,setWeekAnchor]=useState(localDate);
+export type ShiftReadData={assignments:Assignment[];current:TimekeepingSession|null;history:TimekeepingSession[]|null;income:OwnIncomePage|null;dailyIncome?:OwnDailyIncomePage|null;warnings:TosVNextShiftReadWarnings};
+export function TosVNextShift({data,localDate,centerId,centerName,profileLabel,initialTab="today"}:{data:ShiftReadData;localDate:string;centerId:string;centerName:string;profileLabel:string|null;initialTab?:"today"|"pay"}){
+ const [tab,setTab]=useState<string>(initialTab),[selected,setSelected]=useState(localDate),[weekAnchor,setWeekAnchor]=useState(localDate);
  const [sheet,setSheet]=useState<"camera"|"history"|"adjust"|null>(null);
  const [photo,setPhoto]=useState<string|null>(null),[cameraError,setCameraError]=useState("");
  const video=useRef<HTMLVideoElement>(null),stream=useRef<MediaStream|null>(null),cameraEpoch=useRef(0),track=useRef<HTMLDivElement>(null);
@@ -26,6 +27,7 @@ export function TosVNextShift({data,localDate,centerId,centerName,profileLabel}:
  const currentAssignment=data.assignments.find(x=>x.id===data.current?.assignmentId)??data.assignments.find(x=>x.workDate===localDate&&x.status==="ACTIVE");
  const latest=data.income?.data[0];
  const paidMinutes=latest?.paidMinutes;
+ const monthHistory=monthToDateHistory(data.history,localDate);
  function stopCamera(){cameraEpoch.current++;stream.current?.getTracks().forEach(x=>x.stop());stream.current=null}
  function closeSheet(){stopCamera();setPhoto(null);setCameraError("");setSheet(null)}
  useEffect(()=>()=>{cameraEpoch.current++;stream.current?.getTracks().forEach(x=>x.stop())},[]);
@@ -88,17 +90,25 @@ export function TosVNextShift({data,localDate,centerId,centerName,profileLabel}:
     </AppCard><AppCard className={styles.card}><h3>Quy trình đăng ký</h3><p>Nhân viên đăng ký thời gian có thể làm. Vai trò trong ca do quản lý phân công sau.</p></AppCard>
    </>}
    {tab==="hours"&&<>
-    <div className={styles.intro}><span>GIỜ CÔNG</span><h2>Lịch sử chấm công</h2><p>Từ đầu tháng đến hiện tại</p></div>
+    <div className={styles.intro}><span>GIỜ CÔNG</span><h2>Lịch sử chấm công</h2><p>Từ đầu tháng đến hiện tại · {monthHistory.seconds===null?"Chưa đủ dữ liệu tổng giờ công":formatHistoryHours(monthHistory.seconds)}</p></div>
     <AppCard className={styles.card}><h3>Ca gần đây</h3>{data.warnings.history&&<p role="alert">{data.warnings.history}</p>}
-     {data.history?.map(row=><div className={styles.history} key={row.id}><div><strong>{row.workDate}</strong><p>{row.checkInAt} – {row.checkOutAt??"Chưa check-out"}</p></div><span className={styles.smallStatus}>{row.status==="OPEN"?"Đang trong ca":"Đã kết thúc"}</span></div>)}
-     {data.history?.length===0&&<p>Chưa có phiên chấm công trong khoảng này.</p>}
+     {monthHistory.rows?.map(row=><div className={styles.history} key={row.id}><div><strong>{row.workDate}</strong><p>{row.effective?.checkInAt??row.checkInAt} – {row.effective?.checkOutAt??row.checkOutAt??"Chưa check-out"}</p></div><span className={styles.smallStatus}>{row.status==="OPEN"?"Đang trong ca":formatHistoryHours(effectiveHistorySeconds(row))}{row.corrected?" · Đã điều chỉnh":""}</span></div>)}
+     {monthHistory.rows?.length===0&&<p>Chưa có phiên chấm công trong khoảng này.</p>}
     </AppCard><AppCard className={styles.card}><h3>Có sai lệch giờ công?</h3><button type="button" className={styles.secondary} onClick={()=>setSheet("adjust")}>Yêu cầu điều chỉnh</button></AppCard>
    </>}
    {tab==="pay"&&<>
     <div className={styles.intro}><span>THU NHẬP</span><h2>{latest?.name??"Thu nhập của tôi"}</h2><p>Theo dõi thu nhập và lịch sử thanh toán.</p></div>
     <section className={styles.hero}><span className={styles.pill}>{latest?.status??"Chưa có kỳ thu nhập"}</span><p>Thu nhập</p><div className={styles.money}>{formatIncome(latest?.amountMinor)}</div><small>{latest?.startDate} {latest?"–":""} {latest?.endDate}</small></section>
     {data.warnings.income&&<p role="alert">{data.warnings.income}</p>}
-    <AppCard className={styles.card}><h3>Chi tiết kỳ này</h3>{([["Tiền công cơ bản",latest?.standardMinor],["Điều chỉnh",latest?.adjustmentsMinor]] as const).map(([label,value])=><div className={styles.moneyRow} key={label}><span>{label}</span><strong>{formatIncome(value)}</strong></div>)}<div className={styles.moneyRow}><span>Trạng thái</span><strong>{latest?.status??"—"}</strong></div>{latest?.warnings.map(w=><p key={w}>{w}</p>)}</AppCard>
+    <AppCard className={styles.card}><h3>Chi tiết kỳ này</h3>{incomeBreakdown(latest).map(([label,value])=>label==="Làm thêm giờ"
+     ?<a className={styles.moneyRow} key={label} href={caLamExtraTimeHref(centerId)} aria-label="Làm thêm giờ — gửi yêu cầu và xem lịch sử"><span>{label} ›</span><strong>{formatIncome(value)}</strong></a>
+     :<div className={styles.moneyRow} key={label}><span>{label}</span><strong>{formatIncome(value)}</strong></div>)}<div className={styles.moneyRow}><span>Trạng thái</span><strong>{latest?.status??"—"}</strong></div>{latest?.warnings.map(w=><p key={w}>{w}</p>)}
+     <p>Thu nhập theo ngày · Tháng {localDate.slice(0,7)}</p>
+     {data.warnings.dailyIncome&&<p role="alert">{data.warnings.dailyIncome}</p>}
+     {data.dailyIncome?.data.map(day=><div className={styles.moneyRow} key={day.workDate}><span>{day.workDate} · {dailyIncomeStatus(day)}</span><strong>{formatIncome(day.amountMinor)}</strong></div>)}
+     {data.dailyIncome?.data.length===0&&<p>Chưa có thu nhập theo ngày.</p>}
+     {data.dailyIncome==null&&!data.warnings.dailyIncome&&<p>Chưa có dữ liệu thu nhập theo ngày.</p>}
+    </AppCard>
     <AppCard className={styles.card}><h3>Kỳ lương trước</h3><button type="button" className={styles.secondary} onClick={()=>setSheet("history")}>Xem tất cả kỳ lương ›</button></AppCard>
    </>}
   </div>

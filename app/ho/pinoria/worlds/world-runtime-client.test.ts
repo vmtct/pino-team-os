@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {fetchWorldCatalog,saveScene,toUiGeometry,toCoreGeometry,sceneSaveBody,createScene,patchWorld,uploadSceneMedia,type SceneDraftLayer} from "./world-runtime-client";
+import {fetchWorldCatalog,saveScene,toUiGeometry,toCoreGeometry,sceneSaveBody,createScene,patchWorld,activateWorld,uploadSceneMedia,type SceneDraftLayer} from "./world-runtime-client";
 const id=(n:number)=>"019a0000-0000-7000-8000-"+String(n).padStart(12,"0");
 const [wid,sid,mid,newId]=[1,2,3,4].map(id),asset="pinoria/world/uploads/"+"a".repeat(64);
 const character={id:sid,key:"character",displayName:"Character",kind:"CHARACTER",version:1,mediaType:null,assetKey:null,posterAssetKey:null,positionX:0,positionY:26,scale:1,zIndex:10,anchor:"BOTTOM_CENTER",enabled:true,metadata:{}};
@@ -47,4 +47,18 @@ test("PAP-2165 strict redacted scoped history response",async()=>{
  const m=mock(null,{events:[event],truncated:false});assert.deepEqual(await fetchWorldHistory(wid,m.fetcher),{events:[{id:event.id,occurredAt:event.occurredAt,label:"Lưu cảnh",actorName:null}],truncated:false});
  assert.equal(m.calls[0]!.url,"/api/ho/pinoria/worlds/"+wid+"/history");
  for(const bad of [{...event,actorId:id(9)},{...event,action:"PINORIA_WORLD_INSTANCE_GRANTED"},{...event,subjectType:"pinoria_world"},{...event,occurredAt:"n/a"}])await assert.rejects(()=>fetchWorldHistory(wid,mock(null,{events:[bad],truncated:false}).fetcher));
+});
+
+test("PAP-2143 activate only current draft with active scene; exact status-only PATCH and readback",async()=>{
+ const [draftWorld]=await fetchWorldCatalog(mock(null,{worlds:[w]}).fetcher);
+ const active={...w,status:"ACTIVE",version:4};
+ const m=mock(active,{worlds:[active]});
+ assert.equal((await activateWorld(draftWorld!,m.fetcher)).status,"ACTIVE");
+ assert.deepEqual(m.calls.map(c=>c.init?.method),["PATCH","GET"]);
+ assert.equal(m.calls[0]!.init?.body,JSON.stringify({expectedVersion:3,status:"ACTIVE"}));
+ for(const previous of [{...draftWorld!,status:"ACTIVE" as const},{...draftWorld!,scenes:[]}]){
+  const invalid=mock(active,{worlds:[active]});await assert.rejects(()=>activateWorld(previous,invalid.fetcher));assert.equal(invalid.calls.length,0);
+ }
+ for(const fresh of [w,{...active,version:5}])await assert.rejects(()=>activateWorld(draftWorld!,mock(active,{worlds:[fresh]}).fetcher));
+ const denied=mock({},null,403);await assert.rejects(()=>activateWorld(draftWorld!,denied.fetcher));assert.equal(denied.calls.length,1);
 });

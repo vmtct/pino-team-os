@@ -6,8 +6,10 @@ export interface LeadMemberInput {displayName:string;intendedRoles:LeadRole[];ge
 export interface LeadMember extends LeadMemberInput {id:string;status:"ACTIVE";version:number;ageObservedAt:string|null}
 export interface LeadRelationInput {fromMemberId:string;toMemberId:string;relationLabel:string}
 export interface LeadRelation extends LeadRelationInput {id:string;status:"DECLARED"|"CONFIRMED";version:number}
-export interface LeadIntent {id:string;kind:"OPEN_STUDIO"|"PROGRAM_INTEREST"|"GENERAL_INQUIRY";sourceBrand:"PINO_HOUSE"|"TOPPI";sourceSurface:"PINO_HOUSE_WEB"|"TOPPI_WEB"|"STAFF";status:"SUBMITTED"|"CONTACTED"|"CONTACT_VERIFIED"|"CLOSED";createdAt:string;version:number}
-export interface LeadRow extends LeadContactInput {id:string;status:"ACTIVE"|"ARCHIVED";primaryContactMemberId:string|null;version:number;createdAt:string;updatedAt:string;createdBy:string|null;updatedBy:string|null;centerId:string|null;memberCount:number;intentCount:number}
+export type WebsiteInterestSelection={program:"AFTERSCHOOL";path:"little-piner"|"artchitect"|"pianohouse"|"advice";planSessions:24|36|null}|{program:"MYTIME";activity:"acrylic"|"piano"|"advice";favoriteRef:string|null};
+export interface WebsiteInterestMetadata {schemaVersion:1;contactName:string;interest:WebsiteInterestSelection;consent:{version:string;acceptedAt:string}}
+export interface LeadIntent {websiteInterest?:WebsiteInterestMetadata|null;id:string;kind:"OPEN_STUDIO"|"PROGRAM_INTEREST"|"GENERAL_INQUIRY";sourceBrand:"PINO_HOUSE"|"TOPPI";sourceSurface:"PINO_HOUSE_WEB"|"TOPPI_WEB"|"STAFF";status:"SUBMITTED"|"CONTACTED"|"CONTACT_VERIFIED"|"CLOSED";createdAt:string;version:number}
+export interface LeadRow extends LeadContactInput {websiteSubmittedName?:string|null;websiteProgram?:"AFTERSCHOOL"|"MYTIME"|null;id:string;status:"ACTIVE"|"ARCHIVED";primaryContactMemberId:string|null;version:number;createdAt:string;updatedAt:string;createdBy:string|null;updatedBy:string|null;centerId:string|null;memberCount:number;intentCount:number}
 export interface LeadDetail extends LeadRow {members:LeadMember[];relationships:LeadRelation[];intents:LeadIntent[];intentHistoryHasMore:boolean}
 export interface LeadPage<T> {items:T[];hasMore:boolean;nextCursor:string|null}
 export interface LeadSearch {q?:string;status?:"ACTIVE"|"ARCHIVED";program?:"AFTERSCHOOL"|"MYTIME";path?:"ART"|"PIANO";sort?:"UPDATED_DESC"|"CREATED_DESC";limit?:number;cursor?:string}
@@ -27,10 +29,25 @@ function key(value:string){if(!/^[A-Za-z0-9_-]{16,128}$/.test(value))throw new L
 export function newLeadCommandKey(){return crypto.randomUUID();}
 function object(value:unknown):value is Record<string,unknown>{return !!value&&typeof value==="object"&&!Array.isArray(value);}
 function isPage(value:unknown):boolean{return object(value)&&Array.isArray(value.items)&&typeof value.hasMore==="boolean"&&(value.nextCursor===null||typeof value.nextCursor==="string")&&value.hasMore===(typeof value.nextCursor==="string"&&value.nextCursor.length>0);}
+function exactFields(v:Record<string,unknown>,keys:string[]){return Object.keys(v).length===keys.length&&keys.every(k=>Object.hasOwn(v,k));}
+function boundedText(v:unknown,max:number):v is string{return typeof v==="string"&&v.length>0&&v.length<=max&&v.trim()===v&&v.length>0&&!Array.from(v).some(c=>c.charCodeAt(0)<32||c.charCodeAt(0)===127);}
+function websiteMetadata(v:unknown):boolean{
+ if(v===null||v===undefined)return true;
+ if(!object(v)||!exactFields(v,["schemaVersion","contactName","interest","consent"])||v.schemaVersion!==1||!boundedText(v.contactName,100)||!object(v.consent)||!exactFields(v.consent,["version","acceptedAt"])||!boundedText(v.consent.version,80)||typeof v.consent.acceptedAt!=="string"||!object(v.interest))return false;
+ const at=new Date(v.consent.acceptedAt);if(!Number.isFinite(at.getTime())||at.toISOString()!==v.consent.acceptedAt)return false;
+ if(new TextEncoder().encode(JSON.stringify(v)).byteLength>2048)return false;
+ const s=v.interest;
+ if(s.program==="AFTERSCHOOL")return exactFields(s,["program","path","planSessions"])&&typeof s.path==="string"&&["little-piner","artchitect","pianohouse","advice"].includes(s.path)&&(s.planSessions===null||s.planSessions===24||s.planSessions===36);
+ if(s.program==="MYTIME")return exactFields(s,["program","activity","favoriteRef"])&&typeof s.activity==="string"&&["acrylic","piano","advice"].includes(s.activity)&&(s.favoriteRef===null||(s.activity!=="advice"&&boundedText(s.favoriteRef,160)));
+ return false;
+}
+function intentWebsiteFields(v:unknown):boolean{return object(v)&&!Object.hasOwn(v,"websiteInterestRaw")&&websiteMetadata(v.websiteInterest);}
+function rowWebsiteFields(v:unknown):boolean{return object(v)&&!Object.hasOwn(v,"websiteInterestRaw")&&(v.websiteSubmittedName===undefined||v.websiteSubmittedName===null||boundedText(v.websiteSubmittedName,100))&&(v.websiteProgram===undefined||v.websiteProgram===null||v.websiteProgram==="AFTERSCHOOL"||v.websiteProgram==="MYTIME");}
+function pageWith(check:(v:unknown)=>boolean){return (v:unknown):boolean=>isPage(v)&&object(v)&&Array.isArray(v.items)&&v.items.every(check);}
 function isReceipt(value:unknown):boolean{return object(value)&&typeof value.leadId==="string"&&uuid.test(value.leadId)&&typeof value.version==="number"&&Number.isSafeInteger(value.version)&&value.version>0;}
 function memberReceipt(expected?:string|null){return (v:unknown):boolean=>isReceipt(v)&&object(v)&&(expected===undefined?typeof v.memberId==="string"&&uuid.test(v.memberId):v.memberId===expected);}
 function relationReceipt(expected?:string){return (v:unknown):boolean=>isReceipt(v)&&object(v)&&(expected===undefined?typeof v.relationshipId==="string"&&uuid.test(v.relationshipId):v.relationshipId===expected);}
-function isDetail(value:unknown):boolean{return object(value)&&typeof value.id==="string"&&uuid.test(value.id)&&typeof value.version==="number"&&Number.isSafeInteger(value.version)&&value.version>0&&Array.isArray(value.members)&&Array.isArray(value.relationships)&&Array.isArray(value.intents)&&typeof value.intentHistoryHasMore==="boolean";}
+function isDetail(value:unknown):boolean{return object(value)&&typeof value.id==="string"&&uuid.test(value.id)&&typeof value.version==="number"&&Number.isSafeInteger(value.version)&&value.version>0&&Array.isArray(value.members)&&Array.isArray(value.relationships)&&Array.isArray(value.intents)&&value.intents.every(intentWebsiteFields)&&rowWebsiteFields(value)&&typeof value.intentHistoryHasMore==="boolean";}
 export function createLeadHouseholdApi(fetcher:typeof fetch=fetch){
  async function request<T>(suffix:string,method:"GET"|"POST",validate:(value:unknown)=>boolean,body?:unknown,commandKey?:string,signal?:AbortSignal):Promise<T>{
   const response=await fetcher(base+suffix,{method,cache:"no-store",credentials:"same-origin",...(signal?{signal}:{}),...(method==="POST"?{headers:{"content-type":"application/json",...(commandKey===undefined?{}:{"idempotency-key":key(commandKey)})},body:JSON.stringify(body)}:{})});
@@ -42,9 +59,9 @@ export function createLeadHouseholdApi(fetcher:typeof fetch=fetch){
  }
  const command=<T extends LeadReceipt>(leadId:string,suffix:string,expectedVersion:number,body:Record<string,unknown>,commandKey:string,validate:(v:unknown)=>boolean=isReceipt)=>request<T>("/"+id(leadId)+suffix,"POST",validate,{...body,expectedVersion:version(expectedVersion)},commandKey);
  return {
-  search:(input:LeadSearch={},signal?:AbortSignal)=>request<LeadPage<LeadRow>>("/search","POST",isPage,input,undefined,signal),
+  search:(input:LeadSearch={},signal?:AbortSignal)=>request<LeadPage<LeadRow>>("/search","POST",pageWith(rowWebsiteFields),input,undefined,signal),
   detail:(leadId:string,signal?:AbortSignal)=>request<LeadDetail>("/"+id(leadId),"GET",isDetail,undefined,undefined,signal),
-  history:(leadId:string,input:{limit?:number;cursor?:string}={},signal?:AbortSignal)=>{const p=new URLSearchParams();if(input.limit!==undefined)p.set("limit",String(input.limit));if(input.cursor!==undefined)p.set("cursor",input.cursor);return request<LeadPage<LeadIntent>>("/"+id(leadId)+"/history"+(p.size?"?"+p.toString():""),"GET",isPage,undefined,undefined,signal);},
+  history:(leadId:string,input:{limit?:number;cursor?:string}={},signal?:AbortSignal)=>{const p=new URLSearchParams();if(input.limit!==undefined)p.set("limit",String(input.limit));if(input.cursor!==undefined)p.set("cursor",input.cursor);return request<LeadPage<LeadIntent>>("/"+id(leadId)+"/history"+(p.size?"?"+p.toString():""),"GET",pageWith(intentWebsiteFields),undefined,undefined,signal);},
   create:(input:LeadCreate,commandKey:string)=>request<LeadCreateReceipt>("","POST",v=>isReceipt(v)&&object(v)&&typeof v.created==="boolean",input,commandKey),
   contact:(leadId:string,expectedVersion:number,contact:LeadContactInput,commandKey:string)=>command<LeadReceipt>(leadId,"/contact",expectedVersion,{contact},commandKey),
   addMember:(leadId:string,expectedVersion:number,member:LeadMemberInput,commandKey:string)=>command<LeadMemberReceipt>(leadId,"/members",expectedVersion,{member},commandKey,memberReceipt()),

@@ -1,0 +1,34 @@
+import assert from "node:assert/strict";
+import {test} from "node:test";
+import {TddRegistry} from "../lib/workspace-schema";
+import {assignmentDefinition,assignmentQuery} from "../app/bo/missions/schema";
+import {expandedAssignmentDefinitionFor,expandedAssignmentQuery,registerExpandedAssignment} from "../app/bo/missions/assignment-expanded-schema";
+import {staffAssignmentM1,staffAssignmentM1Row,ASSIGNMENT_M1_ID} from "../app/bo/missions/assignment-m1-fixture";
+test("PAP-2425 native field, filter, Drawer and Detail expansion retains legacy views",()=>{
+ const d=expandedAssignmentDefinitionFor(staffAssignmentM1);
+ assert.deepEqual(d.fields.filter(f=>f.key!=="category").map(f=>f.key),assignmentDefinition.fields.map(f=>f.key));
+ assert.deepEqual(d.table.filters.fields.filter(key=>key!=="category"),assignmentDefinition.table.filters.fields);
+ assert.deepEqual(d.table.search.fields.filter(key=>key!=="category"),assignmentDefinition.table.search.fields);
+ assert.deepEqual(d.table.sort.fields.filter(key=>key!=="category"),assignmentDefinition.table.sort.fields);
+ assert.deepEqual(d.table.group.fields.filter(key=>key!=="category"),assignmentDefinition.table.group.fields);
+ assert.deepEqual(d.drawer.sections.map(s=>({...s,fields:s.fields.filter(key=>key!=="category")})),assignmentDefinition.drawer.sections);
+ assert.deepEqual(d.detail.overview.sections.map(s=>({...s,fields:s.fields.filter(key=>key!=="category")})),assignmentDefinition.detail.overview.sections);
+ const student=expandedAssignmentDefinitionFor({...staffAssignmentM1,category:"PINO Afterschool",subject:{kind:"Student",displayName:"Student sample"}});
+ assert.deepEqual(student.detail.businessTabs,assignmentDefinition.detail.businessTabs);
+ assert.deepEqual(student.actions,assignmentDefinition.actions);
+ assert.ok(d.table.filters.fields.includes("category"));
+ assert.deepEqual(expandedAssignmentQuery.visible.filter(key=>key!=="category"),assignmentQuery.visible);
+ assert.ok(d.drawer.sections[0]?.fields.includes("category"));
+ assert.ok(d.detail.overview.sections[0]?.fields.includes("category"));
+ assert.deepEqual(d.table.views.builtIn.map(v=>v.id),assignmentDefinition.table.views.builtIn.map(v=>v.id));
+ assert.equal(d.detail.businessTabs.length,0);
+ assert.ok(d.actions?.some(a=>a.id==="assignment-open-complete"));
+ assert.equal(assignmentDefinition.detail.businessTabs.length,2);
+});
+test("PAP-2425 one isolated fixture registered by shared TDD registry",()=>{
+ const schema=registerExpandedAssignment(new TddRegistry(),staffAssignmentM1,staffAssignmentM1Row);
+ assert.equal(schema.key,"missions");
+ assert.equal(staffAssignmentM1Row.id,ASSIGNMENT_M1_ID);
+ assert.equal(staffAssignmentM1Row.category,"Staff Training");
+ assert.equal(staffAssignmentM1Row.student,"Nhân sự mẫu");
+});

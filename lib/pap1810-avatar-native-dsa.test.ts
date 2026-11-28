@@ -7,7 +7,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { BoDataTable } from "../app/bo/components/registration/BoDataTable";
 import { avatarFields, avatarModule } from "../app/bo/pinoria-avatars/avatar-dsa-model";
 import { defaultTable } from "./bo-registration";
-import { projectAvatarRow, loadAvatarPage, loadAvatarContext, avatarFilterParams } from "../app/bo/pinoria-avatars/avatar-dsa-data";
+import { projectAvatarRow, loadAvatarPage, loadAvatarContext, loadAvatarAuthority, avatarFilterParams } from "../app/bo/pinoria-avatars/avatar-dsa-data";
 
 const center="01900000-0000-7000-8000-000000000001";
 const person="01900000-0000-7000-8000-000000000002";
@@ -118,4 +118,20 @@ test("PAP-1810 Core effective directory permission must be present, not BO shell
     globalThis.fetch=async()=>Response.json({data:{surface:"BO",entitled:true,userId:"actor",permissionKeys:["team.bo.access","pinoria.self.create"]}});
     await assert.rejects(()=>loadAvatarContext(center,new AbortController().signal),{status:403});
   }finally{globalThis.fetch=old;}
+});
+test("PAP-2153 authority retains only the verified BO principal and requested Center",async()=>{
+ const oldFetch=globalThis.fetch;
+ const signal=new AbortController().signal;
+ const proof={surface:"BO",entitled:true,userId:"verified-actor",permissionKeys:["team.bo.access","pinoria.avatar.directory.view","pinoria.world.avatar.view"]};
+ try{
+  globalThis.fetch=async(input,init)=>{const u=new URL(String(input),"https://bo.staging.pinohouse.art");assert.equal(u.pathname,"/api/bo/context");assert.equal(u.searchParams.get("centerId"),center);assert.equal(init?.signal,signal);return Response.json({data:proof});};
+  const authority=await loadAvatarAuthority(center,signal);
+  assert.equal(authority.principalId,proof.userId);assert.equal(authority.centerId,center);assert.deepEqual([...authority.grants],proof.permissionKeys);
+  for(const patch of [{userId:" "},{surface:"HO"},{entitled:false},{permissionKeys:["team.bo.access"]}]){
+   globalThis.fetch=async()=>Response.json({data:{...proof,...patch}});
+   await assert.rejects(()=>loadAvatarAuthority(center,signal),{status:403});
+  }
+  globalThis.fetch=async()=>{assert.fail("invalid Center must not reach BFF");};
+  await assert.rejects(()=>loadAvatarAuthority("invalid",signal),{status:403});
+ }finally{globalThis.fetch=oldFetch;}
 });

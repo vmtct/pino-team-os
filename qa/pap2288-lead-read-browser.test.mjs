@@ -20,6 +20,7 @@ const code=await build({stdin:{contents:`
 import {createRoot} from "react-dom/client";
 import {LeadHouseholdM1Preview} from "./app/bo/sales/leads/LeadHouseholdM1Preview";
 import {LEAD_M1_FIXTURE} from "./app/bo/sales/leads/lead-household-m1-fixtures";
+import {LeadLocalReview} from "./scripts/native-m1-local/lead-review-adapter";
 import {BoApplicationShellContext} from "./app/bo/shell/BoApplicationShellContext";
 import {TddHostMenu} from "./app/components/workspace-adapters/SurfaceWorkspace";
 import {NativeLeadEntry} from "./app/bo/sales/leads/NativeLeadEntry";
@@ -74,7 +75,7 @@ const root=createRoot(document.querySelector("main"));
 window.syntheticMountNative=actorId=>root.render(<NativeLeadEntry actorId={actorId}/>);
 window.syntheticUnmountNative=()=>root.unmount();
 if(location.origin==="https://bo.staging.pinohouse.art"||new URLSearchParams(location.search).has("nativeEntry"))window.syntheticMountNative(a);
-else {const content=<LeadHouseholdM1Preview {...(new URLSearchParams(location.search).has("fixture")?{fixtureSeed:LEAD_M1_FIXTURE}:{readApi:api})} commandApi={new URLSearchParams(location.search).has("commands")?api:undefined} recoveryJournal={new URLSearchParams(location.search).has("journal")?new LeadRecoveryJournal(sessionStorage,a):undefined} intentApi={new URLSearchParams(location.search).has("intentActions")?syntheticIntentApi:undefined} manualApi={new URLSearchParams(location.search).has("manualActions")?syntheticManualApi:undefined}/>;
+else {const content=new URLSearchParams(location.search).has("fixture")?<LeadLocalReview seed={LEAD_M1_FIXTURE}/>:<LeadHouseholdM1Preview readApi={api} commandApi={new URLSearchParams(location.search).has("commands")?api:undefined} recoveryJournal={new URLSearchParams(location.search).has("journal")?new LeadRecoveryJournal(sessionStorage,a):undefined} intentApi={new URLSearchParams(location.search).has("intentActions")?syntheticIntentApi:undefined} manualApi={new URLSearchParams(location.search).has("manualActions")?syntheticManualApi:undefined}/>;
 const mode=new URLSearchParams(location.search).get("menuHarness");
 const host=id=><button id={id} data-testid="lead-host-menu">Host menu</button>;
 const application=id=><button id={id} data-testid="lead-application-menu">Application menu</button>;
@@ -88,7 +89,7 @@ test("PAP-2360 native Lead client bundle excludes fixture seed and retired Conve
  assert.ok(paths.some(p=>p.endsWith("/lead-household-presentation.ts")));
  assert.ok(!paths.some(p=>p.endsWith("/lead-household-m1-fixtures.ts")||p.includes("/native-m1-local/")));
  const output=result.outputFiles.find(f=>f.path.endsWith(".js")).text;
- for(const forbidden of ["LEAD_M1_FIXTURE","LEAD-MOCK-001","MEM-MOCK-001","Convert Lead","previewConversion"])assert.ok(!output.includes(forbidden),forbidden);
+ for(const forbidden of ["LEAD_M1_FIXTURE","LEAD-MOCK-001","MEM-MOCK-001","Convert Lead","previewConversion","LEAD-MOCK-","createFixtureFromDraft","fixtureRecords","LeadLocalReview","Lead fixture không còn tồn tại","Chưa có lịch sử thay đổi","m1Preview=1"])assert.ok(!output.includes(forbidden),forbidden);
 });
 test("PAP-2288 mounted native Lead table, cursor, drawer, detail, history and failure states",async()=>{
  const browser=await chromium.launch();

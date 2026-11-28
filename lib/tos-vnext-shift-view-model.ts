@@ -1,5 +1,19 @@
-import {formatPayrollVnd} from "./tos-own-income-api";
-import type {Assignment} from "./workforce-api";
+import {formatPayrollVnd,type OwnIncomePeriod,type OwnDailyIncomeRow} from "./tos-own-income-api";
+import type {Assignment,TimekeepingSession} from "./workforce-api";
+/** PAP-2429: actual timekeeping duration, never substituted with payable payroll minutes. */
+export function effectiveHistorySeconds(row:TimekeepingSession):number|null{
+ const seconds=row.effective?.durationSeconds;
+ return row.status==="CLOSED"&&typeof seconds==="number"&&Number.isFinite(seconds)&&seconds>0?seconds:null;
+}
+export function monthToDateHistory(rows:TimekeepingSession[]|null,localDate:string){
+ if(rows===null)return {rows:null,seconds:null};
+ const selected=rows.filter(row=>row.workDate>=localDate.slice(0,8)+"01"&&row.workDate<=localDate);
+ const durations=selected.map(effectiveHistorySeconds);
+ return {rows:selected,seconds:durations.some(value=>value===null)?null:durations.reduce<number>((total,value)=>total+(value??0),0)};
+}
+export function formatHistoryHours(seconds:number|null){
+ return seconds===null?"—":new Intl.NumberFormat("vi-VN",{maximumFractionDigits:2}).format(seconds/3600)+" giờ";
+}
 /** Calendar-only arithmetic; localDate has already been resolved in the authorized center's timezone. */
 export function shiftWeek(localDate:string){
  const date=new Date(localDate+"T12:00:00Z");
@@ -23,6 +37,23 @@ export function assignmentHours(row:Assignment){
  return start&&end?`${start}–${end}`:"Chưa xác định giờ ca";
 }
 export function formatIncome(minor:number|null|undefined){return formatPayrollVnd(minor)}
+/** PAP-2429: present the existing Core period breakdown without deriving or fabricating amounts. */
+export function incomeBreakdown(period:OwnIncomePeriod|undefined){
+ return [
+  ["Tiền công cơ bản",period?.standardMinor],
+  ["Làm thêm giờ",period?.extraTimeMinor],
+  ["Điều chỉnh",period?.adjustmentsMinor],
+ ] as const;
+}
+/** Server daily amounts are not period settlements; period adjustments stay in period totals. */
+export function dailyIncomeStatus(day:OwnDailyIncomeRow){
+ if(day.status==="PAID")return "Đã thanh toán";
+ if(day.status==="FINALIZED")return "Đã quyết toán";
+ if(day.status==="UNAVAILABLE")return "Chưa xác định";
+ if(day.extraTimePending)return "Chờ duyệt làm thêm";
+ const labels:Record<string,string>={READY:"Tạm tính",NO_ATTENDANCE:"Chưa chấm công",NO_ASSIGNMENT:"Chưa có ca",PENDING_CHECKOUT:"Chưa check-out",RATE_MISSING:"Chưa có rate",RECONCILIATION_REQUIRED:"Cần đối soát"};
+ return labels[day.calculationStatus]??"Chưa xác định";
+}
 export function shiftRoleLabel(row:Assignment){
  const labels={FRONT_DESK:"Tiếp tân",TEACHER:"Giáo viên",TEACHING_ASSISTANT:"Trợ giảng",SHIFT_LEADER:"Trưởng ca"} as const;
  return [...new Set(row.roleAssignments?.map(role=>labels[role.roleType])??[])].join(" · ")||"Chưa có vai trò được phân công";
