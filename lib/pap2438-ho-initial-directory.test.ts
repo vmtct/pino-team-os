@@ -1,11 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { initialStaffDirectoryFetch } from "./initial-directory-fetch";
+import { initialStaffDirectoryFetch } from "../app/ho/staff/initial-directory-fetch";
 import { createHoTddAdapter } from "@/lib/workspace-adapters";
 import { TddRegistry } from "@/lib/workspace-schema";
 import { staffExpectedPrincipalHeader } from "@/lib/ho-manual-staff-create-client";
-import { nativeManualStaffProvider } from "./native-staff-provider";
-import { manualStaffDefinition, manualStaffQuery } from "./manual-create-contract";
+import { nativeManualStaffProvider } from "../app/ho/staff/native-staff-provider";
+import { manualStaffDefinition, manualStaffQuery } from "../app/ho/staff/manual-create-contract";
 
 const origin = "https://ho.staging.pinohouse.art";
 const listPath = "/api/ho/staff/directory";

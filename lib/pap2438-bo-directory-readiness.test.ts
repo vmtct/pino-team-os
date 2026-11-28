@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { showStudentsWhileCatalogLoads } from "./directory-readiness";
+import { showStudentsWhileCatalogLoads } from "../app/bo/learners/directory-readiness";
 
 test("requires staging, the current authorized Center, and a completed directory", () => {
   for (const staging of [false, true]) for (const center of [false, true]) for (const state of ["loading", "error", "ready"] as const) {
@@ -10,7 +10,7 @@ test("requires staging, the current authorized Center, and a completed directory
 });
 
 test("catalog failure stays terminal; the early grid has no write, public view or detail handlers", () => {
-  const view = readFileSync(new URL("./BoLearnersView.tsx", import.meta.url), "utf-8");
+  const view = readFileSync(new URL("../app/bo/learners/BoLearnersView.tsx", import.meta.url), "utf-8");
   const error = view.indexOf('if (catalog.state === "error") return');
   const early = view.indexOf('if (catalog.state === "loading") {');
   const regular = view.indexOf('<div className={styles.headingActions}>', early);
