@@ -1,3 +1,4 @@
+import {STAFF_REVIEW_QUERY,staffStageReviewUrl} from "../app/ho/staff/staff-stage-review-route";
 /** PAP-2203 — safe navigation hints, never authority. */
 import {BO_LEGACY_QUERY_MODULES,BO_TARGET_ROUTES} from "./bo-url-contract";
 import {isBoStagingRouteAdmitted} from "../app/bo/architecture/bo-staging-route-policy";
@@ -7,7 +8,9 @@ import {canonicalLeadStageQuery} from "../app/bo/sales/leads/native-lead-query";
 import {parseNativePostQuery} from "../app/bo/piner-posts/native-post-query";
 import {RC_REVIEW_PATH} from "../app/bo/running-classes/running-class-review-query";
 import {parseRunningClassStageQuery} from "../app/bo/running-classes/running-class-stage-admission";
+import {CAMERA_STAGE_HOST,CAMERA_STAGE_PATH,parseCameraStageReview} from "./pap1612-camera-stage-route";
 import {canonicalParentRoute,PARENT_ROUTE} from "../app/bo/parents/parent-route";
+import {canonicalStaffDirectoryRoute,STAFF_DIRECTORY_ROUTE} from "../app/bo/workforce/staffs/staff-directory-route";
 export const BO_STAGING_RETURN_HOST="bo.staging.pinohouse.art";
 export const BO_RETURN_HEADER="x-pino-bo-return-to";
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -30,6 +33,8 @@ export function safeBoStagingReturnTo(raw:string|null|undefined):string|null{
  }
  let moduleKey=p.get("module");
  if(path===PARENT_ROUTE||(path==="/bo"&&moduleKey==="parents"))return canonicalParentRoute(Object.fromEntries(p),path==="/bo");
+ if(path===STAFF_DIRECTORY_ROUTE&&p.has(STAFF_REVIEW_QUERY)){const review=staffStageReviewUrl("BO",p);return review?review.pathname+review.search:null;}
+ if(path===STAFF_DIRECTORY_ROUTE||(path==="/bo"&&moduleKey==="staffs"))return canonicalStaffDirectoryRoute(Object.fromEntries(p),path==="/bo");
  if(path===RC_REVIEW_PATH||(path==="/bo"&&moduleKey==="classes"))return parseRunningClassStageQuery(p,path==="/bo");
  if(path==="/bo/subscriptions"){if(moduleKey!==null&&moduleKey!=="subscriptions")return null;path="/bo";moduleKey="subscriptions";p.set("module",moduleKey);}
  if(path==="/bo/registrations"){if(moduleKey!==null)return null;path="/bo/enrollments";p.delete("record");p.delete("sessionId");}
@@ -44,6 +49,11 @@ export function safeBoStagingReturnTo(raw:string|null|undefined):string|null{
  // PAP-2286: canonical Lead fixture continuation; old preview links normalize. Navigation only, not authorization.
  if(path==="/bo/piner-posts"){const q=parseNativePostQuery(p);return q?path+(q.canonical?"?"+q.canonical:""):null;}
  if(path==="/bo/sales/leads"){const q=canonicalLeadStageQuery(p);return q===null?null:path+(q?"?"+q:"");}
+ if(p.has("cameraReview")){
+  if(path!==CAMERA_STAGE_PATH.BO)return null;
+  const route=parseCameraStageReview("BO",new URL(path+"?"+p.toString(),"https://"+CAMERA_STAGE_HOST.BO),{APP_ENV:"staging",BO_CAMERA_M1_REVIEW:"enabled"});
+  return route?path+"?"+new URLSearchParams({cameraReview:"1",centerId:route.centerId}).toString():null;
+ }
  if(p.has("m1Preview"))return null;
  const key=path==="/bo"?moduleKey??"students":path.split("/")[2]!;
  const sub=key==="subscriptions",period=key==="payroll-periods",event=key==="pinoria-wish-events";

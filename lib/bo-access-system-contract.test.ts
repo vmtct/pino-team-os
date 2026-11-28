@@ -32,7 +32,13 @@ test("BO Staff surface renders the pending registration review queue", () => {
   assert.match(section, /if\(mode==="founder"\)return <><StaffRegistrationIntakeToggle\/><StaffRegistrationReviewQueue\/><\/>/);
   assert.match(section, /return <StaffCenterRegistrationReview embedded=\{embedded\}\/>/);
   const runtime = fs.readFileSync(path.join(process.cwd(), "app/bo/components/registration/BoRuntimeBoundary.tsx"), "utf8");
-  assert.match(runtime, /view === "register" \? <StaffsRegistrationContent/);
+  const directory = fs.readFileSync(path.join(process.cwd(), "app/bo/workforce/staffs/StaffDirectoryWorkspace.tsx"), "utf8");
+  const preview = fs.readFileSync(path.join(process.cwd(), "app/bo/workforce/staffs/StaffDirectoryReviewContent.tsx"), "utf8");
+  assert.match(runtime, /<StaffDirectoryWorkspace/);
+  assert.match(directory, /view==="register"\?<RegistrationContent tabs=\{tabs\} hideHeader=\{hideRegistrationHeader\}>\{registration\}/);
+  assert.match(preview, /<StaffRegistrationReviewQueue service=\{service\} newKey=\{newKey\} dossierReview=\{dossierReview\}/);
+  assert.doesNotMatch(section, /dossierReview=|embedded\|\|busy/);
+  assert.match(section, /onClick=\{\(\)=>void review\("approve"\)\}/);
   assert.match(runtime, /<StaffRegistrationSection embedded \/>/);
   assert.match(section, /cause instanceof BoApiError&&cause.status===403/);
   assert.match(section, /if\(mode==="error"\)return <p role="alert">/);

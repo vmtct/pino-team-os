@@ -1,0 +1,2 @@
+/* PAP-2411: layout only; canonical BO components own visual authority. */
+.workspace { display:grid; gap:12px; min-width:0; width:100%; }

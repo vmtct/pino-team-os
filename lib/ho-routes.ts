@@ -1,3 +1,4 @@
+import {STAFF_REVIEW_QUERY,staffStageReviewUrl} from "../app/ho/staff/staff-stage-review-route";
 import {STAFF_PHASE_ONE_ENABLED,parseStaffPhaseOneQuery} from "../app/ho/staff/staff-phase-one-route";
 import {parseLiveSpaceQuery} from "./ho-learning-space-contract";
 import {parseNativeRoleQuery} from "../app/ho/system/roles/native-role-query";
@@ -56,6 +57,9 @@ export function safeHoReturnTo(raw: string | null | undefined): string | null {
     // PAP-1645 / PAP-1491: strip harmless campaign metadata before validating
     // returnTo, without allowing arbitrary query keys or an off-host target.
     // PAP-2395: canonical native Staff continuation, independently authorized by the page.
+    if(parsed.pathname===HO_PAGE_PATHS.staffs&&parsed.searchParams.has(STAFF_REVIEW_QUERY)){
+      const review=staffStageReviewUrl("HO",parsed.searchParams);return review?review.pathname+review.search:null;
+    }
     if(STAFF_PHASE_ONE_ENABLED&&parsed.pathname===HO_PAGE_PATHS.staffs){
       const state=parseStaffPhaseOneQuery(parsed.searchParams);
       return state?parsed.pathname+(state.record?"?record="+encodeURIComponent(state.record):""):null;

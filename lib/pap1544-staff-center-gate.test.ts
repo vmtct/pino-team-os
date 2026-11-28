@@ -10,12 +10,12 @@ test("PAP-1544 / PAP-1316: Staffs default tabs never call unscoped staff-records
   const staff = source.slice(start, end);
 
   assert.match(staff, /if \(key === "staffs"\) \{/);
-  assert.match(staff, /view === "register" \? <StaffsRegistrationContent/);
-  assert.match(staff, /content=\{registrationContent\}/);
-  assert.match(staff, /<StaffRegistrationSection embedded \/>/);
-  assert.match(staff, /<BoStaffsViews selected=\{view\} onSelect=\{onSelect\}/);
+  const directory = readFileSync("app/bo/workforce/staffs/StaffDirectoryWorkspace.tsx", "utf8");
+  assert.match(staff, /<StaffDirectoryWorkspace[\s\S]*registration=\{<StaffRegistrationSection embedded \/>\}/);
+  assert.match(directory, /view==="register"\?<RegistrationContent/);
+  assert.match(directory, /<BoStaffsViews selected=\{view\} onSelect=\{selectView\}/);
   assert.doesNotMatch(staff, /readStaffCenterApplications\(/);
-  assert.match(staff, /throw Error\("Danh sách nhân sự theo cơ sở tạm thời chưa khả dụng\."\)/);
+  assert.match(staff, /throw Error\("Danh s\\u00e1ch nh\\u00e2n s\\u1ef1 theo c\\u01a1 s\\u1edf t\\u1ea1m th\\u1eddi ch\\u01b0a kh\\u1ea3 d\\u1ee5ng\."\)/);
   const denied = staff.indexOf("throw Error(");
   const legacy = staff.indexOf("unifiedBoWorkspaceSource.load(key, fetcher, requestedOptions)");
   assert.ok(denied > 0 && legacy > denied, "Staffs must fail closed before any generic reader");

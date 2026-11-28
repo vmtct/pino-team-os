@@ -8,6 +8,7 @@ import {runningClassSearchParams} from "./running-classes/running-class-review-q
 import {parseRunningClassStageQuery} from "./running-classes/running-class-stage-admission";
 import { BoRuntimeEntry } from "./components/registration/BoRuntimeBoundary";
 import { canonicalParentRoute } from "./parents/parent-route";
+import { canonicalStaffDirectoryRoute } from "./workforce/staffs/staff-directory-route";
 import {assignmentStageReviewEnabled,assignmentStageSearchParams,assignmentStageReviewUrl,type AssignmentStageReviewEnv} from "./missions/assignment-stage-route";
 
 export default async function BoPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
@@ -30,6 +31,11 @@ export default async function BoPage({ searchParams }: { searchParams: Promise<R
       if(!target)notFound();
       redirect(target.pathname+target.search);
     }
+  }
+  // PAP-2411: exact Staff Directory compatibility alias, Staging only.
+  if(query.module==="staffs"){
+    const incoming=await headers();const {env}=await getCloudflareContext({async:true}) as unknown as {env:{APP_ENV?:string;BO_UI_ONLY?:string}};
+    if(boSkeletonEnabled(env,incoming.get("host")??"")){const target=canonicalStaffDirectoryRoute(query,true);if(!target)notFound();redirect(target);}
   }
   const options = Object.fromEntries(["centerId", "from", "to"].flatMap(key => typeof query[key] === "string" ? [[key, query[key]]] : []));
   if (query.module === "salaryPeriods") redirect(retiredSalaryPeriodRedirectUrl(query));

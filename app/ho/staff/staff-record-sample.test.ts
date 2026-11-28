@@ -1,0 +1,48 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {activateFixture,createInactiveFixture,fixtureSubject,newActivationPreview} from "./staff-activation-preview";
+import {activationRequest} from "./staff-activation-model";
+import {applyAccountInlineSample} from "./staff-account-inline-sample";
+import {readStaffRecordSample,commitStaffRecordSample,extraSampleCenter} from "./staff-record-sample";
+import {staffPreviewCenter} from "./manual-create-preview";
+const centers=[{...staffPreviewCenter,active:true},extraSampleCenter];
+const id="STAFF-MOCK-001";
+test("PAP-2430 one linked fixture, directory and access share exact state; missing is not auto-linked",()=>{
+ let state=newActivationPreview("local",true);
+ const before=readStaffRecordSample(state,id)!;
+ assert.equal(before.snapshot.employment,"inactive");assert.equal(before.snapshot.accountStatus,"inactive");
+ const active=applyAccountInlineSample(before,{staffId:id,accountId:before.snapshot.accountId,revision:before.snapshot.revision,field:"accountStatus",value:"active"},[],centers,[])!;
+ state=commitStaffRecordSample(state,before,{...active,credential:before.credential},[],centers)!;
+ assert.equal(fixtureSubject(state,id)?.accountState,"active");
+ assert.equal(state.records[0]!.status,"Ngưng");
+ assert.equal(commitStaffRecordSample(state,before,{...active,credential:before.credential},[],centers),null);
+ const employment=activateFixture(state,activationRequest(fixtureSubject(state,id)!)!);state=employment.state;
+ const linked=readStaffRecordSample(state,id)!;assert.equal(linked.snapshot.employment,"active");assert.equal(linked.snapshot.accountStatus,"active");
+ state=commitStaffRecordSample(state,linked,{...linked,snapshot:{...linked.snapshot,revision:linked.snapshot.revision+1},credential:"present"},[],centers)!;
+ assert.equal(readStaffRecordSample(state,id)?.credential,"present");
+ const sample=readStaffRecordSample(state,id)!;
+ const edit=applyAccountInlineSample(sample,{staffId:id,accountId:sample.snapshot.accountId,revision:sample.snapshot.revision,field:"loginEmail",value:"changed@example.invalid"},[],centers,[])!;
+ state=commitStaffRecordSample(state,sample,{...edit,credential:sample.credential},[],centers)!;
+ assert.equal(state.records[0]!.loginEmail,"changed@example.invalid");
+ assert.equal(readStaffRecordSample(state,id)?.loginEmail,"changed@example.invalid");
+ assert.equal(readStaffRecordSample(state,id)?.credential,"present");
+ state=createInactiveFixture(state,{name:"New",phone:"0900000002",email:"new@example.invalid",centerId:staffPreviewCenter.id,gender:null,birthDate:null,login:null});
+ const missing=readStaffRecordSample(state,state.records[1]!.id)!;
+ assert.equal(missing.snapshot.accountId,null);assert.equal(missing.snapshot.accountStatus,"missing");
+ assert.equal(commitStaffRecordSample(state,missing,{...missing,snapshot:{...missing.snapshot,revision:2,accountId:"M1-HYPOTHETICAL-ACCOUNT:"+missing.snapshot.staffId}},[],centers),null);
+});
+test("PAP-2430 missing baseline and no-credential enrollment before employment stay fenced",()=>{
+ const baseline=newActivationPreview("local");assert.equal(readStaffRecordSample(baseline,id)?.snapshot.accountId,null);
+ const state=newActivationPreview("local",true),b=readStaffRecordSample(state,id)!;
+ assert.equal(commitStaffRecordSample(state,b,{...b,credential:"present",snapshot:{...b.snapshot,revision:2}},[],centers),null);
+});
+
+test("PAP-2430 directory sample read returns detached presentation arrays",()=>{
+ const state=newActivationPreview("local",true);
+ const before=readStaffRecordSample(state,id)!;
+ const second=readStaffRecordSample(state,id)!;
+ assert.notStrictEqual(before.snapshot.affiliationIds,second.snapshot.affiliationIds);
+ assert.notStrictEqual(before.snapshot.assignments,second.snapshot.assignments);
+ (before.snapshot.affiliationIds as string[]).push(extraSampleCenter.id);
+ assert.deepEqual(readStaffRecordSample(state,id)?.snapshot.affiliationIds,[staffPreviewCenter.id]);
+});
