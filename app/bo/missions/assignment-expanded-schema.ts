@@ -9,17 +9,16 @@ const permission = assignmentDefinition.capabilities.read;
 export const expandedAssignmentFields = [
   ...assignmentFields.map(field => field.key === "student" ? { ...field, label: "Đối tượng" } : field.key === "context" ? {...field,readOnly:false as const,capabilities:{...field.capabilities,inlineEdit:true as const}} : field),
   {key:"category",label:"Category",type:"select",icon:"◉",width:172,permission,readOnly:true,options:assignmentCategoryOptions,capabilities:read},
-  {key:"subjectKind",label:"Loại đối tượng",type:"select",icon:"◉",width:150,permission,readOnly:true,options:["Student","Staff","MyTime participant"],capabilities:read},
 ] as const satisfies readonly FieldSchema[];
 export type ExpandedAssignmentFields = typeof expandedAssignmentFields;
 type F = ExpandedAssignmentFields;
 export const expandedAssignmentQuery: TableQuery<F> = {
   ...assignmentQuery,
-  order:["name","category","subjectKind",...assignmentQuery.order.filter(key=>key!=="name")],
-  visible:["name","category","subjectKind",...assignmentQuery.visible.filter(key=>key!=="name")],
+  order:["name","category",...assignmentQuery.order.filter(key=>key!=="name")],
+  visible:["name","category",...assignmentQuery.visible.filter(key=>key!=="name")],
 };
 const propertyFields = <T extends readonly F[number]["key"][]>(fields:T) =>
-  ["category","subjectKind",...fields] as const;
+  ["category",...fields] as const;
 
 /** Per-record business slots need a Core-backed subject discriminator in M2.
  * M1 uses this derived schema for the single review subject, never the live route. */
@@ -35,10 +34,10 @@ export function expandedAssignmentDefinitionFor(subject: AssignmentPresentation)
     table:{
       ...assignmentDefinition.table,inlineEdit:{enabled:true,fields:["context"]},
       columns:expandedAssignmentFields.filter(f=>f.capabilities.display).map(f=>({field:f.key,visible:expandedAssignmentQuery.visible.includes(f.key)})),
-      filters:{...assignmentDefinition.table.filters,fields:["category","subjectKind",...assignmentDefinition.table.filters.fields]},
-      search:{...assignmentDefinition.table.search,fields:["category","subjectKind",...assignmentDefinition.table.search.fields]},
-      sort:{...assignmentDefinition.table.sort,fields:["category","subjectKind",...assignmentDefinition.table.sort.fields]},
-      group:{...assignmentDefinition.table.group,fields:["category","subjectKind",...assignmentDefinition.table.group.fields]},
+      filters:{...assignmentDefinition.table.filters,fields:["category",...assignmentDefinition.table.filters.fields]},
+      search:{...assignmentDefinition.table.search,fields:["category",...assignmentDefinition.table.search.fields]},
+      sort:{...assignmentDefinition.table.sort,fields:["category",...assignmentDefinition.table.sort.fields]},
+      group:{...assignmentDefinition.table.group,fields:["category",...assignmentDefinition.table.group.fields]},
       views:{...assignmentDefinition.table.views,builtIn:assignmentDefinition.table.views.builtIn.map(view=>({...view,state:{...view.state,order:expandedAssignmentQuery.order,visible:expandedAssignmentQuery.visible}}))},
     },
     drawer:{...assignmentDefinition.drawer,sections:assignmentDefinition.drawer.sections.map(section=>({...section,fields:propertyFields(section.fields)}))},
