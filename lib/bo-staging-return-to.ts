@@ -1,3 +1,4 @@
+import {STAFF_REVIEW_QUERY,staffStageReviewUrl} from "../app/ho/staff/staff-stage-review-route";
 /** PAP-2203 — safe navigation hints, never authority. */
 import {BO_LEGACY_QUERY_MODULES,BO_TARGET_ROUTES} from "./bo-url-contract";
 import {isBoStagingRouteAdmitted} from "../app/bo/architecture/bo-staging-route-policy";
@@ -31,6 +32,7 @@ export function safeBoStagingReturnTo(raw:string|null|undefined):string|null{
  }
  let moduleKey=p.get("module");
  if(path===PARENT_ROUTE||(path==="/bo"&&moduleKey==="parents"))return canonicalParentRoute(Object.fromEntries(p),path==="/bo");
+ if(path===STAFF_DIRECTORY_ROUTE&&p.has(STAFF_REVIEW_QUERY)){const review=staffStageReviewUrl("BO",p);return review?review.pathname+review.search:null;}
  if(path===STAFF_DIRECTORY_ROUTE||(path==="/bo"&&moduleKey==="staffs"))return canonicalStaffDirectoryRoute(Object.fromEntries(p),path==="/bo");
  if(path===RC_REVIEW_PATH||(path==="/bo"&&moduleKey==="classes"))return parseRunningClassStageQuery(p,path==="/bo");
  if(path==="/bo/subscriptions"){if(moduleKey!==null&&moduleKey!=="subscriptions")return null;path="/bo";moduleKey="subscriptions";p.set("module",moduleKey);}

@@ -33,3 +33,23 @@ test("PAP-2423 existing server authorization and scoped GET proof; no real row r
  assert.match(server,/current\.userId===actor\.userId/);assert.match(server,/currentChoices\.source===choices\.source/);
  assert.doesNotMatch(server,/method:\s*"(POST|PUT|PATCH|DELETE)"|return\s+body/);
 });
+
+import {invalidStaffPhaseOneRequest} from "../app/ho/staff/staff-phase-one-route";
+import {safeHoReturnTo} from "./ho-routes";
+import {safeBoStagingReturnTo} from "./bo-staging-return-to";
+test("PAP-2423 narrow pre-stream and safe post-login navigation; live grammar remains unchanged",()=>{
+ const path="/ho/staff",q="staffReview=1&record=STAFF-MOCK-001&surface=detail&tab=access";
+ assert.equal(invalidStaffPhaseOneRequest("ho.staging.pinohouse.art",path,"GET",new URLSearchParams(q),null),false);
+ assert.equal(invalidStaffPhaseOneRequest("ho.staging.pinohouse.art",path,"GET",new URLSearchParams(q+"&_rsc=next"),"1"),false);
+ assert.equal(safeHoReturnTo(path+"?"+q),path+"?"+q);
+ for(const invalid of [q+"&record=STAFF-MOCK-001",q+"&redirect=evil",q.replace("STAFF-MOCK-001",center),q.replace("staffReview=1","staffReview=0")]){
+  assert.equal(invalidStaffPhaseOneRequest("ho.staging.pinohouse.art",path,"GET",new URLSearchParams(invalid),null),true);assert.equal(safeHoReturnTo(path+"?"+invalid),null);
+ }
+ const boPath="/bo/workforce/staffs",bq="staffReview=1&centerId="+center+"&record=STAFF-DIRECTORY-MOCK-001&surface=detail";
+ assert.equal(safeBoStagingReturnTo(boPath+"?"+bq),boPath+"?"+bq);
+ assert.equal(safeBoStagingReturnTo(boPath+"?"+bq+"&centerId="+center),null);
+ assert.equal(safeBoStagingReturnTo(boPath+"?"+bq.replace("STAFF-DIRECTORY-MOCK-001",center)),null);
+ assert.equal(safeBoStagingReturnTo("/bo?module=staffs&staffReview=1"),null);
+ assert.equal(safeHoReturnTo(path+"?record=0198d050-56c1-7ac5-b9ab-b0e45d912345"),path+"?record=0198d050-56c1-7ac5-b9ab-b0e45d912345");
+ const vars=JSON.parse(readFileSync("wrangler.ho-staging.json","utf8")).vars;assert.equal(vars.APP_ENV,"staging");assert.equal(vars.STAFF_M1_REVIEW,"enabled");
+});
