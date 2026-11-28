@@ -1,0 +1,35 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {assertAvatarWorldReviewLocation,avatarWorldReviewRecord,avatarWorldReviewScope,avatarWorldReviewMarker,createAvatarWorldReview} from "./avatar-world-m1-fixture";
+import {worldScope} from "./SelfWorldNative";
+test("PAP-2153 M1 exact isolated route and consistent learner identity",()=>{
+ const base="http://desktop-isrdren:8800/bo/pinoria-avatars";
+ assert.doesNotThrow(()=>assertAvatarWorldReviewLocation(new URL(base),"null"));
+ assert.doesNotThrow(()=>assertAvatarWorldReviewLocation(new URL(base+"?record="+avatarWorldReviewMarker),"null"));
+ assert.throws(()=>assertAvatarWorldReviewLocation(new URL(base+"?record="+avatarWorldReviewRecord.id),"null"));
+ for(const u of [base+"?record=other",base+"?record=x&record=x",base+"?preview=1",base+"#x",base.replace("http:","https:"),base.replace("pinoria-avatars","parents")])assert.throws(()=>assertAvatarWorldReviewLocation(new URL(u),"null"));
+ assert.throws(()=>assertAvatarWorldReviewLocation(new URL(base),"http://desktop-isrdren:8800"));
+ assert.deepEqual(worldScope({pinoriaSelfId:avatarWorldReviewRecord.pinoriaSelfId,studentProfileId:avatarWorldReviewRecord.studentProfileId,personId:avatarWorldReviewRecord.personId,selfStatus:avatarWorldReviewRecord.selfStatus,subjectStatus:avatarWorldReviewRecord.subjectStatus},avatarWorldReviewScope.centerId),avatarWorldReviewScope);
+});
+test("PAP-2153 one synthetic Avatar grant, live, scene and layer CAS with readback",()=>{
+ const fixture=createAvatarWorldReview(),start=fixture.read(),w=start.grantableWorlds[0]!,scene=w.scenes[0]!,layer=scene.layers[1]!;
+ const grant={kind:"grant",worldId:w.id,label:"World mau"} as const;
+ assert.throws(()=>fixture.confirm(start,grant,new Set()));
+ assert.throws(()=>fixture.confirm({...start,centerId:"foreign"},grant));
+ assert.deepEqual(start.instances.map(i=>[i.displayLabel,i.status]),[["Chromia","LIVE"],["Terravia","INACTIVE"]]);
+ const a=fixture.confirm(start,grant),i=a.instances.find(i=>i.worldId===w.id)!;
+ assert.equal(i.status,"INACTIVE");assert.equal(i.version,1);assert.equal(a.grantableWorlds.length,0);
+ assert.throws(()=>fixture.confirm(start,grant));
+ const b=fixture.confirm(a,{kind:"live",instanceId:i.id});
+ assert.equal(b.instances.find(x=>x.id===i.id)!.status,"LIVE");
+ assert.throws(()=>fixture.confirm(b,{kind:"layer",instanceId:i.id,layerId:layer.id,unlocked:true}));
+ const c=fixture.confirm(b,{kind:"scene",instanceId:i.id,sceneId:scene.id,accessible:true});
+ assert.throws(()=>fixture.confirm(b,{kind:"scene",instanceId:i.id,sceneId:scene.id,accessible:true}));
+ const d=fixture.confirm(c,{kind:"layer",instanceId:i.id,layerId:layer.id,unlocked:true});
+ assert.deepEqual(d.instances.find(x=>x.id===i.id)!.unlockedLayerIds,[layer.id]);
+ const e=fixture.confirm(d,{kind:"scene",instanceId:i.id,sceneId:scene.id,accessible:false});
+ assert.deepEqual(e.instances.find(x=>x.id===i.id)!.unlockedLayerIds,[]);
+ assert.equal(b.instances.filter(x=>x.status==="LIVE").length,1);
+ assert.equal(b.instances.find(x=>x.displayLabel==="Chromia")!.status,"INACTIVE");
+ assert.deepEqual(createAvatarWorldReview().read(),start);
+});

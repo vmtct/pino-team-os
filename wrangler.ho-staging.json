@@ -21,6 +21,7 @@
   "vars": {
     "APP_ENV": "staging",
     "PAP1523_PERSON_SUPPORT_FIXTURE": "1",
+    "PAP2153_AVATAR_WORLD_FIXTURE": "1",
     "FOUNDER_EMAIL": "",
     "BO_UI_ONLY": "enabled",
     "BO_MISSION_ASSIGNMENT_M1_REVIEW": "enabled",

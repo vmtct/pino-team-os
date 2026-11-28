@@ -78,7 +78,8 @@ const denied = (status: number): never => {
     status === 403 ? "Không có quyền xem Avatar tại cơ sở này." :
     "Không thể tải danh bạ Avatar.", null);
 };
-export async function loadAvatarContext(centerId: string, signal: AbortSignal): Promise<ReadonlySet<string>> {
+export type AvatarAuthority = Readonly<{principalId:string;centerId:string;grants:ReadonlySet<string>}>;
+export async function loadAvatarAuthority(centerId: string, signal: AbortSignal): Promise<AvatarAuthority> {
   if (!uuid.test(centerId)) denied(403);
   const response=await fetch("/api/bo/context?"+new URLSearchParams({centerId}),{
     method:"GET",credentials:"same-origin",cache:"no-store",redirect:"error",signal
@@ -92,7 +93,10 @@ export async function loadAvatarContext(centerId: string, signal: AbortSignal): 
     !Array.isArray(r.permissionKeys)||r.permissionKeys.some(p=>typeof p!=="string"))denied(403);
   const allowed=new Set(r.permissionKeys as string[]);
   if(!allowed.has("team.bo.access") || !allowed.has("pinoria.avatar.directory.view"))denied(403);
-  return allowed;
+  return {principalId:r.userId as string,centerId,grants:allowed};
+}
+export async function loadAvatarContext(centerId: string, signal: AbortSignal): Promise<ReadonlySet<string>> {
+  return (await loadAvatarAuthority(centerId,signal)).grants;
 }
 export function avatarFilterParams(rules: readonly BoRule[]): URLSearchParams {
   if(rules.length>2)throw new BoApiError(400,"Tối đa hai điều kiện lọc Avatar.",null);
