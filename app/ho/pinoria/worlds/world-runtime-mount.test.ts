@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {readFileSync} from "node:fs";
+import {existsSync,readFileSync} from "node:fs";
 const source=(name:string)=>readFileSync(new URL(name,import.meta.url),"utf8");
 test("PAP-2143 real route retains server authorization and uses native catalog without fixture",()=>{
  const page=source("./page.tsx");
@@ -16,4 +16,10 @@ test("PAP-2143 shared detail permits authorized real activation, retains explici
  assert.ok(detail.includes('if(activationVersion!==world.version){setActivationVersion(world.version);return;}'));
  assert.ok(detail.includes('mutate(()=>activateWorld(world,transport)).catch(()=>{if(mounted.current)setResult({world:null,error:'));
  assert.ok(!detail.includes('if(!previewTransport||!world||!canManage'));
+});
+test("PAP-2143 M4 retires Staging-only fixture wrapper and retains isolated local review",()=>{
+ for(const name of ["./HoWorldActivationM1.tsx","./world-activation-staging-boundary.ts"]){assert.equal(existsSync(new URL(name,import.meta.url)),false);}
+ assert.ok(existsSync(new URL("./world-activation-m1-fixture.ts",import.meta.url)));
+ const local=source("../../../../scripts/native-m1-local/world-entry.tsx");
+ assert.ok(local.includes("createWorldActivationFixture"));
 });
