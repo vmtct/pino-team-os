@@ -1,4 +1,5 @@
 import test from "node:test";
+import {readFileSync} from "node:fs";
 import assert from "node:assert/strict";
 import {admitAvatarWorldStage,requestedAvatarWorldFixture} from "./avatar-world-stage-admission";
 import {avatarWorldReviewMarker} from "./avatar-world-m1-fixture";
@@ -16,4 +17,11 @@ test("PAP-2153 staging admission requires actual actor, exact Center and World v
  assert.equal(admitAvatarWorldStage(valid),true);
  for(const patch of [{environment:"production"},{hostname:"ho.staging.pinohouse.art"},{enabled:"0"},{actor:null},{actor:{...actor,permissionKeys:[]}},{authority:null},{authority:{...authority,principalId:"other"}},{selectedCenterId:"other"},{authority:{...authority,centerId:"other"}},{query:{...valid.query,centerId:"01a194f0-9bd0-7896-89a0-000000000098"}}])assert.equal(admitAvatarWorldStage({...valid,...patch}),false);
  for(const missing of WORLD_PERMISSIONS.slice(0,3))assert.equal(admitAvatarWorldStage({...valid,authority:{...authority,grants:new Set([...authority.grants].filter(k=>k!==missing))}}),false);
+});
+
+test("PAP-2153 flag is only in the guarded staging config, never production",()=>{
+ const config=JSON.parse(readFileSync("wrangler.ho-staging.json","utf8"));
+ assert.equal(config.name,"pino-team-os-staging");assert.equal(config.vars.APP_ENV,"staging");assert.equal(config.vars.PAP2153_AVATAR_WORLD_FIXTURE,"1");
+ assert.equal(config.vars.PAP1523_PERSON_SUPPORT_FIXTURE,"1");
+ for(const name of ["wrangler.jsonc","wrangler.staging.jsonc","wrangler.bo-school-staging.json","wrangler.bo-skeleton-staging.json"])assert.ok(!readFileSync(name,"utf8").includes("PAP2153_AVATAR_WORLD_FIXTURE"));
 });
