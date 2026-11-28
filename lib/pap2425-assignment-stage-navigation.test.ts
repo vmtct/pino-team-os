@@ -30,3 +30,17 @@ test("PAP-2425 URL authority and local guard preserved; staged wrapper shares sa
  assert.match(wrapper,/value="ephemeral"/);assert.match(local,/self\.origin!=="null"/);
  assert.doesNotMatch(readFileSync("app/bo/missions/page.tsx","utf8"),/MissionAssignmentStageReview/);
 });
+
+test("PAP-2425 scope loss unmounts the verified child; returning scope must start from fresh proof",()=>{
+ const source=readFileSync("app/bo/missions/MissionAssignmentStageReview.tsx","utf8");
+ const boundary=source.slice(source.indexOf("export function MissionAssignmentStageReview"),source.indexOf("function AdmittedAssignmentStageReview"));
+ const child=source.slice(source.indexOf("function AdmittedAssignmentStageReview"));
+ assert.match(boundary,/if\(!allowed\)return <p role="alert"/);
+ assert.match(boundary,/<AdmittedAssignmentStageReview key=\{key\} admission=\{admission\} scopeKey=\{key\}/);
+ assert.doesNotMatch(boundary,/useState|useEffect|MissionAssignmentM1Content/);
+ assert.match(child,/useState<Ready\|null>\(null\)/);
+ assert.match(child,/verifyAssignmentStageReview/);
+ assert.match(child,/if\(ctl.signal.aborted\)return/);
+ assert.match(child,/return\(\)=>ctl.abort\(\)/);
+ assert.match(child,/if\(ready\?\.key!==key\)return <p role="status"/);
+});

@@ -17,9 +17,13 @@ export function MissionAssignmentStageReview({admission}:{admission:Proof}){
  const candidate=params.get("centerId");
  const allowed=!!center&&!center.loading&&!center.error&&center.selected===admission.centerId&&candidate===admission.centerId&&center.source===admission.centerSource;
  const key=admission.actorId+":"+admission.centerId+":"+admission.centerSource;
+ if(!allowed)return <p role="alert">Không thể xác minh quyền xem Nhiệm vụ mẫu tại cơ sở đã chọn.</p>;
+ return <AdmittedAssignmentStageReview key={key} admission={admission} scopeKey={key}/>;
+}
+/** Eligibility loss unmounts this child, including its proof and synthetic navigation state. */
+function AdmittedAssignmentStageReview({admission,scopeKey:key}:{admission:Proof;scopeKey:string}){
  const [ready,setReady]=useState<Ready|null>(null),[failed,setFailed]=useState<string|null>(null);
  useEffect(()=>{
-  if(!allowed)return;
   const ctl=new AbortController();
   void verifyAssignmentStageReview({url:new URL(location.href),expectedActorId:admission.actorId,centerSource:admission.centerSource,signal:ctl.signal}).then(proof=>{
    if(ctl.signal.aborted)return;
@@ -28,8 +32,8 @@ export function MissionAssignmentStageReview({admission}:{admission:Proof}){
    setReady({key,navigation});setFailed(null);
   }).catch(()=>{if(!ctl.signal.aborted){setReady(null);setFailed(key);}});
   return()=>ctl.abort();
- },[allowed,key,admission.actorId,admission.centerId,admission.centerSource]);
- if(!allowed||failed===key)return <p role="alert">Không thể xác minh quyền xem Nhiệm vụ mẫu tại cơ sở đã chọn.</p>;
+ },[key,admission.actorId,admission.centerId,admission.centerSource]);
+ if(failed===key)return <p role="alert">Không thể xác minh quyền xem Nhiệm vụ mẫu tại cơ sở đã chọn.</p>;
  if(ready?.key!==key)return <p role="status">Đang xác thực quyền xem Nhiệm vụ mẫu…</p>;
  return <TddPreferencePolicy.Provider value="ephemeral"><MissionAssignmentM1Content key={key} navigation={ready.navigation}/></TddPreferencePolicy.Provider>;
 }
