@@ -1,11 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {assertAvatarWorldReviewLocation,avatarWorldReviewRecord,avatarWorldReviewScope,createAvatarWorldReview} from "./avatar-world-m1-fixture";
+import {assertAvatarWorldReviewLocation,avatarWorldReviewRecord,avatarWorldReviewScope,avatarWorldReviewMarker,createAvatarWorldReview} from "./avatar-world-m1-fixture";
 import {worldScope} from "./SelfWorldNative";
 test("PAP-2153 M1 exact isolated route and consistent learner identity",()=>{
  const base="http://desktop-isrdren:8800/bo/pinoria-avatars";
  assert.doesNotThrow(()=>assertAvatarWorldReviewLocation(new URL(base),"null"));
- assert.doesNotThrow(()=>assertAvatarWorldReviewLocation(new URL(base+"?record="+avatarWorldReviewRecord.id),"null"));
+ assert.doesNotThrow(()=>assertAvatarWorldReviewLocation(new URL(base+"?record="+avatarWorldReviewMarker),"null"));
+ assert.throws(()=>assertAvatarWorldReviewLocation(new URL(base+"?record="+avatarWorldReviewRecord.id),"null"));
  for(const u of [base+"?record=other",base+"?record=x&record=x",base+"?preview=1",base+"#x",base.replace("http:","https:"),base.replace("pinoria-avatars","parents")])assert.throws(()=>assertAvatarWorldReviewLocation(new URL(u),"null"));
  assert.throws(()=>assertAvatarWorldReviewLocation(new URL(base),"http://desktop-isrdren:8800"));
  assert.deepEqual(worldScope({pinoriaSelfId:avatarWorldReviewRecord.pinoriaSelfId,studentProfileId:avatarWorldReviewRecord.studentProfileId,personId:avatarWorldReviewRecord.personId,selfStatus:avatarWorldReviewRecord.selfStatus,subjectStatus:avatarWorldReviewRecord.subjectStatus},avatarWorldReviewScope.centerId),avatarWorldReviewScope);

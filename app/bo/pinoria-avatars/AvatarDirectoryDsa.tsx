@@ -24,7 +24,7 @@ import { CreateSelfDrawer } from "./CreateSelfDrawer";
 import { canEditNickname, nicknameInput, patchAvatarNickname, reloadAvatarAfterNickname } from "./avatar-nickname-client";
 import { SelfWardrobeDetail } from "./SelfWardrobeDetail";
 import { SelfLoadoutDetail } from "./SelfLoadoutDetail";
-import { assertAvatarWorldReviewLocation, avatarWorldReviewRecord, avatarWorldReviewScope } from "./avatar-world-m1-fixture";
+import { assertAvatarWorldReviewLocation, avatarWorldReviewRecord, avatarWorldReviewScope, avatarWorldReviewMarker } from "./avatar-world-m1-fixture";
 type AvatarReview = Readonly<{row:AvatarRow;centerId:string;worldContent:React.ReactNode}>;
 
 const initialTable = (): BoTableState => ({ ...defaultTable(avatarModule.fields), pageSize: 15 });
@@ -33,9 +33,9 @@ const tablePolicy = {
   sort: [], group: [], edit: [], viewActions: ["add", "apply", "rename", "delete", "reorder"],
 } as const;
 
-function recordHref(id: string | null) {
+function recordHref(id: string | null, localReview=false) {
   const url = new URL(window.location.href);
-  if (id) url.searchParams.set("record", id);
+  if (id) url.searchParams.set("record", localReview?avatarWorldReviewMarker:id);
   else url.searchParams.delete("record");
   return url.pathname + url.search + url.hash;
 }
@@ -142,7 +142,7 @@ function ScopedAvatarDirectory({centerId,menu,review}:{centerId:string;menu?:Rea
   const [grants,setGrants]=useState<ReadonlySet<string>>(new Set());
   const [ready,setReady]=useState(!!review);
   const [refresh,setRefresh]=useState(0);
-  const [drawer,setDrawer]=useState<AvatarRow|null>(()=>review&&new URL(location.href).searchParams.get("record")===review.row.id?review.row:null);
+  const [drawer,setDrawer]=useState<AvatarRow|null>(()=>review&&new URL(location.href).searchParams.get("record")===avatarWorldReviewMarker?review.row:null);
   const [detail,setDetail]=useState<AvatarRow|null>(null);
   const [creating,setCreating]=useState(false);
   const [notice,setNotice]=useState("");
@@ -164,9 +164,9 @@ function ScopedAvatarDirectory({centerId,menu,review}:{centerId:string;menu?:Rea
   const onOpen=useCallback((row:BoRecord)=>{
     const typed=row as AvatarRow;
     returnFocus.current=document.activeElement instanceof HTMLElement?document.activeElement:null;
-    setDrawer(typed);setDetail(null);
-    window.history.pushState(null,"",recordHref(typed.id));
-  },[]);
+    if(review&&typed.id!==review.row.id)return;setDrawer(typed);setDetail(null);
+    window.history.pushState(null,"",recordHref(typed.id,!!review));
+  },[review]);
   const closeDrawer=()=>{setDrawer(null);window.history.replaceState(null,"",recordHref(null));returnFocus.current?.focus({preventScroll:true});};
   const exitDetail=()=>{setDetail(null);window.history.replaceState(null,"",recordHref(null));returnFocus.current?.focus({preventScroll:true});};
   useEffect(()=>{
@@ -226,7 +226,7 @@ function ScopedAvatarDirectory({centerId,menu,review}:{centerId:string;menu?:Rea
 
   const switchToDetail=()=>{
     if(!drawer)return;
-    setDetail(drawer);setDrawer(null);window.history.replaceState(null,"",recordHref(drawer.id));
+    setDetail(drawer);setDrawer(null);window.history.replaceState(null,"",recordHref(drawer.id,!!review));
   };
   const refreshAfterWrite=()=>setRefresh(v=>v+1);
   const acceptNicknameReadback=useCallback((next:AvatarRow)=>{
