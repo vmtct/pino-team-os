@@ -150,6 +150,7 @@
         "app/ho/staff/manual-create-contract.ts",
         "app/ho/staff/manual-create-preview.ts",
         "app/ho/staff/StaffNativeWorkspace.tsx",
+        "app/ho/staff/initial-directory-fetch.ts",
         "app/ho/staff/StaffPersonPicker.tsx",
         "app/ho/staff/manual-staff-centers.ts",
         "app/ho/staff/native-staff-provider.ts",
