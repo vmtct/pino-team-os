@@ -35,6 +35,11 @@ async function readPayload(request:Request,kind:keyof typeof fields):Promise<unk
  const raw=await bytes(request,kind==="save"?SAVE_MAX:MAX);
  let b:unknown;try{b=JSON.parse(new TextDecoder("utf-8",{fatal:true}).decode(raw))}catch{throw new SyntaxError("Invalid JSON")}
  if(!b||typeof b!=="object"||Array.isArray(b))throw new SyntaxError("JSON object required");
+ if(kind==="patch"&&Object.hasOwn(b,"status")){
+  const activation=b as Record<string,unknown>;
+  if(Object.keys(activation).length!==2||activation.status!=="ACTIVE"||typeof activation.expectedVersion!=="number"||!Number.isSafeInteger(activation.expectedVersion)||activation.expectedVersion<1)throw new SyntaxError("Invalid activation payload");
+  return activation;
+ }
  if(Object.keys(b).some(k=>!fields[kind].includes(k)))throw new SyntaxError("Unsupported field");
  return b;
 }

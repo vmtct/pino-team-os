@@ -53,3 +53,18 @@ test("PAP-2165 exact GET history only, Founder view required",async()=>{
  for(const options of [{founder:false},{grant:false}])assert.equal((await handleHoWorldRequest(req("GET",url),env(options))).status,403);
  assert.equal((await handleHoWorldRequest(req("GET",url+"?limit=1000"),env())).status,404);assert.equal(calls.length,0);
 });
+
+test("PAP-2143 activation facade forwards only exact ACTIVE CAS intent with existing authorization",async()=>{
+ calls.length=0;const id="019a0000-0000-7000-8000-000000000001",url=base+path+"/"+id,activation={expectedVersion:3,status:"ACTIVE"};
+ assert.equal((await handleHoWorldRequest(req("PATCH",url,"valid",activation),env())).status,200);
+ assert.deepEqual(calls,[{r:{method:"PATCH",path:"pinoria/worlds/"+id,body:activation},token:"valid"}]);
+ calls.length=0;
+ for(const invalid of [{status:"ACTIVE"},{expectedVersion:0,status:"ACTIVE"},{expectedVersion:1.5,status:"ACTIVE"},{expectedVersion:"3",status:"ACTIVE"},{expectedVersion:3,status:"ARCHIVED"},{expectedVersion:3,status:"DRAFT"},{...activation,displayName:"extra"},{...activation,unknown:true}]){
+  assert.equal((await handleHoWorldRequest(req("PATCH",url,"valid",invalid),env())).status,400);
+ }
+ assert.equal((await handleHoWorldRequest(req("PATCH",url,"valid",activation),env({founder:false}))).status,403);
+ assert.equal((await handleHoWorldRequest(req("PATCH",url,"valid",activation),env({grant:false}))).status,403);
+ assert.equal((await handleHoWorldRequest(req("PATCH",url,"expired",activation),env())).status,401);
+ assert.equal((await handleHoWorldRequest(req("PATCH",url,"valid",activation),env({binding:false}))).status,503);
+ assert.equal(calls.length,0);
+});
