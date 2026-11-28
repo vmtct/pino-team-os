@@ -13,6 +13,7 @@ test("World action panel hides denied and foreign scope, offers authorized grant
  assert.equal(renderToStaticMarkup(createElement(SelfWorldActions,{...props,grants:new Set<string>()})),"");
  assert.equal(renderToStaticMarkup(createElement(SelfWorldActions,{...props,scope:{...scope,centerId:id(9)}})),"");
  const html=renderToStaticMarkup(createElement(SelfWorldActions,props));
+ assert.match(html,/data-world-grant-toolbar/);assert.match(html,/class="pds-property-input"/);assert.match(html,/class="pds-property-label"/);
  assert.match(html,/Chọn World để cấp/);assert.doesNotMatch(html,/Xác nhận thao tác/);
  assert.match(renderToStaticMarkup(createElement(SelfWorldActions,{...props,busy:true})),/disabled=""/);
 });
