@@ -16,8 +16,8 @@ export function simulateInitialEnrollment(s:SecuritySample,expected:{staffId:str
 }
 
 // Bound M1 view: account lifecycle is the source of eligibility, not a separate status selector.
-export function linkedSecuritySample(s:Snapshot,credential:"absent"|"present"|"unknown"):SecuritySample{
+export function linkedSecuritySample(s:Snapshot,credential:"absent"|"present"|"unknown",firstChangeRequired=false):SecuritySample{
  const exact=/^STAFF-MOCK-\d{3,}$/.test(s.staffId)&&s.accountId==="M1-HYPOTHETICAL-ACCOUNT:"+s.staffId;
  const scenario:SampleCase=!s.accountId?"unlinked":!exact?"unknown":s.assignments.some(a=>a.protected)?"protected":s.employment!=="active"||s.accountStatus==="inactive"?"inactive":s.accountStatus!=="active"?"unknown":credential;
- return {scenario,staffId:s.staffId,accountId:s.accountId,revision:s.revision,firstChangeRequired:credential==="present"};
+ return {scenario,staffId:s.staffId,accountId:s.accountId,revision:s.revision,firstChangeRequired:scenario==="present"&&firstChangeRequired};
 }

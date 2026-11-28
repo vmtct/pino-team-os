@@ -9,7 +9,7 @@ export type StaffRecordAccess=Pick<Snapshot,"accountId"|"affiliationIds"|"assign
 export const extraSampleCenter={id:"M1-HYPOTHETICAL-CENTER",label:"Center M1 sample 2",active:true};
 export function readStaffRecordSample(state:PreviewState<StaffActivationFixture>,id:string):StaffRecordSample|null{
  const r=readPreviewRecord(state,id);if(!r)return null;
- return {snapshot:{staffId:r.id,revision:r.activationRevision,employment:r.status==="Đang làm"?"active":"inactive",accountStatus:r.accountState??"missing",accountId:r.access?.accountId??null,affiliationIds:r.access?.affiliationIds??(r.center===staffPreviewCenter.label?[staffPreviewCenter.id]:[]),assignments:r.access?.assignments??[]},loginEmail:typeof r.loginEmail==="string"?r.loginEmail:"",credential:r.access?.credential??"unknown"};
+ return {snapshot:{staffId:r.id,revision:r.activationRevision,employment:r.status==="Đang làm"?"active":"inactive",accountStatus:r.accountState??"missing",accountId:r.access?.accountId??null,affiliationIds:structuredClone(r.access?.affiliationIds??(r.center===staffPreviewCenter.label?[staffPreviewCenter.id]:[])),assignments:structuredClone(r.access?.assignments??[])},loginEmail:typeof r.loginEmail==="string"?r.loginEmail:"",credential:r.access?.credential??"unknown"};
 }
 export function commitStaffRecordSample(state:PreviewState<StaffActivationFixture>,before:StaffRecordSample,next:StaffRecordSample,roles:readonly RoleChoice[],centers:readonly CenterChoice[]):PreviewState<StaffActivationFixture>|null{
  const current=readStaffRecordSample(state,before.snapshot.staffId),r=readPreviewRecord(state,before.snapshot.staffId);

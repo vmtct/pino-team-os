@@ -21,3 +21,12 @@ test("PAP-2430 shared hypothetical account gates Security on employment and acco
  assert.equal(sampleAction(linkedSecuritySample({...s,accountStatus:"inactive"},"present")),"none");
  assert.equal(sampleAction(linkedSecuritySample({...s,revision:4},"present")),"reset");
 });
+
+test("PAP-2430 existing password does not imply first-change presentation metadata",()=>{
+ const s:Snapshot={staffId:"STAFF-MOCK-001",accountId:"M1-HYPOTHETICAL-ACCOUNT:STAFF-MOCK-001",accountStatus:"active",employment:"active",revision:2,affiliationIds:[],assignments:[]};
+ assert.equal(linkedSecuritySample(s,"present").firstChangeRequired,false);
+ assert.equal(linkedSecuritySample(s,"present",true).firstChangeRequired,true);
+ assert.equal(linkedSecuritySample(s,"unknown",true).firstChangeRequired,false);
+ assert.equal(linkedSecuritySample({...s,accountStatus:"inactive"},"present",true).firstChangeRequired,false);
+ assert.equal(sampleAction(linkedSecuritySample(s,"present")),"reset");
+});

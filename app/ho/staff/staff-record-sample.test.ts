@@ -36,3 +36,13 @@ test("PAP-2430 missing baseline and no-credential enrollment before employment s
  const state=newActivationPreview("local",true),b=readStaffRecordSample(state,id)!;
  assert.equal(commitStaffRecordSample(state,b,{...b,credential:"present",snapshot:{...b.snapshot,revision:2}},[],centers),null);
 });
+
+test("PAP-2430 directory sample read returns detached presentation arrays",()=>{
+ const state=newActivationPreview("local",true);
+ const before=readStaffRecordSample(state,id)!;
+ const second=readStaffRecordSample(state,id)!;
+ assert.notStrictEqual(before.snapshot.affiliationIds,second.snapshot.affiliationIds);
+ assert.notStrictEqual(before.snapshot.assignments,second.snapshot.assignments);
+ (before.snapshot.affiliationIds as string[]).push(extraSampleCenter.id);
+ assert.deepEqual(readStaffRecordSample(state,id)?.snapshot.affiliationIds,[staffPreviewCenter.id]);
+});
