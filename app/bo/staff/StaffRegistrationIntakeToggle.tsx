@@ -11,18 +11,19 @@ type IntakeState = {
   version: number;
 };
 
-export function StaffRegistrationIntakeToggle() {
+export type StaffRegistrationIntakeService=Pick<typeof boApi,"staffRegistrationIntake"|"setStaffRegistrationIntake">;
+export function StaffRegistrationIntakeToggle({service=boApi}:{service?:StaffRegistrationIntakeService}={}) {
   const [state, setState] = useState<IntakeState | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
     let current = true;
-    void boApi.staffRegistrationIntake()
+    void service.staffRegistrationIntake()
       .then((next) => { if (current) setState(next); })
       .catch((cause) => { if (current) setError(cause instanceof Error ? cause.message : "Không thể đọc trạng thái link đăng ký."); });
     return () => { current = false; };
-  }, []);
+  }, [service]);
 
   async function toggle() {
     if (!state || busy) return;
@@ -30,7 +31,7 @@ export function StaffRegistrationIntakeToggle() {
     setBusy(true);
     setError("");
     try {
-      const next = await boApi.setStaffRegistrationIntake(nextEnabled);
+      const next = await service.setStaffRegistrationIntake(nextEnabled);
       setState(next);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Không thể đổi trạng thái link đăng ký.");
@@ -41,7 +42,7 @@ export function StaffRegistrationIntakeToggle() {
 
   const enabled = state?.enabled === true;
   return (
-    <section className={styles.intakePanel} aria-labelledby="staff-registration-intake-title">
+    <section className={styles.intakePanel} data-staff-registration-list-chrome aria-labelledby="staff-registration-intake-title">
       <div className={styles.intakeCopy}>
         <div className={styles.intakeTitleRow}>
           <h2 id="staff-registration-intake-title">Self-registration link</h2>

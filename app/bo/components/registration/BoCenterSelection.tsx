@@ -106,6 +106,6 @@ export const useBoCenterSelection = () => useContext(Context);
 
 /** PAP-2225: local opaque sandbox presentation only; never supplies live authority. */
 export function BoLocalReviewCenter({center,children}:{center:DirectoryCenter;children:React.ReactNode}) {
-  if(typeof window==="undefined"||self.origin!=="null"||!["http://desktop-isrdren:8800","http://desktop-isrdren.tail3ee007.ts.net:8800"].includes(location.origin)||!((location.pathname==="/bo/running-classes"&&center.id==="RC-MOCK-CENTER")||(location.pathname==="/bo/parents"&&center.id==="PARENT-MOCK-CENTER")||(location.pathname==="/bo/missions"&&center.id==="ASSIGNMENT-MOCK-CENTER")))throw Error("Local review only");
+  if(typeof window==="undefined"||self.origin!=="null"||!["http://desktop-isrdren:8800","http://desktop-isrdren.tail3ee007.ts.net:8800"].includes(location.origin)||!((location.pathname==="/bo/running-classes"&&center.id==="RC-MOCK-CENTER")||(location.pathname==="/bo/parents"&&center.id==="PARENT-MOCK-CENTER")||(location.pathname==="/bo/missions"&&center.id==="ASSIGNMENT-MOCK-CENTER")||(location.pathname==="/bo/workforce/staffs"&&center.id==="STAFF-MOCK-CENTER")))throw Error("Local review only");
   return <Context.Provider value={{centers:[center],selected:center.id,source:"centers",loading:false,error:"",selectCenter:()=>{}}}>{children}</Context.Provider>;
 }
