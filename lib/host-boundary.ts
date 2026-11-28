@@ -5,6 +5,7 @@ import {guestHostDecision} from "./bo-mytime-guest-host-contract";
 import {leadHouseholdHostDecision} from "./bo-lead-household-route";
 import {workshopHostDecision} from "./mytime-workshop-host-contract";
 import {postDraftHostDecision} from "./bo-post-draft-host-contract";
+import {editorialHostDecision} from "./ho-editorial-route-contract";
 import {boPlsWishHostDecision} from "./bo-pls-wish-host-contract";
 import {openingEvidenceHostDecision} from "./opening-evidence-host-contract";
 import {isNativePayrollNamespace,nativePayrollModule,isNativePayrollApi} from "./bo-native-payroll-route";
@@ -36,6 +37,9 @@ export type HostBoundaryDecision =
 
 export function decideHostBoundary(host: string, pathname: string, method = "GET"): HostBoundaryDecision {
   const hostname = normalizeHostname(host);
+  // PAP-2404: exact private Editorial namespace, HO Staging only.
+  const editorial = editorialHostDecision(hostname,HO_STAGING_HOSTNAME,pathname,method);
+  if(editorial)return {action:editorial};
   // PAP-2365: exact HO Product Plan API, no other host or verb.
   if(pathname.toLowerCase()===catalogPath||pathname.toLowerCase().startsWith(catalogPath+"/"))return {action:hostname===HO_STAGING_HOSTNAME&&planRequest(pathname,method)?"next":"not_found"};
   // PAP-2358: exact native Staff directory ingress, HO Staging read only.
