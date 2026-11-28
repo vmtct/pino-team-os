@@ -280,6 +280,36 @@
         "detailSelector": "#detail-screen",
         "runner": "scripts/pap2033-wish-detail-live-cdp.mjs"
       }
+    },
+    {
+      "file": "app/bo/workforce/timekeeping/BoCheckInEvidence.tsx",
+      "uses": 1,
+      "mode": "tabbed",
+      "jira": "PAP-1612",
+      "tabSource": "literal",
+      "tabs": [
+        [
+          "detail",
+          "Thông tin"
+        ],
+        [
+          "photo",
+          "Ảnh bằng chứng"
+        ],
+        [
+          "history",
+          "Lịch sử"
+        ]
+      ],
+      "g4": {
+        "surface": "BO",
+        "module": "timekeeping",
+        "authPort": 9342,
+        "route": "/bo/workforce/timekeeping",
+        "tableSelector": "table tbody tr",
+        "detailSelector": "[data-tdd-shell=\"detail\"]",
+        "runner": "scripts/pap1612-camera-detail-live-cdp.mjs"
+      }
     }
   ],
   "grandfatheredLegacyContent": [
