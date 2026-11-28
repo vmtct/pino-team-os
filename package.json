@@ -35,7 +35,7 @@
     "@opennextjs/cloudflare": "1.20.12",
     "@pino/design-system": "file:vendor/pino-design-system/pino-design-system-0.4.4.tgz",
     "jose": "^6.2.12",
-    "next": "16.4.2",
+    "next": "16.4.5",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },
