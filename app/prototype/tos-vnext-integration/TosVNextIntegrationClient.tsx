@@ -38,7 +38,7 @@ function today(timeZone:string,offsetDays=0){
  const date=new Date(Date.now()+offsetDays*86400000);
  return new Intl.DateTimeFormat("en-CA",{timeZone,year:"numeric",month:"2-digit",day:"2-digit"}).format(date);
 }
-export default function TosVNextIntegrationPreview(){
+export default function TosVNextIntegrationPreview({progressiveHome=false}:{progressiveHome?:boolean}={}){
  const [ctx,setCtx]=useState<WorkforceContext|null>(null);
  const [profileLabel,setProfileLabel]=useState<string|null>(null);
  const [homeNotice,setHomeNotice]=useState("");
@@ -49,6 +49,7 @@ export default function TosVNextIntegrationPreview(){
  const [data,setData]=useState<ReadData>({});
  const [loading,setLoading]=useState(true); // Identity and Center readiness only
  const [shiftLoading,setShiftLoading]=useState(false);
+ const [homeSchedule,setHomeSchedule]=useState<{scope:string;assignments:Assignment[]}|null>(null);
  const [error,setError]=useState("");
  const [desktop,setDesktop]=useState(false);
  const [clockNow,setClockNow]=useState(()=>new Date());
@@ -64,6 +65,7 @@ export default function TosVNextIntegrationPreview(){
  const center=ctx?.centers.find(c=>c.id===centerId);
  const zone=center?.timeZone||"Asia/Ho_Chi_Minh";
  const fromDate=today(zone);
+ const homeScope=ctx?JSON.stringify([ctx.userId,ctx.staffMemberId,centerId,fromDate,scheduleRefresh]):"";
  // Enforce identity and Center requirements. Shift clock and API health
  // never eject a user; Core still checks authorization on each action.
  useEffect(()=>{
@@ -121,13 +123,16 @@ export default function TosVNextIntegrationPreview(){
    return()=>{active=false};
   }
   let active=true;
-  setError("");setShiftLoading(true);setData({});
-  void shiftReadModel(centerId,fromDate.slice(0,8)+"01",today(zone,14),fromDate).then(v=>{
+  setError("");setShiftLoading(true);setData({});setHomeSchedule(null);
+  void shiftReadModel(centerId,fromDate.slice(0,8)+"01",today(zone,14),fromDate,progressiveHome?{
+   expectedStaff:ctx,
+   onSchedule(assignments){if(active)setHomeSchedule({scope:homeScope,assignments});}
+  }:undefined).then(v=>{
    if(active)setData(prev=>({...prev,shift:{assignments:v.assignments,current:v.current,history:v.history,income:v.income,dailyIncome:v.dailyIncome,warnings:v.warnings}}));
-  }).catch(e=>{if(active)setError(e instanceof Error?e.message:"Không thể tải trạng thái ca.")})
+  }).catch(e=>{if(active){setHomeSchedule(null);setError(e instanceof Error?e.message:"Không thể tải trạng thái ca.");}})
    .finally(()=>{if(active)setShiftLoading(false)});
   return()=>{active=false};
- },[centerId,ctx,zone,fromDate,scheduleRefresh]);
+ },[centerId,ctx,zone,fromDate,scheduleRefresh,progressiveHome,homeScope]);
  async function choose(next:Section){
   if(next==="home"){setInitialShiftTab("today");setApp("home");return}
   if(!ctx||!centerId||loading){setHomeNotice("Cần xác thực nhân viên và cơ sở trước khi mở ứng dụng.");return}
@@ -138,7 +143,9 @@ export default function TosVNextIntegrationPreview(){
   setApp(next);setError("");
  }
  const nowLocalTime=new Intl.DateTimeFormat("en-GB",{timeZone:zone,hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).format(clockNow);
- const nextAssignment=nextConfirmedAssignment(data.shift?.assignments??[],centerId,fromDate,nowLocalTime);
+ const earlySchedule=homeSchedule?.scope===homeScope?homeSchedule:null;
+ const homeAssignments=progressiveHome?earlySchedule?.assignments:data.shift?.assignments;
+ const nextAssignment=nextConfirmedAssignment(homeAssignments??[],centerId,fromDate,nowLocalTime);
  // Render-guard only for session/Center. Core independently checks
  // every sensitive read/write; scheduling data remains advisory.
  const appRenderable=app!=="home"&&!loading&&canOpenVNextApp(app,{
@@ -271,7 +278,7 @@ export default function TosVNextIntegrationPreview(){
    if(id===centerId)return;
    setShiftLoading(true);setData({});setCenterId(id);setHomeNotice("");
   }}
-  nextAssignment={nextAssignment} busy={loading||!ctx} scheduleLoading={shiftLoading}
+  nextAssignment={nextAssignment} busy={loading||!ctx} scheduleLoading={shiftLoading&&!earlySchedule}
   allowed={id=>canOpenVNextApp(id,{authenticated:!!ctx,centerReady:!!centerId,
    desktop})}
   onOpen={id=>void choose(id)} onNotify={()=>setHomeNotice("Thông báo chưa sẵn sàng.")}
