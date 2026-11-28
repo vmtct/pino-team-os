@@ -43,7 +43,7 @@ const BoStudentSpecialtyTab = lazy(async () => {
 import type { BoModule, BoRecord } from "@/lib/bo-registration";
 
 export function BoFullDetail({
-  module, moduleKey, record, onBack, onStudentRenamed, mobileMenu, enableStudentSubscriptions = false, onEnrollmentChanged, onWorkforcePlanChanged, initialTab, onTabChanged, reviewOnly = false, runningClassReview, onRunningClassSaved, runningClassLive, runningClassLiveEditable, onRunningClassLiveEdit,
+  module, moduleKey, record, onBack, onStudentRenamed, mobileMenu, enableStudentSubscriptions = false, onEnrollmentChanged, onWorkforcePlanChanged, initialTab, onTabChanged, reviewOnly = false, staffReviewOnly = false, staffDetailContent, runningClassReview, onRunningClassSaved, runningClassLive, runningClassLiveEditable, onRunningClassLiveEdit,
 }: {
   module: BoModule;
   moduleKey: string;
@@ -55,6 +55,8 @@ export function BoFullDetail({
   onEnrollmentChanged?: () => void;
   onWorkforcePlanChanged?: (open: boolean) => void;
   reviewOnly?: boolean;
+  staffReviewOnly?: boolean;
+  staffDetailContent?: React.ReactNode;
   runningClassReview?: RunningClassReview;
   runningClassLive?: RunningClassProvider;
   runningClassLiveEditable?: boolean;
@@ -120,9 +122,11 @@ export function BoFullDetail({
             : activeTab === "Lịch tuần" && moduleKey === "workforce-shift-plans"
               ? <Suspense fallback={<p role="status">Đang tải lịch tuần…</p>}><BoWorkforcePlannerTab embedded scope={{ centerId: String(record.centerId ?? ""), termWeekId: String(record.termWeekId ?? "") }} /></Suspense>
             : moduleKey === "staffs" && activeTab === "Thu nhập"
-              ? <BoStaffIncomeReadTab staffMemberId={record.id} />
+              ? <BoStaffIncomeReadTab staffMemberId={record.id} load={staffReviewOnly ? async () => [] : undefined} />
             : activeTab === "Detail" && moduleKey === "subscriptions"
               ? <BoSubscriptionInformationTab subscriptionId={record.id} studentName={record.name} />
+            : activeTab === "Detail" && moduleKey === "staffs" && staffReviewOnly && staffDetailContent
+              ? staffDetailContent
             : activeTab === "Detail" && classRecord && runningClassReview
               ? <RunningClassDetailProperties record={classRecord} catalog={runningClassReview.catalog} centerToday={runningClassReview.centerToday} editable={Boolean(onRunningClassSaved)} onSave={command=>onRunningClassSaved?.(runningClassReview.edit(command))}/>
             : activeTab === "Detail" && classRecord && runningClassLive

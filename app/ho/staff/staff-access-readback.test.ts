@@ -1,0 +1,12 @@
+import test from "node:test";import assert from "node:assert/strict";
+import {verifyAccessReadback,type AccessChange} from "./staff-access-readback";
+import type {Snapshot,Assignment} from "./staff-access-presentation-model";
+const a:Assignment={id:"A1",roleId:"R1",scope:{type:"CENTER",id:"C1"},protected:false};
+const p:Assignment={id:"A2",roleId:"R2",scope:{type:"GLOBAL",id:null},protected:true};
+const s:Snapshot={staffId:"STAFF-MOCK-001",revision:1,employment:"active",accountStatus:"active",accountId:"USER-MOCK-001",affiliationIds:["C1"],assignments:[a,p]};
+const n:Assignment={id:"A3",roleId:"R1",scope:{type:"PATH",id:"P1"},protected:false};
+const command:AccessChange={kind:"assign",roleId:n.roleId,scope:n.scope};
+const good:Snapshot={...s,revision:2,assignments:[a,p,n]};
+test("exact record-bound assignment readback accepts only the intended delta",()=>{assert(verifyAccessReadback(s,command,good));for(const bad of [{...good,staffId:"foreign"},{...good,accountId:"foreign"},{...good,accountStatus:"unknown" as const},{...good,employment:"inactive" as const},{...good,revision:1},{...good,affiliationIds:["C2"]},{...good,assignments:[a,p,{...n,scope:{type:"RUNNING_CLASS" as const,id:"P1"}}]},{...good,assignments:[{...a,protected:true},p,n]},{...good,assignments:[a,p,{...n,protected:true}]},{...good,assignments:[a,p,{...n,id:"A1"}]}])assert.equal(verifyAccessReadback(s,command,bad),false);});
+test("removal readback preserves protected and unrelated assignments",()=>{const remove:AccessChange={kind:"remove",assignmentId:"A1"};assert(verifyAccessReadback(s,remove,{...s,revision:2,assignments:[p]}));assert.equal(verifyAccessReadback(s,remove,{...s,revision:2,assignments:[a]}),false);assert.equal(verifyAccessReadback(s,{kind:"remove",assignmentId:"A2"},{...s,revision:2,assignments:[a]}),false);});
+test("unknown account and duplicate or stale acknowledgement never verified",()=>{assert.equal(verifyAccessReadback({...s,accountStatus:"unknown"},command,good),false);assert.equal(verifyAccessReadback(s,command,s),false);assert.equal(verifyAccessReadback(good,command,{...good,revision:3,assignments:[...good.assignments,{...n,id:"A4"}]}),false);});

@@ -17,7 +17,7 @@ function policyRoutes(source, name, issues) {
   let routes;
   try { routes = JSON.parse(match[1].replace(/,\s*\]$/, "]")); }
   catch { issues.push(`${name} must contain only JSON string literals`); return new Set(); }
-  if (!Array.isArray(routes) || routes.some(route => typeof route !== "string" || !(/^\/bo\/[a-z0-9-]+$/.test(route) || route === "/bo/sales/leads"))) {
+  if (!Array.isArray(routes) || routes.some(route => typeof route !== "string" || !(/^\/bo\/[a-z0-9-]+$/.test(route) || (route === "/bo/sales/leads" || route === "/bo/workforce/staffs")))) {
     issues.push(`${name} must be a literal Set of BO route strings`);
     return new Set();
   }
@@ -242,6 +242,23 @@ function canonicalRoutes(root, issues) {
   if(nativeOpeningEvidenceRoute(root,issues)){routes.add("/bo/opening-evidence");native.add("/bo/opening-evidence");}
   if(nativeRunningClassesRoute(root,issues)){routes.add("/bo/running-classes");native.add("/bo/running-classes");}
   if(nativeParentRoute(root,issues)){routes.add("/bo/parents");native.add("/bo/parents");}
+  const staffRoute="/bo/workforce/staffs";
+  const staffPage="app/bo/workforce/staffs/page.tsx";
+  if(fs.existsSync(path.join(root,staffPage))||read(root,POLICY).includes(JSON.stringify(staffRoute))){
+    const files=[staffPage,"app/bo/workforce/staffs/staff-directory-route.ts","app/bo/page.tsx","app/bo/shell/BoApplicationShell.tsx","lib/host-boundary.ts","lib/bo-staging-return-to.ts","lib/pap2411-staff-directory-route.test.ts"];
+    if(files.some(f=>!fs.existsSync(path.join(root,f))))issues.push(staffRoute+": missing exact Staff route contract");
+    else {
+      const [page,query,alias,shell,host,ret,tests]=files.map(f=>read(root,f));
+      const valid=mountsExactNamedComponent(staffPage,page,"../../components/registration/BoRuntimeBoundary","BoRuntimeEntry")&&
+        page.includes("host !== BO_STAGING_HOSTNAME")&&page.includes('env.APP_ENV !== "staging"')&&page.includes("!boSkeletonEnabled(env,host)")&&
+        page.includes("canonicalStaffDirectoryRoute(query)")&&page.includes('moduleKey="staffs"')&&
+        query.includes(JSON.stringify(staffRoute))&&alias.includes("canonicalStaffDirectoryRoute(query,true)")&&
+        shell.includes(JSON.stringify(staffRoute))&&host.includes(JSON.stringify(staffRoute))&&ret.includes("canonicalStaffDirectoryRoute")&&
+        tests.includes("PAP-2411 exact Staging GET/HEAD admission only");
+      if(!valid)issues.push(staffRoute+": invalid exact Staff route contract");
+      else {routes.add(staffRoute);native.add(staffRoute);}
+    }
+  }
   if(nativeWishEventRoute(root,issues)){routes.add("/bo/pinoria-wish-events");native.add("/bo/pinoria-wish-events");}
   if (fs.existsSync(path.join(root, "app/bo/sales/leads/page.tsx")) && read(root, POLICY).includes('"/bo/sales/leads"')) {
     if (nativeLeadsRoute(root, issues)) { routes.add("/bo/sales/leads"); native.add("/bo/sales/leads"); }

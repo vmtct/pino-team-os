@@ -1,3 +1,4 @@
+import {STAFF_REVIEW_QUERY,staffStageReviewUrl} from "./staff-stage-review-route";
 // PAP-2395 / WFM-STAFF. Server-owned deployment switch, never a URL or client flag.
 // PAP-2392 #51166: Core ddaf664d / MIG-0210 officially served; Staging only.
 export const STAFF_PHASE_ONE_ENABLED=true;
@@ -23,5 +24,6 @@ export function invalidStaffPhaseOneRequest(host:string,path:string,method:strin
  if(!enabled||host!=="ho.staging.pinohouse.art"||path!=="/ho/staff"||!["GET","HEAD"].includes(method))return false;
  const params=new URLSearchParams(query);
  if(rsc==="1")params.delete("_rsc");
+ if(params.has(STAFF_REVIEW_QUERY))return staffStageReviewUrl("HO",params)===null;
  return parseStaffPhaseOneQuery(params)===null;
 }

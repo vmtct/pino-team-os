@@ -7,7 +7,7 @@ import type { BoStaffCompensationEntry } from "@/lib/bo-model";
 /** PAP-876: sensitive compensation is loaded only on explicit reveal in Staff Full Detail.
  *  Staff directory / drawer payloads must never carry private salary details.
  */
-export function BoStaffIncomeReadTab({staffMemberId}:{staffMemberId:string}){
+export function BoStaffIncomeReadTab({staffMemberId,load=boApi.staffCompensation}:{staffMemberId:string;load?:typeof boApi.staffCompensation}){
   const [state,setState]=useState<"hidden"|"loading"|"ready"|"denied">("hidden");
   const [rows,setRows]=useState<BoStaffCompensationEntry[]>([]);
   const generation=useRef(0);
@@ -33,7 +33,7 @@ export function BoStaffIncomeReadTab({staffMemberId}:{staffMemberId:string}){
     setRows([]);
     setState("loading");
     try{
-      const data=await boApi.staffCompensation(staffMemberId);
+      const data=await load(staffMemberId);
       if(run!==generation.current)return;
       if(!Array.isArray(data)||data.some(row=>row.staffMemberId!==staffMemberId))throw Error("Compensation identity mismatch");
       setRows(data);
